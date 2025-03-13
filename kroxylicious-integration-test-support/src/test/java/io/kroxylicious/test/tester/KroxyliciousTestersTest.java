@@ -315,7 +315,8 @@ class KroxyliciousTestersTest {
 
     private static ConfigurationBuilder addVirtualCluster(String clusterBootstrapServers, ConfigurationBuilder builder, String clusterName,
                                                           String defaultProxyBootstrap) {
-        return builder.addToVirtualClusters(clusterName, new VirtualClusterBuilder()
+        return builder.addToVirtualClusters(new VirtualClusterBuilder()
+                .withName(clusterName)
                 .withNewTargetCluster()
                 .withBootstrapServers(clusterBootstrapServers)
                 .endTargetCluster()

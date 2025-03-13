@@ -19,16 +19,16 @@
     <artifactId>kroxylicious-operator</artifactId>
 
     <properties>
-        <josdk.version>4.9.7</josdk.version>
+        <josdk.version>5.0.3</josdk.version>
         <log4j.version>2.20.0</log4j.version>
-        <fabric8-client.version>6.13.5</fabric8-client.version>
+        <fabric8-client.version>7.1.0</fabric8-client.version>
         <sundrio.version>0.200.0</sundrio.version>
         <lombok.version>1.18.36</lombok.version>
     </properties>
 
     <dependencyManagement>
         <dependencies>
-            <!-- note, we're inheriting the jackson BOM from our parent pom -->
+            <!-- note, we're inheriting the jackson & micrometer BOMs from our parent pom -->
 
             <dependency>
                 <groupId>io.javaoperatorsdk</groupId>
@@ -51,6 +51,10 @@
         <dependency>
             <groupId>io.javaoperatorsdk</groupId>
             <artifactId>operator-framework-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.javaoperatorsdk</groupId>
+            <artifactId>micrometer-support</artifactId>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
@@ -152,6 +156,16 @@
         </dependency>
 
         <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-prometheus</artifactId>
+        </dependency>
+
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <scope>test</scope>
@@ -189,6 +203,17 @@
         <dependency>
             <groupId>org.junit-pioneer</groupId>
             <artifactId>junit-pioneer</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-server-mock</artifactId>
+            <scope>test</scope>
+            <!-- TODO exclude okhttp -->
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-model-apiextensions</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>

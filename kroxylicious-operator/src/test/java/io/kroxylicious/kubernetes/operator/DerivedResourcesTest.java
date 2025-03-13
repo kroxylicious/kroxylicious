@@ -12,6 +12,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -38,11 +39,13 @@ import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
-import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedDependentResourceContext;
+import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedWorkflowAndDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependentResource;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
@@ -50,6 +53,8 @@ import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.ProxyDeployment.KROXYLICIOUS_IMAGE_ENV_VAR;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -71,21 +76,40 @@ class DerivedResourcesTest {
         }
     }
 
-    public static List<VirtualKafkaCluster> virtualKafkaClustersFromFiles(Set<Path> paths) {
+    private static <T extends HasMetadata> List<T> resourcesFromFiles(Set<Path> paths, Class<T> valueType) {
         // TODO should validate against the CRD schema, because the DependentResource
         // should never see an invalid resource in production
-        List<VirtualKafkaCluster> clusters = paths.stream().map(path -> {
+        List<T> resources = paths.stream().map(path -> {
             try {
-                return YAML_MAPPER.readValue(path.toFile(), VirtualKafkaCluster.class);
+                return YAML_MAPPER.readValue(path.toFile(), valueType);
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
-        }).sorted(Comparator.comparing(virtualKafkaCluster -> virtualKafkaCluster.getMetadata().getName())).toList();
-        long uniqueResources = clusters.stream().map(s -> s.getMetadata().getNamespace() + ":" + s.getMetadata().getName()).distinct().count();
+        }).sorted(Comparator.comparing(ResourcesUtil::name)).toList();
+        long uniqueResources = resources.stream().map(s -> namespace(s) + ":" + name(s)).distinct().count();
+        // sanity check that the identifiers are unique
+        assertThat(uniqueResources)
+                .overridingErrorMessage("unexpected number of unique resources from files: %s", paths)
+                .isEqualTo(paths.size());
+        return resources;
+    }
+
+    public static List<KafkaProxyIngress> kafkaProxyIngressesFromFiles(Set<Path> paths) {
+        // TODO should validate against the CRD schema, because the DependentResource
+        // should never see an invalid resource in production
+        List<KafkaProxyIngress> ingresses = paths.stream().map(path -> {
+            try {
+                return YAML_MAPPER.readValue(path.toFile(), KafkaProxyIngress.class);
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException(e);
+            }
+        }).sorted(Comparator.comparing(ResourcesUtil::name)).toList();
+        long uniqueResources = ingresses.stream().map(ingress -> namespace(ingress) + ":" + name(ingress)).distinct().count();
         // sanity check that the identifiers are unique
         assertThat(uniqueResources).isEqualTo(paths.size());
-        return clusters;
+        return ingresses;
     }
 
     public static RuntimeDecl configFromFile(Path path) {
@@ -138,7 +162,7 @@ class DerivedResourcesTest {
         @Override
         public Map<String, R> invokeDesired(P primary, Context<P> context) {
             R apply = fn.apply(dependentResource, primary, context);
-            return Map.of(apply.getMetadata().getName(), apply);
+            return Map.of(name(apply), apply);
         }
     }
 
@@ -170,7 +194,7 @@ class DerivedResourcesTest {
         // @ControllerConfiguration annotation, because the statefulness of Context<KafkaProxy> means that
         // later DependentResource can depend on Context state created by earlier DependentResources.
         var list = List.<DesiredFn<KafkaProxy, ?>> of(
-                new SingletonDependentResourceDesiredFn<>(new ProxyConfigSecret(), "Secret", ProxyConfigSecret::desired),
+                new SingletonDependentResourceDesiredFn<>(new ProxyConfigConfigMap(), "ConfigMap", ProxyConfigConfigMap::desired),
                 new SingletonDependentResourceDesiredFn<>(new ProxyDeployment(), "Deployment", ProxyDeployment::desired),
                 new BulkDependentResourceDesiredFn<>(new ClusterService(), "Service", ClusterService::desiredResources));
         return dependentResourcesShouldEqual(list);
@@ -222,15 +246,17 @@ class DerivedResourcesTest {
             String inFileName = "in-KafkaProxy.yaml";
             Path input = testDir.resolve(inFileName);
             KafkaProxy kafkaProxy = kafkaProxyFromFile(input);
-            List<VirtualKafkaCluster> virtualKafkaClusters = virtualKafkaClustersFromFiles(childFilesMatching(testDir, "in-VirtualKafkaCluster-*"));
+            List<VirtualKafkaCluster> virtualKafkaClusters = resourcesFromFiles(childFilesMatching(testDir, "in-VirtualKafkaCluster-*"), VirtualKafkaCluster.class);
+            List<KafkaClusterRef> kafkaClusterRefs = resourcesFromFiles(childFilesMatching(testDir, "in-KafkaClusterRef-*"), KafkaClusterRef.class);
             assertMinimalMetadata(kafkaProxy.getMetadata(), inFileName);
+            List<KafkaProxyIngress> ingresses = kafkaProxyIngressesFromFiles(childFilesMatching(testDir, "in-KafkaProxyIngress-*"));
 
             unusedFiles.remove(input);
             unusedFiles.removeAll(childFilesMatching(testDir, "in-*"));
 
             Context<KafkaProxy> context;
             try {
-                context = buildContext(testDir, virtualKafkaClusters);
+                context = buildContext(testDir, virtualKafkaClusters, kafkaClusterRefs, ingresses);
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -245,13 +271,13 @@ class DerivedResourcesTest {
                     .stream()
                     .collect(Collectors.toMap(Map.Entry::getKey,
                             e -> e.getValue().stream().map(Map.Entry::getValue).collect(Collectors.toCollection(() -> new TreeSet<>(
-                                    Comparator.comparing(hasMetadata -> hasMetadata.getMetadata().getName()))))));
+                                    Comparator.comparing(ResourcesUtil::name))))));
             for (var entry : dr.entrySet()) {
                 var resourceType = entry.getKey();
                 var actualResources = entry.getValue();
                 for (var actualResource : actualResources) {
                     String kind = resourceType.getSimpleName();
-                    String name = actualResource.getMetadata().getName();
+                    String name = name(actualResource);
                     var expectedFile = testDir.resolve("out-" + kind + "-" + name + ".yaml");
                     tests.add(DynamicTest.dynamicTest(kind + " '" + name + "' should have the same content as " + testDir.relativize(expectedFile),
                             () -> {
@@ -322,15 +348,19 @@ class DerivedResourcesTest {
     }
 
     @NonNull
-    private static Context<KafkaProxy> buildContext(Path testDir, List<VirtualKafkaCluster> virtualKafkaClusters) throws IOException {
-        Answer throwOnUnmockedInvocation = invocation -> {
-            throw new RuntimeException("Unmocked method: " + invocation.getMethod());
+    private static Context<KafkaProxy> buildContext(Path testDir, List<VirtualKafkaCluster> virtualKafkaClusters, List<KafkaClusterRef> kafkaClusterRefs,
+                                                    List<KafkaProxyIngress> ingresses)
+            throws IOException {
+        Answer<?> throwOnUnmockedInvocation = invocation -> {
+            var stringifiedArgs = Arrays.stream(invocation.getArguments()).map(String::valueOf).collect(
+                    Collectors.joining(", "));
+            throw new RuntimeException("Unmocked method: " + invocation.getMethod() + "(" + stringifiedArgs + ")");
         };
         Context<KafkaProxy> context = mock(Context.class, throwOnUnmockedInvocation);
 
-        var resourceContext = new DefaultManagedDependentResourceContext();
+        var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext(null, null, context);
 
-        doReturn(resourceContext).when(context).managedDependentResourceContext();
+        doReturn(resourceContext).when(context).managedWorkflowAndDependentResourceContext();
 
         var runtimeDecl = OperatorMain.runtimeDecl();
         Set<GenericKubernetesResource> filterInstances = new HashSet<>();
@@ -346,6 +376,8 @@ class DerivedResourcesTest {
         }
         doReturn(filterInstances).when(context).getSecondaryResources(GenericKubernetesResource.class);
         doReturn(Set.copyOf(virtualKafkaClusters)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
+        doReturn(Set.copyOf(kafkaClusterRefs)).when(context).getSecondaryResources(KafkaClusterRef.class);
+        doReturn(Set.copyOf(ingresses)).when(context).getSecondaryResources(KafkaProxyIngress.class);
         SharedKafkaProxyContext.runtimeDecl(context, runtimeDecl);
         return context;
     }

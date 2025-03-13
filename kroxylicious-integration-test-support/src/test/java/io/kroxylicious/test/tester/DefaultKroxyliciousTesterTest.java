@@ -430,13 +430,14 @@ class DefaultKroxyliciousTesterTest {
         when(createTopicsResult.all()).thenReturn(KafkaFuture.completedFuture(null));
 
         var vcb = new VirtualClusterBuilder()
+                .withName(DEFAULT_CLUSTER)
                 .withNewTargetCluster()
                 .withBootstrapServers(backingCluster)
                 .endTargetCluster()
                 .withClusterNetworkAddressConfigProvider(
                         bootstrapAddress);
         var configurationBuilder = new ConfigurationBuilder()
-                .addToVirtualClusters(DEFAULT_CLUSTER, vcb.build());
+                .addToVirtualClusters(vcb.build());
 
         try (KroxyliciousTester tester = new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder)
                 .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy)
@@ -613,7 +614,7 @@ class DefaultKroxyliciousTesterTest {
     @Test
     void shouldFailIfAdminHttpNotConfigured() {
         try (var tester = buildDefaultTester()) {
-            assertThatThrownBy(tester::getAdminHttpClient)
+            assertThatThrownBy(tester::getManagementClient)
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("admin http interface not configured");
         }
@@ -621,19 +622,19 @@ class DefaultKroxyliciousTesterTest {
 
     @Test
     void shouldExposeMetrics() {
-        var proxy = proxy(backingCluster).withNewAdminHttp()
+        var proxy = proxy(backingCluster).withNewManagement()
                 .withNewEndpoints()
                 .withNewPrometheus()
                 .endPrometheus()
                 .endEndpoints()
-                .endAdminHttp();
+                .endManagement();
         var testerBuilder = new KroxyliciousTesterBuilder()
                 .setConfigurationBuilder(proxy)
                 .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy);
 
         try (var tester = (KroxyliciousTester) testerBuilder
                 .createDefaultKroxyliciousTester()) {
-            var adminHttpClient = tester.getAdminHttpClient();
+            var adminHttpClient = tester.getManagementClient();
             assertThat(adminHttpClient).isNotNull();
             var metrics = adminHttpClient.scrapeMetrics();
             assertThat(metrics).hasSizeGreaterThan(0);
@@ -667,8 +668,8 @@ class DefaultKroxyliciousTesterTest {
     @NonNull
     private KroxyliciousTester buildMultiGatewayTester() {
         final ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
-        String virtualClusterName = DEFAULT_VIRTUAL_CLUSTER;
         var vcb = new VirtualClusterBuilder()
+                .withName(DEFAULT_VIRTUAL_CLUSTER)
                 .withNewTargetCluster()
                 .withBootstrapServers(backingCluster)
                 .endTargetCluster()
@@ -680,7 +681,7 @@ class DefaultKroxyliciousTesterTest {
                         .endPortIdentifiesNode()
                         .build());
         configurationBuilder
-                .addToVirtualClusters(virtualClusterName, vcb.build());
+                .addToVirtualClusters(vcb.build());
         return new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder)
                 .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy)
                 .setClientFactory(clientFactory)
@@ -692,6 +693,7 @@ class DefaultKroxyliciousTesterTest {
         generateSecurityCert(keytoolCertificateGenerator);
         final ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
         var vcb = new VirtualClusterBuilder()
+                .withName(TLS_CLUSTER)
                 .withNewTargetCluster()
                 .withBootstrapServers(backingCluster)
                 .endTargetCluster()
@@ -704,7 +706,7 @@ class DefaultKroxyliciousTesterTest {
                         .endTls()
                         .build());
         configurationBuilder
-                .addToVirtualClusters(TLS_CLUSTER, vcb.build());
+                .addToVirtualClusters(vcb.build());
 
         return new KroxyliciousTesterBuilder().setConfigurationBuilder(configurationBuilder)
                 .setTrustStoreLocation(keytoolCertificateGenerator.getTrustStoreLocation())

@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -14,11 +15,11 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 public class Labels {
 
     public static Map<String, String> standardLabels(KafkaProxy proxy) {
-        HashMap<String, String> labels = new HashMap<>();
+        HashMap<String, String> labels = new LinkedHashMap<>();
         labels.put("app.kubernetes.io/part-of", "kafka");
         labels.put("app.kubernetes.io/managed-by", "kroxylicious-operator");
         labels.put("app.kubernetes.io/name", "kroxylicious-proxy");
-        labels.put("app.kubernetes.io/instance", proxy.getMetadata().getName());
+        labels.put("app.kubernetes.io/instance", ResourcesUtil.name(proxy));
         labels.put("app.kubernetes.io/component", "proxy");
         return labels;
     }

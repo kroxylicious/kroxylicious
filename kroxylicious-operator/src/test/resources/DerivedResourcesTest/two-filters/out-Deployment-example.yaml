@@ -10,9 +10,9 @@ kind: "Deployment"
 metadata:
   labels:
     app: "kroxylicious"
+    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/instance: "example"
     app.kubernetes.io/component: "proxy"
   name: "example"
@@ -26,18 +26,18 @@ spec:
   selector:
     matchLabels:
       app: "kroxylicious"
+      app.kubernetes.io/part-of: "kafka"
       app.kubernetes.io/managed-by: "kroxylicious-operator"
       app.kubernetes.io/name: "kroxylicious-proxy"
-      app.kubernetes.io/part-of: "kafka"
       app.kubernetes.io/instance: "example"
       app.kubernetes.io/component: "proxy"
   template:
     metadata:
       labels:
         app: "kroxylicious"
+        app.kubernetes.io/part-of: "kafka"
         app.kubernetes.io/managed-by: "kroxylicious-operator"
         app.kubernetes.io/name: "kroxylicious-proxy"
-        app.kubernetes.io/part-of: "kafka"
         app.kubernetes.io/instance: "example"
         app.kubernetes.io/component: "proxy"
     spec:
@@ -47,13 +47,25 @@ spec:
             - "/opt/kroxylicious/config/proxy-config.yaml"
           image: "quay.io/kroxylicious/kroxylicious:test"
           name: "proxy"
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: "/livez"
+              port: "management"
+            initialDelaySeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
           ports:
             - containerPort: 9190
-              name: "metrics"
+              name: "management"
             - containerPort: 9292
+              name: "9292-bootstrap"
             - containerPort: 9293
+              name: "9293-node"
             - containerPort: 9294
+              name: "9294-node"
             - containerPort: 9295
+              name: "9295-node"
           volumeMounts:
             - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"
@@ -62,9 +74,9 @@ spec:
               name: "secrets-my-secret"
               readOnly: true
       volumes:
-        - name: "config-volume"
-          secret:
-            secretName: "example"
+        - configMap:
+            name: "example"
+          name: "config-volume"
         - name: "secrets-my-secret"
           secret:
             secretName: "my-secret"

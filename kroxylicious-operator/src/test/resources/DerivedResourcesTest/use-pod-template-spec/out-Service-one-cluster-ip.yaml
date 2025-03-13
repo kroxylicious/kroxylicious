@@ -1,0 +1,49 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  labels:
+    app.kubernetes.io/part-of: "kafka"
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
+    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/instance: "use-pod-template-spec"
+    app.kubernetes.io/component: "proxy"
+  name: "one-cluster-ip"
+  namespace: proxy-ns
+  ownerReferences:
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxy"
+      name: "use-pod-template-spec"
+spec:
+  ports:
+    - name: "one-9292"
+      port: 9292
+      protocol: "TCP"
+      targetPort: 9292
+    - name: "one-9293"
+      port: 9293
+      protocol: "TCP"
+      targetPort: 9293
+    - name: "one-9294"
+      port: 9294
+      protocol: "TCP"
+      targetPort: 9294
+    - name: "one-9295"
+      port: 9295
+      protocol: "TCP"
+      targetPort: 9295
+  selector:
+    app: "kroxylicious"
+    app.kubernetes.io/part-of: "kafka"
+    environment: "production-from-podTemplate"
+    app.kubernetes.io/part-of: "kafka"
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
+    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/instance: "use-pod-template-spec"
+    app.kubernetes.io/component: "proxy"

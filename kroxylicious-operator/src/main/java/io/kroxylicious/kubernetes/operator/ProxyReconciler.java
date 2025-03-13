@@ -10,7 +10,6 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -24,16 +23,14 @@ import org.slf4j.spi.LoggingEventBuilder;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.AggregatedOperatorException;
-import io.javaoperatorsdk.operator.api.config.informer.InformerConfiguration;
+import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ContextInitializer;
-import io.javaoperatorsdk.operator.api.reconciler.ControllerConfiguration;
-import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusHandler;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
-import io.javaoperatorsdk.operator.api.reconciler.EventSourceInitializer;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
+import io.javaoperatorsdk.operator.api.reconciler.Workflow;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.Dependent;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
@@ -41,11 +38,17 @@ import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMap
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ConditionsBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ProxyRef;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TargetCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.targetcluster.ClusterRef;
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -53,11 +56,15 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.generation;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
+
 // @formatter:off
-@ControllerConfiguration(dependents = {
+@Workflow(dependents = {
         @Dependent(
                 name = ProxyReconciler.CONFIG_DEP,
-                type = ProxyConfigSecret.class
+                type = ProxyConfigConfigMap.class
         ),
         @Dependent(
                 name = ProxyReconciler.DEPLOYMENT_DEP,
@@ -72,10 +79,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
         )
 })
 // @formatter:on
-public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
+public class ProxyReconciler implements
         ContextInitializer<KafkaProxy>,
-        Reconciler<KafkaProxy>,
-        ErrorStatusHandler<KafkaProxy> {
+        Reconciler<KafkaProxy> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyReconciler.class);
 
@@ -102,7 +108,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
-        LOGGER.info("Completed reconciliation of {}/{}", primary.getMetadata().getNamespace(), primary.getMetadata().getName());
+        LOGGER.info("Completed reconciliation of {}/{}", namespace(primary), name(primary));
         return UpdateControl.patchStatus(
                 buildStatus(primary, context, null));
     }
@@ -137,7 +143,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
         // @formatter:off
         return new KafkaProxyBuilder(primary)
                 .editOrNewStatus()
-                    .withObservedGeneration(primary.getMetadata().getGeneration())
+                    .withObservedGeneration(generation(primary))
                     .withConditions(effectiveReadyCondition(now, primary, exception ))
                     .withClusters(clusterConditions(now, primary, context ))
                 .endStatus()
@@ -152,7 +158,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
             ClusterCondition clusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
             var conditions = newClusterCondition(now, primary, clusterCondition);
             return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ClustersBuilder()
-                    .withName(cluster.getMetadata().getName())
+                    .withName(name(cluster))
                     .withConditions(conditions).build();
         }).toList();
     }
@@ -181,7 +187,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
             return newCondition(now, ConditionType.Ready, primary, exception);
         }
         else {
-            oldReady.setObservedGeneration(primary.getMetadata().getGeneration());
+            oldReady.setObservedGeneration(generation(primary));
             return oldReady;
         }
     }
@@ -189,8 +195,8 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     static LoggingEventBuilder addResourceKeys(KafkaProxy primary, LoggingEventBuilder loggingEventBuilder) {
         return loggingEventBuilder.addKeyValue("kind", primary.getKind())
                 .addKeyValue("group", primary.getGroup())
-                .addKeyValue("namespace", primary.getMetadata().getNamespace())
-                .addKeyValue("name", primary.getMetadata().getName());
+                .addKeyValue("namespace", namespace(primary))
+                .addKeyValue("name", name(primary));
     }
 
     private static void logException(KafkaProxy primary, Exception exception) {
@@ -225,7 +231,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
         return new ConditionsBuilder()
                 .withLastTransitionTime(now)
                 .withMessage(conditionMessage(exception))
-                .withObservedGeneration(primary.getMetadata().getGeneration())
+                .withObservedGeneration(generation(primary))
                 .withReason(conditionReason(exception))
                 .withStatus(exception == null ? Conditions.Status.TRUE : Conditions.Status.FALSE)
                 .withType(conditionType.getValue())
@@ -238,7 +244,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
         return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.ConditionsBuilder()
                 .withLastTransitionTime(now)
                 .withMessage(clusterCondition.message())
-                .withObservedGeneration(primary.getMetadata().getGeneration())
+                .withObservedGeneration(generation(primary))
                 .withReason(clusterCondition.reason())
                 .withStatus(clusterCondition.status())
                 .withType(clusterCondition.type().getValue())
@@ -283,8 +289,8 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     }
 
     @Override
-    public Map<String, EventSource> prepareEventSources(EventSourceContext<KafkaProxy> context) {
-        var eventSources = new ArrayList<InformerEventSource<?, KafkaProxy>>(this.runtimeDecl.filterApis().size());
+    public List<EventSource<?, KafkaProxy>> prepareEventSources(EventSourceContext<KafkaProxy> context) {
+        var eventSources = new ArrayList<EventSource<?, KafkaProxy>>(this.runtimeDecl.filterApis().size());
         for (var filterKind : this.runtimeDecl.filterApis()) {
             try {
                 eventSources.add(eventSourceForFilter(context, filterKind));
@@ -299,15 +305,75 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
             }
         }
         eventSources.add(buildVirtualKafkaClusterInformer(context));
-        return EventSourceInitializer.nameEventSources(eventSources.toArray(new EventSource[0]));
+        eventSources.add(buildKafkaClusterRefInformer(context));
+        eventSources.add(buildKafkaProxyIngressInformer(context));
+        return eventSources;
     }
 
     private static InformerEventSource<?, KafkaProxy> buildVirtualKafkaClusterInformer(EventSourceContext<KafkaProxy> context) {
-        InformerConfiguration<VirtualKafkaCluster> configuration = InformerConfiguration.from(VirtualKafkaCluster.class)
+        InformerEventSourceConfiguration<VirtualKafkaCluster> configuration = InformerEventSourceConfiguration.from(VirtualKafkaCluster.class, KafkaProxy.class)
                 .withSecondaryToPrimaryMapper(clusterToProxyMapper(context))
                 .withPrimaryToSecondaryMapper(proxyToClusterMapper(context))
                 .build();
         return new InformerEventSource<>(configuration, context);
+    }
+
+    private static InformerEventSource<?, KafkaProxy> buildKafkaProxyIngressInformer(EventSourceContext<KafkaProxy> context) {
+        InformerEventSourceConfiguration<KafkaProxyIngress> configuration = InformerEventSourceConfiguration.from(KafkaProxyIngress.class, KafkaProxy.class)
+                .withSecondaryToPrimaryMapper(ingressToProxyMapper(context))
+                .withPrimaryToSecondaryMapper(proxyToIngressMapper(context))
+                .build();
+        return new InformerEventSource<>(configuration, context);
+    }
+
+    private static InformerEventSource<?, KafkaProxy> buildKafkaClusterRefInformer(EventSourceContext<KafkaProxy> context) {
+        InformerEventSourceConfiguration<KafkaClusterRef> configuration = InformerEventSourceConfiguration.from(KafkaClusterRef.class, KafkaProxy.class)
+                .withSecondaryToPrimaryMapper(kafkaClusterRefToProxyMapper(context))
+                .withPrimaryToSecondaryMapper(proxyToKafkaClusterRefMapper(context))
+                .build();
+        return new InformerEventSource<>(configuration, context);
+    }
+
+    @VisibleForTesting
+    static @NonNull SecondaryToPrimaryMapper<KafkaClusterRef> kafkaClusterRefToProxyMapper(EventSourceContext<KafkaProxy> context) {
+        return kafkaClusterRef -> {
+            // find all virtual clusters that reference this kafkaClusterRef
+
+            var proxyNames = resourcesInSameNamespace(context, kafkaClusterRef, VirtualKafkaCluster.class)
+                    .filter(vkc -> vkc.getSpec().getTargetCluster().getClusterRef().getName().equals(name(kafkaClusterRef)))
+                    .map(VirtualKafkaCluster::getSpec)
+                    .map(VirtualKafkaClusterSpec::getProxyRef)
+                    .map(ProxyRef::getName)
+                    .collect(Collectors.toSet());
+
+            Set<ResourceID> proxyIds = filteredResourceIdsInSameNamespace(context, kafkaClusterRef, KafkaProxy.class,
+                    proxy -> proxyNames.contains(name(proxy)));
+            LOGGER.debug("Event source KafkaClusterRef SecondaryToPrimaryMapper got {}", proxyIds);
+            return proxyIds;
+        };
+    }
+
+    /**
+     * @param context context
+     * @return mapper
+     */
+    @VisibleForTesting
+    static @NonNull PrimaryToSecondaryMapper<HasMetadata> proxyToKafkaClusterRefMapper(EventSourceContext<KafkaProxy> context) {
+        return primary -> {
+            // Load all the virtual clusters for the KafkaProxy, then extract all the referenced KafkaClusterRef resource ids.
+            var clusterRefNames = resourcesInSameNamespace(context, primary, VirtualKafkaCluster.class)
+                    .filter(vkc -> vkc.getSpec().getProxyRef().getName().equals(name(primary)))
+                    .map(VirtualKafkaCluster::getSpec)
+                    .map(VirtualKafkaClusterSpec::getTargetCluster)
+                    .map(TargetCluster::getClusterRef)
+                    .map(ClusterRef::getName)
+                    .collect(Collectors.toSet());
+
+            Set<ResourceID> kafkaClusterRefs = filteredResourceIdsInSameNamespace(context, primary, KafkaClusterRef.class,
+                    cluster -> clusterRefNames.contains(name(cluster)));
+            LOGGER.debug("Event source KafkaClusterRef PrimaryToSecondaryMapper got {}", kafkaClusterRefs);
+            return kafkaClusterRefs;
+        };
     }
 
     @NonNull
@@ -315,7 +381,7 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
                                                                                                    EventSourceContext<KafkaProxy> context,
                                                                                                    FilterApiDecl filterApiDecl) {
 
-        var configuration = InformerConfiguration.from(filterApiDecl.groupVersionKind(), context)
+        var configuration = InformerEventSourceConfiguration.from(filterApiDecl.groupVersionKind(), KafkaProxy.class)
                 .withSecondaryToPrimaryMapper(filterToProxy(context))
                 .withPrimaryToSecondaryMapper(proxyToFilters(context))
                 .build();
@@ -327,9 +393,9 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     static @NonNull PrimaryToSecondaryMapper<KafkaProxy> proxyToFilters(EventSourceContext<KafkaProxy> context) {
         return (KafkaProxy proxy) -> {
             Set<ResourceID> filterReferences = resourcesInSameNamespace(context, proxy, VirtualKafkaCluster.class)
-                    .filter(matchesPrimary(proxy))
+                    .filter(clusterReferences(proxy))
                     .flatMap(cluster -> cluster.getSpec().getFilters().stream())
-                    .map(filter -> new ResourceID(filter.getName(), proxy.getMetadata().getNamespace()))
+                    .map(filter -> new ResourceID(filter.getName(), namespace(proxy)))
                     .collect(Collectors.toSet());
             LOGGER.debug("KafkaProxy {} has references to filters {}", ResourceID.fromResource(proxy), filterReferences);
             return filterReferences;
@@ -339,7 +405,8 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     @VisibleForTesting
     static @NonNull PrimaryToSecondaryMapper<HasMetadata> proxyToClusterMapper(EventSourceContext<KafkaProxy> context) {
         return primary -> {
-            Set<ResourceID> virtualClustersInProxyNamespace = filteredResourceIdsInSameNamespace(context, primary, VirtualKafkaCluster.class, matchesPrimary(primary));
+            Set<ResourceID> virtualClustersInProxyNamespace = filteredResourceIdsInSameNamespace(context, primary, VirtualKafkaCluster.class,
+                    clusterReferences(primary));
             LOGGER.debug("Event source VirtualKafkaCluster PrimaryToSecondaryMapper got {}", virtualClustersInProxyNamespace);
             return virtualClustersInProxyNamespace;
         };
@@ -353,6 +420,27 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
             Set<ResourceID> proxyIds = filteredResourceIdsInSameNamespace(context, cluster, KafkaProxy.class, proxy -> true);
             LOGGER.debug("Event source VirtualKafkaCluster SecondaryToPrimaryMapper got {}", proxyIds);
             return proxyIds;
+        };
+    }
+
+    @VisibleForTesting
+    static @NonNull SecondaryToPrimaryMapper<KafkaProxyIngress> ingressToProxyMapper(EventSourceContext<KafkaProxy> context) {
+        return ingress -> {
+            // we need to reconcile all proxies when a kafka proxy ingress changes in case the proxyRef is updated, we need to update
+            // the previously referenced proxy too.
+            Set<ResourceID> proxyIds = filteredResourceIdsInSameNamespace(context, ingress, KafkaProxy.class, proxy -> true);
+            LOGGER.debug("Event source KafkaProxyIngress SecondaryToPrimaryMapper got {}", proxyIds);
+            return proxyIds;
+        };
+    }
+
+    @VisibleForTesting
+    static @NonNull PrimaryToSecondaryMapper<KafkaProxy> proxyToIngressMapper(EventSourceContext<KafkaProxy> context) {
+        return primary -> {
+            Set<ResourceID> ingressesInProxyNamespace = filteredResourceIdsInSameNamespace(context, primary, KafkaProxyIngress.class,
+                    ingressReferences(primary));
+            LOGGER.debug("Event source KafkaProxyIngress PrimaryToSecondaryMapper got {}", ingressesInProxyNamespace);
+            return ingressesInProxyNamespace;
         };
     }
 
@@ -378,14 +466,18 @@ public class ProxyReconciler implements EventSourceInitializer<KafkaProxy>,
     private static <T extends HasMetadata> Stream<T> resourcesInSameNamespace(EventSourceContext<KafkaProxy> context, HasMetadata primary, Class<T> clazz) {
         return context.getClient()
                 .resources(clazz)
-                .inNamespace(primary.getMetadata().getNamespace())
+                .inNamespace(namespace(primary))
                 .list()
                 .getItems()
                 .stream();
     }
 
-    private static @NonNull Predicate<VirtualKafkaCluster> matchesPrimary(HasMetadata primary) {
-        return cluster -> cluster.getSpec().getProxyRef().getName().equals(primary.getMetadata().getName());
+    private static @NonNull Predicate<VirtualKafkaCluster> clusterReferences(HasMetadata primary) {
+        return cluster -> cluster.getSpec().getProxyRef().getName().equals(name(primary));
+    }
+
+    private static @NonNull Predicate<KafkaProxyIngress> ingressReferences(HasMetadata primary) {
+        return ingress -> ingress.getSpec().getProxyRef().getName().equals(name(primary));
     }
 
 }

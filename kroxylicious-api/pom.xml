@@ -161,7 +161,6 @@
                         <breakBuildOnBinaryIncompatibleModifications>false</breakBuildOnBinaryIncompatibleModifications>
                         <breakBuildBasedOnSemanticVersioningForMajorVersionZero>${ApiCompatability.EnforceForMajorVersionZero}</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
                         <excludes>
-                            <exclude>io.kroxylicious.proxy.config.secret.FilePasswordFilePath</exclude>  <!-- used purely in config files and the name still exists (as a JSON alias) -->
                             <exclude>io.kroxylicious.proxy.filter.FilterFactoryContext#eventLoop()</exclude> <!-- https://github.com/kroxylicious/kroxylicious/issues/1380 scheduled removal of deprecated API method -->
                         </excludes>
                         <!-- see documentation -->

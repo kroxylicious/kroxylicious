@@ -6,10 +6,8 @@
 
 package io.kroxylicious.proxy.config;
 
-import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.Files;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -28,9 +26,10 @@ import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
-import io.kroxylicious.proxy.config.secret.PasswordProvider;
-import io.kroxylicious.proxy.config.tls.KeyStore;
-import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
+import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
+import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
+import io.kroxylicious.proxy.config.tls.TlsTestConstants;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.internal.filter.ConstructorInjectionConfig;
@@ -40,6 +39,7 @@ import io.kroxylicious.proxy.internal.filter.FieldInjectionConfig;
 import io.kroxylicious.proxy.internal.filter.NestedPluginConfigFactory;
 import io.kroxylicious.proxy.internal.filter.RecordConfig;
 import io.kroxylicious.proxy.internal.filter.SetterInjectionConfig;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -62,7 +62,7 @@ class ConfigParserTest {
                 """),
                 Arguments.argumentSet("Virtual cluster (portIdentifiesNode - minimal)", """
                         virtualClusters:
-                          demo1:
+                          - name: demo1
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                             gateways:
@@ -72,7 +72,7 @@ class ConfigParserTest {
                         """),
                 Arguments.argumentSet("Virtual cluster (portIdentifiesNode with start port)", """
                         virtualClusters:
-                          demo1:
+                          - name: demo1
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                             gateways:
@@ -84,7 +84,7 @@ class ConfigParserTest {
                         """),
                 Arguments.argumentSet("Virtual cluster (portIdentifiesNode with ranges)", """
                         virtualClusters:
-                          demo1:
+                          - name: demo1
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                             gateways:
@@ -101,7 +101,7 @@ class ConfigParserTest {
                         """),
                 Arguments.argumentSet("Virtual cluster (portIdentifiesNode with range and start port)", """
                         virtualClusters:
-                          demo1:
+                          - name: demo1
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                             gateways:
@@ -117,7 +117,7 @@ class ConfigParserTest {
                         """),
                 Arguments.argumentSet("Virtual cluster (sniHostIdentifiesNode)", """
                         virtualClusters:
-                          demo1:
+                          - name: demo1
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                             gateways:
@@ -134,7 +134,7 @@ class ConfigParserTest {
                         """),
                 Arguments.argumentSet("Downstream/Upstream TLS with inline passwords", """
                         virtualClusters:
-                          demo1:
+                          - name: demo1
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                               tls:
@@ -157,7 +157,7 @@ class ConfigParserTest {
                         """),
                 Arguments.argumentSet("Downstream/Upstream TLS with password files", """
                         virtualClusters:
-                          demo1:
+                          - name: demo1
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                               tls:
@@ -180,7 +180,7 @@ class ConfigParserTest {
                         """),
                 Arguments.argumentSet("Virtual cluster (PortPerBroker - deprecated)", """
                         virtualClusters:
-                          demo1:
+                          - name: demo1
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                             clusterNetworkAddressConfigProvider:
@@ -199,7 +199,7 @@ class ConfigParserTest {
                         """),
                 Arguments.argumentSet("Virtual cluster (RangeAwarePortPerNode - deprecated)", """
                         virtualClusters:
-                          demo1:
+                          - name: demo1
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                             clusterNetworkAddressConfigProvider:
@@ -216,7 +216,7 @@ class ConfigParserTest {
                         """),
                 Arguments.argumentSet("Virtual cluster (SniRouting - deprecated)", """
                         virtualClusters:
-                          demo1:
+                          - name: demo1
                             targetCluster:
                               bootstrapServers: kafka.example:1234
                             clusterNetworkAddressConfigProvider:
@@ -229,11 +229,19 @@ class ConfigParserTest {
                         filters:
                         - type: TestFilterFactory
                         """),
-                Arguments.argumentSet("Admin", """
-                        adminHttp:
-                          host: 0.0.0.0
-                          port: 9193
+                Arguments.argumentSet("Management minimal", """
+                        management: {}
+                        """),
+                Arguments.argumentSet("Management", """
+                        management:
+                          bindAddress: 164.0.0.0
+                          port: 1000
                           endpoints: {}
+                        """),
+                Arguments.argumentSet("Management with Prometheus", """
+                        management:
+                          endpoints:
+                            prometheus: {}
                         """),
                 Arguments.argumentSet("Micrometer", """
                         micrometer:
@@ -242,13 +250,6 @@ class ConfigParserTest {
                             commonTags:
                               zone: "euc-1a"
                               owner: "becky"
-                        """),
-                Arguments.argumentSet("AdminHttp", """
-                        adminHttp:
-                          host: kroxy
-                          port: 9093
-                          endpoints:
-                            prometheus: {}
                         """));
     }
 
@@ -269,31 +270,33 @@ class ConfigParserTest {
     void testDeserializeFromYaml() {
         Configuration configuration = configParser.parseConfiguration(this.getClass().getClassLoader().getResourceAsStream("config.yaml"));
         assertThat(configuration.isUseIoUring()).isTrue();
-        assertThat(configuration.adminHttpConfig())
+        assertThat(configuration.management())
                 .isNotNull()
                 .satisfies(ahc -> {
-                    assertThat(ahc.host()).isEqualTo("kroxy");
+                    assertThat(ahc.bindAddress()).isEqualTo("127.0.0.1");
                     assertThat(ahc.port()).isEqualTo(9093);
                     assertThat(ahc.endpoints().maybePrometheus()).isPresent();
                 });
 
-        assertThat(configuration.virtualClusters()).hasSize(1);
-        assertThat(configuration.virtualClusters().keySet()).containsExactly("demo");
-        VirtualCluster cluster = configuration.virtualClusters().values().iterator().next();
-        assertThat(cluster.logFrames()).isTrue();
-        assertThat(cluster.logNetwork()).isTrue();
-        assertThat(cluster.targetCluster()).isNotNull();
-        assertThat(cluster.targetCluster().bootstrapServers()).isEqualTo("localhost:9092");
-
-        assertThat(cluster.gateways())
+        assertThat(configuration.virtualClusters())
                 .singleElement()
-                .satisfies(vcl -> {
-                    assertThat(vcl.name()).isEqualTo("mygateway");
-                    assertThat(vcl.clusterNetworkAddressConfigProvider())
-                            .extracting(ClusterNetworkAddressConfigProviderDefinition::config)
-                            .asInstanceOf(InstanceOfAssertFactories.type(RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig.class))
-                            .satisfies(c -> assertThat(c.getBootstrapAddress())
-                                    .isEqualTo(HostPort.parse("localhost:9192")));
+                .satisfies(cluster -> {
+                    assertThat(cluster.name()).isEqualTo("demo");
+                    assertThat(cluster.logFrames()).isTrue();
+                    assertThat(cluster.logNetwork()).isTrue();
+                    assertThat(cluster.targetCluster()).isNotNull();
+                    assertThat(cluster.targetCluster().bootstrapServers()).isEqualTo("localhost:9092");
+
+                    assertThat(cluster.gateways())
+                            .singleElement()
+                            .satisfies(vcl -> {
+                                assertThat(vcl.name()).isEqualTo("mygateway");
+                                assertThat(vcl.clusterNetworkAddressConfigProvider())
+                                        .extracting(ClusterNetworkAddressConfigProviderDefinition::config)
+                                        .asInstanceOf(InstanceOfAssertFactories.type(RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig.class))
+                                        .satisfies(c -> assertThat(c.getBootstrapAddress())
+                                                .isEqualTo(HostPort.parse("localhost:9192")));
+                            });
                 });
     }
 
@@ -322,7 +325,7 @@ class ConfigParserTest {
     void shouldConfigureClusterNameFromNodeName() {
         final Configuration configurationModel = configParser.parseConfiguration("""
                 virtualClusters:
-                  myAwesomeCluster:
+                  - name: myAwesomeCluster
                     targetCluster:
                       bootstrapServers: kafka.example:1234
                     gateways:
@@ -338,20 +341,90 @@ class ConfigParserTest {
     }
 
     @Test
+    void shouldSupportDeprecatedVirtualClusterMap() {
+        final Configuration configurationModel = configParser.parseConfiguration("""
+                virtualClusters:
+                  mycluster:
+                    targetCluster:
+                      bootstrapServers: kafka1.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """);
+        // When
+        var actualValidClusters = configurationModel.virtualClusterModel(new ServiceBasedPluginFactoryRegistry());
+
+        // Then
+        assertThat(actualValidClusters)
+                .singleElement()
+                .satisfies(vc -> {
+                    assertThat(vc.getClusterName()).isEqualTo("mycluster");
+                    assertThat(vc.targetCluster())
+                            .extracting(TargetCluster::bootstrapServers)
+                            .isEqualTo("kafka1.example:1234");
+                });
+    }
+
+    @Test
+    void shouldSupportDeprecatedVirtualClusterMapWithValueProvidingNameToo() {
+        final Configuration configurationModel = configParser.parseConfiguration("""
+                virtualClusters:
+                  mycluster:
+                    name: mycluster # matches key
+                    targetCluster:
+                      bootstrapServers: kafka1.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """);
+        // When
+        var actualValidClusters = configurationModel.virtualClusterModel(new ServiceBasedPluginFactoryRegistry());
+
+        // Then
+        assertThat(actualValidClusters)
+                .extracting(VirtualClusterModel::getClusterName)
+                .singleElement()
+                .isEqualTo("mycluster");
+    }
+
+    @Test
+    void shouldDetectInconsistentClusterNameInDeprecatedVirtualClusterMap() {
+        // When/Then
+        assertThatThrownBy(() -> {
+            configParser.parseConfiguration("""
+                    virtualClusters:
+                      mycluster:
+                        name: mycluster1
+                        targetCluster:
+                          bootstrapServers: kafka1.example:1234
+                        gateways:
+                        - name: default
+                          portIdentifiesNode:
+                            bootstrapAddress: cluster1:9192
+                    """);
+
+        }).hasRootCauseInstanceOf(IllegalConfigurationException.class)
+                .hasRootCauseMessage(
+                        "Inconsistent virtual cluster configuration. Configuration property 'virtualClusters' refers to a map, but the key name 'mycluster' is different to the value of the 'name' field 'mycluster1' in the value.");
+    }
+
+    @Test
     void shouldDetectDuplicateClusterNodeNames() {
         // Given
         assertThatThrownBy(() ->
         // When
         configParser.parseConfiguration("""
                 virtualClusters:
-                  demo1:
+                  - name: demo1
                     targetCluster:
                       bootstrapServers: kafka.example:1234
                     gateways:
                     - name: default
                       portIdentifiesNode:
                         bootstrapAddress: cluster1:9192
-                  demo1:
+                  - name: demo1
                     targetCluster:
                       bootstrapServers: magic-kafka.example:1234
                     gateways:
@@ -363,8 +436,46 @@ class ConfigParserTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasCauseInstanceOf(JsonMappingException.class) // Debatable to enforce the wrapped JsonMappingException
                 .cause()
-                .hasMessageStartingWith("Duplicate field 'demo1'");
+                .hasMessageContaining("Virtual cluster must be unique. The following virtual cluster names are duplicated: [demo1]");
+    }
 
+    @Test
+    void shouldDetectMissingClusterName() {
+        // Given
+        assertThatThrownBy(() ->
+        // When
+        configParser.parseConfiguration("""
+                virtualClusters:
+                  - targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """))
+                // Then
+                .isInstanceOf(IllegalArgumentException.class)
+                .cause()
+                .hasMessageContaining("Missing required creator property 'name'");
+    }
+
+    @Test
+    void shouldDetectMissingTargetCluster() {
+        // Given
+        assertThatThrownBy(() ->
+        // When
+        configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: demo
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """))
+                // Then
+                .isInstanceOf(IllegalArgumentException.class)
+                .cause()
+                .hasMessageContaining("Missing required creator property 'targetCluster'");
     }
 
     @Test
@@ -509,43 +620,100 @@ class ConfigParserTest {
     }
 
     @Test
-    void tlsPasswordConfigurationUnderstandFilePathAlias() throws Exception {
+    void virtualClusterModelCreationWithSniHostIdentifiesNodeStrategy() {
 
-        var password = "mypassword";
-        var file = File.createTempFile("pass", "txt");
-        file.deleteOnExit();
-        Files.writeString(file.toPath(), password);
-        final Configuration configurationModel = configParser.parseConfiguration("""
+        var bootstrapAddress = HostPort.parse("cluster1.example:9192");
+        var keyStore = TlsTestConstants.getResourceLocationOnFilesystem("server.p12");
+        var configurationModel = configParser.parseConfiguration("""
                         virtualClusters:
-                          demo1:
+                          - name: demo1
+                            targetCluster:
+                              bootstrapServers: magic-kafka.example:1234
                             gateways:
                             - name: mygateway
                               tls:
                                 key:
-                                  storeFile: /tmp/store.txt
+                                  storeFile: %s
                                   storePassword:
-                                    filePath: %s
-                              portIdentifiesNode:
-                                bootstrapAddress: cluster1:9192
-                """.formatted(file.getAbsolutePath()));
+                                     password: %s
+                              sniHostIdentifiesNode:
+                                bootstrapAddress: "%s"
+                                advertisedBrokerAddressPattern: cluster1-broker-$(nodeId).example:9192
+                """.formatted(keyStore, TlsTestConstants.STOREPASS.getProvidedPassword(), bootstrapAddress));
         // When
-        final var virtualCluster = configurationModel.virtualClusters().values().iterator().next();
+        var models = configurationModel.virtualClusterModel(null);
 
         // Then
-        assertThat(virtualCluster.gateways())
+        assertThat(models)
                 .singleElement()
-                .satisfies(vcl -> {
-                    assertThat(vcl.name()).isEqualTo("mygateway");
-                    assertThat(vcl.tls())
-                            .get()
-                            .extracting(Tls::key)
-                            .isInstanceOf(KeyStore.class)
-                            .asInstanceOf(InstanceOfAssertFactories.type(KeyStore.class))
-                            .extracting(KeyStore::storePasswordProvider)
-                            .extracting(PasswordProvider::getProvidedPassword)
-                            .isEqualTo(password);
-                });
+                .satisfies(vcm -> assertThat(vcm.gateways())
+                        .hasEntrySatisfying("mygateway", g -> assertThat(g.getClusterBootstrapAddress())
+                                .isEqualTo(bootstrapAddress)));
+    }
 
+    @Test
+    void virtualClusterModelCreationWithPortIdentifiesNodeStrategy() {
+
+        var bootstrapAddress = HostPort.parse("cluster1.example:9192");
+        var configurationModel = configParser.parseConfiguration("""
+                        virtualClusters:
+                          - name: demo1
+                            targetCluster:
+                              bootstrapServers: magic-kafka.example:1234
+                            gateways:
+                            - name: mygateway
+                              portIdentifiesNode:
+                                bootstrapAddress: "%s"
+                """.formatted(bootstrapAddress));
+        // When
+        var models = configurationModel.virtualClusterModel(null);
+
+        // Then
+        assertThat(models)
+                .singleElement()
+                .satisfies(vcm -> assertThat(vcm.gateways())
+                        .hasEntrySatisfying("mygateway", g -> assertThat(g.getClusterBootstrapAddress())
+                                .isEqualTo(bootstrapAddress)));
+    }
+
+    @Test
+    void shouldSupportDeprecatedManagementConfiguration() {
+        // When
+        var configurationModel = configParser.parseConfiguration("""
+                adminHttp:
+                   host: 1.1.1.1
+                   port: 1234
+                   endpoints:
+                     prometheus: {}
+                """);
+
+        // Then
+        assertThat(configurationModel)
+                .extracting(Configuration::management)
+                .satisfies(m -> {
+                    assertThat(m.getEffectivePort()).isEqualTo(1234);
+                    assertThat(m.getEffectiveBindAddress()).isEqualTo("1.1.1.1");
+                    assertThat(m.endpoints())
+                            .extracting(EndpointsConfiguration::maybePrometheus, InstanceOfAssertFactories.optional(PrometheusMetricsConfig.class))
+                            .isPresent();
+                });
+    }
+
+    @Test
+    void shouldSupportDeprecatedManagementConfigurationDefaults() {
+        // When
+        var configurationModel = configParser.parseConfiguration("""
+                adminHttp: {}
+                """);
+
+        // Then
+        assertThat(configurationModel)
+                .extracting(Configuration::management)
+                .satisfies(m -> {
+                    assertThat(m.getEffectivePort()).isEqualTo(ManagementConfiguration.DEFAULT_MANAGEMENT_PORT);
+                    assertThat(m.getEffectiveBindAddress()).isEqualTo(ManagementConfiguration.DEFAULT_BIND_ADDRESS);
+                    assertThat(m.endpoints()).isNull();
+                });
     }
 
     private record NonSerializableConfig(String id) {

@@ -1,0 +1,68 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  labels:
+    app: "kroxylicious"
+    app.kubernetes.io/part-of: "kafka"
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
+    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/instance: "example"
+    app.kubernetes.io/component: "proxy"
+  name: "example"
+  namespace: "proxy-ns"
+  ownerReferences:
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxy"
+      name: "example"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "kroxylicious"
+      app.kubernetes.io/part-of: "kafka"
+      app.kubernetes.io/managed-by: "kroxylicious-operator"
+      app.kubernetes.io/name: "kroxylicious-proxy"
+      app.kubernetes.io/instance: "example"
+      app.kubernetes.io/component: "proxy"
+  template:
+    metadata:
+      labels:
+        app: "kroxylicious"
+        app.kubernetes.io/part-of: "kafka"
+        app.kubernetes.io/managed-by: "kroxylicious-operator"
+        app.kubernetes.io/name: "kroxylicious-proxy"
+        app.kubernetes.io/instance: "example"
+        app.kubernetes.io/component: "proxy"
+    spec:
+      containers:
+        - args:
+            - "--config"
+            - "/opt/kroxylicious/config/proxy-config.yaml"
+          image: "quay.io/kroxylicious/kroxylicious:test"
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: "/livez"
+              port: "management"
+            initialDelaySeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: "proxy"
+          ports:
+            - containerPort: 9190
+              name: "management"
+          volumeMounts:
+            - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
+              name: "config-volume"
+              subPath: "proxy-config.yaml"
+      volumes:
+        - configMap:
+            name: "example"
+          name: "config-volume"

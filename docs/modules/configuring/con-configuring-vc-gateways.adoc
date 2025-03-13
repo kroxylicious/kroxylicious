@@ -38,7 +38,7 @@ IMPORTANT: When using this scheme, you have the responsibility to avoid port num
 ----
 # ...
 virtualClusters:
-  my-cluster-proxy:
+  - name: my-cluster-proxy
     # ...
     gateways:
     - name: mygateway
@@ -74,7 +74,7 @@ The gateway exposes the following three broker addresses:
 ----
 # ...
 virtualClusters:
-  my-cluster-proxy:
+  - name: my-cluster-proxy
     # ...
     gateways:
     - name: mygateway
@@ -114,7 +114,7 @@ The gateway exposes the following three broker addresses:
 ----
 # ...
 virtualClusters:
-  my-cluster-proxy:
+  - name: my-cluster-proxy
     # ...
     gateways:
     - name: mygateway
@@ -187,7 +187,7 @@ to an IP address that is routed to the proxy. Wildcard DNS is one way to achieve
 ----
 # ...
 virtualClusters:
-  my-cluster-proxy:
+  - name: my-cluster-proxy
     # ...
     gateways:
     - name: mygateway
@@ -231,7 +231,7 @@ The gateway exposes the following broker addresses:
 ----
 # ...
 virtualClusters:
-  my-cluster-proxy:
+  - name: my-cluster-proxy
     # ...
     gateways:
     - name: mygateway

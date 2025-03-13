@@ -17,7 +17,7 @@ filterDefinitions: # <1>
 defaultFilters: <5>
   - example
 virtualClusters: # <6>
-  my-cluster-proxy:
+  - name: my-cluster-proxy
     targetCluster: # <7>
       # ...
     gateways: # <8>

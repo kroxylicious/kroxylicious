@@ -83,7 +83,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private String onlyVirtualCluster() {
         int numVirtualClusters = kroxyliciousConfig.virtualClusters().size();
         if (numVirtualClusters == 1) {
-            return kroxyliciousConfig.virtualClusters().keySet().stream().findFirst().orElseThrow();
+            return kroxyliciousConfig.virtualClusters().stream().map(VirtualCluster::name).findFirst().orElseThrow();
         }
         else {
             throw new AmbiguousVirtualClusterException(
@@ -118,10 +118,10 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     private void configureClientTls(String virtualCluster, Map<String, Object> defaultClientConfig, String gateway) {
-        final VirtualCluster definedCluster = kroxyliciousConfig.virtualClusters().get(virtualCluster);
-        if (definedCluster != null) {
+        var definedCluster = kroxyliciousConfig.virtualClusters().stream().filter(v -> v.name().equals(virtualCluster)).findFirst();
+        definedCluster.ifPresent(cluster -> {
 
-            var first = getVirtualClusterGatewayStream(definedCluster).filter(g -> g.name().equals(gateway)).findFirst();
+            var first = getVirtualClusterGatewayStream(cluster).filter(g -> g.name().equals(gateway)).findFirst();
             var vcl = first.orElseThrow(() -> new IllegalArgumentException("cluster " + virtualCluster + " does not contain gateway named " + gateway));
             final Optional<Tls> tls = vcl.tls();
             if (tls.isPresent()) {
@@ -132,7 +132,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
                     defaultClientConfig.put(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, storeConfiguration.trustStorePassword());
                 }
             }
-        }
+        });
     }
 
     @Override
@@ -287,12 +287,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
 
     static KafkaProxy spawnProxy(Configuration config, Features features) {
         KafkaProxy kafkaProxy = new KafkaProxy(new ServiceBasedPluginFactoryRegistry(), config, features);
-        try {
-            kafkaProxy.startup();
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        kafkaProxy.startup();
         return kafkaProxy;
     }
 
@@ -346,10 +341,10 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     @Override
-    public AdminHttpClient getAdminHttpClient() {
-        var client = Optional.ofNullable(kroxyliciousConfig.adminHttpConfig())
-                .map(ahc -> URI.create("http://localhost:" + ahc.port()))
-                .map(AdminHttpClient::new)
+    public ManagementClient getManagementClient() {
+        var client = Optional.ofNullable(kroxyliciousConfig.management())
+                .map(ahc -> URI.create("http://localhost:" + ahc.getEffectivePort()))
+                .map(ManagementClient::new)
                 .orElseThrow(() -> new IllegalStateException("admin http interface not configured"));
         closeables.add(client);
         return client;

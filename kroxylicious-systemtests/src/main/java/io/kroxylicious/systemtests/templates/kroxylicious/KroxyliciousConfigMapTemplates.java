@@ -101,11 +101,11 @@ public final class KroxyliciousConfigMapTemplates {
         String configYaml = buildEncryptionFilter(testKmsFacade, experimentalKmsConfig);
 
         return """
-                adminHttp:
+                management:
                   endpoints:
                     prometheus: {}
                 virtualClusters:
-                  my-cluster-proxy:
+                  - name: my-cluster-proxy
                     gateways:
                     - name: default
                       portIdentifiesNode:
@@ -124,11 +124,11 @@ public final class KroxyliciousConfigMapTemplates {
 
     private static String getDefaultKroxyliciousConfigMap(String clusterName) {
         return """
-                adminHttp:
+                management:
                   endpoints:
                     prometheus: {}
                 virtualClusters:
-                  demo:
+                  - name: demo
                     targetCluster:
                       bootstrapServers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
                     gateways:
@@ -150,11 +150,11 @@ public final class KroxyliciousConfigMapTemplates {
      */
     public static String getDefaultExternalKroxyliciousConfigMap(String clusterExternalIP) {
         return """
-                adminHttp:
+                management:
                   endpoints:
                     prometheus: {}
                 virtualClusters:
-                  demo:
+                  - name: demo
                     targetCluster:
                       bootstrapServers: %s:9094
                     gateways:

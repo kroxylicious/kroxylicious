@@ -6,13 +6,13 @@
 
 ---
 useIoUring: true
-adminHttp:
-  host: kroxy
+management:
+  bindAddress: 127.0.0.1
   port: 9093
   endpoints:
     prometheus: {}
 virtualClusters:
-  demo:
+  - name: demo
     targetCluster:
       bootstrapServers: localhost:9092
     gateways:

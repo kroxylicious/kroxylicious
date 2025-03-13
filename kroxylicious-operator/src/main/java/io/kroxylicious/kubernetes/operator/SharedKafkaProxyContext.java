@@ -17,6 +17,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+
 /**
  * Encapsulates access to the mutable state in the {@link Context<KafkaProxy>} shared between
  * {@link ProxyReconciler} its dependent resources.
@@ -33,31 +35,31 @@ public class SharedKafkaProxyContext {
      * Set the RuntimeDecl
      */
     static void runtimeDecl(Context<KafkaProxy> context, RuntimeDecl runtimeDecl) {
-        context.managedDependentResourceContext().put(RUNTIME_DECL_KEY, runtimeDecl);
+        context.managedWorkflowAndDependentResourceContext().put(RUNTIME_DECL_KEY, runtimeDecl);
     }
 
     /**
      * Get the RuntimeDecl
      */
     static RuntimeDecl runtimeDecl(Context<KafkaProxy> context) {
-        return context.managedDependentResourceContext().getMandatory(RUNTIME_DECL_KEY, RuntimeDecl.class);
+        return context.managedWorkflowAndDependentResourceContext().getMandatory(RUNTIME_DECL_KEY, RuntimeDecl.class);
     }
 
     /**
      * Associate a condition with a specific cluster.
      */
     static void addClusterCondition(Context<KafkaProxy> context, VirtualKafkaCluster cluster, ClusterCondition clusterCondition) {
-        Map<String, ClusterCondition> map = context.managedDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class).orElse(null);
+        Map<String, ClusterCondition> map = context.managedWorkflowAndDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class).orElse(null);
         if (map == null) {
             map = Collections.synchronizedMap(new HashMap<>());
-            context.managedDependentResourceContext().put(CLUSTER_CONDITIONS_KEY, map);
+            context.managedWorkflowAndDependentResourceContext().put(CLUSTER_CONDITIONS_KEY, map);
         }
-        map.put(cluster.getMetadata().getName(), clusterCondition);
+        map.put(name(cluster), clusterCondition);
     }
 
     static boolean isBroken(Context<KafkaProxy> context, VirtualKafkaCluster cluster) {
-        Map<String, ClusterCondition> map = context.managedDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class).orElse(Map.of());
-        return map.containsKey(cluster.getMetadata().getName());
+        Map<String, ClusterCondition> map = context.managedWorkflowAndDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class).orElse(Map.of());
+        return map.containsKey(name(cluster));
     }
 
     /**
@@ -67,8 +69,7 @@ public class SharedKafkaProxyContext {
      * @return The conditions specific to the given cluster; or empty if there were none.
      */
     static ClusterCondition clusterCondition(Context<KafkaProxy> context, VirtualKafkaCluster cluster) {
-        Optional<Map<String, ClusterCondition>> map = (Optional) context.managedDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class);
-        return map.orElse(Map.of()).getOrDefault(cluster.getMetadata().getName(), ClusterCondition.accepted(cluster.getMetadata().getName()));
+        Optional<Map<String, ClusterCondition>> map = (Optional) context.managedWorkflowAndDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class);
+        return map.orElse(Map.of()).getOrDefault(name(cluster), ClusterCondition.accepted(name(cluster)));
     }
-
 }

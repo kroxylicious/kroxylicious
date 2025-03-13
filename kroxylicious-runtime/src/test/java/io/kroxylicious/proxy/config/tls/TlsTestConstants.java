@@ -17,7 +17,7 @@ public class TlsTestConstants {
     public static final String PKCS_12 = "PKCS12";
     public static final String PEM = Tls.PEM;
 
-    static final PasswordProvider STOREPASS = new InlinePassword("storepass");
+    public static final PasswordProvider STOREPASS = new InlinePassword("storepass");
     static final PasswordProvider KEYPASS = new InlinePassword("keypass");
     static final PasswordProvider BADPASS = new InlinePassword("badpass");
     static final PasswordProvider KEYSTORE_FILE_PASSWORD = new FilePassword(getResourceLocationOnFilesystem("storepass.password"));

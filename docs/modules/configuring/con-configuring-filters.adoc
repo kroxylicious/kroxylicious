@@ -25,9 +25,9 @@ defaultFilters:
   - validation
   - encryption
 virtualClusters:
-  my-proxy-with-default-filters:
+  - name: my-proxy-with-default-filters
     # ...
-  my-proxy-with-custom-filters:
+  - name: my-proxy-with-custom-filters
     filters:
       - validation
       - special-encryption
@@ -56,7 +56,7 @@ filters: # deprecated!
     config:
       # ...
 virtualClusters:
-  my-proxy-with-default-filters:
+  - name: my-proxy-with-default-filters
     # ...
 ----
 
