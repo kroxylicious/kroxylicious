@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.kubernetes.operator;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -22,22 +24,21 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.javaoperatorsdk.operator.api.reconciler.dependent.DependentResource;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkflowAndDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
-import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRef;
-import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterSpec;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
-import io.kroxylicious.kubernetes.operator.model.ingress.IngressConflictException;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
@@ -48,6 +49,7 @@ import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
+import static io.kroxylicious.kubernetes.operator.ProxyConfigData.CONFIG_OBJECT_MAPPER;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
 /**
@@ -55,8 +57,10 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
  */
 @KubernetesDependent
 public class ProxyConfigConfigMap
-        extends CRUDKubernetesDependentResource<ConfigMap, KafkaProxy> {
+        extends CRUDKubernetesDependentResource<ConfigMap, KafkaProxy>
+        implements io.javaoperatorsdk.operator.processing.dependent.workflow.Condition<ConfigMap, KafkaProxy> {
 
+    public static final String CONFIG_YAML_KEY = "proxy-config.yaml";
     public static String REASON_INVALID = "Invalid";
 
     /**
@@ -65,6 +69,7 @@ public class ProxyConfigConfigMap
 
     public static final String SECURE_VOLUME_KEY = "secure-volumes";
     public static final String SECURE_VOLUME_MOUNT_KEY = "secure-volume-mounts";
+    public static final String CONFIGURATION_DATA_KEY = "configuration";
 
     public ProxyConfigConfigMap() {
         super(ConfigMap.class);
@@ -94,15 +99,25 @@ public class ProxyConfigConfigMap
     }
 
     @Override
+    public boolean isMet(DependentResource<ConfigMap, KafkaProxy> dependentResource, KafkaProxy primary, Context<KafkaProxy> context) {
+        try {
+            var configuration = generateProxyConfig(context);
+            context.managedWorkflowAndDependentResourceContext().put(CONFIGURATION_DATA_KEY, configuration);
+            return true;
+        }
+        catch (IllegalConfigurationException ice) {
+            context.managedWorkflowAndDependentResourceContext().put(CONFIGURATION_DATA_KEY, null);
+            return false;
+        }
+    }
+
+    @Override
     protected ConfigMap desired(KafkaProxy primary,
                                 Context<KafkaProxy> context) {
-        var clock = KafkaProxyContext.proxyContext(context).virtualKafkaClusterStatusFactory();
-        var data = new ProxyConfigData();
-        data.setProxyConfiguration(generateProxyConfig(context));
-
-        ProxyModel proxyModel = KafkaProxyContext.proxyContext(context).model();
-        addResolvedRefsConditions(clock, proxyModel, data);
-        addAcceptedConditions(clock, proxyModel, data);
+        // the configuration object won't be present if isMet has returned false
+        // this is the case if the dependant resource is to be removed.
+        Optional<Configuration> configuration = context.managedWorkflowAndDependentResourceContext().get(CONFIGURATION_DATA_KEY, Configuration.class);
+        var data = configuration.map(c -> Map.of(CONFIG_YAML_KEY, toYaml(c))).orElse(Map.of());
 
         // @formatter:off
         return new ConfigMapBuilder()
@@ -112,54 +127,9 @@ public class ProxyConfigConfigMap
                     .addToLabels(standardLabels(primary))
                     .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
                 .endMetadata()
-                .withData(data.build())
+                .withData(data)
                 .build();
         // @formatter:on
-    }
-
-    private static void addAcceptedConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigData data) {
-        var model = proxyModel.ingressModel();
-        for (ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel : model.clusters()) {
-            VirtualKafkaCluster cluster = virtualClusterIngressModel.cluster();
-
-            VirtualKafkaCluster patch;
-            if (!virtualClusterIngressModel.ingressExceptions().isEmpty()) {
-                IngressConflictException first = virtualClusterIngressModel.ingressExceptions().iterator().next();
-                patch = statusFactory.newFalseConditionStatusPatch(cluster,
-                        Condition.Type.Accepted, Condition.REASON_INVALID,
-                        "Ingress(es) [" + first.getIngressName() + "] of cluster conflicts with another ingress");
-            }
-            else {
-                patch = statusFactory.newTrueConditionStatusPatch(cluster,
-                        Condition.Type.Accepted);
-            }
-            if (!data.hasStatusPatchForCluster(ResourcesUtil.name(cluster))) {
-                data.addStatusPatchForCluster(ResourcesUtil.name(cluster), patch);
-            }
-        }
-    }
-
-    private static void addResolvedRefsConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigData data) {
-        proxyModel.resolutionResult().clusterResults().stream()
-                .filter(ResolutionResult.ClusterResolutionResult::isAnyDependencyUnresolved)
-                .forEach(clusterResolutionResult -> {
-
-                    Comparator<LocalRef<?>> comparator = Comparator.<LocalRef<?>, String> comparing(LocalRef::getGroup)
-                            .thenComparing(LocalRef::getKind)
-                            .thenComparing(LocalRef::getName);
-
-                    LocalRef<?> firstUnresolvedDependency = clusterResolutionResult.unresolvedDependencySet().stream()
-                            .sorted(comparator).findFirst()
-                            .orElseThrow();
-                    String message = String.format("Resource %s was not found.",
-                            ResourcesUtil.namespacedSlug(firstUnresolvedDependency, clusterResolutionResult.cluster()));
-                    VirtualKafkaCluster cluster = clusterResolutionResult.cluster();
-
-                    data.addStatusPatchForCluster(
-                            ResourcesUtil.name(cluster),
-                            statusFactory.newFalseConditionStatusPatch(cluster,
-                                    Condition.Type.ResolvedRefs, Condition.REASON_INVALID, message));
-                });
     }
 
     Configuration generateProxyConfig(Context<KafkaProxy> context) {
@@ -271,6 +241,15 @@ public class ProxyConfigConfigMap
                 virtualClusterIngressModel.gateways(),
                 false, false,
                 filterNamesForCluster(cluster));
+    }
+
+    private static String toYaml(Object filterDefs) {
+        try {
+            return CONFIG_OBJECT_MAPPER.writeValueAsString(filterDefs).stripTrailing();
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
 }

@@ -18,12 +18,14 @@ import org.junit.jupiter.params.provider.EnumSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.VirtualCluster;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 class FeaturesTest {
 
-    public static List<Arguments> enabledByDefault() {
+    private static List<Arguments> enabledByDefault() {
         return List.of(Arguments.of(Feature.TEST_ONLY_CONFIGURATION, false));
     }
 
@@ -63,7 +65,7 @@ class FeaturesTest {
     @MethodSource
     @SuppressWarnings("java:S5738")
     void supportsValidTestConfiguration(Features features, Map<String, Object> config) {
-        Configuration configuration = new Configuration(null, null, List.of(), null, false, Optional.ofNullable(config));
+        Configuration configuration = new Configuration(null, List.of(), List.of(), List.of(mock(VirtualCluster.class)), null, false, Optional.ofNullable(config));
         List<String> errorMessages = features.supports(configuration);
         assertThat(errorMessages).isEmpty();
     }
@@ -72,7 +74,7 @@ class FeaturesTest {
     @SuppressWarnings("java:S5738")
     void supportsReturnsErrorOnTestConfigurationPresentWithFeatureDisabled() {
         Optional<Map<String, Object>> a = Optional.of(Map.of("a", "b"));
-        Configuration configuration = new Configuration(null, null, List.of(), null, false, a);
+        Configuration configuration = new Configuration(null, List.of(), List.of(), List.of(mock(VirtualCluster.class)), null, false, a);
         List<String> errors = Features.defaultFeatures().supports(configuration);
         assertThat(errors).containsExactly("test-only configuration for proxy present, but loading test-only configuration not enabled");
     }

@@ -14,18 +14,13 @@ metadata:
     app.kubernetes.io/name: "kroxylicious-proxy"
     app.kubernetes.io/instance: "example"
     app.kubernetes.io/component: "proxy"
-  name: "example"
+  name: "example-config-state"
   namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
       name: "example"
 data:
-  proxy-config.yaml: |-
-    ---
-    management:
-      endpoints:
-        prometheus: {}
   cluster-bar: |-
     ---
     metadata:

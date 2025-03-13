@@ -52,7 +52,13 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
 // @formatter:off
 @Workflow(dependents = {
         @Dependent(
+                name = KafkaProxyReconciler.CONFIG_STATE_DEP,
+                type = ProxyConfigStateConfigMap.class
+        ),
+        @Dependent(
                 name = KafkaProxyReconciler.CONFIG_DEP,
+                reconcilePrecondition = ProxyConfigConfigMap.class,
+                dependsOn = { KafkaProxyReconciler.CONFIG_STATE_DEP },
                 type = ProxyConfigConfigMap.class
         ),
         @Dependent(
@@ -74,6 +80,7 @@ public class KafkaProxyReconciler implements
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyReconciler.class);
 
+    public static final String CONFIG_STATE_DEP = "config-state";
     public static final String CONFIG_DEP = "config";
     public static final String DEPLOYMENT_DEP = "deployment";
     public static final String CLUSTERS_DEP = "clusters";
@@ -282,3 +289,4 @@ public class KafkaProxyReconciler implements
         return ingress -> ingress.getSpec().getProxyRef().getName().equals(name(primary));
     }
 }
+// @formatter:off

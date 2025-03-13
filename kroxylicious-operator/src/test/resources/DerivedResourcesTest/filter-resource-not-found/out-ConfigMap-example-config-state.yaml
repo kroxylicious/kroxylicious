@@ -1,0 +1,52 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: "v1"
+kind: "ConfigMap"
+metadata:
+  labels:
+    app.kubernetes.io/part-of: "kafka"
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
+    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/instance: "example"
+    app.kubernetes.io/component: "proxy"
+  name: "example-config-state"
+  namespace: "proxy-ns"
+  ownerReferences:
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxy"
+      name: "example"
+data:
+  cluster-bar: |-
+    ---
+    metadata:
+      name: "bar"
+      namespace: "proxy-ns"
+    status:
+      conditions:
+      - observedGeneration: 4
+        type: "ResolvedRefs"
+        status: "False"
+        lastTransitionTime: "1970-01-01T00:00:00Z"
+        reason: "Invalid"
+        message: "Resource kafkaprotocolfilter.filter.kroxylicious.io/missing in namespace\
+          \ 'proxy-ns' was not found."
+      observedGeneration: 4
+  cluster-foo: |-
+    ---
+    metadata:
+      name: "foo"
+      namespace: "proxy-ns"
+    status:
+      conditions:
+      - observedGeneration: 1
+        type: "Accepted"
+        status: "False"
+        lastTransitionTime: "1970-01-01T00:00:00Z"
+        reason: "Invalid"
+        message: "Ingress(es) [cluster-ip-foo] of cluster conflicts with another ingress"
+      observedGeneration: 1

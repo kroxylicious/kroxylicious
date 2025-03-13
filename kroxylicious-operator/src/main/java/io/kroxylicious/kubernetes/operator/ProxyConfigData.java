@@ -22,7 +22,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.proxy.config.ConfigParser;
-import io.kroxylicious.proxy.config.Configuration;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -31,7 +30,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 public class ProxyConfigData {
 
-    public static final String CONFIG_YAML_KEY = "proxy-config.yaml";
     public static final String CLUSTER_KEY_PREFIX = "cluster-";
     static final ObjectMapper CONFIG_OBJECT_MAPPER = ConfigParser.createObjectMapper()
             .registerModule(new JavaTimeModule());
@@ -60,14 +58,6 @@ public class ProxyConfigData {
 
     public ProxyConfigData(Map<String, String> data) {
         this.data = data;
-    }
-
-    public void setProxyConfiguration(Configuration proxyConfiguration) {
-        data.put(CONFIG_YAML_KEY, toYaml(proxyConfiguration));
-    }
-
-    public String getProxyConfiguration() {
-        return data.get(CONFIG_YAML_KEY);
     }
 
     record VirtualKafkaClusterPatch(ObjectMeta metadata,

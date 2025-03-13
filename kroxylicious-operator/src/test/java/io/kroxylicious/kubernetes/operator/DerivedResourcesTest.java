@@ -154,6 +154,14 @@ class DerivedResourcesTest {
 
         @Override
         public Map<String, R> invokeDesired(P primary, Context<P> context) {
+
+            // FIX ME
+            if (dependentResource instanceof io.javaoperatorsdk.operator.processing.dependent.workflow.Condition c) {
+                if (!c.isMet(dependentResource, primary, context)) {
+                    return Map.of();
+                }
+            }
+
             R apply = fn.apply(dependentResource, primary, context);
             return Map.of(name(apply), apply);
         }
@@ -186,7 +194,10 @@ class DerivedResourcesTest {
         // Note that the order in this list should reflect the dependency order declared in the ProxyReconciler's
         // @ControllerConfiguration annotation, because the statefulness of Context<KafkaProxy> means that
         // later DependentResource can depend on Context state created by earlier DependentResources.
+
+        // KW could we drive from the annotations?
         var list = List.<DesiredFn<KafkaProxy, ?>> of(
+                new SingletonDependentResourceDesiredFn<>(new ProxyConfigStateConfigMap(), "ConfigMap", ProxyConfigStateConfigMap::desired),
                 new SingletonDependentResourceDesiredFn<>(new ProxyConfigConfigMap(), "ConfigMap", ProxyConfigConfigMap::desired),
                 new SingletonDependentResourceDesiredFn<>(new ProxyDeployment(), "Deployment", ProxyDeployment::desired),
                 new BulkDependentResourceDesiredFn<>(new ClusterService(), "Service", ClusterService::desiredResources));
@@ -264,7 +275,7 @@ class DerivedResourcesTest {
                     var expectedFile = testDir.resolve("out-" + kind + "-" + name + ".yaml");
                     tests.add(DynamicTest.dynamicTest(kind + " '" + name + "' should have the same content as " + testDir.relativize(expectedFile),
                             () -> {
-                                assertThat(Files.exists(expectedFile)).isTrue();
+                                assertThat(Files.exists(expectedFile)).describedAs(expectedFile + " does not exist").isTrue();
                                 var expected = loadExpected(expectedFile, resourceType);
                                 assertSameYaml(actualResource, expected);
                                 unusedFiles.remove(expectedFile);

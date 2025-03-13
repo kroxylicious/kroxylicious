@@ -14,28 +14,22 @@ metadata:
     app.kubernetes.io/name: "kroxylicious-proxy"
     app.kubernetes.io/instance: "use-pod-template-spec"
     app.kubernetes.io/component: "proxy"
-  name: "use-pod-template-spec"
+  name: "use-pod-template-spec-config-state"
   namespace: proxy-ns
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
       name: "use-pod-template-spec"
 data:
-  proxy-config.yaml: |-
+  cluster-one: |-
     ---
-    management:
-      endpoints:
-        prometheus: {}
-    virtualClusters:
-    - name: "one"
-      targetCluster:
-        bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
-      gateways:
-      - name: "default"
-        portIdentifiesNode:
-          bootstrapAddress: "localhost:9292"
-          advertisedBrokerAddressPattern: "one-cluster-ip.proxy-ns.svc.cluster.local"
-          nodeIdRanges:
-          - name: "default"
-            start: 0
-            end: 2
+    metadata:
+      name: "one"
+      namespace: "proxy-ns"
+    status:
+      conditions:
+      - observedGeneration: 5
+        type: "Accepted"
+        status: "True"
+        lastTransitionTime: "1970-01-01T00:00:00Z"
+      observedGeneration: 5
