@@ -179,6 +179,42 @@ class OperatorMainIT {
                 });
     }
 
+    @Test
+    void shouldSendClientErrorForUnsupportedHttpMethod() throws IOException, InterruptedException {
+        // Given
+        @SuppressWarnings("resource") // Only applies at JDK 21+ level and we are JDK 17
+        HttpClient httpClient = HttpClient.newHttpClient();
+        final HttpResponse.BodyHandler<Stream<String>> responseBodyHandler = HttpResponse.BodyHandlers.ofLines();
+        operatorMain.start();
+
+        // When
+        final HttpResponse<Stream<String>> response = httpClient.send(
+                HttpRequest.newBuilder().uri(URI.create(managementAddress() + "/")).DELETE().build(),
+                responseBodyHandler);
+
+        // Then
+        assertThat(response.statusCode()).isEqualTo(405);
+        assertThat(response.body()).isEmpty();
+    }
+
+    @Test
+    void shouldSendClientErrorForUnsupportedHttpMethodToMetrics() throws IOException, InterruptedException {
+        // Given
+        @SuppressWarnings("resource") // Only applies at JDK 21+ level and we are JDK 17
+        HttpClient httpClient = HttpClient.newHttpClient();
+        final HttpResponse.BodyHandler<Stream<String>> responseBodyHandler = HttpResponse.BodyHandlers.ofLines();
+        operatorMain.start();
+
+        // When
+        final HttpResponse<Stream<String>> response = httpClient.send(
+                HttpRequest.newBuilder().uri(URI.create(managementAddress() + "/metrics")).DELETE().build(),
+                responseBodyHandler);
+
+        // Then
+        assertThat(response.statusCode()).isEqualTo(405);
+        assertThat(response.body()).isEmpty();
+    }
+
     private static void createProxyInstance(KafkaProxyBuilder proxyBuilder) {
         final KubernetesClient kubernetesClient = Objects.requireNonNull(OperatorTestUtils.kubeClientIfAvailable());
         kafkaProxy = kubernetesClient.resource(proxyBuilder.build()).create();

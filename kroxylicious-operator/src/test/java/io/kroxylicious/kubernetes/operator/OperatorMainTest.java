@@ -34,6 +34,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodHandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -125,6 +126,17 @@ class OperatorMainTest {
 
         // Then
         verify(managementServer).createContext(eq("/metrics"), any(HttpHandler.class));
+    }
+
+    @Test
+    void shouldRegisterUnsupportedMethodsHandlerWithManagementServer() {
+        // Given
+
+        // When
+        operatorMain.start();
+
+        // Then
+        verify(managementServer).createContext(eq("/"), any(UnsupportedHttpMethodHandler.class));
     }
 
     private void expectApiResources() {
