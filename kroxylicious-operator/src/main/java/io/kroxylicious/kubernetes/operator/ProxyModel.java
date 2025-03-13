@@ -18,11 +18,12 @@ import io.kroxylicious.kubernetes.operator.ingress.IngressAllocator;
 import io.kroxylicious.kubernetes.operator.ingress.ProxyIngressModel;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
+import io.kroxylicious.kubernetes.operator.resolver.UnresolvedDependencyReporter;
 
 public record ProxyModel(ResolutionResult resolutionResult, ProxyIngressModel ingressModel, List<VirtualKafkaCluster> clustersWithValidIngresses) {
 
     static ProxyModel build(KafkaProxy primary, Context<KafkaProxy> context) {
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(context, new ContextDependencyReporter(context));
+        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(context, UnresolvedDependencyReporter.contextClusterConditionReporter(context));
         Set<KafkaProxyIngress> ingresses = resolutionResult.getIngresses();
         ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, resolutionResult.allClustersInNameOrder(), ingresses, context);
         List<VirtualKafkaCluster> clustersWithValidIngresses = resolutionResult.fullyResolvedClustersInNameOrder().stream()

@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kubernetes.operator;
+package io.kroxylicious.kubernetes.operator.resolver;
 
 import java.util.Comparator;
 import java.util.Set;
@@ -13,13 +13,13 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
-import io.kroxylicious.kubernetes.operator.resolver.UnresolvedDependencyReporter;
+import io.kroxylicious.kubernetes.operator.ClusterCondition;
+import io.kroxylicious.kubernetes.operator.SharedKafkaProxyContext;
 
 import static io.kroxylicious.kubernetes.operator.ClusterCondition.ingressNotFound;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 
-record ContextDependencyReporter(Context<KafkaProxy> context) implements UnresolvedDependencyReporter {
+record ClusterConditionUnresolvedDependencyReporter(Context<KafkaProxy> context) implements UnresolvedDependencyReporter {
 
     @Override
     public void reportUnresolvedDependencies(VirtualKafkaCluster cluster, Set<ResolutionResult.UnresolvedDependency> unresolvedDependencies) {

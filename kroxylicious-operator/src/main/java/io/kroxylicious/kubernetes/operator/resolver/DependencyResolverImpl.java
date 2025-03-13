@@ -59,9 +59,9 @@ class DependencyResolverImpl implements DependencyResolver {
     }
 
     private @NonNull ClusterResolutionResult determineUnresolvedDependencies(VirtualKafkaCluster cluster,
-                                                                                              Map<String, KafkaProxyIngress> ingresses,
-                                                                                              Map<String, KafkaClusterRef> clusterRefs,
-                                                                                              Map<String, GenericKubernetesResource> filters) {
+                                                                             Map<String, KafkaProxyIngress> ingresses,
+                                                                             Map<String, KafkaClusterRef> clusterRefs,
+                                                                             Map<String, GenericKubernetesResource> filters) {
         VirtualKafkaClusterSpec spec = cluster.getSpec();
         Set<UnresolvedDependency> unresolvedDependencies = new HashSet<>();
         determineUnresolvedIngresses(spec, ingresses).forEach(unresolvedDependencies::add);

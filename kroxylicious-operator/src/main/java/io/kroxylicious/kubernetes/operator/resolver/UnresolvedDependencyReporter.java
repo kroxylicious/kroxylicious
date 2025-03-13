@@ -8,6 +8,9 @@ package io.kroxylicious.kubernetes.operator.resolver;
 
 import java.util.Set;
 
+import io.javaoperatorsdk.operator.api.reconciler.Context;
+
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
 /**
@@ -20,4 +23,8 @@ public interface UnresolvedDependencyReporter {
      * @param unresolvedDependencies non-empty list of unresolved dependencies
      */
     void reportUnresolvedDependencies(VirtualKafkaCluster cluster, Set<ResolutionResult.UnresolvedDependency> unresolvedDependencies);
+
+    static UnresolvedDependencyReporter contextClusterConditionReporter(Context<KafkaProxy> proxyContext) {
+        return new ClusterConditionUnresolvedDependencyReporter(proxyContext);
+    }
 }
