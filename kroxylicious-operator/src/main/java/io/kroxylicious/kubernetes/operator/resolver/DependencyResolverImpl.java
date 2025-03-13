@@ -106,8 +106,8 @@ class DependencyResolverImpl implements DependencyResolver {
                 && name(filterResource).equals(filterRef.getName());
     }
 
-    public static void reportClustersThatDidNotFullyResolve(ResolutionResult resolutionResult,
-                                                            UnresolvedDependencyReporter unresolvedDependencyReporter) {
+    private static void reportClustersThatDidNotFullyResolve(ResolutionResult resolutionResult,
+                                                             UnresolvedDependencyReporter unresolvedDependencyReporter) {
         resolutionResult.clusterResults()
                 .filter(ClusterResolutionResult::isAnyDependencyUnresolved)
                 .forEach(clusterResolutionResult -> unresolvedDependencyReporter.reportUnresolvedDependencies(clusterResolutionResult.cluster(),
