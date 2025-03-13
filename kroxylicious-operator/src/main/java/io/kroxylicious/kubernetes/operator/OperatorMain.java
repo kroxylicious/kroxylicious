@@ -25,6 +25,7 @@ import io.prometheus.metrics.exporter.httpserver.MetricsHandler;
 
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
+import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodHandler;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -71,6 +72,7 @@ public class OperatorMain {
         operator.installShutdownHook(Duration.ofSeconds(10));
         var registeredController = operator.register(new ProxyReconciler(runtimeDecl()));
         // TODO couple the health of the registeredController to the operator's HTTP healthchecks
+        managementServer.createContext("/", new UnsupportedHttpMethodHandler()); // This works as a request to `/metrics` has a more explicit match and thus gets served.
         managementServer.start();
         operator.start();
         LOGGER.info("Operator started.");
@@ -97,7 +99,7 @@ public class OperatorMain {
 
     private void configurePrometheusMetrics(HttpServer managementServer) {
         final PrometheusMeterRegistry prometheusMeterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
-        managementServer.createContext("/metrics", new MetricsHandler(prometheusMeterRegistry.getPrometheusRegistry()));
+        managementServer.createContext("/metrics", new UnsupportedHttpMethodHandler(new MetricsHandler(prometheusMeterRegistry.getPrometheusRegistry())));
         Metrics.globalRegistry.add(prometheusMeterRegistry);
     }
 }
