@@ -39,7 +39,7 @@ import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
-import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedDependentResourceContext;
+import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedWorkflowAndDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependentResource;
 
@@ -194,7 +194,7 @@ class DerivedResourcesTest {
         // @ControllerConfiguration annotation, because the statefulness of Context<KafkaProxy> means that
         // later DependentResource can depend on Context state created by earlier DependentResources.
         var list = List.<DesiredFn<KafkaProxy, ?>> of(
-                new SingletonDependentResourceDesiredFn<>(new ProxyConfigSecret(), "Secret", ProxyConfigSecret::desired),
+                new SingletonDependentResourceDesiredFn<>(new ProxyConfigConfigMap(), "ConfigMap", ProxyConfigConfigMap::desired),
                 new SingletonDependentResourceDesiredFn<>(new ProxyDeployment(), "Deployment", ProxyDeployment::desired),
                 new BulkDependentResourceDesiredFn<>(new ClusterService(), "Service", ClusterService::desiredResources));
         return dependentResourcesShouldEqual(list);
@@ -358,9 +358,9 @@ class DerivedResourcesTest {
         };
         Context<KafkaProxy> context = mock(Context.class, throwOnUnmockedInvocation);
 
-        var resourceContext = new DefaultManagedDependentResourceContext();
+        var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext(null, null, context);
 
-        doReturn(resourceContext).when(context).managedDependentResourceContext();
+        doReturn(resourceContext).when(context).managedWorkflowAndDependentResourceContext();
 
         var runtimeDecl = OperatorMain.runtimeDecl();
         Set<GenericKubernetesResource> filterInstances = new HashSet<>();

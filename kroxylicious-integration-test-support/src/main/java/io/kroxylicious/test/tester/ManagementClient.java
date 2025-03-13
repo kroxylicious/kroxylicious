@@ -22,13 +22,13 @@ import static java.net.http.HttpResponse.BodyHandlers.ofString;
 /**
  * Client for interacting with the admin HTTP endpoint of a kroxylicious instance.
  */
-public class AdminHttpClient implements Closeable {
+public class ManagementClient implements Closeable {
     private static final String METRICS = "metrics";
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
     private final URI uri;
 
-    AdminHttpClient(@NonNull URI uri) {
+    ManagementClient(@NonNull URI uri) {
         this.uri = uri;
     }
 

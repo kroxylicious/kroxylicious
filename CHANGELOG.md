@@ -7,6 +7,8 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1903](https://github.com/kroxylicious/kroxylicious/issues/1903) Rename `adminHttp` to `management` in the config model.
+* [#1918](https://github.com/kroxylicious/kroxylicious/pull/1918)  Removes support for the deprecated config property `filePath`.
 * [#1573](https://github.com/kroxylicious/kroxylicious/issues/1573) Minimal proxy health probe (livez)
 * [#1847](https://github.com/kroxylicious/kroxylicious/pull/1847) Remodel virtual cluster map as a list (with explicit names).
 * [#1840](https://github.com/kroxylicious/kroxylicious/pull/1840) Refactor virtual cluster configuration model
@@ -28,6 +30,11 @@ Format `<github issue/pr number>: <short description>`.
 * The `virtualClusters` configuration property now expects a list of `virtualCluster` objects (rather than a mapping
   of `name` to `virtualCluster`).  Furthermore, the `virtualCluster` object now requires a `name` configuration property.
   For backward compatibility, support for the map (and values without `name`) continues, but this will be removed in a future release.
+* As announced at 0.5.0, when configuring TLS, the property `passwordFile` should be used for specifying location of a
+  file providing the password. Support for the deprecated alias `filePath` is now removed.
+* The `adminHttp` configuration property is renamed `management`.  The configuration property `host` within that object
+  is renamed `bindAddress`.  Support for the old configuration property names is maintained, but their use is deprecated  
+  and will be removed in a future release.
 
 ## 0.10.0
 

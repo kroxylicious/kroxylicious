@@ -7,26 +7,23 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Duration;
-import java.util.Base64;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import org.assertj.core.api.AbstractStringAssert;
 import org.assertj.core.api.Assumptions;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -68,18 +65,18 @@ class ProxyReconcilerIT {
     private static final String CLUSTER_BAR_BOOTSTRAP = "my-cluster-kafka-bootstrap.bar.svc.cluster.local:9092";
     private static final String NEW_BOOTSTRAP = "new-bootstrap:9092";
 
-    private static KubernetesClient client;
-    private final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(20));
+    private KubernetesClient client;
+    private final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
-    @BeforeAll
-    static void checkKubeAvailable() {
+    @BeforeEach
+    void checkKubeAvailable() {
         client = OperatorTestUtils.kubeClientIfAvailable();
         Assumptions.assumeThat(client).describedAs("Test requires a viable kube client").isNotNull();
         preloadOperatorImage();
     }
 
     // the initial operator image pull can take a long time and interfere with the tests
-    private static void preloadOperatorImage() {
+    private void preloadOperatorImage() {
         String operandImage = ProxyDeployment.getOperandImage();
         Pod pod = client.run().withName("preload-operator-image")
                 .withNewRunConfig()
@@ -136,7 +133,7 @@ class ProxyReconcilerIT {
         VirtualKafkaCluster clusterBar = extension.create(virtualKafkaCluster(CLUSTER_BAR, proxy, barClusterRef, ingressBar));
         Set<VirtualKafkaCluster> clusters = Set.of(clusterBar);
         assertProxyConfigContents(proxy, Set.of(CLUSTER_BAR_BOOTSTRAP), Set.of());
-        assertDeploymentMountsConfigSecret(proxy);
+        assertDeploymentMountsConfigConfigMap(proxy);
         assertDeploymentBecomesReady(proxy);
         assertServiceTargetsProxyInstances(proxy, clusterBar, ingressBar);
         return new CreatedResources(proxy, clusters, clusterRefs, Set.of(ingressBar));
@@ -173,19 +170,20 @@ class ProxyReconcilerIT {
         });
     }
 
-    private void assertDeploymentMountsConfigSecret(KafkaProxy proxy) {
+    private void assertDeploymentMountsConfigConfigMap(KafkaProxy proxy) {
         AWAIT.alias("Deployment as expected").untilAsserted(() -> {
             var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(proxy));
             assertThat(deployment).isNotNull()
                     .extracting(dep -> dep.getSpec().getTemplate().getSpec().getVolumes(), InstanceOfAssertFactories.list(Volume.class))
-                    .describedAs("Deployment template should mount the proxy config secret")
-                    .anyMatch(vol -> vol.getSecret() != null
-                            && vol.getSecret().getSecretName().equals(ProxyConfigSecret.secretName(proxy)));
+                    .describedAs("Deployment template should mount the proxy config configmap")
+                    .filteredOn(volume -> volume.getConfigMap() != null)
+                    .map(Volume::getConfigMap)
+                    .anyMatch(cm -> cm.getName().equals(ProxyConfigConfigMap.configMapName(proxy)));
         });
     }
 
     private void assertProxyConfigContents(KafkaProxy cr, Set<String> contains, Set<String> notContains) {
-        AWAIT.alias("Secret as expected").untilAsserted(() -> {
+        AWAIT.alias("Config as expected").untilAsserted(() -> {
             AbstractStringAssert<?> proxyConfig = assertThatProxyConfigFor(cr);
             if (!contains.isEmpty()) {
                 proxyConfig.contains(contains);
@@ -202,9 +200,9 @@ class ProxyReconcilerIT {
         KafkaProxy proxy = createdResources.proxy;
         extension.delete(proxy);
 
-        AWAIT.alias("Secret was deleted").untilAsserted(() -> {
-            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
-            assertThat(secret).isNull();
+        AWAIT.alias("ConfigMap was deleted").untilAsserted(() -> {
+            var configMap = extension.get(ConfigMap.class, ProxyConfigConfigMap.configMapName(proxy));
+            assertThat(configMap).isNull();
         });
         AWAIT.alias("Deployment was deleted").untilAsserted(() -> {
             var deployment = extension.get(Deployment.class, ProxyDeployment.deploymentName(proxy));
@@ -227,12 +225,7 @@ class ProxyReconcilerIT {
 
         assertDeploymentBecomesReady(proxy);
         AWAIT.untilAsserted(() -> {
-            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
-            assertThat(secret)
-                    .isNotNull()
-                    .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
-                    .containsKey(ProxyConfigSecret.CONFIG_YAML_KEY)
-                    .extracting(map -> map.get(ProxyConfigSecret.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING)
+            assertThatProxyConfigFor(proxy)
                     .doesNotContain(CLUSTER_BAR_BOOTSTRAP)
                     .contains(NEW_BOOTSTRAP);
         });
@@ -269,15 +262,8 @@ class ProxyReconcilerIT {
         final var createdResources = doCreate();
         KafkaProxy proxy = createdResources.proxy;
         extension.delete(createdResources.cluster(CLUSTER_BAR));
-        AWAIT.untilAsserted(() -> {
-            var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
-            assertThat(secret)
-                    .isNotNull()
-                    .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
-                    .containsKey(ProxyConfigSecret.CONFIG_YAML_KEY)
-                    .extracting(map -> map.get(ProxyConfigSecret.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING)
-                    .doesNotContain(CLUSTER_BAR_BOOTSTRAP);
-        });
+
+        AWAIT.untilAsserted(() -> assertThatProxyConfigFor(proxy).doesNotContain(CLUSTER_BAR_BOOTSTRAP));
         AWAIT.untilAsserted(() -> {
             var service = extension.get(Service.class, CLUSTER_BAR);
             assertThat(service)
@@ -325,12 +311,12 @@ class ProxyReconcilerIT {
     }
 
     private AbstractStringAssert<?> assertThatProxyConfigFor(KafkaProxy proxy) {
-        var secret = extension.get(Secret.class, ProxyConfigSecret.secretName(proxy));
-        return assertThat(secret)
+        var configMap = extension.get(ConfigMap.class, ProxyConfigConfigMap.configMapName(proxy));
+        return assertThat(configMap)
                 .isNotNull()
-                .extracting(ProxyReconcilerIT::decodeSecretData, InstanceOfAssertFactories.map(String.class, String.class))
-                .containsKey(ProxyConfigSecret.CONFIG_YAML_KEY)
-                .extracting(map -> map.get(ProxyConfigSecret.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING);
+                .extracting(ConfigMap::getData, InstanceOfAssertFactories.map(String.class, String.class))
+                .containsKey(ProxyConfigConfigMap.CONFIG_YAML_KEY)
+                .extracting(map -> map.get(ProxyConfigConfigMap.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING);
     }
 
     private static VirtualKafkaCluster virtualKafkaCluster(String clusterName, KafkaProxy proxy, KafkaClusterRef clusterRef,
@@ -351,12 +337,6 @@ class ProxyReconcilerIT {
                 .withNewSpec()
                 .withBootstrapServers(clusterBootstrap)
                 .endSpec().build();
-    }
-
-    private static Map<String, String> decodeSecretData(Secret cm) {
-        return cm.getData().entrySet().stream().collect(Collectors.toMap(
-                Map.Entry::getKey,
-                entry -> new String(Base64.getDecoder().decode(entry.getValue()))));
     }
 
     KafkaProxy kafkaProxy(String name) {

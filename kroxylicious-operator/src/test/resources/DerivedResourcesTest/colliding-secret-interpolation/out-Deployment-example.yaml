@@ -83,9 +83,9 @@ spec:
               name: "configmaps-bar"
               readOnly: true
       volumes:
-        - name: "config-volume"
-          secret:
-            secretName: "example"
+        - configMap:
+            name: "example"
+          name: "config-volume"
         - name: "secrets-foo"
           secret:
             secretName: "foo"

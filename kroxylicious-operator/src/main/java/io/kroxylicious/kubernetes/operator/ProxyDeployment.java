@@ -49,7 +49,7 @@ public class ProxyDeployment
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyDeployment.class);
     public static final String CONFIG_VOLUME = "config-volume";
-    public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigSecret.CONFIG_YAML_KEY;
+    public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigConfigMap.CONFIG_YAML_KEY;
     public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
     private static final int MANAGEMENT_PORT = 9190;
     private static final String MANAGEMENT_PORT_NAME = "management";
@@ -65,7 +65,7 @@ public class ProxyDeployment
      * @return The {@code metadata.name} of the desired {@code Deployment}.
      */
     static String deploymentName(KafkaProxy primary) {
-        return name(primary);
+        return ResourcesUtil.name(primary);
     }
 
     @Override
@@ -120,11 +120,11 @@ public class ProxyDeployment
                     .withContainers(proxyContainer( context, ingressModel, virtualKafkaClusters))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
-                        .withNewSecret()
-                            .withSecretName(ProxyConfigSecret.secretName(primary))
-                        .endSecret()
+                        .withNewConfigMap()
+                            .withName(ProxyConfigConfigMap.configMapName(primary))
+                        .endConfigMap()
                     .endVolume()
-                    .addAllToVolumes(ProxyConfigSecret.secureVolumes(context.managedDependentResourceContext()))
+                    .addAllToVolumes(ProxyConfigConfigMap.secureVolumes(context.managedWorkflowAndDependentResourceContext()))
                 .endSpec()
                 .build();
         // @formatter:on
@@ -150,9 +150,9 @@ public class ProxyDeployment
                 .addNewVolumeMount()
                     .withName(CONFIG_VOLUME)
                     .withMountPath(ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
-                    .withSubPath(ProxyConfigSecret.CONFIG_YAML_KEY)
+                    .withSubPath(ProxyConfigConfigMap.CONFIG_YAML_KEY)
                 .endVolumeMount()
-                .addAllToVolumeMounts(ProxyConfigSecret.secureVolumeMounts(context.managedDependentResourceContext()))
+                .addAllToVolumeMounts(ProxyConfigConfigMap.secureVolumeMounts(context.managedWorkflowAndDependentResourceContext()))
                 // management port
                 .addNewPort()
                     .withContainerPort(MANAGEMENT_PORT)

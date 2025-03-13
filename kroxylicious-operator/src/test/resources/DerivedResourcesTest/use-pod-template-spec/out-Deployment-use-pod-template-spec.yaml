@@ -73,6 +73,6 @@ spec:
               name: "config-volume"
               subPath: "proxy-config.yaml"
       volumes:
-        - name: "config-volume"
-          secret:
-            secretName: "use-pod-template-spec"
+        - configMap:
+            name: "use-pod-template-spec"
+          name: "config-volume"

@@ -6,7 +6,7 @@
 
 ---
 apiVersion: "v1"
-kind: "Secret"
+kind: "ConfigMap"
 metadata:
   labels:
     app.kubernetes.io/part-of: "kafka"
@@ -20,11 +20,9 @@ metadata:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
       name: "example"
-stringData:
+data:
   proxy-config.yaml: |
     ---
-    adminHttp:
-      host: "0.0.0.0"
-      port: 9190
+    management:
       endpoints:
         prometheus: {}

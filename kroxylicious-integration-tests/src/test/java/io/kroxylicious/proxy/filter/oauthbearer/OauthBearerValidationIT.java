@@ -129,7 +129,7 @@ class OauthBearerValidationIT {
 
         try (var tester = kroxyliciousTester(getConfiguredProxyBuilder());
                 var admin = tester.admin(config);
-                var ahc = tester.getAdminHttpClient()) {
+                var ahc = tester.getManagementClient()) {
             performClusterOperation(admin);
 
             var allMetrics = ahc.scrapeMetrics();
@@ -159,7 +159,7 @@ class OauthBearerValidationIT {
 
         try (var tester = kroxyliciousTester(getConfiguredProxyBuilder());
                 var admin = tester.admin(config);
-                var ahc = tester.getAdminHttpClient()) {
+                var ahc = tester.getManagementClient()) {
             assertThatThrownBy(() -> performClusterOperation(admin))
                     .isInstanceOf(SaslAuthenticationException.class)
                     .hasMessageContaining("invalid_token");
@@ -195,12 +195,12 @@ class OauthBearerValidationIT {
                         "expectedAudience", EXPECTED_AUDIENCE)
                 .build();
         return proxy(cluster)
-                .withNewAdminHttp()
+                .withNewManagement()
                 .withNewEndpoints()
                 .withNewPrometheus()
                 .endPrometheus()
                 .endEndpoints()
-                .endAdminHttp()
+                .endManagement()
                 .addToFilterDefinitions(filterDefinition)
                 .addToDefaultFilters(filterDefinition.name());
     }

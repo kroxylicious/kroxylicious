@@ -614,7 +614,7 @@ class DefaultKroxyliciousTesterTest {
     @Test
     void shouldFailIfAdminHttpNotConfigured() {
         try (var tester = buildDefaultTester()) {
-            assertThatThrownBy(tester::getAdminHttpClient)
+            assertThatThrownBy(tester::getManagementClient)
                     .isInstanceOf(IllegalStateException.class)
                     .hasMessageContaining("admin http interface not configured");
         }
@@ -622,19 +622,19 @@ class DefaultKroxyliciousTesterTest {
 
     @Test
     void shouldExposeMetrics() {
-        var proxy = proxy(backingCluster).withNewAdminHttp()
+        var proxy = proxy(backingCluster).withNewManagement()
                 .withNewEndpoints()
                 .withNewPrometheus()
                 .endPrometheus()
                 .endEndpoints()
-                .endAdminHttp();
+                .endManagement();
         var testerBuilder = new KroxyliciousTesterBuilder()
                 .setConfigurationBuilder(proxy)
                 .setKroxyliciousFactory(DefaultKroxyliciousTester::spawnProxy);
 
         try (var tester = (KroxyliciousTester) testerBuilder
                 .createDefaultKroxyliciousTester()) {
-            var adminHttpClient = tester.getAdminHttpClient();
+            var adminHttpClient = tester.getManagementClient();
             assertThat(adminHttpClient).isNotNull();
             var metrics = adminHttpClient.scrapeMetrics();
             assertThat(metrics).hasSizeGreaterThan(0);
