@@ -6,6 +6,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
 
@@ -41,7 +42,7 @@ public class OperatorMain {
     private MetricsHandler metricsHandler;
 
     public OperatorMain() throws IOException {
-        this(null, HttpServer.create());
+        this(null, HttpServer.create(new InetSocketAddress("0.0.0.0", 8080), 10));
     }
 
     public OperatorMain(@Nullable KubernetesClient kubeClient, HttpServer managementServer) {
