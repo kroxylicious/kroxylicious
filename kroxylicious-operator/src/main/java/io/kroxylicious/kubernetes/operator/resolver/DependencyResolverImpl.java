@@ -108,7 +108,7 @@ class DependencyResolverImpl implements DependencyResolver {
 
     public static void reportClustersThatDidNotFullyResolve(ResolutionResult resolutionResult,
                                                             UnresolvedDependencyReporter unresolvedDependencyReporter) {
-        resolutionResult.clusterResult()
+        resolutionResult.clusterResults()
                 .filter(ClusterResolutionResult::isAnyDependencyUnresolved)
                 .forEach(clusterResolutionResult -> unresolvedDependencyReporter.reportUnresolvedDependencies(clusterResolutionResult.cluster(),
                         clusterResolutionResult.unresolvedDependencySet()));

@@ -55,7 +55,7 @@ public class ResolutionResult {
         return new HashSet<>(kafkaProxyIngresses.values());
     }
 
-    public Stream<ClusterResolutionResult> clusterResult() {
+    public Stream<ClusterResolutionResult> clusterResults() {
         return clusterResolutionResults.values().stream();
     }
 
