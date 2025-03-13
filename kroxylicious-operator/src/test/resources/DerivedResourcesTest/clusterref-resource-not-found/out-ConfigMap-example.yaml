@@ -22,7 +22,4 @@ metadata:
       name: "example"
 data:
   proxy-config.yaml: |
-    ---
-    management:
-      endpoints:
-        prometheus: {}
+    --- {}
