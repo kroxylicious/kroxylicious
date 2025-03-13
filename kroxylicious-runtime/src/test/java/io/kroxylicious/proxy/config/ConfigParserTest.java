@@ -17,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import com.fasterxml.jackson.annotation.JsonGetter;
 import com.fasterxml.jackson.databind.JsonMappingException;
@@ -57,8 +58,16 @@ class ConfigParserTest {
     private final ConfigParser configParser = new ConfigParser();
 
     static Stream<Arguments> yamlDeserializeSerializeFidelity() {
-        return Stream.of(Arguments.argumentSet("Top level flags", """
+        return Stream.of(Arguments.argumentSet("With IoUring", """
                 useIoUring: true
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
                 """),
                 Arguments.argumentSet("Virtual cluster (portIdentifiesNode - minimal)", """
                         virtualClusters:
@@ -228,20 +237,52 @@ class ConfigParserTest {
                 Arguments.argumentSet("Filters", """
                         filters:
                         - type: TestFilterFactory
+                        virtualClusters:
+                        - name: demo1
+                          targetCluster:
+                            bootstrapServers: magic-kafka.example:1234
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
                         """),
                 Arguments.argumentSet("Management minimal", """
                         management: {}
+                        virtualClusters:
+                        - name: demo1
+                          targetCluster:
+                            bootstrapServers: magic-kafka.example:1234
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
                         """),
                 Arguments.argumentSet("Management", """
                         management:
                           bindAddress: 164.0.0.0
                           port: 1000
                           endpoints: {}
+                        virtualClusters:
+                        - name: demo1
+                          targetCluster:
+                            bootstrapServers: magic-kafka.example:1234
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
                         """),
                 Arguments.argumentSet("Management with Prometheus", """
                         management:
                           endpoints:
                             prometheus: {}
+                        virtualClusters:
+                        - name: demo1
+                          targetCluster:
+                            bootstrapServers: magic-kafka.example:1234
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
                         """),
                 Arguments.argumentSet("Micrometer", """
                         micrometer:
@@ -250,6 +291,14 @@ class ConfigParserTest {
                             commonTags:
                               zone: "euc-1a"
                               owner: "becky"
+                        virtualClusters:
+                        - name: demo1
+                          targetCluster:
+                            bootstrapServers: magic-kafka.example:1234
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
                         """));
     }
 
@@ -478,6 +527,27 @@ class ConfigParserTest {
                 .hasMessageContaining("Missing required creator property 'targetCluster'");
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = {
+            """
+                    virtualClusters: []
+                    """,
+            """
+                    virtualClusters: null
+                    """,
+
+    })
+    void shouldRequireAtLeastOneVirtualCluster(String config) {
+        // Given
+        assertThatThrownBy(() ->
+        // When
+        configParser.parseConfiguration(config))
+                // Then
+                .isInstanceOf(IllegalArgumentException.class)
+                .cause()
+                .hasMessageContaining("At least one virtual cluster must be defined.");
+    }
+
     @Test
     void testNestedPlugins() {
         ConfigParser cp = new ConfigParser();
@@ -486,6 +556,14 @@ class ConfigParserTest {
                 - type: NestedPluginConfigFactory
                   config:
                     examplePlugin: ExamplePluginInstance
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
                 """);
         assertThat(config.filters()).hasSize(1);
 
@@ -549,6 +627,14 @@ class ConfigParserTest {
                         - type: ConstructorInjection
                           config:
                             str: hello, world
+                        virtualClusters:
+                        - name: demo1
+                          targetCluster:
+                            bootstrapServers: magic-kafka.example:1234
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
                         """,
                 ConstructorInjectionConfig.class),
                 Arguments.argumentSet("factory method",
@@ -557,6 +643,14 @@ class ConfigParserTest {
                                 - type: FactoryMethod
                                   config:
                                     str: hello, world
+                                virtualClusters:
+                                - name: demo1
+                                  targetCluster:
+                                    bootstrapServers: magic-kafka.example:1234
+                                  gateways:
+                                  - name: mygateway
+                                    portIdentifiesNode:
+                                      bootstrapAddress: "localhost:9082"
                                 """,
                         FactoryMethodConfig.class),
                 Arguments.argumentSet("field injection",
@@ -565,6 +659,14 @@ class ConfigParserTest {
                                 - type: FieldInjection
                                   config:
                                     str: hello, world
+                                virtualClusters:
+                                - name: demo1
+                                  targetCluster:
+                                    bootstrapServers: magic-kafka.example:1234
+                                  gateways:
+                                  - name: mygateway
+                                    portIdentifiesNode:
+                                      bootstrapAddress: "localhost:9082"
                                 """,
                         FieldInjectionConfig.class),
                 Arguments.argumentSet("record",
@@ -573,6 +675,14 @@ class ConfigParserTest {
                                 - type: Record
                                   config:
                                     str: hello, world
+                                virtualClusters:
+                                - name: demo1
+                                  targetCluster:
+                                    bootstrapServers: magic-kafka.example:1234
+                                  gateways:
+                                  - name: mygateway
+                                    portIdentifiesNode:
+                                      bootstrapAddress: "localhost:9082"
                                 """,
                         RecordConfig.class),
                 Arguments.argumentSet("setter injection",
@@ -581,14 +691,29 @@ class ConfigParserTest {
                                 - type: SetterInjection
                                   config:
                                     str: hello, world
+                                virtualClusters:
+                                - name: demo1
+                                  targetCluster:
+                                    bootstrapServers: magic-kafka.example:1234
+                                  gateways:
+                                  - name: mygateway
+                                    portIdentifiesNode:
+                                      bootstrapAddress: "localhost:9082"
                                 """,
                         SetterInjectionConfig.class));
     }
 
     @Test
     void shouldThrowWhenSerializingUnserializableObject() {
-        var config = new Configuration(null, List.of(new NamedFilterDefinition("foo", "", new NonSerializableConfig(""))),
-                List.of("foo"), null, null, false,
+        var targetCluster = new TargetCluster("mycluster:9082", Optional.empty());
+        var gateway = new VirtualClusterGateway("gw", new PortIdentifiesNodeIdentificationStrategy(HostPort.parse("localhost:9082"), null, null, null), null,
+                Optional.empty());
+        var config = new Configuration(null,
+                List.of(new NamedFilterDefinition("foo", "", new NonSerializableConfig(""))),
+                List.of("foo"),
+                List.of(new VirtualCluster("demo", targetCluster, null, null, List.of(gateway), false, false, List.of())),
+                null,
+                false,
                 Optional.empty());
 
         ConfigParser cp = new ConfigParser();
@@ -685,6 +810,14 @@ class ConfigParserTest {
                    port: 1234
                    endpoints:
                      prometheus: {}
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
                 """);
 
         // Then
@@ -704,7 +837,15 @@ class ConfigParserTest {
         // When
         var configurationModel = configParser.parseConfiguration("""
                 adminHttp: {}
-                """);
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                  """);
 
         // Then
         assertThat(configurationModel)
