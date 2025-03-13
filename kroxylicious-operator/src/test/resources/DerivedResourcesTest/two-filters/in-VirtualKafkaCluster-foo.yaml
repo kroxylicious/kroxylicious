@@ -16,6 +16,9 @@ spec:
   targetCluster:
     clusterRef:
       name: myref
+    tls:
+      certificateRef:
+        name: kafka-secret
   filters:
     - group: filter.kroxylicious.io
       kind: KafkaProtocolFilter

@@ -70,7 +70,18 @@ spec:
             - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"
               subPath: "proxy-config.yaml"
+            - mountPath: "/opt/kroxylicious/cluster/bar/target/tls-key"
+              name: "vc-target-tls-bar"
+              readOnly: true
       volumes:
         - configMap:
             name: "twocluster"
           name: "config-volume"
+        - name: "vc-target-tls-bar"
+          secret:
+            items:
+              - key: "tls.key"
+                path: "tls.key"
+              - key: "tls.crt"
+                path: "tls.crt"
+            secretName: "foo-cluster-cert"

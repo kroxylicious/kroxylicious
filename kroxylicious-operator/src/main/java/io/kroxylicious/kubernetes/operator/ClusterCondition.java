@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
@@ -52,6 +53,24 @@ public record ClusterCondition(@NonNull String cluster,
     static ClusterCondition targetClusterRefNotFound(String cluster, TargetCluster targetCluster) {
         return new ClusterCondition(cluster, ConditionType.Accepted, Status.FALSE, INVALID,
                 String.format("Target Cluster \"%s\" does not exist.", kubeName(targetCluster).orElse("<unknown>")));
+    }
+
+    static ClusterCondition referencedResourceNotSupported(String cluster,
+                                                           String group,
+                                                           String kind,
+                                                           String name,
+                                                           String path,
+                                                           String... supported) {
+        return new ClusterCondition(cluster, ConditionType.Accepted, Status.FALSE, INVALID,
+                String.format("Resource in group \"%s\" of kind \"%s\" with name \"%s\" referenced from  %s is not supported. "
+                        + "Supported kinds and groups: %s",
+                        group, kind, name, path,
+                        Arrays.stream(supported).collect(joining(", "))));
+    }
+
+    static ClusterCondition referencedResourceNotFound(String cluster, String kind, String name, String path) {
+        return new ClusterCondition(cluster, ConditionType.Accepted, Status.FALSE, INVALID,
+                String.format("%s resource \"%s\", referenced from %s, does not exist.", kind, name, path));
     }
 
     @NonNull
