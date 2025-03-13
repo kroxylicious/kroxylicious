@@ -44,6 +44,26 @@ spec:
                   type: string
                   minLength: 1
                   pattern: ^(([^:]+:[0-9]{1,5}),)*([^:]+:[0-9]{1,5})$
+                tls:
+                  description: Configuration for TLS connections made to the target Kafka cluster
+                  type: object
+                  properties:
+                    certificateRef:
+                      description: A reference to a resource holding the TLS client certificate
+                      type: object
+                      required: [ "name" ]
+                      properties:
+                        kind:
+                          description: The API kind of the resource containing the TLS client certificate.
+                          type: string
+                          default: Secret
+                        group:
+                          description: The API group of the resource containing the TLS client certificate.
+                          type: string
+                          default: ""
+                        name:
+                          description: The name of the resource containing the TLS client certificate.
+                          type: string
             status:
               type: object
               properties:

@@ -6,8 +6,10 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.Arrays;
 import java.util.Set;
 
+import io.kroxylicious.kubernetes.api.common.AnyLocalRef;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.operator.model.ingress.IngressConflictException;
@@ -37,6 +39,17 @@ public record ClusterCondition(@NonNull String cluster,
     public static ClusterCondition refNotFound(String cluster, LocalRef<?> ref) {
         return new ClusterCondition(cluster, Condition.Type.ResolvedRefs, Condition.Status.FALSE, INVALID,
                 String.format("Resource of kind \"%s\" in group \"%s\" named \"%s\" does not exist.", ref.getKind(), ref.getGroup(), ref.getName()));
+    }
+
+    static ClusterCondition refNotSupported(String cluster,
+                                            AnyLocalRef ref,
+                                            String path,
+                                            String... supported) {
+        return new ClusterCondition(cluster, Condition.Type.Accepted, Condition.Status.FALSE, INVALID,
+                String.format("Resource of kind \"%s\" in group \"%s\" named \"%s\" referenced from  %s is not supported. "
+                        + "Supported kinds and groups: %s",
+                        ref.getKind(), ref.getGroup(), ref.getName(), path,
+                        Arrays.stream(supported).collect(joining(", "))));
     }
 
     public static ClusterCondition ingressConflict(String cluster, Set<IngressConflictException> ingressConflictExceptions) {

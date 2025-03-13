@@ -41,6 +41,10 @@ data:
     - name: "foo"
       targetCluster:
         bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+        tls:
+          key:
+            privateKeyFile: "/opt/kroxylicious/cluster/foo/target/tls-key/tls.key"
+            certificateFile: "/opt/kroxylicious/cluster/foo/target/tls-key/tls.crt"
       gateways:
       - name: "default"
         portIdentifiesNode:

@@ -12,3 +12,8 @@ metadata:
   namespace: proxy-ns
 spec:
   bootstrapServers: first-kafka.kafka1.svc.cluster.local:9092
+  tls:
+    certificateRef:
+      kind: Secret
+      group: ""
+      name: foo-cluster-cert

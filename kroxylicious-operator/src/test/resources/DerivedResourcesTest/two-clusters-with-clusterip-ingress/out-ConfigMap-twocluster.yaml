@@ -21,7 +21,7 @@ metadata:
       kind: "KafkaProxy"
       name: "twocluster"
 data:
-  proxy-config.yaml: | 
+  proxy-config.yaml: |
     ---
     management:
       endpoints:
@@ -30,6 +30,10 @@ data:
     - name: "bar"
       targetCluster:
         bootstrapServers: "first-kafka.kafka1.svc.cluster.local:9092"
+        tls:
+          key:
+            privateKeyFile: "/opt/kroxylicious/cluster/bar/target/tls-key/tls.key"
+            certificateFile: "/opt/kroxylicious/cluster/bar/target/tls-key/tls.crt"
       gateways:
       - name: "default"
         portIdentifiesNode:

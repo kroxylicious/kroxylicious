@@ -13,14 +13,14 @@ metadata:
     app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/instance: "example"
+    app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"
-  name: "example"
+  name: "minimal"
   namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "example"
+      name: "minimal"
 spec:
   replicas: 1
   selector:
@@ -29,7 +29,7 @@ spec:
       app.kubernetes.io/part-of: "kafka"
       app.kubernetes.io/managed-by: "kroxylicious-operator"
       app.kubernetes.io/name: "kroxylicious-proxy"
-      app.kubernetes.io/instance: "example"
+      app.kubernetes.io/instance: "minimal"
       app.kubernetes.io/component: "proxy"
   template:
     metadata:
@@ -38,7 +38,7 @@ spec:
         app.kubernetes.io/part-of: "kafka"
         app.kubernetes.io/managed-by: "kroxylicious-operator"
         app.kubernetes.io/name: "kroxylicious-proxy"
-        app.kubernetes.io/instance: "example"
+        app.kubernetes.io/instance: "minimal"
         app.kubernetes.io/component: "proxy"
     spec:
       containers:
@@ -46,7 +46,6 @@ spec:
             - "--config"
             - "/opt/kroxylicious/config/proxy-config.yaml"
           image: "quay.io/kroxylicious/kroxylicious:test"
-          name: "proxy"
           livenessProbe:
             failureThreshold: 3
             httpGet:
@@ -55,39 +54,15 @@ spec:
             initialDelaySeconds: 10
             successThreshold: 1
             timeoutSeconds: 1
+          name: "proxy"
           ports:
             - containerPort: 9190
               name: "management"
-            - containerPort: 9292
-              name: "9292-bootstrap"
-            - containerPort: 9293
-              name: "9293-node"
-            - containerPort: 9294
-              name: "9294-node"
-            - containerPort: 9295
-              name: "9295-node"
           volumeMounts:
             - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"
               subPath: "proxy-config.yaml"
-            - mountPath: "/opt/kroxylicious/secure/secret/my-secret"
-              name: "secrets-my-secret"
-              readOnly: true
-            - mountPath: "/opt/kroxylicious/cluster/foo/target/tls-key"
-              name: "vc-target-tls-foo"
-              readOnly: true
       volumes:
         - configMap:
-            name: "example"
+            name: "minimal"
           name: "config-volume"
-        - name: "secrets-my-secret"
-          secret:
-            secretName: "my-secret"
-        - name: "vc-target-tls-foo"
-          secret:
-            items:
-              - key: "tls.key"
-                path: "tls.key"
-              - key: "tls.crt"
-                path: "tls.crt"
-            secretName: "kafka-secret"
