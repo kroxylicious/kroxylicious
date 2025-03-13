@@ -22,7 +22,7 @@ import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 public record ProxyModel(ResolutionResult resolutionResult, ProxyIngressModel ingressModel, List<VirtualKafkaCluster> clustersWithValidIngresses) {
 
     static ProxyModel build(KafkaProxy primary, Context<KafkaProxy> context) {
-        ResolutionResult resolutionResult = DependencyResolver.deepResolve(context);
+        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(context);
         Set<KafkaProxyIngress> ingresses = resolutionResult.getIngresses();
         ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, resolutionResult.allClustersInNameOrder(), ingresses, context);
         List<VirtualKafkaCluster> clustersWithValidIngresses = resolutionResult.fullyResolvedClustersInNameOrder().stream()
