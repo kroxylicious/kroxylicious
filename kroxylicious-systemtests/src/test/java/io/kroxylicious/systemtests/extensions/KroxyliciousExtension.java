@@ -89,7 +89,6 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
             exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
                 logCollector.collectLogs(testClassName, testMethodName);
             });
-            logCollector.collectLogs(testClassName, testMethodName);
         }
         finally {
             NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(namespace, testClassName);

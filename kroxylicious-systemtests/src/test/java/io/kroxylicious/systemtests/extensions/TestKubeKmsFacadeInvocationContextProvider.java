@@ -70,7 +70,6 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
                             exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
                                 logCollector.collectLogs(extensionContext.getRequiredTestClass().getName(), extensionContext.getRequiredTestMethod().getName());
                             });
-                            logCollector.collectLogs(extensionContext.getRequiredTestClass().getName(), extensionContext.getRequiredTestMethod().getName());
                         }
                         finally {
                             kmsFacade.stop();
