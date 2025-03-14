@@ -39,16 +39,9 @@ public class SharedKafkaProxyContext {
     }
 
     /**
-     * Get the RuntimeDecl
-     */
-    static RuntimeDecl runtimeDecl(Context<KafkaProxy> context) {
-        return context.managedWorkflowAndDependentResourceContext().getMandatory(RUNTIME_DECL_KEY, RuntimeDecl.class);
-    }
-
-    /**
      * Associate a condition with a specific cluster.
      */
-    static void addClusterCondition(Context<KafkaProxy> context, VirtualKafkaCluster cluster, ClusterCondition clusterCondition) {
+    public static void addClusterCondition(Context<KafkaProxy> context, VirtualKafkaCluster cluster, ClusterCondition clusterCondition) {
         Map<String, ClusterCondition> map = context.managedWorkflowAndDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class).orElse(null);
         if (map == null) {
             map = Collections.synchronizedMap(new HashMap<>());

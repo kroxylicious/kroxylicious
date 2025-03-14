@@ -5,13 +5,10 @@
 #
 
 ---
-kind: KafkaProxyIngress
+kind: KafkaClusterRef
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: cluster-ip-bar
+  name: barref
   namespace: proxy-ns
 spec:
-  proxyRef:
-    name: twocluster
-  clusterIP:
-    protocol: TCP
+  bootstrapServers: first-kafka.kafka1.svc.cluster.local:9092
