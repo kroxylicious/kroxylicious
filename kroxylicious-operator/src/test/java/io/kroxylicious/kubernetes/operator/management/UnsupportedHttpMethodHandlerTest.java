@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator.management;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,7 @@ import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,6 +40,7 @@ class UnsupportedHttpMethodHandlerTest {
     @BeforeEach
     void setUp() {
         unsupportedHttpMethodHandler = new UnsupportedHttpMethodHandler();
+        lenient().when(httpExchange.getRequestBody()).thenReturn(InputStream.nullInputStream());
     }
 
     @Test
@@ -64,6 +67,7 @@ class UnsupportedHttpMethodHandlerTest {
 
         // Then
         verify(httpExchange).sendResponseHeaders(404, -1);
+        verify(httpExchange).close();
     }
 
     @ParameterizedTest
@@ -79,5 +83,6 @@ class UnsupportedHttpMethodHandlerTest {
         // Then
         verify(httpExchange).sendResponseHeaders(405, -1);
         verify(responseHeaders).add("Allow", "GET");
+        verify(httpExchange).close();
     }
 }

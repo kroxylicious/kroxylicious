@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator.management;
 
 import java.io.IOException;
+import java.io.OutputStream;
 
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
@@ -34,18 +35,22 @@ public class UnsupportedHttpMethodHandler implements HttpHandler {
 
     @Override
     public void handle(HttpExchange exchange) throws IOException {
-        final String requestMethod = exchange.getRequestMethod();
-        if ("GET".equalsIgnoreCase(requestMethod)) {
-            if (delegate != null) {
-                delegate.handle(exchange);
+        try (exchange) {
+            final String requestMethod = exchange.getRequestMethod();
+            if ("GET".equalsIgnoreCase(requestMethod)) {
+                if (delegate != null) {
+                    delegate.handle(exchange);
+                }
+                else {
+                    exchange.getRequestBody().transferTo(OutputStream.nullOutputStream());
+                    exchange.sendResponseHeaders(404, -1);
+                }
             }
             else {
-                exchange.sendResponseHeaders(404, -1);
+                exchange.getRequestBody().transferTo(OutputStream.nullOutputStream());
+                exchange.getResponseHeaders().add("Allow", "GET");
+                exchange.sendResponseHeaders(405, -1);
             }
-        }
-        else {
-            exchange.getResponseHeaders().add("Allow", "GET");
-            exchange.sendResponseHeaders(405, -1);
         }
     }
 }
