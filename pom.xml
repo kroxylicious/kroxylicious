@@ -824,10 +824,9 @@
                             <requires>
                                 <require>asciidoctor-diagram</require>
                             </requires>
-                            <sourceDirectory>docs/kroxylicious-proxy</sourceDirectory>
-                            <sourceDocumentName>kroxylicious-proxy.adoc</sourceDocumentName>
-                            <outputDirectory>${project.build.directory}/kroxylicious-proxy/html</outputDirectory>
-                            <outputFile>index.html</outputFile>
+                            <sourceDirectory>docs</sourceDirectory>
+                            <outputDirectory>${project.build.directory}/docs/html</outputDirectory>
+                            <preserveDirectories>true</preserveDirectories>
                             <attributes>
                                 <source-highlighter>coderay</source-highlighter>
                                 <imagesdir>./images</imagesdir>

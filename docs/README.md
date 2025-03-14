@@ -23,7 +23,7 @@ The Kroxylicious documentation is organized into specific **Kroxylicious** guide
 
 The content for the guide to the proxy is encapsulated in a main index file:
 
-- [kroxylicious-proxy.adoc](kroxylicious-proxy/kroxylicious-proxy.adoc)
+- [kroxylicious-proxy/index.adoc](kroxylicious-proxy/index.adoc)
 
 ## Documentation folder structure
 
