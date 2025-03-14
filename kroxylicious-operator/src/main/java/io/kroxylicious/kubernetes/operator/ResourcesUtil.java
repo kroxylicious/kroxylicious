@@ -22,6 +22,7 @@ import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
+import io.kroxylicious.kubernetes.api.common.AnyLocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
@@ -129,5 +130,29 @@ public class ResourcesUtil {
      */
     public static <T extends HasMetadata> @NonNull Collector<T, ?, Map<String, T>> toByNameMap() {
         return Collectors.toMap(ResourcesUtil::name, Function.identity());
+    }
+
+    public static boolean isKafkaProxy(AnyLocalRef ref) {
+        return "kroxylicious.io".equals(ref.getGroup())
+                && "KafkaProxy".equals(ref.getKind());
+    }
+
+    public static AnyLocalRef checkIsKafkaProxy(AnyLocalRef ref) {
+        if (!isKafkaProxy(ref)) {
+            throw new InvalidResourceException("Referenced resource is not a KafkaProxy");
+        }
+        return ref;
+    }
+
+    public static boolean isKafkaCluster(AnyLocalRef ref) {
+        return "kroxylicious.io".equals(ref.getGroup())
+                && "KafkaClusterRef".equals(ref.getKind());
+    }
+
+    public static AnyLocalRef checkIsKafkaCluster(AnyLocalRef ref) {
+        if (!isKafkaCluster(ref)) {
+            throw new InvalidResourceException("Referenced resource is not a KafkaClusterRef");
+        }
+        return ref;
     }
 }

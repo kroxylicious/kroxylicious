@@ -94,7 +94,7 @@ class ClusterConditionUnresolvedDependencyReporterTest {
         UnresolvedDependency unresolved = new UnresolvedDependency(KAFKA_CLUSTER_REF, "a");
         Set<UnresolvedDependency> unresolvedDependencies = Set.of(unresolved);
         VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().editMetadata().withName("cluster").endMetadata()
-                .withNewSpec().withNewTargetCluster().withNewClusterRef().withName("name").withKind("kind").withGroup("group").endClusterRef().endTargetCluster()
+                .withNewSpec().withNewTargetCluster().withNewClusterRef().withName("name").endClusterRef().endTargetCluster()
                 .endSpec().build();
 
         // when
@@ -104,7 +104,7 @@ class ClusterConditionUnresolvedDependencyReporterTest {
         verify(mockResourceContext).put(eq("cluster_conditions"), assertArg(a -> {
             assertThat(a).isInstanceOfSatisfying(Map.class, map -> {
                 assertThat(map).containsExactlyEntriesOf(Map.of("cluster", new ClusterCondition("cluster", ConditionType.Accepted, Conditions.Status.FALSE, "Invalid",
-                        "Target Cluster \"kind.group/name\" does not exist.")));
+                        "Target Cluster \"kafkaclusterref.kroxylicious.io/name\" does not exist.")));
             });
         }));
     }

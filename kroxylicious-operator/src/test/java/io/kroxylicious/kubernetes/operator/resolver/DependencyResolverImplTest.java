@@ -22,6 +22,8 @@ import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
+import io.kroxylicious.kubernetes.api.common.IngressRef;
+import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -31,8 +33,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Filters;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.FiltersBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefs;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefsBuilder;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.UnresolvedDependency;
 
@@ -338,8 +338,8 @@ class DependencyResolverImplTest {
         verify(unresolvedDependencyReporter).reportUnresolvedDependencies(cluster, onlyResult.unresolvedDependencySet());
     }
 
-    private IngressRefs ingressRef(String name) {
-        return new IngressRefsBuilder().withName(name).build();
+    private IngressRef ingressRef(String name) {
+        return new IngressRefBuilder().withName(name).build();
     }
 
     private static KafkaProxyIngress ingress(String name) {
@@ -399,7 +399,7 @@ class DependencyResolverImplTest {
         return when(mockContext.getSecondaryResources(type)).thenReturn(Arrays.stream(resources).collect(Collectors.toSet()));
     }
 
-    private static VirtualKafkaCluster virtualCluster(List<Filters> filterRefs, String clusterRef, List<IngressRefs> ingressRefs) {
+    private static VirtualKafkaCluster virtualCluster(List<Filters> filterRefs, String clusterRef, List<IngressRef> ingressRefs) {
         return new VirtualKafkaClusterBuilder()
                 .withNewSpec()
                 .withIngressRefs(ingressRefs)
