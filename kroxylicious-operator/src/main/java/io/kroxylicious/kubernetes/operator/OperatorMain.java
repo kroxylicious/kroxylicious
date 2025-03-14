@@ -26,6 +26,7 @@ import io.prometheus.metrics.exporter.httpserver.MetricsHandler;
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodHandler;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -43,7 +44,8 @@ public class OperatorMain {
         this(null, HttpServer.create(new InetSocketAddress("0.0.0.0", 8080), 10));
     }
 
-    public OperatorMain(@Nullable KubernetesClient kubeClient, @NonNull HttpServer managementServer) {
+    @VisibleForTesting
+    OperatorMain(@Nullable KubernetesClient kubeClient, @NonNull HttpServer managementServer) {
         configurePrometheusMetrics(managementServer);
         // o.withMetrics is invoked multiple times so can cause issues with enabling metrics.
         operator = new Operator(o -> {
