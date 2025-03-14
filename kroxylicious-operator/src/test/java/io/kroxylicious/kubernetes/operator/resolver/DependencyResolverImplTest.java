@@ -52,7 +52,7 @@ class DependencyResolverImplTest {
     UnresolvedDependencyReporter unresolvedDependencyReporter;
 
     @Test
-    public void testNoDependencies() {
+    void testNoDependencies() {
         givenFiltersInContext();
         givenClusterRefsInContext();
         givenIngressesInContext();
@@ -72,7 +72,7 @@ class DependencyResolverImplTest {
     }
 
     @Test
-    public void testNullFiltersOnVirtualClusterTolerated() {
+    void testNullFiltersOnVirtualClusterTolerated() {
         givenFiltersInContext();
         givenClusterRefsInContext(kafkaClusterRef("cluster"));
         givenIngressesInContext();
@@ -91,7 +91,7 @@ class DependencyResolverImplTest {
     }
 
     @Test
-    public void testSingleFilterUnreferenced() {
+    void testSingleFilterUnreferenced() {
         GenericKubernetesResource filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
         givenClusterRefsInContext(kafkaClusterRef("cluster"));
@@ -112,7 +112,7 @@ class DependencyResolverImplTest {
     }
 
     @Test
-    public void testSingleFilterUnreferencedBecauseOfKindMismatch() {
+    void testSingleFilterUnreferencedBecauseOfKindMismatch() {
         GenericKubernetesResource filter = protocolFilter("filterName", "kroxylicious.io", "Kind1");
         givenFiltersInContext(filter);
         givenClusterRefsInContext(kafkaClusterRef("cluster"));
@@ -133,7 +133,7 @@ class DependencyResolverImplTest {
     }
 
     @Test
-    public void testSingleFilterUnreferencedBecauseOfGroupMismatch() {
+    void testSingleFilterUnreferencedBecauseOfGroupMismatch() {
         GenericKubernetesResource filter = protocolFilter("filterName", "kroxylicious.io", "Kind");
         givenFiltersInContext(filter);
         givenClusterRefsInContext(kafkaClusterRef("cluster"));
@@ -154,7 +154,7 @@ class DependencyResolverImplTest {
     }
 
     @Test
-    public void testSingleFilterReferenced() {
+    void testSingleFilterReferenced() {
         GenericKubernetesResource filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
         givenClusterRefsInContext(kafkaClusterRef("cluster"));
@@ -175,7 +175,7 @@ class DependencyResolverImplTest {
     }
 
     @Test
-    public void testMultipleFiltersReferenced() {
+    void testMultipleFiltersReferenced() {
         GenericKubernetesResource filter = protocolFilter("filterName");
         GenericKubernetesResource filter2 = protocolFilter("filterName2");
         givenFiltersInContext(filter, filter2);
@@ -198,7 +198,7 @@ class DependencyResolverImplTest {
     }
 
     @Test
-    public void testSubsetOfFiltersReferenced() {
+    void testSubsetOfFiltersReferenced() {
         GenericKubernetesResource filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
         givenClusterRefsInContext(kafkaClusterRef("cluster"));
@@ -220,7 +220,7 @@ class DependencyResolverImplTest {
     }
 
     @Test
-    public void testUnresolvedFilter() {
+    void testUnresolvedFilter() {
         GenericKubernetesResource filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
         givenClusterRefsInContext(kafkaClusterRef("clusterRef"));
@@ -240,7 +240,7 @@ class DependencyResolverImplTest {
     }
 
     @Test
-    public void testUnresolvedIngress() {
+    void testUnresolvedIngress() {
         givenFiltersInContext();
         givenClusterRefsInContext(kafkaClusterRef("clusterRef"));
         givenIngressesInContext();
@@ -259,7 +259,7 @@ class DependencyResolverImplTest {
     }
 
     @Test
-    public void testUnresolvedKafkaClusterRef() {
+    void testUnresolvedKafkaClusterRef() {
         givenFiltersInContext();
         givenClusterRefsInContext();
         givenIngressesInContext();
@@ -278,7 +278,7 @@ class DependencyResolverImplTest {
     }
 
     @Test
-    public void testSingleResolvedIngress() {
+    void testSingleResolvedIngress() {
         givenFiltersInContext();
         givenClusterRefsInContext(kafkaClusterRef("clusterRef"));
         KafkaProxyIngress ingress = ingress("ingress");
@@ -298,7 +298,7 @@ class DependencyResolverImplTest {
     }
 
     @Test
-    public void testMultipleResolvedIngresses() {
+    void testMultipleResolvedIngresses() {
         givenFiltersInContext();
         givenClusterRefsInContext(kafkaClusterRef("clusterRef"));
         KafkaProxyIngress ingress = ingress("ingress");
@@ -319,7 +319,7 @@ class DependencyResolverImplTest {
     }
 
     @Test
-    public void testSubsetOfIngressesResolved() {
+    void testSubsetOfIngressesResolved() {
         givenFiltersInContext();
         givenClusterRefsInContext(kafkaClusterRef("clusterRef"));
         KafkaProxyIngress ingress = ingress("ingress");
