@@ -6,16 +6,36 @@
 
 package io.kroxylicious.kubernetes.api.common;
 
+import java.util.Objects;
+
 /**
- * Abstraction for references in one kubernetes resource to some kubernetes resource in the same namespace
+ * Abstraction for references in one kubernetes resource to some kubernetes resource in the same namespace.
+ * Two LocalRefs are equal iff they have the same group, kind and name (they don't need to have the same class)
  * @param <T> The Java type of the resource
  */
-public interface LocalRef<T> {
+public abstract class LocalRef<T> {
 
-    public String getGroup();
+    public abstract String getGroup();
 
-    public String getKind();
+    public abstract String getKind();
 
-    public String getName();
+    public abstract String getName();
 
+    @Override
+    public final int hashCode() {
+        return Objects.hash(getGroup(), getKind(), getName());
+    }
+
+    @Override
+    public final boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof LocalRef)) {
+            return false;
+        }
+        return Objects.equals(getGroup(), ((LocalRef<?>) obj).getGroup())
+                && Objects.equals(getKind(), ((LocalRef<?>) obj).getKind())
+                && Objects.equals(getName(), ((LocalRef<?>) obj).getName());
+    }
 }
