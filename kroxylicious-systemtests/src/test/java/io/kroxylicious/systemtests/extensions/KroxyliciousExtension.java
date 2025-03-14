@@ -23,8 +23,8 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.logs.TestLogCollector;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
-import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 /**
@@ -35,7 +35,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
     private static final String K8S_NAMESPACE_KEY = "namespace";
     private static final String EXTENSION_STORE_NAME = "io.kroxylicious.systemtests";
     private final ExtensionContext.Namespace junitNamespace;
-    private boolean clusterDumpCollected = false;
+    private final TestLogCollector logCollector = TestLogCollector.getInstance();
 
     /**
      * Instantiates a new Kroxylicious extension.
@@ -65,19 +65,16 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
 
     @Override
     public void beforeAll(ExtensionContext extensionContext) {
+        String testClassName = extensionContext.getRequiredTestClass().getName();
         ResourceManager.setTestContext(extensionContext);
+        NamespaceUtils.addNamespaceToSet(Environment.STRIMZI_NAMESPACE, testClassName);
     }
 
     @Override
     public void afterAll(ExtensionContext extensionContext) {
-        if (!clusterDumpCollected) {
-            Optional<Throwable> exception = extensionContext.getExecutionException();
-            if (exception.isPresent()) {
-                DeploymentUtils.collectClusterInfo("default", extensionContext.getRequiredTestClass().getSimpleName(), "");
-            }
-        }
         if (!Environment.SKIP_TEARDOWN) {
-            NamespaceUtils.deleteNamespaceWithWait(Constants.KAFKA_DEFAULT_NAMESPACE);
+            ResourceManager.setTestContext(extensionContext);
+            NamespaceUtils.deleteAllNamespacesFromSet();
         }
     }
 
@@ -85,16 +82,16 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
     public void afterEach(ExtensionContext extensionContext) {
         ResourceManager.setTestContext(extensionContext);
         String namespace = extractK8sNamespace(extensionContext);
+        String testClassName = extensionContext.getRequiredTestClass().getName();
+        String testMethodName = extensionContext.getRequiredTestMethod().getName();
         try {
             Optional<Throwable> exception = extensionContext.getExecutionException();
             exception.filter(t -> !t.getClass().getSimpleName().equals("AssumptionViolatedException")).ifPresent(e -> {
-                DeploymentUtils.collectClusterInfo(namespace, extensionContext.getRequiredTestClass().getSimpleName(),
-                        extensionContext.getRequiredTestMethod().getName());
-                clusterDumpCollected = true;
+                logCollector.collectLogs(testClassName, testMethodName);
             });
         }
         finally {
-            NamespaceUtils.deleteNamespaceWithWait(namespace);
+            NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(namespace, testClassName);
         }
     }
 
@@ -103,8 +100,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
         ResourceManager.setTestContext(extensionContext);
         final String k8sNamespace = Constants.KAFKA_DEFAULT_NAMESPACE + "-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
         extensionContext.getStore(junitNamespace).put(K8S_NAMESPACE_KEY, k8sNamespace);
-        NamespaceUtils.createNamespaceWithWait(k8sNamespace);
-        DeploymentUtils.registryCredentialsSecret(k8sNamespace);
+        NamespaceUtils.createNamespaceAndPrepare(k8sNamespace);
     }
 
     private String extractK8sNamespace(ExtensionContext extensionContext) {

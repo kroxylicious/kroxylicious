@@ -452,6 +452,11 @@
                 <version>${test-frame.version}</version>
             </dependency>
             <dependency>
+                <groupId>io.skodjob</groupId>
+                <artifactId>test-frame-log-collector</artifactId>
+                <version>${test-frame.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.junit-pioneer</groupId>
                 <artifactId>junit-pioneer</artifactId>
                 <version>${junit-pioneer.version}</version>

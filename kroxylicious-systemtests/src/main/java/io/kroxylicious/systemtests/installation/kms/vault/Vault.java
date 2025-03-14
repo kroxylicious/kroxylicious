@@ -72,7 +72,7 @@ public class Vault {
         boolean openshiftCluster = getInstance().isOpenshift();
         LOGGER.info("Deploy HashiCorp Vault in {} namespace, openshift: {}", deploymentNamespace, openshiftCluster);
 
-        NamespaceUtils.createNamespaceWithWait(deploymentNamespace);
+        NamespaceUtils.createNamespaceAndPrepare(deploymentNamespace);
         ResourceManager.helmClient().addRepository(VAULT_HELM_REPOSITORY_NAME, VAULT_HELM_REPOSITORY_URL);
         ResourceManager.helmClient().namespace(deploymentNamespace).install(VAULT_HELM_CHART_NAME, VAULT_SERVICE_NAME,
                 Optional.empty(),
@@ -102,7 +102,8 @@ public class Vault {
      */
     public void delete() throws IOException {
         LOGGER.info("Deleting Vault in {} namespace", deploymentNamespace);
-        NamespaceUtils.deleteNamespaceWithWait(deploymentNamespace);
+        String testSuiteName = ResourceManager.getTestContext().getRequiredTestClass().getName();
+        NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(deploymentNamespace, testSuiteName);
     }
 
     /**
