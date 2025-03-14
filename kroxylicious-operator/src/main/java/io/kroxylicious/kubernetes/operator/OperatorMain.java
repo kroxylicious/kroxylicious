@@ -41,7 +41,7 @@ public class OperatorMain {
     private final HttpServer managementServer;
 
     public OperatorMain() throws IOException {
-        this(null, HttpServer.create(new InetSocketAddress("0.0.0.0", 8080), 10));
+        this(null, HttpServer.create(new InetSocketAddress("0.0.0.0", 8080), 0));
     }
 
     @VisibleForTesting
