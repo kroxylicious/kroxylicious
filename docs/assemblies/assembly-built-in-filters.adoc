@@ -1,6 +1,6 @@
 // file included in the following:
 //
-// kroxylicious-proxy.adoc
+// kroxylicious-proxy/index.adoc
 
 [id='assembly-built-in-filters-{context}']
 = Built-in filters

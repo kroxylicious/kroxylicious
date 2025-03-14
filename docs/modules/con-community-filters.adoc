@@ -1,6 +1,6 @@
 // file included in the following:
 //
-// kroxylicious-proxy.adoc
+// kroxylicious-proxy/index.adoc
 
 [id='con-community-filters-{context}']
 = Community filters

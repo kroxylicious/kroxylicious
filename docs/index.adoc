@@ -1,0 +1,9 @@
+= Kroxylicious guides
+
+This release of Kroxylicious is documented in the following guides:
+
+link:kroxylicious-proxy/[Proxy guide]:: Covers using the proxy, including configuration, security and operation.
+
+// Developer's guide:: Covers writing plugins for the proxy in the Java programming language
+
+// Operator for Kubernetes:: Covers the operator for running the proxy on Kubernetes
