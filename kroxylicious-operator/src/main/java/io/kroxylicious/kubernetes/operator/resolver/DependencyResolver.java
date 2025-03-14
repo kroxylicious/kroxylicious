@@ -14,7 +14,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
  * DependencyResolver resolves the dependencies of a KafkaProxy. We use numerous Custom Resources
  * to model the virtual clusters, ingresses, filters and cluster references that will eventually
  * manifest as a single proxy Deployment. The custom resources reference each other by name, and
- * sometime group/kind.
+ * sometimes group/kind.
  * <p>
  * DependencyResolver is responsible for resolving all of these references, returning a result that
  * contains the resolved Custom Resource instances, and a description of which references could not
