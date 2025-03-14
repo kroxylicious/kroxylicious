@@ -45,6 +45,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Filters;
 import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
@@ -499,6 +500,25 @@ class ProxyReconcilerTest {
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
         assertThat(secondaryResourceIDs).containsExactly(new ResourceID(filterName, proxyNamespace));
         verify(mockOperation).inNamespace(proxyNamespace);
+    }
+
+    @Test
+    void proxyToFilterMappingForClusterWithoutFilters() {
+        EventSourceContext<KafkaProxy> eventSourceContext = mock();
+        KubernetesClient client = mock();
+        when(eventSourceContext.getClient()).thenReturn(client);
+        KubernetesResourceList<VirtualKafkaCluster> mockList = mockVirtualKafkaClusterListOperation(client);
+        KafkaProxy proxy = buildProxy("proxy");
+        VirtualKafkaCluster clusterWithoutFilters = baseVirtualKafkaClusterBuilder(proxy, "cluster")
+                .editOrNewSpec()
+                .withFilters((List<Filters>) null)
+                .endSpec()
+                .build();
+        when(mockList.getItems()).thenReturn(List.of(clusterWithoutFilters));
+
+        PrimaryToSecondaryMapper<KafkaProxy> mapper = ProxyReconciler.proxyToFilters(eventSourceContext);
+        Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
+        assertThat(secondaryResourceIDs).isEmpty();
     }
 
     @Test
