@@ -10,8 +10,6 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * DependencyResolver resolves the dependencies of a KafkaProxy. We use numerous Custom Resources
  * to model the virtual clusters, ingresses, filters and cluster references that will eventually
@@ -32,8 +30,7 @@ public interface DependencyResolver {
      * @param unresolvedDependencyReporter unresolved dependency reporter
      * @return a resolution result containing all resolved resources, and a description of which resources could not be resolved
      */
-    @NonNull
-    ResolutionResult deepResolve(@NonNull Context<KafkaProxy> context, UnresolvedDependencyReporter unresolvedDependencyReporter);
+    ResolutionResult deepResolve(Context<KafkaProxy> context, UnresolvedDependencyReporter unresolvedDependencyReporter);
 
     static DependencyResolver create() {
         return new DependencyResolverImpl();

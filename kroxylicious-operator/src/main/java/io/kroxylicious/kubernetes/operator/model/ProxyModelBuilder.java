@@ -21,12 +21,10 @@ import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.UnresolvedDependencyReporter;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static io.kroxylicious.kubernetes.operator.resolver.UnresolvedDependencyReporter.contextClusterConditionReporter;
 
 /**
- * Takes a KafkaProxy, resolves all it's dependencies, and then computes a ProxyModel
+ * Takes a KafkaProxy, resolves all its dependencies, and then computes a ProxyModel
  * which is a logical abstraction of the resources that should be manifested in kubernetes.
  */
 public class ProxyModelBuilder {
@@ -34,7 +32,7 @@ public class ProxyModelBuilder {
     private final DependencyResolver resolver;
     private final UnresolvedDependencyReporter reporter;
 
-    public ProxyModelBuilder(@NonNull DependencyResolver resolver, @NonNull UnresolvedDependencyReporter reporter) {
+    public ProxyModelBuilder(DependencyResolver resolver, UnresolvedDependencyReporter reporter) {
         Objects.requireNonNull(resolver);
         Objects.requireNonNull(reporter);
         this.resolver = resolver;

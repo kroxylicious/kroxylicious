@@ -27,14 +27,12 @@ import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
 record ClusterIPIngressDefinition(KafkaProxyIngress resource, VirtualKafkaCluster cluster, KafkaProxy primary) implements IngressDefinition {
-    private record ClusterIPIngressInstance(@NonNull ClusterIPIngressDefinition definition, int firstIdentifyingPort, int lastIdentifyingPort)
+    private record ClusterIPIngressInstance(ClusterIPIngressDefinition definition, int firstIdentifyingPort, int lastIdentifyingPort)
             implements IngressInstance {
         ClusterIPIngressInstance {
             Objects.requireNonNull(definition);
@@ -107,7 +105,6 @@ record ClusterIPIngressDefinition(KafkaProxyIngress resource, VirtualKafkaCluste
         return name(cluster) + "-" + name(resource);
     }
 
-    @NonNull
     @Override
     public IngressInstance createInstance(int firstIdentifyingPort, int lastIdentifyingPort) {
         return new ClusterIPIngressInstance(this, firstIdentifyingPort, lastIdentifyingPort);

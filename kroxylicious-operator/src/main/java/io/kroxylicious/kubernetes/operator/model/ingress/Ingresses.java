@@ -15,8 +15,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
 
 class Ingresses {
@@ -36,7 +34,7 @@ class Ingresses {
                 });
     }
 
-    private static @NonNull IngressDefinition toIngress(KafkaProxy primary, VirtualKafkaCluster cluster, KafkaProxyIngress ingress) {
+    private static IngressDefinition toIngress(KafkaProxy primary, VirtualKafkaCluster cluster, KafkaProxyIngress ingress) {
         ClusterIP clusterIP = ingress.getSpec().getClusterIP();
         if (clusterIP != null) {
             return new ClusterIPIngressDefinition(ingress, cluster, primary);

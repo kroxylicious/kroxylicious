@@ -20,6 +20,8 @@ import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
  * @param ingressModel the ingress model for this reconciliation
  * @param clustersWithValidIngresses virtual kafka clusters that are fully resolved and have valid ingresses
  */
-public record ProxyModel(ResolutionResult resolutionResult, ProxyIngressModel ingressModel, List<VirtualKafkaCluster> clustersWithValidIngresses) {
+public record ProxyModel(ResolutionResult resolutionResult,
+                         ProxyIngressModel ingressModel,
+                         List<VirtualKafkaCluster> clustersWithValidIngresses) {
 
 }
