@@ -6,8 +6,8 @@
 
 package io.kroxylicious.systemtests.utils;
 
-import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.slf4j.Logger;
@@ -25,7 +25,7 @@ import static org.awaitility.Awaitility.await;
 public class NamespaceUtils {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(NamespaceUtils.class);
-    private static final String NAMESPACES_KEY = "namespaces";
+    private static final String TRACKED_NAMESPACES_KEY = "tracked.namespaces";
 
     private NamespaceUtils() {
     }
@@ -59,7 +59,7 @@ public class NamespaceUtils {
      *
      * @param namespace the namespace
      */
-    public static void createNamespaceWithWait(String namespace) {
+    private static void createNamespaceWithWait(String namespace) {
         LOGGER.info("Creating namespace: {}", namespace);
         if (isNamespaceCreated(namespace)) {
             LOGGER.warn("{} Namespace was already created!", namespace);
@@ -102,7 +102,7 @@ public class NamespaceUtils {
      * @param storeName the store name
      * @return the store
      */
-    public static ExtensionContext.Store getStore(String storeName) {
+    private static ExtensionContext.Store getStore(String storeName) {
         return ResourceManager.getTestContext().getStore(ExtensionContext.Namespace.create(storeName));
     }
 
@@ -112,34 +112,23 @@ public class NamespaceUtils {
      * @param namespaceName the namespace name
      * @param testSuiteName the test suite name
      */
-    public static synchronized void addNamespaceToSet(String namespaceName, String testSuiteName) {
-        if (!isNamespaceStored(testSuiteName, namespaceName)) {
-            Set<String> namespacesList = getNamespacesForTestClass(testSuiteName);
-            namespacesList.add(namespaceName);
-            getStore(testSuiteName).put(NAMESPACES_KEY, namespacesList);
-        }
-    }
-
-    private static boolean isNamespaceStored(String storeName, String namespace) {
-        Set<String> namespaces = getNamespacesForTestClass(storeName);
-        return namespaces.contains(namespace);
+    public static void addNamespaceToSet(String namespaceName, String testSuiteName) {
+        Set<String> namespacesList = getOrCreateNamespacesForTestClass(testSuiteName);
+        namespacesList.add(namespaceName);
     }
 
     /**
-     * Gets namespaces for test class.
+     * Gets namespaces for test class, creating the namespace if none exists.
      *
      * @param testClass the test class
      * @return the namespaces for test class
      */
-    public static Set<String> getNamespacesForTestClass(String testClass) {
-        Set<String> namespaces = getStore(testClass).get(NAMESPACES_KEY, Set.class);
-        return namespaces != null ? namespaces : new HashSet<>();
+    public static Set<String> getOrCreateNamespacesForTestClass(String testClass) {
+        return getStore(testClass).getOrComputeIfAbsent(TRACKED_NAMESPACES_KEY, s -> ConcurrentHashMap.newKeySet(), Set.class);
     }
 
-    private static synchronized void deleteNamespaceFromSet(String namespaceName, String testSuiteName) {
-        Set<String> namespaceList = getNamespacesForTestClass(testSuiteName);
-        namespaceList.remove(namespaceName);
-        getStore(testSuiteName).put(NAMESPACES_KEY, namespaceList);
+    private static void deleteNamespaceFromSet(String namespaceName, String testSuiteName) {
+        getOrCreateNamespacesForTestClass(testSuiteName).remove(namespaceName);
     }
 
     /**
@@ -149,11 +138,9 @@ public class NamespaceUtils {
      */
     public static void deleteAllNamespacesFromSet() {
         final String testSuiteName = ResourceManager.getTestContext().getRequiredTestClass().getName();
-        Set<String> namespaceList = getNamespacesForTestClass(testSuiteName);
+        Set<String> namespaceList = getOrCreateNamespacesForTestClass(testSuiteName);
         namespaceList.forEach(NamespaceUtils::deleteNamespaceWithWait);
-        if (!namespaceList.isEmpty()) {
-            getStore(testSuiteName).remove(NAMESPACES_KEY);
-        }
+        getStore(testSuiteName).remove(TRACKED_NAMESPACES_KEY, Set.class);
     }
 
     /**

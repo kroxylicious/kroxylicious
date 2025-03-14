@@ -19,6 +19,9 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.skodjob.testframe.LogCollector;
 import io.skodjob.testframe.LogCollectorBuilder;
 import io.skodjob.testframe.clients.KubeClient;
@@ -29,9 +32,6 @@ import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Class for encapsulating Test-Frame's {@link LogCollector}.
@@ -223,7 +223,7 @@ public class TestLogCollector {
                 .withRootFolderPath(rootPathToLogsForTestCase.toString())
                 .build();
 
-        Set<String> namespaces = NamespaceUtils.getNamespacesForTestClass(testClass);
+        Set<String> namespaces = NamespaceUtils.getOrCreateNamespacesForTestClass(testClass);
 
         testCaseCollector.collectFromNamespaces(namespaces.toArray(new String[0]));
     }
