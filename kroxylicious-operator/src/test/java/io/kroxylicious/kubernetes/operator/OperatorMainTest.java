@@ -12,6 +12,12 @@ import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import com.sun.net.httpserver.HttpHandler;
+import com.sun.net.httpserver.HttpServer;
 
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.client.CustomResource;
@@ -28,10 +34,15 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodHandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 
 @EnableKubernetesMockClient(crud = true)
+@ExtendWith(MockitoExtension.class)
 class OperatorMainTest {
 
     KubernetesClient kubeClient;
@@ -39,10 +50,13 @@ class OperatorMainTest {
 
     private OperatorMain operatorMain;
 
+    @Mock
+    HttpServer managementServer;
+
     @BeforeEach
     void setUp() {
         expectApiResources();
-        operatorMain = new OperatorMain(kubeClient);
+        operatorMain = new OperatorMain(kubeClient, managementServer);
     }
 
     @AfterEach
@@ -90,6 +104,39 @@ class OperatorMainTest {
 
         // Then
         assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.executions.proxyreconciler").meter().getId()).isNotNull();
+    }
+
+    @Test
+    void shouldStartHttpServer() {
+        // Given
+
+        // When
+        operatorMain.start();
+
+        // Then
+        verify(managementServer).start();
+    }
+
+    @Test
+    void shouldRegisterMetricsWithManagementServer() {
+        // Given
+
+        // When
+        operatorMain.start();
+
+        // Then
+        verify(managementServer).createContext(eq("/metrics"), any(HttpHandler.class));
+    }
+
+    @Test
+    void shouldRegisterUnsupportedMethodsHandlerWithManagementServer() {
+        // Given
+
+        // When
+        operatorMain.start();
+
+        // Then
+        verify(managementServer).createContext(eq("/"), any(UnsupportedHttpMethodHandler.class));
     }
 
     private void expectApiResources() {
