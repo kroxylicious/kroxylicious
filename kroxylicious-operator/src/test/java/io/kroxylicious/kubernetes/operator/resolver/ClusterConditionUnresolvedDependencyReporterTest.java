@@ -57,7 +57,7 @@ class ClusterConditionUnresolvedDependencyReporterTest {
     void beforeEach() {
         when(mockContext.managedWorkflowAndDependentResourceContext()).thenReturn(mockResourceContext);
         when(mockResourceContext.get(any(), eq(Map.class))).thenReturn(Optional.empty());
-        reporter = UnresolvedDependencyReporter.contextClusterConditionReporter(mockContext);
+        reporter = new ClusterConditionUnresolvedDependencyReporter(mockContext);
     }
 
     @Test

@@ -34,9 +34,16 @@ import static io.kroxylicious.kubernetes.operator.resolver.Dependency.FILTER;
 import static io.kroxylicious.kubernetes.operator.resolver.Dependency.KAFKA_CLUSTER_REF;
 import static io.kroxylicious.kubernetes.operator.resolver.Dependency.KAFKA_PROXY_INGRESS;
 
-class DependencyResolverImpl implements DependencyResolver {
+public class DependencyResolverImpl implements DependencyResolver {
 
     private static final ResolutionResult EMPTY_RESOLUTION_RESULT = new ResolutionResult(Map.of(), Map.of(), Map.of(), Map.of());
+
+    private DependencyResolverImpl() {
+    }
+
+    public static DependencyResolver create() {
+        return new DependencyResolverImpl();
+    }
 
     @Override
     public ResolutionResult deepResolve(Context<KafkaProxy> context, UnresolvedDependencyReporter unresolvedDependencyReporter) {

@@ -59,7 +59,7 @@ class DependencyResolverImplTest {
         givenVirtualKafkaClustersInContext();
 
         // when
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
+        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
         assertThat(resolutionResult.allClustersInNameOrder()).isEmpty();
@@ -80,7 +80,7 @@ class DependencyResolverImplTest {
         givenVirtualKafkaClustersInContext(cluster);
 
         // when
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
+        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
         assertThat(resolutionResult.allClustersInNameOrder()).containsExactly(cluster);
@@ -100,7 +100,7 @@ class DependencyResolverImplTest {
         givenVirtualKafkaClustersInContext(cluster);
 
         // when
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
+        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
         assertThat(resolutionResult.filter(filterRef("filterName"))).contains(filter);
@@ -121,7 +121,7 @@ class DependencyResolverImplTest {
         givenVirtualKafkaClustersInContext(cluster);
 
         // when
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
+        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
         assertThat(resolutionResult.filter(filterRef("filterName", "kroxylicious.io", "Kind1"))).contains(filter);
@@ -142,7 +142,7 @@ class DependencyResolverImplTest {
         givenVirtualKafkaClustersInContext(cluster);
 
         // when
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
+        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
         assertThat(resolutionResult.filter(filterRef("filterName", "kroxylicious.io", "Kind"))).contains(filter);
@@ -163,7 +163,7 @@ class DependencyResolverImplTest {
         givenVirtualKafkaClustersInContext(cluster);
 
         // when
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
+        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
         assertThat(resolutionResult.filter(filterRef("filterName"))).contains(filter);
@@ -185,7 +185,7 @@ class DependencyResolverImplTest {
         givenVirtualKafkaClustersInContext(cluster);
 
         // when
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
+        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
         assertThat(resolutionResult.filter(filterRef("filterName"))).contains(filter);
@@ -207,7 +207,7 @@ class DependencyResolverImplTest {
         givenVirtualKafkaClustersInContext(cluster);
 
         // when
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
+        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
         assertThat(resolutionResult.filter(filterRef("filterName"))).contains(filter);
@@ -229,7 +229,7 @@ class DependencyResolverImplTest {
         givenVirtualKafkaClustersInContext(cluster);
 
         // when
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
+        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
         assertThat(resolutionResult.filter(filterRef("other"))).isEmpty();
@@ -248,7 +248,7 @@ class DependencyResolverImplTest {
         givenVirtualKafkaClustersInContext(cluster);
 
         // when
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
+        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
         assertThat(resolutionResult.ingresses()).isEmpty();
@@ -267,7 +267,7 @@ class DependencyResolverImplTest {
         givenVirtualKafkaClustersInContext(cluster);
 
         // when
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
+        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
         assertThat(resolutionResult.ingresses()).isEmpty();
@@ -287,7 +287,7 @@ class DependencyResolverImplTest {
         givenVirtualKafkaClustersInContext(cluster);
 
         // when
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
+        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
         assertThat(resolutionResult.ingresses()).containsExactly(ingress);
@@ -308,7 +308,7 @@ class DependencyResolverImplTest {
         givenVirtualKafkaClustersInContext(cluster);
 
         // when
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
+        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
         assertThat(resolutionResult.ingresses()).containsExactlyInAnyOrder(ingress, ingress2);
@@ -328,7 +328,7 @@ class DependencyResolverImplTest {
         givenVirtualKafkaClustersInContext(cluster);
 
         // when
-        ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
+        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
         assertThat(resolutionResult.ingresses()).containsExactlyInAnyOrder(ingress);

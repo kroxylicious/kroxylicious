@@ -19,7 +19,7 @@ import io.kroxylicious.kubernetes.operator.SharedKafkaProxyContext;
 import static io.kroxylicious.kubernetes.operator.ClusterCondition.ingressNotFound;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 
-record ClusterConditionUnresolvedDependencyReporter(Context<KafkaProxy> context) implements UnresolvedDependencyReporter {
+public record ClusterConditionUnresolvedDependencyReporter(Context<KafkaProxy> context) implements UnresolvedDependencyReporter {
 
     @Override
     public void reportUnresolvedDependencies(VirtualKafkaCluster cluster, Set<ResolutionResult.UnresolvedDependency> unresolvedDependencies) {

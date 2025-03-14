@@ -32,7 +32,4 @@ public interface DependencyResolver {
      */
     ResolutionResult deepResolve(Context<KafkaProxy> context, UnresolvedDependencyReporter unresolvedDependencyReporter);
 
-    static DependencyResolver create() {
-        return new DependencyResolverImpl();
-    }
 }
