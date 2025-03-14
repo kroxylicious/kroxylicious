@@ -46,15 +46,16 @@ import static org.assertj.core.api.Assertions.fail;
 
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 class OperatorMainIT {
-    private static KafkaProxy kafkaProxy;
-    private OperatorMain operatorMain;
     // This is an IT because it depends on having a running Kube cluster
 
     private static final String CLUSTER_FOO_REF = "fooref";
     private static final String CLUSTER_FOO_BOOTSTRAP = "my-cluster-kafka-bootstrap.foo.svc.cluster.local:9092";
     private static final String CLUSTER_BAR_REF = "barref";
     private static final String CLUSTER_BAR_BOOTSTRAP = "my-cluster-kafka-bootstrap.bar.svc.cluster.local:9092";
+
     private HttpServer managementServer;
+    private KafkaProxy kafkaProxy;
+    private OperatorMain operatorMain;
 
     @BeforeAll
     static void beforeAll() {
@@ -127,7 +128,7 @@ class OperatorMainIT {
         operatorMain.start();
 
         // When
-        createProxyInstance(proxyBuilder);
+        kafkaProxy = createProxyInstance(proxyBuilder);
 
         // Then
         Awaitility.await()
@@ -162,7 +163,7 @@ class OperatorMainIT {
         operatorMain.start();
 
         // When
-        createProxyInstance(proxyBuilder);
+        kafkaProxy = createProxyInstance(proxyBuilder);
 
         // Then
         Awaitility.await()
@@ -215,14 +216,14 @@ class OperatorMainIT {
         assertThat(response.body()).isEmpty();
     }
 
-    private static void createProxyInstance(KafkaProxyBuilder proxyBuilder) {
+    private KafkaProxy createProxyInstance(KafkaProxyBuilder proxyBuilder) {
         final KubernetesClient kubernetesClient = Objects.requireNonNull(OperatorTestUtils.kubeClientIfAvailable());
-        kafkaProxy = kubernetesClient.resource(proxyBuilder.build()).create();
         kubernetesClient.resource(clusterRef(CLUSTER_FOO_REF, CLUSTER_FOO_BOOTSTRAP)).create();
         kubernetesClient.resource(clusterRef(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)).create();
+        return kubernetesClient.resource(proxyBuilder.build()).create();
     }
 
-    private static KafkaClusterRef clusterRef(String clusterRefName, String clusterBootstrap) {
+    private KafkaClusterRef clusterRef(String clusterRefName, String clusterBootstrap) {
         return new KafkaClusterRefBuilder().withNewMetadata().withName(clusterRefName).endMetadata()
                 .withNewSpec()
                 .withBootstrapServers(clusterBootstrap)
