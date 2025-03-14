@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1810](https://github.com/kroxylicious/kroxylicious/issues/1810) Run operator/operand image as non-root user
 * [#1903](https://github.com/kroxylicious/kroxylicious/issues/1903) Rename `adminHttp` to `management` in the config model.
 * [#1918](https://github.com/kroxylicious/kroxylicious/pull/1918)  Removes support for the deprecated config property `filePath`.
 * [#1573](https://github.com/kroxylicious/kroxylicious/issues/1573) Minimal proxy health probe (livez)
