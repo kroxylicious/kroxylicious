@@ -11,6 +11,7 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -394,7 +395,7 @@ public class ProxyReconciler implements
         return (KafkaProxy proxy) -> {
             Set<ResourceID> filterReferences = resourcesInSameNamespace(context, proxy, VirtualKafkaCluster.class)
                     .filter(clusterReferences(proxy))
-                    .flatMap(cluster -> cluster.getSpec().getFilters().stream())
+                    .flatMap(cluster -> Optional.ofNullable(cluster.getSpec().getFilters()).orElse(List.of()).stream())
                     .map(filter -> new ResourceID(filter.getName(), namespace(proxy)))
                     .collect(Collectors.toSet());
             LOGGER.debug("KafkaProxy {} has references to filters {}", ResourceID.fromResource(proxy), filterReferences);
