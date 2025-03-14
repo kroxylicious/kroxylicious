@@ -22,7 +22,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -156,7 +155,7 @@ public class ProxyConfigConfigMap
         return model.clustersWithValidIngresses().stream()
                 .filter(cluster -> Optional.ofNullable(cluster.getSpec().getFilters()).stream().flatMap(Collection::stream).allMatch(
                         filters -> successfullyBuiltFilterNames.contains(filterDefinitionName(filters))))
-                .map(cluster -> getVirtualCluster(cluster, model.resolutionResult().kafkaClusterRefFor(cluster).orElseThrow(), model.ingressModel()))
+                .map(cluster -> getVirtualCluster(cluster, model.resolutionResult().kafkaClusterRef(cluster).orElseThrow(), model.ingressModel()))
                 .toList();
     }
 
@@ -203,7 +202,7 @@ public class ProxyConfigConfigMap
 
             String filterDefinitionName = filterDefinitionName(filterCrRef);
 
-            var filterCr = filterResourceFromRef(cluster, filterCrRef, resolutionResult);
+            var filterCr = resolutionResult.filter(filterCrRef).orElseThrow();
             if (filterCr.getAdditionalProperties().get("spec") instanceof Map<?, ?> spec) {
                 String type = (String) spec.get("type");
                 SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(spec);
@@ -229,7 +228,7 @@ public class ProxyConfigConfigMap
         }
     }
 
-    private @NonNull SecureConfigInterpolator.InterpolationResult interpolateConfig(Map<?, ?> spec) {
+    private SecureConfigInterpolator.InterpolationResult interpolateConfig(Map<?, ?> spec) {
         SecureConfigInterpolator.InterpolationResult result;
         Object configTemplate = spec.get("configTemplate");
         if (configTemplate != null) {
@@ -239,31 +238,6 @@ public class ProxyConfigConfigMap
             result = new SecureConfigInterpolator.InterpolationResult(spec.get("config"), Set.of(), Set.of());
         }
         return result;
-    }
-
-    @NonNull
-    private static InvalidClusterException filterResourceNotFound(VirtualKafkaCluster cluster, Filters filterRef) {
-        return new InvalidClusterException(ClusterCondition.filterNotFound(ResourcesUtil.name(cluster), filterRef.getName()));
-    }
-
-    /**
-     * Look up a Filter CR from the group, kind and name given in the cluster.
-     */
-    @NonNull
-    private static GenericKubernetesResource filterResourceFromRef(VirtualKafkaCluster cluster,
-                                                                   Filters filterRef,
-                                                                   ResolutionResult resolutionResult)
-            throws InvalidClusterException {
-        return resolutionResult.filters().stream()
-                .filter(filterResource -> {
-                    String apiVersion = filterResource.getApiVersion();
-                    var filterResourceGroup = apiVersion.substring(0, apiVersion.indexOf("/"));
-                    return filterResourceGroup.equals(filterRef.getGroup())
-                            && filterResource.getKind().equals(filterRef.getKind())
-                            && ResourcesUtil.name(filterResource).equals(filterRef.getName());
-                })
-                .findFirst()
-                .orElseThrow(() -> filterResourceNotFound(cluster, filterRef));
     }
 
     private static VirtualCluster getVirtualCluster(VirtualKafkaCluster cluster,

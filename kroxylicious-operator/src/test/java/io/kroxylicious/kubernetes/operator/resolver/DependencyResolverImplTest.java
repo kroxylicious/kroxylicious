@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator.resolver;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -63,9 +64,9 @@ class DependencyResolverImplTest {
         // then
         assertThat(resolutionResult.allClustersInNameOrder()).isEmpty();
         assertThat(resolutionResult.clusterResults()).isEmpty();
-        assertThat(resolutionResult.getIngresses()).isEmpty();
+        assertThat(resolutionResult.ingresses()).isEmpty();
         assertThat(resolutionResult.fullyResolvedClustersInNameOrder()).isEmpty();
-        assertThat(resolutionResult.filter("any")).isEmpty();
+        assertThat(resolutionResult.filter(filterRef("a", "b", "c"))).isEmpty();
         assertThat(resolutionResult.filters()).isEmpty();
         verifyNoInteractions(unresolvedDependencyReporter);
     }
@@ -102,7 +103,7 @@ class DependencyResolverImplTest {
         ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
-        assertThat(resolutionResult.filter("filterName")).contains(filter);
+        assertThat(resolutionResult.filter(filterRef("filterName"))).contains(filter);
         assertThat(resolutionResult.filters()).containsExactly(filter);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isTrue();
@@ -123,7 +124,7 @@ class DependencyResolverImplTest {
         ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
-        assertThat(resolutionResult.filter("filterName")).contains(filter);
+        assertThat(resolutionResult.filter(filterRef("filterName", "kroxylicious.io", "Kind1"))).contains(filter);
         assertThat(resolutionResult.filters()).containsExactly(filter);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
@@ -144,7 +145,7 @@ class DependencyResolverImplTest {
         ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
-        assertThat(resolutionResult.filter("filterName")).contains(filter);
+        assertThat(resolutionResult.filter(filterRef("filterName", "kroxylicious.io", "Kind"))).contains(filter);
         assertThat(resolutionResult.filters()).containsExactly(filter);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
@@ -165,7 +166,7 @@ class DependencyResolverImplTest {
         ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
-        assertThat(resolutionResult.filter("filterName")).contains(filter);
+        assertThat(resolutionResult.filter(filterRef("filterName"))).contains(filter);
         assertThat(resolutionResult.filters()).containsExactly(filter);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isTrue();
@@ -187,8 +188,8 @@ class DependencyResolverImplTest {
         ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
-        assertThat(resolutionResult.filter("filterName")).contains(filter);
-        assertThat(resolutionResult.filter("filterName2")).contains(filter2);
+        assertThat(resolutionResult.filter(filterRef("filterName"))).contains(filter);
+        assertThat(resolutionResult.filter(filterRef("filterName2"))).contains(filter2);
         assertThat(resolutionResult.filters()).containsExactlyInAnyOrder(filter, filter2);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isTrue();
@@ -209,8 +210,8 @@ class DependencyResolverImplTest {
         ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
-        assertThat(resolutionResult.filter("filterName")).contains(filter);
-        assertThat(resolutionResult.filter("filterName2")).isEmpty();
+        assertThat(resolutionResult.filter(filterRef("filterName"))).contains(filter);
+        assertThat(resolutionResult.filter(filterRef("filterName2"))).isEmpty();
         assertThat(resolutionResult.filters()).containsExactlyInAnyOrder(filter);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
@@ -231,7 +232,7 @@ class DependencyResolverImplTest {
         ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
-        assertThat(resolutionResult.filter("other")).isEmpty();
+        assertThat(resolutionResult.filter(filterRef("other"))).isEmpty();
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
         assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new UnresolvedDependency(Dependency.FILTER, "other"));
@@ -250,7 +251,7 @@ class DependencyResolverImplTest {
         ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
-        assertThat(resolutionResult.getIngresses()).isEmpty();
+        assertThat(resolutionResult.ingresses()).isEmpty();
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
         assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new UnresolvedDependency(Dependency.KAFKA_PROXY_INGRESS, "ingressMissing"));
@@ -269,7 +270,7 @@ class DependencyResolverImplTest {
         ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
-        assertThat(resolutionResult.getIngresses()).isEmpty();
+        assertThat(resolutionResult.ingresses()).isEmpty();
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
         assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new UnresolvedDependency(Dependency.KAFKA_CLUSTER_REF, "missing"));
@@ -289,7 +290,7 @@ class DependencyResolverImplTest {
         ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
-        assertThat(resolutionResult.getIngresses()).containsExactly(ingress);
+        assertThat(resolutionResult.ingresses()).containsExactly(ingress);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isTrue();
         assertThat(onlyResult.unresolvedDependencySet()).isEmpty();
@@ -310,7 +311,7 @@ class DependencyResolverImplTest {
         ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
-        assertThat(resolutionResult.getIngresses()).containsExactlyInAnyOrder(ingress, ingress2);
+        assertThat(resolutionResult.ingresses()).containsExactlyInAnyOrder(ingress, ingress2);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isTrue();
         assertThat(onlyResult.unresolvedDependencySet()).isEmpty();
@@ -330,7 +331,7 @@ class DependencyResolverImplTest {
         ResolutionResult resolutionResult = DependencyResolver.create().deepResolve(mockContext, unresolvedDependencyReporter);
 
         // then
-        assertThat(resolutionResult.getIngresses()).containsExactlyInAnyOrder(ingress);
+        assertThat(resolutionResult.ingresses()).containsExactlyInAnyOrder(ingress);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
         assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new UnresolvedDependency(Dependency.KAFKA_PROXY_INGRESS, "ingress2"));
@@ -346,9 +347,9 @@ class DependencyResolverImplTest {
     }
 
     private static ClusterResolutionResult assertSingleResult(ResolutionResult resolutionResult, VirtualKafkaCluster cluster) {
-        List<ClusterResolutionResult> result = resolutionResult.clusterResults().toList();
-        assertThat(result.size()).isEqualTo(1);
-        ClusterResolutionResult onlyResult = result.get(0);
+        Collection<ClusterResolutionResult> result = resolutionResult.clusterResults();
+        assertThat(result).hasSize(1);
+        ClusterResolutionResult onlyResult = result.stream().findFirst().orElseThrow();
         assertThat(onlyResult.cluster()).isEqualTo(cluster);
         return onlyResult;
     }
