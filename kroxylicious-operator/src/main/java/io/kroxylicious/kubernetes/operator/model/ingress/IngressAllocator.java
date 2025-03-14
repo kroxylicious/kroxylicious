@@ -34,6 +34,16 @@ public class IngressAllocator {
     private IngressAllocator() {
     }
 
+    /**
+     * Allocates a ProxyIngressModel. The aim is to deterministically produce a model of the ports that will
+     * be used by the proxy container. We want this to be as stable as possible, so we will allocate ports
+     * to potentially unacceptable virtual clusters if we can.
+     * @param primary primary being reconciled
+     * @param clusters all clusters, is allowed to include clusters that have unresolved dependencies, so allocator must tolerate unresolvable ingresses
+     * @param ingressResources all resolved ingresses for this primary
+     * @param context context
+     * @return non-null ProxyIngressModel
+     */
     public static ProxyIngressModel allocateProxyIngressModel(KafkaProxy primary, List<VirtualKafkaCluster> clusters, Set<KafkaProxyIngress> ingressResources,
                                                               Context<KafkaProxy> context) {
         AtomicInteger exclusivePorts = new AtomicInteger(PROXY_PORT_START);

@@ -25,7 +25,8 @@ import static io.kroxylicious.kubernetes.operator.resolver.UnresolvedDependencyR
 
 /**
  * Takes a KafkaProxy, resolves all its dependencies, and then computes a ProxyModel
- * which is a logical abstraction of the resources that should be manifested in kubernetes.
+ * which is intended to be a logical abstraction of the resources that should be manifested
+ * in kubernetes. Note this is a work-in-progress, so it only models the ingresses currently.
  */
 public class ProxyModelBuilder {
 
@@ -42,7 +43,10 @@ public class ProxyModelBuilder {
     public ProxyModel build(KafkaProxy primary, Context<KafkaProxy> context) {
         ResolutionResult resolutionResult = resolver.deepResolve(context, reporter);
         Set<KafkaProxyIngress> ingresses = resolutionResult.getIngresses();
-        ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, resolutionResult.allClustersInNameOrder(), ingresses, context);
+        // to try and produce the most stable allocation of ports we can, we attempt to consider all clusters in the ingress allocation, even those
+        // that we know are unacceptable due to unresolved dependencies.
+        List<VirtualKafkaCluster> allClusters = resolutionResult.allClustersInNameOrder();
+        ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, allClusters, ingresses, context);
         List<VirtualKafkaCluster> clustersWithValidIngresses = resolutionResult.fullyResolvedClustersInNameOrder().stream()
                 .filter(cluster -> ingressModel.clusterIngressModel(cluster).map(i -> i.ingressExceptions().isEmpty()).orElse(false)).toList();
         return new ProxyModel(resolutionResult, ingressModel, clustersWithValidIngresses);
