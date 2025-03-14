@@ -28,8 +28,10 @@ import io.strimzi.api.kafka.model.nodepool.KafkaNodePool;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
-import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Class for encapsulating Test-Frame's {@link LogCollector}.
@@ -92,6 +94,8 @@ import io.kroxylicious.systemtests.utils.NamespaceUtils;
  * ...
  */
 public class TestLogCollector {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TestLogCollector.class);
+
     private static final String CURRENT_DATE_TIME;
     private final LogCollector logCollector;
     private static TestLogCollector instance;
@@ -106,7 +110,7 @@ public class TestLogCollector {
     /**
      * TestLogCollector's constructor
      */
-    public TestLogCollector() {
+    private TestLogCollector() {
         this.logCollector = defaultLogCollector();
     }
 
@@ -200,27 +204,9 @@ public class TestLogCollector {
             rootPathToLogsForTestCase = rootPathToLogsForTestCase.resolve(testCase);
         }
 
-        return getSequentiallyNextTargetDirectory(rootPathToLogsForTestCase);
-    }
-
-    /**
-     * Method that encapsulates {@link #collectLogs(String, String)}, taking the test-class and test-case names from
-     * {@link ResourceManager#getTestContext()}
-     */
-    public void collectLogs() {
-        collectLogs(
-                ResourceManager.getTestContext().getRequiredTestClass().getName(),
-                ResourceManager.getTestContext().getRequiredTestMethod().getName());
-    }
-
-    /**
-     * Method that encapsulates {@link #collectLogs(String, String)}, where test-class is passed as a parameter and the
-     * test-case name is `null` -> that's used when the test fail in `@BeforeAll` or `@AfterAll` phases.
-     *
-     * @param testClass     name of the test-class, for which the logs should be collected
-     */
-    public void collectLogs(String testClass) {
-        collectLogs(testClass, null);
+        var logDirForTestCase = getSequentiallyNextTargetDirectory(rootPathToLogsForTestCase);
+        LOGGER.info("Logs for {}/{} will be written to {}", testClass, testCase, logDirForTestCase);
+        return logDirForTestCase;
     }
 
     /**
