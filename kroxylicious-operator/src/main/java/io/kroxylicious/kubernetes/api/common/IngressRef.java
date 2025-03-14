@@ -14,7 +14,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 @javax.annotation.processing.Generated("io.fabric8.java.generator.CRGeneratorRunner")
 @lombok.ToString()
-@lombok.EqualsAndHashCode()
 @io.sundr.builder.annotations.Buildable(editableEnabled = false, validationEnabled = false, generateBuilderPackage = false, builderPackage = "io.fabric8.kubernetes.api.builder", refs = {
         @io.sundr.builder.annotations.BuildableReference(io.fabric8.kubernetes.api.model.ObjectMeta.class),
         @io.sundr.builder.annotations.BuildableReference(io.fabric8.kubernetes.api.model.ObjectReference.class),
@@ -25,9 +24,9 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
         @io.sundr.builder.annotations.BuildableReference(io.fabric8.kubernetes.api.model.Volume.class),
         @io.sundr.builder.annotations.BuildableReference(io.fabric8.kubernetes.api.model.VolumeMount.class)
 })
-public class IngressRef implements
-        LocalRef<KafkaProxyIngress>,
-        io.fabric8.kubernetes.api.builder.Editable<IngressRefBuilder>,
+public class IngressRef
+        extends LocalRef<KafkaProxyIngress>
+        implements io.fabric8.kubernetes.api.builder.Editable<IngressRefBuilder>,
         KubernetesResource {
 
     @Override

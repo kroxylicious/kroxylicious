@@ -12,7 +12,6 @@ import io.fabric8.kubernetes.api.model.KubernetesResource;
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 @javax.annotation.processing.Generated("io.fabric8.java.generator.CRGeneratorRunner")
 @lombok.ToString()
-@lombok.EqualsAndHashCode()
 @io.sundr.builder.annotations.Buildable(editableEnabled = false, validationEnabled = false, generateBuilderPackage = false, builderPackage = "io.fabric8.kubernetes.api.builder", refs = {
         @io.sundr.builder.annotations.BuildableReference(io.fabric8.kubernetes.api.model.ObjectMeta.class),
         @io.sundr.builder.annotations.BuildableReference(io.fabric8.kubernetes.api.model.ObjectReference.class),
@@ -23,9 +22,9 @@ import io.fabric8.kubernetes.api.model.KubernetesResource;
         @io.sundr.builder.annotations.BuildableReference(io.fabric8.kubernetes.api.model.Volume.class),
         @io.sundr.builder.annotations.BuildableReference(io.fabric8.kubernetes.api.model.VolumeMount.class)
 })
-public class AnyLocalRef implements
-        LocalRef<HasMetadata>,
-        io.fabric8.kubernetes.api.builder.Editable<AnyLocalRefBuilder>,
+public class AnyLocalRef
+        extends LocalRef<HasMetadata>
+        implements io.fabric8.kubernetes.api.builder.Editable<AnyLocalRefBuilder>,
         io.fabric8.kubernetes.api.model.KubernetesResource {
 
     @java.lang.Override
