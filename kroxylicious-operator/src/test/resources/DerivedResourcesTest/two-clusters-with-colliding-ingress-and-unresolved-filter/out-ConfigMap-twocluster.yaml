@@ -21,8 +21,5 @@ metadata:
       kind: "KafkaProxy"
       name: "twocluster"
 data:
-  proxy-config.yaml: | 
-    ---
-    management:
-      endpoints:
-        prometheus: {}
+  proxy-config.yaml: |
+    --- {}

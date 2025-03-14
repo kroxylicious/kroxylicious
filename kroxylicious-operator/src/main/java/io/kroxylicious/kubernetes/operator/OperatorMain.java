@@ -7,6 +7,7 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,6 +53,18 @@ public class OperatorMain {
     public static void main(String[] args) {
         try {
             new OperatorMain().start();
+
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        new CountDownLatch(1).await();
+                    }
+                    catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }).start();
         }
         catch (Exception e) {
             LOGGER.error("Operator has thrown exception during startup. Will now exit.", e);

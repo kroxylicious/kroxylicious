@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1900](https://github.com/kroxylicious/kroxylicious/issues/1900) Enforce business rule that a proxy must have at least one virtual cluster
 * [#1810](https://github.com/kroxylicious/kroxylicious/issues/1810) Run operator/operand image as non-root user
 * [#1903](https://github.com/kroxylicious/kroxylicious/issues/1903) Rename `adminHttp` to `management` in the config model.
 * [#1918](https://github.com/kroxylicious/kroxylicious/pull/1918)  Removes support for the deprecated config property `filePath`.

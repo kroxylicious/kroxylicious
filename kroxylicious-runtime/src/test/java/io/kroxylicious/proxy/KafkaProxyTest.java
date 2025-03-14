@@ -10,9 +10,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -146,12 +143,23 @@ class KafkaProxyTest {
 
     @Test
     void invalidConfigurationForFeatures() {
-        Optional<Map<String, Object>> a = Optional.of(Map.of("a", "b"));
-        Configuration configuration = new Configuration(null, List.of(), null, List.of(), null, false, a);
+        var config = """
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: cluster1:9192
+                   development:
+                     a: b
+                """;
+
+        var configuration = new ConfigParser().parseConfiguration(config);
         Features features = Features.defaultFeatures();
-        assertThatThrownBy(() -> {
-            KafkaProxy.validate(configuration, features);
-        }).isInstanceOf(IllegalConfigurationException.class)
+        assertThatThrownBy(() -> KafkaProxy.validate(configuration, features))
+                .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("invalid configuration: test-only configuration for proxy present, but loading test-only configuration not enabled");
     }
 

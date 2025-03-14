@@ -42,6 +42,7 @@ import io.kroxylicious.kubernetes.operator.ingress.IngressConflictException;
 import io.kroxylicious.kubernetes.operator.ingress.ProxyIngressModel;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
@@ -72,9 +73,9 @@ public class ProxyConfigConfigMap
 
     private static final ObjectMapper OBJECT_MAPPER = ConfigParser.createObjectMapper();
 
-    private static String toYaml(Object filterDefs) {
+    private static String toYaml(Object o) {
         try {
-            return OBJECT_MAPPER.writeValueAsString(filterDefs);
+            return OBJECT_MAPPER.writeValueAsString(o);
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
@@ -125,13 +126,23 @@ public class ProxyConfigConfigMap
                     .addToLabels(standardLabels(primary))
                     .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
                 .endMetadata()
-                .withData(Map.of(CONFIG_YAML_KEY, generateProxyConfig(primary, context)))
+                .withData(generateDataMap(primary, context))
                 .build();
         // @formatter:on
     }
 
-    String generateProxyConfig(KafkaProxy primary,
-                               Context<KafkaProxy> context) {
+    @NonNull
+    private Map<String, String> generateDataMap(KafkaProxy primary, Context<KafkaProxy> context) {
+        try {
+            return Map.of(CONFIG_YAML_KEY, generateProxyConfig(primary, context));
+        }
+        catch (IllegalConfigurationException e) {
+            return Map.of(CONFIG_YAML_KEY, toYaml(Map.of()));
+        }
+    }
+
+    private String generateProxyConfig(KafkaProxy primary,
+                                       Context<KafkaProxy> context) {
 
         List<VirtualKafkaCluster> virtualKafkaClusters = ResourcesUtil.clustersInNameOrder(context).toList();
         Set<KafkaProxyIngress> ingresses = context.getSecondaryResources(KafkaProxyIngress.class);
