@@ -17,19 +17,18 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.sun.net.httpserver.Filter;
 import com.sun.net.httpserver.Headers;
 import com.sun.net.httpserver.HttpExchange;
-import com.sun.net.httpserver.HttpHandler;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class UnsupportedHttpMethodHandlerTest {
-
-    private UnsupportedHttpMethodHandler unsupportedHttpMethodHandler;
+class UnsupportedHttpMethodFilterTest {
 
     @Mock
     private HttpExchange httpExchange;
@@ -37,52 +36,53 @@ class UnsupportedHttpMethodHandlerTest {
     @Mock
     private Headers responseHeaders;
 
+    @Mock
+    private Filter.Chain remainingFilterChain;
+
     @BeforeEach
     void setUp() {
-        unsupportedHttpMethodHandler = new UnsupportedHttpMethodHandler();
         lenient().when(httpExchange.getRequestBody()).thenReturn(InputStream.nullInputStream());
     }
 
     @Test
-    void shouldForwardGetRequestToDelegate() throws IOException {
-        // Given
-        final HttpHandler delegate = mock(HttpHandler.class);
-        when(httpExchange.getRequestMethod()).thenReturn("GET");
-        unsupportedHttpMethodHandler = new UnsupportedHttpMethodHandler(delegate);
-
-        // When
-        unsupportedHttpMethodHandler.handle(httpExchange);
-
-        // Then
-        verify(delegate).handle(httpExchange);
-    }
-
-    @Test
-    void shouldRespondWith404() throws IOException {
+    void shouldForwardGetRequestToFilterChain() throws IOException {
         // Given
         when(httpExchange.getRequestMethod()).thenReturn("GET");
 
         // When
-        unsupportedHttpMethodHandler.handle(httpExchange);
+        UnsupportedHttpMethodFilter.INSTANCE.doFilter(httpExchange, remainingFilterChain);
 
         // Then
-        verify(httpExchange).sendResponseHeaders(404, -1);
-        verify(httpExchange).close();
+        verify(remainingFilterChain).doFilter(httpExchange);
     }
 
     @ParameterizedTest
     @CsvSource({ "TRACE", "OPTIONS", "HEAD", "POST", "PUT", "CONNECT", "PATCH", "DELETE" })
-    void shouldRejectRequestWithHttpMethod(String httpMethod) throws IOException {
+    void shouldRejectRequestViaFilterWithHttpMethod(String httpMethod) throws IOException {
         // Given
         when(httpExchange.getRequestMethod()).thenReturn(httpMethod);
         when(httpExchange.getResponseHeaders()).thenReturn(responseHeaders);
 
         // When
-        unsupportedHttpMethodHandler.handle(httpExchange);
+        UnsupportedHttpMethodFilter.INSTANCE.doFilter(httpExchange, remainingFilterChain);
 
         // Then
         verify(httpExchange).sendResponseHeaders(405, -1);
         verify(responseHeaders).add("Allow", "GET");
         verify(httpExchange).close();
+    }
+
+    @ParameterizedTest
+    @CsvSource({ "TRACE", "OPTIONS", "HEAD", "POST", "PUT", "CONNECT", "PATCH", "DELETE" })
+    void shouldShorCircuitFilterChainWithHttpMethod(String httpMethod) throws IOException {
+        // Given
+        when(httpExchange.getRequestMethod()).thenReturn(httpMethod);
+        when(httpExchange.getResponseHeaders()).thenReturn(responseHeaders);
+
+        // When
+        UnsupportedHttpMethodFilter.INSTANCE.doFilter(httpExchange, remainingFilterChain);
+
+        // Then
+        verify(remainingFilterChain, never()).doFilter(any(HttpExchange.class));
     }
 }

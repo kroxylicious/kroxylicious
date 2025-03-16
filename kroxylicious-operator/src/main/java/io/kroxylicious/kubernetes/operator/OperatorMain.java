@@ -13,6 +13,7 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpServer;
 
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -25,7 +26,7 @@ import io.prometheus.metrics.exporter.httpserver.MetricsHandler;
 
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
-import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodHandler;
+import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodFilter;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -74,7 +75,13 @@ public class OperatorMain {
         operator.installShutdownHook(Duration.ofSeconds(10));
         var registeredController = operator.register(new ProxyReconciler(runtimeDecl()));
         // TODO couple the health of the registeredController to the operator's HTTP healthchecks
-        managementServer.createContext("/", new UnsupportedHttpMethodHandler()); // This works as a request to `/metrics` has a more explicit match and thus gets served.
+        managementServer.createContext("/", exchange -> {
+            try (exchange) {
+                // note while the JDK docs advise exchange.getRequestBody().transferTo(OutputStream.nullOutputStream()); we explicitly don't do that!
+                // As a denial-of-service protection we don't expect anything other than GET requests so there should be no input to read.
+                exchange.sendResponseHeaders(404, -1);
+            }
+        }).getFilters().add(UnsupportedHttpMethodFilter.INSTANCE); // This works as a request to `/metrics` has a more explicit match and thus gets served.
         managementServer.start();
         operator.start();
         LOGGER.info("Operator started.");
@@ -101,7 +108,9 @@ public class OperatorMain {
 
     private void configurePrometheusMetrics(HttpServer managementServer) {
         final PrometheusMeterRegistry prometheusMeterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
-        managementServer.createContext("/metrics", new UnsupportedHttpMethodHandler(new MetricsHandler(prometheusMeterRegistry.getPrometheusRegistry())));
+        final HttpContext metricsContext = managementServer.createContext("/metrics",
+                new MetricsHandler(prometheusMeterRegistry.getPrometheusRegistry()));
+        metricsContext.getFilters().add(UnsupportedHttpMethodFilter.INSTANCE);
         Metrics.globalRegistry.add(prometheusMeterRegistry);
     }
 }

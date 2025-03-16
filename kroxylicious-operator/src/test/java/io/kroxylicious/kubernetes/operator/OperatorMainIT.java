@@ -199,6 +199,24 @@ class OperatorMainIT {
     }
 
     @Test
+    void shouldSendClientErrorForUnsupportedPaths() throws IOException, InterruptedException {
+        // Given
+        @SuppressWarnings("resource") // Only applies at JDK 21+ level and we are JDK 17
+        HttpClient httpClient = HttpClient.newHttpClient();
+        final HttpResponse.BodyHandler<Stream<String>> responseBodyHandler = HttpResponse.BodyHandlers.ofLines();
+        operatorMain.start();
+
+        // When
+        final HttpResponse<Stream<String>> response = httpClient.send(
+                HttpRequest.newBuilder().uri(URI.create(managementAddress() + "/")).GET().build(),
+                responseBodyHandler);
+
+        // Then
+        assertThat(response.statusCode()).isEqualTo(404);
+        assertThat(response.body()).isEmpty();
+    }
+
+    @Test
     void shouldSendClientErrorForUnsupportedHttpMethodToMetrics() throws IOException, InterruptedException {
         // Given
         @SuppressWarnings("resource") // Only applies at JDK 21+ level and we are JDK 17

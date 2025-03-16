@@ -16,6 +16,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import com.sun.net.httpserver.HttpContext;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
 
@@ -34,12 +35,13 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
-import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodHandler;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @EnableKubernetesMockClient(crud = true)
 @ExtendWith(MockitoExtension.class)
@@ -53,9 +55,13 @@ class OperatorMainTest {
     @Mock
     HttpServer managementServer;
 
+    @Mock
+    HttpContext httpContext;
+
     @BeforeEach
     void setUp() {
         expectApiResources();
+        when(managementServer.createContext(anyString(), any(HttpHandler.class))).thenReturn(httpContext);
         operatorMain = new OperatorMain(kubeClient, managementServer);
     }
 
@@ -136,7 +142,7 @@ class OperatorMainTest {
         operatorMain.start();
 
         // Then
-        verify(managementServer).createContext(eq("/"), any(UnsupportedHttpMethodHandler.class));
+        verify(managementServer).createContext(eq("/"), any(HttpHandler.class));
     }
 
     private void expectApiResources() {
