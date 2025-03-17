@@ -6,10 +6,22 @@
 
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.UncheckedIOException;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.fabric8.kubernetes.api.model.Namespace;
+import io.fabric8.kubernetes.api.model.Service;
+import io.skodjob.testframe.utils.TestFrameUtils;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.systemtests.Constants;
@@ -20,6 +32,7 @@ import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousDeploymentTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousServiceTemplates;
+import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
@@ -69,8 +82,9 @@ public class Kroxylicious {
      * @param replicas the replicas
      */
     public void deployPortPerBrokerPlainWithNoFilters(String clusterName, int replicas) {
-        createDefaultConfigMap(clusterName);
-        deployPortPerBrokerPlain(replicas);
+//        createDefaultConfigMap(clusterName);
+//        deployPortPerBrokerPlain(replicas);
+        deployKroxyliciousExample(Constants.PATH_TO_OPERATOR_SIMPLE_FILES);
     }
 
     /**
@@ -122,6 +136,16 @@ public class Kroxylicious {
         return bootstrap;
     }
 
+    public String getBootstrap(String serviceName) {
+        String clusterIP = kubeClient().getService(deploymentNamespace, serviceName).getSpec().getClusterIP();
+        if (clusterIP == null || clusterIP.isEmpty()) {
+            throw new KubeClusterException("Unable to get the clusterIP of Kroxylicious");
+        }
+        String bootstrap = clusterIP + ":9292";
+        LOGGER.debug("Kroxylicious bootstrap: {}", bootstrap);
+        return bootstrap;
+    }
+
     /**
      * Scale replicas to.
      *
@@ -133,5 +157,52 @@ public class Kroxylicious {
         kubeClient().getClient().apps().deployments().inNamespace(deploymentNamespace).withName(Constants.KROXY_DEPLOYMENT_NAME).scale(scaledTo);
         await().atMost(timeout).pollInterval(Duration.ofSeconds(1))
                 .until(() -> getNumberOfReplicas() == scaledTo && kubeClient().isDeploymentReady(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME));
+    }
+
+    public String getServiceName(String prefix) {
+        Optional<Service> service = await().alias("await service to be available")
+                .atMost(Constants.GLOBAL_STATUS_TIMEOUT)
+                .pollInterval(Constants.GLOBAL_POLL_INTERVAL)
+                .until(() -> kubeClient().getClient().services().inNamespace(deploymentNamespace).list().getItems()
+                        .stream().filter(f -> f.getMetadata().getName().contains(prefix)).findFirst(),
+                        Optional::isPresent);
+        if (service.isPresent()) {
+            return service.get().getMetadata().getName();
+        }
+        else {
+            throw new KubeClusterException.NotFound("Service with prefix " + prefix + " not found!");
+        }
+    }
+
+    public void deployKroxyliciousExample(String path) {
+        LOGGER.info("Deploying simple Kroxylicious");
+        for (File operatorFile : getExampleFiles(path)) {
+            final String resourceType = operatorFile.getName().split("\\.")[1];
+
+            if (resourceType.equals(Constants.NAMESPACE)) {
+                Namespace namespace = TestFrameUtils.configFromYaml(operatorFile, Namespace.class);
+                if (!NamespaceUtils.isNamespaceCreated(namespace.getMetadata().getName())) {
+                    kubeClient().getClient().resource(namespace).create();
+                }
+            }
+            else {
+                try {
+                    kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath()))
+                            .inNamespace(deploymentNamespace)
+                            .create();
+                }
+                catch (FileNotFoundException e) {
+                    throw new UncheckedIOException(e);
+                }
+            }
+        }
+    }
+
+    private static List<File> getExampleFiles(String examplePath) {
+        return Arrays.stream(Objects.requireNonNull(new File(examplePath).listFiles()))
+                .sorted()
+                .filter(File::isFile)
+                .filter(file -> file.getName().endsWith(".yaml"))
+                .toList();
     }
 }

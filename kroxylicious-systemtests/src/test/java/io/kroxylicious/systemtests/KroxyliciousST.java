@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -19,6 +20,7 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
+import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
@@ -37,6 +39,7 @@ class KroxyliciousST extends AbstractST {
     private final String clusterName = "my-cluster";
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final String MESSAGE = "Hello-world";
+    private KroxyliciousOperator kroxyliciousOperator;
 
     /**
      * Produce and consume message.
@@ -51,7 +54,7 @@ class KroxyliciousST extends AbstractST {
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
-        String bootstrap = kroxylicious.getBootstrap();
+        String bootstrap = kroxylicious.getBootstrap(kroxylicious.getServiceName("my-cluster"));
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
@@ -180,6 +183,11 @@ class KroxyliciousST extends AbstractST {
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
+    @AfterEach
+    void cleanUp(){
+        kroxyliciousOperator.delete();
+    }
+
     /**
      * Sets before all.
      */
@@ -197,5 +205,8 @@ class KroxyliciousST extends AbstractST {
         resourceManager.createResourceWithWait(
                 KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka, 3).build(),
                 kafka);
+
+        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
+        kroxyliciousOperator.deploy();
     }
 }
