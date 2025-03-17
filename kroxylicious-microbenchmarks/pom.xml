@@ -12,7 +12,7 @@
     <parent>
         <artifactId>kroxylicious-parent</artifactId>
         <groupId>io.kroxylicious</groupId>
-        <version>0.11.0-SNAPSHOT</version>
+        <version>0.11.0</version>
     </parent>
 
     <artifactId>kroxylicious-microbenchmarks</artifactId>
