@@ -21,13 +21,17 @@ US (global) English is used throughout.
 
 The Kroxylicious documentation is organized into specific **Kroxylicious** guides.
 
-The content for the guide to the proxy is encapsulated in a main index file:
+The content for the guide to the proxy is encapsulated in the index file:
 
 - [kroxylicious-proxy/index.adoc](kroxylicious-proxy/index.adoc)
 
+The content for the developer's guide is encapsulated in the index file:
+
+- [developers-guide/index.adoc](kroxylicious-proxy/index.adoc) 
+
 ## Documentation folder structure
 
-The index file is used to build the documentation.
+The index files are used to build each guide.
 Documentation folders contain the content that's incorporated into the main source files.
 An assembly is like a sub-section or chapter in a book.
 A module contains a procedure (`proc-`), concepts (`con-`), or reference (`ref-`) content.
@@ -44,7 +48,7 @@ A module contains a procedure (`proc-`), concepts (`con-`), or reference (`ref-`
 
 ## Generating the guide
 
-To generate the guide in HTML, run the following Maven command:
+To generate the guide in HTML, run the following Maven command from the project root directory (the parent directory of the `docs` directory).
 
 ```shell
 mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-kroxylicious-proxy-to-html

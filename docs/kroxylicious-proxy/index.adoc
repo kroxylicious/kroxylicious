@@ -7,6 +7,8 @@ include::_assets/attributes.adoc[]
 [id="using-book-{context}"]
 = Kroxylicious Proxy
 
+include::modules/con-about-{guide}-guide.adoc[leveloffset=+1]
+
 include::assemblies/assembly-overview.adoc[leveloffset=+1]
 //broker config
 include::modules/con-proxy-overview.adoc[leveloffset=+2]
