@@ -140,6 +140,7 @@ title: Kroxylicious Proxy ${RELEASE_TAG}
 
 include::../_files/kroxylicious-proxy/index.adoc[leveloffset=0]
 "
+mkdir -p "${WEBSITE_DOCS_LOCATION}/kroxylicious-proxy"
 echo "${RELEASE_DOCS_INDEX_TEMPLATE}" > "${WEBSITE_DOCS_LOCATION}/kroxylicious-proxy/index.adoc"
 
 echo "Update _data/kroxylicious.yml to add new version to website navigation"
