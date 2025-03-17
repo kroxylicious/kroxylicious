@@ -52,10 +52,6 @@ public class FetchRequestData implements ApiMessage {
 
 
     public static final Schema[] SCHEMAS = new Schema[] {
-        SCHEMA_0,
-        SCHEMA_1,
-        SCHEMA_2,
-        SCHEMA_3,
         SCHEMA_4,
         SCHEMA_5,
         SCHEMA_6,
@@ -72,7 +68,7 @@ public class FetchRequestData implements ApiMessage {
         SCHEMA_17
     };
 
-    public static final short LOWEST_SUPPORTED_VERSION = 0;
+    public static final short LOWEST_SUPPORTED_VERSION = 4;
     public static final short HIGHEST_SUPPORTED_VERSION = 17;
 
     public FetchRequestData(Readable _readable, short _version) {
@@ -103,7 +99,7 @@ public class FetchRequestData implements ApiMessage {
     /** @return the lowest valid version for this RPC. */
     @Override
     public short lowestSupportedVersion() {
-        return 0;
+        return 4;
     }
 
     /** @return the highest valid version for this message. */
@@ -235,7 +231,7 @@ public class FetchRequestData implements ApiMessage {
     }
     /** 
      * Gets the ReplicaState. 
-     * 
+     * The state of the replica in the follower.
      * @return the ReplicaState.
      */
     public UNKNOWN - ReplicaState replicastate() {
@@ -267,7 +263,7 @@ public class FetchRequestData implements ApiMessage {
     }
     /** 
      * Gets the IsolationLevel. 
-     * This setting controls the visibility of transactional records. Using READ_UNCOMMITTED (isolation_level = 0) makes all records visible. With READ_COMMITTED (isolation_level = 1), non-transactional and COMMITTED transactional records are visible. To be more concrete, READ_COMMITTED returns all data from offsets smaller than the current LSO (last stable offset), and enables the inclusion of the list of aborted transactions in the result, which allows consumers to discard ABORTED transactional records
+     * This setting controls the visibility of transactional records. Using READ_UNCOMMITTED (isolation_level = 0) makes all records visible. With READ_COMMITTED (isolation_level = 1), non-transactional and COMMITTED transactional records are visible. To be more concrete, READ_COMMITTED returns all data from offsets smaller than the current LSO (last stable offset), and enables the inclusion of the list of aborted transactions in the result, which allows consumers to discard ABORTED transactional records.
      * @return the IsolationLevel.
      */
     public UNKNOWN - IsolationLevel isolationlevel() {
@@ -307,7 +303,7 @@ public class FetchRequestData implements ApiMessage {
     }
     /** 
      * Gets the RackId. 
-     * Rack ID of the consumer making this request
+     * Rack ID of the consumer making this request.
      * @return the RackId.
      */
     public UNKNOWN - RackId rackid() {
@@ -342,7 +338,7 @@ public class FetchRequestData implements ApiMessage {
     }
     /** 
      * Sets the ReplicaState. 
-     * 
+     * The state of the replica in the follower.
      * @param ReplicaState the ReplicaState.
      */
     public FetchRequestData setReplicaState(UNKNOWN - ReplicaState replicaState) {
@@ -378,7 +374,7 @@ public class FetchRequestData implements ApiMessage {
     }
     /** 
      * Sets the IsolationLevel. 
-     * This setting controls the visibility of transactional records. Using READ_UNCOMMITTED (isolation_level = 0) makes all records visible. With READ_COMMITTED (isolation_level = 1), non-transactional and COMMITTED transactional records are visible. To be more concrete, READ_COMMITTED returns all data from offsets smaller than the current LSO (last stable offset), and enables the inclusion of the list of aborted transactions in the result, which allows consumers to discard ABORTED transactional records
+     * This setting controls the visibility of transactional records. Using READ_UNCOMMITTED (isolation_level = 0) makes all records visible. With READ_COMMITTED (isolation_level = 1), non-transactional and COMMITTED transactional records are visible. To be more concrete, READ_COMMITTED returns all data from offsets smaller than the current LSO (last stable offset), and enables the inclusion of the list of aborted transactions in the result, which allows consumers to discard ABORTED transactional records.
      * @param IsolationLevel the IsolationLevel.
      */
     public FetchRequestData setIsolationLevel(UNKNOWN - IsolationLevel isolationLevel) {
@@ -423,7 +419,7 @@ public class FetchRequestData implements ApiMessage {
     }
     /** 
      * Sets the RackId. 
-     * Rack ID of the consumer making this request
+     * Rack ID of the consumer making this request.
      * @param RackId the RackId.
      */
     public FetchRequestData setRackId(UNKNOWN - RackId rackId) {

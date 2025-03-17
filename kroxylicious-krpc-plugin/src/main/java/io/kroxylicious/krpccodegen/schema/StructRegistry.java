@@ -79,7 +79,6 @@ public final class StructRegistry {
         addStructSpecs(message.validVersions(), message.fields());
     }
 
-    @SuppressWarnings("unchecked")
     private void addStructSpecs(Versions parentVersions, List<FieldSpec> fields) {
         for (FieldSpec field : fields) {
             String typeName = null;
@@ -109,6 +108,7 @@ public final class StructRegistry {
                     // Synthesize a StructSpec object out of the fields.
                     StructSpec spec = new StructSpec(typeName,
                             field.versions().toString(),
+                            Versions.NONE_STRING,
                             field.fields());
                     structs.put(typeName, new StructInfo(spec, parentVersions));
                 }

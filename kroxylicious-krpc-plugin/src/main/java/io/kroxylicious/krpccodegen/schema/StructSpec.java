@@ -10,7 +10,6 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -20,6 +19,8 @@ public final class StructSpec {
 
     private final Versions versions;
 
+    private final Versions deprecatedVersions;
+
     private final List<FieldSpec> fields;
 
     private final boolean hasKeys;
@@ -27,6 +28,7 @@ public final class StructSpec {
     @JsonCreator
     public StructSpec(@JsonProperty("name") String name,
                       @JsonProperty("versions") String versions,
+                      @JsonProperty("deprecatedVersions") String deprecatedVersions,
                       @JsonProperty("fields") List<FieldSpec> fields) {
         this.name = Objects.requireNonNull(name);
         this.versions = Versions.parse(versions, null);
@@ -34,19 +36,25 @@ public final class StructSpec {
             throw new RuntimeException("You must specify the version of the " +
                     name + " structure.");
         }
+        this.deprecatedVersions = Versions.parse(deprecatedVersions, Versions.NONE);
         ArrayList<FieldSpec> newFields = new ArrayList<>();
         if (fields != null) {
             // Each field should have a unique tag ID (if the field has a tag ID).
             HashSet<Integer> tags = new HashSet<>();
+            // Each field should have a unique name.
+            HashSet<String> names = new HashSet<>();
             for (FieldSpec field : fields) {
-                final Optional<Integer> fieldTag = field.tag();
-                if (fieldTag.isPresent()) {
-                    if (tags.contains(fieldTag.get())) {
+                field.tag().ifPresent(tag -> {
+                    if (!tags.add(tag)) {
                         throw new RuntimeException("In " + name + ", field " + field.name() +
-                                " has a duplicate tag ID " + fieldTag.get() + ".  All tags IDs " +
+                                " has a duplicate tag ID " + tag + ". All tags IDs " +
                                 "must be unique.");
                     }
-                    tags.add(fieldTag.get());
+                });
+                if (!names.add(field.name())) {
+                    throw new RuntimeException("In " + name + ", field " + field.name() +
+                            " has a duplicate name " + field.name() + ". All field names " +
+                            "must be unique.");
                 }
                 newFields.add(field);
             }
@@ -76,6 +84,10 @@ public final class StructSpec {
     @JsonProperty
     public String versionsString() {
         return versions.toString();
+    }
+
+    public Versions deprecatedVersions() {
+        return deprecatedVersions;
     }
 
     @JsonProperty

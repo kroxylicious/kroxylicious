@@ -62,7 +62,6 @@ import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.common.SaslMechanism;
-import io.kroxylicious.testing.kafka.common.ZooKeeperCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -638,25 +637,25 @@ class ExpositionIT extends BaseIT {
         }
     }
 
-    // we currently cannot influence the node ids, so we start a 2 node cluster and shutdown node 0
-    // cannot use KRaft as node 0 is a controller
+    // Test extension does not allow us to influence the node ids, so we start a 3 node cluster
+    // and shutdown node 1, leaving us with nodes 0 (controller/broker) and 2 (broker).
     @Test
-    void canConfigurePortIdentifiesNodeWithRange(@ZooKeeperCluster @BrokerCluster(numBrokers = 2) KafkaCluster cluster, Admin admin) throws Exception {
-        cluster.removeBroker(0);
+    void canConfigurePortIdentifiesNodeWithRanges(@BrokerCluster(numBrokers = 3) KafkaCluster cluster, Admin admin) throws Exception {
+        cluster.removeBroker(1);
         await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
-                n -> n.size() == 1 && n.iterator().next().id() == 1);
+                n -> n.stream().map(Node::id).collect(Collectors.toSet()).equals(Set.of(0, 2)));
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "demo")
                         .addToGateways(defaultGatewayBuilder()
                                 .withNewPortIdentifiesNode()
                                 .withBootstrapAddress(PROXY_ADDRESS)
-                                .withNodeIdRanges(new NamedRange("myrange", 1, 2))
+                                .withNodeIdRanges(new NamedRange("range1", 0, 0), new NamedRange("range2", 2, 2))
                                 .endPortIdentifiesNode()
                                 .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder)) {
-            assertThat(cluster.getNumOfBrokers()).isEqualTo(1);
+            assertThat(cluster.getNumOfBrokers()).isEqualTo(2);
             verifyAllBrokersAvailableViaProxy(tester, cluster);
         }
     }
