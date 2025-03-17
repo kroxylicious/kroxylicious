@@ -328,7 +328,7 @@ class ProxyReconcilerIT {
                 .endTargetCluster()
                 .withNewProxyRef().withName(name(proxy)).endProxyRef()
                 .addNewIngressRef().withName(name(ingress)).endIngressRef()
-                .withFilters()
+                .withFilterRefs()
                 .endSpec().build();
     }
 

@@ -396,7 +396,7 @@ public class ProxyReconciler implements
         return (KafkaProxy proxy) -> {
             Set<ResourceID> filterReferences = resourcesInSameNamespace(context, proxy, VirtualKafkaCluster.class)
                     .filter(clusterReferences(proxy))
-                    .flatMap(cluster -> Optional.ofNullable(cluster.getSpec().getFilters()).orElse(List.of()).stream())
+                    .flatMap(cluster -> Optional.ofNullable(cluster.getSpec().getFilterRefs()).orElse(List.of()).stream())
                     .map(filter -> new ResourceID(filter.getName(), namespace(proxy)))
                     .collect(Collectors.toSet());
             LOGGER.debug("KafkaProxy {} has references to filters {}", ResourceID.fromResource(proxy), filterReferences);

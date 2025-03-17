@@ -35,6 +35,7 @@ import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 
+import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -45,7 +46,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Filters;
 import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
@@ -494,7 +494,7 @@ class ProxyReconcilerTest {
         String filterName = "filter";
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName(proxyName).withNamespace(proxyNamespace).endMetadata().build();
         VirtualKafkaCluster clusterForAnotherProxy = baseVirtualKafkaClusterBuilder(proxy, "cluster").editOrNewSpec()
-                .addNewFilter().withName(filterName).endFilter().endSpec().build();
+                .addNewFilterRef().withName(filterName).endFilterRef().endSpec().build();
         when(mockList.getItems()).thenReturn(List.of(clusterForAnotherProxy));
         PrimaryToSecondaryMapper<KafkaProxy> mapper = ProxyReconciler.proxyToFilters(eventSourceContext);
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
@@ -511,7 +511,7 @@ class ProxyReconcilerTest {
         KafkaProxy proxy = buildProxy("proxy");
         VirtualKafkaCluster clusterWithoutFilters = baseVirtualKafkaClusterBuilder(proxy, "cluster")
                 .editOrNewSpec()
-                .withFilters((List<Filters>) null)
+                .withFilterRefs((List<FilterRef>) null)
                 .endSpec()
                 .build();
         when(mockList.getItems()).thenReturn(List.of(clusterWithoutFilters));

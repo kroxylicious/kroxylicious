@@ -17,11 +17,11 @@ import java.util.function.Predicate;
 
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 
+import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Filters;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
 import static java.util.Comparator.comparing;
@@ -142,7 +142,7 @@ public class ResolutionResult {
      * Get the resolved GenericKubernetesResource for a filterRef
      * @return optional containing the resource if resolved, else empty
      */
-    public Optional<GenericKubernetesResource> filter(Filters filterRef) {
+    public Optional<GenericKubernetesResource> filter(FilterRef filterRef) {
         return filters().stream()
                 .filter(filterResource -> {
                     String apiVersion = filterResource.getApiVersion();

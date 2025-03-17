@@ -29,10 +29,10 @@ import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkf
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
+import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Filters;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
@@ -153,7 +153,7 @@ public class ProxyConfigConfigMap
     @NonNull
     private static List<VirtualCluster> buildVirtualClusters(Set<String> successfullyBuiltFilterNames, ProxyModel model) {
         return model.clustersWithValidIngresses().stream()
-                .filter(cluster -> Optional.ofNullable(cluster.getSpec().getFilters()).stream().flatMap(Collection::stream).allMatch(
+                .filter(cluster -> Optional.ofNullable(cluster.getSpec().getFilterRefs()).stream().flatMap(Collection::stream).allMatch(
                         filters -> successfullyBuiltFilterNames.contains(filterDefinitionName(filters))))
                 .map(cluster -> getVirtualCluster(cluster, model.resolutionResult().kafkaClusterRef(cluster).orElseThrow(), model.ingressModel()))
                 .toList();
@@ -182,7 +182,7 @@ public class ProxyConfigConfigMap
     }
 
     private static List<String> filterNamesForCluster(VirtualKafkaCluster cluster) {
-        return Optional.ofNullable(cluster.getSpec().getFilters())
+        return Optional.ofNullable(cluster.getSpec().getFilterRefs())
                 .orElse(List.of())
                 .stream()
                 .map(ProxyConfigConfigMap::filterDefinitionName)
@@ -190,7 +190,7 @@ public class ProxyConfigConfigMap
     }
 
     @NonNull
-    private static String filterDefinitionName(Filters filterCrRef) {
+    private static String filterDefinitionName(FilterRef filterCrRef) {
         return filterCrRef.getName() + "." + filterCrRef.getKind() + "." + filterCrRef.getGroup();
     }
 
@@ -198,7 +198,7 @@ public class ProxyConfigConfigMap
     private List<NamedFilterDefinition> filterDefinitions(Context<KafkaProxy> context, VirtualKafkaCluster cluster, ResolutionResult resolutionResult)
             throws InvalidClusterException {
 
-        return Optional.ofNullable(cluster.getSpec().getFilters()).orElse(List.of()).stream().map(filterCrRef -> {
+        return Optional.ofNullable(cluster.getSpec().getFilterRefs()).orElse(List.of()).stream().map(filterCrRef -> {
 
             String filterDefinitionName = filterDefinitionName(filterCrRef);
 

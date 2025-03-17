@@ -17,6 +17,10 @@ class AnyLocalRefTest {
         var secretRefFoo = new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("").build();
         var secretRefFoo2 = new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("").build();
         var cmRefFoo = new AnyLocalRefBuilder().withName("foo").withKind("ConfigMap").withGroup("").build();
+        var diffGroupSecretFoo = new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("not.the.usual.group").build();
+        assertThat(secretRefFoo).isEqualTo(secretRefFoo);
+        assertThat(secretRefFoo).isNotEqualTo("salami");
+        assertThat(secretRefFoo).isNotEqualTo(diffGroupSecretFoo);
         assertThat(secretRefFoo).isEqualTo(secretRefFoo2);
         assertThat(secretRefFoo2).isEqualTo(secretRefFoo);
         assertThat(secretRefFoo).hasSameHashCodeAs(secretRefFoo2);

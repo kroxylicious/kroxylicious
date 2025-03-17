@@ -16,15 +16,9 @@ spec:
   targetCluster:
     clusterRef:
       name: fooref
-  filters:
-    - group: filter.kroxylicious.io
-      kind: KafkaProtocolFilter
-      name: filter-one
-    - group: filter.kroxylicious.io
-      kind: KafkaProtocolFilter
-      name: filter-two
-    - group: filter.kroxylicious.io
-      kind: KafkaProtocolFilter
-      name: filter-one
+  filterRefs:
+    - name: filter-one
+    - name: filter-two
+    - name: filter-one
   ingressRefs:
     - name: cluster-ip
