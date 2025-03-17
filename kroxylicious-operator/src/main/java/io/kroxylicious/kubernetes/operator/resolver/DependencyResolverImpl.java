@@ -74,7 +74,7 @@ public class DependencyResolverImpl implements DependencyResolver {
     }
 
     private Stream<? extends LocalRef<?>> determineUnresolvedFilters(VirtualKafkaClusterSpec spec,
-                                                           Map<LocalRef<GenericKubernetesResource>, GenericKubernetesResource> filters) {
+                                                                     Map<LocalRef<GenericKubernetesResource>, GenericKubernetesResource> filters) {
         List<FilterRef> filtersList = spec.getFilterRefs();
         if (filtersList == null) {
             return Stream.empty();
@@ -97,7 +97,7 @@ public class DependencyResolverImpl implements DependencyResolver {
     }
 
     private static Stream<? extends LocalRef<?>> determineUnresolvedIngresses(VirtualKafkaClusterSpec spec,
-                                                                    Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses) {
+                                                                              Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses) {
         return spec.getIngressRefs().stream()
                 .filter(ref -> !ingresses.containsKey(ref));
     }
