@@ -6,9 +6,11 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
-## 0.11.0
 
 * [#1928](https://github.com/kroxylicious/kroxylicious/pull/1928) Make Kroxylicious Operator metrics available for collection
+
+## 0.11.0
+
 * [#1810](https://github.com/kroxylicious/kroxylicious/issues/1810) Run operator/operand image as non-root user
 * [#1903](https://github.com/kroxylicious/kroxylicious/issues/1903) Rename `adminHttp` to `management` in the config model.
 * [#1918](https://github.com/kroxylicious/kroxylicious/pull/1918)  Removes support for the deprecated config property `filePath`.
