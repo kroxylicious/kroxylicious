@@ -43,15 +43,6 @@ spec:
                   type: object
                   required: [ "name" ]
                   properties:
-                    group:
-                      type: string
-                      maxLength: 253
-                      pattern: ^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
-                    kind:
-                      type: string
-                      maxLength: 63
-                      minLength: 1
-                      pattern: ^[a-zA-Z]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
                     name:
                       maxLength: 253
                       minLength: 1
@@ -66,15 +57,10 @@ spec:
                       properties:
                         group:
                           type: string
-                          maxLength: 253
-                          pattern: ^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
-                          default: kroxylicious.io
+                          pattern: ^kroxylicious[.]io$
                         kind:
                           type: string
-                          maxLength: 63
-                          minLength: 1
-                          pattern: ^[a-zA-Z]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
-                          default: KafkaClusterRef
+                          pattern: ^KafkaClusterRef$
                         name:
                           maxLength: 253
                           minLength: 1
@@ -94,22 +80,13 @@ spec:
                         maxLength: 253
                         minLength: 1
                         type: string
-                filters:
+                filterRefs:
                   description: The filters to be used for this cluster. Each filter is a separate resource.
                   type: array
                   items:
                     type: object
                     required: [ "name" ]
                     properties:
-                      group:
-                        type: string
-                        maxLength: 253
-                        pattern: ^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$
-                      kind:
-                        type: string
-                        maxLength: 63
-                        minLength: 1
-                        pattern: ^[a-zA-Z]([-a-zA-Z0-9]*[a-zA-Z0-9])?$
                       name:
                         maxLength: 253
                         minLength: 1

@@ -22,6 +22,8 @@ import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
+import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
+import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
@@ -129,5 +131,27 @@ public class ResourcesUtil {
      */
     public static <T extends HasMetadata> @NonNull Collector<T, ?, Map<String, T>> toByNameMap() {
         return Collectors.toMap(ResourcesUtil::name, Function.identity());
+    }
+
+    /**
+     * Collector that collects elements of stream to a map keyed by the local ref for that element
+     *
+     * @param <T> resource type
+     * @return a Collector that collects a Map from element name to element
+     */
+    public static <T extends HasMetadata> @NonNull Collector<T, ?, Map<LocalRef<T>, T>> toByLocalRefMap() {
+        return Collectors.toMap(ResourcesUtil::toLocalRef, Function.identity());
+    }
+
+    public static <T extends HasMetadata> LocalRef<T> toLocalRef(T ref) {
+        return (LocalRef) new AnyLocalRefBuilder()
+                .withKind(ref.getKind())
+                .withGroup(group(ref))
+                .withName(name(ref))
+                .build();
+    }
+
+    public static String group(HasMetadata resource) {
+        return resource.getApiVersion().substring(0, resource.getApiVersion().indexOf("/"));
     }
 }

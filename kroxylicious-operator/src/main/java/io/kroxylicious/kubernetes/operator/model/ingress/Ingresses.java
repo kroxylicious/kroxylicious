@@ -6,32 +6,27 @@
 
 package io.kroxylicious.kubernetes.operator.model.ingress;
 
-import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
-
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
+import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 
 class Ingresses {
     private Ingresses() {
     }
 
-    public static Stream<IngressDefinition> ingressesFor(KafkaProxy primary, VirtualKafkaCluster cluster, Set<KafkaProxyIngress> ingressResources) {
-        Map<String, KafkaProxyIngress> namedIngresses = ingressResources.stream().collect(toByNameMap());
-        return cluster.getSpec().getIngressRefs().stream().map(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefs::getName).flatMap(
-                ingressName -> {
-                    if (namedIngresses.containsKey(ingressName)) {
-                        return Stream.of(toIngress(primary, cluster, namedIngresses.get(ingressName)));
-                    }
-                    else {
-                        return Stream.empty();
-                    }
-                });
+    public static Stream<IngressDefinition> ingressesFor(KafkaProxy primary, VirtualKafkaCluster cluster, ResolutionResult resolutionResult) {
+        return cluster.getSpec().getIngressRefs().stream()
+                .flatMap(
+                        ingressRef -> {
+                            // skip unresolved ingresses, we are working with VirtualClusters that may have unresolved references
+                            Optional<KafkaProxyIngress> ingress = resolutionResult.ingress(ingressRef);
+                            return ingress.stream().map(kafkaProxyIngress -> toIngress(primary, cluster, kafkaProxyIngress));
+                        });
     }
 
     private static IngressDefinition toIngress(KafkaProxy primary, VirtualKafkaCluster cluster, KafkaProxyIngress ingress) {
