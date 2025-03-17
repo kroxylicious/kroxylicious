@@ -13,7 +13,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.HexFormat;
 import java.util.List;
 
-import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.ControlRecordType;
@@ -507,7 +506,7 @@ public class RecordTestUtils {
             memoryRecordsBuilder.append(DEFAULT_TIMESTAMP, new byte[]{ 1, 2, 3 }, new byte[]{ 1, 2, 3 });
             MemoryRecords records = memoryRecordsBuilder.build();
             ByteBuffer output = ByteBuffer.allocate(1024);
-            records.filterTo(new TopicPartition("any", 1), new MemoryRecords.RecordFilter(DEFAULT_TIMESTAMP, 0L) {
+            MemoryRecords.RecordFilter recordFilter = new MemoryRecords.RecordFilter(DEFAULT_TIMESTAMP, 0L) {
                 @Override
                 protected BatchRetentionResult checkBatchRetention(RecordBatch batch) {
                     return new BatchRetentionResult(BatchRetention.RETAIN_EMPTY, false);
@@ -517,7 +516,8 @@ public class RecordTestUtils {
                 protected boolean shouldRetainRecord(RecordBatch recordBatch, Record record) {
                     return false;
                 }
-            }, output, 1, BufferSupplier.NO_CACHING);
+            };
+            records.filterTo(recordFilter, output, BufferSupplier.NO_CACHING);
 
             output.flip();
             return MemoryRecords.readableRecords(output);

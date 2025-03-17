@@ -18,11 +18,13 @@ import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.Spliterator;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -36,6 +38,7 @@ import io.kroxylicious.krpccodegen.model.KrpcSchemaObjectWrapper;
 import io.kroxylicious.krpccodegen.model.RetrieveApiKey;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
 import io.kroxylicious.krpccodegen.schema.StructRegistry;
+import io.kroxylicious.krpccodegen.schema.Versions;
 
 import freemarker.template.Configuration;
 import freemarker.template.TemplateException;
@@ -349,7 +352,8 @@ public class KrpcGenerator {
                         throw new RuntimeException("Exception while processing " + inputPath.toString(), e);
                     }
                 })
-                .sorted((m1, m2) -> m1.name().compareTo(m2.name()))
+                .filter(Predicate.not(v -> v.validVersions().equals(Versions.NONE)))
+                .sorted(Comparator.comparing(MessageSpec::name))
                 .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
