@@ -5,6 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## SNAPSHOT
 ## 0.11.0
 
 * [#1810](https://github.com/kroxylicious/kroxylicious/issues/1810) Run operator/operand image as non-root user
