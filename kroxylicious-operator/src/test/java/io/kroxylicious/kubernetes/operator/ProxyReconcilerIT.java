@@ -9,21 +9,20 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 import org.assertj.core.api.AbstractStringAssert;
-import org.assertj.core.api.Assumptions;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -49,6 +48,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
+@EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 class ProxyReconcilerIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyReconcilerIT.class);
@@ -68,23 +68,15 @@ class ProxyReconcilerIT {
     private KubernetesClient client;
     private final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
-    @BeforeEach
-    void checkKubeAvailable() {
-        client = OperatorTestUtils.kubeClientIfAvailable();
-        Assumptions.assumeThat(client).describedAs("Test requires a viable kube client").isNotNull();
-        preloadOperatorImage();
+    // the initial operator image pull can take a long time and interfere with the tests
+    @BeforeAll
+    public static void preloadOperandImage() {
+        OperatorTestUtils.preloadOperandImage();
     }
 
-    // the initial operator image pull can take a long time and interfere with the tests
-    private void preloadOperatorImage() {
-        String operandImage = ProxyDeployment.getOperandImage();
-        Pod pod = client.run().withName("preload-operator-image")
-                .withNewRunConfig()
-                .withImage(operandImage)
-                .withRestartPolicy("Never")
-                .withCommand("ls").done();
-        client.resource(pod).waitUntilCondition(it -> it.getStatus().getPhase().equals("Succeeded"), 2, TimeUnit.MINUTES);
-        client.resource(pod).delete();
+    @BeforeEach
+    void beforeEach() {
+        client = OperatorTestUtils.kubeClient();
     }
 
     @RegisterExtension
