@@ -14,10 +14,10 @@ import java.util.stream.Stream;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ClusterCondition;
 import io.kroxylicious.kubernetes.operator.SharedKafkaProxyContext;
+import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 
 import static io.kroxylicious.kubernetes.operator.ProxyDeployment.PROXY_PORT_START;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
@@ -38,20 +38,20 @@ public class IngressAllocator {
      * Allocates a ProxyIngressModel. The aim is to deterministically produce a model of the ports that will
      * be used by the proxy container. We want this to be as stable as possible, so we will allocate ports
      * to potentially unacceptable virtual clusters if we can.
+     *
      * @param primary primary being reconciled
-     * @param clusters all clusters, is allowed to include clusters that have unresolved dependencies, so allocator must tolerate unresolvable ingresses
-     * @param ingressResources all resolved ingresses for this primary
      * @param context context
+     * @param resolutionResult
      * @return non-null ProxyIngressModel
      */
-    public static ProxyIngressModel allocateProxyIngressModel(KafkaProxy primary, List<VirtualKafkaCluster> clusters, Set<KafkaProxyIngress> ingressResources,
-                                                              Context<KafkaProxy> context) {
+    public static ProxyIngressModel allocateProxyIngressModel(KafkaProxy primary,
+                                                              Context<KafkaProxy> context, ResolutionResult resolutionResult) {
         AtomicInteger exclusivePorts = new AtomicInteger(PROXY_PORT_START);
         // include broken clusters in the model, so that if they are healed the ports will stay the same
-        Stream<VirtualKafkaCluster> virtualKafkaClusterStream = clusters.stream();
+        Stream<VirtualKafkaCluster> virtualKafkaClusterStream = resolutionResult.allClustersInNameOrder().stream();
         List<ProxyIngressModel.VirtualClusterIngressModel> list = virtualKafkaClusterStream
                 .map(it -> new ProxyIngressModel.VirtualClusterIngressModel(it, allocateIngressModel(primary, it, exclusivePorts,
-                        ingressResources)))
+                        resolutionResult)))
                 .toList();
         ProxyIngressModel model = new ProxyIngressModel(list);
         reportConflictingIngresses(context, model);
@@ -69,8 +69,8 @@ public class IngressAllocator {
     }
 
     private static List<ProxyIngressModel.IngressModel> allocateIngressModel(KafkaProxy primary, VirtualKafkaCluster it, AtomicInteger ports,
-                                                                             Set<KafkaProxyIngress> ingressResources) {
-        Stream<IngressDefinition> ingressStream = Ingresses.ingressesFor(primary, it, ingressResources);
+                                                                             ResolutionResult resolutionResult) {
+        Stream<IngressDefinition> ingressStream = Ingresses.ingressesFor(primary, it, resolutionResult);
         return ingressStream.map(resource -> {
             int toAllocate = resource.numIdentifyingPortsRequired();
             IngressConflictException exception = null;

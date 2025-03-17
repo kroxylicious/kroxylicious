@@ -46,7 +46,7 @@ public class ProxyModelBuilder {
         // to try and produce the most stable allocation of ports we can, we attempt to consider all clusters in the ingress allocation, even those
         // that we know are unacceptable due to unresolved dependencies.
         List<VirtualKafkaCluster> allClusters = resolutionResult.allClustersInNameOrder();
-        ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, allClusters, ingresses, context);
+        ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, context, resolutionResult);
         List<VirtualKafkaCluster> clustersWithValidIngresses = resolutionResult.fullyResolvedClustersInNameOrder().stream()
                 .filter(cluster -> ingressModel.clusterIngressModel(cluster).map(i -> i.ingressExceptions().isEmpty()).orElse(false)).toList();
         return new ProxyModel(resolutionResult, ingressModel, clustersWithValidIngresses);

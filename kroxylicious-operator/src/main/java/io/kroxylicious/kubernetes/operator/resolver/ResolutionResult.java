@@ -17,6 +17,7 @@ import java.util.function.Predicate;
 
 import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 
+import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
@@ -32,7 +33,7 @@ import static java.util.Comparator.comparing;
  */
 public class ResolutionResult {
     private final Map<String, GenericKubernetesResource> filters;
-    private final Map<String, KafkaProxyIngress> kafkaProxyIngresses;
+    private final Map<LocalRef<?>, KafkaProxyIngress> kafkaProxyIngresses;
     private final Map<String, KafkaClusterRef> kafkaClusterRefs;
     private final Map<String, ClusterResolutionResult> clusterResolutionResults;
 
@@ -60,7 +61,7 @@ public class ResolutionResult {
     }
 
     ResolutionResult(Map<String, GenericKubernetesResource> filters,
-                     Map<String, KafkaProxyIngress> kafkaProxyIngresses,
+                     Map<LocalRef<?>, KafkaProxyIngress> kafkaProxyIngresses,
                      Map<String, KafkaClusterRef> kafkaClusterRefs,
                      Map<String, ClusterResolutionResult> clusterResolutionResults) {
         Objects.requireNonNull(filters);
@@ -108,6 +109,16 @@ public class ResolutionResult {
      */
     public Set<KafkaProxyIngress> ingresses() {
         return new HashSet<>(kafkaProxyIngresses.values());
+    }
+
+    /**
+     * Get KafkaProxyIngress for this reference
+     * @param localRef reference
+     * @return optional containing ingress if present, else empty
+     */
+    public Optional<KafkaProxyIngress> ingress(LocalRef<?> localRef) {
+        Objects.requireNonNull(localRef);
+        return Optional.ofNullable(kafkaProxyIngresses.get(localRef));
     }
 
     /**
