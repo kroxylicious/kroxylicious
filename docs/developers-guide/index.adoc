@@ -1,0 +1,19 @@
+:experimental:
+include::_assets/attributes.adoc[]
+
+:context: proxy
+:guide: developers
+
+[id="using-book-{context}"]
+= Kroxylicious Developer's guide
+
+include::modules/con-about-{guide}-guide.adoc[leveloffset=+1]
+
+include::assemblies/assembly-overview.adoc[leveloffset=+1]
+
+include::modules/con-api-compatability-{guide}.adoc[leveloffset=+2]
+
+include::modules/con-custom-filters.adoc[leveloffset=+1]
+
+//trademark notices
+include::_assets/trademarks.adoc[leveloffset=+1]
