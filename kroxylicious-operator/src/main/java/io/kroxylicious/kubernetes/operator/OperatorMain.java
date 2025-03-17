@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
+import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,7 +43,7 @@ public class OperatorMain {
     private final HttpServer managementServer;
 
     public OperatorMain() throws IOException {
-        this(null, HttpServer.create(new InetSocketAddress("0.0.0.0", 8080), 0));
+        this(null, createHttpServer());
     }
 
     @VisibleForTesting
@@ -113,4 +114,17 @@ public class OperatorMain {
         metricsContext.getFilters().add(UnsupportedHttpMethodFilter.INSTANCE);
         Metrics.globalRegistry.add(prometheusMeterRegistry);
     }
+
+    private static HttpServer createHttpServer() throws IOException {
+        final Properties systemProps = System.getProperties();
+        if (!systemProps.containsKey("sun.net.httpserver.maxReqTime")) {
+            System.setProperty("sun.net.httpserver.maxReqTime", "60");
+        }
+
+        if (!systemProps.containsKey("sun.net.httpserver.maxRspTime")) {
+            System.setProperty("sun.net.httpserver.maxRspTime", "600");
+        }
+        return HttpServer.create(new InetSocketAddress("0.0.0.0", 8080), 0);
+    }
+
 }
