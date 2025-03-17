@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
@@ -42,7 +43,6 @@ import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ReadShareGroupStateRequestData;
 import org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData;
 import org.apache.kafka.common.message.ShareGroupDescribeRequestData;
-import org.apache.kafka.common.message.UpdateMetadataRequestData;
 import org.apache.kafka.common.message.WriteShareGroupStateRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -66,6 +66,11 @@ public class RequestFactory {
             ApiKeys.ALTER_REPLICA_LOG_DIRS, ApiKeys.CREATE_PARTITIONS, ApiKeys.ALTER_CLIENT_QUOTAS, ApiKeys.DESCRIBE_USER_SCRAM_CREDENTIALS,
             ApiKeys.ALTER_USER_SCRAM_CREDENTIALS, ApiKeys.DESCRIBE_PRODUCERS, ApiKeys.DESCRIBE_TRANSACTIONS, ApiKeys.DESCRIBE_TOPIC_PARTITIONS);
 
+    /** The following API keys are no longer used by Kafka. They were removed by Kafka 4.0. */
+    @VisibleForTesting
+    protected static final EnumSet<ApiKeys> REMOVED_API_KEYS = EnumSet.of(ApiKeys.CONTROLLED_SHUTDOWN, ApiKeys.LEADER_AND_ISR, ApiKeys.STOP_REPLICA,
+            ApiKeys.UPDATE_METADATA);
+
     @VisibleForTesting
     protected static final Map<ApiKeys, Consumer<ApiMessage>> messagePopulators = new EnumMap<>(ApiKeys.class);
 
@@ -74,7 +79,6 @@ public class RequestFactory {
         messagePopulators.put(ApiKeys.LIST_OFFSETS, RequestFactory::populateListOffsetsRequest);
         messagePopulators.put(ApiKeys.OFFSET_FETCH, RequestFactory::populateOffsetFetchRequest);
         messagePopulators.put(ApiKeys.METADATA, RequestFactory::populateMetadataRequest);
-        messagePopulators.put(ApiKeys.UPDATE_METADATA, RequestFactory::populateUpdateMetadataRequest);
         messagePopulators.put(ApiKeys.LEAVE_GROUP, RequestFactory::populateLeaveGroupRequest);
         messagePopulators.put(ApiKeys.DESCRIBE_GROUPS, RequestFactory::populateDescribeGroupsRequest);
         messagePopulators.put(ApiKeys.CONSUMER_GROUP_DESCRIBE, RequestFactory::populateConsumeGroupDescribeRequest);
@@ -100,7 +104,14 @@ public class RequestFactory {
     }
 
     public static Stream<ApiMessageVersion> apiMessageFor(Function<ApiKeys, Short> versionFunction) {
-        return apiMessageFor(versionFunction, EnumSet.complementOf(RequestFactory.SPECIAL_CASES));
+        return apiMessageFor(versionFunction, supportedApiKeys());
+    }
+
+    @NonNull
+    public static Set<ApiKeys> supportedApiKeys() {
+        var excluded = RequestFactory.SPECIAL_CASES;
+        excluded.addAll(REMOVED_API_KEYS);
+        return EnumSet.complementOf(excluded);
     }
 
     public static Stream<ApiMessageVersion> apiMessageFor(Function<ApiKeys, Short> versionFunction, ApiKeys... apiKeys) {
@@ -115,6 +126,7 @@ public class RequestFactory {
     public static Stream<ApiMessageVersion> apiMessageFor(Function<ApiKeys, Short> versionFunction, Set<ApiKeys> apiKeys) {
         return Stream.of(apiKeys)
                 .flatMap(Collection::stream)
+                .filter(Predicate.not(x -> x.messageType.requestSchemas().length == 0 && x.messageType.responseSchemas().length == 0)) // TOOD is there a better way?
                 .map(apiKey -> {
                     final ApiMessage apiMessage = apiMessageForApiKey(apiKey);
                     final Short apiVersion = versionFunction.apply(apiKey);
@@ -174,13 +186,6 @@ public class RequestFactory {
         t1.setName(MobyNamesGenerator.getRandomName());
         t1.setTopicId(Uuid.randomUuid());
         metadataRequestData.setTopics(List.of(t1));
-    }
-
-    private static void populateUpdateMetadataRequest(ApiMessage apiMessage) {
-        final UpdateMetadataRequestData updateMetadataRequestData = (UpdateMetadataRequestData) apiMessage;
-        final UpdateMetadataRequestData.UpdateMetadataTopicState t1 = new UpdateMetadataRequestData.UpdateMetadataTopicState();
-        t1.setTopicId(Uuid.randomUuid());
-        updateMetadataRequestData.setTopicStates(List.of(t1));
     }
 
     private static void populateLeaveGroupRequest(ApiMessage apiMessage) {

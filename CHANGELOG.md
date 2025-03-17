@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1855](https://github.com/kroxylicious/kroxylicious/issues/1855) Upgrade to Apache Kafka 4.0
 * [#1928](https://github.com/kroxylicious/kroxylicious/pull/1928) Make Kroxylicious Operator metrics available for collection
 
 ## 0.11.0

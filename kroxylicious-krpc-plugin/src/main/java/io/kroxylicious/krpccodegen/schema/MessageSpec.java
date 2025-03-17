@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.krpccodegen.schema;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -17,6 +16,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public final class MessageSpec {
     private final StructSpec struct;
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<Short> apiKey;
 
     private final MessageSpecType type;
@@ -27,8 +27,8 @@ public final class MessageSpec {
 
     private final List<RequestListenerType> listeners;
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<Boolean> latestVersionUnstable;
-    private final String deprecatedVersions;
 
     @JsonCreator
     public MessageSpec(@JsonProperty("name") String name,
@@ -41,29 +41,43 @@ public final class MessageSpec {
                        @JsonProperty("commonStructs") List<StructSpec> commonStructs,
                        @JsonProperty("flexibleVersions") String flexibleVersions,
                        @JsonProperty("listeners") List<RequestListenerType> listeners) {
-        this.deprecatedVersions = deprecatedVersions;
-        this.struct = new StructSpec(name, validVersions, fields);
+        this.struct = new StructSpec(name, validVersions, deprecatedVersions, fields);
         this.apiKey = apiKey == null ? Optional.empty() : Optional.of(apiKey);
-        this.latestVersionUnstable = latestVersionUnstable == null ? Optional.empty() : Optional.of(latestVersionUnstable);
+        this.latestVersionUnstable = Optional.ofNullable(latestVersionUnstable);
         this.type = Objects.requireNonNull(type);
-        this.commonStructs = commonStructs == null ? Collections.emptyList() : Collections.unmodifiableList(new ArrayList<>(commonStructs));
-        if (flexibleVersions == null) {
-            throw new RuntimeException("You must specify a value for flexibleVersions. " +
-                    "Please use 0+ for all new messages.");
-        }
-        this.flexibleVersions = Versions.parse(flexibleVersions, Versions.NONE);
-        if ((!this.flexibleVersions().empty()) &&
-                (this.flexibleVersions.highest() < Short.MAX_VALUE)) {
-            throw new RuntimeException("Field " + name + " specifies flexibleVersions " +
-                    this.flexibleVersions + ", which is not open-ended.  flexibleVersions must " +
-                    "be either none, or an open-ended range (that ends with a plus sign).");
-        }
+        this.commonStructs = commonStructs == null ? Collections.emptyList() : List.copyOf(commonStructs);
 
-        if (listeners != null && !listeners.isEmpty() && type != MessageSpecType.REQUEST) {
-            throw new RuntimeException("The `requestScope` property is only valid for " +
-                    "messages with type `request`");
+        // If the struct has no valid versions (the typical use case is to completely remove support for
+        // an existing protocol api while ensuring the api key id is not reused), we configure the spec
+        // to effectively be empty
+        if (struct.versions().empty()) {
+            this.flexibleVersions = Versions.NONE;
+            this.listeners = Collections.emptyList();
         }
-        this.listeners = listeners;
+        else {
+            if (flexibleVersions == null) {
+                throw new RuntimeException("You must specify a value for flexibleVersions. " +
+                        "Please use 0+ for all new messages.");
+            }
+            this.flexibleVersions = Versions.parse(flexibleVersions, Versions.NONE);
+            if ((!this.flexibleVersions().empty()) &&
+                    (this.flexibleVersions.highest() < Short.MAX_VALUE)) {
+                throw new RuntimeException("Field " + name + " specifies flexibleVersions " +
+                        this.flexibleVersions + ", which is not open-ended.  flexibleVersions must " +
+                        "be either none, or an open-ended range (that ends with a plus sign).");
+            }
+
+            if (listeners != null && !listeners.isEmpty() && type != MessageSpecType.REQUEST) {
+                throw new RuntimeException("The `requestScope` property is only valid for " +
+                        "messages with type `request`");
+            }
+            this.listeners = listeners;
+
+            if (Boolean.TRUE.equals(latestVersionUnstable) && type != MessageSpecType.REQUEST) {
+                throw new RuntimeException("The `latestVersionUnstable` property is only valid for " +
+                        "messages with type `request`");
+            }
+        }
     }
 
     public StructSpec struct() {
@@ -124,16 +138,13 @@ public final class MessageSpec {
     }
 
     public String dataClassName() {
-        switch (type) {
-            case HEADER:
-            case REQUEST:
-            case RESPONSE:
-                // We append the Data suffix to request/response/header classes to avoid
-                // collisions with existing objects. This can go away once the protocols
-                // have all been converted and we begin using the generated types directly.
-                return struct.name() + "Data";
-            default:
-                return struct.name();
-        }
+        return switch (type) {
+            case HEADER, REQUEST, RESPONSE ->
+                    // We append the Data suffix to request/response/header classes to avoid
+                    // collisions with existing objects. This can go away once the protocols
+                    // have all been converted and we begin using the generated types directly.
+                    struct.name() + "Data";
+            default -> struct.name();
+        };
     }
 }
