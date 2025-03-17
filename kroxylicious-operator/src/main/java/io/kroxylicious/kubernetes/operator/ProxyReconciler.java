@@ -344,7 +344,6 @@ public class ProxyReconciler implements
                     .filter(vkc -> vkc.getSpec().getTargetCluster().getClusterRef().getName().equals(name(kafkaClusterRef)))
                     .map(VirtualKafkaCluster::getSpec)
                     .map(VirtualKafkaClusterSpec::getProxyRef)
-                    // .filter(ResourcesUtil::isKafkaProxy)
                     .map(ProxyRef::getName)
                     .collect(Collectors.toSet());
 
