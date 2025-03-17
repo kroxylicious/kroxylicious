@@ -95,7 +95,7 @@ public class Environment {
     private static final String CONTAINER_CONFIG_PATH_DEFAULT = System.getProperty("user.home") + "/.docker/config.json";
     private static final boolean SKIP_STRIMZI_INSTALL_DEFAULT = false;
     private static final String KAFKA_CLIENT_DEFAULT = "strimzi_test_client";
-    private static final String CLUSTER_DUMP_DIR_DEFAULT = System.getProperty("java.io.tmpdir");
+    private static final String CLUSTER_DUMP_DIR_DEFAULT = System.getProperty("user.dir") + "/target/logs/";
     public static final String AWS_ACCESS_KEY_ID_DEFAULT = "test";
     private static final String AWS_SECRET_ACCESS_KEY_DEFAULT = "test";
     private static final String AWS_USE_CLOUD_DEFAULT = "false";
