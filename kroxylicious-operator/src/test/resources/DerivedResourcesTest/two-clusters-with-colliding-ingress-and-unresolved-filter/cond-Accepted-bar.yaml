@@ -9,4 +9,5 @@ cluster: bar
 type: Accepted
 status: 'False'
 reason: Invalid
-message: Target Cluster "kafkaclusterref.kroxylicious.io/barref" does not exist.
+message: "Resource of kind \"KafkaClusterRef\" in group \"kroxylicious.io\" named\
+    \ \"barref\" does not exist."

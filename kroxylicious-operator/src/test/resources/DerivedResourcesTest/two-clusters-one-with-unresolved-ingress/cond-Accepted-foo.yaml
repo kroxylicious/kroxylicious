@@ -9,4 +9,4 @@ cluster: foo
 type: Accepted
 status: 'False'
 reason: Invalid
-message: KafkaProxyIngress "MISSING" does not exist.
+message: "Resource of kind \"KafkaProxyIngress\" in group \"kroxylicious.io\" named \"MISSING\" does not exist."

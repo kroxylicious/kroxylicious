@@ -6,11 +6,9 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.util.Locale;
-import java.util.Optional;
 import java.util.Set;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TargetCluster;
+import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.operator.model.ingress.IngressConflictException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -36,14 +34,14 @@ public record ClusterCondition(@NonNull String cluster,
                 String.format("Filter \"%s\" is invalid: %s", filterName, detail));
     }
 
+    public static ClusterCondition refNotFound(String cluster, LocalRef<?> ref) {
+        return new ClusterCondition(cluster, ConditionType.Accepted, Status.FALSE, INVALID,
+                String.format("Resource of kind \"%s\" in group \"%s\" named \"%s\" does not exist.", ref.getKind(), ref.getGroup(), ref.getName()));
+    }
+
     public static ClusterCondition filterNotFound(String cluster, String filterName) {
         return new ClusterCondition(cluster, ConditionType.Accepted, Status.FALSE, INVALID,
                 String.format("Filter \"%s\" does not exist.", filterName));
-    }
-
-    public static ClusterCondition ingressNotFound(String cluster, String ingressName) {
-        return new ClusterCondition(cluster, ConditionType.Accepted, Status.FALSE, INVALID,
-                String.format("KafkaProxyIngress \"%s\" does not exist.", ingressName));
     }
 
     public static ClusterCondition ingressConflict(String cluster, Set<IngressConflictException> ingressConflictExceptions) {
@@ -52,20 +50,6 @@ public record ClusterCondition(@NonNull String cluster,
                 .collect(joining(","));
         return new ClusterCondition(cluster, ConditionType.Accepted, Status.FALSE, INVALID,
                 String.format("Ingress(es) [%s] of cluster conflicts with another ingress", ingresses));
-    }
-
-    public static ClusterCondition targetClusterRefNotFound(String cluster, TargetCluster targetCluster) {
-        return new ClusterCondition(cluster, ConditionType.Accepted, Status.FALSE, INVALID,
-                String.format("Target Cluster \"%s\" does not exist.", kubeName(targetCluster).orElse("<unknown>")));
-    }
-
-    @NonNull
-    private static Optional<String> kubeName(TargetCluster targetCluster) {
-        return Optional.ofNullable(targetCluster.getClusterRef())
-                .map(r -> {
-                    var group = Optional.ofNullable(r.getGroup()).map(".%s"::formatted).orElse("");
-                    return "%s%s/%s".formatted(r.getKind().toLowerCase(Locale.ROOT), group, r.getName());
-                });
     }
 
 }
