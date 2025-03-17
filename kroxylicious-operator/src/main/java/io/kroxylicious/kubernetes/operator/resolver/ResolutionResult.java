@@ -32,9 +32,9 @@ import static java.util.Comparator.comparing;
  * describes which dependencies could not be resolved per VirtualKafkaCluster.
  */
 public class ResolutionResult {
-    private final Map<String, GenericKubernetesResource> filters;
-    private final Map<LocalRef<?>, KafkaProxyIngress> kafkaProxyIngresses;
-    private final Map<String, KafkaClusterRef> kafkaClusterRefs;
+    private final Map<LocalRef<GenericKubernetesResource>, GenericKubernetesResource> filters;
+    private final Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> kafkaProxyIngresses;
+    private final Map<LocalRef<KafkaClusterRef>, KafkaClusterRef> kafkaClusterRefs;
     private final Map<String, ClusterResolutionResult> clusterResolutionResults;
 
     public record UnresolvedDependency(Dependency type, String name) {
@@ -60,9 +60,9 @@ public class ResolutionResult {
 
     }
 
-    ResolutionResult(Map<String, GenericKubernetesResource> filters,
-                     Map<LocalRef<?>, KafkaProxyIngress> kafkaProxyIngresses,
-                     Map<String, KafkaClusterRef> kafkaClusterRefs,
+    ResolutionResult(Map<LocalRef<GenericKubernetesResource>, GenericKubernetesResource> filters,
+                     Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> kafkaProxyIngresses,
+                     Map<LocalRef<KafkaClusterRef>, KafkaClusterRef> kafkaClusterRefs,
                      Map<String, ClusterResolutionResult> clusterResolutionResults) {
         Objects.requireNonNull(filters);
         Objects.requireNonNull(kafkaProxyIngresses);
@@ -116,7 +116,7 @@ public class ResolutionResult {
      * @param localRef reference
      * @return optional containing ingress if present, else empty
      */
-    public Optional<KafkaProxyIngress> ingress(LocalRef<?> localRef) {
+    public Optional<KafkaProxyIngress> ingress(LocalRef<KafkaProxyIngress> localRef) {
         Objects.requireNonNull(localRef);
         return Optional.ofNullable(kafkaProxyIngresses.get(localRef));
     }
@@ -126,8 +126,8 @@ public class ResolutionResult {
      * @return optional containing the cluster ref if resolved, else empty
      */
     public Optional<KafkaClusterRef> kafkaClusterRef(VirtualKafkaCluster cluster) {
-        String name = cluster.getSpec().getTargetCluster().getClusterRef().getName();
-        return Optional.ofNullable(kafkaClusterRefs.get(name));
+        var ref = cluster.getSpec().getTargetCluster().getClusterRef();
+        return Optional.ofNullable(kafkaClusterRefs.get(ref));
     }
 
     /**

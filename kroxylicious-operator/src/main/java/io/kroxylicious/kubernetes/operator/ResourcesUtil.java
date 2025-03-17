@@ -139,39 +139,15 @@ public class ResourcesUtil {
      * @param <T> resource type
      * @return a Collector that collects a Map from element name to element
      */
-    public static <T extends HasMetadata> @NonNull Collector<T, ?, Map<LocalRef<?>, T>> toByLocalRefMap() {
+    public static <T extends HasMetadata> @NonNull Collector<T, ?, Map<LocalRef<T>, T>> toByLocalRefMap() {
         return Collectors.toMap(ResourcesUtil::toLocalRef, Function.identity());
     }
 
-    public static boolean isKafkaProxy(AnyLocalRef ref) {
-        return "kroxylicious.io".equals(ref.getGroup())
-                && "KafkaProxy".equals(ref.getKind());
-    }
-
-    public static AnyLocalRef checkIsKafkaProxy(AnyLocalRef ref) {
-        if (!isKafkaProxy(ref)) {
-            throw new InvalidResourceException("Referenced resource is not a KafkaProxy");
-        }
-        return ref;
-    }
-
-    public static boolean isKafkaCluster(AnyLocalRef ref) {
-        return "kroxylicious.io".equals(ref.getGroup())
-                && "KafkaClusterRef".equals(ref.getKind());
-    }
-
-    public static AnyLocalRef checkIsKafkaCluster(AnyLocalRef ref) {
-        if (!isKafkaCluster(ref)) {
-            throw new InvalidResourceException("Referenced resource is not a KafkaClusterRef");
-        }
-        return ref;
-    }
-
-    public static LocalRef<?> toLocalRef(HasMetadata ref) {
-        return new AnyLocalRefBuilder()
+    public static <T extends HasMetadata> LocalRef<T> toLocalRef(T ref) {
+        return (LocalRef) new AnyLocalRefBuilder()
                 .withKind(ref.getKind())
                 .withGroup(group(ref))
-                .withName(ref.getMetadata().getName())
+                .withName(name(ref))
                 .build();
     }
 
