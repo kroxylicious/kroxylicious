@@ -60,7 +60,7 @@ public class LocalStack implements AwsKmsClient {
         }
 
         LOGGER.info("Deploy AWS in {} namespace", deploymentNamespace);
-        NamespaceUtils.createNamespaceWithWait(deploymentNamespace);
+        NamespaceUtils.createNamespaceAndPrepare(deploymentNamespace);
         ResourceManager.helmClient().addRepository(LOCALSTACK_HELM_REPOSITORY_NAME, LOCALSTACK_HELM_REPOSITORY_URL);
         ResourceManager.helmClient().namespace(deploymentNamespace).install(LOCALSTACK_HELM_CHART_NAME, LOCALSTACK_SERVICE_NAME,
                 Optional.empty(),
@@ -71,7 +71,8 @@ public class LocalStack implements AwsKmsClient {
     @Override
     public void delete() {
         LOGGER.info("Deleting Aws in {} namespace", deploymentNamespace);
-        NamespaceUtils.deleteNamespaceWithWait(deploymentNamespace);
+        String testSuiteName = ResourceManager.getTestContext().getRequiredTestClass().getName();
+        NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(deploymentNamespace, testSuiteName);
     }
 
     @Override

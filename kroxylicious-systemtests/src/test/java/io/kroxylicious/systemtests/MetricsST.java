@@ -120,7 +120,7 @@ class MetricsST extends AbstractST {
         resourceManager.createResourceWithWait(ScraperTemplates.scraperPod(namespace, scraperName).build());
         cluster.setNamespace(namespace);
 
-        LOGGER.atInfo().setMessage("Sleeping for {} seconds to give operators and operands some time to stable the metrics values before collecting")
+        LOGGER.atInfo().setMessage("Sleeping for {} seconds to give operators and operands some time to stabilize before collecting metrics.")
                 .addArgument(Constants.RECONCILIATION_INTERVAL.toSeconds()).log();
         Thread.sleep(Constants.RECONCILIATION_INTERVAL.toMillis());
 
