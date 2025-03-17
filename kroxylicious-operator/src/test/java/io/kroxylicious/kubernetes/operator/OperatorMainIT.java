@@ -250,6 +250,6 @@ class OperatorMainIT {
     }
 
     private String managementAddress() {
-        return String.format("http://%s:%s", managementServer.getAddress().getHostName(), managementServer.getAddress().getPort());
+        return String.format("http://%s:%s", managementServer.getAddress().getHostString(), managementServer.getAddress().getPort());
     }
 }

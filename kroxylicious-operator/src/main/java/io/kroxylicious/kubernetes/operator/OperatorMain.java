@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 import org.slf4j.Logger;
@@ -28,6 +29,7 @@ import io.prometheus.metrics.exporter.httpserver.MetricsHandler;
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodFilter;
+import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -39,6 +41,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class OperatorMain {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorMain.class);
+    private static final String BIND_ADDRESS_VAR_NAME = "BIND_ADDRESS";
+    private static final int DEFAULT_MANAGEMENT_PORT = 8080;
     private final Operator operator;
     private final HttpServer managementServer;
 
@@ -115,16 +119,46 @@ public class OperatorMain {
         Metrics.globalRegistry.add(prometheusMeterRegistry);
     }
 
-    private static HttpServer createHttpServer() throws IOException {
+    @VisibleForTesting
+    static HttpServer createHttpServer() throws IOException {
         final Properties systemProps = System.getProperties();
         if (!systemProps.containsKey("sun.net.httpserver.maxReqTime")) {
             System.setProperty("sun.net.httpserver.maxReqTime", "60");
         }
 
         if (!systemProps.containsKey("sun.net.httpserver.maxRspTime")) {
-            System.setProperty("sun.net.httpserver.maxRspTime", "600");
+            System.setProperty("sun.net.httpserver.maxRspTime", "120");
         }
-        return HttpServer.create(new InetSocketAddress("0.0.0.0", 8080), 0);
+
+        return HttpServer.create(getBindAddress(), 0);
+    }
+
+    @NonNull
+    @VisibleForTesting
+    static InetSocketAddress getBindAddress() {
+        final Map<String, String> envVars = System.getenv();
+        final String bindAddress = envVars.getOrDefault(BIND_ADDRESS_VAR_NAME, "0.0.0.0:" + DEFAULT_MANAGEMENT_PORT);
+        String bindToInterface;
+        int bindToPort;
+        if (bindAddress.contains(":")) {
+            final HostPort parse = HostPort.parse(bindAddress);
+            bindToInterface = parse.host();
+            bindToPort = parse.port();
+        }
+        else if (!bindAddress.isEmpty()) {
+            LOGGER.warn("{} env var is set but does not contain `:` assuming hostname only and binding to default port ({})",
+                    BIND_ADDRESS_VAR_NAME,
+                    DEFAULT_MANAGEMENT_PORT);
+            bindToInterface = bindAddress;
+            bindToPort = DEFAULT_MANAGEMENT_PORT;
+        }
+        else {
+            bindToInterface = "0.0.0.0";
+            bindToPort = DEFAULT_MANAGEMENT_PORT;
+        }
+
+        LOGGER.info("Starting management server on: {}:{}", bindToInterface, bindToPort);
+        return new InetSocketAddress(bindToInterface, bindToPort);
     }
 
 }
