@@ -31,6 +31,8 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
+import io.kroxylicious.kubernetes.api.common.KafkaCRef;
+import io.kroxylicious.kubernetes.api.common.KafkaCRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -39,8 +41,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.targetcluster.ClusterRef;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.targetcluster.ClusterRefBuilder;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
 import static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP.Protocol.TCP;
@@ -242,7 +242,7 @@ class ProxyReconcilerIT {
         String newClusterRefName = "new-cluster-ref";
         extension.create(clusterRef(newClusterRefName, NEW_BOOTSTRAP));
 
-        ClusterRef newClusterRef = new ClusterRefBuilder().withName(newClusterRefName).build();
+        KafkaCRef newClusterRef = new KafkaCRefBuilder().withName(newClusterRefName).build();
         var cluster = createdResources.cluster(CLUSTER_BAR).edit().editSpec().editTargetCluster().withClusterRef(newClusterRef).endTargetCluster().endSpec().build();
 
         // when
@@ -324,11 +324,11 @@ class ProxyReconcilerIT {
         return new VirtualKafkaClusterBuilder().withNewMetadata().withName(clusterName).endMetadata()
                 .withNewSpec()
                 .withNewTargetCluster()
-                .withClusterRef(new ClusterRefBuilder().withName(name(clusterRef)).build())
+                .withClusterRef(new KafkaCRefBuilder().withName(name(clusterRef)).build())
                 .endTargetCluster()
                 .withNewProxyRef().withName(name(proxy)).endProxyRef()
                 .addNewIngressRef().withName(name(ingress)).endIngressRef()
-                .withFilters()
+                .withFilterRefs()
                 .endSpec().build();
     }
 

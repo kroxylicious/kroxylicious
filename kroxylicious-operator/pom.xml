@@ -13,7 +13,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.11.0-SNAPSHOT</version>
+        <version>0.12.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-operator</artifactId>
@@ -22,7 +22,7 @@
         <josdk.version>5.0.3</josdk.version>
         <log4j.version>2.20.0</log4j.version>
         <fabric8-client.version>7.1.0</fabric8-client.version>
-        <sundrio.version>0.200.0</sundrio.version>
+        <sundrio.version>0.200.3</sundrio.version>
         <lombok.version>1.18.36</lombok.version>
     </properties>
 
@@ -301,9 +301,26 @@
                     <source>src/main/resources/META-INF/fabric8</source>
                     <extraAnnotations>true</extraAnnotations>
                     <existingJavaTypes>
+                        <!-- From the kubernetes API -->
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.PodTemplate>
                             io.fabric8.kubernetes.api.model.PodTemplateSpec
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.PodTemplate>
+                        <!-- Common types used across our own CRDs -->
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ProxyRef>
+                            io.kroxylicious.kubernetes.api.common.ProxyRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ProxyRef>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ProxyRef>
+                            io.kroxylicious.kubernetes.api.common.ProxyRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ProxyRef>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.targetcluster.ClusterRef>
+                            io.kroxylicious.kubernetes.api.common.KafkaCRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.targetcluster.ClusterRef>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefs>
+                            io.kroxylicious.kubernetes.api.common.IngressRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefs>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.FilterRefs>
+                            io.kroxylicious.kubernetes.api.common.FilterRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.FilterRefs>
                     </existingJavaTypes>
                     <packageOverrides>
                         <!-- the default package name ($apiGroup.$apiVersion) doesn't work for us -->

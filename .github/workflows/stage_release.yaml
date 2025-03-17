@@ -111,6 +111,13 @@ jobs:
           gpg-private-key: ${{ secrets.KROXYLICIOUS_RELEASE_PRIVATE_KEY }} # Value of the GPG private key to import
           overwrite-settings: true
 
+      - name: Setup Minikube
+        uses: manusa/actions-setup-minikube@v2.13.1
+        with:
+          minikube version: 'v1.35.0'
+          kubernetes version: 'v1.32.0'
+          github token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+
       - name: 'Verify no existing staging repository exists'
         if: ${{ github.event.inputs.dry-run == 'false' }}
         env:

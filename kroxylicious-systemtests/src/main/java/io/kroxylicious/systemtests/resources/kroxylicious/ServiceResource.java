@@ -26,7 +26,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 public class ServiceResource implements ResourceType<Service> {
     @Override
     public String getKind() {
-        return Constants.SERVICE_KIND;
+        return Constants.SERVICE;
     }
 
     @Override

@@ -23,7 +23,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 public class SecretResource implements ResourceType<Secret> {
     @Override
     public String getKind() {
-        return Constants.SECRET_KIND;
+        return Constants.SECRET;
     }
 
     @Override

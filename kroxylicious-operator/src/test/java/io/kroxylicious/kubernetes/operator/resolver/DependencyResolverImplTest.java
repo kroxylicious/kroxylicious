@@ -22,6 +22,10 @@ import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
+import io.kroxylicious.kubernetes.api.common.FilterRef;
+import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
+import io.kroxylicious.kubernetes.api.common.IngressRef;
+import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -29,10 +33,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Filters;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.FiltersBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefs;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefsBuilder;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.UnresolvedDependency;
 
@@ -66,7 +66,7 @@ class DependencyResolverImplTest {
         assertThat(resolutionResult.clusterResults()).isEmpty();
         assertThat(resolutionResult.ingresses()).isEmpty();
         assertThat(resolutionResult.fullyResolvedClustersInNameOrder()).isEmpty();
-        assertThat(resolutionResult.filter(filterRef("a", "b", "c"))).isEmpty();
+        assertThat(resolutionResult.filter(filterRef("c"))).isEmpty();
         assertThat(resolutionResult.filters()).isEmpty();
         verifyNoInteractions(unresolvedDependencyReporter);
     }
@@ -109,48 +109,6 @@ class DependencyResolverImplTest {
         assertThat(onlyResult.isFullyResolved()).isTrue();
         assertThat(onlyResult.unresolvedDependencySet()).isEmpty();
         verifyNoInteractions(unresolvedDependencyReporter);
-    }
-
-    @Test
-    void testSingleFilterUnreferencedBecauseOfKindMismatch() {
-        GenericKubernetesResource filter = protocolFilter("filterName", "kroxylicious.io", "Kind1");
-        givenFiltersInContext(filter);
-        givenClusterRefsInContext(kafkaClusterRef("cluster"));
-        givenIngressesInContext();
-        VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName", "kroxylicious.io", "Kind2")), "cluster", List.of());
-        givenVirtualKafkaClustersInContext(cluster);
-
-        // when
-        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
-
-        // then
-        assertThat(resolutionResult.filter(filterRef("filterName", "kroxylicious.io", "Kind1"))).contains(filter);
-        assertThat(resolutionResult.filters()).containsExactly(filter);
-        ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
-        assertThat(onlyResult.isFullyResolved()).isFalse();
-        assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new UnresolvedDependency(Dependency.FILTER, "filterName"));
-        verify(unresolvedDependencyReporter).reportUnresolvedDependencies(cluster, onlyResult.unresolvedDependencySet());
-    }
-
-    @Test
-    void testSingleFilterUnreferencedBecauseOfGroupMismatch() {
-        GenericKubernetesResource filter = protocolFilter("filterName", "kroxylicious.io", "Kind");
-        givenFiltersInContext(filter);
-        givenClusterRefsInContext(kafkaClusterRef("cluster"));
-        givenIngressesInContext();
-        VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName", "banana.io", "Kind")), "cluster", List.of());
-        givenVirtualKafkaClustersInContext(cluster);
-
-        // when
-        ResolutionResult resolutionResult = DependencyResolverImpl.create().deepResolve(mockContext, unresolvedDependencyReporter);
-
-        // then
-        assertThat(resolutionResult.filter(filterRef("filterName", "kroxylicious.io", "Kind"))).contains(filter);
-        assertThat(resolutionResult.filters()).containsExactly(filter);
-        ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
-        assertThat(onlyResult.isFullyResolved()).isFalse();
-        assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new UnresolvedDependency(Dependency.FILTER, "filterName"));
-        verify(unresolvedDependencyReporter).reportUnresolvedDependencies(cluster, onlyResult.unresolvedDependencySet());
     }
 
     @Test
@@ -338,8 +296,8 @@ class DependencyResolverImplTest {
         verify(unresolvedDependencyReporter).reportUnresolvedDependencies(cluster, onlyResult.unresolvedDependencySet());
     }
 
-    private IngressRefs ingressRef(String name) {
-        return new IngressRefsBuilder().withName(name).build();
+    private IngressRef ingressRef(String name) {
+        return new IngressRefBuilder().withName(name).build();
     }
 
     private static KafkaProxyIngress ingress(String name) {
@@ -358,23 +316,14 @@ class DependencyResolverImplTest {
         return new KafkaClusterRefBuilder().withNewMetadata().withName(clusterRef).endMetadata().build();
     }
 
-    private static Filters filterRef(String name) {
-        return filterRef(name, "kroxylicious.io", "KafkaProtocolFilter");
-    }
-
-    private static Filters filterRef(String name, String group, String kind) {
-        return new FiltersBuilder().withName(name).withGroup(group).withKind(kind).build();
+    private static FilterRef filterRef(String name) {
+        return new FilterRefBuilder().withName(name).build();
     }
 
     private static GenericKubernetesResource protocolFilter(String name) {
-        // should we build up a typed KafkaProtocolFilter and convert it to a generic resource somehow?
-        return protocolFilter(name, "kroxylicious.io", "KafkaProtocolFilter");
-    }
-
-    private static GenericKubernetesResource protocolFilter(String name, String groupId, String kind) {
         return new GenericKubernetesResourceBuilder()
-                .withApiVersion(groupId + "/v1alpha")
-                .withKind(kind)
+                .withApiVersion("filter.kroxylicious.io/v1alpha")
+                .withKind("KafkaProtocolFilter")
                 .withNewMetadata().withName(name)
                 .endMetadata().build();
     }
@@ -399,12 +348,12 @@ class DependencyResolverImplTest {
         return when(mockContext.getSecondaryResources(type)).thenReturn(Arrays.stream(resources).collect(Collectors.toSet()));
     }
 
-    private static VirtualKafkaCluster virtualCluster(List<Filters> filterRefs, String clusterRef, List<IngressRefs> ingressRefs) {
+    private static VirtualKafkaCluster virtualCluster(List<FilterRef> filterRefs, String clusterRef, List<IngressRef> ingressRefs) {
         return new VirtualKafkaClusterBuilder()
                 .withNewSpec()
                 .withIngressRefs(ingressRefs)
                 .withNewTargetCluster().withNewClusterRef().withName(clusterRef).endClusterRef().endTargetCluster()
-                .withFilters(filterRefs)
+                .withFilterRefs(filterRefs)
                 .endSpec()
                 .build();
     }
