@@ -54,7 +54,7 @@ public class DependencyResolverImpl implements DependencyResolver {
             return EMPTY_RESOLUTION_RESULT;
         }
         Map<LocalRef<?>, KafkaProxyIngress> ingresses = context.getSecondaryResources(KafkaProxyIngress.class).stream()
-                .collect(Collectors.toMap(ResourcesUtil::toLocalRef, i -> i));
+                .collect(ResourcesUtil.toByLocalRefMap());
         Map<String, KafkaClusterRef> clusterRefs = context.getSecondaryResources(KafkaClusterRef.class).stream().collect(toByNameMap());
         Map<String, GenericKubernetesResource> filters = context.getSecondaryResources(GenericKubernetesResource.class).stream().collect(toByNameMap());
         var resolutionResult = virtualKafkaClusters.stream().map(cluster -> determineUnresolvedDependencies(cluster, ingresses, clusterRefs, filters))
