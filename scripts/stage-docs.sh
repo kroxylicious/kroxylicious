@@ -133,6 +133,15 @@ include::_files/index.adoc[leveloffset=0]
 "
 echo "${RELEASE_DOCS_INDEX_TEMPLATE}" > "${WEBSITE_DOCS_LOCATION}/index.adoc"
 
+echo "Creating AsciiDoc entrypoint file at ${WEBSITE_DOCS_LOCATION}/kroxylicious-proxy/index.adoc"
+RELEASE_DOCS_INDEX_TEMPLATE="---
+title: Kroxylicious Proxy ${RELEASE_TAG}
+---
+
+include::../_files/kroxylicious-proxy/index.adoc[leveloffset=0]
+"
+echo "${RELEASE_DOCS_INDEX_TEMPLATE}" > "${WEBSITE_DOCS_LOCATION}/kroxylicious-proxy/index.adoc"
+
 echo "Update _data/kroxylicious.yml to add new version to website navigation"
 match="url: '\/kroxylicious'"
 insert="  - title: '${RELEASE_TAG}'\n    url: '\/docs\/${RELEASE_TAG}\/'"
