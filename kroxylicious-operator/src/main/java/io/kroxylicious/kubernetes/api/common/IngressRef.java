@@ -16,7 +16,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
  * A reference, used in a kubernetes resource, to a KafkaProxyIngress resource in the same namespace.
  */
 @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-@com.fasterxml.jackson.annotation.JsonPropertyOrder({ "group", "kind", "name" })
+@com.fasterxml.jackson.annotation.JsonPropertyOrder({ "name" })
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 @javax.annotation.processing.Generated("io.fabric8.java.generator.CRGeneratorRunner")
 @lombok.ToString()
