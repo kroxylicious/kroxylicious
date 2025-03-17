@@ -60,7 +60,7 @@ spec:
                           pattern: ^kroxylicious[.]io$
                         kind:
                           type: string
-                          pattern: ^KafkaClusterRef$
+                          pattern: ^KafkaService$
                         name:
                           maxLength: 253
                           minLength: 1

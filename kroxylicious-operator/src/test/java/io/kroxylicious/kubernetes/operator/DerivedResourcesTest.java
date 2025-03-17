@@ -43,9 +43,9 @@ import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManag
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependentResource;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
@@ -247,7 +247,7 @@ class DerivedResourcesTest {
             Path input = testDir.resolve(inFileName);
             KafkaProxy kafkaProxy = kafkaProxyFromFile(input);
             List<VirtualKafkaCluster> virtualKafkaClusters = resourcesFromFiles(childFilesMatching(testDir, "in-VirtualKafkaCluster-*"), VirtualKafkaCluster.class);
-            List<KafkaClusterRef> kafkaClusterRefs = resourcesFromFiles(childFilesMatching(testDir, "in-KafkaClusterRef-*"), KafkaClusterRef.class);
+            List<KafkaService> kafkaServiceRefs = resourcesFromFiles(childFilesMatching(testDir, "in-KafkaService-*"), KafkaService.class);
             assertMinimalMetadata(kafkaProxy.getMetadata(), inFileName);
             List<KafkaProxyIngress> ingresses = kafkaProxyIngressesFromFiles(childFilesMatching(testDir, "in-KafkaProxyIngress-*"));
 
@@ -256,7 +256,7 @@ class DerivedResourcesTest {
 
             Context<KafkaProxy> context;
             try {
-                context = buildContext(testDir, virtualKafkaClusters, kafkaClusterRefs, ingresses);
+                context = buildContext(testDir, virtualKafkaClusters, kafkaServiceRefs, ingresses);
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -348,7 +348,7 @@ class DerivedResourcesTest {
     }
 
     @NonNull
-    private static Context<KafkaProxy> buildContext(Path testDir, List<VirtualKafkaCluster> virtualKafkaClusters, List<KafkaClusterRef> kafkaClusterRefs,
+    private static Context<KafkaProxy> buildContext(Path testDir, List<VirtualKafkaCluster> virtualKafkaClusters, List<KafkaService> kafkaServiceRefs,
                                                     List<KafkaProxyIngress> ingresses)
             throws IOException {
         Answer<?> throwOnUnmockedInvocation = invocation -> {
@@ -376,7 +376,7 @@ class DerivedResourcesTest {
         }
         doReturn(filterInstances).when(context).getSecondaryResources(GenericKubernetesResource.class);
         doReturn(Set.copyOf(virtualKafkaClusters)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
-        doReturn(Set.copyOf(kafkaClusterRefs)).when(context).getSecondaryResources(KafkaClusterRef.class);
+        doReturn(Set.copyOf(kafkaServiceRefs)).when(context).getSecondaryResources(KafkaService.class);
         doReturn(Set.copyOf(ingresses)).when(context).getSecondaryResources(KafkaProxyIngress.class);
         SharedKafkaProxyContext.runtimeDecl(context, runtimeDecl);
         return context;

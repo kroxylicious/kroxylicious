@@ -20,9 +20,9 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
@@ -50,7 +50,7 @@ public class DependencyResolverImpl implements DependencyResolver {
         }
         Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses = context.getSecondaryResources(KafkaProxyIngress.class).stream()
                 .collect(ResourcesUtil.toByLocalRefMap());
-        Map<LocalRef<KafkaClusterRef>, KafkaClusterRef> clusterRefs = context.getSecondaryResources(KafkaClusterRef.class).stream()
+        Map<LocalRef<KafkaService>, KafkaService> clusterRefs = context.getSecondaryResources(KafkaService.class).stream()
                 .collect(ResourcesUtil.toByLocalRefMap());
         Map<LocalRef<GenericKubernetesResource>, GenericKubernetesResource> filters = context.getSecondaryResources(GenericKubernetesResource.class).stream()
                 .collect(ResourcesUtil.toByLocalRefMap());
@@ -63,12 +63,12 @@ public class DependencyResolverImpl implements DependencyResolver {
 
     private ClusterResolutionResult determineUnresolvedDependencies(VirtualKafkaCluster cluster,
                                                                     Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses,
-                                                                    Map<LocalRef<KafkaClusterRef>, KafkaClusterRef> clusterRefs,
+                                                                    Map<LocalRef<KafkaService>, KafkaService> clusterRefs,
                                                                     Map<LocalRef<GenericKubernetesResource>, GenericKubernetesResource> filters) {
         VirtualKafkaClusterSpec spec = cluster.getSpec();
         Set<LocalRef<?>> unresolvedDependencies = new HashSet<>();
         determineUnresolvedIngresses(spec, ingresses).forEach(unresolvedDependencies::add);
-        determineUnresolvedKafkaClusterRef(spec, clusterRefs).ifPresent(unresolvedDependencies::add);
+        determineUnresolvedKafkaService(spec, clusterRefs).ifPresent(unresolvedDependencies::add);
         determineUnresolvedFilters(spec, filters).forEach(unresolvedDependencies::add);
         return new ClusterResolutionResult(cluster, unresolvedDependencies);
     }
@@ -85,8 +85,8 @@ public class DependencyResolverImpl implements DependencyResolver {
         }
     }
 
-    private Optional<LocalRef<?>> determineUnresolvedKafkaClusterRef(VirtualKafkaClusterSpec spec,
-                                                                     Map<LocalRef<KafkaClusterRef>, KafkaClusterRef> clusterRefs) {
+    private Optional<LocalRef<?>> determineUnresolvedKafkaService(VirtualKafkaClusterSpec spec,
+                                                                  Map<LocalRef<KafkaService>, KafkaService> clusterRefs) {
         var clusterRef = spec.getTargetCluster().getClusterRef();
         if (!clusterRefs.containsKey(clusterRef)) {
             return Optional.of(clusterRef);

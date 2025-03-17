@@ -10,11 +10,11 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class KafkaCRefTest {
+class KafkaServiceRefTest {
 
     @Test
     void shouldEqualAKafkaKindedAnyRef() {
-        var kafkaCRefFoo = new KafkaCRefBuilder().withName("foo").build();
+        var kafkaCRefFoo = new KafkaServiceRefBuilder().withName("foo").build();
         var anyFoo = new AnyLocalRefBuilder().withName("foo").withKind(kafkaCRefFoo.getKind()).withGroup(kafkaCRefFoo.getGroup()).build();
         assertThat(kafkaCRefFoo).isEqualTo(anyFoo);
         assertThat(anyFoo).isEqualTo(kafkaCRefFoo);

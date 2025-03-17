@@ -23,7 +23,7 @@ import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkf
 
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
-import io.kroxylicious.kubernetes.api.common.KafkaCRefBuilder;
+import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
@@ -70,8 +70,8 @@ class ClusterConditionUnresolvedDependencyReporterTest {
     @Test
     void deterministicallyReportsOneUnresolvedDependency() {
         HashSet<LocalRef<?>> unresolvedDependencies = new HashSet<>();
-        unresolvedDependencies.add(new KafkaCRefBuilder().withName("a").build());
-        unresolvedDependencies.add(new KafkaCRefBuilder().withName("b").build());
+        unresolvedDependencies.add(new KafkaServiceRefBuilder().withName("a").build());
+        unresolvedDependencies.add(new KafkaServiceRefBuilder().withName("b").build());
         unresolvedDependencies.add(new FilterRefBuilder().withName("a").build());
         unresolvedDependencies.add(new FilterRefBuilder().withName("b").build());
         unresolvedDependencies.add(new IngressRefBuilder().withName("a").build());
@@ -91,7 +91,7 @@ class ClusterConditionUnresolvedDependencyReporterTest {
 
     @Test
     void clusterRefUnresolved() {
-        var unresolved = new KafkaCRefBuilder().withName("a").build();
+        var unresolved = new KafkaServiceRefBuilder().withName("a").build();
         Set<LocalRef<?>> unresolvedDependencies = Set.of(unresolved);
         VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().editMetadata().withName("cluster").endMetadata()
                 .withNewSpec().withNewTargetCluster().withNewClusterRef().withName("name").endClusterRef().endTargetCluster()
@@ -104,7 +104,7 @@ class ClusterConditionUnresolvedDependencyReporterTest {
         verify(mockResourceContext).put(eq("cluster_conditions"), assertArg(a -> {
             assertThat(a).isInstanceOfSatisfying(Map.class, map -> {
                 assertThat(map).containsExactlyEntriesOf(Map.of("cluster", new ClusterCondition("cluster", ConditionType.Accepted, Conditions.Status.FALSE, "Invalid",
-                        "Resource of kind \"KafkaClusterRef\" in group \"kroxylicious.io\" named \"a\" does not exist.")));
+                        "Resource of kind \"KafkaService\" in group \"kroxylicious.io\" named \"a\" does not exist.")));
             });
         }));
     }

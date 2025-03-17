@@ -21,11 +21,11 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
-import io.kroxylicious.kubernetes.api.common.KafkaCRefBuilder;
+import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
 import io.kroxylicious.kubernetes.api.common.ProxyRefBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
@@ -160,8 +160,8 @@ class ResourcesUtilTest {
         assertThat(ResourcesUtil.toLocalRef(new KafkaProxyBuilder().withNewMetadata().withName("foo").endMetadata().build()))
                 .isEqualTo(new ProxyRefBuilder().withName("foo").build());
 
-        assertThat(ResourcesUtil.toLocalRef(new KafkaClusterRefBuilder().withNewMetadata().withName("foo").endMetadata().build()))
-                .isEqualTo(new KafkaCRefBuilder().withName("foo").build());
+        assertThat(ResourcesUtil.toLocalRef(new KafkaServiceBuilder().withNewMetadata().withName("foo").endMetadata().build()))
+                .isEqualTo(new KafkaServiceRefBuilder().withName("foo").build());
 
         assertThat(ResourcesUtil.toLocalRef(new KafkaProxyIngressBuilder().withNewMetadata().withName("foo").endMetadata().build()))
                 .isEqualTo(new IngressRefBuilder().withName("foo").build());
