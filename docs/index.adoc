@@ -1,30 +1,9 @@
-:experimental:
-include::_assets/attributes.adoc[]
+= Kroxylicious guides
 
-:context: proxy
+This release of Kroxylicious is documented in the following guides:
 
-[id="using-book-{context}"]
-= Kroxylicious
+link:kroxylicious-proxy/[Proxy guide]:: Covers using the proxy, including configuration, security and operation.
 
-include::assemblies/assembly-overview.adoc[leveloffset=+1]
-//broker config
-include::modules/con-proxy-overview.adoc[leveloffset=+2]
-include::modules/con-api-compatability.adoc[leveloffset=+2]
+link:developers-guide/[Developer's guide]:: Covers writing plugins for the proxy in the Java programming language
 
-//built-in filters
-include::assemblies/assembly-built-in-filters.adoc[leveloffset=+1]
-
-//community filters
-include::modules/con-community-filters.adoc[leveloffset=+1]
-
-//custom filters
-include::modules/con-custom-filters.adoc[leveloffset=+1]
-
-//configuring
-include::assemblies/assembly-configuring-proxy.adoc[leveloffset=+1]
-
-//monitoring
-include::assemblies/assembly-monitoring-proxy.adoc[leveloffset=+1]
-
-//trademark notices
-include::_assets/trademarks.adoc[leveloffset=+1]
+// Operator for Kubernetes:: Covers the operator for running the proxy on Kubernetes

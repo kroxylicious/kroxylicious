@@ -70,8 +70,8 @@ TAG_ARGS=$(array_to_arg_line "tag" "${IMAGE_TAGS[@]:""}")
 # shellcheck disable=SC2086 #we are passing additional arguments here so word splitting is intended
 ${CONTAINER_ENGINE} build -f "${CONTAINERFILE}" -t "${IMAGE}" ${LABEL_ARGS} ${TAG_ARGS} \
                                         --build-arg "KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}" \
-                                        --build-arg "CURRENT_USER=${USER}" \
-                                        --build-arg "CURRENT_USER_UID=$(id -u)" \
+                                        --build-arg "CONTAINER_USER=${USER}" \
+                                        --build-arg "CONTAINER_USER_UID=$(id -u)" \
                                         .
 if [[ -n ${PUSH_IMAGE:-} ]]; then
   REGISTRY_SERVER=${REGISTRY_SERVER:-$(extractRegistryServer "${REGISTRY_DESTINATION}")}

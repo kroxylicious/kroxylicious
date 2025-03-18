@@ -14,9 +14,18 @@ import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
+import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
+
+import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
+import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
+import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
+import io.kroxylicious.kubernetes.api.common.ProxyRefBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
@@ -144,6 +153,24 @@ class ResourcesUtilTest {
         long generation = 123L;
         Secret secret = new SecretBuilder().withNewMetadata().withGeneration(generation).endMetadata().build();
         assertThat(ResourcesUtil.generation(secret)).isEqualTo(generation);
+    }
+
+    @Test
+    void toLocalRef() {
+        assertThat(ResourcesUtil.toLocalRef(new KafkaProxyBuilder().withNewMetadata().withName("foo").endMetadata().build()))
+                .isEqualTo(new ProxyRefBuilder().withName("foo").build());
+
+        assertThat(ResourcesUtil.toLocalRef(new KafkaServiceBuilder().withNewMetadata().withName("foo").endMetadata().build()))
+                .isEqualTo(new KafkaServiceRefBuilder().withName("foo").build());
+
+        assertThat(ResourcesUtil.toLocalRef(new KafkaProxyIngressBuilder().withNewMetadata().withName("foo").endMetadata().build()))
+                .isEqualTo(new IngressRefBuilder().withName("foo").build());
+
+        assertThat(ResourcesUtil.toLocalRef(new GenericKubernetesResourceBuilder()
+                .withKind("KafkaProtocolFilter")
+                .withApiVersion("filter.kroxylicious.io/v1alpha1")
+                .withNewMetadata().withName("foo").endMetadata().build()))
+                .isEqualTo(new FilterRefBuilder().withName("foo").build());
     }
 
 }

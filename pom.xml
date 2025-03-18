@@ -13,7 +13,7 @@
 
     <groupId>io.kroxylicious</groupId>
     <artifactId>kroxylicious-parent</artifactId>
-    <version>0.11.0-SNAPSHOT</version>
+    <version>0.12.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <properties>
@@ -41,7 +41,7 @@
         <guava.version>33.4.0-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
         <jackson.version>2.18.1</jackson.version>
-        <junit.version>5.12.0</junit.version>
+        <junit.version>5.12.1</junit.version>
         <kafka.version>3.9.0</kafka.version>
         <kroxy.extension.version>0.10.0</kroxy.extension.version>
         <log4j.version>2.24.3</log4j.version>
@@ -53,11 +53,11 @@
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
         <assertj-core.version>3.27.3</assertj-core.version>
-        <mockito.version>5.16.0</mockito.version>
-        <micrometer.version>1.14.4</micrometer.version>
+        <mockito.version>5.16.1</mockito.version>
+        <micrometer.version>1.14.5</micrometer.version>
         <slf4j.version>2.0.17</slf4j.version>
-        <sundr-builder-annotations.version>0.200.0</sundr-builder-annotations.version>
-        <spotbugs-annotations.version>4.9.2</spotbugs-annotations.version>
+        <sundr-builder-annotations.version>0.200.3</sundr-builder-annotations.version>
+        <spotbugs-annotations.version>4.9.3</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
@@ -452,6 +452,11 @@
                 <version>${test-frame.version}</version>
             </dependency>
             <dependency>
+                <groupId>io.skodjob</groupId>
+                <artifactId>test-frame-log-collector</artifactId>
+                <version>${test-frame.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.junit-pioneer</groupId>
                 <artifactId>junit-pioneer</artifactId>
                 <version>${junit-pioneer.version}</version>
@@ -816,7 +821,7 @@
                 </dependencies>
                 <executions>
                     <execution>
-                        <id>convert-to-html</id>
+                        <id>convert-kroxylicious-proxy-to-html</id>
                         <goals>
                             <goal>process-asciidoc</goal>
                         </goals>
@@ -824,7 +829,9 @@
                             <requires>
                                 <require>asciidoctor-diagram</require>
                             </requires>
-                            <outputDirectory>${project.build.directory}/html</outputDirectory>
+                            <sourceDirectory>docs</sourceDirectory>
+                            <outputDirectory>${project.build.directory}/docs/html</outputDirectory>
+                            <preserveDirectories>true</preserveDirectories>
                             <attributes>
                                 <source-highlighter>coderay</source-highlighter>
                                 <imagesdir>./images</imagesdir>
@@ -834,8 +841,6 @@
                                 <attribute>revdate!</attribute>
                                 <attribute>revremark!</attribute>
                             </attributes>
-                            <sourceDirectory>docs</sourceDirectory>
-                            <sourceDocumentName>index.adoc</sourceDocumentName>
                         </configuration>
                     </execution>
                 </executions>

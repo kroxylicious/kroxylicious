@@ -1,0 +1,30 @@
+:experimental:
+include::_assets/attributes.adoc[]
+
+:context: proxy
+:guide: proxy
+
+[id="using-book-{context}"]
+= Kroxylicious Proxy
+
+include::modules/con-about-{guide}-guide.adoc[leveloffset=+1]
+
+include::assemblies/assembly-overview.adoc[leveloffset=+1]
+//broker config
+include::modules/con-proxy-overview.adoc[leveloffset=+2]
+include::modules/con-api-compatability-{guide}.adoc[leveloffset=+2]
+
+//configuring
+include::assemblies/assembly-configuring-proxy.adoc[leveloffset=+1]
+
+//built-in filters
+include::assemblies/assembly-built-in-filters.adoc[leveloffset=+1]
+
+//community filters
+include::modules/con-community-filters.adoc[leveloffset=+1]
+
+//monitoring
+include::assemblies/assembly-monitoring-proxy.adoc[leveloffset=+1]
+
+//trademark notices
+include::_assets/trademarks.adoc[leveloffset=+1]
