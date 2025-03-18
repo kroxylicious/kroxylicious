@@ -12,7 +12,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -21,6 +23,8 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
+import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
@@ -153,5 +157,71 @@ public class ResourcesUtil {
 
     public static String group(HasMetadata resource) {
         return resource.getApiVersion().substring(0, resource.getApiVersion().indexOf("/"));
+    }
+
+    static <T extends HasMetadata> Set<ResourceID> filteredResourceIdsInSameNamespace(EventSourceContext<?> context,
+                                                                                      HasMetadata primary,
+                                                                                      Class<T> clazz,
+                                                                                      Predicate<T> predicate) {
+        return resourcesInSameNamespace(context, primary, clazz)
+                .filter(predicate)
+                .map(ResourceID::fromResource)
+                .collect(Collectors.toSet());
+    }
+
+    /**
+     * Get the resources of the given clazz that are in the same namespace as the given primary.
+     * @param context The context
+     * @param primary The primary
+     * @param clazz The class of resources to get
+     * @return A stream of resources
+     * @param <T> The type of the resource
+     */
+    static <T extends HasMetadata> Stream<T> resourcesInSameNamespace(EventSourceContext<?> context, HasMetadata primary, Class<T> clazz) {
+        return context.getClient()
+                .resources(clazz)
+                .inNamespace(namespace(primary))
+                .list()
+                .getItems()
+                .stream();
+    }
+
+    static <T> boolean isReferent(LocalRef<T> ref, HasMetadata proxy) {
+        return Objects.equals(ResourcesUtil.name(proxy), ref.getName());
+    }
+
+    /**
+     * Converts a {@code ref}, held by the given {@code owner}, into the equivalent ResourceID
+     * @param owner The owner of the reference
+     * @param ref The reference held by the owner
+     * @return A singleton ResourceID
+     * @param <O> The type of the reference owner
+     * @param <R> The type of the referent
+     */
+    @NonNull
+    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefAsResourceId(O owner, LocalRef<R> ref) {
+        return Set.of(new ResourceID(ref.getName(), owner.getMetadata().getNamespace()));
+    }
+
+    /**
+     * Finds the (ids of) the resources which reference the given referent
+     * This is the inverse of {@link #localRefAsResourceId(HasMetadata, LocalRef)}}.
+     * @param context The context
+     * @param referent The referent
+     * @param owner The type of the owner of the reference
+     * @param refAccessor A function which returns the reference from a given owner.
+     * @return The ids of reference owners which refer to the referent.
+     * @param <O> The type of the reference owner
+     * @param <R> The type of the referent
+     */
+    @NonNull
+    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers(EventSourceContext<?> context,
+                                                                                        R referent,
+                                                                                        Class<O> owner,
+                                                                                        Function<O, LocalRef<R>> refAccessor) {
+        return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
+                referent,
+                owner,
+                primary -> ResourcesUtil.isReferent(refAccessor.apply(primary), referent));
     }
 }

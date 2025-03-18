@@ -11,8 +11,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters;
 
 public class OperatorAssertions {
-    public static StatusAssert assertThat(KafkaProxyStatus actual) {
-        return StatusAssert.assertThat(actual);
+    public static KafkaProxyStatusAssert assertThat(KafkaProxyStatus actual) {
+        return KafkaProxyStatusAssert.assertThat(actual);
     }
 
     public static ClusterAssert assertThat(Clusters actual) {

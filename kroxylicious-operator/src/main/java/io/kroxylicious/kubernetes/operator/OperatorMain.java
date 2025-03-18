@@ -7,6 +7,7 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
@@ -79,6 +80,7 @@ public class OperatorMain {
     void start() {
         operator.installShutdownHook(Duration.ofSeconds(10));
         operator.register(new ProxyReconciler());
+        operator.register(new IngressReconciler(Clock.systemUTC()));
         addHttpGetHandler("/", () -> 404);
         managementServer.start();
         operator.start();

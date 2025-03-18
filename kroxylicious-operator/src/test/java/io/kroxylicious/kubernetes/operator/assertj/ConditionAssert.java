@@ -17,6 +17,8 @@ import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ObjectAssert;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
+
 import io.kroxylicious.kubernetes.api.common.Condition;
 
 public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condition> {
@@ -33,20 +35,60 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
         return Assertions.assertThat(actual.getObservedGeneration());
     }
 
+    public ConditionAssert hasObservedGeneration(Long expected) {
+        observedGeneration().isEqualTo(expected);
+        return this;
+    }
+
+    public ConditionAssert hasObservedGenerationInSyncWithMetadataOf(HasMetadata thing) {
+        observedGeneration().isEqualTo(thing.getMetadata().getGeneration());
+        return this;
+    }
+
     public AbstractComparableAssert<?, Condition.Type> type() {
         return Assertions.assertThat(actual.getType());
+    }
+
+    public ConditionAssert hasType(Condition.Type expected) {
+        AbstractComparableAssert<?, Condition.Type> equalTo = type().isEqualTo(expected);
+        return this;
     }
 
     public AbstractStringAssert<?> message() {
         return Assertions.assertThat(actual.getMessage());
     }
 
+    public ConditionAssert hasNoMessage() {
+        message().isNull();
+        return this;
+    }
+
+    public ConditionAssert hasMessage(String expected) {
+        message().isEqualTo(expected);
+        return this;
+    }
+
     public AbstractStringAssert<?> reason() {
         return Assertions.assertThat(actual.getReason());
     }
 
+    public ConditionAssert hasNoReason() {
+        reason().isNull();
+        return this;
+    }
+
+    public ConditionAssert hasReason(String expected) {
+        reason().isEqualTo(expected);
+        return this;
+    }
+
     public ObjectAssert<Condition.Status> status() {
         return Assertions.assertThat(actual.getStatus()).asInstanceOf(InstanceOfAssertFactories.type(Condition.Status.class));
+    }
+
+    public ConditionAssert hasStatus(Condition.Status expected) {
+        status().isEqualTo(expected);
+        return this;
     }
 
     public AbstractZonedDateTimeAssert<?> lastTransitionTime() {
@@ -54,32 +96,32 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
     }
 
     public ConditionAssert isReady() {
-        type().isEqualTo(Condition.Type.Ready);
-        status().isEqualTo(Condition.Status.TRUE);
+        hasType(Condition.Type.Ready);
+        hasStatus(Condition.Status.TRUE);
         reason().isEmpty();
         message().isEmpty();
         return this;
     }
 
     public ConditionAssert isAcceptedTrue() {
-        type().isEqualTo(Condition.Type.Accepted);
-        status().isEqualTo(Condition.Status.TRUE);
+        hasType(Condition.Type.Accepted);
+        hasStatus(Condition.Status.TRUE);
         reason().isEmpty();
         message().isEmpty();
         return this;
     }
 
     public ConditionAssert isAcceptedFalse(String reason, String message) {
-        type().isEqualTo(Condition.Type.Accepted);
-        status().isEqualTo(Condition.Status.FALSE);
+        hasType(Condition.Type.Accepted);
+        hasStatus(Condition.Status.FALSE);
         reason().isEqualTo(reason);
         message().isEqualTo(message);
         return this;
     }
 
     public ConditionAssert isResolvedRefsFalse(String reason, String message) {
-        type().isEqualTo(Condition.Type.ResolvedRefs);
-        status().isEqualTo(Condition.Status.FALSE);
+        hasType(Condition.Type.ResolvedRefs);
+        hasStatus(Condition.Status.FALSE);
         reason().isEqualTo(reason);
         message().isEqualTo(message);
         return this;
@@ -99,4 +141,5 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
         lastTransitionTime().isEqualTo(time);
         return this;
     }
+
 }
