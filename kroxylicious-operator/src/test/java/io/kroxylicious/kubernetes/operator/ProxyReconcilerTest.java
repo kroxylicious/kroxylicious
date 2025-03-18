@@ -35,6 +35,7 @@ import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
@@ -45,7 +46,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
 import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
@@ -99,14 +99,14 @@ class ProxyReconcilerTest {
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus);
         statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
-        ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
+        ObjectAssert<Condition> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Condition.class))
                 .first();
-        first.extracting(Conditions::getObservedGeneration).isEqualTo(generation);
-        first.extracting(Conditions::getLastTransitionTime).isNotNull();
-        first.extracting(Conditions::getType).isEqualTo("Ready");
-        first.extracting(Conditions::getStatus).isEqualTo(Conditions.Status.TRUE);
-        first.extracting(Conditions::getMessage).isEqualTo("");
-        first.extracting(Conditions::getReason).isEqualTo("");
+        first.extracting(Condition::getObservedGeneration).isEqualTo(generation);
+        first.extracting(Condition::getLastTransitionTime).isNotNull();
+        first.extracting(Condition::getType).isEqualTo("Ready");
+        first.extracting(Condition::getStatus).isEqualTo(Condition.Status.TRUE);
+        first.extracting(Condition::getMessage).isEqualTo("");
+        first.extracting(Condition::getReason).isEqualTo("");
     }
 
     @Test
@@ -130,14 +130,14 @@ class ProxyReconcilerTest {
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus);
         statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
-        ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
+        ObjectAssert<Condition> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Condition.class))
                 .first();
-        first.extracting(Conditions::getObservedGeneration).isEqualTo(generation);
-        first.extracting(Conditions::getLastTransitionTime).isNotNull();
-        first.extracting(Conditions::getType).isEqualTo("Ready");
-        first.extracting(Conditions::getStatus).isEqualTo(Conditions.Status.FALSE);
-        first.extracting(Conditions::getMessage).isEqualTo("Resource was terrible");
-        first.extracting(Conditions::getReason).isEqualTo("InvalidResourceException");
+        first.extracting(Condition::getObservedGeneration).isEqualTo(generation);
+        first.extracting(Condition::getLastTransitionTime).isNotNull();
+        first.extracting(Condition::getType).isEqualTo("Ready");
+        first.extracting(Condition::getStatus).isEqualTo(Condition.Status.FALSE);
+        first.extracting(Condition::getMessage).isEqualTo("Resource was terrible");
+        first.extracting(Condition::getReason).isEqualTo("InvalidResourceException");
     }
 
     @Test
@@ -154,7 +154,7 @@ class ProxyReconcilerTest {
                 .withNewStatus()
                     .addNewCondition()
                         .withType("Ready")
-                        .withStatus(Conditions.Status.TRUE)
+                        .withStatus(Condition.Status.TRUE)
                         .withMessage("")
                         .withReason("")
                         .withLastTransitionTime(time)
@@ -172,14 +172,14 @@ class ProxyReconcilerTest {
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus);
         statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
-        ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
+        ObjectAssert<Condition> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Condition.class))
                 .first();
-        first.extracting(Conditions::getObservedGeneration).isEqualTo(generation);
-        first.extracting(Conditions::getLastTransitionTime).isEqualTo(time);
-        first.extracting(Conditions::getType).isEqualTo("Ready");
-        first.extracting(Conditions::getStatus).isEqualTo(Conditions.Status.TRUE);
-        first.extracting(Conditions::getMessage).isEqualTo("");
-        first.extracting(Conditions::getReason).isEqualTo("");
+        first.extracting(Condition::getObservedGeneration).isEqualTo(generation);
+        first.extracting(Condition::getLastTransitionTime).isEqualTo(time);
+        first.extracting(Condition::getType).isEqualTo("Ready");
+        first.extracting(Condition::getStatus).isEqualTo(Condition.Status.TRUE);
+        first.extracting(Condition::getMessage).isEqualTo("");
+        first.extracting(Condition::getReason).isEqualTo("");
     }
 
     @Test
@@ -196,7 +196,7 @@ class ProxyReconcilerTest {
                 .withNewStatus()
                     .addNewCondition()
                         .withType("Ready")
-                        .withStatus(Conditions.Status.TRUE)
+                        .withStatus(Condition.Status.TRUE)
                         .withMessage("")
                         .withReason("")
                         .withLastTransitionTime(time)
@@ -213,14 +213,14 @@ class ProxyReconcilerTest {
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus);
         statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
-        ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
+        ObjectAssert<Condition> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Condition.class))
                 .first();
-        first.extracting(Conditions::getObservedGeneration).isEqualTo(generation);
-        first.extracting(Conditions::getLastTransitionTime).isNotEqualTo(time);
-        first.extracting(Conditions::getType).isEqualTo("Ready");
-        first.extracting(Conditions::getStatus).isEqualTo(Conditions.Status.FALSE);
-        first.extracting(Conditions::getMessage).isEqualTo("Resource was terrible");
-        first.extracting(Conditions::getReason).isEqualTo(InvalidResourceException.class.getSimpleName());
+        first.extracting(Condition::getObservedGeneration).isEqualTo(generation);
+        first.extracting(Condition::getLastTransitionTime).isNotEqualTo(time);
+        first.extracting(Condition::getType).isEqualTo("Ready");
+        first.extracting(Condition::getStatus).isEqualTo(Condition.Status.FALSE);
+        first.extracting(Condition::getMessage).isEqualTo("Resource was terrible");
+        first.extracting(Condition::getReason).isEqualTo(InvalidResourceException.class.getSimpleName());
     }
 
     @Test
@@ -237,7 +237,7 @@ class ProxyReconcilerTest {
                 .withNewStatus()
                     .addNewCondition()
                         .withType("Ready")
-                        .withStatus(Conditions.Status.FALSE)
+                        .withStatus(Condition.Status.FALSE)
                         .withMessage("Resource was terrible")
                         .withReason(InvalidResourceException.class.getSimpleName())
                         .withLastTransitionTime(time)
@@ -254,14 +254,14 @@ class ProxyReconcilerTest {
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus);
         statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
-        ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
+        ObjectAssert<Condition> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Condition.class))
                 .first();
-        first.extracting(Conditions::getObservedGeneration).isEqualTo(generation);
-        first.extracting(Conditions::getLastTransitionTime).isEqualTo(time);
-        first.extracting(Conditions::getType).isEqualTo("Ready");
-        first.extracting(Conditions::getStatus).isEqualTo(Conditions.Status.FALSE);
-        first.extracting(Conditions::getMessage).isEqualTo("Resource was terrible");
-        first.extracting(Conditions::getReason).isEqualTo(InvalidResourceException.class.getSimpleName());
+        first.extracting(Condition::getObservedGeneration).isEqualTo(generation);
+        first.extracting(Condition::getLastTransitionTime).isEqualTo(time);
+        first.extracting(Condition::getType).isEqualTo("Ready");
+        first.extracting(Condition::getStatus).isEqualTo(Condition.Status.FALSE);
+        first.extracting(Condition::getMessage).isEqualTo("Resource was terrible");
+        first.extracting(Condition::getReason).isEqualTo(InvalidResourceException.class.getSimpleName());
     }
 
     @Test
@@ -278,7 +278,7 @@ class ProxyReconcilerTest {
                 .withNewStatus()
                     .addNewCondition()
                         .withType("Ready")
-                        .withStatus(Conditions.Status.FALSE)
+                        .withStatus(Condition.Status.FALSE)
                         .withMessage("Resource was terrible")
                         .withReason(InvalidResourceException.class.getSimpleName())
                         .withLastTransitionTime(time)
@@ -296,14 +296,14 @@ class ProxyReconcilerTest {
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus);
         statusAssert.extracting(KafkaProxyStatus::getObservedGeneration).isEqualTo(generation);
-        ObjectAssert<Conditions> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Conditions.class))
+        ObjectAssert<Condition> first = statusAssert.extracting(KafkaProxyStatus::getConditions, InstanceOfAssertFactories.list(Condition.class))
                 .first();
-        first.extracting(Conditions::getObservedGeneration).isEqualTo(generation);
-        first.extracting(Conditions::getLastTransitionTime).isNotEqualTo(time);
-        first.extracting(Conditions::getType).isEqualTo("Ready");
-        first.extracting(Conditions::getStatus).isEqualTo(Conditions.Status.TRUE);
-        first.extracting(Conditions::getMessage).isEqualTo("");
-        first.extracting(Conditions::getReason).isEqualTo("");
+        first.extracting(Condition::getObservedGeneration).isEqualTo(generation);
+        first.extracting(Condition::getLastTransitionTime).isNotEqualTo(time);
+        first.extracting(Condition::getType).isEqualTo("Ready");
+        first.extracting(Condition::getStatus).isEqualTo(Condition.Status.TRUE);
+        first.extracting(Condition::getMessage).isEqualTo("");
+        first.extracting(Condition::getReason).isEqualTo("");
     }
 
     @Test
@@ -323,7 +323,7 @@ class ProxyReconcilerTest {
                 .withNewStatus()
                     .addNewCondition()
                         .withType("Ready")
-                        .withStatus(Conditions.Status.TRUE)
+                        .withStatus(Condition.Status.TRUE)
                         .withMessage("")
                         .withReason("")
                         .withLastTransitionTime(time)

@@ -16,15 +16,15 @@ import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ObjectAssert;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions;
+import io.kroxylicious.kubernetes.api.common.Condition;
 
-public class ClusterConditionAssert extends AbstractObjectAssert<ClusterConditionAssert, Conditions> {
+public class ClusterConditionAssert extends AbstractObjectAssert<ClusterConditionAssert, Condition> {
     protected ClusterConditionAssert(
-                                     Conditions o) {
+                                     Condition o) {
         super(o, ClusterConditionAssert.class);
     }
 
-    public static ClusterConditionAssert assertThat(Conditions actual) {
+    public static ClusterConditionAssert assertThat(Condition actual) {
         return new ClusterConditionAssert(actual);
     }
 
@@ -44,17 +44,25 @@ public class ClusterConditionAssert extends AbstractObjectAssert<ClusterConditio
         return Assertions.assertThat(actual.getReason());
     }
 
-    public ObjectAssert<Conditions.Status> status() {
-        return Assertions.assertThat(actual.getStatus()).asInstanceOf(InstanceOfAssertFactories.type(Conditions.Status.class));
+    public ObjectAssert<Condition.Status> status() {
+        return Assertions.assertThat(actual.getStatus()).asInstanceOf(InstanceOfAssertFactories.type(Condition.Status.class));
     }
 
     public AbstractZonedDateTimeAssert<?> lastTransitionTime() {
         return Assertions.assertThat(actual.getLastTransitionTime());
     }
 
+    public ClusterConditionAssert isReady() {
+        type().isEqualTo("Ready");
+        status().isEqualTo(Condition.Status.TRUE);
+        reason().isEmpty();
+        message().isEmpty();
+        return this;
+    }
+
     public ClusterConditionAssert isAcceptedTrue() {
         type().isEqualTo("Accepted");
-        status().isEqualTo(Conditions.Status.TRUE);
+        status().isEqualTo(Condition.Status.TRUE);
         reason().isEmpty();
         message().isEmpty();
         return this;
@@ -62,7 +70,7 @@ public class ClusterConditionAssert extends AbstractObjectAssert<ClusterConditio
 
     public ClusterConditionAssert isAcceptedFalse(String reason, String message) {
         type().isEqualTo("Accepted");
-        status().isEqualTo(Conditions.Status.FALSE);
+        status().isEqualTo(Condition.Status.FALSE);
         reason().isEqualTo(reason);
         message().isEqualTo(message);
         return this;
