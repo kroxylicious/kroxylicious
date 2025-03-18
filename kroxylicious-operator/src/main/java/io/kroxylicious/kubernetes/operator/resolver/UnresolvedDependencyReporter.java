@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator.resolver;
 
 import java.util.Set;
 
+import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -21,6 +22,6 @@ public interface UnresolvedDependencyReporter {
      * @param cluster cluster
      * @param unresolvedDependencies non-empty list of unresolved dependencies
      */
-    void reportUnresolvedDependencies(@NonNull VirtualKafkaCluster cluster, @NonNull Set<ResolutionResult.UnresolvedDependency> unresolvedDependencies);
+    void reportUnresolvedDependencies(@NonNull VirtualKafkaCluster cluster, @NonNull Set<LocalRef<?>> unresolvedDependencies);
 
 }

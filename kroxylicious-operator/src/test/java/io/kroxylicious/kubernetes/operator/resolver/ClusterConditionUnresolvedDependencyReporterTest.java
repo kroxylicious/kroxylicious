@@ -21,17 +21,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkflowAndDependentResourceContext;
 
+import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
+import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
+import io.kroxylicious.kubernetes.api.common.KafkaCRefBuilder;
+import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions;
 import io.kroxylicious.kubernetes.operator.ClusterCondition;
 import io.kroxylicious.kubernetes.operator.ConditionType;
-import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.UnresolvedDependency;
 
-import static io.kroxylicious.kubernetes.operator.resolver.Dependency.FILTER;
-import static io.kroxylicious.kubernetes.operator.resolver.Dependency.KAFKA_CLUSTER_REF;
-import static io.kroxylicious.kubernetes.operator.resolver.Dependency.KAFKA_PROXY_INGRESS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.assertArg;
@@ -62,20 +62,20 @@ class ClusterConditionUnresolvedDependencyReporterTest {
 
     @Test
     void emptyUnresolvedDependenciesIsInvalidState() {
-        Set<UnresolvedDependency> unresolvedDependencies = Set.of();
+        Set<LocalRef<?>> unresolvedDependencies = Set.of();
         Assertions.assertThatThrownBy(() -> reporter.reportUnresolvedDependencies(CLUSTER, unresolvedDependencies)).isInstanceOf(IllegalStateException.class)
                 .hasMessage("reporter should not be invoked if there are no unresolved dependencies");
     }
 
     @Test
     void deterministicallyReportsOneUnresolvedDependency() {
-        HashSet<UnresolvedDependency> unresolvedDependencies = new HashSet<>();
-        unresolvedDependencies.add(new UnresolvedDependency(KAFKA_CLUSTER_REF, "a"));
-        unresolvedDependencies.add(new UnresolvedDependency(KAFKA_CLUSTER_REF, "b"));
-        unresolvedDependencies.add(new UnresolvedDependency(FILTER, "a"));
-        unresolvedDependencies.add(new UnresolvedDependency(FILTER, "b"));
-        unresolvedDependencies.add(new UnresolvedDependency(KAFKA_PROXY_INGRESS, "a"));
-        unresolvedDependencies.add(new UnresolvedDependency(KAFKA_PROXY_INGRESS, "b"));
+        HashSet<LocalRef<?>> unresolvedDependencies = new HashSet<>();
+        unresolvedDependencies.add(new KafkaCRefBuilder().withName("a").build());
+        unresolvedDependencies.add(new KafkaCRefBuilder().withName("b").build());
+        unresolvedDependencies.add(new FilterRefBuilder().withName("a").build());
+        unresolvedDependencies.add(new FilterRefBuilder().withName("b").build());
+        unresolvedDependencies.add(new IngressRefBuilder().withName("a").build());
+        unresolvedDependencies.add(new IngressRefBuilder().withName("b").build());
 
         // when
         reporter.reportUnresolvedDependencies(CLUSTER, unresolvedDependencies);
@@ -84,15 +84,15 @@ class ClusterConditionUnresolvedDependencyReporterTest {
         verify(mockResourceContext).put(eq("cluster_conditions"), assertArg(a -> {
             assertThat(a).isInstanceOfSatisfying(Map.class, map -> {
                 assertThat(map).containsExactlyEntriesOf(Map.of("cluster", new ClusterCondition("cluster", ConditionType.Accepted, Conditions.Status.FALSE, "Invalid",
-                        "KafkaProxyIngress \"a\" does not exist.")));
+                        "Resource of kind \"KafkaProtocolFilter\" in group \"filter.kroxylicious.io\" named \"a\" does not exist.")));
             });
         }));
     }
 
     @Test
     void clusterRefUnresolved() {
-        UnresolvedDependency unresolved = new UnresolvedDependency(KAFKA_CLUSTER_REF, "a");
-        Set<UnresolvedDependency> unresolvedDependencies = Set.of(unresolved);
+        var unresolved = new KafkaCRefBuilder().withName("a").build();
+        Set<LocalRef<?>> unresolvedDependencies = Set.of(unresolved);
         VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().editMetadata().withName("cluster").endMetadata()
                 .withNewSpec().withNewTargetCluster().withNewClusterRef().withName("name").endClusterRef().endTargetCluster()
                 .endSpec().build();
@@ -104,15 +104,15 @@ class ClusterConditionUnresolvedDependencyReporterTest {
         verify(mockResourceContext).put(eq("cluster_conditions"), assertArg(a -> {
             assertThat(a).isInstanceOfSatisfying(Map.class, map -> {
                 assertThat(map).containsExactlyEntriesOf(Map.of("cluster", new ClusterCondition("cluster", ConditionType.Accepted, Conditions.Status.FALSE, "Invalid",
-                        "Target Cluster \"kafkaclusterref.kroxylicious.io/name\" does not exist.")));
+                        "Resource of kind \"KafkaClusterRef\" in group \"kroxylicious.io\" named \"a\" does not exist.")));
             });
         }));
     }
 
     @Test
     void ingressRefUnresolved() {
-        UnresolvedDependency unresolved = new UnresolvedDependency(KAFKA_PROXY_INGRESS, "a");
-        Set<UnresolvedDependency> unresolvedDependencies = Set.of(unresolved);
+        var unresolved = new IngressRefBuilder().withName("a").build();
+        Set<LocalRef<?>> unresolvedDependencies = Set.of(unresolved);
 
         // when
         reporter.reportUnresolvedDependencies(CLUSTER, unresolvedDependencies);
@@ -121,15 +121,15 @@ class ClusterConditionUnresolvedDependencyReporterTest {
         verify(mockResourceContext).put(eq("cluster_conditions"), assertArg(a -> {
             assertThat(a).isInstanceOfSatisfying(Map.class, map -> {
                 assertThat(map).containsExactlyEntriesOf(Map.of("cluster", new ClusterCondition("cluster", ConditionType.Accepted, Conditions.Status.FALSE, "Invalid",
-                        "KafkaProxyIngress \"a\" does not exist.")));
+                        "Resource of kind \"KafkaProxyIngress\" in group \"kroxylicious.io\" named \"a\" does not exist.")));
             });
         }));
     }
 
     @Test
     void filterUnresolved() {
-        UnresolvedDependency unresolved = new UnresolvedDependency(FILTER, "a");
-        Set<UnresolvedDependency> unresolvedDependencies = Set.of(unresolved);
+        var unresolved = new FilterRefBuilder().withName("a").build();
+        Set<LocalRef<?>> unresolvedDependencies = Set.of(unresolved);
 
         // when
         reporter.reportUnresolvedDependencies(CLUSTER, unresolvedDependencies);
@@ -138,7 +138,7 @@ class ClusterConditionUnresolvedDependencyReporterTest {
         verify(mockResourceContext).put(eq("cluster_conditions"), assertArg(a -> {
             assertThat(a).isInstanceOfSatisfying(Map.class, map -> {
                 assertThat(map).containsExactlyEntriesOf(Map.of("cluster", new ClusterCondition("cluster", ConditionType.Accepted, Conditions.Status.FALSE, "Invalid",
-                        "Filter \"a\" does not exist.")));
+                        "Resource of kind \"KafkaProtocolFilter\" in group \"filter.kroxylicious.io\" named \"a\" does not exist.")));
             });
         }));
     }

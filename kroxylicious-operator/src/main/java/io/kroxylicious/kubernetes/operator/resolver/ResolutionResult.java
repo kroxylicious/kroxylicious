@@ -37,14 +37,7 @@ public class ResolutionResult {
     private final Map<LocalRef<KafkaClusterRef>, KafkaClusterRef> kafkaClusterRefs;
     private final Map<String, ClusterResolutionResult> clusterResolutionResults;
 
-    public record UnresolvedDependency(Dependency type, String name) {
-        public UnresolvedDependency {
-            Objects.requireNonNull(type);
-            Objects.requireNonNull(name);
-        }
-    }
-
-    public record ClusterResolutionResult(VirtualKafkaCluster cluster, Set<UnresolvedDependency> unresolvedDependencySet) {
+    public record ClusterResolutionResult(VirtualKafkaCluster cluster, Set<LocalRef<?>> unresolvedDependencySet) {
         public ClusterResolutionResult {
             Objects.requireNonNull(cluster);
             Objects.requireNonNull(unresolvedDependencySet);
