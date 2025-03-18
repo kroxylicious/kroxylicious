@@ -231,7 +231,7 @@ public class ProxyConfigConfigMap
         SecureConfigInterpolator.InterpolationResult result;
         ConfigTemplate configTemplate = spec.getConfigTemplate();
         if (configTemplate != null) {
-            //Nasty nsaty hack. Revisit
+            // Nasty nasty hack. Revisit
             final TreeMap<String, Object> configProperties = new TreeMap<>(Comparator.nullsFirst(Comparator.naturalOrder()));
             configProperties.putAll(configTemplate.getAdditionalProperties());
             result = secureConfigInterpolator.interpolate(configProperties);
