@@ -35,7 +35,7 @@ public class ResolutionResult {
     private final Map<LocalRef<GenericKubernetesResource>, GenericKubernetesResource> filters;
     private final Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> kafkaProxyIngresses;
     private final Map<LocalRef<KafkaService>, KafkaService> kafkaServiceRefs;
-    private final Map<String, ClusterResolutionResult> clusterResolutionResults;
+    private final Set<ClusterResolutionResult> clusterResolutionResults;
 
     public record ClusterResolutionResult(VirtualKafkaCluster cluster, Set<LocalRef<?>> unresolvedDependencySet) {
         public ClusterResolutionResult {
@@ -56,7 +56,7 @@ public class ResolutionResult {
     ResolutionResult(Map<LocalRef<GenericKubernetesResource>, GenericKubernetesResource> filters,
                      Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> kafkaProxyIngresses,
                      Map<LocalRef<KafkaService>, KafkaService> kafkaServiceRefs,
-                     Map<String, ClusterResolutionResult> clusterResolutionResults) {
+                     Set<ClusterResolutionResult> clusterResolutionResults) {
         Objects.requireNonNull(filters);
         Objects.requireNonNull(kafkaProxyIngresses);
         Objects.requireNonNull(kafkaServiceRefs);
@@ -84,7 +84,7 @@ public class ResolutionResult {
     }
 
     private List<VirtualKafkaCluster> clusterResults(Predicate<ClusterResolutionResult> include) {
-        return clusterResolutionResults.values().stream().filter(include).map(ClusterResolutionResult::cluster)
+        return clusterResolutionResults.stream().filter(include).map(ClusterResolutionResult::cluster)
                 .sorted(comparing(ResourcesUtil::name)).toList();
     }
 
@@ -93,7 +93,7 @@ public class ResolutionResult {
      * @return all ClusterResolutionResult
      */
     public Collection<ClusterResolutionResult> clusterResults() {
-        return clusterResolutionResults.values();
+        return clusterResolutionResults;
     }
 
     /**
