@@ -18,8 +18,6 @@ import io.fabric8.kubernetes.api.model.SecretVolumeSource;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.kafkaprotocolfilterspec.ConfigTemplate;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -66,33 +64,6 @@ class SecureConfigInterpolatorTest {
 
     @Test
     void shouldInterpolateInAnObject() throws JsonProcessingException {
-        // given
-        Map<String, SecureConfigProvider> secret = Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER);
-        var i = new SecureConfigInterpolator("/base", secret);
-
-        var jsonValue = YAML_MAPPER.readValue("""
-                filterOneConfig: true
-                password: "${secret:my-secret:filter-one}"
-                """, ConfigTemplate.class);
-
-        // when
-        var result = i.interpolate(jsonValue);
-
-        // then
-        assertThat(result.volumes()).singleElement().extracting(Volume::getName).isEqualTo("secrets-my-secret");
-        assertThat(result.volumes()).singleElement().extracting(Volume::getSecret).extracting(SecretVolumeSource::getSecretName).isEqualTo("my-secret");
-
-        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getName).isEqualTo("secrets-filter-one");
-        assertThat(result.mounts()).singleElement().extracting(VolumeMount::getMountPath).isEqualTo("/base/secret/filter-one");
-
-        assertThat(YAML_MAPPER.writeValueAsString(result.config())).isEqualTo("""
-                filterOneConfig: true
-                password: /base/secret/my-secret/filter-one
-                """);
-    }
-
-    @Test
-    void shouldInterpolateInnMap() throws JsonProcessingException {
         // given
         Map<String, SecureConfigProvider> secret = Map.of("secret", MountedResourceConfigProvider.SECRET_PROVIDER);
         var i = new SecureConfigInterpolator("/base", secret);
