@@ -10,10 +10,10 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.fabric8.kubernetes.api.model.KubernetesResource;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 
 /**
- * A reference, used in a kubernetes resource, to a KafkaClusterRef resource in the same namespace.
+ * A reference, used in a kubernetes resource, to a KafkaService resource in the same namespace.
  */
 @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
 @com.fasterxml.jackson.annotation.JsonPropertyOrder({ "name" })
@@ -30,14 +30,14 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
         @io.sundr.builder.annotations.BuildableReference(io.fabric8.kubernetes.api.model.Volume.class),
         @io.sundr.builder.annotations.BuildableReference(io.fabric8.kubernetes.api.model.VolumeMount.class)
 })
-public class KafkaCRef
-        extends LocalRef<KafkaClusterRef>
-        implements io.fabric8.kubernetes.api.builder.Editable<KafkaCRefBuilder>,
+public class KafkaServiceRef
+        extends LocalRef<KafkaService>
+        implements io.fabric8.kubernetes.api.builder.Editable<KafkaServiceRefBuilder>,
         KubernetesResource {
 
     @Override
-    public KafkaCRefBuilder edit() {
-        return new KafkaCRefBuilder(this);
+    public KafkaServiceRefBuilder edit() {
+        return new KafkaServiceRefBuilder(this);
     }
 
     @JsonIgnore
@@ -49,7 +49,7 @@ public class KafkaCRef
     @JsonIgnore
     @Override
     public String getKind() {
-        return "KafkaClusterRef";
+        return "KafkaService";
     }
 
     @com.fasterxml.jackson.annotation.JsonProperty("name")

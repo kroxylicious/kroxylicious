@@ -36,13 +36,13 @@ import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMap
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
@@ -522,7 +522,7 @@ class ProxyReconcilerTest {
     }
 
     @Test
-    void proxyToKafkaClusterRefMapper() {
+    void proxyToKafkaServiceMapper() {
         EventSourceContext<KafkaProxy> eventSourceContext = mock();
         KubernetesClient client = mock();
         when(eventSourceContext.getClient()).thenReturn(client);
@@ -531,23 +531,23 @@ class ProxyReconcilerTest {
 
         KubernetesResourceList<VirtualKafkaCluster> clusterListMock = mockVirtualKafkaClusterListOperation(client);
 
-        KubernetesResourceList<KafkaClusterRef> clusterRefListMock = mockKafkaClusterRefListOperation(client);
+        KubernetesResourceList<KafkaService> clusterRefListMock = mockKafkaServiceListOperation(client);
 
-        KafkaClusterRef kafkaClusterRef = buildKafkaClusterRef("ref");
+        KafkaService kafkaServiceRef = buildKafkaService("ref");
 
-        when(clusterRefListMock.getItems()).thenReturn(List.of(kafkaClusterRef));
+        when(clusterRefListMock.getItems()).thenReturn(List.of(kafkaServiceRef));
 
-        VirtualKafkaCluster cluster = buildVirtualKafkaCluster(proxy, "cluster", kafkaClusterRef);
+        VirtualKafkaCluster cluster = buildVirtualKafkaCluster(proxy, "cluster", kafkaServiceRef);
 
         when(clusterListMock.getItems()).thenReturn(List.of(cluster));
 
-        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToKafkaClusterRefMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
-        assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(kafkaClusterRef));
+        assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(kafkaServiceRef));
     }
 
     @Test
-    void proxyToKafkaClusterRefMapperDistinguishesByProxy() {
+    void proxyToKafkaServiceMapperDistinguishesByProxy() {
         EventSourceContext<KafkaProxy> eventSourceContext = mock();
         KubernetesClient client = mock();
         when(eventSourceContext.getClient()).thenReturn(client);
@@ -557,26 +557,26 @@ class ProxyReconcilerTest {
 
         KubernetesResourceList<VirtualKafkaCluster> clusterListMock = mockVirtualKafkaClusterListOperation(client);
 
-        KubernetesResourceList<KafkaClusterRef> clusterRefListMock = mockKafkaClusterRefListOperation(client);
+        KubernetesResourceList<KafkaService> clusterRefListMock = mockKafkaServiceListOperation(client);
 
-        KafkaClusterRef kafkaClusterRefProxy1 = buildKafkaClusterRef("proxy1ref");
-        KafkaClusterRef kafkaClusterRefProxy2 = buildKafkaClusterRef("proxy2ref");
+        KafkaService kafkaServiceRefProxy1 = buildKafkaService("proxy1ref");
+        KafkaService kafkaServiceRefProxy2 = buildKafkaService("proxy2ref");
 
-        when(clusterRefListMock.getItems()).thenReturn(List.of(kafkaClusterRefProxy1, kafkaClusterRefProxy2));
+        when(clusterRefListMock.getItems()).thenReturn(List.of(kafkaServiceRefProxy1, kafkaServiceRefProxy2));
 
-        VirtualKafkaCluster clusterProxy1 = buildVirtualKafkaCluster(proxy1, "proxy1cluster", kafkaClusterRefProxy1);
-        VirtualKafkaCluster clusterProxy2 = buildVirtualKafkaCluster(proxy2, "proxy2cluster", kafkaClusterRefProxy2);
+        VirtualKafkaCluster clusterProxy1 = buildVirtualKafkaCluster(proxy1, "proxy1cluster", kafkaServiceRefProxy1);
+        VirtualKafkaCluster clusterProxy2 = buildVirtualKafkaCluster(proxy2, "proxy2cluster", kafkaServiceRefProxy2);
 
         when(clusterListMock.getItems()).thenReturn(List.of(clusterProxy1, clusterProxy2));
 
-        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToKafkaClusterRefMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
 
-        assertThat(mapper.toSecondaryResourceIDs(proxy1)).containsExactly(ResourceID.fromResource(kafkaClusterRefProxy1));
-        assertThat(mapper.toSecondaryResourceIDs(proxy2)).containsExactly(ResourceID.fromResource(kafkaClusterRefProxy2));
+        assertThat(mapper.toSecondaryResourceIDs(proxy1)).containsExactly(ResourceID.fromResource(kafkaServiceRefProxy1));
+        assertThat(mapper.toSecondaryResourceIDs(proxy2)).containsExactly(ResourceID.fromResource(kafkaServiceRefProxy2));
     }
 
     @Test
-    void proxyToKafkaClusterRefMapperHandlesProxyWithMultipleRefs() {
+    void proxyToKafkaServiceMapperHandlesProxyWithMultipleRefs() {
         EventSourceContext<KafkaProxy> eventSourceContext = mock();
         KubernetesClient client = mock();
         when(eventSourceContext.getClient()).thenReturn(client);
@@ -586,32 +586,32 @@ class ProxyReconcilerTest {
 
         KubernetesResourceList<VirtualKafkaCluster> clusterListMock = mockVirtualKafkaClusterListOperation(client);
 
-        KubernetesResourceList<KafkaClusterRef> clusterRefListMock = mockKafkaClusterRefListOperation(client);
+        KubernetesResourceList<KafkaService> clusterRefListMock = mockKafkaServiceListOperation(client);
 
-        KafkaClusterRef kafkaClusterRefProxy1 = buildKafkaClusterRef("proxy1ref");
+        KafkaService kafkaServiceRefProxy1 = buildKafkaService("proxy1ref");
 
-        KafkaClusterRef kafkaClusterRefProxy2a = buildKafkaClusterRef("proxy2refa");
-        KafkaClusterRef kafkaClusterRefProxy2b = buildKafkaClusterRef("proxy2refb");
+        KafkaService kafkaServiceRefProxy2a = buildKafkaService("proxy2refa");
+        KafkaService kafkaServiceRefProxy2b = buildKafkaService("proxy2refb");
 
-        when(clusterRefListMock.getItems()).thenReturn(List.of(kafkaClusterRefProxy1, kafkaClusterRefProxy2a, kafkaClusterRefProxy2b));
+        when(clusterRefListMock.getItems()).thenReturn(List.of(kafkaServiceRefProxy1, kafkaServiceRefProxy2a, kafkaServiceRefProxy2b));
 
-        VirtualKafkaCluster clusterProxy1 = buildVirtualKafkaCluster(proxy1, "proxy1cluster", kafkaClusterRefProxy1);
-        VirtualKafkaCluster clusterProxy2a = buildVirtualKafkaCluster(proxy2, "proxy2clustera", kafkaClusterRefProxy2a);
-        VirtualKafkaCluster clusterProxy2b = buildVirtualKafkaCluster(proxy2, "proxy2clusterb", kafkaClusterRefProxy2b);
+        VirtualKafkaCluster clusterProxy1 = buildVirtualKafkaCluster(proxy1, "proxy1cluster", kafkaServiceRefProxy1);
+        VirtualKafkaCluster clusterProxy2a = buildVirtualKafkaCluster(proxy2, "proxy2clustera", kafkaServiceRefProxy2a);
+        VirtualKafkaCluster clusterProxy2b = buildVirtualKafkaCluster(proxy2, "proxy2clusterb", kafkaServiceRefProxy2b);
 
         when(clusterListMock.getItems()).thenReturn(List.of(clusterProxy1, clusterProxy2a, clusterProxy2b));
 
-        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToKafkaClusterRefMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
 
         assertThat(mapper.toSecondaryResourceIDs(proxy1))
-                .containsExactly(ResourceID.fromResource(kafkaClusterRefProxy1));
+                .containsExactly(ResourceID.fromResource(kafkaServiceRefProxy1));
 
         assertThat(mapper.toSecondaryResourceIDs(proxy2))
-                .containsExactly(ResourceID.fromResource(kafkaClusterRefProxy2a), ResourceID.fromResource(kafkaClusterRefProxy2b));
+                .containsExactly(ResourceID.fromResource(kafkaServiceRefProxy2a), ResourceID.fromResource(kafkaServiceRefProxy2b));
     }
 
     @Test
-    void proxyToKafkaClusterRefMapperIgnoresDanglingKafkaClusterRef() {
+    void proxyToKafkaServiceMapperIgnoresDanglingKafkaService() {
         EventSourceContext<KafkaProxy> eventSourceContext = mock();
         KubernetesClient client = mock();
         when(eventSourceContext.getClient()).thenReturn(client);
@@ -619,26 +619,26 @@ class ProxyReconcilerTest {
         KafkaProxy proxy = buildProxy("proxy");
 
         KubernetesResourceList<VirtualKafkaCluster> clusterListMock = mockVirtualKafkaClusterListOperation(client);
-        mockKafkaClusterRefListOperation(client);
+        mockKafkaServiceListOperation(client);
 
-        VirtualKafkaCluster cluster = buildVirtualKafkaCluster(proxy, "cluster", buildKafkaClusterRef("dangle"));
+        VirtualKafkaCluster cluster = buildVirtualKafkaCluster(proxy, "cluster", buildKafkaService("dangle"));
 
         when(clusterListMock.getItems()).thenReturn(List.of(cluster));
 
-        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToKafkaClusterRefMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
         assertThat(secondaryResourceIDs).isEmpty();
     }
 
     @Test
-    void kafkaClusterRefToProxyMapper() {
+    void kafkaServiceRefToProxyMapper() {
         EventSourceContext<KafkaProxy> eventSourceContext = mock();
         KubernetesClient client = mock();
         when(eventSourceContext.getClient()).thenReturn(client);
 
-        KafkaClusterRef kafkaClusterRef = buildKafkaClusterRef("ref");
+        KafkaService kafkaServiceRef = buildKafkaService("ref");
         KafkaProxy proxy = buildProxy("proxy");
-        VirtualKafkaCluster cluster = buildVirtualKafkaCluster(proxy, "cluster", kafkaClusterRef);
+        VirtualKafkaCluster cluster = buildVirtualKafkaCluster(proxy, "cluster", kafkaServiceRef);
 
         KubernetesResourceList<KafkaProxy> mockProxyList = mockKafkaProxyListOperation(client);
         when(mockProxyList.getItems()).thenReturn(List.of(proxy));
@@ -646,23 +646,23 @@ class ProxyReconcilerTest {
         KubernetesResourceList<VirtualKafkaCluster> mockClusterList = mockVirtualKafkaClusterListOperation(client);
         when(mockClusterList.getItems()).thenReturn(List.of(cluster));
 
-        SecondaryToPrimaryMapper<KafkaClusterRef> mapper = ProxyReconciler.kafkaClusterRefToProxyMapper(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaService> mapper = ProxyReconciler.kafkaServiceRefToProxyMapper(eventSourceContext);
 
-        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(kafkaClusterRef);
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(kafkaServiceRef);
         assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(proxy));
     }
 
     @Test
-    void kafkaClusterRefToProxyMapperHandlesSharedKafkaClusterRef() {
+    void kafkaServiceRefToProxyMapperHandlesSharedKafkaService() {
         EventSourceContext<KafkaProxy> eventSourceContext = mock();
         KubernetesClient client = mock();
         when(eventSourceContext.getClient()).thenReturn(client);
 
-        KafkaClusterRef kafkaClusterRef = buildKafkaClusterRef("ref");
+        KafkaService kafkaServiceRef = buildKafkaService("ref");
         KafkaProxy proxy1 = buildProxy("proxy1");
         KafkaProxy proxy2 = buildProxy("proxy2");
-        VirtualKafkaCluster proxy1cluster = buildVirtualKafkaCluster(proxy1, "proxy1cluster", kafkaClusterRef);
-        VirtualKafkaCluster proxy2cluster = buildVirtualKafkaCluster(proxy2, "proxy2cluster", kafkaClusterRef);
+        VirtualKafkaCluster proxy1cluster = buildVirtualKafkaCluster(proxy1, "proxy1cluster", kafkaServiceRef);
+        VirtualKafkaCluster proxy2cluster = buildVirtualKafkaCluster(proxy2, "proxy2cluster", kafkaServiceRef);
 
         KubernetesResourceList<KafkaProxy> mockProxyList = mockKafkaProxyListOperation(client);
         when(mockProxyList.getItems()).thenReturn(List.of(proxy1, proxy2));
@@ -670,21 +670,21 @@ class ProxyReconcilerTest {
         KubernetesResourceList<VirtualKafkaCluster> mockClusterList = mockVirtualKafkaClusterListOperation(client);
         when(mockClusterList.getItems()).thenReturn(List.of(proxy1cluster, proxy2cluster));
 
-        SecondaryToPrimaryMapper<KafkaClusterRef> mapper = ProxyReconciler.kafkaClusterRefToProxyMapper(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaService> mapper = ProxyReconciler.kafkaServiceRefToProxyMapper(eventSourceContext);
 
-        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(kafkaClusterRef);
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(kafkaServiceRef);
         assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(proxy1), ResourceID.fromResource(proxy2));
     }
 
     @Test
-    void kafkaClusterRefToProxyMapperHandlesOrphanKafkaClusterRef() {
+    void kafkaServiceRefToProxyMapperHandlesOrphanKafkaService() {
         EventSourceContext<KafkaProxy> eventSourceContext = mock();
         KubernetesClient client = mock();
         when(eventSourceContext.getClient()).thenReturn(client);
 
-        KafkaClusterRef orphanKafkaClusterRed = buildKafkaClusterRef("orphan");
+        KafkaService orphanKafkaClusterRed = buildKafkaService("orphan");
         KafkaProxy proxy = buildProxy("proxy");
-        VirtualKafkaCluster cluster = buildVirtualKafkaCluster(proxy, "cluster", buildKafkaClusterRef("ref"));
+        VirtualKafkaCluster cluster = buildVirtualKafkaCluster(proxy, "cluster", buildKafkaService("ref"));
 
         KubernetesResourceList<KafkaProxy> mockProxyList = mockKafkaProxyListOperation(client);
         when(mockProxyList.getItems()).thenReturn(List.of(proxy));
@@ -692,7 +692,7 @@ class ProxyReconcilerTest {
         KubernetesResourceList<VirtualKafkaCluster> mockClusterList = mockVirtualKafkaClusterListOperation(client);
         when(mockClusterList.getItems()).thenReturn(List.of(cluster));
 
-        SecondaryToPrimaryMapper<KafkaClusterRef> mapper = ProxyReconciler.kafkaClusterRefToProxyMapper(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaService> mapper = ProxyReconciler.kafkaServiceRefToProxyMapper(eventSourceContext);
 
         Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(orphanKafkaClusterRed);
         assertThat(primaryResourceIDs).isEmpty();
@@ -702,15 +702,15 @@ class ProxyReconcilerTest {
         return new KafkaProxyBuilder().withNewMetadata().withName(name).endMetadata().build();
     }
 
-    private KafkaClusterRef buildKafkaClusterRef(String name) {
-        return new KafkaClusterRefBuilder()
+    private KafkaService buildKafkaService(String name) {
+        return new KafkaServiceBuilder()
                 .withNewMetadata()
                 .withName(name)
                 .endMetadata()
                 .build();
     }
 
-    private VirtualKafkaCluster buildVirtualKafkaCluster(KafkaProxy kafkaProxy, String name, KafkaClusterRef clusterRef) {
+    private VirtualKafkaCluster buildVirtualKafkaCluster(KafkaProxy kafkaProxy, String name, KafkaService clusterRef) {
         return baseVirtualKafkaClusterBuilder(kafkaProxy, name)
                 .editOrNewSpec()
                 .withNewTargetCluster()
@@ -753,11 +753,11 @@ class ProxyReconcilerTest {
         return clusterList;
     }
 
-    private KubernetesResourceList<KafkaClusterRef> mockKafkaClusterRefListOperation(KubernetesClient client) {
-        MixedOperation<KafkaClusterRef, KubernetesResourceList<KafkaClusterRef>, Resource<KafkaClusterRef>> clusterRefOperation = mock();
-        when(client.resources(KafkaClusterRef.class)).thenReturn(clusterRefOperation);
+    private KubernetesResourceList<KafkaService> mockKafkaServiceListOperation(KubernetesClient client) {
+        MixedOperation<KafkaService, KubernetesResourceList<KafkaService>, Resource<KafkaService>> clusterRefOperation = mock();
+        when(client.resources(KafkaService.class)).thenReturn(clusterRefOperation);
 
-        KubernetesResourceList<KafkaClusterRef> clusterRefList = mock();
+        KubernetesResourceList<KafkaService> clusterRefList = mock();
         when(clusterRefOperation.list()).thenReturn(clusterRefList);
         when(clusterRefOperation.inNamespace(any())).thenReturn(clusterRefOperation);
         return clusterRefList;

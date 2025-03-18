@@ -342,7 +342,7 @@
                             io.kroxylicious.kubernetes.api.common.ProxyRef
                         </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ProxyRef>
                         <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.targetcluster.ClusterRef>
-                            io.kroxylicious.kubernetes.api.common.KafkaCRef
+                            io.kroxylicious.kubernetes.api.common.KafkaServiceRef
                         </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.targetcluster.ClusterRef>
                         <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefs>
                             io.kroxylicious.kubernetes.api.common.IngressRef

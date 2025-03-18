@@ -35,9 +35,9 @@ import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodFilter;
@@ -176,7 +176,7 @@ class OperatorMainTest {
         expectCrd(KafkaProtocolFilter.class);
         expectCrd(KafkaProxy.class);
         expectCrd(VirtualKafkaCluster.class);
-        expectCrd(KafkaClusterRef.class);
+        expectCrd(KafkaService.class);
     }
 
     private void expectCrd(Class<? extends CustomResource<?, ?>> crdClass) {
