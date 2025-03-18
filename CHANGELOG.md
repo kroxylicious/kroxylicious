@@ -6,6 +6,9 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+
+* [#1928](https://github.com/kroxylicious/kroxylicious/pull/1928) Make Kroxylicious Operator metrics available for collection
+
 ## 0.11.0
 
 * [#1810](https://github.com/kroxylicious/kroxylicious/issues/1810) Run operator/operand image as non-root user
@@ -19,6 +22,7 @@ Format `<github issue/pr number>: <short description>`.
 * [#1819](https://github.com/kroxylicious/kroxylicious/pull/1819) Bump io.netty:netty-bom from 4.1.117.Final to 4.1.118.Final
 * [#1820](https://github.com/kroxylicious/kroxylicious/pull/1820) Bump io.micrometer:micrometer-bom from 1.14.3 to 1.14.4
 * [#1768](https://github.com/kroxylicious/kroxylicious/pull/1768) Record Encryption: enable user to specify policy when we cannot resolve a Key for a topic
+* [#1867](https://github.com/kroxylicious/kroxylicious/pull/1867) Capture metrics about the operation of the Kroxylicious Operator
 
 ### Changes, deprecations and removals
 

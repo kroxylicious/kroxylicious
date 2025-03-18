@@ -5,22 +5,32 @@
  */
 package io.kroxylicious.kubernetes.operator;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sun.net.httpserver.HttpContext;
+import com.sun.net.httpserver.HttpServer;
+
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.Operator;
 import io.javaoperatorsdk.operator.monitoring.micrometer.MicrometerMetrics;
-import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.prometheusmetrics.PrometheusConfig;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
+import io.prometheus.metrics.exporter.httpserver.MetricsHandler;
 
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
+import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodFilter;
+import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -31,22 +41,26 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class OperatorMain {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorMain.class);
-    private MeterRegistry registry;
+    private static final String BIND_ADDRESS_VAR_NAME = "BIND_ADDRESS";
+    private static final int DEFAULT_MANAGEMENT_PORT = 8080;
     private final Operator operator;
+    private final HttpServer managementServer;
 
-    public OperatorMain() {
-        this(null);
+    public OperatorMain() throws IOException {
+        this(null, createHttpServer());
     }
 
-    public OperatorMain(@Nullable KubernetesClient kubeClient) {
-        final MicrometerMetrics metrics = enablePrometheusMetrics();
+    @VisibleForTesting
+    OperatorMain(@Nullable KubernetesClient kubeClient, @NonNull HttpServer managementServer) {
+        configurePrometheusMetrics(managementServer);
         // o.withMetrics is invoked multiple times so can cause issues with enabling metrics.
         operator = new Operator(o -> {
-            o.withMetrics(metrics);
+            o.withMetrics(enablePrometheusMetrics());
             if (kubeClient != null) {
                 o.withKubernetesClient(kubeClient);
             }
         });
+        this.managementServer = managementServer;
     }
 
     public static void main(String[] args) {
@@ -66,28 +80,85 @@ public class OperatorMain {
         operator.installShutdownHook(Duration.ofSeconds(10));
         var registeredController = operator.register(new ProxyReconciler(runtimeDecl()));
         // TODO couple the health of the registeredController to the operator's HTTP healthchecks
+        managementServer.createContext("/", exchange -> {
+            try (exchange) {
+                // note while the JDK docs advise exchange.getRequestBody().transferTo(OutputStream.nullOutputStream()); we explicitly don't do that!
+                // As a denial-of-service protection we don't expect anything other than GET requests so there should be no input to read.
+                exchange.sendResponseHeaders(404, -1);
+            }
+        }).getFilters().add(UnsupportedHttpMethodFilter.INSTANCE); // This works as a request to `/metrics` has a more explicit match and thus gets served.
+        managementServer.start();
         operator.start();
         LOGGER.info("Operator started.");
     }
 
     void stop() {
         operator.stop();
+        managementServer.stop(0); // TODO maybe this should be configurable
         LOGGER.info("Operator stopped.");
     }
 
     @NonNull
     static RuntimeDecl runtimeDecl() {
         // TODO read these from some configuration CR
-        return new RuntimeDecl(List.of(
-                new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "KafkaProtocolFilter")));
+        return new RuntimeDecl(List.of(new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "KafkaProtocolFilter")));
     }
 
     private MicrometerMetrics enablePrometheusMetrics() {
-        registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
-        Metrics.globalRegistry.add(registry);
         return MicrometerMetrics.newPerResourceCollectingMicrometerMetricsBuilder(Metrics.globalRegistry)
                 .withCleanUpDelayInSeconds(35)
                 .withCleaningThreadNumber(1)
                 .build();
     }
+
+    private void configurePrometheusMetrics(HttpServer managementServer) {
+        final PrometheusMeterRegistry prometheusMeterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+        final HttpContext metricsContext = managementServer.createContext("/metrics",
+                new MetricsHandler(prometheusMeterRegistry.getPrometheusRegistry()));
+        metricsContext.getFilters().add(UnsupportedHttpMethodFilter.INSTANCE);
+        Metrics.globalRegistry.add(prometheusMeterRegistry);
+    }
+
+    @VisibleForTesting
+    static HttpServer createHttpServer() throws IOException {
+        final Properties systemProps = System.getProperties();
+        if (!systemProps.containsKey("sun.net.httpserver.maxReqTime")) {
+            System.setProperty("sun.net.httpserver.maxReqTime", "60");
+        }
+
+        if (!systemProps.containsKey("sun.net.httpserver.maxRspTime")) {
+            System.setProperty("sun.net.httpserver.maxRspTime", "120");
+        }
+
+        return HttpServer.create(getBindAddress(), 0);
+    }
+
+    @NonNull
+    @VisibleForTesting
+    static InetSocketAddress getBindAddress() {
+        final Map<String, String> envVars = System.getenv();
+        final String bindAddress = envVars.getOrDefault(BIND_ADDRESS_VAR_NAME, "0.0.0.0:" + DEFAULT_MANAGEMENT_PORT);
+        String bindToInterface;
+        int bindToPort;
+        if (bindAddress.contains(":")) {
+            final HostPort parse = HostPort.parse(bindAddress);
+            bindToInterface = parse.host();
+            bindToPort = parse.port();
+        }
+        else if (!bindAddress.isEmpty()) {
+            LOGGER.warn("{} env var is set but does not contain `:` assuming hostname only and binding to default port ({})",
+                    BIND_ADDRESS_VAR_NAME,
+                    DEFAULT_MANAGEMENT_PORT);
+            bindToInterface = bindAddress;
+            bindToPort = DEFAULT_MANAGEMENT_PORT;
+        }
+        else {
+            bindToInterface = "0.0.0.0";
+            bindToPort = DEFAULT_MANAGEMENT_PORT;
+        }
+
+        LOGGER.info("Starting management server on: {}:{}", bindToInterface, bindToPort);
+        return new InetSocketAddress(bindToInterface, bindToPort);
+    }
+
 }

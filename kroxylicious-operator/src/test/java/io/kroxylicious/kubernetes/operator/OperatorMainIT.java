@@ -6,7 +6,15 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Stream;
 
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterAll;
@@ -16,6 +24,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 
+import com.sun.net.httpserver.HttpServer;
+
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.OperatorException;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
@@ -24,6 +34,7 @@ import io.micrometer.core.instrument.search.MeterNotFoundException;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -35,8 +46,16 @@ import static org.assertj.core.api.Assertions.fail;
 
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 class OperatorMainIT {
-    private OperatorMain operatorMain;
     // This is an IT because it depends on having a running Kube cluster
+
+    private static final String CLUSTER_FOO_REF = "fooref";
+    private static final String CLUSTER_FOO_BOOTSTRAP = "my-cluster-kafka-bootstrap.foo.svc.cluster.local:9092";
+    private static final String CLUSTER_BAR_REF = "barref";
+    private static final String CLUSTER_BAR_BOOTSTRAP = "my-cluster-kafka-bootstrap.bar.svc.cluster.local:9092";
+
+    private HttpServer managementServer;
+    private KafkaProxy kafkaProxy;
+    private OperatorMain operatorMain;
 
     @BeforeAll
     static void beforeAll() {
@@ -61,12 +80,19 @@ class OperatorMainIT {
     }
 
     @BeforeEach
-    void beforeEach() {
-        operatorMain = new OperatorMain(null);
+    void beforeEach() throws IOException {
+        managementServer = HttpServer.create(new InetSocketAddress("localhost", 0), 10);
+        operatorMain = new OperatorMain(null, managementServer);
     }
 
     @AfterEach
     void afterEach() {
+        if (kafkaProxy != null) {
+            final KubernetesClient kubernetesClient = Objects.requireNonNull(OperatorTestUtils.kubeClientIfAvailable());
+            kubernetesClient.resource(kafkaProxy).delete();
+            kubernetesClient.resource(clusterRef(CLUSTER_FOO_REF, CLUSTER_FOO_BOOTSTRAP)).delete();
+            kubernetesClient.resource(clusterRef(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)).delete();
+        }
         if (operatorMain != null) {
             operatorMain.stop();
         }
@@ -102,7 +128,7 @@ class OperatorMainIT {
         operatorMain.start();
 
         // When
-        OperatorTestUtils.kubeClientIfAvailable().resource(proxyBuilder.build()).create();
+        kafkaProxy = createProxyInstance(proxyBuilder);
 
         // Then
         Awaitility.await()
@@ -120,5 +146,110 @@ class OperatorMainIT {
 
         // Then
         assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.executions.proxyreconciler").meter().getId()).isNotNull();
+    }
+
+    @SuppressWarnings("resource")
+    @Test
+    void shouldMakeMetricsAvailableViaHttp() {
+        // Given
+        @SuppressWarnings("resource") // Only applies at JDK 21+ level and we are JDK 17
+        HttpClient httpClient = HttpClient.newHttpClient();
+        final HttpResponse.BodyHandler<Stream<String>> responseBodyHandler = HttpResponse.BodyHandlers.ofLines();
+        final KafkaProxyBuilder proxyBuilder = new KafkaProxyBuilder()
+                .withKind("KafkaProxy")
+                .withNewMetadata()
+                .withName("mycoolproxy")
+                .endMetadata();
+        operatorMain.start();
+
+        // When
+        kafkaProxy = createProxyInstance(proxyBuilder);
+
+        // Then
+        Awaitility.await()
+                .atMost(10, TimeUnit.SECONDS)
+                .untilAsserted(() -> {
+                    final HttpResponse<Stream<String>> response = httpClient.send(
+                            HttpRequest.newBuilder().uri(URI.create(managementAddress() + "/metrics")).build(),
+                            responseBodyHandler);
+                    assertThat(response.statusCode()).isEqualTo(200);
+                    assertThat(response.body())
+                            .isNotEmpty()
+                            .anySatisfy(line -> assertThat(line).contains("operator_sdk_reconciliations_executions_proxyreconciler"))
+                            .anySatisfy(line -> assertThat(line).contains("operator_sdk_events_received"));
+                });
+    }
+
+    @Test
+    void shouldSendClientErrorForUnsupportedHttpMethod() throws IOException, InterruptedException {
+        // Given
+        @SuppressWarnings("resource") // Only applies at JDK 21+ level and we are JDK 17
+        HttpClient httpClient = HttpClient.newHttpClient();
+        final HttpResponse.BodyHandler<Stream<String>> responseBodyHandler = HttpResponse.BodyHandlers.ofLines();
+        operatorMain.start();
+
+        // When
+        final HttpResponse<Stream<String>> response = httpClient.send(
+                HttpRequest.newBuilder().uri(URI.create(managementAddress() + "/")).DELETE().build(),
+                responseBodyHandler);
+
+        // Then
+        assertThat(response.statusCode()).isEqualTo(405);
+        assertThat(response.body()).isEmpty();
+    }
+
+    @Test
+    void shouldSendClientErrorForUnsupportedPaths() throws IOException, InterruptedException {
+        // Given
+        @SuppressWarnings("resource") // Only applies at JDK 21+ level and we are JDK 17
+        HttpClient httpClient = HttpClient.newHttpClient();
+        final HttpResponse.BodyHandler<Stream<String>> responseBodyHandler = HttpResponse.BodyHandlers.ofLines();
+        operatorMain.start();
+
+        // When
+        final HttpResponse<Stream<String>> response = httpClient.send(
+                HttpRequest.newBuilder().uri(URI.create(managementAddress() + "/")).GET().build(),
+                responseBodyHandler);
+
+        // Then
+        assertThat(response.statusCode()).isEqualTo(404);
+        assertThat(response.body()).isEmpty();
+    }
+
+    @Test
+    void shouldSendClientErrorForUnsupportedHttpMethodToMetrics() throws IOException, InterruptedException {
+        // Given
+        @SuppressWarnings("resource") // Only applies at JDK 21+ level and we are JDK 17
+        HttpClient httpClient = HttpClient.newHttpClient();
+        final HttpResponse.BodyHandler<Stream<String>> responseBodyHandler = HttpResponse.BodyHandlers.ofLines();
+        operatorMain.start();
+
+        // When
+        final HttpResponse<Stream<String>> response = httpClient.send(
+                HttpRequest.newBuilder().uri(URI.create(managementAddress() + "/metrics")).DELETE().build(),
+                responseBodyHandler);
+
+        // Then
+        assertThat(response.statusCode()).isEqualTo(405);
+        assertThat(response.body()).isEmpty();
+    }
+
+    private KafkaProxy createProxyInstance(KafkaProxyBuilder proxyBuilder) {
+        final KubernetesClient kubernetesClient = Objects.requireNonNull(OperatorTestUtils.kubeClientIfAvailable());
+        kubernetesClient.resource(clusterRef(CLUSTER_FOO_REF, CLUSTER_FOO_BOOTSTRAP)).create();
+        kubernetesClient.resource(clusterRef(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)).create();
+        return kubernetesClient.resource(proxyBuilder.build()).create();
+    }
+
+    private KafkaClusterRef clusterRef(String clusterRefName, String clusterBootstrap) {
+        return new KafkaClusterRefBuilder().withNewMetadata().withName(clusterRefName).endMetadata()
+                .withNewSpec()
+                .withBootstrapServers(clusterBootstrap)
+                .endSpec()
+                .build();
+    }
+
+    private String managementAddress() {
+        return String.format("http://%s:%s", managementServer.getAddress().getHostString(), managementServer.getAddress().getPort());
     }
 }
