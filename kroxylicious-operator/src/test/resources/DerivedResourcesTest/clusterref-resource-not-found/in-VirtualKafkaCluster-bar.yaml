@@ -13,9 +13,8 @@ metadata:
 spec:
   proxyRef:
     name: example
-  targetCluster:
-    clusterRef:
-      name: barref
+  targetKafkaServiceRef:
+    name: barref
   filterRefs:
     - name: filter-one
   ingressRefs:

@@ -713,11 +713,9 @@ class ProxyReconcilerTest {
     private VirtualKafkaCluster buildVirtualKafkaCluster(KafkaProxy kafkaProxy, String name, KafkaService clusterRef) {
         return baseVirtualKafkaClusterBuilder(kafkaProxy, name)
                 .editOrNewSpec()
-                .withNewTargetCluster()
-                .withNewClusterRef()
+                .withNewTargetKafkaServiceRef()
                 .withName(name(clusterRef))
-                .endClusterRef()
-                .endTargetCluster()
+                .endTargetKafkaServiceRef()
                 .endSpec()
                 .build();
     }

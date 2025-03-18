@@ -87,7 +87,7 @@ public class DependencyResolverImpl implements DependencyResolver {
 
     private Optional<LocalRef<?>> determineUnresolvedKafkaService(VirtualKafkaClusterSpec spec,
                                                                   Map<LocalRef<KafkaService>, KafkaService> clusterRefs) {
-        var clusterRef = spec.getTargetCluster().getClusterRef();
+        var clusterRef = spec.getTargetKafkaServiceRef();
         if (!clusterRefs.containsKey(clusterRef)) {
             return Optional.of(clusterRef);
         }

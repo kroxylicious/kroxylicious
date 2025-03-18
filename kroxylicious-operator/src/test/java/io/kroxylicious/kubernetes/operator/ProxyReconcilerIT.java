@@ -235,7 +235,7 @@ class ProxyReconcilerIT {
         extension.create(clusterRef(newClusterRefName, NEW_BOOTSTRAP));
 
         KafkaServiceRef newClusterRef = new KafkaServiceRefBuilder().withName(newClusterRefName).build();
-        var cluster = createdResources.cluster(CLUSTER_BAR).edit().editSpec().editTargetCluster().withClusterRef(newClusterRef).endTargetCluster().endSpec().build();
+        var cluster = createdResources.cluster(CLUSTER_BAR).edit().editSpec().withTargetKafkaServiceRef(newClusterRef).endSpec().build();
 
         // when
         extension.replace(cluster);
@@ -315,9 +315,7 @@ class ProxyReconcilerIT {
                                                            KafkaProxyIngress ingress) {
         return new VirtualKafkaClusterBuilder().withNewMetadata().withName(clusterName).endMetadata()
                 .withNewSpec()
-                .withNewTargetCluster()
-                .withClusterRef(new KafkaServiceRefBuilder().withName(name(clusterRef)).build())
-                .endTargetCluster()
+                .withTargetKafkaServiceRef(new KafkaServiceRefBuilder().withName(name(clusterRef)).build())
                 .withNewProxyRef().withName(name(proxy)).endProxyRef()
                 .addNewIngressRef().withName(name(ingress)).endIngressRef()
                 .withFilterRefs()

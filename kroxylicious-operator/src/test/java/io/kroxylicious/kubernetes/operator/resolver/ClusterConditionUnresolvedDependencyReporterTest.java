@@ -94,7 +94,7 @@ class ClusterConditionUnresolvedDependencyReporterTest {
         var unresolved = new KafkaServiceRefBuilder().withName("a").build();
         Set<LocalRef<?>> unresolvedDependencies = Set.of(unresolved);
         VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().editMetadata().withName("cluster").endMetadata()
-                .withNewSpec().withNewTargetCluster().withNewClusterRef().withName("name").endClusterRef().endTargetCluster()
+                .withNewSpec().withNewTargetKafkaServiceRef().withName("name").endTargetKafkaServiceRef()
                 .endSpec().build();
 
         // when
