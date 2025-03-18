@@ -119,7 +119,7 @@ public class ResolutionResult {
      * @return optional containing the cluster ref if resolved, else empty
      */
     public Optional<KafkaService> kafkaServiceRef(VirtualKafkaCluster cluster) {
-        var ref = cluster.getSpec().getTargetCluster().getClusterRef();
+        var ref = cluster.getSpec().getTargetKafkaServiceRef();
         return Optional.ofNullable(kafkaServiceRefs.get(ref));
     }
 
