@@ -334,6 +334,7 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.PodTemplate>
                             io.fabric8.kubernetes.api.model.PodTemplateSpec
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.PodTemplate>
+
                         <!-- Common types used across our own CRDs -->
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ProxyRef>
                             io.kroxylicious.kubernetes.api.common.ProxyRef
@@ -350,6 +351,13 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.FilterRefs>
                             io.kroxylicious.kubernetes.api.common.FilterRef
                         </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.FilterRefs>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions>
+                            io.kroxylicious.kubernetes.api.common.Condition
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions>
+                            io.kroxylicious.kubernetes.api.common.Condition
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions>
+
                     </existingJavaTypes>
                     <packageOverrides>
                         <!-- the default package name ($apiGroup.$apiVersion) doesn't work for us -->

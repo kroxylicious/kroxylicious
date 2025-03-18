@@ -6,7 +6,7 @@
 
 ---
 cluster: foo
-type: Accepted
+type: ResolvedRefs
 status: 'False'
 reason: Invalid
 message: "Resource of kind \"KafkaProxyIngress\" in group \"kroxylicious.io\" named \"MISSING\" does not exist."

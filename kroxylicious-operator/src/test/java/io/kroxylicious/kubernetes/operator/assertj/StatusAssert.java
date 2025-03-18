@@ -12,9 +12,9 @@ import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ListAssert;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
 
 public class StatusAssert extends AbstractObjectAssert<StatusAssert, KafkaProxyStatus> {
     protected StatusAssert(
@@ -30,13 +30,13 @@ public class StatusAssert extends AbstractObjectAssert<StatusAssert, KafkaProxyS
         return Assertions.assertThat(actual.getObservedGeneration());
     }
 
-    public ListAssert<Conditions.Status> conditions() {
+    public ListAssert<Condition.Status> conditions() {
         return Assertions.assertThat(actual.getConditions())
-                .asInstanceOf(InstanceOfAssertFactories.list(Conditions.Status.class));
+                .asInstanceOf(InstanceOfAssertFactories.list(Condition.Status.class));
     }
 
-    public ProxyConditionAssert singleCondition() {
-        return conditions().singleElement(AssertFactory.proxyCondition());
+    public ConditionAssert singleCondition() {
+        return conditions().singleElement(AssertFactory.condition());
     }
 
     public ListAssert<Clusters> clusters() {

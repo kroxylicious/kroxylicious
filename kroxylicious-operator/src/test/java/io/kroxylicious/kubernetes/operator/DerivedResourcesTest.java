@@ -43,11 +43,11 @@ import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManag
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependentResource;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -229,7 +229,7 @@ class DerivedResourcesTest {
 
     }
 
-    record ConditionStruct(ConditionType type,
+    record ConditionStruct(Condition.Type type,
                            String cluster,
                            String status,
                            String reason,
@@ -289,7 +289,7 @@ class DerivedResourcesTest {
                 }
                 for (var cluster : virtualKafkaClusters) {
                     ClusterCondition actualClusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
-                    if (actualClusterCondition.type() == ConditionType.Accepted && actualClusterCondition.status().equals(Conditions.Status.TRUE)) {
+                    if (actualClusterCondition.type() == Condition.Type.Accepted && actualClusterCondition.status().equals(Condition.Status.TRUE)) {
                         continue;
                     }
                     else {

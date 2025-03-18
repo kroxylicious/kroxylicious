@@ -5,9 +5,9 @@
 #
 
 ---
-cluster: "bar"
-type: "Accepted"
-status: "False"
-reason: "Invalid"
+cluster: bar
+type: ResolvedRefs
+status: 'False'
+reason: Invalid
 message: "Resource of kind \"KafkaService\" in group \"kroxylicious.io\" named\
     \ \"barref\" does not exist."
