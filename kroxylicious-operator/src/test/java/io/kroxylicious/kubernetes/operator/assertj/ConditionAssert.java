@@ -21,7 +21,7 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 
 public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condition> {
     protected ConditionAssert(
-                                     Condition o) {
+                              Condition o) {
         super(o, ConditionAssert.class);
     }
 

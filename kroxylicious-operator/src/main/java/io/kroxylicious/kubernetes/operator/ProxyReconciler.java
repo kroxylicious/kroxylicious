@@ -42,6 +42,7 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRef;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
+import io.kroxylicious.kubernetes.api.common.KafkaServiceRef;
 import io.kroxylicious.kubernetes.api.common.ProxyRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
