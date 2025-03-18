@@ -35,7 +35,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
-import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -48,9 +47,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.ProxyDeployment.KROXYLICIOUS_IMAGE_ENV_VAR;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
@@ -58,6 +56,8 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 class DerivedResourcesTest {
 
@@ -363,18 +363,18 @@ class DerivedResourcesTest {
         doReturn(resourceContext).when(context).managedWorkflowAndDependentResourceContext();
 
         var runtimeDecl = OperatorMain.runtimeDecl();
-        Set<GenericKubernetesResource> filterInstances = new HashSet<>();
+        Set<KafkaProtocolFilter> filterInstances = new HashSet<>();
         for (var filterApi : runtimeDecl.filterApis()) {
             String fileName = "in-" + filterApi.kind() + "-*.yaml";
             try (var dirStream = Files.newDirectoryStream(testDir, fileName)) {
                 for (Path p : dirStream) {
-                    GenericKubernetesResource resource = YAML_MAPPER.readValue(p.toFile(), GenericKubernetesResource.class);
+                    KafkaProtocolFilter resource = YAML_MAPPER.readValue(p.toFile(), KafkaProtocolFilter.class);
                     assertMinimalMetadata(resource.getMetadata(), fileName);
                     filterInstances.add(resource);
                 }
             }
         }
-        doReturn(filterInstances).when(context).getSecondaryResources(GenericKubernetesResource.class);
+        doReturn(filterInstances).when(context).getSecondaryResources(KafkaProtocolFilter.class);
         doReturn(Set.copyOf(virtualKafkaClusters)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
         doReturn(Set.copyOf(kafkaServiceRefs)).when(context).getSecondaryResources(KafkaService.class);
         doReturn(Set.copyOf(ingresses)).when(context).getSecondaryResources(KafkaProxyIngress.class);

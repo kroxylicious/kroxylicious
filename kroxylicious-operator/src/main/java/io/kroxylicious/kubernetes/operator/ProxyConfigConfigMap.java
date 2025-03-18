@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,6 +34,8 @@ import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterSpec;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.kafkaprotocolfilterspec.ConfigTemplate;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
@@ -46,10 +49,10 @@ import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Generates a Kube {@code ConfigMap} containing the proxy config YAML.
@@ -203,17 +206,13 @@ public class ProxyConfigConfigMap
             String filterDefinitionName = filterDefinitionName(filterCrRef);
 
             var filterCr = resolutionResult.filter(filterCrRef).orElseThrow();
-            if (filterCr.getAdditionalProperties().get("spec") instanceof Map<?, ?> spec) {
-                String type = (String) spec.get("type");
-                SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(spec);
-                ManagedWorkflowAndDependentResourceContext ctx = context.managedWorkflowAndDependentResourceContext();
-                putOrMerged(ctx, SECURE_VOLUME_KEY, interpolationResult.volumes());
-                putOrMerged(ctx, SECURE_VOLUME_MOUNT_KEY, interpolationResult.mounts());
-                return new NamedFilterDefinition(filterDefinitionName, type, interpolationResult.config());
-            }
-            else {
-                throw new InvalidClusterException(ClusterCondition.filterInvalid(ResourcesUtil.name(cluster), filterDefinitionName, "`spec` was not an `object`."));
-            }
+            var spec = filterCr.getSpec();
+            String type = spec.getType();
+            SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(spec);
+            ManagedWorkflowAndDependentResourceContext ctx = context.managedWorkflowAndDependentResourceContext();
+            putOrMerged(ctx, SECURE_VOLUME_KEY, interpolationResult.volumes());
+            putOrMerged(ctx, SECURE_VOLUME_MOUNT_KEY, interpolationResult.mounts());
+            return new NamedFilterDefinition(filterDefinitionName, type, interpolationResult.config());
 
         }).toList();
     }
@@ -228,14 +227,17 @@ public class ProxyConfigConfigMap
         }
     }
 
-    private SecureConfigInterpolator.InterpolationResult interpolateConfig(Map<?, ?> spec) {
+    private SecureConfigInterpolator.InterpolationResult interpolateConfig(KafkaProtocolFilterSpec spec) {
         SecureConfigInterpolator.InterpolationResult result;
-        Object configTemplate = spec.get("configTemplate");
+        ConfigTemplate configTemplate = spec.getConfigTemplate();
         if (configTemplate != null) {
-            result = secureConfigInterpolator.interpolate(configTemplate);
+            //Nasty nsaty hack. Revisit
+            final TreeMap<String, Object> configProperties = new TreeMap<>(Comparator.nullsFirst(Comparator.naturalOrder()));
+            configProperties.putAll(configTemplate.getAdditionalProperties());
+            result = secureConfigInterpolator.interpolate(configProperties);
         }
         else {
-            result = new SecureConfigInterpolator.InterpolationResult(spec.get("config"), Set.of(), Set.of());
+            throw new IllegalArgumentException("ConfigTemplate is not found in KafkaProtocolFilterSpec");
         }
         return result;
     }
