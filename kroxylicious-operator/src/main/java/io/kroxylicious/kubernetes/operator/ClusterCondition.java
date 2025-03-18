@@ -35,13 +35,8 @@ public record ClusterCondition(@NonNull String cluster,
     }
 
     public static ClusterCondition refNotFound(String cluster, LocalRef<?> ref) {
-        return new ClusterCondition(cluster, Condition.Type.Accepted, Condition.Status.FALSE, INVALID,
+        return new ClusterCondition(cluster, Condition.Type.ResolvedRefs, Condition.Status.FALSE, INVALID,
                 String.format("Resource of kind \"%s\" in group \"%s\" named \"%s\" does not exist.", ref.getKind(), ref.getGroup(), ref.getName()));
-    }
-
-    public static ClusterCondition filterNotFound(String cluster, String filterName) {
-        return new ClusterCondition(cluster, Condition.Type.Accepted, Condition.Status.FALSE, INVALID,
-                String.format("Filter \"%s\" does not exist.", filterName));
     }
 
     public static ClusterCondition ingressConflict(String cluster, Set<IngressConflictException> ingressConflictExceptions) {

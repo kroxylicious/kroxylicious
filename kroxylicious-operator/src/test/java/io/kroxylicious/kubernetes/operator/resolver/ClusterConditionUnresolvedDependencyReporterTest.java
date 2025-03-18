@@ -82,7 +82,7 @@ class ClusterConditionUnresolvedDependencyReporterTest {
         // then
         verify(mockResourceContext).put(eq("cluster_conditions"), assertArg(a -> {
             assertThat(a).isInstanceOfSatisfying(Map.class, map -> {
-                assertThat(map).containsExactlyEntriesOf(Map.of("cluster", new ClusterCondition("cluster", Condition.Type.Accepted, Condition.Status.FALSE, "Invalid",
+                assertThat(map).containsExactlyEntriesOf(Map.of("cluster", new ClusterCondition("cluster", Condition.Type.ResolvedRefs, Condition.Status.FALSE, "Invalid",
                         "Resource of kind \"KafkaProtocolFilter\" in group \"filter.kroxylicious.io\" named \"a\" does not exist.")));
             });
         }));
@@ -102,7 +102,7 @@ class ClusterConditionUnresolvedDependencyReporterTest {
         // then
         verify(mockResourceContext).put(eq("cluster_conditions"), assertArg(a -> {
             assertThat(a).isInstanceOfSatisfying(Map.class, map -> {
-                assertThat(map).containsExactlyEntriesOf(Map.of("cluster", new ClusterCondition("cluster", Condition.Type.Accepted, Condition.Status.FALSE, "Invalid",
+                assertThat(map).containsExactlyEntriesOf(Map.of("cluster", new ClusterCondition("cluster", Condition.Type.ResolvedRefs, Condition.Status.FALSE, "Invalid",
                         "Resource of kind \"KafkaService\" in group \"kroxylicious.io\" named \"a\" does not exist.")));
             });
         }));
@@ -119,7 +119,7 @@ class ClusterConditionUnresolvedDependencyReporterTest {
         // then
         verify(mockResourceContext).put(eq("cluster_conditions"), assertArg(a -> {
             assertThat(a).isInstanceOfSatisfying(Map.class, map -> {
-                assertThat(map).containsExactlyEntriesOf(Map.of("cluster", new ClusterCondition("cluster", Condition.Type.Accepted, Condition.Status.FALSE, "Invalid",
+                assertThat(map).containsExactlyEntriesOf(Map.of("cluster", new ClusterCondition("cluster", Condition.Type.ResolvedRefs, Condition.Status.FALSE, "Invalid",
                         "Resource of kind \"KafkaProxyIngress\" in group \"kroxylicious.io\" named \"a\" does not exist.")));
             });
         }));
@@ -136,7 +136,7 @@ class ClusterConditionUnresolvedDependencyReporterTest {
         // then
         verify(mockResourceContext).put(eq("cluster_conditions"), assertArg(a -> {
             assertThat(a).isInstanceOfSatisfying(Map.class, map -> {
-                assertThat(map).containsExactlyEntriesOf(Map.of("cluster", new ClusterCondition("cluster", Condition.Type.Accepted, Condition.Status.FALSE, "Invalid",
+                assertThat(map).containsExactlyEntriesOf(Map.of("cluster", new ClusterCondition("cluster", Condition.Type.ResolvedRefs, Condition.Status.FALSE, "Invalid",
                         "Resource of kind \"KafkaProtocolFilter\" in group \"filter.kroxylicious.io\" named \"a\" does not exist.")));
             });
         }));

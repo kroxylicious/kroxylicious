@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
+
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ObjectAssert;
 import org.junit.jupiter.api.AfterEach;
@@ -334,7 +336,7 @@ class ProxyReconcilerTest {
         doReturn(mdrc).when(context).managedWorkflowAndDependentResourceContext();
         doReturn(Set.of(new VirtualKafkaClusterBuilder().withNewMetadata().withName("my-cluster").withNamespace("my-ns").endMetadata().withNewSpec().withNewProxyRef()
                 .withName("my-proxy").endProxyRef().endSpec().build())).when(context).getSecondaryResources(VirtualKafkaCluster.class);
-        doReturn(Optional.of(Map.of("my-cluster", ClusterCondition.filterNotFound("my-cluster", "MissingFilter")))).when(mdrc).get(
+        doReturn(Optional.of(Map.of("my-cluster", ClusterCondition.refNotFound("my-cluster", new FilterRefBuilder().withName("MissingFilter").build()))).when(mdrc).get(
                 SharedKafkaProxyContext.CLUSTER_CONDITIONS_KEY,
                 Map.class);
         doReturn(new RuntimeDecl(List.of())).when(mdrc).getMandatory(SharedKafkaProxyContext.RUNTIME_DECL_KEY, Map.class);
