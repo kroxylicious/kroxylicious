@@ -188,7 +188,7 @@ public class ProxyReconciler implements
             if (exception != null) {
                 logException(primary, exception);
             }
-            return newCondition(now, ConditionType.Ready, primary, exception);
+            return newCondition(now, Condition.Type.Ready, primary, exception);
         }
         else {
             oldReady.setObservedGeneration(generation(primary));
@@ -230,7 +230,7 @@ public class ProxyReconciler implements
      */
     private static Condition newCondition(
                                           ZonedDateTime now,
-                                          ConditionType conditionType,
+                                          Condition.Type conditionType,
                                           KafkaProxy primary,
                                           @Nullable Exception exception) {
         return new ConditionBuilder()

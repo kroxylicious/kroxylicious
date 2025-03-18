@@ -160,4 +160,19 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     public void setType(String type) {
         this.type = type;
     }
+
+    public enum Type {
+        Ready("Ready"),
+        Accepted("Accepted");
+
+        private final String value;
+
+        Type(String value) {
+            this.value = value;
+        }
+
+        public String getValue() {
+            return value;
+        }
+    }
 }

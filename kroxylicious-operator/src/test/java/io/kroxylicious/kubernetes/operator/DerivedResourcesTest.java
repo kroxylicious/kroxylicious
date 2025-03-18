@@ -230,7 +230,7 @@ class DerivedResourcesTest {
 
     }
 
-    record ConditionStruct(ConditionType type,
+    record ConditionStruct(Condition.Type type,
                            String cluster,
                            String status,
                            String reason,
@@ -290,7 +290,7 @@ class DerivedResourcesTest {
                 }
                 for (var cluster : virtualKafkaClusters) {
                     ClusterCondition actualClusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
-                    if (actualClusterCondition.type() == ConditionType.Accepted && actualClusterCondition.status().equals(Condition.Status.TRUE)) {
+                    if (actualClusterCondition.type() == Condition.Type.Accepted && actualClusterCondition.status().equals(Condition.Status.TRUE)) {
                         continue;
                     }
                     else {
