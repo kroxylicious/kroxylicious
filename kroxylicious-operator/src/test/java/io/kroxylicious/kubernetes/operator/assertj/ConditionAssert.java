@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator.assertj;
 
 import java.time.ZonedDateTime;
 
+import org.assertj.core.api.AbstractComparableAssert;
 import org.assertj.core.api.AbstractLongAssert;
 import org.assertj.core.api.AbstractObjectAssert;
 import org.assertj.core.api.AbstractStringAssert;
@@ -18,21 +19,21 @@ import org.assertj.core.api.ObjectAssert;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 
-public class ClusterConditionAssert extends AbstractObjectAssert<ClusterConditionAssert, Condition> {
-    protected ClusterConditionAssert(
+public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condition> {
+    protected ConditionAssert(
                                      Condition o) {
-        super(o, ClusterConditionAssert.class);
+        super(o, ConditionAssert.class);
     }
 
-    public static ClusterConditionAssert assertThat(Condition actual) {
-        return new ClusterConditionAssert(actual);
+    public static ConditionAssert assertThat(Condition actual) {
+        return new ConditionAssert(actual);
     }
 
     public AbstractLongAssert<?> observedGeneration() {
         return Assertions.assertThat(actual.getObservedGeneration());
     }
 
-    public AbstractStringAssert<?> type() {
+    public AbstractComparableAssert<?, Condition.Type> type() {
         return Assertions.assertThat(actual.getType());
     }
 
@@ -52,41 +53,49 @@ public class ClusterConditionAssert extends AbstractObjectAssert<ClusterConditio
         return Assertions.assertThat(actual.getLastTransitionTime());
     }
 
-    public ClusterConditionAssert isReady() {
-        type().isEqualTo("Ready");
+    public ConditionAssert isReady() {
+        type().isEqualTo(Condition.Type.Ready);
         status().isEqualTo(Condition.Status.TRUE);
         reason().isEmpty();
         message().isEmpty();
         return this;
     }
 
-    public ClusterConditionAssert isAcceptedTrue() {
-        type().isEqualTo("Accepted");
+    public ConditionAssert isAcceptedTrue() {
+        type().isEqualTo(Condition.Type.Accepted);
         status().isEqualTo(Condition.Status.TRUE);
         reason().isEmpty();
         message().isEmpty();
         return this;
     }
 
-    public ClusterConditionAssert isAcceptedFalse(String reason, String message) {
-        type().isEqualTo("Accepted");
+    public ConditionAssert isAcceptedFalse(String reason, String message) {
+        type().isEqualTo(Condition.Type.Accepted);
         status().isEqualTo(Condition.Status.FALSE);
         reason().isEqualTo(reason);
         message().isEqualTo(message);
         return this;
     }
 
-    public ClusterConditionAssert hasObservedGeneration(long generation) {
+    public ConditionAssert isResolvedRefsFalse(String reason, String message) {
+        type().isEqualTo(Condition.Type.ResolvedRefs);
+        status().isEqualTo(Condition.Status.FALSE);
+        reason().isEqualTo(reason);
+        message().isEqualTo(message);
+        return this;
+    }
+
+    public ConditionAssert hasObservedGeneration(long generation) {
         observedGeneration().isEqualTo(generation);
         return this;
     }
 
-    public ClusterConditionAssert lastTransitionTimeIsAfter(ZonedDateTime time) {
+    public ConditionAssert lastTransitionTimeIsAfter(ZonedDateTime time) {
         lastTransitionTime().isAfter(time);
         return this;
     }
 
-    public ClusterConditionAssert lastTransitionTimeIsEqualTo(ZonedDateTime time) {
+    public ConditionAssert lastTransitionTimeIsEqualTo(ZonedDateTime time) {
         lastTransitionTime().isEqualTo(time);
         return this;
     }

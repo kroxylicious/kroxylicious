@@ -38,8 +38,8 @@ public class ClusterAssert extends AbstractObjectAssert<ClusterAssert, Clusters>
         return Assertions.assertThat(actual.getConditions()).asInstanceOf(InstanceOfAssertFactories.list(Condition.class));
     }
 
-    public ClusterConditionAssert singleCondition() {
-        return conditions().singleElement(AssertFactory.clusterCondition());
+    public ConditionAssert singleCondition() {
+        return conditions().singleElement(AssertFactory.condition());
     }
 
 }

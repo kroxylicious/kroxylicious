@@ -17,15 +17,12 @@ public class AssertFactory {
         return new InstanceOfAssertFactory<>(KafkaProxyStatus.class, StatusAssert::assertThat);
     }
 
-    public static InstanceOfAssertFactory<Condition, ClusterConditionAssert> proxyCondition() {
-        return new InstanceOfAssertFactory<>(Condition.class, ClusterConditionAssert::assertThat);
+    public static InstanceOfAssertFactory<Condition, ConditionAssert> condition() {
+        return new InstanceOfAssertFactory<>(Condition.class, ConditionAssert::assertThat);
     }
 
     public static InstanceOfAssertFactory<Clusters, ClusterAssert> cluster() {
         return new InstanceOfAssertFactory<>(Clusters.class, ClusterAssert::assertThat);
     }
 
-    public static InstanceOfAssertFactory<Condition, ClusterConditionAssert> clusterCondition() {
-        return new InstanceOfAssertFactory<>(Condition.class, ClusterConditionAssert::assertThat);
-    }
 }

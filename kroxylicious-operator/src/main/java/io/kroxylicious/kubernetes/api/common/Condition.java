@@ -151,13 +151,13 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     @com.fasterxml.jackson.annotation.JsonProperty("type")
     @com.fasterxml.jackson.annotation.JsonPropertyDescription("type of condition in CamelCase or in foo.example.com/CamelCase.")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
-    private String type;
+    private Type type;
 
-    public String getType() {
+    public Type getType() {
         return type;
     }
 
-    public void setType(String type) {
+    public void setType(Type type) {
         this.type = type;
     }
 

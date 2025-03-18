@@ -35,8 +35,8 @@ public class StatusAssert extends AbstractObjectAssert<StatusAssert, KafkaProxyS
                 .asInstanceOf(InstanceOfAssertFactories.list(Condition.Status.class));
     }
 
-    public ClusterConditionAssert singleCondition() {
-        return conditions().singleElement(AssertFactory.proxyCondition());
+    public ConditionAssert singleCondition() {
+        return conditions().singleElement(AssertFactory.condition());
     }
 
     public ListAssert<Clusters> clusters() {

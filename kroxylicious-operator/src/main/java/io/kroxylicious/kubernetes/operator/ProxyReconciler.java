@@ -181,7 +181,7 @@ public class ProxyReconciler implements
                                                      @Nullable Exception exception) {
         final var oldReady = primary.getStatus() == null || primary.getStatus().getConditions() == null
                 ? null
-                : primary.getStatus().getConditions().stream().filter(c -> "Ready".equals(c.getType())).findFirst().orElse(null);
+                : primary.getStatus().getConditions().stream().filter(c -> Condition.Type.Ready.equals(c.getType())).findFirst().orElse(null);
 
         if (isTransition(oldReady, exception)) {
             // reduce verbosity by only logging if we're making a transition
@@ -239,7 +239,7 @@ public class ProxyReconciler implements
                 .withObservedGeneration(generation(primary))
                 .withReason(conditionReason(exception))
                 .withStatus(exception == null ? Condition.Status.TRUE : Condition.Status.FALSE)
-                .withType(conditionType.getValue())
+                .withType(conditionType)
                 .build();
     }
 
@@ -253,7 +253,7 @@ public class ProxyReconciler implements
                 .withObservedGeneration(generation(primary))
                 .withReason(clusterCondition.reason())
                 .withStatus(clusterCondition.status())
-                .withType(clusterCondition.type().getValue())
+                .withType(clusterCondition.type())
                 .build();
     }
 

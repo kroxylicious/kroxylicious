@@ -19,7 +19,7 @@ public class OperatorAssertions {
         return ClusterAssert.assertThat(actual);
     }
 
-    public static ClusterConditionAssert assertThat(Condition actual) {
-        return ClusterConditionAssert.assertThat(actual);
+    public static ConditionAssert assertThat(Condition actual) {
+        return ConditionAssert.assertThat(actual);
     }
 }
