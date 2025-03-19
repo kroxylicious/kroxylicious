@@ -99,7 +99,7 @@ public class OperatorMain {
             }
         }).getFilters().add(UnsupportedHttpMethodFilter.INSTANCE);
     }
-    
+
     private int healthyStatusCode() {
         int sc;
         try {
