@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.IntSupplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +44,7 @@ public class OperatorMain {
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorMain.class);
     private static final String BIND_ADDRESS_VAR_NAME = "BIND_ADDRESS";
     private static final int DEFAULT_MANAGEMENT_PORT = 8080;
+    static final String HTTP_PATH_HEALTHY = "/healthy";
     private final Operator operator;
     private final HttpServer managementServer;
 
@@ -78,18 +80,37 @@ public class OperatorMain {
      */
     void start() {
         operator.installShutdownHook(Duration.ofSeconds(10));
-        var registeredController = operator.register(new ProxyReconciler(runtimeDecl()));
-        // TODO couple the health of the registeredController to the operator's HTTP healthchecks
-        managementServer.createContext("/", exchange -> {
+        operator.register(new ProxyReconciler(runtimeDecl()));
+        addHttpGetHandler("/", () -> 404);
+        managementServer.start();
+        operator.start();
+        addHttpGetHandler(HTTP_PATH_HEALTHY, this::healthyStatusCode);
+        LOGGER.info("Operator started");
+    }
+
+    private void addHttpGetHandler(
+                                   String path,
+                                   IntSupplier statusCodeSupplier) {
+        managementServer.createContext(path, exchange -> {
             try (exchange) {
                 // note while the JDK docs advise exchange.getRequestBody().transferTo(OutputStream.nullOutputStream()); we explicitly don't do that!
                 // As a denial-of-service protection we don't expect anything other than GET requests so there should be no input to read.
-                exchange.sendResponseHeaders(404, -1);
+                exchange.sendResponseHeaders(statusCodeSupplier.getAsInt(), -1);
             }
-        }).getFilters().add(UnsupportedHttpMethodFilter.INSTANCE); // This works as a request to `/metrics` has a more explicit match and thus gets served.
-        managementServer.start();
-        operator.start();
-        LOGGER.info("Operator started.");
+        }).getFilters().add(UnsupportedHttpMethodFilter.INSTANCE);
+    }
+    
+    private int healthyStatusCode() {
+        int sc;
+        try {
+            sc = operator.getRuntimeInfo().allEventSourcesAreHealthy() ? 200 : 400;
+        }
+        catch (Exception e) {
+            sc = 400;
+            LOGGER.error("Ignoring exception caught while getting operator health info", e);
+        }
+        LOGGER.trace("Responding {} to GET {}", sc, HTTP_PATH_HEALTHY);
+        return sc;
     }
 
     void stop() {

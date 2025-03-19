@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
+import org.assertj.core.api.ListAssert;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -142,6 +143,17 @@ class OperatorMainTest {
     }
 
     @Test
+    void shouldRegisterHealthWithManagementServer() {
+        // Given
+
+        // When
+        operatorMain.start();
+
+        // Then
+        verify(managementServer).createContext(eq(OperatorMain.HTTP_PATH_HEALTHY), any(HttpHandler.class));
+    }
+
+    @Test
     void shouldRegisterUnsupportedMethodsHandlerWithManagementServer() {
         // Given
         final ArrayList<Filter> filters = new ArrayList<>();
@@ -152,16 +164,31 @@ class OperatorMainTest {
 
         // Then
         verify(managementServer).createContext(eq("/"), any(HttpHandler.class));
-        assertThat(filters).isNotEmpty()
-                .singleElement()
+        ListAssert<Filter> filterListAssert = assertThat(filters).hasSize(2);
+        filterListAssert.first()
+                .isInstanceOf(UnsupportedHttpMethodFilter.class);
+        filterListAssert.last()
                 .isInstanceOf(UnsupportedHttpMethodFilter.class);
     }
 
     @Test
     void shouldRespondWith404ForRequestsManagementServer() throws IOException {
+        shouldRespondWithStatusCode("/", 404);
+    }
+
+    @Test
+    void shouldRespondWith200ForRequestsHealthy() throws IOException {
+        // Given
+        shouldRespondWithStatusCode(OperatorMain.HTTP_PATH_HEALTHY, 200);
+    }
+
+    private void shouldRespondWithStatusCode(
+                                             String path,
+                                             int statusCode)
+            throws IOException {
         // Given
         final ArgumentCaptor<HttpHandler> captor = ArgumentCaptor.forClass(HttpHandler.class);
-        when(managementServer.createContext(anyString(), captor.capture())).thenReturn(httpContext);
+        when(managementServer.createContext(eq(path), captor.capture())).thenReturn(httpContext);
         operatorMain.start();
         final HttpExchange httpExchange = mock(HttpExchange.class);
 
@@ -169,7 +196,7 @@ class OperatorMainTest {
         captor.getValue().handle(httpExchange);
 
         // Then
-        verify(httpExchange).sendResponseHeaders(404, -1);
+        verify(httpExchange).sendResponseHeaders(statusCode, -1);
     }
 
     private void expectApiResources() {
