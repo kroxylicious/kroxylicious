@@ -8,7 +8,6 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -21,12 +20,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.spi.LoggingEventBuilder;
 
-import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.AggregatedOperatorException;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
-import io.javaoperatorsdk.operator.api.reconciler.ContextInitializer;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
@@ -47,8 +44,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
-import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
-import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -79,7 +75,6 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
 })
 // @formatter:on
 public class ProxyReconciler implements
-        ContextInitializer<KafkaProxy>,
         Reconciler<KafkaProxy> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyReconciler.class);
@@ -88,17 +83,7 @@ public class ProxyReconciler implements
     public static final String DEPLOYMENT_DEP = "deployment";
     public static final String CLUSTERS_DEP = "clusters";
 
-    private final RuntimeDecl runtimeDecl;
-
-    public ProxyReconciler(RuntimeDecl runtimeDecl) {
-        this.runtimeDecl = runtimeDecl;
-    }
-
-    @Override
-    public void initContext(
-                            KafkaProxy primary,
-                            Context<KafkaProxy> context) {
-        SharedKafkaProxyContext.runtimeDecl(context, runtimeDecl);
+    public ProxyReconciler() {
     }
 
     /**
@@ -291,24 +276,11 @@ public class ProxyReconciler implements
 
     @Override
     public List<EventSource<?, KafkaProxy>> prepareEventSources(EventSourceContext<KafkaProxy> context) {
-        var eventSources = new ArrayList<EventSource<?, KafkaProxy>>(this.runtimeDecl.filterApis().size());
-        for (var filterKind : this.runtimeDecl.filterApis()) {
-            try {
-                eventSources.add(eventSourceForFilter(context, filterKind));
-            }
-            catch (Exception e) {
-                throw new OperatorConfigurationException("EventSource for " + filterKind + " could not be created.\n"
-                        + "Hints:\n"
-                        + "1. Check the Kind '" + filterKind.kind() + "' is present in the output of "
-                        + "`kubectl api-resources --api-group=" + filterKind.group() + "`.\n"
-                        + "2. Check access controls allow the operator to 'get,list,watch' this API.",
-                        e);
-            }
-        }
-        eventSources.add(buildVirtualKafkaClusterInformer(context));
-        eventSources.add(buildKafkaServiceInformer(context));
-        eventSources.add(buildKafkaProxyIngressInformer(context));
-        return eventSources;
+        return List.of(
+                eventSourceForFilter(context),
+                buildVirtualKafkaClusterInformer(context),
+                buildKafkaServiceInformer(context),
+                buildKafkaProxyIngressInformer(context));
     }
 
     private static InformerEventSource<?, KafkaProxy> buildVirtualKafkaClusterInformer(EventSourceContext<KafkaProxy> context) {
@@ -375,11 +347,9 @@ public class ProxyReconciler implements
     }
 
     @NonNull
-    private static InformerEventSource<GenericKubernetesResource, KafkaProxy> eventSourceForFilter(
-                                                                                                   EventSourceContext<KafkaProxy> context,
-                                                                                                   FilterApiDecl filterApiDecl) {
+    private static InformerEventSource<KafkaProtocolFilter, KafkaProxy> eventSourceForFilter(EventSourceContext<KafkaProxy> context) {
 
-        var configuration = InformerEventSourceConfiguration.from(filterApiDecl.groupVersionKind(), KafkaProxy.class)
+        var configuration = InformerEventSourceConfiguration.from(KafkaProtocolFilter.class, KafkaProxy.class)
                 .withSecondaryToPrimaryMapper(filterToProxy(context))
                 .withPrimaryToSecondaryMapper(proxyToFilters(context))
                 .build();
@@ -443,8 +413,8 @@ public class ProxyReconciler implements
     }
 
     @VisibleForTesting
-    static @NonNull SecondaryToPrimaryMapper<GenericKubernetesResource> filterToProxy(EventSourceContext<KafkaProxy> context) {
-        return (GenericKubernetesResource filter) -> {
+    static @NonNull SecondaryToPrimaryMapper<KafkaProtocolFilter> filterToProxy(EventSourceContext<KafkaProxy> context) {
+        return (KafkaProtocolFilter filter) -> {
             // filters don't point to a proxy, but must be in the same namespace as the proxy/proxies which reference the,
             // so when a filter changes we reconcile all the proxies in the same namespace
             Set<ResourceID> proxiesInFilterNamespace = filteredResourceIdsInSameNamespace(context, filter, KafkaProxy.class, proxy -> true);

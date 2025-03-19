@@ -15,7 +15,6 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 
@@ -28,15 +27,7 @@ public class SharedKafkaProxyContext {
     private SharedKafkaProxyContext() {
     }
 
-    static final String RUNTIME_DECL_KEY = "runtime";
     static final String CLUSTER_CONDITIONS_KEY = "cluster_conditions";
-
-    /**
-     * Set the RuntimeDecl
-     */
-    static void runtimeDecl(Context<KafkaProxy> context, RuntimeDecl runtimeDecl) {
-        context.managedWorkflowAndDependentResourceContext().put(RUNTIME_DECL_KEY, runtimeDecl);
-    }
 
     /**
      * Associate a condition with a specific cluster.
