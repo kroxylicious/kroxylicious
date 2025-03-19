@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.concurrent.TimeUnit;
 
-import org.assertj.core.api.ListAssert;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,7 +44,6 @@ import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodFilte
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -64,12 +62,22 @@ class OperatorMainTest {
     HttpServer managementServer;
 
     @Mock
-    HttpContext httpContext;
+    HttpContext rootHttpContext;
+    ArgumentCaptor<HttpHandler> rootCaptor = ArgumentCaptor.forClass(HttpHandler.class);
+
+    @Mock
+    HttpContext metricsHttpContext;
+
+    @Mock
+    HttpContext livezHttpContext;
+    ArgumentCaptor<HttpHandler> livezCaptor = ArgumentCaptor.forClass(HttpHandler.class);
 
     @BeforeEach
     void setUp() {
         expectApiResources();
-        when(managementServer.createContext(anyString(), any(HttpHandler.class))).thenReturn(httpContext);
+        when(managementServer.createContext(eq("/"), rootCaptor.capture())).thenReturn(rootHttpContext);
+        when(managementServer.createContext(eq(OperatorMain.HTTP_PATH_METRICS), any(HttpHandler.class))).thenReturn(metricsHttpContext);
+        when(managementServer.createContext(eq(OperatorMain.HTTP_PATH_LIVEZ), livezCaptor.capture())).thenReturn(livezHttpContext);
         operatorMain = new OperatorMain(kubeClient, managementServer);
     }
 
@@ -139,7 +147,7 @@ class OperatorMainTest {
         operatorMain.start();
 
         // Then
-        verify(managementServer).createContext(eq("/metrics"), any(HttpHandler.class));
+        verify(managementServer).createContext(eq(OperatorMain.HTTP_PATH_METRICS), any(HttpHandler.class));
     }
 
     @Test
@@ -157,38 +165,34 @@ class OperatorMainTest {
     void shouldRegisterUnsupportedMethodsHandlerWithManagementServer() {
         // Given
         final ArrayList<Filter> filters = new ArrayList<>();
-        when(httpContext.getFilters()).thenReturn(filters);
+        when(rootHttpContext.getFilters()).thenReturn(filters);
 
         // When
         operatorMain.start();
 
         // Then
         verify(managementServer).createContext(eq("/"), any(HttpHandler.class));
-        ListAssert<Filter> filterListAssert = assertThat(filters).hasSize(2);
-        filterListAssert.first()
+        assertThat(filters)
+                .singleElement()
                 .isInstanceOf(UnsupportedHttpMethodFilter.class);
-        filterListAssert.last()
-                .isInstanceOf(UnsupportedHttpMethodFilter.class);
+
     }
 
     @Test
     void shouldRespondWith404ForRequestsManagementServer() throws IOException {
-        shouldRespondWithStatusCode("/", 404);
+        shouldRespondWithStatusCode(rootCaptor, 404);
     }
 
     @Test
     void shouldRespondWith200ForRequestsLivez() throws IOException {
         // Given
-        shouldRespondWithStatusCode(OperatorMain.HTTP_PATH_LIVEZ, 200);
+        shouldRespondWithStatusCode(livezCaptor, 200);
     }
 
-    private void shouldRespondWithStatusCode(
-                                             String path,
+    private void shouldRespondWithStatusCode(ArgumentCaptor<HttpHandler> captor,
                                              int statusCode)
             throws IOException {
         // Given
-        final ArgumentCaptor<HttpHandler> captor = ArgumentCaptor.forClass(HttpHandler.class);
-        when(managementServer.createContext(eq(path), captor.capture())).thenReturn(httpContext);
         operatorMain.start();
         final HttpExchange httpExchange = mock(HttpExchange.class);
 

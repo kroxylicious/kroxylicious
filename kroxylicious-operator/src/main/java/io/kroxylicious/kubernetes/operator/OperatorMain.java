@@ -45,6 +45,7 @@ public class OperatorMain {
     private static final String BIND_ADDRESS_VAR_NAME = "BIND_ADDRESS";
     private static final int DEFAULT_MANAGEMENT_PORT = 8080;
     static final String HTTP_PATH_LIVEZ = "/livez";
+    static final String HTTP_PATH_METRICS = "/metrics";
     private final Operator operator;
     private final HttpServer managementServer;
 
@@ -134,7 +135,7 @@ public class OperatorMain {
 
     private void configurePrometheusMetrics(HttpServer managementServer) {
         final PrometheusMeterRegistry prometheusMeterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
-        final HttpContext metricsContext = managementServer.createContext("/metrics",
+        final HttpContext metricsContext = managementServer.createContext(HTTP_PATH_METRICS,
                 new MetricsHandler(prometheusMeterRegistry.getPrometheusRegistry()));
         metricsContext.getFilters().add(UnsupportedHttpMethodFilter.INSTANCE);
         Metrics.globalRegistry.add(prometheusMeterRegistry);
