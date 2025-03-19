@@ -157,6 +157,12 @@
         </dependency>
 
         <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
+            <scope>compile</scope>
+        </dependency>
+
+        <dependency>
             <!-- This dep is because the operator uses the type safe API for generating proxy config
                  it should be replaced with a dependency on some kind of runtime-config-api module -->
             <groupId>io.kroxylicious</groupId>
@@ -243,11 +249,6 @@
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-model-apiextensions</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
@@ -351,13 +352,15 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.FilterRefs>
                             io.kroxylicious.kubernetes.api.common.FilterRef
                         </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.FilterRefs>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.CertificateRef>
+                            io.kroxylicious.kubernetes.api.common.AnyLocalRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.CertificateRef>
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions>
                             io.kroxylicious.kubernetes.api.common.Condition
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions>
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions>
                             io.kroxylicious.kubernetes.api.common.Condition
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions>
-
                     </existingJavaTypes>
                     <packageOverrides>
                         <!-- the default package name ($apiGroup.$apiVersion) doesn't work for us -->
