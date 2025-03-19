@@ -352,7 +352,7 @@ class DependencyResolverImplTest {
         return new VirtualKafkaClusterBuilder()
                 .withNewSpec()
                 .withIngressRefs(ingressRefs)
-                .withNewTargetCluster().withNewClusterRef().withName(clusterRef).endClusterRef().endTargetCluster()
+                .withNewTargetKafkaServiceRef().withName(clusterRef).endTargetKafkaServiceRef()
                 .withFilterRefs(filterRefs)
                 .endSpec()
                 .build();

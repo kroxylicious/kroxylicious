@@ -12,8 +12,8 @@ import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ListAssert;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions;
 
 public class ClusterAssert extends AbstractObjectAssert<ClusterAssert, Clusters> {
     protected ClusterAssert(
@@ -34,12 +34,12 @@ public class ClusterAssert extends AbstractObjectAssert<ClusterAssert, Clusters>
         return this;
     }
 
-    public ListAssert<Conditions> conditions() {
-        return Assertions.assertThat(actual.getConditions()).asInstanceOf(InstanceOfAssertFactories.list(Conditions.class));
+    public ListAssert<Condition> conditions() {
+        return Assertions.assertThat(actual.getConditions()).asInstanceOf(InstanceOfAssertFactories.list(Condition.class));
     }
 
-    public ClusterConditionAssert singleCondition() {
-        return conditions().singleElement(AssertFactory.clusterCondition());
+    public ConditionAssert singleCondition() {
+        return conditions().singleElement(AssertFactory.condition());
     }
 
 }

@@ -32,7 +32,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 
 public class DependencyResolverImpl implements DependencyResolver {
 
-    private static final ResolutionResult EMPTY_RESOLUTION_RESULT = new ResolutionResult(Map.of(), Map.of(), Map.of(), Map.of());
+    private static final ResolutionResult EMPTY_RESOLUTION_RESULT = new ResolutionResult(Map.of(), Map.of(), Map.of(), Set.of());
 
     private DependencyResolverImpl() {
     }
@@ -55,7 +55,7 @@ public class DependencyResolverImpl implements DependencyResolver {
         Map<LocalRef<GenericKubernetesResource>, GenericKubernetesResource> filters = context.getSecondaryResources(GenericKubernetesResource.class).stream()
                 .collect(ResourcesUtil.toByLocalRefMap());
         var resolutionResult = virtualKafkaClusters.stream().map(cluster -> determineUnresolvedDependencies(cluster, ingresses, clusterRefs, filters))
-                .collect(Collectors.toMap(result -> ResourcesUtil.name(result.cluster()), r -> r));
+                .collect(Collectors.toSet());
         ResolutionResult result = new ResolutionResult(filters, ingresses, clusterRefs, resolutionResult);
         reportClustersThatDidNotFullyResolve(result, unresolvedDependencyReporter);
         return result;
@@ -87,7 +87,7 @@ public class DependencyResolverImpl implements DependencyResolver {
 
     private Optional<LocalRef<?>> determineUnresolvedKafkaService(VirtualKafkaClusterSpec spec,
                                                                   Map<LocalRef<KafkaService>, KafkaService> clusterRefs) {
-        var clusterRef = spec.getTargetCluster().getClusterRef();
+        var clusterRef = spec.getTargetKafkaServiceRef();
         if (!clusterRefs.containsKey(clusterRef)) {
             return Optional.of(clusterRef);
         }
