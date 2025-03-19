@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -226,15 +227,8 @@ public class ProxyConfigConfigMap
     }
 
     private SecureConfigInterpolator.InterpolationResult interpolateConfig(KafkaProtocolFilterSpec spec) {
-        SecureConfigInterpolator.InterpolationResult result;
-        Object configTemplate = spec.getConfigTemplate();
-        if (configTemplate != null) {
-            result = secureConfigInterpolator.interpolate(configTemplate);
-        }
-        else {
-            throw new IllegalArgumentException("ConfigTemplate is not found in KafkaProtocolFilterSpec");
-        }
-        return result;
+        Object configTemplate = Objects.requireNonNull(spec.getConfigTemplate(), "ConfigTemplate is required in the KafkaProtocolFilterSpec");
+        return secureConfigInterpolator.interpolate(configTemplate);
     }
 
     private static VirtualCluster getVirtualCluster(VirtualKafkaCluster cluster,
