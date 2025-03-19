@@ -6,7 +6,8 @@
 
 ---
 cluster: "bar"
-type: "Accepted"
+type: "ResolvedRefs"
 status: "False"
 reason: "Invalid"
-message: "Filter \"missing\" does not exist."
+message: "Resource of kind \"KafkaProtocolFilter\" in group \"filter.kroxylicious.io\"\
+    \ named \"missing\" does not exist."

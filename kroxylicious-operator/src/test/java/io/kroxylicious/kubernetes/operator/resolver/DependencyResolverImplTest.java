@@ -26,15 +26,15 @@ import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.common.IngressRef;
 import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRefBuilder;
+import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.ClusterResolutionResult;
-import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.UnresolvedDependency;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mock.Strictness.LENIENT;
@@ -74,7 +74,7 @@ class DependencyResolverImplTest {
     @Test
     void testNullFiltersOnVirtualClusterTolerated() {
         givenFiltersInContext();
-        givenClusterRefsInContext(kafkaClusterRef("cluster"));
+        givenClusterRefsInContext(kafkaServiceRef("cluster"));
         givenIngressesInContext();
         VirtualKafkaCluster cluster = virtualCluster(null, "cluster", List.of());
         givenVirtualKafkaClustersInContext(cluster);
@@ -94,7 +94,7 @@ class DependencyResolverImplTest {
     void testSingleFilterUnreferenced() {
         GenericKubernetesResource filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
-        givenClusterRefsInContext(kafkaClusterRef("cluster"));
+        givenClusterRefsInContext(kafkaServiceRef("cluster"));
         givenIngressesInContext();
         VirtualKafkaCluster cluster = virtualCluster(List.of(), "cluster", List.of());
         givenVirtualKafkaClustersInContext(cluster);
@@ -115,7 +115,7 @@ class DependencyResolverImplTest {
     void testSingleFilterReferenced() {
         GenericKubernetesResource filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
-        givenClusterRefsInContext(kafkaClusterRef("cluster"));
+        givenClusterRefsInContext(kafkaServiceRef("cluster"));
         givenIngressesInContext();
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of());
         givenVirtualKafkaClustersInContext(cluster);
@@ -137,7 +137,7 @@ class DependencyResolverImplTest {
         GenericKubernetesResource filter = protocolFilter("filterName");
         GenericKubernetesResource filter2 = protocolFilter("filterName2");
         givenFiltersInContext(filter, filter2);
-        givenClusterRefsInContext(kafkaClusterRef("cluster"));
+        givenClusterRefsInContext(kafkaServiceRef("cluster"));
         givenIngressesInContext();
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName"), filterRef("filterName2")), "cluster", List.of());
         givenVirtualKafkaClustersInContext(cluster);
@@ -159,7 +159,7 @@ class DependencyResolverImplTest {
     void testSubsetOfFiltersReferenced() {
         GenericKubernetesResource filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
-        givenClusterRefsInContext(kafkaClusterRef("cluster"));
+        givenClusterRefsInContext(kafkaServiceRef("cluster"));
         givenIngressesInContext();
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName"), filterRef("filterName2")), "cluster", List.of());
         givenVirtualKafkaClustersInContext(cluster);
@@ -173,7 +173,7 @@ class DependencyResolverImplTest {
         assertThat(resolutionResult.filters()).containsExactlyInAnyOrder(filter);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
-        assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new UnresolvedDependency(Dependency.FILTER, "filterName2"));
+        assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new FilterRefBuilder().withName("filterName2").build());
         verify(unresolvedDependencyReporter).reportUnresolvedDependencies(cluster, onlyResult.unresolvedDependencySet());
     }
 
@@ -181,7 +181,7 @@ class DependencyResolverImplTest {
     void testUnresolvedFilter() {
         GenericKubernetesResource filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
-        givenClusterRefsInContext(kafkaClusterRef("clusterRef"));
+        givenClusterRefsInContext(kafkaServiceRef("clusterRef"));
         givenIngressesInContext();
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("other")), "clusterRef", List.of());
         givenVirtualKafkaClustersInContext(cluster);
@@ -193,14 +193,14 @@ class DependencyResolverImplTest {
         assertThat(resolutionResult.filter(filterRef("other"))).isEmpty();
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
-        assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new UnresolvedDependency(Dependency.FILTER, "other"));
+        assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new FilterRefBuilder().withName("other").build());
         verify(unresolvedDependencyReporter).reportUnresolvedDependencies(cluster, onlyResult.unresolvedDependencySet());
     }
 
     @Test
     void testUnresolvedIngress() {
         givenFiltersInContext();
-        givenClusterRefsInContext(kafkaClusterRef("clusterRef"));
+        givenClusterRefsInContext(kafkaServiceRef("clusterRef"));
         givenIngressesInContext();
         VirtualKafkaCluster cluster = virtualCluster(List.of(), "clusterRef", List.of(ingressRef("ingressMissing")));
         givenVirtualKafkaClustersInContext(cluster);
@@ -212,12 +212,12 @@ class DependencyResolverImplTest {
         assertThat(resolutionResult.ingresses()).isEmpty();
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
-        assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new UnresolvedDependency(Dependency.KAFKA_PROXY_INGRESS, "ingressMissing"));
+        assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new IngressRefBuilder().withName("ingressMissing").build());
         verify(unresolvedDependencyReporter).reportUnresolvedDependencies(cluster, onlyResult.unresolvedDependencySet());
     }
 
     @Test
-    void testUnresolvedKafkaClusterRef() {
+    void testUnresolvedKafkaService() {
         givenFiltersInContext();
         givenClusterRefsInContext();
         givenIngressesInContext();
@@ -231,14 +231,14 @@ class DependencyResolverImplTest {
         assertThat(resolutionResult.ingresses()).isEmpty();
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
-        assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new UnresolvedDependency(Dependency.KAFKA_CLUSTER_REF, "missing"));
+        assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new KafkaServiceRefBuilder().withName("missing").build());
         verify(unresolvedDependencyReporter).reportUnresolvedDependencies(cluster, onlyResult.unresolvedDependencySet());
     }
 
     @Test
     void testSingleResolvedIngress() {
         givenFiltersInContext();
-        givenClusterRefsInContext(kafkaClusterRef("clusterRef"));
+        givenClusterRefsInContext(kafkaServiceRef("clusterRef"));
         KafkaProxyIngress ingress = ingress("ingress");
         givenIngressesInContext(ingress);
         VirtualKafkaCluster cluster = virtualCluster(List.of(), "clusterRef", List.of(ingressRef("ingress")));
@@ -258,7 +258,7 @@ class DependencyResolverImplTest {
     @Test
     void testMultipleResolvedIngresses() {
         givenFiltersInContext();
-        givenClusterRefsInContext(kafkaClusterRef("clusterRef"));
+        givenClusterRefsInContext(kafkaServiceRef("clusterRef"));
         KafkaProxyIngress ingress = ingress("ingress");
         KafkaProxyIngress ingress2 = ingress("ingress2");
         givenIngressesInContext(ingress, ingress2);
@@ -279,7 +279,7 @@ class DependencyResolverImplTest {
     @Test
     void testSubsetOfIngressesResolved() {
         givenFiltersInContext();
-        givenClusterRefsInContext(kafkaClusterRef("clusterRef"));
+        givenClusterRefsInContext(kafkaServiceRef("clusterRef"));
         KafkaProxyIngress ingress = ingress("ingress");
         givenIngressesInContext(ingress);
         VirtualKafkaCluster cluster = virtualCluster(List.of(), "clusterRef", List.of(ingressRef("ingress"), ingressRef("ingress2")));
@@ -292,7 +292,7 @@ class DependencyResolverImplTest {
         assertThat(resolutionResult.ingresses()).containsExactlyInAnyOrder(ingress);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
-        assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new UnresolvedDependency(Dependency.KAFKA_PROXY_INGRESS, "ingress2"));
+        assertThat(onlyResult.unresolvedDependencySet()).containsExactly(new IngressRefBuilder().withName("ingress2").build());
         verify(unresolvedDependencyReporter).reportUnresolvedDependencies(cluster, onlyResult.unresolvedDependencySet());
     }
 
@@ -312,8 +312,8 @@ class DependencyResolverImplTest {
         return onlyResult;
     }
 
-    private static KafkaClusterRef kafkaClusterRef(String clusterRef) {
-        return new KafkaClusterRefBuilder().withNewMetadata().withName(clusterRef).endMetadata().build();
+    private static KafkaService kafkaServiceRef(String clusterRef) {
+        return new KafkaServiceBuilder().withNewMetadata().withName(clusterRef).endMetadata().build();
     }
 
     private static FilterRef filterRef(String name) {
@@ -340,8 +340,8 @@ class DependencyResolverImplTest {
         givenSecondaryResourcesInContext(VirtualKafkaCluster.class, virtualKafkaClusters);
     }
 
-    private void givenClusterRefsInContext(KafkaClusterRef... clusterRefs) {
-        givenSecondaryResourcesInContext(KafkaClusterRef.class, clusterRefs);
+    private void givenClusterRefsInContext(KafkaService... clusterRefs) {
+        givenSecondaryResourcesInContext(KafkaService.class, clusterRefs);
     }
 
     private <T> OngoingStubbing<Set<T>> givenSecondaryResourcesInContext(Class<T> type, T... resources) {
@@ -352,7 +352,7 @@ class DependencyResolverImplTest {
         return new VirtualKafkaClusterBuilder()
                 .withNewSpec()
                 .withIngressRefs(ingressRefs)
-                .withNewTargetCluster().withNewClusterRef().withName(clusterRef).endClusterRef().endTargetCluster()
+                .withNewTargetKafkaServiceRef().withName(clusterRef).endTargetKafkaServiceRef()
                 .withFilterRefs(filterRefs)
                 .endSpec()
                 .build();

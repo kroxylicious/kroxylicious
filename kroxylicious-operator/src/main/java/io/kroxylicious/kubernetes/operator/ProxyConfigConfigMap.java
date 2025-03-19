@@ -30,8 +30,8 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernete
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
@@ -155,7 +155,7 @@ public class ProxyConfigConfigMap
         return model.clustersWithValidIngresses().stream()
                 .filter(cluster -> Optional.ofNullable(cluster.getSpec().getFilterRefs()).stream().flatMap(Collection::stream).allMatch(
                         filters -> successfullyBuiltFilterNames.contains(filterDefinitionName(filters))))
-                .map(cluster -> getVirtualCluster(cluster, model.resolutionResult().kafkaClusterRef(cluster).orElseThrow(), model.ingressModel()))
+                .map(cluster -> getVirtualCluster(cluster, model.resolutionResult().kafkaServiceRef(cluster).orElseThrow(), model.ingressModel()))
                 .toList();
     }
 
@@ -241,11 +241,11 @@ public class ProxyConfigConfigMap
     }
 
     private static VirtualCluster getVirtualCluster(VirtualKafkaCluster cluster,
-                                                    KafkaClusterRef kafkaClusterRef,
+                                                    KafkaService kafkaServiceRef,
                                                     ProxyIngressModel ingressModel) {
 
         ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(cluster).orElseThrow();
-        String bootstrap = kafkaClusterRef.getSpec().getBootstrapServers();
+        String bootstrap = kafkaServiceRef.getSpec().getBootstrapServers();
         return new VirtualCluster(
                 ResourcesUtil.name(cluster), new TargetCluster(bootstrap, Optional.empty()),
                 null,

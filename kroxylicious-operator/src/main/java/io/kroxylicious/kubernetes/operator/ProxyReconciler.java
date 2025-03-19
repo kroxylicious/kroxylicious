@@ -39,17 +39,14 @@ import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMap
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
-import io.kroxylicious.kubernetes.api.common.KafkaCRef;
-import io.kroxylicious.kubernetes.api.common.ProxyRef;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
+import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ConditionsBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TargetCluster;
 import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
 import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -60,6 +57,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.generation;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
 
 // @formatter:off
 @Workflow(dependents = {
@@ -173,19 +171,19 @@ public class ProxyReconciler implements
      * @param exception An exception, or null if the reconciliation was successful.
      * @return The {@code Ready} condition to use in {@code status.conditions}.
      */
-    private static Conditions effectiveReadyCondition(ZonedDateTime now,
-                                                      KafkaProxy primary,
-                                                      @Nullable Exception exception) {
+    private static Condition effectiveReadyCondition(ZonedDateTime now,
+                                                     KafkaProxy primary,
+                                                     @Nullable Exception exception) {
         final var oldReady = primary.getStatus() == null || primary.getStatus().getConditions() == null
                 ? null
-                : primary.getStatus().getConditions().stream().filter(c -> "Ready".equals(c.getType())).findFirst().orElse(null);
+                : primary.getStatus().getConditions().stream().filter(c -> Condition.Type.Ready.equals(c.getType())).findFirst().orElse(null);
 
         if (isTransition(oldReady, exception)) {
             // reduce verbosity by only logging if we're making a transition
             if (exception != null) {
                 logException(primary, exception);
             }
-            return newCondition(now, ConditionType.Ready, primary, exception);
+            return newCondition(now, Condition.Type.Ready, primary, exception);
         }
         else {
             oldReady.setObservedGeneration(generation(primary));
@@ -225,34 +223,36 @@ public class ProxyReconciler implements
      * @return The {@code Ready} condition to use in {@code status.conditions}
      *         <strong>if the condition had has a state transition</strong>.
      */
-    private static Conditions newCondition(
-                                           ZonedDateTime now, ConditionType conditionType,
-                                           KafkaProxy primary,
-                                           @Nullable Exception exception) {
-        return new ConditionsBuilder()
+    private static Condition newCondition(
+                                          ZonedDateTime now,
+                                          Condition.Type conditionType,
+                                          KafkaProxy primary,
+                                          @Nullable Exception exception) {
+        return new ConditionBuilder()
                 .withLastTransitionTime(now)
                 .withMessage(conditionMessage(exception))
                 .withObservedGeneration(generation(primary))
                 .withReason(conditionReason(exception))
-                .withStatus(exception == null ? Conditions.Status.TRUE : Conditions.Status.FALSE)
-                .withType(conditionType.getValue())
+                .withStatus(exception == null ? Condition.Status.TRUE : Condition.Status.FALSE)
+                .withType(conditionType)
                 .build();
     }
 
-    private static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions newClusterCondition(
-                                                                                                                    ZonedDateTime now, KafkaProxy primary,
-                                                                                                                    ClusterCondition clusterCondition) {
-        return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.ConditionsBuilder()
+    private static Condition newClusterCondition(
+                                                 ZonedDateTime now,
+                                                 KafkaProxy primary,
+                                                 ClusterCondition clusterCondition) {
+        return new ConditionBuilder()
                 .withLastTransitionTime(now)
                 .withMessage(clusterCondition.message())
                 .withObservedGeneration(generation(primary))
                 .withReason(clusterCondition.reason())
                 .withStatus(clusterCondition.status())
-                .withType(clusterCondition.type().getValue())
+                .withType(clusterCondition.type())
                 .build();
     }
 
-    private static boolean isTransition(@Nullable Conditions oldReady, @Nullable Exception exception) {
+    private static boolean isTransition(@Nullable Condition oldReady, @Nullable Exception exception) {
         if (oldReady == null) {
             return true;
         }
@@ -285,8 +285,8 @@ public class ProxyReconciler implements
         }
     }
 
-    private static boolean isReadyEqualsTrue(Conditions oldReady) {
-        return Conditions.Status.TRUE.equals(oldReady.getStatus());
+    private static boolean isReadyEqualsTrue(Condition oldReady) {
+        return Condition.Status.TRUE.equals(oldReady.getStatus());
     }
 
     @Override
@@ -306,7 +306,7 @@ public class ProxyReconciler implements
             }
         }
         eventSources.add(buildVirtualKafkaClusterInformer(context));
-        eventSources.add(buildKafkaClusterRefInformer(context));
+        eventSources.add(buildKafkaServiceInformer(context));
         eventSources.add(buildKafkaProxyIngressInformer(context));
         return eventSources;
     }
@@ -327,29 +327,28 @@ public class ProxyReconciler implements
         return new InformerEventSource<>(configuration, context);
     }
 
-    private static InformerEventSource<?, KafkaProxy> buildKafkaClusterRefInformer(EventSourceContext<KafkaProxy> context) {
-        InformerEventSourceConfiguration<KafkaClusterRef> configuration = InformerEventSourceConfiguration.from(KafkaClusterRef.class, KafkaProxy.class)
-                .withSecondaryToPrimaryMapper(kafkaClusterRefToProxyMapper(context))
-                .withPrimaryToSecondaryMapper(proxyToKafkaClusterRefMapper(context))
+    private static InformerEventSource<?, KafkaProxy> buildKafkaServiceInformer(EventSourceContext<KafkaProxy> context) {
+        InformerEventSourceConfiguration<KafkaService> configuration = InformerEventSourceConfiguration.from(KafkaService.class, KafkaProxy.class)
+                .withSecondaryToPrimaryMapper(kafkaServiceRefToProxyMapper(context))
+                .withPrimaryToSecondaryMapper(proxyToKafkaServiceMapper(context))
                 .build();
         return new InformerEventSource<>(configuration, context);
     }
 
     @VisibleForTesting
-    static @NonNull SecondaryToPrimaryMapper<KafkaClusterRef> kafkaClusterRefToProxyMapper(EventSourceContext<KafkaProxy> context) {
-        return kafkaClusterRef -> {
-            // find all virtual clusters that reference this kafkaClusterRef
+    static @NonNull SecondaryToPrimaryMapper<KafkaService> kafkaServiceRefToProxyMapper(EventSourceContext<KafkaProxy> context) {
+        return kafkaServiceRef -> {
+            // find all virtual clusters that reference this kafkaServiceRef
 
-            var proxyNames = resourcesInSameNamespace(context, kafkaClusterRef, VirtualKafkaCluster.class)
-                    .filter(vkc -> vkc.getSpec().getTargetCluster().getClusterRef().getName().equals(name(kafkaClusterRef)))
+            var proxyRefs = resourcesInSameNamespace(context, kafkaServiceRef, VirtualKafkaCluster.class)
+                    .filter(vkc -> vkc.getSpec().getTargetKafkaServiceRef().equals(ResourcesUtil.toLocalRef(kafkaServiceRef)))
                     .map(VirtualKafkaCluster::getSpec)
                     .map(VirtualKafkaClusterSpec::getProxyRef)
-                    .map(ProxyRef::getName)
                     .collect(Collectors.toSet());
 
-            Set<ResourceID> proxyIds = filteredResourceIdsInSameNamespace(context, kafkaClusterRef, KafkaProxy.class,
-                    proxy -> proxyNames.contains(name(proxy)));
-            LOGGER.debug("Event source KafkaClusterRef SecondaryToPrimaryMapper got {}", proxyIds);
+            Set<ResourceID> proxyIds = filteredResourceIdsInSameNamespace(context, kafkaServiceRef, KafkaProxy.class,
+                    proxy -> proxyRefs.contains(toLocalRef(proxy)));
+            LOGGER.debug("Event source KafkaService SecondaryToPrimaryMapper got {}", proxyIds);
             return proxyIds;
         };
     }
@@ -359,21 +358,19 @@ public class ProxyReconciler implements
      * @return mapper
      */
     @VisibleForTesting
-    static @NonNull PrimaryToSecondaryMapper<HasMetadata> proxyToKafkaClusterRefMapper(EventSourceContext<KafkaProxy> context) {
+    static @NonNull PrimaryToSecondaryMapper<HasMetadata> proxyToKafkaServiceMapper(EventSourceContext<KafkaProxy> context) {
         return primary -> {
-            // Load all the virtual clusters for the KafkaProxy, then extract all the referenced KafkaClusterRef resource ids.
-            var clusterRefNames = resourcesInSameNamespace(context, primary, VirtualKafkaCluster.class)
-                    .filter(vkc -> vkc.getSpec().getProxyRef().getName().equals(name(primary)))
+            // Load all the virtual clusters for the KafkaProxy, then extract all the referenced KafkaService resource ids.
+            var clusterRefs = resourcesInSameNamespace(context, primary, VirtualKafkaCluster.class)
+                    .filter(vkc -> vkc.getSpec().getProxyRef().equals(toLocalRef(primary)))
                     .map(VirtualKafkaCluster::getSpec)
-                    .map(VirtualKafkaClusterSpec::getTargetCluster)
-                    .map(TargetCluster::getClusterRef)
-                    .map(KafkaCRef::getName)
+                    .map(VirtualKafkaClusterSpec::getTargetKafkaServiceRef)
                     .collect(Collectors.toSet());
 
-            Set<ResourceID> kafkaClusterRefs = filteredResourceIdsInSameNamespace(context, primary, KafkaClusterRef.class,
-                    cluster -> clusterRefNames.contains(name(cluster)));
-            LOGGER.debug("Event source KafkaClusterRef PrimaryToSecondaryMapper got {}", kafkaClusterRefs);
-            return kafkaClusterRefs;
+            Set<ResourceID> kafkaServiceRefs = filteredResourceIdsInSameNamespace(context, primary, KafkaService.class,
+                    cluster -> clusterRefs.contains(toLocalRef(cluster)));
+            LOGGER.debug("Event source KafkaService PrimaryToSecondaryMapper got {}", kafkaServiceRefs);
+            return kafkaServiceRefs;
         };
     }
 

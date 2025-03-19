@@ -13,8 +13,7 @@ metadata:
 spec:
   proxyRef:
     name: twocluster
-  targetCluster:
-    clusterRef:
-      name: fooref
+  targetKafkaServiceRef:
+    name: fooref
   ingressRefs:
     - name: cluster-ip-foo

@@ -13,8 +13,7 @@ metadata:
 spec:
   proxyRef:
     name: minimal
-  targetCluster:
-    clusterRef:
-      name: myref
+  targetKafkaServiceRef:
+    name: myref
   ingressRefs:
     - name: cluster-ip

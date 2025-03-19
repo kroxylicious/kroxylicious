@@ -13,8 +13,7 @@ metadata:
 spec:
   proxyRef:
     name: use-pod-template-spec
-  targetCluster:
-    clusterRef:
-      name: myref
+  targetKafkaServiceRef:
+    name: myref
   ingressRefs:
     - name: cluster-ip

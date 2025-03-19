@@ -19,8 +19,8 @@ import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
@@ -28,23 +28,16 @@ import static java.util.Comparator.comparing;
 
 /**
  * The result of a deep resolution of the dependencies of a single KafkaProxy. Contains all
- * Filters, KafkaProxyIngresses and KafkaClusterRefs that were successfully resolved. It also
+ * Filters, KafkaProxyIngresses and KafkaServices that were successfully resolved. It also
  * describes which dependencies could not be resolved per VirtualKafkaCluster.
  */
 public class ResolutionResult {
     private final Map<LocalRef<GenericKubernetesResource>, GenericKubernetesResource> filters;
     private final Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> kafkaProxyIngresses;
-    private final Map<LocalRef<KafkaClusterRef>, KafkaClusterRef> kafkaClusterRefs;
-    private final Map<String, ClusterResolutionResult> clusterResolutionResults;
+    private final Map<LocalRef<KafkaService>, KafkaService> kafkaServiceRefs;
+    private final Set<ClusterResolutionResult> clusterResolutionResults;
 
-    public record UnresolvedDependency(Dependency type, String name) {
-        public UnresolvedDependency {
-            Objects.requireNonNull(type);
-            Objects.requireNonNull(name);
-        }
-    }
-
-    public record ClusterResolutionResult(VirtualKafkaCluster cluster, Set<UnresolvedDependency> unresolvedDependencySet) {
+    public record ClusterResolutionResult(VirtualKafkaCluster cluster, Set<LocalRef<?>> unresolvedDependencySet) {
         public ClusterResolutionResult {
             Objects.requireNonNull(cluster);
             Objects.requireNonNull(unresolvedDependencySet);
@@ -62,15 +55,15 @@ public class ResolutionResult {
 
     ResolutionResult(Map<LocalRef<GenericKubernetesResource>, GenericKubernetesResource> filters,
                      Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> kafkaProxyIngresses,
-                     Map<LocalRef<KafkaClusterRef>, KafkaClusterRef> kafkaClusterRefs,
-                     Map<String, ClusterResolutionResult> clusterResolutionResults) {
+                     Map<LocalRef<KafkaService>, KafkaService> kafkaServiceRefs,
+                     Set<ClusterResolutionResult> clusterResolutionResults) {
         Objects.requireNonNull(filters);
         Objects.requireNonNull(kafkaProxyIngresses);
-        Objects.requireNonNull(kafkaClusterRefs);
+        Objects.requireNonNull(kafkaServiceRefs);
         Objects.requireNonNull(clusterResolutionResults);
         this.filters = filters;
         this.kafkaProxyIngresses = kafkaProxyIngresses;
-        this.kafkaClusterRefs = kafkaClusterRefs;
+        this.kafkaServiceRefs = kafkaServiceRefs;
         this.clusterResolutionResults = clusterResolutionResults;
     }
 
@@ -91,7 +84,7 @@ public class ResolutionResult {
     }
 
     private List<VirtualKafkaCluster> clusterResults(Predicate<ClusterResolutionResult> include) {
-        return clusterResolutionResults.values().stream().filter(include).map(ClusterResolutionResult::cluster)
+        return clusterResolutionResults.stream().filter(include).map(ClusterResolutionResult::cluster)
                 .sorted(comparing(ResourcesUtil::name)).toList();
     }
 
@@ -100,7 +93,7 @@ public class ResolutionResult {
      * @return all ClusterResolutionResult
      */
     public Collection<ClusterResolutionResult> clusterResults() {
-        return clusterResolutionResults.values();
+        return clusterResolutionResults;
     }
 
     /**
@@ -122,12 +115,12 @@ public class ResolutionResult {
     }
 
     /**
-     * Get the resolved KafkaClusterRef for a cluster
+     * Get the resolved KafkaService for a cluster
      * @return optional containing the cluster ref if resolved, else empty
      */
-    public Optional<KafkaClusterRef> kafkaClusterRef(VirtualKafkaCluster cluster) {
-        var ref = cluster.getSpec().getTargetCluster().getClusterRef();
-        return Optional.ofNullable(kafkaClusterRefs.get(ref));
+    public Optional<KafkaService> kafkaServiceRef(VirtualKafkaCluster cluster) {
+        var ref = cluster.getSpec().getTargetKafkaServiceRef();
+        return Optional.ofNullable(kafkaServiceRefs.get(ref));
     }
 
     /**

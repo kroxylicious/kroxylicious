@@ -33,11 +33,11 @@ import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.search.MeterNotFoundException;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
@@ -62,7 +62,7 @@ class OperatorMainIT {
         LocallyRunOperatorExtension.applyCrd(KafkaProtocolFilter.class, OperatorTestUtils.kubeClientIfAvailable());
         LocallyRunOperatorExtension.applyCrd(KafkaProxy.class, OperatorTestUtils.kubeClientIfAvailable());
         LocallyRunOperatorExtension.applyCrd(VirtualKafkaCluster.class, OperatorTestUtils.kubeClientIfAvailable());
-        LocallyRunOperatorExtension.applyCrd(KafkaClusterRef.class, OperatorTestUtils.kubeClientIfAvailable());
+        LocallyRunOperatorExtension.applyCrd(KafkaService.class, OperatorTestUtils.kubeClientIfAvailable());
         LocallyRunOperatorExtension.applyCrd(KafkaProxyIngress.class, OperatorTestUtils.kubeClientIfAvailable());
     }
 
@@ -74,7 +74,7 @@ class OperatorMainIT {
                 kubernetesClient.resources(KafkaProxyIngress.class).delete();
                 kubernetesClient.resources(KafkaProxy.class).delete();
                 kubernetesClient.resources(VirtualKafkaCluster.class).delete();
-                kubernetesClient.resources(KafkaClusterRef.class).delete();
+                kubernetesClient.resources(KafkaService.class).delete();
             }
         }
     }
@@ -241,8 +241,8 @@ class OperatorMainIT {
         return kubernetesClient.resource(proxyBuilder.build()).create();
     }
 
-    private KafkaClusterRef clusterRef(String clusterRefName, String clusterBootstrap) {
-        return new KafkaClusterRefBuilder().withNewMetadata().withName(clusterRefName).endMetadata()
+    private KafkaService clusterRef(String clusterRefName, String clusterBootstrap) {
+        return new KafkaServiceBuilder().withNewMetadata().withName(clusterRefName).endMetadata()
                 .withNewSpec()
                 .withBootstrapServers(clusterBootstrap)
                 .endSpec()

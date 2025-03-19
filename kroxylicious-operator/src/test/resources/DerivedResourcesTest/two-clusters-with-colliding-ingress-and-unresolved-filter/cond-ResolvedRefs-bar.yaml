@@ -6,7 +6,8 @@
 
 ---
 cluster: bar
-type: Accepted
+type: ResolvedRefs
 status: 'False'
 reason: Invalid
-message: Target Cluster "kafkaclusterref.kroxylicious.io/barref" does not exist.
+message: "Resource of kind \"KafkaService\" in group \"kroxylicious.io\" named\
+    \ \"barref\" does not exist."

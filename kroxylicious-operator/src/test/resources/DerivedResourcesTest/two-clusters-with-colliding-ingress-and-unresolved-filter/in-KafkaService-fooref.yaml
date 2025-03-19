@@ -5,10 +5,10 @@
 #
 
 ---
-kind: KafkaClusterRef
+kind: KafkaService
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: myref
+  name: fooref
   namespace: proxy-ns
 spec:
-  bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+  bootstrapServers: second-kafka.kafka2.svc.cluster.local:9092
