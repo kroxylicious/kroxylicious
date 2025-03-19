@@ -19,8 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
-import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
@@ -44,8 +42,9 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
-import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -89,7 +88,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).reconcile(primary, context);
+        var updateControl = new ProxyReconciler().reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -120,7 +119,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+        var updateControl = new ProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
         var statusAssert = assertThat(updateControl.getResource())
@@ -160,7 +159,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).reconcile(primary, context);
+        var updateControl = new ProxyReconciler().reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -201,7 +200,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+        var updateControl = new ProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
         var statusAssert = assertThat(updateControl.getResource())
@@ -241,7 +240,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+        var updateControl = new ProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
         var statusAssert = assertThat(updateControl.getResource())
@@ -282,7 +281,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).reconcile(primary, context);
+        var updateControl = new ProxyReconciler().reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -330,10 +329,9 @@ class ProxyReconcilerTest {
         doReturn(Optional.of(Map.of("my-cluster", ClusterCondition.refNotFound("my-cluster", new FilterRefBuilder().withName("MissingFilter").build())))).when(mdrc).get(
                 SharedKafkaProxyContext.CLUSTER_CONDITIONS_KEY,
                 Map.class);
-        doReturn(new RuntimeDecl(List.of())).when(mdrc).getMandatory(SharedKafkaProxyContext.RUNTIME_DECL_KEY, Map.class);
 
         // When
-        var updateControl = new ProxyReconciler(new RuntimeDecl(List.of())).reconcile(primary, context);
+        var updateControl = new ProxyReconciler().reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -464,9 +462,9 @@ class ProxyReconcilerTest {
         when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
         KafkaProxy proxy = buildProxy("proxy");
         when(mockList.getItems()).thenReturn(List.of(proxy));
-        SecondaryToPrimaryMapper<GenericKubernetesResource> mapper = ProxyReconciler.filterToProxy(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaProtocolFilter> mapper = ProxyReconciler.filterToProxy(eventSourceContext);
         String namespace = "test";
-        GenericKubernetesResource filter = new GenericKubernetesResourceBuilder().withNewMetadata().withName("filter").withNamespace(namespace).endMetadata().build();
+        KafkaProtocolFilter filter = new KafkaProtocolFilterBuilder().withNewMetadata().withName("filter").withNamespace(namespace).endMetadata().build();
         Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(filter);
         assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(proxy));
         verify(mockOperation).inNamespace(namespace);

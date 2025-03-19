@@ -7,7 +7,6 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Duration;
-import java.util.List;
 import java.util.Set;
 
 import org.assertj.core.api.AbstractStringAssert;
@@ -40,7 +39,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
-import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
 import static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP.Protocol.TCP;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
@@ -81,13 +80,12 @@ class ProxyReconcilerIT {
 
     @RegisterExtension
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
-            .withReconciler(new ProxyReconciler(new RuntimeDecl(List.of(
-            // new FilterKindDecl("filter.kroxylicious.io", "v1alpha1", "RecordEncryption", "io.kroxylicious.filter.encryption.RecordEncryption")
-            ))))
+            .withReconciler(new ProxyReconciler())
             .withKubernetesClient(client)
             .withAdditionalCustomResourceDefinition(VirtualKafkaCluster.class)
             .withAdditionalCustomResourceDefinition(KafkaService.class)
             .withAdditionalCustomResourceDefinition(KafkaProxyIngress.class)
+            .withAdditionalCustomResourceDefinition(KafkaProtocolFilter.class)
             .waitForNamespaceDeletion(true)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
