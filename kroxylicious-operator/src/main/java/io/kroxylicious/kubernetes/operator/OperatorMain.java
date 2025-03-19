@@ -44,7 +44,7 @@ public class OperatorMain {
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorMain.class);
     private static final String BIND_ADDRESS_VAR_NAME = "BIND_ADDRESS";
     private static final int DEFAULT_MANAGEMENT_PORT = 8080;
-    static final String HTTP_PATH_HEALTHY = "/healthy";
+    static final String HTTP_PATH_LIVEZ = "/livez";
     private final Operator operator;
     private final HttpServer managementServer;
 
@@ -84,7 +84,7 @@ public class OperatorMain {
         addHttpGetHandler("/", () -> 404);
         managementServer.start();
         operator.start();
-        addHttpGetHandler(HTTP_PATH_HEALTHY, this::healthyStatusCode);
+        addHttpGetHandler(HTTP_PATH_LIVEZ, this::livezStatusCode);
         LOGGER.info("Operator started");
     }
 
@@ -100,7 +100,7 @@ public class OperatorMain {
         }).getFilters().add(UnsupportedHttpMethodFilter.INSTANCE);
     }
 
-    private int healthyStatusCode() {
+    private int livezStatusCode() {
         int sc;
         try {
             sc = operator.getRuntimeInfo().allEventSourcesAreHealthy() ? 200 : 400;
@@ -109,7 +109,7 @@ public class OperatorMain {
             sc = 400;
             LOGGER.error("Ignoring exception caught while getting operator health info", e);
         }
-        LOGGER.trace("Responding {} to GET {}", sc, HTTP_PATH_HEALTHY);
+        LOGGER.trace("Responding {} to GET {}", sc, HTTP_PATH_LIVEZ);
         return sc;
     }
 

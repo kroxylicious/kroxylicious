@@ -47,4 +47,4 @@ spec:
             timeoutSeconds: 5
             httpGet:
               port: http
-              path: /healthy
+              path: /livez

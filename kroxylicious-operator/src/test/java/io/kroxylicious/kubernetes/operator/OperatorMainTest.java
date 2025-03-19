@@ -143,14 +143,14 @@ class OperatorMainTest {
     }
 
     @Test
-    void shouldRegisterHealthWithManagementServer() {
+    void shouldRegisterLivezWithManagementServer() {
         // Given
 
         // When
         operatorMain.start();
 
         // Then
-        verify(managementServer).createContext(eq(OperatorMain.HTTP_PATH_HEALTHY), any(HttpHandler.class));
+        verify(managementServer).createContext(eq(OperatorMain.HTTP_PATH_LIVEZ), any(HttpHandler.class));
     }
 
     @Test
@@ -177,9 +177,9 @@ class OperatorMainTest {
     }
 
     @Test
-    void shouldRespondWith200ForRequestsHealthy() throws IOException {
+    void shouldRespondWith200ForRequestsLivez() throws IOException {
         // Given
-        shouldRespondWithStatusCode(OperatorMain.HTTP_PATH_HEALTHY, 200);
+        shouldRespondWithStatusCode(OperatorMain.HTTP_PATH_LIVEZ, 200);
     }
 
     private void shouldRespondWithStatusCode(
