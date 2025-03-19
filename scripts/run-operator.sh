@@ -15,9 +15,14 @@ then
   minikube start
 fi
 
-echo "building operator image in minikube"
+GIT_HASH="$(git rev-parse HEAD)"
+TMP_INSTALL_DIR="$(mktemp -d)"
+trap 'rm -rf -- "$TMP_INSTALL_DIR"' EXIT
+
+echo "building operator image in minikube for commit ${GIT_HASH}"
+IMAGE_TAG="dev-git-${GIT_HASH}"
 KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION:-$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)}
-minikube image build . -f Dockerfile.operator -t quay.io/kroxylicious/operator:latest --build-opt=build-arg=KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION}"
+minikube image build . -f Dockerfile.operator -t quay.io/kroxylicious/operator:${IMAGE_TAG} --build-opt=build-arg=KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION}"
 
 cd kroxylicious-operator || exit
 echo "installing kafka (no-op if already installed)"
@@ -47,7 +52,9 @@ done
 echo "installing crds"
 kubectl apply -f src/main/resources/META-INF/fabric8
 echo "installing kroxylicious-operator"
-kubectl apply -f install
+cp install/* ${TMP_INSTALL_DIR}
+sed -i "s|quay.io/kroxylicious/operator:latest|quay.io/kroxylicious/operator:${IMAGE_TAG}|g" ${TMP_INSTALL_DIR}/03.Deployment.kroxylicious-operator.yaml
+kubectl apply -f ${TMP_INSTALL_DIR}
 echo "installing simple proxy"
 kubectl apply -f examples/simple/
 
