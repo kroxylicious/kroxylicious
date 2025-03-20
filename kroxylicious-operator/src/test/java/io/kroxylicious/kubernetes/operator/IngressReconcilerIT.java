@@ -43,11 +43,11 @@ class IngressReconcilerIT {
     private static final String CLUSTER_BAR_CLUSTERIP_INGRESS = "bar-cluster-ip";
 
     private KubernetesClient client;
-    private final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
+    private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
     // the initial operator image pull can take a long time and interfere with the tests
     @BeforeAll
-    public static void preloadOperandImage() {
+    static void preloadOperandImage() {
         OperatorTestUtils.preloadOperandImage();
     }
 
@@ -75,13 +75,13 @@ class IngressReconcilerIT {
     void testCreateIngressFirst() {
         KafkaProxyIngress ingressBar = extension.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
         assertIngressStatusResolvedRefs(ingressBar, Condition.Status.FALSE);
-        KafkaProxy proxy = extension.create(kafkaProxy(PROXY_A));
+        extension.create(kafkaProxy(PROXY_A));
         assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
     }
 
     @Test
     void testCreateProxyFirst() {
-        KafkaProxy proxy = extension.create(kafkaProxy(PROXY_A));
+        extension.create(kafkaProxy(PROXY_A));
         KafkaProxyIngress ingressBar = extension.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
         assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
     }
@@ -98,8 +98,8 @@ class IngressReconcilerIT {
 
     @Test
     void testSwitchProxy() {
-        KafkaProxy proxyA = extension.create(kafkaProxy(PROXY_A));
-        KafkaProxy proxyB = extension.create(kafkaProxy(PROXY_B));
+        extension.create(kafkaProxy(PROXY_A));
+        extension.create(kafkaProxy(PROXY_B));
         KafkaProxyIngress ingressBar = extension.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
         assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
 

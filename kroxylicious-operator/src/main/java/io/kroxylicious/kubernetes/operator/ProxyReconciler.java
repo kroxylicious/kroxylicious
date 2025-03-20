@@ -290,7 +290,7 @@ public class ProxyReconciler implements
         return new InformerEventSource<>(configuration, context);
     }
 
-    static <C extends HasMetadata> InformerEventSource<?, C> buildKafkaProxyIngressInformer(EventSourceContext<C> context) {
+    private static <C extends HasMetadata> InformerEventSource<KafkaProxyIngress, C> buildKafkaProxyIngressInformer(EventSourceContext<C> context) {
         InformerEventSourceConfiguration<KafkaProxyIngress> configuration = InformerEventSourceConfiguration.from(KafkaProxyIngress.class, KafkaProxy.class)
                 .withSecondaryToPrimaryMapper(ingressToProxyMapper(context))
                 .withPrimaryToSecondaryMapper(proxyToIngressMapper(context))

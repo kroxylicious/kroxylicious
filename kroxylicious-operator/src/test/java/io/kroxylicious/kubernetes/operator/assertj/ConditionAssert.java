@@ -41,7 +41,7 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
     }
 
     public ConditionAssert hasObservedGenerationInSyncWithMetadataOf(HasMetadata thing) {
-        observedGeneration().isEqualTo(thing.getMetadata().getGeneration());
+        hasObservedGeneration(thing.getMetadata().getGeneration());
         return this;
     }
 
@@ -50,7 +50,7 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
     }
 
     public ConditionAssert hasType(Condition.Type expected) {
-        AbstractComparableAssert<?, Condition.Type> equalTo = type().isEqualTo(expected);
+        type().isEqualTo(expected);
         return this;
     }
 
@@ -95,6 +95,11 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
         return Assertions.assertThat(actual.getLastTransitionTime());
     }
 
+    public ConditionAssert hasLastTransitionTime(ZonedDateTime time) {
+        lastTransitionTime().isEqualTo(time);
+        return this;
+    }
+
     public ConditionAssert isReady() {
         hasType(Condition.Type.Ready);
         hasStatus(Condition.Status.TRUE);
@@ -106,39 +111,40 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
     public ConditionAssert isAcceptedTrue() {
         hasType(Condition.Type.Accepted);
         hasStatus(Condition.Status.TRUE);
-        reason().isEmpty();
-        message().isEmpty();
+        hasNoReason();
+        hasNoMessage();
         return this;
     }
 
     public ConditionAssert isAcceptedFalse(String reason, String message) {
         hasType(Condition.Type.Accepted);
         hasStatus(Condition.Status.FALSE);
-        reason().isEqualTo(reason);
-        message().isEqualTo(message);
+        hasReason(reason);
+        hasMessage(message);
+        return this;
+    }
+
+    public ConditionAssert isResolvedRefsUnknown(String reason, String message) {
+        hasType(Condition.Type.ResolvedRefs);
+        hasStatus(Condition.Status.UNKNOWN);
+        hasReason(reason);
+        hasMessage(message);
         return this;
     }
 
     public ConditionAssert isResolvedRefsFalse(String reason, String message) {
         hasType(Condition.Type.ResolvedRefs);
         hasStatus(Condition.Status.FALSE);
-        reason().isEqualTo(reason);
-        message().isEqualTo(message);
+        hasReason(reason);
+        hasMessage(message);
         return this;
     }
 
-    public ConditionAssert hasObservedGeneration(long generation) {
-        observedGeneration().isEqualTo(generation);
-        return this;
-    }
-
-    public ConditionAssert lastTransitionTimeIsAfter(ZonedDateTime time) {
-        lastTransitionTime().isAfter(time);
-        return this;
-    }
-
-    public ConditionAssert lastTransitionTimeIsEqualTo(ZonedDateTime time) {
-        lastTransitionTime().isEqualTo(time);
+    public ConditionAssert isResolvedRefsTrue() {
+        hasType(Condition.Type.ResolvedRefs);
+        hasStatus(Condition.Status.TRUE);
+        hasNoReason();
+        hasNoMessage();
         return this;
     }
 

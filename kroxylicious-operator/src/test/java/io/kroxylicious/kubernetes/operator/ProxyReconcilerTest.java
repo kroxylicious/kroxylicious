@@ -169,7 +169,7 @@ class ProxyReconcilerTest {
         statusAssert.observedGeneration().isEqualTo(generation);
         var first = statusAssert.singleCondition();
         first.observedGeneration().isEqualTo(generation);
-        first.lastTransitionTimeIsEqualTo(time);
+        first.hasLastTransitionTime(time);
         first.type().isEqualTo(Condition.Type.Ready);
         first.status().isEqualTo(Condition.Status.TRUE);
         first.message().isEqualTo("");
@@ -250,7 +250,7 @@ class ProxyReconcilerTest {
         statusAssert.observedGeneration().isEqualTo(generation);
         var first = statusAssert.singleCondition();
         first.hasObservedGeneration(generation);
-        first.lastTransitionTimeIsEqualTo(time);
+        first.hasLastTransitionTime(time);
         first.type().isEqualTo(Condition.Type.Ready);
         first.status().isEqualTo(Condition.Status.FALSE);
         first.message().isEqualTo("Resource was terrible");
@@ -342,7 +342,7 @@ class ProxyReconcilerTest {
         statusAssert.singleCondition()
                 .isReady()
                 .hasObservedGeneration(generation)
-                .lastTransitionTimeIsEqualTo(time);
+                .hasLastTransitionTime(time);
         statusAssert.singleCluster()
                 .nameIsEqualTo("my-cluster")
                 .singleCondition()

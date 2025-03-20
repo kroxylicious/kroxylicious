@@ -19,15 +19,15 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 
-public abstract class AbstractStatusAssert<STATUS, SELF extends AbstractStatusAssert<STATUS, SELF>> extends AbstractObjectAssert<SELF, STATUS> {
-    private final Function<STATUS, Long> observedGenerationAccessor;
-    private final Function<STATUS, List<Condition>> conditionsAccessor;
+public abstract class AbstractStatusAssert<A, S extends AbstractStatusAssert<A, S>> extends AbstractObjectAssert<S, A> {
+    private final Function<A, Long> observedGenerationAccessor;
+    private final Function<A, List<Condition>> conditionsAccessor;
 
     public AbstractStatusAssert(
-                                STATUS actual,
-                                Class<SELF> selfType,
-                                Function<STATUS, Long> observedGenerationAccessor,
-                                Function<STATUS, List<Condition>> conditionsAccessor) {
+                                A actual,
+                                Class<S> selfType,
+                                Function<A, Long> observedGenerationAccessor,
+                                Function<A, List<Condition>> conditionsAccessor) {
         super(actual, selfType);
         this.observedGenerationAccessor = observedGenerationAccessor;
         this.conditionsAccessor = conditionsAccessor;
@@ -38,9 +38,14 @@ public abstract class AbstractStatusAssert<STATUS, SELF extends AbstractStatusAs
         return Assertions.assertThat(observedGenerationAccessor.apply(actual));
     }
 
-    public SELF hasObservedGenerationInSyncWithMetadataOf(HasMetadata thing) {
-        observedGeneration().isEqualTo(thing.getMetadata().getGeneration());
-        return (SELF) this;
+    public S hasObservedGeneration(Long observedGeneration) {
+        observedGeneration().isEqualTo(observedGeneration);
+        return (S) this;
+    }
+
+    public S hasObservedGenerationInSyncWithMetadataOf(HasMetadata thing) {
+        hasObservedGeneration(thing.getMetadata().getGeneration());
+        return (S) this;
     }
 
     public ListAssert<Condition.Status> conditions() {

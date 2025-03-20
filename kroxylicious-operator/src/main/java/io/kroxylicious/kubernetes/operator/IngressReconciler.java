@@ -53,15 +53,11 @@ public class IngressReconciler implements
                 KafkaProxy.class,
                 KafkaProxyIngress.class)
                 .withName(PROXY_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper((KafkaProxyIngress ingress) -> {
-                    return ResourcesUtil.localRefAsResourceId(ingress, ingress.getSpec().getProxyRef());
-                })
-                .withSecondaryToPrimaryMapper(proxy -> {
-                    return ResourcesUtil.findReferrers(context,
-                            proxy,
-                            KafkaProxyIngress.class,
-                            ingress -> ingress.getSpec().getProxyRef());
-                })
+                .withPrimaryToSecondaryMapper((KafkaProxyIngress ingress) -> ResourcesUtil.localRefAsResourceId(ingress, ingress.getSpec().getProxyRef()))
+                .withSecondaryToPrimaryMapper(proxy -> ResourcesUtil.findReferrers(context,
+                        proxy,
+                        KafkaProxyIngress.class,
+                        ingress -> ingress.getSpec().getProxyRef()))
                 .build();
         return List.of(new InformerEventSource<>(configuration, context));
     }
@@ -93,12 +89,14 @@ public class IngressReconciler implements
 
     @NonNull
     private static KafkaProxyIngress newIngressWithCondition(KafkaProxyIngress ingress, Condition condition) {
+        // @formatter:off
         return new KafkaProxyIngressBuilder(ingress)
-                .editOrNewStatus()
-                .withObservedGeneration(ingress.getMetadata().getGeneration())
-                .withConditions(condition) // overwrite any existing conditions
-                .endStatus()
+                    .withNewStatus()
+                        .withObservedGeneration(ingress.getMetadata().getGeneration())
+                        .withConditions(condition) // overwrite any existing conditions
+                    .endStatus()
                 .build();
+        // @formatter:on
     }
 
     private static ConditionBuilder newResolvedRefsCondition(KafkaProxyIngress ingress, ZonedDateTime now) {
