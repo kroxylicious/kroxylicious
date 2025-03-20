@@ -125,7 +125,7 @@ class OperatorMainTest {
         operatorMain.start();
 
         // Then
-        assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.executions.proxyreconciler").meter().getId()).isNotNull();
+        assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.executions.kafkaproxyreconciler").meter().getId()).isNotNull();
     }
 
     @Test

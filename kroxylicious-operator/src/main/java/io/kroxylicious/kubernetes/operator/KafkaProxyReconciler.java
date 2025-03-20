@@ -57,32 +57,32 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
 // @formatter:off
 @Workflow(dependents = {
         @Dependent(
-                name = ProxyReconciler.CONFIG_DEP,
+                name = KafkaProxyReconciler.CONFIG_DEP,
                 type = ProxyConfigConfigMap.class
         ),
         @Dependent(
-                name = ProxyReconciler.DEPLOYMENT_DEP,
+                name = KafkaProxyReconciler.DEPLOYMENT_DEP,
                 type = ProxyDeployment.class,
-                dependsOn = { ProxyReconciler.CONFIG_DEP },
+                dependsOn = { KafkaProxyReconciler.CONFIG_DEP },
                 readyPostcondition = DeploymentReadyCondition.class
         ),
         @Dependent(
-                name = ProxyReconciler.CLUSTERS_DEP,
+                name = KafkaProxyReconciler.CLUSTERS_DEP,
                 type = ClusterService.class,
-                dependsOn = { ProxyReconciler.DEPLOYMENT_DEP }
+                dependsOn = { KafkaProxyReconciler.DEPLOYMENT_DEP }
         )
 })
 // @formatter:on
-public class ProxyReconciler implements
+public class KafkaProxyReconciler implements
         Reconciler<KafkaProxy> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ProxyReconciler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyReconciler.class);
 
     public static final String CONFIG_DEP = "config";
     public static final String DEPLOYMENT_DEP = "deployment";
     public static final String CLUSTERS_DEP = "clusters";
 
-    public ProxyReconciler() {
+    public KafkaProxyReconciler() {
     }
 
     /**

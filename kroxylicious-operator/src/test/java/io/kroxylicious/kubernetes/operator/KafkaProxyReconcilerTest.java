@@ -54,7 +54,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class ProxyReconcilerTest {
+class KafkaProxyReconcilerTest {
 
     @Mock
     Context<KafkaProxy> context;
@@ -88,7 +88,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler().reconcile(primary, context);
+        var updateControl = new KafkaProxyReconciler().reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -119,7 +119,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+        var updateControl = new KafkaProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
         var statusAssert = assertThat(updateControl.getResource())
@@ -159,7 +159,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler().reconcile(primary, context);
+        var updateControl = new KafkaProxyReconciler().reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -200,7 +200,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+        var updateControl = new KafkaProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
         var statusAssert = assertThat(updateControl.getResource())
@@ -240,7 +240,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+        var updateControl = new KafkaProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
         var statusAssert = assertThat(updateControl.getResource())
@@ -281,7 +281,7 @@ class ProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new ProxyReconciler().reconcile(primary, context);
+        var updateControl = new KafkaProxyReconciler().reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -331,7 +331,7 @@ class ProxyReconcilerTest {
                 Map.class);
 
         // When
-        var updateControl = new ProxyReconciler().reconcile(primary, context);
+        var updateControl = new KafkaProxyReconciler().reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -366,7 +366,7 @@ class ProxyReconcilerTest {
         VirtualKafkaCluster cluster = baseVirtualKafkaClusterBuilder(proxy, "cluster").build();
         VirtualKafkaCluster clusterForAnotherProxy = baseVirtualKafkaClusterBuilder(buildProxy("anotherproxy"), "anothercluster").build();
         when(mockList.getItems()).thenReturn(List.of(cluster, clusterForAnotherProxy));
-        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToClusterMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<HasMetadata> mapper = KafkaProxyReconciler.proxyToClusterMapper(eventSourceContext);
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
         assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(cluster));
     }
@@ -388,7 +388,7 @@ class ProxyReconcilerTest {
                 .withName("anotherProxy")
                 .endProxyRef().endSpec().build();
         when(mockList.getItems()).thenReturn(List.of(ingress, ingressForAnotherProxy));
-        PrimaryToSecondaryMapper<KafkaProxy> mapper = ProxyReconciler.proxyToIngressMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<KafkaProxy> mapper = KafkaProxyReconciler.proxyToIngressMapper(eventSourceContext);
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("proxy").endMetadata().build();
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
         assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(ingress));
@@ -406,7 +406,7 @@ class ProxyReconcilerTest {
         when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
         VirtualKafkaCluster clusterForAnotherProxy = baseVirtualKafkaClusterBuilder(buildProxy("anotherProxy"), "cluster").build();
         when(mockList.getItems()).thenReturn(List.of(clusterForAnotherProxy));
-        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToClusterMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<HasMetadata> mapper = KafkaProxyReconciler.proxyToClusterMapper(eventSourceContext);
         KafkaProxy proxy = buildProxy("proxy");
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
         assertThat(secondaryResourceIDs).isEmpty();
@@ -424,7 +424,7 @@ class ProxyReconcilerTest {
         when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
         KafkaProxy proxy = buildProxy("proxy");
         when(mockList.getItems()).thenReturn(List.of(proxy));
-        SecondaryToPrimaryMapper<VirtualKafkaCluster> mapper = ProxyReconciler.clusterToProxyMapper(eventSourceContext);
+        SecondaryToPrimaryMapper<VirtualKafkaCluster> mapper = KafkaProxyReconciler.clusterToProxyMapper(eventSourceContext);
         VirtualKafkaCluster cluster = baseVirtualKafkaClusterBuilder(proxy, "cluster").build();
         Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(cluster);
         assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(proxy));
@@ -442,7 +442,7 @@ class ProxyReconcilerTest {
         when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("proxy").endMetadata().build();
         when(mockList.getItems()).thenReturn(List.of(proxy));
-        SecondaryToPrimaryMapper<KafkaProxyIngress> mapper = ProxyReconciler.ingressToProxyMapper(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaProxyIngress> mapper = KafkaProxyReconciler.ingressToProxyMapper(eventSourceContext);
         KafkaProxyIngress cluster = new KafkaProxyIngressBuilder().withNewMetadata().withName("ingress").endMetadata().withNewSpec().withNewProxyRef()
                 .withName("proxy")
                 .endProxyRef().endSpec().build();
@@ -462,7 +462,7 @@ class ProxyReconcilerTest {
         when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
         KafkaProxy proxy = buildProxy("proxy");
         when(mockList.getItems()).thenReturn(List.of(proxy));
-        SecondaryToPrimaryMapper<KafkaProtocolFilter> mapper = ProxyReconciler.filterToProxy(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaProtocolFilter> mapper = KafkaProxyReconciler.filterToProxy(eventSourceContext);
         String namespace = "test";
         KafkaProtocolFilter filter = new KafkaProtocolFilterBuilder().withNewMetadata().withName("filter").withNamespace(namespace).endMetadata().build();
         Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(filter);
@@ -487,7 +487,7 @@ class ProxyReconcilerTest {
         VirtualKafkaCluster clusterForAnotherProxy = baseVirtualKafkaClusterBuilder(proxy, "cluster").editOrNewSpec()
                 .addNewFilterRef().withName(filterName).endFilterRef().endSpec().build();
         when(mockList.getItems()).thenReturn(List.of(clusterForAnotherProxy));
-        PrimaryToSecondaryMapper<KafkaProxy> mapper = ProxyReconciler.proxyToFilters(eventSourceContext);
+        PrimaryToSecondaryMapper<KafkaProxy> mapper = KafkaProxyReconciler.proxyToFilters(eventSourceContext);
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
         assertThat(secondaryResourceIDs).containsExactly(new ResourceID(filterName, proxyNamespace));
         verify(mockOperation).inNamespace(proxyNamespace);
@@ -507,7 +507,7 @@ class ProxyReconcilerTest {
                 .build();
         when(mockList.getItems()).thenReturn(List.of(clusterWithoutFilters));
 
-        PrimaryToSecondaryMapper<KafkaProxy> mapper = ProxyReconciler.proxyToFilters(eventSourceContext);
+        PrimaryToSecondaryMapper<KafkaProxy> mapper = KafkaProxyReconciler.proxyToFilters(eventSourceContext);
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
         assertThat(secondaryResourceIDs).isEmpty();
     }
@@ -532,7 +532,7 @@ class ProxyReconcilerTest {
 
         when(clusterListMock.getItems()).thenReturn(List.of(cluster));
 
-        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<HasMetadata> mapper = KafkaProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
         assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(kafkaServiceRef));
     }
@@ -560,7 +560,7 @@ class ProxyReconcilerTest {
 
         when(clusterListMock.getItems()).thenReturn(List.of(clusterProxy1, clusterProxy2));
 
-        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<HasMetadata> mapper = KafkaProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
 
         assertThat(mapper.toSecondaryResourceIDs(proxy1)).containsExactly(ResourceID.fromResource(kafkaServiceRefProxy1));
         assertThat(mapper.toSecondaryResourceIDs(proxy2)).containsExactly(ResourceID.fromResource(kafkaServiceRefProxy2));
@@ -592,7 +592,7 @@ class ProxyReconcilerTest {
 
         when(clusterListMock.getItems()).thenReturn(List.of(clusterProxy1, clusterProxy2a, clusterProxy2b));
 
-        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<HasMetadata> mapper = KafkaProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
 
         assertThat(mapper.toSecondaryResourceIDs(proxy1))
                 .containsExactly(ResourceID.fromResource(kafkaServiceRefProxy1));
@@ -616,7 +616,7 @@ class ProxyReconcilerTest {
 
         when(clusterListMock.getItems()).thenReturn(List.of(cluster));
 
-        PrimaryToSecondaryMapper<HasMetadata> mapper = ProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<HasMetadata> mapper = KafkaProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
         assertThat(secondaryResourceIDs).isEmpty();
     }
@@ -637,7 +637,7 @@ class ProxyReconcilerTest {
         KubernetesResourceList<VirtualKafkaCluster> mockClusterList = mockVirtualKafkaClusterListOperation(client);
         when(mockClusterList.getItems()).thenReturn(List.of(cluster));
 
-        SecondaryToPrimaryMapper<KafkaService> mapper = ProxyReconciler.kafkaServiceRefToProxyMapper(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaService> mapper = KafkaProxyReconciler.kafkaServiceRefToProxyMapper(eventSourceContext);
 
         Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(kafkaServiceRef);
         assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(proxy));
@@ -661,7 +661,7 @@ class ProxyReconcilerTest {
         KubernetesResourceList<VirtualKafkaCluster> mockClusterList = mockVirtualKafkaClusterListOperation(client);
         when(mockClusterList.getItems()).thenReturn(List.of(proxy1cluster, proxy2cluster));
 
-        SecondaryToPrimaryMapper<KafkaService> mapper = ProxyReconciler.kafkaServiceRefToProxyMapper(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaService> mapper = KafkaProxyReconciler.kafkaServiceRefToProxyMapper(eventSourceContext);
 
         Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(kafkaServiceRef);
         assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(proxy1), ResourceID.fromResource(proxy2));
@@ -683,7 +683,7 @@ class ProxyReconcilerTest {
         KubernetesResourceList<VirtualKafkaCluster> mockClusterList = mockVirtualKafkaClusterListOperation(client);
         when(mockClusterList.getItems()).thenReturn(List.of(cluster));
 
-        SecondaryToPrimaryMapper<KafkaService> mapper = ProxyReconciler.kafkaServiceRefToProxyMapper(eventSourceContext);
+        SecondaryToPrimaryMapper<KafkaService> mapper = KafkaProxyReconciler.kafkaServiceRefToProxyMapper(eventSourceContext);
 
         Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(orphanKafkaClusterRed);
         assertThat(primaryResourceIDs).isEmpty();
