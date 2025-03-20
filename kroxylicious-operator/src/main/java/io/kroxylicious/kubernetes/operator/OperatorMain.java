@@ -27,6 +27,7 @@ import io.micrometer.prometheusmetrics.PrometheusConfig;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import io.prometheus.metrics.exporter.httpserver.MetricsHandler;
 
+import io.kroxylicious.kubernetes.operator.kafkaservice.KafkaServiceReconciler;
 import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodFilter;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -81,6 +82,7 @@ public class OperatorMain {
         operator.installShutdownHook(Duration.ofSeconds(10));
         operator.register(new KafkaProxyReconciler());
         operator.register(new KafkaProxyIngressReconciler(Clock.systemUTC()));
+        operator.register(new KafkaServiceReconciler());
         addHttpGetHandler("/", () -> 404);
         managementServer.start();
         operator.start();
