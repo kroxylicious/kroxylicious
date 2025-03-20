@@ -61,7 +61,8 @@ class KafkaServiceReconcilerIT {
     @Test
     void shouldAcceptKafkaService() {
         // Given
-        final KafkaService kafkaService = extension.create(new KafkaServiceBuilder().withNewMetadata().withName("mycoolkafkaservice").endMetadata().editOrNewSpec().withBootstrapServers("foo.bootstrap:9090").endSpec().build());
+        final KafkaService kafkaService = extension.create(new KafkaServiceBuilder().withNewMetadata().withName("mycoolkafkaservice").endMetadata().editOrNewSpec()
+                .withBootstrapServers("foo.bootstrap:9090").endSpec().build());
         final KafkaService updated = kafkaService.edit().editSpec().withBootstrapServers(UPDATED_BOOTSTRAP).endSpec().build();
 
         // When
