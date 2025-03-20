@@ -34,6 +34,7 @@ rules:
       - kafkaproxies/status
       - kafkaservices/status
       - kafkaproxyingresses/status
+      - kafkaprotocolfilter/status
     verbs:
       - get
       - patch
