@@ -36,14 +36,14 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * referenced by the {@code spec.proxyRef.name} actually exists, setting a
  * {@link Condition.Type#ResolvedRefs} {@link Condition} accordingly.
  */
-public class IngressReconciler implements
+public class KafkaProxyIngressReconciler implements
         Reconciler<KafkaProxyIngress> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(IngressReconciler.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyIngressReconciler.class);
     public static final String PROXY_EVENT_SOURCE_NAME = "proxy";
     private final Clock clock;
 
-    IngressReconciler(Clock clock) {
+    KafkaProxyIngressReconciler(Clock clock) {
         this.clock = clock;
     }
 
@@ -73,7 +73,7 @@ public class IngressReconciler implements
         ConditionBuilder conditionBuilder = newResolvedRefsCondition(ingress, now);
 
         var proxyOpt = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME);
-        LOGGER.info("spec.proxyRef.name resolves to: {}", proxyOpt);
+        LOGGER.debug("spec.proxyRef.name resolves to: {}", proxyOpt);
 
         if (proxyOpt.isPresent()) {
             conditionBuilder.withStatus(Condition.Status.TRUE);

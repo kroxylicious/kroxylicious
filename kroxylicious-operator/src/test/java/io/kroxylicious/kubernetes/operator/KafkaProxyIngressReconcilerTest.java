@@ -26,7 +26,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-class IngressReconcilerTest {
+class KafkaProxyIngressReconcilerTest {
 
     // @formatter:off
     public static final KafkaProxyIngress INGRESS = new KafkaProxyIngressBuilder()
@@ -55,10 +55,10 @@ class IngressReconcilerTest {
     void shouldSetResolvedRefsToFalseWhenProxyNotFound() throws Exception {
         // given
         Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-        var reconciler = new IngressReconciler(z);
+        var reconciler = new KafkaProxyIngressReconciler(z);
 
         Context<KafkaProxyIngress> context = mock(Context.class);
-        when(context.getSecondaryResource(KafkaProxy.class, IngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.empty());
+        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.empty());
 
         // when
         var update = reconciler.reconcile(INGRESS, context);
@@ -80,10 +80,10 @@ class IngressReconcilerTest {
     void shouldSetResolvedRefsToTrueWhenProxyFound() throws Exception {
         // given
         Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-        var reconciler = new IngressReconciler(z);
+        var reconciler = new KafkaProxyIngressReconciler(z);
 
         Context<KafkaProxyIngress> context = mock(Context.class);
-        when(context.getSecondaryResource(KafkaProxy.class, IngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.of(PROXY));
+        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.of(PROXY));
 
         // when
         var update = reconciler.reconcile(INGRESS, context);
@@ -105,7 +105,7 @@ class IngressReconcilerTest {
     void shouldSetResolvedRefsToUnknown() {
         // given
         Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-        var reconciler = new IngressReconciler(z);
+        var reconciler = new KafkaProxyIngressReconciler(z);
 
         Context<KafkaProxyIngress> context = mock(Context.class);
 

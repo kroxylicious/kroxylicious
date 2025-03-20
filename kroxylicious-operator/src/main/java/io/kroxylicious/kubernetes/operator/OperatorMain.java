@@ -80,7 +80,7 @@ public class OperatorMain {
     void start() {
         operator.installShutdownHook(Duration.ofSeconds(10));
         operator.register(new ProxyReconciler());
-        operator.register(new IngressReconciler(Clock.systemUTC()));
+        operator.register(new KafkaProxyIngressReconciler(Clock.systemUTC()));
         addHttpGetHandler("/", () -> 404);
         managementServer.start();
         operator.start();

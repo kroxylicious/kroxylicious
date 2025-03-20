@@ -290,7 +290,7 @@ public class ProxyReconciler implements
         return new InformerEventSource<>(configuration, context);
     }
 
-    private static <C extends HasMetadata> InformerEventSource<KafkaProxyIngress, C> buildKafkaProxyIngressInformer(EventSourceContext<C> context) {
+    private static InformerEventSource<?, KafkaProxy> buildKafkaProxyIngressInformer(EventSourceContext<KafkaProxy> context) {
         InformerEventSourceConfiguration<KafkaProxyIngress> configuration = InformerEventSourceConfiguration.from(KafkaProxyIngress.class, KafkaProxy.class)
                 .withSecondaryToPrimaryMapper(ingressToProxyMapper(context))
                 .withPrimaryToSecondaryMapper(proxyToIngressMapper(context))
@@ -391,7 +391,7 @@ public class ProxyReconciler implements
     }
 
     @VisibleForTesting
-    static @NonNull SecondaryToPrimaryMapper<KafkaProxyIngress> ingressToProxyMapper(EventSourceContext<?> context) {
+    static @NonNull SecondaryToPrimaryMapper<KafkaProxyIngress> ingressToProxyMapper(EventSourceContext<KafkaProxy> context) {
         return ingress -> {
             // we need to reconcile all proxies when a kafka proxy ingress changes in case the proxyRef is updated, we need to update
             // the previously referenced proxy too.
@@ -402,7 +402,7 @@ public class ProxyReconciler implements
     }
 
     @VisibleForTesting
-    static @NonNull PrimaryToSecondaryMapper<KafkaProxy> proxyToIngressMapper(EventSourceContext<?> context) {
+    static @NonNull PrimaryToSecondaryMapper<KafkaProxy> proxyToIngressMapper(EventSourceContext<KafkaProxy> context) {
         return primary -> {
             Set<ResourceID> ingressesInProxyNamespace = ResourcesUtil.filteredResourceIdsInSameNamespace(context, primary, KafkaProxyIngress.class,
                     ingressReferences(primary));

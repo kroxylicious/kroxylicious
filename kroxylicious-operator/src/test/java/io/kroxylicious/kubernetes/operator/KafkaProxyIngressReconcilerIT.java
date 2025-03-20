@@ -34,7 +34,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
-class IngressReconcilerIT {
+class KafkaProxyIngressReconcilerIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyReconcilerIT.class);
 
@@ -58,7 +58,7 @@ class IngressReconcilerIT {
 
     @RegisterExtension
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
-            .withReconciler(new IngressReconciler(Clock.systemUTC()))
+            .withReconciler(new KafkaProxyIngressReconciler(Clock.systemUTC()))
             .withKubernetesClient(client)
             .withAdditionalCustomResourceDefinition(KafkaProxy.class)
             .waitForNamespaceDeletion(true)
