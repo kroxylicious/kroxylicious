@@ -27,15 +27,18 @@ public class KafkaProxyStatusAssert extends AbstractStatusAssert<KafkaProxyStatu
         return new KafkaProxyStatusAssert(actual);
     }
 
+    @Override
     public AbstractLongAssert<?> observedGeneration() {
         return Assertions.assertThat(actual.getObservedGeneration());
     }
 
+    @Override
     public ListAssert<Condition.Status> conditions() {
         return Assertions.assertThat(actual.getConditions())
                 .asInstanceOf(InstanceOfAssertFactories.list(Condition.Status.class));
     }
 
+    @Override
     public ConditionAssert singleCondition() {
         return conditions().singleElement(AssertFactory.condition());
     }
