@@ -38,9 +38,8 @@ public final class KafkaServiceReconciler implements
                 .build();
         final KafkaService amended = resource
                 .edit()
-                .editOrNewStatus()
-                .addNewConditionLike(acceptedCondition)
-                .endCondition()
+                .withNewStatus()
+                .withConditions(acceptedCondition)
                 .endStatus()
                 .build();
         return UpdateControl.patchStatus(amended);

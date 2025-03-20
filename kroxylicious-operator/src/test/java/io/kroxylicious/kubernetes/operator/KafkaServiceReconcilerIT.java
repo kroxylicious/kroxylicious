@@ -9,6 +9,7 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Clock;
 import java.time.Duration;
 
+import org.assertj.core.api.Assertions;
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +33,7 @@ import static org.awaitility.Awaitility.await;
 class KafkaServiceReconcilerIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceReconcilerIT.class);
+    private static final String UPDATED_BOOTSTRAP = "bar.bootstrap:9090";
 
     private KubernetesClient client;
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
@@ -41,7 +43,7 @@ class KafkaServiceReconcilerIT {
         client = OperatorTestUtils.kubeClient();
     }
 
-    @SuppressWarnings("JUnitMalformedDeclaration")
+    @SuppressWarnings("JUnitMalformedDeclaration") // The beforeAll and beforeEach have the same effect so we can use it as an instance field.
     @RegisterExtension
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
             .withReconciler(new KafkaServiceReconciler(Clock.systemUTC()))
@@ -58,6 +60,27 @@ class KafkaServiceReconcilerIT {
 
     @Test
     void shouldAcceptKafkaService() {
+        // Given
+        final KafkaService kafkaService = extension.create(new KafkaServiceBuilder().withNewMetadata().withName("mycoolkafkaservice").endMetadata().editOrNewSpec().withBootstrapServers("foo.bootstrap:9090").endSpec().build());
+        final KafkaService updated = kafkaService.edit().editSpec().withBootstrapServers(UPDATED_BOOTSTRAP).endSpec().build();
+
+        // When
+        extension.replace(updated);
+
+        // Then
+        AWAIT.untilAsserted(() -> {
+            final KafkaService mycoolkafkaservice = extension.get(KafkaService.class, "mycoolkafkaservice");
+            Assertions.assertThat(mycoolkafkaservice.getSpec().getBootstrapServers()).isEqualTo(UPDATED_BOOTSTRAP);
+            assertThat(mycoolkafkaservice.getStatus())
+                    .isNotNull()
+                    .singleCondition()
+                    .hasObservedGenerationInSyncWithMetadataOf(mycoolkafkaservice)
+                    .isAcceptedTrue();
+        });
+    }
+
+    @Test
+    void shouldAcceptUpdateToKafkaService() {
         // Given
 
         // When
