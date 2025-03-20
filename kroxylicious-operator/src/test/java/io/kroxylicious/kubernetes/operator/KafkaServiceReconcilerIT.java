@@ -23,9 +23,9 @@ import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
-import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import io.kroxylicious.kubernetes.operator.kafkaservice.KafkaServiceReconciler;
 
+import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
@@ -66,9 +66,10 @@ class KafkaServiceReconcilerIT {
         // Then
         AWAIT.untilAsserted(() -> {
             final KafkaService mycoolkafkaservice = extension.get(KafkaService.class, "mycoolkafkaservice");
-            OperatorAssertions.assertThat(mycoolkafkaservice.getStatus())
+            assertThat(mycoolkafkaservice.getStatus())
                     .isNotNull()
                     .singleCondition()
+                    .hasObservedGenerationInSyncWithMetadataOf(mycoolkafkaservice)
                     .isAcceptedTrue();
         });
     }

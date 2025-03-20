@@ -70,6 +70,7 @@ class KafkaServiceReconcilerTest {
                                                 .isEqualTo(OBSERVED_GENERATION);
                                         assertThat(kafkaServiceStatus)
                                                 .singleCondition()
+                                                .hasObservedGenerationInSyncWithMetadataOf(input.getResource().get())
                                                 .isAcceptedTrue();
                                     }
 
