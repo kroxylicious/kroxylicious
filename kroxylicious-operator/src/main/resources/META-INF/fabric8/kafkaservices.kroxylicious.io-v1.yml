@@ -21,7 +21,7 @@ spec:
     singular: kafkaservice
     kind: KafkaService
     shortNames:
-      - kcr
+      - ks
   # list of versions supported by this CustomResourceDefinition
   versions:
     - name: v1alpha1

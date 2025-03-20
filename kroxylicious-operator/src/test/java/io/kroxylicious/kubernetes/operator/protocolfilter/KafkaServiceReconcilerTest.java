@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kubernetes.operator.protocolfilter;
 
+import java.time.Clock;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -40,7 +42,7 @@ class KafkaServiceReconcilerTest {
 
     @BeforeEach
     void setUp() {
-        kafkaProtocolFilterReconciler = new KafkaServiceReconciler();
+        kafkaProtocolFilterReconciler = new KafkaServiceReconciler(Clock.systemUTC());
     }
 
     @Test

@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator.kafkaservice;
 
+import java.time.Clock;
 import java.util.List;
 
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -21,11 +22,17 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 public final class KafkaServiceReconciler implements
         io.javaoperatorsdk.operator.api.reconciler.Reconciler<KafkaService> {
 
+    private final Clock clock;
+
+    public KafkaServiceReconciler(Clock clock) {
+        this.clock = clock;
+    }
+
     @Override
     public UpdateControl<KafkaService> reconcile(KafkaService resource, Context<KafkaService> context) throws Exception {
         final Condition acceptedCondition = new ConditionBuilder()
                 .withType(Condition.Type.Accepted)
-                .withObservedGeneration(resource.getStatus().getObservedGeneration())
+                .withObservedGeneration(resource.getMetadata().getGeneration())
                 .withReason("")
                 .withMessage("")
                 .withStatus(Condition.Status.TRUE)
