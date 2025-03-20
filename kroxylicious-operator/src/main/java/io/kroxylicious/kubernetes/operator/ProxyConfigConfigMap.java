@@ -79,14 +79,8 @@ public class ProxyConfigConfigMap
         }
     }
 
-    private final SecureConfigInterpolator secureConfigInterpolator;
-
     public ProxyConfigConfigMap() {
         super(ConfigMap.class);
-        var providerMap = Map.<String, SecureConfigProvider> of(
-                "secret", MountedResourceConfigProvider.SECRET_PROVIDER,
-                "configmap", MountedResourceConfigProvider.CONFIGMAP_PROVIDER);
-        secureConfigInterpolator = new SecureConfigInterpolator("/opt/kroxylicious/secure", providerMap);
     }
 
     /**
@@ -207,7 +201,7 @@ public class ProxyConfigConfigMap
             var filterCr = resolutionResult.filter(filterCrRef).orElseThrow();
             var spec = filterCr.getSpec();
             String type = spec.getType();
-            SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(spec);
+            SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(context, spec);
             ManagedWorkflowAndDependentResourceContext ctx = context.managedWorkflowAndDependentResourceContext();
             putOrMerged(ctx, SECURE_VOLUME_KEY, interpolationResult.volumes());
             putOrMerged(ctx, SECURE_VOLUME_MOUNT_KEY, interpolationResult.mounts());
@@ -226,7 +220,8 @@ public class ProxyConfigConfigMap
         }
     }
 
-    private SecureConfigInterpolator.InterpolationResult interpolateConfig(KafkaProtocolFilterSpec spec) {
+    private SecureConfigInterpolator.InterpolationResult interpolateConfig(Context<KafkaProxy> context, KafkaProtocolFilterSpec spec) {
+        var secureConfigInterpolator = context.managedWorkflowAndDependentResourceContext().getMandatory("sec", SecureConfigInterpolator.class);
         Object configTemplate = Objects.requireNonNull(spec.getConfigTemplate(), "ConfigTemplate is required in the KafkaProtocolFilterSpec");
         return secureConfigInterpolator.interpolate(configTemplate);
     }
