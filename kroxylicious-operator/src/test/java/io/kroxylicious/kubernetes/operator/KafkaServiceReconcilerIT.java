@@ -65,12 +65,11 @@ class KafkaServiceReconcilerIT {
 
         // Then
         AWAIT.untilAsserted(() -> {
-                    final KafkaService mycoolkafkaservice = extension.get(KafkaService.class, "mycoolkafkaservice");
-                    OperatorAssertions.assertThat(mycoolkafkaservice.getStatus())
-                            .isNotNull()
-                            .singleCondition()
-                            .isAcceptedTrue();
-                }
-        );
+            final KafkaService mycoolkafkaservice = extension.get(KafkaService.class, "mycoolkafkaservice");
+            OperatorAssertions.assertThat(mycoolkafkaservice.getStatus())
+                    .isNotNull()
+                    .singleCondition()
+                    .isAcceptedTrue();
+        });
     }
 }
