@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -33,6 +34,7 @@ import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterSpec;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
@@ -203,17 +205,13 @@ public class ProxyConfigConfigMap
             String filterDefinitionName = filterDefinitionName(filterCrRef);
 
             var filterCr = resolutionResult.filter(filterCrRef).orElseThrow();
-            if (filterCr.getAdditionalProperties().get("spec") instanceof Map<?, ?> spec) {
-                String type = (String) spec.get("type");
-                SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(spec);
-                ManagedWorkflowAndDependentResourceContext ctx = context.managedWorkflowAndDependentResourceContext();
-                putOrMerged(ctx, SECURE_VOLUME_KEY, interpolationResult.volumes());
-                putOrMerged(ctx, SECURE_VOLUME_MOUNT_KEY, interpolationResult.mounts());
-                return new NamedFilterDefinition(filterDefinitionName, type, interpolationResult.config());
-            }
-            else {
-                throw new InvalidClusterException(ClusterCondition.filterInvalid(ResourcesUtil.name(cluster), filterDefinitionName, "`spec` was not an `object`."));
-            }
+            var spec = filterCr.getSpec();
+            String type = spec.getType();
+            SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(spec);
+            ManagedWorkflowAndDependentResourceContext ctx = context.managedWorkflowAndDependentResourceContext();
+            putOrMerged(ctx, SECURE_VOLUME_KEY, interpolationResult.volumes());
+            putOrMerged(ctx, SECURE_VOLUME_MOUNT_KEY, interpolationResult.mounts());
+            return new NamedFilterDefinition(filterDefinitionName, type, interpolationResult.config());
 
         }).toList();
     }
@@ -228,16 +226,9 @@ public class ProxyConfigConfigMap
         }
     }
 
-    private SecureConfigInterpolator.InterpolationResult interpolateConfig(Map<?, ?> spec) {
-        SecureConfigInterpolator.InterpolationResult result;
-        Object configTemplate = spec.get("configTemplate");
-        if (configTemplate != null) {
-            result = secureConfigInterpolator.interpolate(configTemplate);
-        }
-        else {
-            result = new SecureConfigInterpolator.InterpolationResult(spec.get("config"), Set.of(), Set.of());
-        }
-        return result;
+    private SecureConfigInterpolator.InterpolationResult interpolateConfig(KafkaProtocolFilterSpec spec) {
+        Object configTemplate = Objects.requireNonNull(spec.getConfigTemplate(), "ConfigTemplate is required in the KafkaProtocolFilterSpec");
+        return secureConfigInterpolator.interpolate(configTemplate);
     }
 
     private static VirtualCluster getVirtualCluster(VirtualKafkaCluster cluster,

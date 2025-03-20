@@ -8,7 +8,6 @@ package io.kroxylicious.kubernetes.operator;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.time.Duration;
-import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.function.IntSupplier;
@@ -27,8 +26,6 @@ import io.micrometer.prometheusmetrics.PrometheusConfig;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import io.prometheus.metrics.exporter.httpserver.MetricsHandler;
 
-import io.kroxylicious.kubernetes.operator.config.FilterApiDecl;
-import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
 import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodFilter;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -81,7 +78,7 @@ public class OperatorMain {
      */
     void start() {
         operator.installShutdownHook(Duration.ofSeconds(10));
-        operator.register(new ProxyReconciler(runtimeDecl()));
+        operator.register(new ProxyReconciler());
         addHttpGetHandler("/", () -> 404);
         managementServer.start();
         operator.start();
@@ -118,12 +115,6 @@ public class OperatorMain {
         operator.stop();
         managementServer.stop(0); // TODO maybe this should be configurable
         LOGGER.info("Operator stopped.");
-    }
-
-    @NonNull
-    static RuntimeDecl runtimeDecl() {
-        // TODO read these from some configuration CR
-        return new RuntimeDecl(List.of(new FilterApiDecl("filter.kroxylicious.io", "v1alpha1", "KafkaProtocolFilter")));
     }
 
     private MicrometerMetrics enablePrometheusMetrics() {

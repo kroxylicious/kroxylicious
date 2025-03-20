@@ -9,17 +9,13 @@ package io.kroxylicious.kubernetes.operator.resolver;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.stubbing.OngoingStubbing;
 
-import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
-import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
@@ -34,6 +30,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.ClusterResolutionResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -92,7 +90,7 @@ class DependencyResolverImplTest {
 
     @Test
     void testSingleFilterUnreferenced() {
-        GenericKubernetesResource filter = protocolFilter("filterName");
+        KafkaProtocolFilter filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
         givenClusterRefsInContext(kafkaServiceRef("cluster"));
         givenIngressesInContext();
@@ -113,7 +111,7 @@ class DependencyResolverImplTest {
 
     @Test
     void testSingleFilterReferenced() {
-        GenericKubernetesResource filter = protocolFilter("filterName");
+        KafkaProtocolFilter filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
         givenClusterRefsInContext(kafkaServiceRef("cluster"));
         givenIngressesInContext();
@@ -134,8 +132,8 @@ class DependencyResolverImplTest {
 
     @Test
     void testMultipleFiltersReferenced() {
-        GenericKubernetesResource filter = protocolFilter("filterName");
-        GenericKubernetesResource filter2 = protocolFilter("filterName2");
+        KafkaProtocolFilter filter = protocolFilter("filterName");
+        KafkaProtocolFilter filter2 = protocolFilter("filterName2");
         givenFiltersInContext(filter, filter2);
         givenClusterRefsInContext(kafkaServiceRef("cluster"));
         givenIngressesInContext();
@@ -157,7 +155,7 @@ class DependencyResolverImplTest {
 
     @Test
     void testSubsetOfFiltersReferenced() {
-        GenericKubernetesResource filter = protocolFilter("filterName");
+        KafkaProtocolFilter filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
         givenClusterRefsInContext(kafkaServiceRef("cluster"));
         givenIngressesInContext();
@@ -179,7 +177,7 @@ class DependencyResolverImplTest {
 
     @Test
     void testUnresolvedFilter() {
-        GenericKubernetesResource filter = protocolFilter("filterName");
+        KafkaProtocolFilter filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
         givenClusterRefsInContext(kafkaServiceRef("clusterRef"));
         givenIngressesInContext();
@@ -320,16 +318,17 @@ class DependencyResolverImplTest {
         return new FilterRefBuilder().withName(name).build();
     }
 
-    private static GenericKubernetesResource protocolFilter(String name) {
-        return new GenericKubernetesResourceBuilder()
+    private static KafkaProtocolFilter protocolFilter(String name) {
+        return new KafkaProtocolFilterBuilder()
                 .withApiVersion("filter.kroxylicious.io/v1alpha")
                 .withKind("KafkaProtocolFilter")
                 .withNewMetadata().withName(name)
-                .endMetadata().build();
+                .endMetadata()
+                .build();
     }
 
-    private void givenFiltersInContext(GenericKubernetesResource... resources) {
-        givenSecondaryResourcesInContext(GenericKubernetesResource.class, resources);
+    private void givenFiltersInContext(KafkaProtocolFilter... resources) {
+        givenSecondaryResourcesInContext(KafkaProtocolFilter.class, resources);
     }
 
     private void givenIngressesInContext(KafkaProxyIngress... ingresses) {
@@ -344,8 +343,9 @@ class DependencyResolverImplTest {
         givenSecondaryResourcesInContext(KafkaService.class, clusterRefs);
     }
 
-    private <T> OngoingStubbing<Set<T>> givenSecondaryResourcesInContext(Class<T> type, T... resources) {
-        return when(mockContext.getSecondaryResources(type)).thenReturn(Arrays.stream(resources).collect(Collectors.toSet()));
+    @SafeVarargs
+    private <T> void givenSecondaryResourcesInContext(Class<T> type, T... resources) {
+        when(mockContext.getSecondaryResources(type)).thenReturn(Arrays.stream(resources).collect(Collectors.toSet()));
     }
 
     private static VirtualKafkaCluster virtualCluster(List<FilterRef> filterRefs, String clusterRef, List<IngressRef> ingressRefs) {
