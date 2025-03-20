@@ -29,9 +29,10 @@ public final class KafkaServiceReconciler implements
     }
 
     @Override
-    public UpdateControl<KafkaService> reconcile(KafkaService resource, Context<KafkaService> context) throws Exception {
+    public UpdateControl<KafkaService> reconcile(KafkaService resource, Context<KafkaService> context) {
         final Condition acceptedCondition = new ConditionBuilder()
                 .withType(Condition.Type.Accepted)
+                .withLastTransitionTime(clock.instant().atZone(clock.getZone()))
                 .withObservedGeneration(resource.getMetadata().getGeneration())
                 .withStatus(Condition.Status.TRUE)
                 .build();
