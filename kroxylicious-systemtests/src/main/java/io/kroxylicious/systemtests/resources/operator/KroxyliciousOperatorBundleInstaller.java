@@ -24,6 +24,8 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.platform.commons.PreconditionViolationException;
 
 import io.fabric8.kubernetes.api.model.Namespace;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.QuantityBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -69,9 +71,9 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
 
     private static final Predicate<File> deploymentFiles = file -> file.getName().contains("Deployment");
 
-    public KroxyliciousOperatorBundleInstaller(String namespaceInstallTo) {
+    public KroxyliciousOperatorBundleInstaller(String namespaceInstallTo, int replicas) {
         this.namespaceInstallTo = namespaceInstallTo;
-        this.replicas = 1;
+        this.replicas = replicas;
         this.extensionContext = ResourceManager.getTestContext();
         this.kroxyliciousOperatorName = Constants.KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME;
     }
@@ -139,6 +141,13 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .get(0)
                 .getImage();
 
+        Map<String, Quantity> limits = operatorDeployment.getSpec().getTemplate().getSpec().getContainers().get(0).getResources().getLimits();
+        Map<String, Quantity> requests = operatorDeployment.getSpec().getTemplate().getSpec().getContainers().get(0).getResources().getRequests();
+        if (replicas > 1) {
+            limits.put("cpu", new QuantityBuilder().withAmount("200").withFormat("m").build());
+            requests.put("cpu", new QuantityBuilder().withAmount("200").withFormat("m").build());
+        }
+
         operatorDeployment = new DeploymentBuilder(operatorDeployment)
                 .editOrNewMetadata()
                 .withName(kroxyliciousOperatorName)
@@ -158,6 +167,10 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .editFirstContainer()
                 .withImage(ImageUtils.changeRegistryOrgAndTag(deploymentImage, Environment.KROXY_REGISTRY, Environment.KROXY_ORG, Environment.KROXY_TAG))
                 .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
+                .editResources()
+                .withLimits(limits)
+                .withRequests(requests)
+                .endResources()
                 .endContainer()
                 .endSpec()
                 .endTemplate()

@@ -10,7 +10,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.UncheckedIOException;
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -112,16 +111,6 @@ public class Kroxylicious {
     }
 
     /**
-     * Gets number of replicas.
-     *
-     * @return the number of replicas
-     */
-    public int getNumberOfReplicas() {
-        LOGGER.info("Getting number of replicas..");
-        return kubeClient().getDeployment(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME).getStatus().getReplicas();
-    }
-
-    /**
      * Get bootstrap
      *
      * @return the bootstrap
@@ -144,19 +133,6 @@ public class Kroxylicious {
         String bootstrap = clusterIP + ":9292";
         LOGGER.debug("Kroxylicious bootstrap: {}", bootstrap);
         return bootstrap;
-    }
-
-    /**
-     * Scale replicas to.
-     *
-     * @param scaledTo the number of replicas to scale up/down
-     * @param timeout the timeout
-     */
-    public void scaleReplicasTo(int scaledTo, Duration timeout) {
-        LOGGER.info("Scaling number of replicas to {}..", scaledTo);
-        kubeClient().getClient().apps().deployments().inNamespace(deploymentNamespace).withName(Constants.KROXY_DEPLOYMENT_NAME).scale(scaledTo);
-        await().atMost(timeout).pollInterval(Duration.ofSeconds(1))
-                .until(() -> getNumberOfReplicas() == scaledTo && kubeClient().isDeploymentReady(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME));
     }
 
     public String getServiceName(String prefix) {
