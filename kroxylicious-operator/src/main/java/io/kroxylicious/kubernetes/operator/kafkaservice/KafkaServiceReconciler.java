@@ -33,8 +33,6 @@ public final class KafkaServiceReconciler implements
         final Condition acceptedCondition = new ConditionBuilder()
                 .withType(Condition.Type.Accepted)
                 .withObservedGeneration(resource.getMetadata().getGeneration())
-                .withReason("")
-                .withMessage("")
                 .withStatus(Condition.Status.TRUE)
                 .build();
         final KafkaService amended = resource
