@@ -77,12 +77,8 @@ public class Kroxylicious {
 
     /**
      * Deploy - Port per broker plain with no filters config
-     * @param clusterName the cluster name
-     * @param replicas the replicas
      */
-    public void deployPortPerBrokerPlainWithNoFilters(String clusterName, int replicas) {
-//        createDefaultConfigMap(clusterName);
-//        deployPortPerBrokerPlain(replicas);
+    public void deployPortPerBrokerPlainWithNoFilters() {
         deployKroxyliciousExample(Constants.PATH_TO_OPERATOR_SIMPLE_FILES);
     }
 
@@ -125,6 +121,12 @@ public class Kroxylicious {
         return bootstrap;
     }
 
+    /**
+     * Gets bootstrap.
+     *
+     * @param serviceName the service name
+     * @return the bootstrap
+     */
     public String getBootstrap(String serviceName) {
         String clusterIP = kubeClient().getService(deploymentNamespace, serviceName).getSpec().getClusterIP();
         if (clusterIP == null || clusterIP.isEmpty()) {
@@ -135,6 +137,12 @@ public class Kroxylicious {
         return bootstrap;
     }
 
+    /**
+     * Gets service name.
+     *
+     * @param prefix the prefix
+     * @return the service name
+     */
     public String getServiceName(String prefix) {
         Optional<Service> service = await().alias("await service to be available")
                 .atMost(Constants.GLOBAL_STATUS_TIMEOUT)
@@ -150,6 +158,11 @@ public class Kroxylicious {
         }
     }
 
+    /**
+     * Deploy kroxylicious example.
+     *
+     * @param path the path
+     */
     public void deployKroxyliciousExample(String path) {
         LOGGER.info("Deploying simple Kroxylicious");
         for (File operatorFile : getExampleFiles(path)) {

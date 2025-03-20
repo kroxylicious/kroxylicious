@@ -55,7 +55,7 @@ class KroxyliciousST extends AbstractST {
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
+        kroxylicious.deployPortPerBrokerPlainWithNoFilters();
         String bootstrap = kroxylicious.getBootstrap(kroxylicious.getServiceName(clusterName));
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
@@ -88,7 +88,7 @@ class KroxyliciousST extends AbstractST {
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
+        kroxylicious.deployPortPerBrokerPlainWithNoFilters();
         String bootstrap = kroxylicious.getBootstrap(kroxylicious.getServiceName(clusterName));
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
@@ -124,7 +124,7 @@ class KroxyliciousST extends AbstractST {
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(replicas).log();
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, replicas);
+        kroxylicious.deployPortPerBrokerPlainWithNoFilters();
         String bootstrap = kroxylicious.getBootstrap(kroxylicious.getServiceName(clusterName));
         int currentReplicas = kroxyliciousOperator.getNumberOfReplicas();
         given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
@@ -165,7 +165,7 @@ class KroxyliciousST extends AbstractST {
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(replicas).log();
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, replicas);
+        kroxylicious.deployPortPerBrokerPlainWithNoFilters();
         String bootstrap = kroxylicious.getBootstrap(kroxylicious.getServiceName(clusterName));
         int currentReplicas = kroxyliciousOperator.getNumberOfReplicas();
         given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);

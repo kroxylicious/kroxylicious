@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,7 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.enums.ComponentType;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
+import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.metrics.MetricsCollector;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
@@ -44,6 +46,7 @@ class MetricsST extends AbstractST {
     private static final String MESSAGE = "Hello-world";
     private MetricsCollector kroxyliciousCollector;
     private String bootstrap;
+    private KroxyliciousOperator kroxyliciousOperator;
 
     @Test
     void kroxyliciousMetricsBeforeSendingMessages() {
@@ -113,6 +116,11 @@ class MetricsST extends AbstractST {
                 kafka);
     }
 
+    @AfterEach
+    void cleanUp(){
+        kroxyliciousOperator.delete();
+    }
+
     @SuppressWarnings("java:S2925")
     @BeforeEach
     void beforeEach(String namespace) throws InterruptedException {
@@ -126,14 +134,17 @@ class MetricsST extends AbstractST {
 
         String scraperPodName = kubeClient().listPodsByPrefixInName(namespace, scraperName).get(0).getMetadata().getName();
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
+        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE, 1);
+        kroxyliciousOperator.deploy();
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
-        bootstrap = kroxylicious.getBootstrap();
+        kroxylicious.deployPortPerBrokerPlainWithNoFilters();
+        bootstrap = kroxylicious.getBootstrap(kroxylicious.getServiceName(clusterName));
         kroxyliciousCollector = new MetricsCollector.Builder()
                 .withScraperPodName(scraperPodName)
+                .withOperatorNamespace(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE)
                 .withNamespaceName(namespace)
                 .withComponentType(ComponentType.KROXYLICIOUS)
-                .withComponentName(Constants.KROXY_DEPLOYMENT_NAME)
+                .withComponentName(Constants.KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME)
                 .build();
         kroxyliciousCollector.collectMetricsFromPods();
     }
