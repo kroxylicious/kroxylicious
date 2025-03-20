@@ -8,11 +8,16 @@ package io.kroxylicious.kubernetes.operator.assertj;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters;
 
 public class OperatorAssertions {
     public static KafkaProxyStatusAssert assertThat(KafkaProxyStatus actual) {
         return KafkaProxyStatusAssert.assertThat(actual);
+    }
+
+    public static KafkaServiceStatusAssert assertThat(KafkaServiceStatus actual) {
+        return KafkaServiceStatusAssert.assertThat(actual);
     }
 
     public static ClusterAssert assertThat(Clusters actual) {
