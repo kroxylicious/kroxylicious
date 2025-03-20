@@ -64,7 +64,7 @@ class KafkaProtocolFilterReconcilerTest {
     // @formatter:on
 
     @Test
-    void shouldSetResolvedRefsToFalseWhenReferentsNotFound() throws Exception {
+    void shouldSetResolvedRefsToFalseWhenReferentsNotFound() {
         // given
         Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
         var reconciler = new KafkaProtocolFilterReconciler(z, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
@@ -90,7 +90,7 @@ class KafkaProtocolFilterReconcilerTest {
     }
 
     @Test
-    void shouldSetResolvedRefsToTrueWhenReferentsFound() throws Exception {
+    void shouldSetResolvedRefsToTrueWhenReferentsFound() {
         // given
         Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
         var reconciler = new KafkaProtocolFilterReconciler(z, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
