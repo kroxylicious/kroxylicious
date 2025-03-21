@@ -9,6 +9,8 @@
 cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" || exit
 cd .. || exit
 
+. "scripts/common.sh"
+
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
@@ -63,7 +65,7 @@ info "installing crds"
 kubectl apply -f src/main/resources/META-INF/fabric8
 info "installing kroxylicious-operator"
 cp install/* ${TMP_INSTALL_DIR}
-sed -i "s|quay.io/kroxylicious/operator:latest|quay.io/kroxylicious/operator:${IMAGE_TAG}|g" ${TMP_INSTALL_DIR}/03.Deployment.kroxylicious-operator.yaml
+${SED} -i "s|quay.io/kroxylicious/operator:latest|quay.io/kroxylicious/operator:${IMAGE_TAG}|g" ${TMP_INSTALL_DIR}/03.Deployment.kroxylicious-operator.yaml
 kubectl apply -f ${TMP_INSTALL_DIR}
 info "installing simple proxy"
 kubectl apply -f examples/simple/
