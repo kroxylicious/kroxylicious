@@ -22,6 +22,10 @@ on:
   pull_request:
     types: [ opened, synchronize, reopened ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -66,6 +70,15 @@ jobs:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
+      - name: 'Build Kroxylicious Image on Minikube'
+        run: |
+          GIT_HASH="$(git rev-parse HEAD)"
+          IMAGE_TAG="dev-git-${GIT_HASH}"
+          KROXYLICIOUS_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)"
+          KROXYLICIOUS_IMAGE="quay.io/kroxylicious/kroxylicious:${IMAGE_TAG}"
+          minikube image build . -f Dockerfile -t ${KROXYLICIOUS_IMAGE} --build-opt=build-arg=KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION}"
+          # KROXYLICIOUS_IMAGE env var is used by the Operator ITs
+          echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> $GITHUB_ENV
       - name: 'Build Kroxylicious maven project'
         if: github.ref_name != 'main' || env.SONAR_TOKEN_SET != 'true'
         env:
@@ -75,7 +88,7 @@ jobs:
           KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT: ${{ vars.KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT }}
           KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
           KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
-        run: mvn -B clean verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED}
+        run: mvn -B verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED}
       - name: 'Build Kroxylicious maven project on main with Sonar'
         if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
         env:
@@ -84,7 +97,7 @@ jobs:
           KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT: ${{ vars.KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT }}
           KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
           KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
-        run: mvn -B clean verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.1.2184:sonar -Dsonar.projectKey=kroxylicious_kroxylicious
+        run: mvn -B verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} org.sonarsource.scanner.maven:sonar-maven-plugin:3.9.1.2184:sonar -Dsonar.projectKey=kroxylicious_kroxylicious
       - name: Save PR number to file
         if: github.event_name == 'pull_request' && ${{ matrix.os }} == 'ubuntu-latest'
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
