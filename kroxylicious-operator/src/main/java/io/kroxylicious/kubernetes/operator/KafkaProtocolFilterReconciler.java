@@ -82,7 +82,7 @@ public class KafkaProtocolFilterReconciler implements
      * @param secondaryClass The Java type of resource reference (e.g. Secret)
      * @param resourceNameExtractor A function which extracts the name of the resources from an interpolation result.
      * @return The event source configuration
-     * @param <R>
+     * @param <R> The type of referenced resource
      */
     private <R extends HasMetadata> InformerEventSourceConfiguration<R> templateResourceReferenceEventSourceConfig(
                                                                                                                    EventSourceContext<KafkaProtocolFilter> context,
@@ -94,15 +94,14 @@ public class KafkaProtocolFilterReconciler implements
                 .withPrimaryToSecondaryMapper((KafkaProtocolFilter filter) -> {
                     Object configTemplate = filter.getSpec().getConfigTemplate();
                     var interpolationResult = secureConfigInterpolator.interpolate(configTemplate);
-                    Set<String> resourceNames = resourceNameExtractor.apply(interpolationResult)
-                            .collect(Collectors.toSet());
-                    LOGGER.debug("Filter {} references {}(s) {}", ResourcesUtil.name(filter), secondaryClass.getName(), resourceNames);
-                    return resourceNames.stream()
+                    Set<ResourceID> resourceIds = resourceNameExtractor.apply(interpolationResult)
                             .map(name -> new ResourceID(name, ResourcesUtil.namespace(filter)))
                             .collect(Collectors.toSet());
+                    LOGGER.debug("Filter {} references {}(s) {}", ResourcesUtil.name(filter), secondaryClass.getName(), resourceIds);
+                    return resourceIds;
                 })
                 .withSecondaryToPrimaryMapper(secret -> {
-                    Set<ResourceID> resourceIDS = ResourcesUtil.filteredResourceIdsInSameNamespace(
+                    Set<ResourceID> resourceIds = ResourcesUtil.filteredResourceIdsInSameNamespace(
                             context,
                             secret,
                             KafkaProtocolFilter.class,
@@ -112,8 +111,8 @@ public class KafkaProtocolFilterReconciler implements
                                 return resourceNameExtractor.apply(interpolationResult)
                                         .anyMatch(secretNameFromVolume -> secretNameFromVolume.equals(ResourcesUtil.name(secret)));
                             });
-                    LOGGER.debug("{} {} referenced by Filters {}", secondaryClass.getName(), ResourcesUtil.name(secret), resourceIDS);
-                    return resourceIDS;
+                    LOGGER.debug("{} {} referenced by Filters {}", secondaryClass.getName(), ResourcesUtil.name(secret), resourceIds);
+                    return resourceIds;
                 })
                 .build();
     }

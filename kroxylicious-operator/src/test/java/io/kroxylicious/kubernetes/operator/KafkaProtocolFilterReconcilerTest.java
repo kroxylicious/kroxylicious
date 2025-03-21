@@ -10,10 +10,15 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -23,6 +28,7 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
+import io.kroxylicious.kubernetes.operator.assertj.ConditionAssert;
 import io.kroxylicious.kubernetes.operator.assertj.KafkaProtocolFilterStatusAssert;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -48,56 +54,54 @@ class KafkaProtocolFilterReconcilerTest {
 
     public static final Secret SECRET = new SecretBuilder()
             .withNewMetadata()
-            .withName("my-secret")
-            .withGeneration(42L)
+                .withName("my-secret")
+                .withGeneration(42L)
             .endMetadata()
             .addToData("key", "value")
             .build();
 
     public static final ConfigMap CONFIG_MAP = new ConfigMapBuilder()
             .withNewMetadata()
-            .withName("my-configmap")
-            .withGeneration(42L)
+                .withName("my-configmap")
+                .withGeneration(42L)
             .endMetadata()
             .addToData("key", "value")
             .build();
     // @formatter:on
 
-    @Test
-    void shouldSetResolvedRefsToFalseWhenReferentsNotFound() {
-        // given
-        Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-        var reconciler = new KafkaProtocolFilterReconciler(z, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
+    public static List<Arguments> shouldSetResolvedRefs() {
+        Context<KafkaProtocolFilter> bothExist = mock(Context.class);
+        when(bothExist.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(SECRET));
+        when(bothExist.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of(CONFIG_MAP));
 
-        Context<KafkaProtocolFilter> context = mock(Context.class);
-        when(context.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of());
-        when(context.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of());
+        Context<KafkaProtocolFilter> secretExists = mock(Context.class);
+        when(secretExists.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(SECRET));
+        when(secretExists.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of());
 
-        // when
-        var update = reconciler.reconcile(FILTER, context);
+        Context<KafkaProtocolFilter> cmExists = mock(Context.class);
+        when(cmExists.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of());
+        when(cmExists.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of(CONFIG_MAP));
 
-        // then
-        assertThat(update).isNotNull();
-        assertThat(update.isPatchStatus()).isTrue();
-        assertThat(update.getResource()).isPresent();
-        KafkaProtocolFilterStatusAssert.assertThat(update.getResource().get().getStatus())
-                .hasObservedGenerationInSyncWithMetadataOf(FILTER)
-                .singleCondition()
-                .hasObservedGenerationInSyncWithMetadataOf(FILTER)
-                .isResolvedRefsFalse("MissingInterpolationReferences", "Referenced Secrets [my-secret] ConfigMaps [my-configmap] not found")
-                .hasLastTransitionTime(ZonedDateTime.ofInstant(z.instant(), z.getZone()));
-
+        Context<KafkaProtocolFilter> neitherExists = mock(Context.class);
+        when(neitherExists.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of());
+        when(neitherExists.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of());
+        return List.of(
+                Arguments.of("both exist", bothExist,
+                        (Consumer<ConditionAssert>) ConditionAssert::isResolvedRefsTrue),
+                Arguments.of("secret exists", secretExists, (Consumer<ConditionAssert>) x -> x.isResolvedRefsFalse("MissingInterpolationReferences",
+                        "Referenced ConfigMaps [my-configmap] not found")),
+                Arguments.of("configmap exists", cmExists, (Consumer<ConditionAssert>) x -> x.isResolvedRefsFalse("MissingInterpolationReferences",
+                        "Referenced Secrets [my-secret] not found")),
+                Arguments.of("neither exists", neitherExists, (Consumer<ConditionAssert>) x -> x.isResolvedRefsFalse("MissingInterpolationReferences",
+                        "Referenced Secrets [my-secret] ConfigMaps [my-configmap] not found")));
     }
 
-    @Test
-    void shouldSetResolvedRefsToTrueWhenReferentsFound() {
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    void shouldSetResolvedRefs(String testName, Context<KafkaProtocolFilter> context, Consumer<ConditionAssert> asserter) {
         // given
         Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
         var reconciler = new KafkaProtocolFilterReconciler(z, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
-
-        Context<KafkaProtocolFilter> context = mock(Context.class);
-        when(context.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(SECRET));
-        when(context.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of(CONFIG_MAP));
 
         // when
         var update = reconciler.reconcile(FILTER, context);
@@ -106,12 +110,13 @@ class KafkaProtocolFilterReconcilerTest {
         assertThat(update).isNotNull();
         assertThat(update.isPatchStatus()).isTrue();
         assertThat(update.getResource()).isPresent();
-        KafkaProtocolFilterStatusAssert.assertThat(update.getResource().get().getStatus())
+        var x = KafkaProtocolFilterStatusAssert.assertThat(update.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(FILTER)
                 .singleCondition()
                 .hasObservedGenerationInSyncWithMetadataOf(FILTER)
-                .isResolvedRefsTrue()
                 .hasLastTransitionTime(ZonedDateTime.ofInstant(z.instant(), z.getZone()));
+
+        asserter.accept(x);
 
     }
 

@@ -84,10 +84,22 @@ public class KafkaProxyReconciler implements
     public static final String CONFIG_DEP = "config";
     public static final String DEPLOYMENT_DEP = "deployment";
     public static final String CLUSTERS_DEP = "clusters";
+    static final String SEC = "sec";
     private final SecureConfigInterpolator secureConfigInterpolator;
 
     public KafkaProxyReconciler(SecureConfigInterpolator secureConfigInterpolator) {
         this.secureConfigInterpolator = secureConfigInterpolator;
+    }
+
+    static SecureConfigInterpolator secureConfigInterpolator(Context<KafkaProxy> context) {
+        return context.managedWorkflowAndDependentResourceContext().getMandatory(SEC, SecureConfigInterpolator.class);
+    }
+
+    @Override
+    public void initContext(
+                            KafkaProxy primary,
+                            Context<KafkaProxy> context) {
+        context.managedWorkflowAndDependentResourceContext().put(SEC, secureConfigInterpolator);
     }
 
     /**
@@ -433,12 +445,5 @@ public class KafkaProxyReconciler implements
 
     private static @NonNull Predicate<KafkaProxyIngress> ingressReferences(HasMetadata primary) {
         return ingress -> ingress.getSpec().getProxyRef().getName().equals(name(primary));
-    }
-
-    @Override
-    public void initContext(
-                            KafkaProxy primary,
-                            Context<KafkaProxy> context) {
-        context.managedWorkflowAndDependentResourceContext().put("sec", secureConfigInterpolator);
     }
 }
