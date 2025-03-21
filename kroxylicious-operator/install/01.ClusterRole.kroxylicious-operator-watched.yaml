@@ -29,11 +29,30 @@ rules:
       # - patch
       # - update
   - apiGroups:
+      - "filter.kroxylicious.io"
+    resources:
+      - kafkaprotocolfilters
+    verbs:
+      - get
+      - list
+      - watch
+      # - create
+      # - patch
+      # - update
+  - apiGroups:
       - "kroxylicious.io"
     resources:
       - kafkaproxies/status
       - kafkaservices/status
       - kafkaproxyingresses/status
+    verbs:
+      - get
+      - patch
+      - update
+  - apiGroups:
+      - "filter.kroxylicious.io"
+    resources:
+      - kafkaprotocolfilters/status
     verbs:
       - get
       - patch
