@@ -8,11 +8,14 @@ package io.kroxylicious.systemtests.utils;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Collections;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -24,6 +27,7 @@ import org.awaitility.core.TimeoutEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeAddress;
 import io.fabric8.kubernetes.api.model.NodeStatus;
@@ -36,6 +40,7 @@ import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
+import io.skodjob.testframe.utils.TestFrameUtils;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
@@ -57,6 +62,16 @@ public class DeploymentUtils {
     private static final String TEST_LOAD_BALANCER_NAME = "test-load-balancer";
 
     private DeploymentUtils() {
+    }
+
+    /**
+     * Is namespace created boolean.
+     *
+     * @param namespace the namespace
+     * @return the boolean
+     */
+    public static boolean isNamespaceCreated(String namespace) {
+        return kubeClient().getNamespace(namespace) != null;
     }
 
     /**
@@ -205,6 +220,21 @@ public class DeploymentUtils {
         }
     }
 
+    /**
+     * Wait for service ready.
+     *
+     * @param namespaceName the namespace name
+     * @param serviceName the service name
+     * @param timeout the timeout
+     */
+    public static void waitForServiceReady(String namespaceName, String serviceName, Duration timeout) {
+        await().alias("await service to be available")
+                .atMost(timeout)
+                .pollInterval(Constants.GLOBAL_POLL_INTERVAL)
+                .until(() -> kubeClient().listServicesByPrefixInName(namespaceName, serviceName).stream().findFirst(),
+                        Optional::isPresent);
+    }
+
     private static boolean hasReachedTerminalPhase(String p) {
         return isFailedPhase(p) || isSucceededPhase(p);
     }
@@ -239,6 +269,35 @@ public class DeploymentUtils {
             }
             kubeClient().getClient().secrets().inNamespace(namespace).resource(secret).create();
             await().atMost(Duration.ofSeconds(10)).until(() -> kubeClient().getClient().secrets().inNamespace(namespace).resource(secret).get() != null);
+        }
+    }
+
+    /**
+     * Deploy yaml files.
+     *
+     * @param namespaceName the namespace name
+     * @param files the files
+     */
+    public static void deployYamlFiles(String namespaceName, List<File> files) {
+        for (File operatorFile : files) {
+            final String resourceType = operatorFile.getName().split("\\.")[1];
+
+            if (resourceType.equals(Constants.NAMESPACE)) {
+                Namespace namespace = TestFrameUtils.configFromYaml(operatorFile, Namespace.class);
+                if (!isNamespaceCreated(namespace.getMetadata().getName())) {
+                    kubeClient().getClient().resource(namespace).create();
+                }
+            }
+            else {
+                try {
+                    kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath()))
+                            .inNamespace(namespaceName)
+                            .create();
+                }
+                catch (FileNotFoundException e) {
+                    throw new UncheckedIOException(e);
+                }
+            }
         }
     }
 

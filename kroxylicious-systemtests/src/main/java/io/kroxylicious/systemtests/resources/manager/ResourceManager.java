@@ -207,16 +207,18 @@ public class ResourceManager {
 
         ConcurrentLinkedDeque<ResourceItem<?>> stack = storedResources.get(getContextUniqueName());
 
-        while (!stack.isEmpty()) {
-            ResourceItem<?> resourceItem = stack.pop();
-            try {
-                resourceItem.throwableRunner().run();
+        if (stack != null) {
+            while (!stack.isEmpty()) {
+                ResourceItem<?> resourceItem = stack.pop();
+                try {
+                    resourceItem.throwableRunner().run();
+                }
+                catch (Exception e) {
+                    LOGGER.atTrace().log(Arrays.toString(e.getStackTrace()));
+                }
             }
-            catch (Exception e) {
-                LOGGER.atTrace().log(Arrays.toString(e.getStackTrace()));
-            }
+            storedResources.remove(getContextUniqueName());
         }
-        storedResources.remove(getContextUniqueName());
     }
 
     /**

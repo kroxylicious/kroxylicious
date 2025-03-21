@@ -23,7 +23,8 @@ import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.platform.commons.PreconditionViolationException;
 
-import io.fabric8.kubernetes.api.model.Namespace;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.QuantityBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -36,7 +37,7 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
-import io.kroxylicious.systemtests.utils.NamespaceUtils;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -69,9 +70,9 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
 
     private static final Predicate<File> deploymentFiles = file -> file.getName().contains("Deployment");
 
-    public KroxyliciousOperatorBundleInstaller(String namespaceInstallTo) {
+    public KroxyliciousOperatorBundleInstaller(String namespaceInstallTo, int replicas) {
         this.namespaceInstallTo = namespaceInstallTo;
-        this.replicas = 1;
+        this.replicas = replicas;
         this.extensionContext = ResourceManager.getTestContext();
         this.kroxyliciousOperatorName = Constants.KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME;
     }
@@ -90,26 +91,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     }
 
     private void applyClusterOperatorInstallFiles(String namespaceName) {
-        for (File operatorFile : getFilteredOperatorFiles(Predicate.not(deploymentFiles))) {
-            final String resourceType = operatorFile.getName().split("\\.")[1];
-
-            if (resourceType.equals(Constants.NAMESPACE)) {
-                Namespace namespace = TestFrameUtils.configFromYaml(operatorFile, Namespace.class);
-                if (!NamespaceUtils.isNamespaceCreated(namespace.getMetadata().getName())) {
-                    kubeClient().getClient().resource(namespace).create();
-                }
-            }
-            else {
-                try {
-                    kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath()))
-                            .inNamespace(namespaceName)
-                            .create();
-                }
-                catch (FileNotFoundException e) {
-                    throw new UncheckedIOException(e);
-                }
-            }
-        }
+        DeploymentUtils.deployYamlFiles(namespaceName, getFilteredOperatorFiles(Predicate.not(deploymentFiles)));
     }
 
     /**
@@ -139,6 +121,13 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .get(0)
                 .getImage();
 
+        Map<String, Quantity> limits = operatorDeployment.getSpec().getTemplate().getSpec().getContainers().get(0).getResources().getLimits();
+        Map<String, Quantity> requests = operatorDeployment.getSpec().getTemplate().getSpec().getContainers().get(0).getResources().getRequests();
+        if (replicas > 1) {
+            limits.put("cpu", new QuantityBuilder().withAmount("200").withFormat("m").build());
+            requests.put("cpu", new QuantityBuilder().withAmount("200").withFormat("m").build());
+        }
+
         operatorDeployment = new DeploymentBuilder(operatorDeployment)
                 .editOrNewMetadata()
                 .withName(kroxyliciousOperatorName)
@@ -158,6 +147,10 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .editFirstContainer()
                 .withImage(ImageUtils.changeRegistryOrgAndTag(deploymentImage, Environment.KROXY_REGISTRY, Environment.KROXY_ORG, Environment.KROXY_TAG))
                 .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
+                .editResources()
+                .withLimits(limits)
+                .withRequests(requests)
+                .endResources()
                 .endContainer()
                 .endSpec()
                 .endTemplate()
