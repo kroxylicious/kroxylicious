@@ -49,7 +49,6 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemp
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
-import static io.kroxylicious.systemtests.utils.NamespaceUtils.isNamespaceCreated;
 import static org.awaitility.Awaitility.await;
 
 /**
@@ -63,6 +62,16 @@ public class DeploymentUtils {
     private static final String TEST_LOAD_BALANCER_NAME = "test-load-balancer";
 
     private DeploymentUtils() {
+    }
+
+    /**
+     * Is namespace created boolean.
+     *
+     * @param namespace the namespace
+     * @return the boolean
+     */
+    public static boolean isNamespaceCreated(String namespace) {
+        return kubeClient().getNamespace(namespace) != null;
     }
 
     /**
