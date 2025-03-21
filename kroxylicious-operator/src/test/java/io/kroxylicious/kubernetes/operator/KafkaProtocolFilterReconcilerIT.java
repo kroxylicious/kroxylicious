@@ -77,7 +77,11 @@ class KafkaProtocolFilterReconcilerIT {
     }
 
     @Test
-    void testCreateFilterFirst() {
+    void shouldEventuallyResolveWhenFilterCreatedFirst() {
+        createFilterFirst();
+    }
+
+    private KafkaProtocolFilter createFilterFirst() {
         KafkaProtocolFilter filterOne = extension.create(filter(FILTER_ONE,
                 "${secret:" + A + ":foo}", "${configmap:" + B + ":foo}"));
         assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced Secrets [a] ConfigMaps [b] not found");
@@ -85,10 +89,11 @@ class KafkaProtocolFilterReconcilerIT {
         assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced ConfigMaps [b] not found");
         extension.create(cm(B));
         assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
+        return filterOne;
     }
 
     @Test
-    void testSecretAFirst() {
+    void shouldEventuallyResolveWhenASecretCreatedFirst() {
         extension.create(secret(A));
         KafkaProtocolFilter filterOne = extension.create(filter(FILTER_ONE,
                 "${secret:" + A + ":foo}", "${secret:" + B + ":foo}"));
@@ -98,7 +103,7 @@ class KafkaProtocolFilterReconcilerIT {
     }
 
     @Test
-    void testAllSecretsFirst() {
+    void shouldEventuallyResolveWhenAllSecretsCreatedFirst() {
         extension.create(secret(A));
         extension.create(secret(B));
         extension.create(secret(C));
@@ -109,7 +114,7 @@ class KafkaProtocolFilterReconcilerIT {
     }
 
     @Test
-    void testAllSecretsAndConfigMapsFirst() {
+    void shouldEventuallyResolveWhenSecretsAndConfigMapsFirst() {
         extension.create(secret(A));
         extension.create(cm(B));
         extension.create(secret(C));
@@ -117,6 +122,44 @@ class KafkaProtocolFilterReconcilerIT {
                 "${secret:" + A + ":foo}",
                 "${configmap:" + B + ":foo}"));
         assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
+    }
+
+    @Test
+    void shouldUpdateStatusOnFilterModify() {
+        shouldEventuallyResolveWhenFilterCreatedFirst();
+
+        KafkaProtocolFilter filterOne = extension.replace(filter(FILTER_ONE,
+                "${secret:" + C + ":foo}", "${configmap:" + B + ":foo}"));
+        assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced Secrets [c] not found");
+
+        extension.create(secret(C));
+        assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
+    }
+
+    @Test
+    void shouldUpdateStatusOnSecretModify() {
+        var filterOne = createFilterFirst();
+
+        extension.resources(Secret.class).withName(A).edit(secret -> secret.edit()
+                .addToData("baz", Base64.getEncoder().encodeToString("".getBytes(StandardCharsets.UTF_8)))
+                .build());
+        assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
+    }
+
+    @Test
+    void shouldUpdateStatusOnSecretDelete() {
+        var filterOne = createFilterFirst();
+
+        extension.delete(secret(A));
+        assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced Secrets [a] not found");
+    }
+
+    @Test
+    void shouldUpdateStatusOnConfigMapDelete() {
+        var filterOne = createFilterFirst();
+
+        extension.delete(cm(B));
+        assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced ConfigMaps [b] not found");
     }
 
     private KafkaProtocolFilter filter(String filterName, String refA, String refB) {
