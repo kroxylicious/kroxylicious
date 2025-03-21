@@ -8,7 +8,10 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -76,6 +79,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
 public class KafkaProxyReconciler implements
         Reconciler<KafkaProxy> {
 
+    static final String CLUSTER_CONDITIONS_KEY = "cluster_conditions";
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyReconciler.class);
 
     public static final String CONFIG_DEP = "config";
@@ -83,6 +87,34 @@ public class KafkaProxyReconciler implements
     public static final String CLUSTERS_DEP = "clusters";
 
     public KafkaProxyReconciler() {
+    }
+
+    /**
+     * Associate a condition with a specific cluster.
+     */
+    public static void addClusterCondition(Context<KafkaProxy> context, VirtualKafkaCluster cluster, ClusterCondition clusterCondition) {
+        Map<String, ClusterCondition> map = context.managedWorkflowAndDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class).orElse(null);
+        if (map == null) {
+            map = Collections.synchronizedMap(new HashMap<>());
+            context.managedWorkflowAndDependentResourceContext().put(CLUSTER_CONDITIONS_KEY, map);
+        }
+        map.put(name(cluster), clusterCondition);
+    }
+
+    static boolean isBroken(Context<KafkaProxy> context, VirtualKafkaCluster cluster) {
+        Map<String, ClusterCondition> map = context.managedWorkflowAndDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class).orElse(Map.of());
+        return map.containsKey(name(cluster));
+    }
+
+    /**
+     * Get the conditions specific to a cluster
+     * @param context The context
+     * @param cluster The cluster
+     * @return The conditions specific to the given cluster; or empty if there were none.
+     */
+    static ClusterCondition clusterCondition(Context<KafkaProxy> context, VirtualKafkaCluster cluster) {
+        Optional<Map<String, ClusterCondition>> map = (Optional) context.managedWorkflowAndDependentResourceContext().get(CLUSTER_CONDITIONS_KEY, Map.class);
+        return map.orElse(Map.of()).getOrDefault(name(cluster), ClusterCondition.accepted(name(cluster)));
     }
 
     /**
@@ -138,7 +170,7 @@ public class KafkaProxyReconciler implements
                                                                                                              KafkaProxy primary,
                                                                                                              Context<KafkaProxy> context) {
         return ResourcesUtil.clustersInNameOrder(context).map(cluster -> {
-            ClusterCondition clusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
+            ClusterCondition clusterCondition = clusterCondition(context, cluster);
             var conditions = newClusterCondition(now, primary, clusterCondition);
             return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ClustersBuilder()
                     .withName(name(cluster))

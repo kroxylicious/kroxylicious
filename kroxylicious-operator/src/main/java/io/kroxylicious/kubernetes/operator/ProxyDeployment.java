@@ -157,7 +157,7 @@ public class ProxyDeployment
                 .endPort();
         // broker ports
         virtualKafkaClusters.forEach(virtualKafkaCluster -> {
-            if (!SharedKafkaProxyContext.isBroken(context, virtualKafkaCluster)) {
+            if (!KafkaProxyReconciler.isBroken(context, virtualKafkaCluster)) {
                 ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(virtualKafkaCluster).orElseThrow();
                 for (ProxyIngressModel.IngressModel ingress : virtualClusterIngressModel.ingressModels()) {
                     ingress.proxyContainerPorts().forEach(containerBuilder::addToPorts);

@@ -16,7 +16,7 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ClusterCondition;
-import io.kroxylicious.kubernetes.operator.SharedKafkaProxyContext;
+import io.kroxylicious.kubernetes.operator.KafkaProxyReconciler;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 
 import static io.kroxylicious.kubernetes.operator.ProxyDeployment.PROXY_PORT_START;
@@ -63,7 +63,7 @@ public class IngressAllocator {
             Set<IngressConflictException> exceptions = virtualClusterIngressModel.ingressExceptions();
             if (!exceptions.isEmpty()) {
                 VirtualKafkaCluster cluster = virtualClusterIngressModel.cluster();
-                SharedKafkaProxyContext.addClusterCondition(context, cluster, ClusterCondition.ingressConflict(name(cluster), exceptions));
+                KafkaProxyReconciler.addClusterCondition(context, cluster, ClusterCondition.ingressConflict(name(cluster), exceptions));
             }
         }
     }

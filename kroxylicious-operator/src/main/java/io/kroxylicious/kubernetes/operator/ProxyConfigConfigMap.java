@@ -176,7 +176,7 @@ public class ProxyConfigConfigMap
                 }
             }
             catch (InvalidClusterException e) {
-                SharedKafkaProxyContext.addClusterCondition(context, cluster, e.accepted());
+                KafkaProxyReconciler.addClusterCondition(context, cluster, e.accepted());
             }
         }
         filterDefinitions.sort(Comparator.comparing(NamedFilterDefinition::name));
