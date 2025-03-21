@@ -32,6 +32,8 @@ rules:
       - "kroxylicious.io"
     resources:
       - kafkaproxies/status
+      - kafkaservices/status
+      - kafkaproxyingresses/status
     verbs:
       - get
       - patch

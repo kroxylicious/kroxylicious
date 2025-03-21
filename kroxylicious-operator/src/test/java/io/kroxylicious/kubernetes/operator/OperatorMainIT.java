@@ -145,7 +145,7 @@ class OperatorMainIT {
         operatorMain.start();
 
         // Then
-        assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.executions.proxyreconciler").meter().getId()).isNotNull();
+        assertThat(Metrics.globalRegistry.get("operator.sdk.reconciliations.executions.kafkaproxyreconciler").meter().getId()).isNotNull();
     }
 
     @SuppressWarnings("resource")
@@ -175,7 +175,7 @@ class OperatorMainIT {
                     assertThat(response.statusCode()).isEqualTo(200);
                     assertThat(response.body())
                             .isNotEmpty()
-                            .anySatisfy(line -> assertThat(line).contains("operator_sdk_reconciliations_executions_proxyreconciler"))
+                            .anySatisfy(line -> assertThat(line).contains("operator_sdk_reconciliations_executions_kafkaproxyreconciler"))
                             .anySatisfy(line -> assertThat(line).contains("operator_sdk_events_received"));
                 });
     }

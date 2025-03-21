@@ -13,17 +13,16 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ListAssert;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 
-public class StatusAssert extends AbstractObjectAssert<StatusAssert, KafkaProxyStatus> {
-    protected StatusAssert(
-                           KafkaProxyStatus o) {
-        super(o, StatusAssert.class);
+public class KafkaServiceStatusAssert extends AbstractObjectAssert<KafkaServiceStatusAssert, KafkaServiceStatus> {
+    protected KafkaServiceStatusAssert(
+                                       KafkaServiceStatus o) {
+        super(o, KafkaServiceStatusAssert.class);
     }
 
-    public static StatusAssert assertThat(KafkaProxyStatus actual) {
-        return new StatusAssert(actual);
+    public static KafkaServiceStatusAssert assertThat(KafkaServiceStatus actual) {
+        return new KafkaServiceStatusAssert(actual);
     }
 
     public AbstractLongAssert<?> observedGeneration() {
@@ -39,12 +38,4 @@ public class StatusAssert extends AbstractObjectAssert<StatusAssert, KafkaProxyS
         return conditions().singleElement(AssertFactory.condition());
     }
 
-    public ListAssert<Clusters> clusters() {
-        return Assertions.assertThat(actual.getClusters())
-                .asInstanceOf(InstanceOfAssertFactories.list(io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters.class));
-    }
-
-    public ClusterAssert singleCluster() {
-        return clusters().singleElement(AssertFactory.cluster());
-    }
 }

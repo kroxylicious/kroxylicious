@@ -51,9 +51,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
-class ProxyReconcilerIT {
+class KafkaProxyReconcilerIT {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ProxyReconcilerIT.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyReconcilerIT.class);
 
     private static final String PROXY_A = "proxy-a";
     private static final String PROXY_B = "proxy-b";
@@ -84,7 +84,7 @@ class ProxyReconcilerIT {
 
     @RegisterExtension
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
-            .withReconciler(new ProxyReconciler())
+            .withReconciler(new KafkaProxyReconciler())
             .withKubernetesClient(client)
             .withAdditionalCustomResourceDefinition(VirtualKafkaCluster.class)
             .withAdditionalCustomResourceDefinition(KafkaService.class)

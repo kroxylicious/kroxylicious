@@ -20,7 +20,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 
 /**
  * Encapsulates access to the mutable state in the {@link Context<KafkaProxy>} shared between
- * {@link ProxyReconciler} its dependent resources.
+ * {@link KafkaProxyReconciler} its dependent resources.
  */
 public class SharedKafkaProxyContext {
 
