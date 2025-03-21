@@ -6,14 +6,14 @@
 
 package io.kroxylicious.kubernetes.operator.kafkaservice;
 
-import java.time.Clock;
-import java.util.List;
-
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
+
+import java.time.Clock;
+import java.util.List;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
@@ -39,6 +39,7 @@ public final class KafkaServiceReconciler implements
         final KafkaService amended = resource
                 .edit()
                 .withNewStatus()
+                .withObservedGeneration(resource.getMetadata().getGeneration())
                 .withConditions(acceptedCondition)
                 .endStatus()
                 .build();

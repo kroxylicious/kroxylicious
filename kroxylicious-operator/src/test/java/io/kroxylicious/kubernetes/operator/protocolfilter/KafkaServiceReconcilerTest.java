@@ -6,8 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator.protocolfilter;
 
-import java.time.Clock;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -19,6 +17,8 @@ import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
 import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
+
+import java.time.Clock;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
@@ -46,9 +46,9 @@ class KafkaServiceReconcilerTest {
     }
 
     @Test
-    void shouldMarkFilterAccepted() throws Exception {
+    void shouldMarkFilterAccepted() {
         // Given
-        final KafkaService kafkaService = new KafkaServiceBuilder().withNewStatus().withObservedGeneration(OBSERVED_GENERATION).endStatus().build();
+        final KafkaService kafkaService = new KafkaServiceBuilder().withNewMetadata().withGeneration(OBSERVED_GENERATION).endMetadata().build();
 
         // When
         final UpdateControl<KafkaService> updateControl = kafkaProtocolFilterReconciler.reconcile(kafkaService, context);
