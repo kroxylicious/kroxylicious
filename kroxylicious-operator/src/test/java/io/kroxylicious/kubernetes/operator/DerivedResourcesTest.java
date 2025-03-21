@@ -347,6 +347,7 @@ class DerivedResourcesTest {
         Context<KafkaProxy> context = mock(Context.class, throwOnUnmockedInvocation);
 
         var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext(null, null, context);
+        resourceContext.put(KafkaProxyReconciler.SEC, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
 
         doReturn(resourceContext).when(context).managedWorkflowAndDependentResourceContext();
 

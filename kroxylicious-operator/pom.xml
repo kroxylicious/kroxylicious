@@ -358,6 +358,9 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Conditions>
                             io.kroxylicious.kubernetes.api.common.Condition
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Conditions>
+                        <io.kroxylicious.kubernetes.filter.api.v1alpha1.kafkaprotocolfilterstatus.Conditions>
+                            io.kroxylicious.kubernetes.api.common.Condition
+                        </io.kroxylicious.kubernetes.filter.api.v1alpha1.kafkaprotocolfilterstatus.Conditions>
                         <io.kroxylicious.kubernetes.filter.api.v1alpha1.kafkaprotocolfilterspec.ConfigTemplate>
                             java.lang.Object
                         </io.kroxylicious.kubernetes.filter.api.v1alpha1.kafkaprotocolfilterspec.ConfigTemplate>
