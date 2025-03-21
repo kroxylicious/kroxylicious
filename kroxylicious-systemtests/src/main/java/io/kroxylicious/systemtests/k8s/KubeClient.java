@@ -25,8 +25,6 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
-import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
-
 /**
  * The type Kube client.
  */
@@ -290,7 +288,7 @@ public class KubeClient {
      * @return List of pods
      */
     public List<Service> listServicesByPrefixInName(String namespaceName, String serviceNamePrefix) {
-        return kubeClient().getClient().services().inNamespace(namespaceName).list().getItems()
+        return client.services().inNamespace(namespaceName).list().getItems()
                 .stream().filter(p -> p.getMetadata().getName().startsWith(serviceNamePrefix))
                 .toList();
     }

@@ -49,6 +49,7 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemp
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+import static io.kroxylicious.systemtests.utils.NamespaceUtils.isNamespaceCreated;
 import static org.awaitility.Awaitility.await;
 
 /**
@@ -274,7 +275,7 @@ public class DeploymentUtils {
 
             if (resourceType.equals(Constants.NAMESPACE)) {
                 Namespace namespace = TestFrameUtils.configFromYaml(operatorFile, Namespace.class);
-                if (!NamespaceUtils.isNamespaceCreated(namespace.getMetadata().getName())) {
+                if (!isNamespaceCreated(namespace.getMetadata().getName())) {
                     kubeClient().getClient().resource(namespace).create();
                 }
             }
