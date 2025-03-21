@@ -142,10 +142,9 @@ class MetricsST extends AbstractST {
         bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
         kroxyliciousCollector = new MetricsCollector.Builder()
                 .withScraperPodName(scraperPodName)
-                .withOperatorNamespace(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE)
                 .withNamespaceName(namespace)
                 .withComponentType(ComponentType.KROXYLICIOUS)
-                .withComponentName(Constants.KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME)
+                .withComponentName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME)
                 .build();
         kroxyliciousCollector.collectMetricsFromPods();
     }

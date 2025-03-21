@@ -41,21 +41,19 @@ public class MetricsCollector {
     private static final Logger LOGGER = LogManager.getLogger(MetricsCollector.class);
 
     private final String namespaceName;
-    private final String operatorNamespace;
     private final String scraperPodName;
     private final ComponentType componentType;
     private final String componentName;
     private final int metricsPort;
     private final String metricsPath;
-    private final LabelSelector componentLabelSelector;
     private Map<String, String> collectedData;
+    private final LabelSelector componentLabelSelector;
 
     /**
      * The type Builder.
      */
     public static class Builder {
         private String namespaceName;
-        private String operatorNamespace;
         private String scraperPodName;
         private ComponentType componentType;
         private String componentName;
@@ -70,17 +68,6 @@ public class MetricsCollector {
          */
         public Builder withNamespaceName(String namespaceName) {
             this.namespaceName = namespaceName;
-            return this;
-        }
-
-        /**
-         * With operator namespace builder.
-         *
-         * @param namespaceName the namespace name
-         * @return the builder
-         */
-        public Builder withOperatorNamespace(String namespaceName) {
-            this.operatorNamespace = namespaceName;
             return this;
         }
 
@@ -180,7 +167,6 @@ public class MetricsCollector {
         }
 
         scraperPodName = builder.scraperPodName;
-        operatorNamespace = builder.operatorNamespace;
         namespaceName = Optional.ofNullable(builder.namespaceName).orElse(kubeClient().getNamespace());
         metricsPort = (builder.metricsPort <= 0) ? 9190 : builder.metricsPort;
         metricsPath = Optional.ofNullable(builder.metricsPath).orElse("/metrics");
@@ -191,7 +177,7 @@ public class MetricsCollector {
 
     private LabelSelector getLabelSelectorForResource() {
         if (this.componentType == ComponentType.KROXYLICIOUS) {
-            return kubeClient().getPodSelectorFromDeployment(operatorNamespace, componentName);
+            return kubeClient().getPodSelectorFromDeployment(namespaceName, componentName);
         }
         return new LabelSelector();
     }
