@@ -10,7 +10,7 @@ apiKey: Optional[1]
 struct:
   name: FetchRequest
   hasKeys: no
-  versions: 0-17
+  versions: 4-17
 fields:
     ClusterId
     ReplicaId
@@ -24,8 +24,8 @@ fields:
     Topics
     ForgottenTopicsData
     RackId
-validVersions: 0-17
-validVersionsString: 0-17
+validVersions: 4-17
+validVersionsString: 4-17
 flexibleVersions: 12+
 flexibleVersionsString: 12+
 dataClassName: FetchRequestData
@@ -81,6 +81,5 @@ fields:
   ignorable: yes
 commonStructs:
 listeners:
-  name: ZK_BROKER
   name: BROKER
   name: CONTROLLER

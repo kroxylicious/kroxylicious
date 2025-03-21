@@ -34,8 +34,6 @@ import org.apache.kafka.common.message.BrokerHeartbeatRequestData;
 import org.apache.kafka.common.message.BrokerHeartbeatResponseData;
 import org.apache.kafka.common.message.BrokerRegistrationRequestData;
 import org.apache.kafka.common.message.BrokerRegistrationResponseData;
-import org.apache.kafka.common.message.ControlledShutdownRequestData;
-import org.apache.kafka.common.message.ControlledShutdownResponseData;
 import org.apache.kafka.common.message.CreateAclsRequestData;
 import org.apache.kafka.common.message.CreateAclsResponseData;
 import org.apache.kafka.common.message.CreateDelegationTokenRequestData;
@@ -98,8 +96,6 @@ import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitProducerIdResponseData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
 import org.apache.kafka.common.message.JoinGroupResponseData;
-import org.apache.kafka.common.message.LeaderAndIsrRequestData;
-import org.apache.kafka.common.message.LeaderAndIsrResponseData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
 import org.apache.kafka.common.message.LeaveGroupResponseData;
 import org.apache.kafka.common.message.ListGroupsRequestData;
@@ -130,8 +126,6 @@ import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.message.SaslHandshakeResponseData;
-import org.apache.kafka.common.message.StopReplicaRequestData;
-import org.apache.kafka.common.message.StopReplicaResponseData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.SyncGroupResponseData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
@@ -140,8 +134,6 @@ import org.apache.kafka.common.message.UnregisterBrokerRequestData;
 import org.apache.kafka.common.message.UnregisterBrokerResponseData;
 import org.apache.kafka.common.message.UpdateFeaturesRequestData;
 import org.apache.kafka.common.message.UpdateFeaturesResponseData;
-import org.apache.kafka.common.message.UpdateMetadataRequestData;
-import org.apache.kafka.common.message.UpdateMetadataResponseData;
 import org.apache.kafka.common.message.VoteRequestData;
 import org.apache.kafka.common.message.VoteResponseData;
 import org.apache.kafka.common.message.WriteTxnMarkersRequestData;
@@ -169,7 +161,7 @@ public class SpecificFilterInvoker implements FilterInvoker {
      * @param header        The request header.
      * @param body          The request body.
      * @param filterContext The filter context.
-     * @return
+     * @return request filter result
      */
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
@@ -201,8 +193,6 @@ public class SpecificFilterInvoker implements FilterInvoker {
             case BROKER_HEARTBEAT -> ((BrokerHeartbeatRequestFilter) filter).onBrokerHeartbeatRequest(apiVersion, header, (BrokerHeartbeatRequestData) body,
                     filterContext);
             case BROKER_REGISTRATION -> ((BrokerRegistrationRequestFilter) filter).onBrokerRegistrationRequest(apiVersion, header, (BrokerRegistrationRequestData) body,
-                    filterContext);
-            case CONTROLLED_SHUTDOWN -> ((ControlledShutdownRequestFilter) filter).onControlledShutdownRequest(apiVersion, header, (ControlledShutdownRequestData) body,
                     filterContext);
             case CREATE_ACLS -> ((CreateAclsRequestFilter) filter).onCreateAclsRequest(apiVersion, header, (CreateAclsRequestData) body, filterContext);
             case CREATE_DELEGATION_TOKEN -> ((CreateDelegationTokenRequestFilter) filter).onCreateDelegationTokenRequest(apiVersion, header,
@@ -250,7 +240,6 @@ public class SpecificFilterInvoker implements FilterInvoker {
                     filterContext);
             case INIT_PRODUCER_ID -> ((InitProducerIdRequestFilter) filter).onInitProducerIdRequest(apiVersion, header, (InitProducerIdRequestData) body, filterContext);
             case JOIN_GROUP -> ((JoinGroupRequestFilter) filter).onJoinGroupRequest(apiVersion, header, (JoinGroupRequestData) body, filterContext);
-            case LEADER_AND_ISR -> ((LeaderAndIsrRequestFilter) filter).onLeaderAndIsrRequest(apiVersion, header, (LeaderAndIsrRequestData) body, filterContext);
             case LEAVE_GROUP -> ((LeaveGroupRequestFilter) filter).onLeaveGroupRequest(apiVersion, header, (LeaveGroupRequestData) body, filterContext);
             case LIST_GROUPS -> ((ListGroupsRequestFilter) filter).onListGroupsRequest(apiVersion, header, (ListGroupsRequestData) body, filterContext);
             case LIST_OFFSETS -> ((ListOffsetsRequestFilter) filter).onListOffsetsRequest(apiVersion, header, (ListOffsetsRequestData) body, filterContext);
@@ -270,14 +259,12 @@ public class SpecificFilterInvoker implements FilterInvoker {
             case SASL_AUTHENTICATE -> ((SaslAuthenticateRequestFilter) filter).onSaslAuthenticateRequest(apiVersion, header, (SaslAuthenticateRequestData) body,
                     filterContext);
             case SASL_HANDSHAKE -> ((SaslHandshakeRequestFilter) filter).onSaslHandshakeRequest(apiVersion, header, (SaslHandshakeRequestData) body, filterContext);
-            case STOP_REPLICA -> ((StopReplicaRequestFilter) filter).onStopReplicaRequest(apiVersion, header, (StopReplicaRequestData) body, filterContext);
             case SYNC_GROUP -> ((SyncGroupRequestFilter) filter).onSyncGroupRequest(apiVersion, header, (SyncGroupRequestData) body, filterContext);
             case TXN_OFFSET_COMMIT -> ((TxnOffsetCommitRequestFilter) filter).onTxnOffsetCommitRequest(apiVersion, header, (TxnOffsetCommitRequestData) body,
                     filterContext);
             case UNREGISTER_BROKER -> ((UnregisterBrokerRequestFilter) filter).onUnregisterBrokerRequest(apiVersion, header, (UnregisterBrokerRequestData) body,
                     filterContext);
             case UPDATE_FEATURES -> ((UpdateFeaturesRequestFilter) filter).onUpdateFeaturesRequest(apiVersion, header, (UpdateFeaturesRequestData) body, filterContext);
-            case UPDATE_METADATA -> ((UpdateMetadataRequestFilter) filter).onUpdateMetadataRequest(apiVersion, header, (UpdateMetadataRequestData) body, filterContext);
             case VOTE -> ((VoteRequestFilter) filter).onVoteRequest(apiVersion, header, (VoteRequestData) body, filterContext);
             case WRITE_TXN_MARKERS -> ((WriteTxnMarkersRequestFilter) filter).onWriteTxnMarkersRequest(apiVersion, header, (WriteTxnMarkersRequestData) body,
                     filterContext);
@@ -293,7 +280,7 @@ public class SpecificFilterInvoker implements FilterInvoker {
      * @param header        The request header.
      * @param body          The request body.
      * @param filterContext The filter context.
-     * @return
+     * @return response filter result
      */
     @Override
     public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
@@ -326,8 +313,6 @@ public class SpecificFilterInvoker implements FilterInvoker {
                     filterContext);
             case BROKER_REGISTRATION -> ((BrokerRegistrationResponseFilter) filter).onBrokerRegistrationResponse(apiVersion, header,
                     (BrokerRegistrationResponseData) body, filterContext);
-            case CONTROLLED_SHUTDOWN -> ((ControlledShutdownResponseFilter) filter).onControlledShutdownResponse(apiVersion, header,
-                    (ControlledShutdownResponseData) body, filterContext);
             case CREATE_ACLS -> ((CreateAclsResponseFilter) filter).onCreateAclsResponse(apiVersion, header, (CreateAclsResponseData) body, filterContext);
             case CREATE_DELEGATION_TOKEN -> ((CreateDelegationTokenResponseFilter) filter).onCreateDelegationTokenResponse(apiVersion, header,
                     (CreateDelegationTokenResponseData) body,
@@ -380,7 +365,6 @@ public class SpecificFilterInvoker implements FilterInvoker {
             case INIT_PRODUCER_ID -> ((InitProducerIdResponseFilter) filter).onInitProducerIdResponse(apiVersion, header, (InitProducerIdResponseData) body,
                     filterContext);
             case JOIN_GROUP -> ((JoinGroupResponseFilter) filter).onJoinGroupResponse(apiVersion, header, (JoinGroupResponseData) body, filterContext);
-            case LEADER_AND_ISR -> ((LeaderAndIsrResponseFilter) filter).onLeaderAndIsrResponse(apiVersion, header, (LeaderAndIsrResponseData) body, filterContext);
             case LEAVE_GROUP -> ((LeaveGroupResponseFilter) filter).onLeaveGroupResponse(apiVersion, header, (LeaveGroupResponseData) body, filterContext);
             case LIST_GROUPS -> ((ListGroupsResponseFilter) filter).onListGroupsResponse(apiVersion, header, (ListGroupsResponseData) body, filterContext);
             case LIST_OFFSETS -> ((ListOffsetsResponseFilter) filter).onListOffsetsResponse(apiVersion, header, (ListOffsetsResponseData) body, filterContext);
@@ -400,15 +384,12 @@ public class SpecificFilterInvoker implements FilterInvoker {
             case SASL_AUTHENTICATE -> ((SaslAuthenticateResponseFilter) filter).onSaslAuthenticateResponse(apiVersion, header, (SaslAuthenticateResponseData) body,
                     filterContext);
             case SASL_HANDSHAKE -> ((SaslHandshakeResponseFilter) filter).onSaslHandshakeResponse(apiVersion, header, (SaslHandshakeResponseData) body, filterContext);
-            case STOP_REPLICA -> ((StopReplicaResponseFilter) filter).onStopReplicaResponse(apiVersion, header, (StopReplicaResponseData) body, filterContext);
             case SYNC_GROUP -> ((SyncGroupResponseFilter) filter).onSyncGroupResponse(apiVersion, header, (SyncGroupResponseData) body, filterContext);
             case TXN_OFFSET_COMMIT -> ((TxnOffsetCommitResponseFilter) filter).onTxnOffsetCommitResponse(apiVersion, header, (TxnOffsetCommitResponseData) body,
                     filterContext);
             case UNREGISTER_BROKER -> ((UnregisterBrokerResponseFilter) filter).onUnregisterBrokerResponse(apiVersion, header, (UnregisterBrokerResponseData) body,
                     filterContext);
             case UPDATE_FEATURES -> ((UpdateFeaturesResponseFilter) filter).onUpdateFeaturesResponse(apiVersion, header, (UpdateFeaturesResponseData) body,
-                    filterContext);
-            case UPDATE_METADATA -> ((UpdateMetadataResponseFilter) filter).onUpdateMetadataResponse(apiVersion, header, (UpdateMetadataResponseData) body,
                     filterContext);
             case VOTE -> ((VoteResponseFilter) filter).onVoteResponse(apiVersion, header, (VoteResponseData) body, filterContext);
             case WRITE_TXN_MARKERS -> ((WriteTxnMarkersResponseFilter) filter).onWriteTxnMarkersResponse(apiVersion, header, (WriteTxnMarkersResponseData) body,
@@ -459,8 +440,6 @@ public class SpecificFilterInvoker implements FilterInvoker {
                     && ((BrokerHeartbeatRequestFilter) filter).shouldHandleBrokerHeartbeatRequest(apiVersion);
             case BROKER_REGISTRATION -> filter instanceof BrokerRegistrationRequestFilter
                     && ((BrokerRegistrationRequestFilter) filter).shouldHandleBrokerRegistrationRequest(apiVersion);
-            case CONTROLLED_SHUTDOWN -> filter instanceof ControlledShutdownRequestFilter
-                    && ((ControlledShutdownRequestFilter) filter).shouldHandleControlledShutdownRequest(apiVersion);
             case CREATE_ACLS -> filter instanceof CreateAclsRequestFilter && ((CreateAclsRequestFilter) filter).shouldHandleCreateAclsRequest(apiVersion);
             case CREATE_DELEGATION_TOKEN -> filter instanceof CreateDelegationTokenRequestFilter
                     && ((CreateDelegationTokenRequestFilter) filter).shouldHandleCreateDelegationTokenRequest(apiVersion);
@@ -507,7 +486,6 @@ public class SpecificFilterInvoker implements FilterInvoker {
             case INIT_PRODUCER_ID -> filter instanceof InitProducerIdRequestFilter
                     && ((InitProducerIdRequestFilter) filter).shouldHandleInitProducerIdRequest(apiVersion);
             case JOIN_GROUP -> filter instanceof JoinGroupRequestFilter && ((JoinGroupRequestFilter) filter).shouldHandleJoinGroupRequest(apiVersion);
-            case LEADER_AND_ISR -> filter instanceof LeaderAndIsrRequestFilter && ((LeaderAndIsrRequestFilter) filter).shouldHandleLeaderAndIsrRequest(apiVersion);
             case LEAVE_GROUP -> filter instanceof LeaveGroupRequestFilter && ((LeaveGroupRequestFilter) filter).shouldHandleLeaveGroupRequest(apiVersion);
             case LIST_GROUPS -> filter instanceof ListGroupsRequestFilter && ((ListGroupsRequestFilter) filter).shouldHandleListGroupsRequest(apiVersion);
             case LIST_OFFSETS -> filter instanceof ListOffsetsRequestFilter && ((ListOffsetsRequestFilter) filter).shouldHandleListOffsetsRequest(apiVersion);
@@ -527,14 +505,12 @@ public class SpecificFilterInvoker implements FilterInvoker {
             case SASL_AUTHENTICATE -> filter instanceof SaslAuthenticateRequestFilter
                     && ((SaslAuthenticateRequestFilter) filter).shouldHandleSaslAuthenticateRequest(apiVersion);
             case SASL_HANDSHAKE -> filter instanceof SaslHandshakeRequestFilter && ((SaslHandshakeRequestFilter) filter).shouldHandleSaslHandshakeRequest(apiVersion);
-            case STOP_REPLICA -> filter instanceof StopReplicaRequestFilter && ((StopReplicaRequestFilter) filter).shouldHandleStopReplicaRequest(apiVersion);
             case SYNC_GROUP -> filter instanceof SyncGroupRequestFilter && ((SyncGroupRequestFilter) filter).shouldHandleSyncGroupRequest(apiVersion);
             case TXN_OFFSET_COMMIT -> filter instanceof TxnOffsetCommitRequestFilter
                     && ((TxnOffsetCommitRequestFilter) filter).shouldHandleTxnOffsetCommitRequest(apiVersion);
             case UNREGISTER_BROKER -> filter instanceof UnregisterBrokerRequestFilter
                     && ((UnregisterBrokerRequestFilter) filter).shouldHandleUnregisterBrokerRequest(apiVersion);
             case UPDATE_FEATURES -> filter instanceof UpdateFeaturesRequestFilter && ((UpdateFeaturesRequestFilter) filter).shouldHandleUpdateFeaturesRequest(apiVersion);
-            case UPDATE_METADATA -> filter instanceof UpdateMetadataRequestFilter && ((UpdateMetadataRequestFilter) filter).shouldHandleUpdateMetadataRequest(apiVersion);
             case VOTE -> filter instanceof VoteRequestFilter && ((VoteRequestFilter) filter).shouldHandleVoteRequest(apiVersion);
             case WRITE_TXN_MARKERS -> filter instanceof WriteTxnMarkersRequestFilter
                     && ((WriteTxnMarkersRequestFilter) filter).shouldHandleWriteTxnMarkersRequest(apiVersion);
@@ -585,8 +561,6 @@ public class SpecificFilterInvoker implements FilterInvoker {
                     && ((BrokerHeartbeatResponseFilter) filter).shouldHandleBrokerHeartbeatResponse(apiVersion);
             case BROKER_REGISTRATION -> filter instanceof BrokerRegistrationResponseFilter
                     && ((BrokerRegistrationResponseFilter) filter).shouldHandleBrokerRegistrationResponse(apiVersion);
-            case CONTROLLED_SHUTDOWN -> filter instanceof ControlledShutdownResponseFilter
-                    && ((ControlledShutdownResponseFilter) filter).shouldHandleControlledShutdownResponse(apiVersion);
             case CREATE_ACLS -> filter instanceof CreateAclsResponseFilter && ((CreateAclsResponseFilter) filter).shouldHandleCreateAclsResponse(apiVersion);
             case CREATE_DELEGATION_TOKEN -> filter instanceof CreateDelegationTokenResponseFilter
                     && ((CreateDelegationTokenResponseFilter) filter).shouldHandleCreateDelegationTokenResponse(apiVersion);
@@ -635,7 +609,6 @@ public class SpecificFilterInvoker implements FilterInvoker {
             case INIT_PRODUCER_ID -> filter instanceof InitProducerIdResponseFilter
                     && ((InitProducerIdResponseFilter) filter).shouldHandleInitProducerIdResponse(apiVersion);
             case JOIN_GROUP -> filter instanceof JoinGroupResponseFilter && ((JoinGroupResponseFilter) filter).shouldHandleJoinGroupResponse(apiVersion);
-            case LEADER_AND_ISR -> filter instanceof LeaderAndIsrResponseFilter && ((LeaderAndIsrResponseFilter) filter).shouldHandleLeaderAndIsrResponse(apiVersion);
             case LEAVE_GROUP -> filter instanceof LeaveGroupResponseFilter && ((LeaveGroupResponseFilter) filter).shouldHandleLeaveGroupResponse(apiVersion);
             case LIST_GROUPS -> filter instanceof ListGroupsResponseFilter && ((ListGroupsResponseFilter) filter).shouldHandleListGroupsResponse(apiVersion);
             case LIST_OFFSETS -> filter instanceof ListOffsetsResponseFilter && ((ListOffsetsResponseFilter) filter).shouldHandleListOffsetsResponse(apiVersion);
@@ -655,7 +628,6 @@ public class SpecificFilterInvoker implements FilterInvoker {
             case SASL_AUTHENTICATE -> filter instanceof SaslAuthenticateResponseFilter
                     && ((SaslAuthenticateResponseFilter) filter).shouldHandleSaslAuthenticateResponse(apiVersion);
             case SASL_HANDSHAKE -> filter instanceof SaslHandshakeResponseFilter && ((SaslHandshakeResponseFilter) filter).shouldHandleSaslHandshakeResponse(apiVersion);
-            case STOP_REPLICA -> filter instanceof StopReplicaResponseFilter && ((StopReplicaResponseFilter) filter).shouldHandleStopReplicaResponse(apiVersion);
             case SYNC_GROUP -> filter instanceof SyncGroupResponseFilter && ((SyncGroupResponseFilter) filter).shouldHandleSyncGroupResponse(apiVersion);
             case TXN_OFFSET_COMMIT -> filter instanceof TxnOffsetCommitResponseFilter
                     && ((TxnOffsetCommitResponseFilter) filter).shouldHandleTxnOffsetCommitResponse(apiVersion);
@@ -663,8 +635,6 @@ public class SpecificFilterInvoker implements FilterInvoker {
                     && ((UnregisterBrokerResponseFilter) filter).shouldHandleUnregisterBrokerResponse(apiVersion);
             case UPDATE_FEATURES -> filter instanceof UpdateFeaturesResponseFilter
                     && ((UpdateFeaturesResponseFilter) filter).shouldHandleUpdateFeaturesResponse(apiVersion);
-            case UPDATE_METADATA -> filter instanceof UpdateMetadataResponseFilter
-                    && ((UpdateMetadataResponseFilter) filter).shouldHandleUpdateMetadataResponse(apiVersion);
             case VOTE -> filter instanceof VoteResponseFilter && ((VoteResponseFilter) filter).shouldHandleVoteResponse(apiVersion);
             case WRITE_TXN_MARKERS -> filter instanceof WriteTxnMarkersResponseFilter
                     && ((WriteTxnMarkersResponseFilter) filter).shouldHandleWriteTxnMarkersResponse(apiVersion);
