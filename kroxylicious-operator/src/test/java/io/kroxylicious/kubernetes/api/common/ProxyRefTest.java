@@ -12,13 +12,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ProxyRefTest {
 
+    // we knowingly use equals across types because we want the property that specific LocalRef types are equal to any other LocalRef
+    // with the same group, kind and name.
+    @SuppressWarnings("java:S5845")
     @Test
-    void shouldEqualAKafkaKindedAnyRef() {
-        var proxyRef = new ProxyRefBuilder().withName("foo").build();
-        var anyFoo = new AnyLocalRefBuilder().withName("foo").withKind(proxyRef.getKind()).withGroup(proxyRef.getGroup()).build();
-        assertThat(proxyRef).isEqualTo(anyFoo);
-        assertThat(anyFoo).isEqualTo(proxyRef);
-        assertThat(proxyRef).hasSameHashCodeAs(anyFoo);
+    void shouldEqualAnyRefWithSameCoordinates() {
+        var proxyRefFoo = new ProxyRefBuilder().withName("foo").build();
+        var anyFoo = new AnyLocalRefBuilder().withName("foo").withKind(proxyRefFoo.getKind()).withGroup(proxyRefFoo.getGroup()).build();
+        assertThat(proxyRefFoo).isEqualTo(anyFoo);
+        assertThat(anyFoo).isEqualTo(proxyRefFoo);
+        assertThat(proxyRefFoo).hasSameHashCodeAs(anyFoo);
     }
 
 }

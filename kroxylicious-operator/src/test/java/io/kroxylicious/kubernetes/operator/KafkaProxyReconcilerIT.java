@@ -106,15 +106,15 @@ class KafkaProxyReconcilerIT {
     }
 
     private record CreatedResources(KafkaProxy proxy, Set<VirtualKafkaCluster> clusters, Set<KafkaService> clusterRefs, Set<KafkaProxyIngress> ingresses) {
-        public VirtualKafkaCluster cluster(String name) {
+        VirtualKafkaCluster cluster(String name) {
             return findOnlyResourceNamed(name, clusters).orElseThrow();
         }
 
-        public KafkaService clusterRef(String name) {
+        KafkaService clusterRef(String name) {
             return findOnlyResourceNamed(name, clusterRefs).orElseThrow();
         }
 
-        public KafkaProxyIngress ingress(String name) {
+        KafkaProxyIngress ingress(String name) {
             return findOnlyResourceNamed(name, ingresses).orElseThrow();
         }
     }

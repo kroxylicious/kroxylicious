@@ -82,9 +82,6 @@ public class KafkaProxyReconciler implements
     public static final String DEPLOYMENT_DEP = "deployment";
     public static final String CLUSTERS_DEP = "clusters";
 
-    public KafkaProxyReconciler() {
-    }
-
     /**
      * The happy path, where all the dependent resources expressed a desired
      */

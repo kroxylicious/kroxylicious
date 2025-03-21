@@ -31,7 +31,7 @@ import io.fabric8.kubernetes.api.model.KubernetesResource;
 public class AnyLocalRef
         extends LocalRef<HasMetadata>
         implements io.fabric8.kubernetes.api.builder.Editable<AnyLocalRefBuilder>,
-        io.fabric8.kubernetes.api.model.KubernetesResource {
+        KubernetesResource {
 
     @java.lang.Override
     public AnyLocalRefBuilder edit() {

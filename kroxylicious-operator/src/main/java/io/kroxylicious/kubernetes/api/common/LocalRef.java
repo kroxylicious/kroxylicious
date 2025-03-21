@@ -27,6 +27,7 @@ public abstract class LocalRef<T> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public final boolean equals(Object obj) {
         if (this == obj) {
             return true;
@@ -34,8 +35,9 @@ public abstract class LocalRef<T> {
         if (!(obj instanceof LocalRef)) {
             return false;
         }
-        return Objects.equals(getGroup(), ((LocalRef<?>) obj).getGroup())
-                && Objects.equals(getKind(), ((LocalRef<?>) obj).getKind())
-                && Objects.equals(getName(), ((LocalRef<?>) obj).getName());
+        LocalRef<T> other = (LocalRef<T>) obj;
+        return Objects.equals(getGroup(), other.getGroup())
+                && Objects.equals(getKind(), other.getKind())
+                && Objects.equals(getName(), other.getName());
     }
 }
