@@ -7,18 +7,12 @@
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.fabric8.kubernetes.api.model.Namespace;
-import io.skodjob.testframe.utils.TestFrameUtils;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.systemtests.Constants;
@@ -29,7 +23,7 @@ import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousDeploymentTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousServiceTemplates;
-import io.kroxylicious.systemtests.utils.NamespaceUtils;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -122,26 +116,7 @@ public class Kroxylicious {
      */
     public void deployKroxyliciousExample(String path) {
         LOGGER.info("Deploying Kroxylicious from path {}", path);
-        for (File operatorFile : getExampleFiles(path)) {
-            final String resourceType = operatorFile.getName().split("\\.")[1];
-
-            if (resourceType.equals(Constants.NAMESPACE)) {
-                Namespace namespace = TestFrameUtils.configFromYaml(operatorFile, Namespace.class);
-                if (!NamespaceUtils.isNamespaceCreated(namespace.getMetadata().getName())) {
-                    kubeClient().getClient().resource(namespace).create();
-                }
-            }
-            else {
-                try {
-                    kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath()))
-                            .inNamespace(deploymentNamespace)
-                            .create();
-                }
-                catch (FileNotFoundException e) {
-                    throw new UncheckedIOException(e);
-                }
-            }
-        }
+        DeploymentUtils.deployYamlFiles(deploymentNamespace, getExampleFiles(path));
     }
 
     private static List<File> getExampleFiles(String examplePath) {
