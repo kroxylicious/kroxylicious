@@ -76,10 +76,10 @@ public class KafkaProtocolFilterReconciler implements
                         context));
     }
 
-    private <R extends HasMetadata> InformerEventSourceConfiguration<R> foo(
+    private <R extends HasMetadata> InformerEventSourceConfiguration<R> secretExtractingEventSourceConfig(
                                                                             EventSourceContext<KafkaProtocolFilter> context,
-                                                                            Class<R> cls,
-                                                                            Function<SecureConfigInterpolator.InterpolationResult, Stream<String>> fn1) {
+                                                                            Class<R> secondaryClass,
+                                                                            Function<SecureConfigInterpolator.InterpolationResult, Stream<String>> secretIdExtractor) {
         return InformerEventSourceConfiguration.from(
                 cls,
                 KafkaProtocolFilter.class)
