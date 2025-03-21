@@ -221,7 +221,7 @@ public class ProxyConfigConfigMap
     }
 
     private SecureConfigInterpolator.InterpolationResult interpolateConfig(Context<KafkaProxy> context, KafkaProtocolFilterSpec spec) {
-        SecureConfigInterpolator secureConfigInterpolator = ProxyReconciler.secureConfigInterpolator(context);
+        SecureConfigInterpolator secureConfigInterpolator = KafkaProxyReconciler.secureConfigInterpolator(context);
         Object configTemplate = Objects.requireNonNull(spec.getConfigTemplate(), "ConfigTemplate is required in the KafkaProtocolFilterSpec");
         return secureConfigInterpolator.interpolate(configTemplate);
     }

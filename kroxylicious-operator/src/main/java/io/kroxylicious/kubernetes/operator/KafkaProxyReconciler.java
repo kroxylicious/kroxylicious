@@ -78,7 +78,6 @@ public class KafkaProxyReconciler implements
         Reconciler<KafkaProxy>,
         ContextInitializer<KafkaProxy> {
 
-
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyReconciler.class);
 
     public static final String CONFIG_DEP = "config";
