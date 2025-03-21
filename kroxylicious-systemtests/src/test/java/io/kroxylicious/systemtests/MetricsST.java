@@ -42,6 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 class MetricsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsST.class);
     private final String clusterName = "my-cluster";
+    private final String clusterIpServiceName = clusterName + "-cluster-ip";
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final String MESSAGE = "Hello-world";
     private MetricsCollector kroxyliciousCollector;
@@ -138,7 +139,7 @@ class MetricsST extends AbstractST {
         kroxyliciousOperator.deploy();
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlainWithNoFilters();
-        bootstrap = kroxylicious.getBootstrap(kroxylicious.getServiceName(clusterName));
+        bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
         kroxyliciousCollector = new MetricsCollector.Builder()
                 .withScraperPodName(scraperPodName)
                 .withOperatorNamespace(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE)

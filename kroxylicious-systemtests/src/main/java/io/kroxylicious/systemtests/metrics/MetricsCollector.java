@@ -159,99 +159,12 @@ public class MetricsCollector {
     }
 
     /**
-     * Gets operator namespace.
-     *
-     * @return the operator namespace
-     */
-    public String getOperatorNamespace() {
-        return operatorNamespace;
-    }
-
-    /**
-     * Gets scraper pod name.
-     *
-     * @return the scraper pod name
-     */
-    public String getScraperPodName() {
-        return scraperPodName;
-    }
-
-    /**
-     * Gets component type.
-     *
-     * @return the component type
-     */
-    public ComponentType getComponentType() {
-        return componentType;
-    }
-
-    /**
-     * Gets component name.
-     *
-     * @return the component name
-     */
-    public String getComponentName() {
-        return componentName;
-    }
-
-    /**
-     * Gets metrics path.
-     *
-     * @return the metrics path
-     */
-    public String getMetricsPath() {
-        return metricsPath;
-    }
-
-    /**
-     * Gets metrics port.
-     *
-     * @return the metrics port
-     */
-    public int getMetricsPort() {
-        return metricsPort;
-    }
-
-    /**
      * Gets collected data.
      *
      * @return the collected data
      */
     public Map<String, String> getCollectedData() {
         return collectedData;
-    }
-
-    /**
-     * New builder metrics collector . builder.
-     *
-     * @return the metrics collector . builder
-     */
-    protected MetricsCollector.Builder newBuilder() {
-        return new MetricsCollector.Builder();
-    }
-
-    /**
-     * Update builder metrics collector . builder.
-     *
-     * @param builder the builder
-     * @return the metrics collector . builder
-     */
-    protected MetricsCollector.Builder updateBuilder(MetricsCollector.Builder builder) {
-        return builder
-                .withNamespaceName(getNamespaceName())
-                .withOperatorNamespace(getOperatorNamespace())
-                .withComponentName(getComponentName())
-                .withComponentType(getComponentType())
-                .withScraperPodName(getScraperPodName());
-    }
-
-    /**
-     * To builder metrics collector.
-     *
-     * @return the metrics collector
-     */
-    public MetricsCollector.Builder toBuilder() {
-        return updateBuilder(newBuilder());
     }
 
     /**

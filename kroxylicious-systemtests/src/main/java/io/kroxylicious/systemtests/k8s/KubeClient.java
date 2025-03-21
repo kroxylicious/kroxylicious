@@ -8,7 +8,6 @@ package io.kroxylicious.systemtests.k8s;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import io.fabric8.kubernetes.api.model.DeletionPropagation;
 import io.fabric8.kubernetes.api.model.LabelSelector;
@@ -21,6 +20,12 @@ import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.NonDeletingOperation;
+
+import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
+
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
  * The type Kube client.
@@ -158,7 +163,7 @@ public class KubeClient {
     public List<Pod> listPodsByPrefixInName(String namespaceName, String podNamePrefix) {
         return listPods(namespaceName)
                 .stream().filter(p -> p.getMetadata().getName().startsWith(podNamePrefix))
-                .collect(Collectors.toList());
+                .toList();
     }
 
     /**
@@ -276,6 +281,36 @@ public class KubeClient {
      */
     public Service getService(String namespaceName, String deploymentName) {
         return client.services().inNamespace(namespaceName).withName(deploymentName).get();
+    }
+
+    /**
+     * Returns list of pods by prefix in pod name
+     * @param namespaceName Namespace name
+     * @param serviceNamePrefix the service name prefix
+     * @return List of pods
+     */
+    public List<Service> listServicesByPrefixInName(String namespaceName, String serviceNamePrefix) {
+        return kubeClient().getClient().services().inNamespace(namespaceName).list().getItems()
+                .stream().filter(p -> p.getMetadata().getName().startsWith(serviceNamePrefix))
+                .toList();
+    }
+
+    /**
+     * Gets service name by prefix.
+     *
+     * @param namespaceName the namespace name
+     * @param serviceNamePrefix the service name prefix
+     * @return the service name
+     */
+    public String getServiceNameByPrefix(String namespaceName, String serviceNamePrefix) {
+        DeploymentUtils.waitForServiceReady(namespaceName, serviceNamePrefix, Constants.GLOBAL_STATUS_TIMEOUT);
+        List<Service> services = listServicesByPrefixInName(namespaceName, serviceNamePrefix);
+        if (!services.isEmpty()) {
+            return services.get(0).getMetadata().getName();
+        }
+        else {
+            throw new KubeClusterException.NotFound("Service with prefix " + serviceNamePrefix + " not found!");
+        }
     }
 
     /**

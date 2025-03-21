@@ -22,6 +22,7 @@ public final class Constants {
     public static final String KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME = "kroxylicious-operator";
     public static final String KROXYLICIOUS_OPERATOR_NAMESPACE = "kroxylicious-operator";
     public static final String KROXY_DEPLOYMENT_NAME = "kroxylicious-proxy";
+
     /**
      * The service name for kroxylicious. Used for the bootstrap url
      */

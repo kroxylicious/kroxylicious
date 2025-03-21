@@ -13,13 +13,11 @@ import java.io.UncheckedIOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Namespace;
-import io.fabric8.kubernetes.api.model.Service;
 import io.skodjob.testframe.utils.TestFrameUtils;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
@@ -34,7 +32,6 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousServiceTem
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
-import static org.awaitility.Awaitility.await;
 
 /**
  * The type Kroxylicious.
@@ -54,11 +51,6 @@ public class Kroxylicious {
         this.deploymentNamespace = deploymentNamespace;
         String kroxyUrl = Environment.KROXY_IMAGE_REPO + (Environment.KROXY_IMAGE_REPO.endsWith(":") ? "" : ":");
         this.containerImage = kroxyUrl + Environment.KROXY_VERSION;
-    }
-
-    private void createDefaultConfigMap(String clusterName) {
-        LOGGER.info("Deploy Kroxylicious default config Map without filters in {} namespace", deploymentNamespace);
-        resourceManager.createResourceWithWait(KroxyliciousConfigMapTemplates.defaultKroxyliciousConfig(clusterName, deploymentNamespace).build());
     }
 
     private void createRecordEncryptionFilterConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
@@ -107,27 +99,13 @@ public class Kroxylicious {
     }
 
     /**
-     * Get bootstrap
-     *
-     * @return the bootstrap
-     */
-    public String getBootstrap() {
-        String clusterIP = kubeClient().getService(deploymentNamespace, Constants.KROXY_SERVICE_NAME).getSpec().getClusterIP();
-        if (clusterIP == null || clusterIP.isEmpty()) {
-            throw new KubeClusterException("Unable to get the clusterIP of Kroxylicious");
-        }
-        String bootstrap = clusterIP + ":9292";
-        LOGGER.debug("Kroxylicious bootstrap: {}", bootstrap);
-        return bootstrap;
-    }
-
-    /**
      * Gets bootstrap.
      *
-     * @param serviceName the service name
+     * @param serviceNamePrefix the service name prefix
      * @return the bootstrap
      */
-    public String getBootstrap(String serviceName) {
+    public String getBootstrap(String serviceNamePrefix) {
+        String serviceName = kubeClient().getServiceNameByPrefix(deploymentNamespace, serviceNamePrefix);
         String clusterIP = kubeClient().getService(deploymentNamespace, serviceName).getSpec().getClusterIP();
         if (clusterIP == null || clusterIP.isEmpty()) {
             throw new KubeClusterException("Unable to get the clusterIP of Kroxylicious");
@@ -138,33 +116,12 @@ public class Kroxylicious {
     }
 
     /**
-     * Gets service name.
-     *
-     * @param prefix the prefix
-     * @return the service name
-     */
-    public String getServiceName(String prefix) {
-        Optional<Service> service = await().alias("await service to be available")
-                .atMost(Constants.GLOBAL_STATUS_TIMEOUT)
-                .pollInterval(Constants.GLOBAL_POLL_INTERVAL)
-                .until(() -> kubeClient().getClient().services().inNamespace(deploymentNamespace).list().getItems()
-                        .stream().filter(f -> f.getMetadata().getName().contains(prefix)).findFirst(),
-                        Optional::isPresent);
-        if (service.isPresent()) {
-            return service.get().getMetadata().getName();
-        }
-        else {
-            throw new KubeClusterException.NotFound("Service with prefix " + prefix + " not found!");
-        }
-    }
-
-    /**
      * Deploy kroxylicious example.
      *
      * @param path the path
      */
     public void deployKroxyliciousExample(String path) {
-        LOGGER.info("Deploying simple Kroxylicious");
+        LOGGER.info("Deploying Kroxylicious from path {}", path);
         for (File operatorFile : getExampleFiles(path)) {
             final String resourceType = operatorFile.getName().split("\\.")[1];
 

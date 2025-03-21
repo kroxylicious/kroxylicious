@@ -42,18 +42,6 @@ public final class KroxyliciousConfigMapTemplates {
     }
 
     /**
-     * Default kroxylicious config map builder.
-     *
-     * @param clusterName the cluster name
-     * @param namespaceName the namespace name
-     * @return the config map builder
-     */
-    public static ConfigMapBuilder defaultKroxyliciousConfig(String clusterName, String namespaceName) {
-        return baseKroxyliciousConfig(namespaceName)
-                .addToData("config.yaml", getDefaultKroxyliciousConfigMap(clusterName));
-    }
-
-    /**
      * Kroxylicious record encryption config.
      *
      * @param clusterName the cluster name
@@ -120,26 +108,6 @@ public final class KroxyliciousConfigMapTemplates {
                   - encrypt
                 """
                 .formatted(Constants.KROXY_SERVICE_NAME, clusterName, Constants.KAFKA_DEFAULT_NAMESPACE, configYaml);
-    }
-
-    private static String getDefaultKroxyliciousConfigMap(String clusterName) {
-        return """
-                management:
-                  endpoints:
-                    prometheus: {}
-                virtualClusters:
-                  - name: demo
-                    targetCluster:
-                      bootstrapServers: %s-kafka-bootstrap.%s.svc.cluster.local:9092
-                    gateways:
-                    - name: default
-                      portIdentifiesNode:
-                        bootstrapAddress: localhost:9292
-                        advertisedBrokerAddressPattern: %s
-                    logNetwork: false
-                    logFrames: false
-                """
-                .formatted(clusterName, Constants.KAFKA_DEFAULT_NAMESPACE, Constants.KROXY_SERVICE_NAME);
     }
 
     /**

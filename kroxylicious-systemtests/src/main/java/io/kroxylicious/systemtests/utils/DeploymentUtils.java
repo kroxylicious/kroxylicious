@@ -205,6 +205,21 @@ public class DeploymentUtils {
         }
     }
 
+    /**
+     * Wait for service ready.
+     *
+     * @param namespaceName the namespace name
+     * @param serviceName the service name
+     * @param timeout the timeout
+     */
+    public static void waitForServiceReady(String namespaceName, String serviceName, Duration timeout) {
+        await().alias("await service to be available")
+                .atMost(timeout)
+                .pollInterval(Constants.GLOBAL_POLL_INTERVAL)
+                .until(() -> kubeClient().listServicesByPrefixInName(namespaceName, serviceName).stream().findFirst(),
+                        Optional::isPresent);
+    }
+
     private static boolean hasReachedTerminalPhase(String p) {
         return isFailedPhase(p) || isSucceededPhase(p);
     }
