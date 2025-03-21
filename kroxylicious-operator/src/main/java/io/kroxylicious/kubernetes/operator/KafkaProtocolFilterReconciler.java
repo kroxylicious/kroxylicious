@@ -62,13 +62,13 @@ public class KafkaProtocolFilterReconciler implements
     @Override
     public List<EventSource<?, KafkaProtocolFilter>> prepareEventSources(EventSourceContext<KafkaProtocolFilter> context) {
         return List.of(
-                new InformerEventSource<>(foo(context, Secret.class,
+                new InformerEventSource<>(templateResourceReferenceEventSourceConfig(context, Secret.class,
                         interpolationResult -> interpolationResult.volumes().stream()
                                 .flatMap(volume -> Optional.ofNullable(volume.getSecret())
                                         .map(SecretVolumeSource::getSecretName)
                                         .stream())),
                         context),
-                new InformerEventSource<>(foo(context, ConfigMap.class,
+                new InformerEventSource<>(templateResourceReferenceEventSourceConfig(context, ConfigMap.class,
                         interpolationResult -> interpolationResult.volumes().stream()
                                 .flatMap(volume -> Optional.ofNullable(volume.getConfigMap())
                                         .map(ConfigMapVolumeSource::getName)
@@ -76,18 +76,30 @@ public class KafkaProtocolFilterReconciler implements
                         context));
     }
 
-    private <R extends HasMetadata> InformerEventSourceConfiguration<R> secretExtractingEventSourceConfig(
-                                                                            EventSourceContext<KafkaProtocolFilter> context,
-                                                                            Class<R> secondaryClass,
-                                                                            Function<SecureConfigInterpolator.InterpolationResult, Stream<String>> secretIdExtractor) {
+    /**
+     * Returns a new event source config for getting the resource dependencies of a given type present in a filter's {@code spec.configTemplate}.
+     * @param context The context.
+     * @param secondaryClass The Java type of resource reference (e.g. Secret)
+     * @param resourceNameExtractor A function which extracts the name of the resources from an interpolation result.
+     * @return The event source configuration
+     * @param <R>
+     */
+    private <R extends HasMetadata> InformerEventSourceConfiguration<R> templateResourceReferenceEventSourceConfig(
+                                                                                                                   EventSourceContext<KafkaProtocolFilter> context,
+                                                                                                                   Class<R> secondaryClass,
+                                                                                                                   Function<SecureConfigInterpolator.InterpolationResult, Stream<String>> resourceNameExtractor) {
         return InformerEventSourceConfiguration.from(
-                cls,
+                secondaryClass,
                 KafkaProtocolFilter.class)
                 .withPrimaryToSecondaryMapper((KafkaProtocolFilter filter) -> {
-                    var interpolationResult = secureConfigInterpolator.interpolate(filter.getSpec().getConfigTemplate());
-                    Set<String> secretIDs = fn1.apply(interpolationResult).collect(Collectors.toSet());
-                    LOGGER.info("Filter {} references {}(s) {}", filter.getMetadata().getName(), cls.getName(), secretIDs);
-                    return secretIDs.stream().map(name -> new ResourceID(name, filter.getMetadata().getNamespace())).collect(Collectors.toSet());
+                    Object configTemplate = filter.getSpec().getConfigTemplate();
+                    var interpolationResult = secureConfigInterpolator.interpolate(configTemplate);
+                    Set<String> resourceNames = resourceNameExtractor.apply(interpolationResult)
+                            .collect(Collectors.toSet());
+                    LOGGER.debug("Filter {} references {}(s) {}", ResourcesUtil.name(filter), secondaryClass.getName(), resourceNames);
+                    return resourceNames.stream()
+                            .map(name -> new ResourceID(name, ResourcesUtil.namespace(filter)))
+                            .collect(Collectors.toSet());
                 })
                 .withSecondaryToPrimaryMapper(secret -> {
                     Set<ResourceID> resourceIDS = ResourcesUtil.filteredResourceIdsInSameNamespace(
@@ -95,10 +107,12 @@ public class KafkaProtocolFilterReconciler implements
                             secret,
                             KafkaProtocolFilter.class,
                             filter -> {
-                                var interpolationResult = secureConfigInterpolator.interpolate(filter.getSpec().getConfigTemplate());
-                                return fn1.apply(interpolationResult).anyMatch(secretNameFromVolume -> secretNameFromVolume.equals(ResourcesUtil.name(secret)));
+                                Object configTemplate = filter.getSpec().getConfigTemplate();
+                                var interpolationResult = secureConfigInterpolator.interpolate(configTemplate);
+                                return resourceNameExtractor.apply(interpolationResult)
+                                        .anyMatch(secretNameFromVolume -> secretNameFromVolume.equals(ResourcesUtil.name(secret)));
                             });
-                    LOGGER.info("{} {} referenced by Filters {}", cls.getName(), secret.getMetadata().getName(), resourceIDS);
+                    LOGGER.debug("{} {} referenced by Filters {}", secondaryClass.getName(), ResourcesUtil.name(secret), resourceIDS);
                     return resourceIDS;
                 })
                 .build();
@@ -116,33 +130,25 @@ public class KafkaProtocolFilterReconciler implements
         var extentSecrets = context.getSecondaryResourcesAsStream(Secret.class)
                 .map(ResourcesUtil::name)
                 .collect(Collectors.toSet());
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Extent secrets: {}", extentSecrets);
-        }
+        LOGGER.debug("Extent secrets: {}", extentSecrets);
 
         var extentConfigMaps = context.getSecondaryResourcesAsStream(ConfigMap.class)
                 .map(ResourcesUtil::name)
                 .collect(Collectors.toSet());
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Extent configmaps: {}", extentConfigMaps);
-        }
+        LOGGER.debug("Extent configmaps: {}", extentConfigMaps);
 
         var interpolationResult = secureConfigInterpolator.interpolate(filter.getSpec().getConfigTemplate());
         var referencedSecrets = interpolationResult.volumes().stream().flatMap(volume -> Optional.ofNullable(volume.getSecret())
                 .map(SecretVolumeSource::getSecretName)
                 .stream())
                 .collect(Collectors.toCollection(HashSet::new));
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Referenced secrets: {}", referencedSecrets);
-        }
+        LOGGER.debug("Referenced secrets: {}", referencedSecrets);
 
         var referencedConfigMaps = interpolationResult.volumes().stream().flatMap(volume -> Optional.ofNullable(volume.getConfigMap())
                 .map(ConfigMapVolumeSource::getName)
                 .stream())
                 .collect(Collectors.toCollection(HashSet::new));
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Referenced configmaps: {}", referencedConfigMaps);
-        }
+        LOGGER.debug("Referenced configmaps: {}", referencedConfigMaps);
 
         if (extentSecrets.containsAll(referencedSecrets)
                 && extentConfigMaps.containsAll(referencedConfigMaps)) {
@@ -165,7 +171,7 @@ public class KafkaProtocolFilterReconciler implements
         }
 
         KafkaProtocolFilter newFilter = newFilterWithCondition(filter, conditionBuilder.build());
-        LOGGER.info("Patching with status {}", newFilter.getStatus());
+        LOGGER.debug("Patching with status {}", newFilter.getStatus());
         return UpdateControl.patchStatus(newFilter);
     }
 
@@ -174,7 +180,7 @@ public class KafkaProtocolFilterReconciler implements
         // @formatter:off
         return new KafkaProtocolFilterBuilder(filter)
                     .withNewStatus()
-                        .withObservedGeneration(filter.getMetadata().getGeneration())
+                        .withObservedGeneration(ResourcesUtil.generation(filter))
                         .withConditions(condition) // overwrite any existing conditions
                     .endStatus()
                 .build();
@@ -185,7 +191,7 @@ public class KafkaProtocolFilterReconciler implements
         return new ConditionBuilder()
                 .withType(Condition.Type.ResolvedRefs)
                 .withLastTransitionTime(now)
-                .withObservedGeneration(filter.getMetadata().getGeneration());
+                .withObservedGeneration(ResourcesUtil.generation(filter));
     }
 
     @Override
