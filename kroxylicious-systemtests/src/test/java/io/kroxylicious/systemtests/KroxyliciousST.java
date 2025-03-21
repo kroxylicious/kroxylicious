@@ -193,7 +193,7 @@ class KroxyliciousST extends AbstractST {
     }
 
     @AfterEach
-    void cleanUp(){
+    void cleanUp() {
         kroxyliciousOperator.delete();
     }
 

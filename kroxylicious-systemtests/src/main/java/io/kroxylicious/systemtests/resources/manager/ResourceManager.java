@@ -207,7 +207,7 @@ public class ResourceManager {
 
         ConcurrentLinkedDeque<ResourceItem<?>> stack = storedResources.get(getContextUniqueName());
 
-        if(stack != null) {
+        if (stack != null) {
             while (!stack.isEmpty()) {
                 ResourceItem<?> resourceItem = stack.pop();
                 try {
