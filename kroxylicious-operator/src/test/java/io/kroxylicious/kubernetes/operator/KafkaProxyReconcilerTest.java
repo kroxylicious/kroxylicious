@@ -327,7 +327,7 @@ class KafkaProxyReconcilerTest {
         doReturn(Set.of(new VirtualKafkaClusterBuilder().withNewMetadata().withName("my-cluster").withNamespace("my-ns").endMetadata().withNewSpec().withNewProxyRef()
                 .withName("my-proxy").endProxyRef().endSpec().build())).when(context).getSecondaryResources(VirtualKafkaCluster.class);
         doReturn(Optional.of(Map.of("my-cluster", ClusterCondition.refNotFound("my-cluster", new FilterRefBuilder().withName("MissingFilter").build())))).when(mdrc).get(
-                SharedKafkaProxyContext.CLUSTER_CONDITIONS_KEY,
+                KafkaProxyReconciler.CLUSTER_CONDITIONS_KEY,
                 Map.class);
 
         // When

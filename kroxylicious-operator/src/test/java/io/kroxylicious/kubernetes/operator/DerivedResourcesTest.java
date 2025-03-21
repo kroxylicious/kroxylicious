@@ -276,7 +276,7 @@ class DerivedResourcesTest {
                             }));
                 }
                 for (var cluster : virtualKafkaClusters) {
-                    ClusterCondition actualClusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
+                    ClusterCondition actualClusterCondition = KafkaProxyReconciler.clusterCondition(context, cluster);
                     if (actualClusterCondition.type() == Condition.Type.Accepted && actualClusterCondition.status().equals(Condition.Status.TRUE)) {
                         continue;
                     }
