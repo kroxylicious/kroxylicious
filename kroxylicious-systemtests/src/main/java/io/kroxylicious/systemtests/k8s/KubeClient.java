@@ -282,7 +282,7 @@ public class KubeClient {
     }
 
     /**
-     * Returns list of pods by prefix in pod name
+     * Returns list of services by prefix in service name
      * @param namespaceName Namespace name
      * @param serviceNamePrefix the service name prefix
      * @return List of pods
