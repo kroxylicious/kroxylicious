@@ -183,7 +183,7 @@ class NonJVMClientsST extends AbstractST {
         kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE, 1);
         kroxyliciousOperator.deploy();
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters();
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters();
         bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();

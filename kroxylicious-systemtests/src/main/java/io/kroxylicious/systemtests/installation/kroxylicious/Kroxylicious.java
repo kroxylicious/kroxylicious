@@ -62,9 +62,9 @@ public class Kroxylicious {
     }
 
     /**
-     * Deploy - Port per broker plain with no filters config
+     * Deploy - Port Identifies Node with no filters config
      */
-    public void deployPortPerBrokerPlainWithNoFilters() {
+    public void deployPortIdentifiesNodeWithNoFilters() {
         deployKroxyliciousExample(Constants.PATH_TO_OPERATOR_SIMPLE_FILES);
     }
 
