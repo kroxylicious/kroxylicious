@@ -12,8 +12,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class IngressRefTest {
 
+    // we knowingly use equals across types because we want the property that specific LocalRef types are equal to any other LocalRef
+    // with the same group, kind and name.
+    @SuppressWarnings("java:S5845")
     @Test
-    void shouldEqualAKafkaKindedAnyRef() {
+    void shouldEqualAnyRefWithSameCoordinates() {
         var ingressRefFoo = new IngressRefBuilder().withName("foo").build();
         var anyFoo = new AnyLocalRefBuilder().withName("foo").withKind(ingressRefFoo.getKind()).withGroup(ingressRefFoo.getGroup()).build();
         assertThat(ingressRefFoo).isEqualTo(anyFoo);
