@@ -86,19 +86,19 @@ class KafkaProtocolFilterReconcilerTest {
         when(neitherExists.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of());
         when(neitherExists.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of());
         return List.of(
-                Arguments.of("both exist", bothExist,
+                Arguments.argumentSet("both exist", bothExist,
                         (Consumer<ConditionAssert>) ConditionAssert::isResolvedRefsTrue),
-                Arguments.of("secret exists", secretExists, (Consumer<ConditionAssert>) x -> x.isResolvedRefsFalse("MissingInterpolationReferences",
+                Arguments.argumentSet("secret exists", secretExists, (Consumer<ConditionAssert>) x -> x.isResolvedRefsFalse("MissingInterpolationReferences",
                         "Referenced ConfigMaps [my-configmap] not found")),
-                Arguments.of("configmap exists", cmExists, (Consumer<ConditionAssert>) x -> x.isResolvedRefsFalse("MissingInterpolationReferences",
+                Arguments.argumentSet("configmap exists", cmExists, (Consumer<ConditionAssert>) x -> x.isResolvedRefsFalse("MissingInterpolationReferences",
                         "Referenced Secrets [my-secret] not found")),
-                Arguments.of("neither exists", neitherExists, (Consumer<ConditionAssert>) x -> x.isResolvedRefsFalse("MissingInterpolationReferences",
+                Arguments.argumentSet("neither exists", neitherExists, (Consumer<ConditionAssert>) x -> x.isResolvedRefsFalse("MissingInterpolationReferences",
                         "Referenced Secrets [my-secret] ConfigMaps [my-configmap] not found")));
     }
 
-    @ParameterizedTest(name = "{0}")
+    @ParameterizedTest
     @MethodSource
-    void shouldSetResolvedRefs(String testName, Context<KafkaProtocolFilter> context, Consumer<ConditionAssert> asserter) {
+    void shouldSetResolvedRefs(Context<KafkaProtocolFilter> context, Consumer<ConditionAssert> asserter) {
         // given
         Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
         var reconciler = new KafkaProtocolFilterReconciler(z, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);

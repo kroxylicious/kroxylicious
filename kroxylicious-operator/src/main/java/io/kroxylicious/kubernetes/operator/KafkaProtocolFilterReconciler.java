@@ -9,10 +9,11 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Clock;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -55,8 +56,8 @@ public class KafkaProtocolFilterReconciler implements
     private final SecureConfigInterpolator secureConfigInterpolator;
 
     KafkaProtocolFilterReconciler(Clock clock, SecureConfigInterpolator secureConfigInterpolator) {
-        this.clock = clock;
-        this.secureConfigInterpolator = secureConfigInterpolator;
+        this.clock = Objects.requireNonNull(clock);
+        this.secureConfigInterpolator = Objects.requireNonNull(secureConfigInterpolator);
     }
 
     @Override
@@ -81,8 +82,8 @@ public class KafkaProtocolFilterReconciler implements
      * @param context The context.
      * @param secondaryClass The Java type of resource reference (e.g. Secret)
      * @param resourceNameExtractor A function which extracts the name of the resources from an interpolation result.
-     * @return The event source configuration
      * @param <R> The type of referenced resource
+     * @return The event source configuration
      */
     private <R extends HasMetadata> InformerEventSourceConfiguration<R> templateResourceReferenceEventSourceConfig(
                                                                                                                    EventSourceContext<KafkaProtocolFilter> context,
@@ -126,42 +127,42 @@ public class KafkaProtocolFilterReconciler implements
 
         ConditionBuilder conditionBuilder = newResolvedRefsCondition(filter, now);
 
-        var extentSecrets = context.getSecondaryResourcesAsStream(Secret.class)
+        var existingSecrets = context.getSecondaryResourcesAsStream(Secret.class)
                 .map(ResourcesUtil::name)
                 .collect(Collectors.toSet());
-        LOGGER.debug("Extent secrets: {}", extentSecrets);
+        LOGGER.debug("Existing secrets: {}", existingSecrets);
 
-        var extentConfigMaps = context.getSecondaryResourcesAsStream(ConfigMap.class)
+        var existingConfigMaps = context.getSecondaryResourcesAsStream(ConfigMap.class)
                 .map(ResourcesUtil::name)
                 .collect(Collectors.toSet());
-        LOGGER.debug("Extent configmaps: {}", extentConfigMaps);
+        LOGGER.debug("Existing configmaps: {}", existingConfigMaps);
 
         var interpolationResult = secureConfigInterpolator.interpolate(filter.getSpec().getConfigTemplate());
         var referencedSecrets = interpolationResult.volumes().stream().flatMap(volume -> Optional.ofNullable(volume.getSecret())
                 .map(SecretVolumeSource::getSecretName)
                 .stream())
-                .collect(Collectors.toCollection(HashSet::new));
+                .collect(Collectors.toCollection(TreeSet::new));
         LOGGER.debug("Referenced secrets: {}", referencedSecrets);
 
         var referencedConfigMaps = interpolationResult.volumes().stream().flatMap(volume -> Optional.ofNullable(volume.getConfigMap())
                 .map(ConfigMapVolumeSource::getName)
                 .stream())
-                .collect(Collectors.toCollection(HashSet::new));
+                .collect(Collectors.toCollection(TreeSet::new));
         LOGGER.debug("Referenced configmaps: {}", referencedConfigMaps);
 
-        if (extentSecrets.containsAll(referencedSecrets)
-                && extentConfigMaps.containsAll(referencedConfigMaps)) {
+        if (existingSecrets.containsAll(referencedSecrets)
+                && existingConfigMaps.containsAll(referencedConfigMaps)) {
             conditionBuilder.withStatus(Condition.Status.TRUE);
         }
         else {
-            referencedSecrets.removeAll(extentSecrets);
-            referencedConfigMaps.removeAll(extentConfigMaps);
+            referencedSecrets.removeAll(existingSecrets);
+            referencedConfigMaps.removeAll(existingConfigMaps);
             String message = "Referenced";
             if (!referencedSecrets.isEmpty()) {
-                message += " Secrets " + referencedSecrets;
+                message += " Secrets [" + String.join(", ", referencedSecrets) + "]";
             }
             if (!referencedConfigMaps.isEmpty()) {
-                message += " ConfigMaps " + referencedConfigMaps;
+                message += " ConfigMaps [" + String.join(", ", referencedConfigMaps) + "]";
             }
             message += " not found";
             conditionBuilder.withStatus(Condition.Status.FALSE)
