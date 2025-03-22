@@ -86,8 +86,8 @@ public class OperatorMain {
         operator.register(new KafkaProtocolFilterReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR));
         addHttpGetHandler("/", () -> 404);
         managementServer.start();
-        operator.start();
         addHttpGetHandler(HTTP_PATH_LIVEZ, this::livezStatusCode);
+        operator.start();
         LOGGER.info("Operator started");
     }
 
