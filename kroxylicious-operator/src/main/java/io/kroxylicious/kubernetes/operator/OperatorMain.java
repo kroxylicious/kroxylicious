@@ -112,7 +112,7 @@ public class OperatorMain {
             sc = 400;
             LOGGER.error("Ignoring exception caught while getting operator health info", e);
         }
-        LOGGER.trace("Responding {} to GET {}", sc, HTTP_PATH_LIVEZ);
+        (sc != 200 ? LOGGER.atWarn() : LOGGER.atDebug()).log("Responding {} to GET {}", sc, HTTP_PATH_LIVEZ);
         return sc;
     }
 
