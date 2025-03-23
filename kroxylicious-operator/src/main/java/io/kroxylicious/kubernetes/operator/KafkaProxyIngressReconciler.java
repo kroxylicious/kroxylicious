@@ -31,6 +31,9 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
+
 /**
  * Reconciles a {@link KafkaProxyIngress} by checking whether the {@link KafkaProxy}
  * referenced by the {@code spec.proxyRef.name} actually exists, setting a
@@ -84,13 +87,20 @@ public class KafkaProxyIngressReconciler implements
                     .withMessage("KafkaProxy not found");
         }
 
-        return UpdateControl.patchStatus(newIngressWithCondition(ingress, conditionBuilder.build()));
+        UpdateControl<KafkaProxyIngress> uc = UpdateControl.patchStatus(newIngressWithCondition(ingress, conditionBuilder.build()));
+        LOGGER.info("Completed reconciliation of {}/{}", namespace(ingress), name(ingress));
+        return uc;
     }
 
     @NonNull
     private static KafkaProxyIngress newIngressWithCondition(KafkaProxyIngress ingress, Condition condition) {
         // @formatter:off
-        return new KafkaProxyIngressBuilder(ingress)
+        return new KafkaProxyIngressBuilder()
+                    .withNewMetadata()
+                        .withName(ResourcesUtil.name(ingress))
+                        .withNamespace(ResourcesUtil.namespace(ingress))
+                        .withUid(ResourcesUtil.uid(ingress))
+                    .endMetadata()
                     .withNewStatus()
                         .withObservedGeneration(ingress.getMetadata().getGeneration())
                         .withConditions(condition) // overwrite any existing conditions
@@ -118,6 +128,9 @@ public class KafkaProxyIngressReconciler implements
                 .withReason(e.getClass().getName())
                 .withMessage(e.getMessage())
                 .build();
-        return ErrorStatusUpdateControl.patchStatus(newIngressWithCondition(ingress, condition));
+        ErrorStatusUpdateControl<KafkaProxyIngress> uc = ErrorStatusUpdateControl.patchStatus(
+                newIngressWithCondition(ingress, condition));
+        LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(ingress), name(ingress), e.toString());
+        return uc;
     }
 }

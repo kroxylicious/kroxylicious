@@ -7,7 +7,12 @@
 package io.kroxylicious.kubernetes.operator.kafkaservice;
 
 import java.time.Clock;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
@@ -18,9 +23,16 @@ import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
+import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
 public final class KafkaServiceReconciler implements
         io.javaoperatorsdk.operator.api.reconciler.Reconciler<KafkaService> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceReconciler.class);
 
     private final Clock clock;
 
@@ -36,14 +48,26 @@ public final class KafkaServiceReconciler implements
                 .withObservedGeneration(resource.getMetadata().getGeneration())
                 .withStatus(Condition.Status.TRUE)
                 .build();
-        final KafkaService amended = resource
-                .edit()
-                .withNewStatus()
-                .withObservedGeneration(resource.getMetadata().getGeneration())
-                .withConditions(acceptedCondition)
-                .endStatus()
+        UpdateControl<KafkaService> uc = UpdateControl.patchStatus(newServiceWithCondition(resource, acceptedCondition));
+        LOGGER.info("Completed reconciliation of {}/{}", namespace(resource), name(resource));
+        return uc;
+    }
+
+    private static KafkaService newServiceWithCondition(KafkaService resource, Condition acceptedCondition) {
+        // @formatter:off
+        final KafkaService amended = new KafkaServiceBuilder()
+                    .withNewMetadata()
+                        .withName(ResourcesUtil.name(resource))
+                        .withNamespace(ResourcesUtil.namespace(resource))
+                        .withUid(ResourcesUtil.uid(resource))
+                    .endMetadata()
+                    .withNewStatus()
+                        .withObservedGeneration(resource.getMetadata().getGeneration())
+                        .withConditions(acceptedCondition)
+                    .endStatus()
                 .build();
-        return UpdateControl.patchStatus(amended);
+        // @formatter:on
+        return amended;
     }
 
     @Override
@@ -53,6 +77,18 @@ public final class KafkaServiceReconciler implements
 
     @Override
     public ErrorStatusUpdateControl<KafkaService> updateErrorStatus(KafkaService resource, Context<KafkaService> context, Exception e) {
-        return io.javaoperatorsdk.operator.api.reconciler.Reconciler.super.updateErrorStatus(resource, context, e);
+        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
+        // ResolvedRefs to UNKNOWN
+        Condition condition = new ConditionBuilder()
+                .withType(Condition.Type.ResolvedRefs)
+                .withLastTransitionTime(now)
+                .withObservedGeneration(resource.getMetadata().getGeneration())
+                .withStatus(Condition.Status.UNKNOWN)
+                .withReason(e.getClass().getName())
+                .withMessage(e.getMessage())
+                .build();
+        ErrorStatusUpdateControl<KafkaService> uc = ErrorStatusUpdateControl.patchStatus(newServiceWithCondition(resource, condition));
+        LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(resource), name(resource), e.toString());
+        return uc;
     }
 }

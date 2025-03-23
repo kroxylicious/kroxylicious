@@ -43,6 +43,9 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
+
 /**
  * Reconciles a {@link KafkaProtocolFilter} by checking whether the {@link Secret}s
  * and {@link ConfigMap}s refered to in interpolated expressions actually exist, setting a
@@ -172,13 +175,20 @@ public class KafkaProtocolFilterReconciler implements
 
         KafkaProtocolFilter newFilter = newFilterWithCondition(filter, conditionBuilder.build());
         LOGGER.debug("Patching with status {}", newFilter.getStatus());
-        return UpdateControl.patchStatus(newFilter);
+        UpdateControl<KafkaProtocolFilter> uc = UpdateControl.patchStatus(newFilter);
+        LOGGER.info("Completed reconciliation of {}/{}", namespace(filter), name(filter));
+        return uc;
     }
 
     @NonNull
     private static KafkaProtocolFilter newFilterWithCondition(KafkaProtocolFilter filter, Condition condition) {
         // @formatter:off
-        return new KafkaProtocolFilterBuilder(filter)
+        return new KafkaProtocolFilterBuilder()
+                    .withNewMetadata()
+                        .withName(ResourcesUtil.name(filter))
+                        .withNamespace(ResourcesUtil.namespace(filter))
+                        .withUid(ResourcesUtil.uid(filter))
+                    .endMetadata()
                     .withNewStatus()
                         .withObservedGeneration(ResourcesUtil.generation(filter))
                         .withConditions(condition) // overwrite any existing conditions
@@ -206,6 +216,9 @@ public class KafkaProtocolFilterReconciler implements
                 .withReason(e.getClass().getName())
                 .withMessage(e.getMessage())
                 .build();
-        return ErrorStatusUpdateControl.patchStatus(newFilterWithCondition(filter, condition));
+        ErrorStatusUpdateControl<KafkaProtocolFilter> uc = ErrorStatusUpdateControl.patchStatus(
+                newFilterWithCondition(filter, condition));
+        LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(filter), name(filter), e.toString());
+        return uc;
     }
 }
