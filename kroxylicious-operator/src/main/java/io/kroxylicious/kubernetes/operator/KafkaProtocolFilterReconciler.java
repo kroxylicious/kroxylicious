@@ -176,7 +176,9 @@ public class KafkaProtocolFilterReconciler implements
         KafkaProtocolFilter newFilter = newFilterWithCondition(filter, conditionBuilder.build());
         LOGGER.debug("Patching with status {}", newFilter.getStatus());
         UpdateControl<KafkaProtocolFilter> uc = UpdateControl.patchStatus(newFilter);
-        LOGGER.info("Completed reconciliation of {}/{}", namespace(filter), name(filter));
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Completed reconciliation of {}/{}", namespace(filter), name(filter));
+        }
         return uc;
     }
 
@@ -218,7 +220,9 @@ public class KafkaProtocolFilterReconciler implements
                 .build();
         ErrorStatusUpdateControl<KafkaProtocolFilter> uc = ErrorStatusUpdateControl.patchStatus(
                 newFilterWithCondition(filter, condition));
-        LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(filter), name(filter), e.toString());
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(filter), name(filter), e.toString());
+        }
         return uc;
     }
 }

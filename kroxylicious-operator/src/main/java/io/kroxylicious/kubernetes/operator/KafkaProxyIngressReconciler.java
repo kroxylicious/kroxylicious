@@ -88,7 +88,9 @@ public class KafkaProxyIngressReconciler implements
         }
 
         UpdateControl<KafkaProxyIngress> uc = UpdateControl.patchStatus(newIngressWithCondition(ingress, conditionBuilder.build()));
-        LOGGER.info("Completed reconciliation of {}/{}", namespace(ingress), name(ingress));
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Completed reconciliation of {}/{}", namespace(ingress), name(ingress));
+        }
         return uc;
     }
 
@@ -130,7 +132,9 @@ public class KafkaProxyIngressReconciler implements
                 .build();
         ErrorStatusUpdateControl<KafkaProxyIngress> uc = ErrorStatusUpdateControl.patchStatus(
                 newIngressWithCondition(ingress, condition));
-        LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(ingress), name(ingress), e.toString());
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(ingress), name(ingress), e.toString());
+        }
         return uc;
     }
 }

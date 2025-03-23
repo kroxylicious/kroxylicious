@@ -49,13 +49,15 @@ public final class KafkaServiceReconciler implements
                 .withStatus(Condition.Status.TRUE)
                 .build();
         UpdateControl<KafkaService> uc = UpdateControl.patchStatus(newServiceWithCondition(resource, acceptedCondition));
-        LOGGER.info("Completed reconciliation of {}/{}", namespace(resource), name(resource));
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Completed reconciliation of {}/{}", namespace(resource), name(resource));
+        }
         return uc;
     }
 
     private static KafkaService newServiceWithCondition(KafkaService resource, Condition acceptedCondition) {
         // @formatter:off
-        final KafkaService amended = new KafkaServiceBuilder()
+        return new KafkaServiceBuilder()
                     .withNewMetadata()
                         .withName(ResourcesUtil.name(resource))
                         .withNamespace(ResourcesUtil.namespace(resource))
@@ -67,7 +69,6 @@ public final class KafkaServiceReconciler implements
                     .endStatus()
                 .build();
         // @formatter:on
-        return amended;
     }
 
     @Override
@@ -88,7 +89,9 @@ public final class KafkaServiceReconciler implements
                 .withMessage(e.getMessage())
                 .build();
         ErrorStatusUpdateControl<KafkaService> uc = ErrorStatusUpdateControl.patchStatus(newServiceWithCondition(resource, condition));
-        LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(resource), name(resource), e.toString());
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(resource), name(resource), e.toString());
+        }
         return uc;
     }
 }
