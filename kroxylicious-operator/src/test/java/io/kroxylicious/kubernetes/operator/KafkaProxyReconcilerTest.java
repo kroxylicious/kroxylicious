@@ -46,6 +46,8 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -88,7 +90,7 @@ class KafkaProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new KafkaProxyReconciler().reconcile(primary, context);
+        var updateControl = newKafkaProxyReconciler().reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -119,7 +121,8 @@ class KafkaProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new KafkaProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+        var updateControl = newKafkaProxyReconciler()
+                .updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
         var statusAssert = assertThat(updateControl.getResource())
@@ -159,7 +162,7 @@ class KafkaProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new KafkaProxyReconciler().reconcile(primary, context);
+        var updateControl = newKafkaProxyReconciler().reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -200,7 +203,8 @@ class KafkaProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new KafkaProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+        var updateControl = newKafkaProxyReconciler()
+                .updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
         var statusAssert = assertThat(updateControl.getResource())
@@ -240,7 +244,8 @@ class KafkaProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new KafkaProxyReconciler().updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+        var updateControl = newKafkaProxyReconciler()
+                .updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
         var statusAssert = assertThat(updateControl.getResource())
@@ -281,7 +286,7 @@ class KafkaProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = new KafkaProxyReconciler().reconcile(primary, context);
+        var updateControl = newKafkaProxyReconciler().reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -331,7 +336,7 @@ class KafkaProxyReconcilerTest {
                 Map.class);
 
         // When
-        var updateControl = new KafkaProxyReconciler().reconcile(primary, context);
+        var updateControl = newKafkaProxyReconciler().reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -350,6 +355,11 @@ class KafkaProxyReconcilerTest {
                 .hasObservedGeneration(generation);
         // TODO .lastTransitionTimeIsEqualTo(time);
 
+    }
+
+    @NonNull
+    private static KafkaProxyReconciler newKafkaProxyReconciler() {
+        return new KafkaProxyReconciler(SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
     }
 
     @Test

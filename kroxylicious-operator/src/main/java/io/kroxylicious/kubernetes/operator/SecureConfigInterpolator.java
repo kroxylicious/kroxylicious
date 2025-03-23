@@ -46,6 +46,10 @@ public class SecureConfigInterpolator {
 
     private static final InterpolatedValue NULL_INTERPOLATED_VALUE = new InterpolatedValue(null, List.of());
 
+    static final SecureConfigInterpolator DEFAULT_INTERPOLATOR = new SecureConfigInterpolator("/opt/kroxylicious/secure", Map.<String, SecureConfigProvider> of(
+            "secret", MountedResourceConfigProvider.SECRET_PROVIDER,
+            "configmap", MountedResourceConfigProvider.CONFIGMAP_PROVIDER));
+
     private final Map<String, SecureConfigProvider> providers;
     private final Path mountPathBase;
 
