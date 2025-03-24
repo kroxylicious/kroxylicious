@@ -45,6 +45,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 
@@ -299,6 +300,22 @@ public class ResourcesUtil {
         observedGenerationSetter.accept(status, ingress.getMetadata().getGeneration());
         result.setStatus(status);
         return result;
+    }
+
+    @NonNull
+    static VirtualKafkaCluster patchWithCondition(VirtualKafkaCluster cluster, Condition condition) {
+        return newStatus(
+                cluster,
+                VirtualKafkaCluster::new,
+                VirtualKafkaClusterStatus::new,
+                VirtualKafkaClusterStatus::setConditions,
+                VirtualKafkaClusterStatus::setObservedGeneration,
+                maybeAddOrUpdateCondition(
+                        Optional.of(cluster)
+                                .map(VirtualKafkaCluster::getStatus)
+                                .map(VirtualKafkaClusterStatus::getConditions)
+                                .orElse(List.of()),
+                        condition));
     }
 
     @NonNull

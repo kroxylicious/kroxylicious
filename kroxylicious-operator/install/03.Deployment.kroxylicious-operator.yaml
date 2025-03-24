@@ -32,10 +32,10 @@ spec:
           args: [ ]
           resources:
             limits:
-              memory: 300M
+              memory: 400M
               cpu: "1"
             requests:
-              memory: 300M
+              memory: 400M
               cpu: "1"
           ports:
             - containerPort: 8080
