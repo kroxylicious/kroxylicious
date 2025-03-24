@@ -43,7 +43,6 @@ class VirtualKafkaClusterReconcilerIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyIngressReconcilerIT.class);
 
     private static final String PROXY_A = "proxy-a";
-    private static final String PROXY_B = "proxy-b";
     private static final String CLUSTER_BAR = "bar-cluster";
     private static final String INGRESS_D = "ingress-d";
     private static final String SERVICE_H = "service-h";

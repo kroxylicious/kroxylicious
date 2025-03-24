@@ -58,7 +58,7 @@ class VirtualKafkaClusterReconcilerTest {
     // @formatter:on
 
     @Test
-    void shouldSetResolvedRefsToFalseWhenProxyNotFound() throws Exception {
+    void shouldSetResolvedRefsToFalseWhenProxyNotFound() {
         // given
         Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
         var reconciler = new VirtualKafkaClusterReconciler(z);
@@ -83,7 +83,7 @@ class VirtualKafkaClusterReconcilerTest {
     }
 
     @Test
-    void shouldSetResolvedRefsToTrueWhenProxyFound() throws Exception {
+    void shouldSetResolvedRefsToTrueWhenProxyFound() {
         // given
         Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
         var reconciler = new VirtualKafkaClusterReconciler(z);
