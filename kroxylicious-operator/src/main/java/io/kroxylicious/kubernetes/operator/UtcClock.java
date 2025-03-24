@@ -17,6 +17,6 @@ public record UtcClock(Clock clock) {
     }
 
     public ZonedDateTime now() {
-        return ZonedDateTime.ofInstant(clock.instant(), ZoneId.of(ZoneOffset.UTC.getId()));
+        return ZonedDateTime.ofInstant(clock.instant(), ZoneOffset.UTC);
     }
 }
