@@ -4,9 +4,12 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kubernetes.operator.protocolfilter;
+package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,10 +25,11 @@ import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
-import io.kroxylicious.kubernetes.operator.kafkaservice.KafkaServiceReconciler;
+import io.kroxylicious.kubernetes.operator.assertj.KafkaServiceStatusAssert;
 
 import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
 
 @EnableKubernetesMockClient(crud = true)
 @ExtendWith(MockitoExtension.class)
@@ -46,7 +50,31 @@ class KafkaServiceReconcilerTest {
     }
 
     @Test
-    void shouldMarkFilterAccepted() {
+    void shouldSetAcceptedToUnknown() {
+        // given
+        final KafkaService kafkaService = new KafkaServiceBuilder().withNewMetadata().withGeneration(OBSERVED_GENERATION).endMetadata().build();
+        Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
+        var reconciler = new KafkaServiceReconciler(z);
+
+        Context<KafkaService> context = mock(Context.class);
+
+        // when
+        var update = reconciler.updateErrorStatus(kafkaService, context, new RuntimeException("Boom!"));
+
+        // then
+        assertThat(update).isNotNull();
+        assertThat(update.getResource()).isPresent();
+        KafkaServiceStatusAssert.assertThat(update.getResource().get().getStatus())
+                .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
+                .singleCondition()
+                .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
+                .isAcceptedUnknown("java.lang.RuntimeException", "Boom!")
+                .hasLastTransitionTime(ZonedDateTime.ofInstant(z.instant(), z.getZone()));
+
+    }
+
+    @Test
+    void shouldSetAcceptedToTrue() {
         // Given
         final KafkaService kafkaService = new KafkaServiceBuilder().withNewMetadata().withGeneration(OBSERVED_GENERATION).endMetadata().build();
 

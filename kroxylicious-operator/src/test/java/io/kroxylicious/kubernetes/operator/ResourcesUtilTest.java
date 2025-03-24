@@ -180,9 +180,10 @@ class ResourcesUtilTest {
     }
 
     static List<Arguments> maybeAddOrUpdateCondition() {
+        ZonedDateTime now = ZonedDateTime.now();
         Condition resolvedRefs = new ConditionBuilder()
                 .withObservedGeneration(1L)
-                .withLastTransitionTime(ZonedDateTime.now())
+                .withLastTransitionTime(now)
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
                 .withReason("reason")
@@ -191,7 +192,7 @@ class ResourcesUtilTest {
 
         Condition accepted = new ConditionBuilder()
                 .withObservedGeneration(1L)
-                .withLastTransitionTime(ZonedDateTime.now())
+                .withLastTransitionTime(now)
                 .withType(Condition.Type.Accepted)
                 .withStatus(Condition.Status.FALSE)
                 .withReason("reason")
@@ -199,10 +200,15 @@ class ResourcesUtilTest {
                 .build();
 
         Condition resolvedRefsLaterTime = new ConditionBuilder(resolvedRefs)
-                .withLastTransitionTime(ZonedDateTime.now().plusMinutes(1))
+                .withLastTransitionTime(now.plusMinutes(1))
                 .build();
 
         Condition resolvedRefsGen2 = new ConditionBuilder(resolvedRefs)
+                .withObservedGeneration(2L)
+                .build();
+
+        Condition resolvedRefsGen2AndLaterTime = new ConditionBuilder(resolvedRefs)
+                .withLastTransitionTime(now.plusMinutes(1))
                 .withObservedGeneration(2L)
                 .build();
 
@@ -217,10 +223,18 @@ class ResourcesUtilTest {
                         List.of(resolvedRefs, accepted), resolvedRefs, List.of(resolvedRefs, accepted)),
                 Arguments.of("returns totally ordered 3",
                         List.of(accepted, resolvedRefs), resolvedRefs, List.of(resolvedRefs, accepted)),
-                Arguments.of("oldest lastTransitionTime wins",
-                        List.of(resolvedRefs), resolvedRefsLaterTime, List.of(resolvedRefs)),
-                Arguments.of("largest observedGeneration wins",
+                Arguments.of("prefer arg when same observedGeneration 1",
+                        List.of(resolvedRefs), resolvedRefsLaterTime, List.of(resolvedRefsLaterTime)),
+                Arguments.of("prefer arg when same observedGeneration 2",
+                        List.of(resolvedRefsLaterTime), resolvedRefs, List.of(resolvedRefs)),
+                Arguments.of("prefer arg when same observedGeneration 3",
+                        List.of(resolvedRefsGen2AndLaterTime), resolvedRefsGen2, List.of(resolvedRefsGen2)),
+                Arguments.of("prefer arg when same observedGeneration 4",
+                        List.of(resolvedRefsGen2), resolvedRefsGen2AndLaterTime, List.of(resolvedRefsGen2AndLaterTime)),
+                Arguments.of("largest observedGeneration wins 1",
                         List.of(resolvedRefs), resolvedRefsGen2, List.of(resolvedRefsGen2)),
+                Arguments.of("largest observedGeneration wins 2",
+                        List.of(resolvedRefsLaterTime), resolvedRefsGen2, List.of(resolvedRefsGen2)),
                 Arguments.of("replaces _all_ conditions with same type",
                         List.of(resolvedRefsLaterTime, resolvedRefs), resolvedRefsGen2, List.of(resolvedRefsGen2)),
 

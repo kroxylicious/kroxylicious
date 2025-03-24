@@ -39,9 +39,6 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
@@ -128,8 +125,6 @@ public class KafkaProtocolFilterReconciler implements
 
         var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
 
-        ConditionBuilder conditionBuilder = newResolvedRefsCondition(filter, now);
-
         var existingSecrets = context.getSecondaryResourcesAsStream(Secret.class)
                 .map(ResourcesUtil::name)
                 .collect(Collectors.toSet());
@@ -153,9 +148,10 @@ public class KafkaProtocolFilterReconciler implements
                 .collect(Collectors.toCollection(TreeSet::new));
         LOGGER.debug("Referenced configmaps: {}", referencedConfigMaps);
 
+        Condition condition;
         if (existingSecrets.containsAll(referencedSecrets)
                 && existingConfigMaps.containsAll(referencedConfigMaps)) {
-            conditionBuilder.withStatus(Condition.Status.TRUE);
+            condition = ResourcesUtil.newResolvedRefsTrue(clock, filter);
         }
         else {
             referencedSecrets.removeAll(existingSecrets);
@@ -168,35 +164,19 @@ public class KafkaProtocolFilterReconciler implements
                 message += " ConfigMaps [" + String.join(", ", referencedConfigMaps) + "]";
             }
             message += " not found";
-            conditionBuilder.withStatus(Condition.Status.FALSE)
-                    .withReason("MissingInterpolationReferences")
-                    .withMessage(message);
+            condition = ResourcesUtil.newResolvedRefsFalse(clock,
+                    filter,
+                    "MissingInterpolationReferences",
+                    message);
         }
 
-        KafkaProtocolFilter newFilter = newFilterWithCondition(filter, conditionBuilder.build());
+        KafkaProtocolFilter newFilter = ResourcesUtil.patchWithCondition(filter, condition);
         LOGGER.debug("Patching with status {}", newFilter.getStatus());
         UpdateControl<KafkaProtocolFilter> uc = UpdateControl.patchStatus(newFilter);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(filter), name(filter));
         }
         return uc;
-    }
-
-    @NonNull
-    private static KafkaProtocolFilter newFilterWithCondition(KafkaProtocolFilter filter, Condition condition) {
-        // @formatter:off
-        return new KafkaProtocolFilterBuilder()
-                    .withNewMetadata()
-                        .withName(ResourcesUtil.name(filter))
-                        .withNamespace(ResourcesUtil.namespace(filter))
-                        .withUid(ResourcesUtil.uid(filter))
-                    .endMetadata()
-                    .withNewStatus()
-                        .withObservedGeneration(ResourcesUtil.generation(filter))
-                        .withConditions(condition) // overwrite any existing conditions
-                    .endStatus()
-                .build();
-        // @formatter:on
     }
 
     private static ConditionBuilder newResolvedRefsCondition(KafkaProtocolFilter filter, ZonedDateTime now) {
@@ -211,15 +191,10 @@ public class KafkaProtocolFilterReconciler implements
                                                                            KafkaProtocolFilter filter,
                                                                            Context<KafkaProtocolFilter> context,
                                                                            Exception e) {
-        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
         // ResolvedRefs to UNKNOWN
-        Condition condition = newResolvedRefsCondition(filter, now)
-                .withStatus(Condition.Status.UNKNOWN)
-                .withReason(e.getClass().getName())
-                .withMessage(e.getMessage())
-                .build();
+        Condition condition = ResourcesUtil.resolvedRefsUnknown(clock, filter, e);
         ErrorStatusUpdateControl<KafkaProtocolFilter> uc = ErrorStatusUpdateControl.patchStatus(
-                newFilterWithCondition(filter, condition));
+                ResourcesUtil.patchWithCondition(filter, condition));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(filter), name(filter), e.toString());
         }

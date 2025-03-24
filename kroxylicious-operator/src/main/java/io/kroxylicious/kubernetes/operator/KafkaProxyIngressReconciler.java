@@ -7,8 +7,6 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -24,12 +22,8 @@ import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
-import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
@@ -71,51 +65,25 @@ public class KafkaProxyIngressReconciler implements
                                                       Context<KafkaProxyIngress> context)
             throws Exception {
 
-        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
-
-        ConditionBuilder conditionBuilder = newResolvedRefsCondition(ingress, now);
-
         var proxyOpt = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME);
         LOGGER.debug("spec.proxyRef.name resolves to: {}", proxyOpt);
 
+        Condition condition;
         if (proxyOpt.isPresent()) {
-            conditionBuilder.withStatus(Condition.Status.TRUE);
+            condition = ResourcesUtil.newResolvedRefsTrue(clock, ingress);
         }
         else {
-            conditionBuilder.withStatus(Condition.Status.FALSE)
-                    .withReason("spec.proxyRef.name")
-                    .withMessage("KafkaProxy not found");
+            condition = ResourcesUtil.newResolvedRefsFalse(clock,
+                    ingress,
+                    "spec.proxyRef.name",
+                    "KafkaProxy not found");
         }
 
-        UpdateControl<KafkaProxyIngress> uc = UpdateControl.patchStatus(newIngressWithCondition(ingress, conditionBuilder.build()));
+        UpdateControl<KafkaProxyIngress> uc = UpdateControl.patchStatus(ResourcesUtil.patchWithCondition(ingress, condition));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(ingress), name(ingress));
         }
         return uc;
-    }
-
-    @NonNull
-    private static KafkaProxyIngress newIngressWithCondition(KafkaProxyIngress ingress, Condition condition) {
-        // @formatter:off
-        return new KafkaProxyIngressBuilder()
-                    .withNewMetadata()
-                        .withName(ResourcesUtil.name(ingress))
-                        .withNamespace(ResourcesUtil.namespace(ingress))
-                        .withUid(ResourcesUtil.uid(ingress))
-                    .endMetadata()
-                    .withNewStatus()
-                        .withObservedGeneration(ingress.getMetadata().getGeneration())
-                        .withConditions(condition) // overwrite any existing conditions
-                    .endStatus()
-                .build();
-        // @formatter:on
-    }
-
-    private static ConditionBuilder newResolvedRefsCondition(KafkaProxyIngress ingress, ZonedDateTime now) {
-        return new ConditionBuilder()
-                .withType(Condition.Type.ResolvedRefs)
-                .withLastTransitionTime(now)
-                .withObservedGeneration(ingress.getMetadata().getGeneration());
     }
 
     @Override
@@ -123,15 +91,10 @@ public class KafkaProxyIngressReconciler implements
                                                                          KafkaProxyIngress ingress,
                                                                          Context<KafkaProxyIngress> context,
                                                                          Exception e) {
-        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
         // ResolvedRefs to UNKNOWN
-        Condition condition = newResolvedRefsCondition(ingress, now)
-                .withStatus(Condition.Status.UNKNOWN)
-                .withReason(e.getClass().getName())
-                .withMessage(e.getMessage())
-                .build();
+        Condition condition = ResourcesUtil.resolvedRefsUnknown(clock, ingress, e);
         ErrorStatusUpdateControl<KafkaProxyIngress> uc = ErrorStatusUpdateControl.patchStatus(
-                newIngressWithCondition(ingress, condition));
+                ResourcesUtil.patchWithCondition(ingress, condition));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(ingress), name(ingress), e.toString());
         }
