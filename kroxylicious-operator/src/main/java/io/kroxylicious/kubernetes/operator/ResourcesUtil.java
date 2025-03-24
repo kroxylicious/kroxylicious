@@ -349,15 +349,15 @@ public class ResourcesUtil {
                         condition));
     }
 
-    static ConditionBuilder newConditionBuilder(HasMetadata observedGenerationSource, ZonedDateTime now) {
+    static ConditionBuilder newConditionBuilder(Clock clock, HasMetadata observedGenerationSource) {
+        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
         return new ConditionBuilder()
                 .withLastTransitionTime(now)
                 .withObservedGeneration(observedGenerationSource.getMetadata().getGeneration());
     }
 
     static Condition newTrueCondition(Clock clock, HasMetadata observedGenerationSource, Condition.Type type) {
-        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
-        return newConditionBuilder(observedGenerationSource, now)
+        return newConditionBuilder(clock, observedGenerationSource)
                 .withType(type)
                 .withStatus(Condition.Status.TRUE)
                 .build();
@@ -368,8 +368,7 @@ public class ResourcesUtil {
                                        Condition.Type type,
                                        String reason,
                                        String message) {
-        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
-        return newConditionBuilder(observedGenerationSource, now)
+        return newConditionBuilder(clock, observedGenerationSource)
                 .withType(type)
                 .withStatus(Condition.Status.FALSE)
                 .withReason(reason)
@@ -381,8 +380,7 @@ public class ResourcesUtil {
                                          HasMetadata observedGenerationSource,
                                          Condition.Type type,
                                          Exception e) {
-        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
-        return newConditionBuilder(observedGenerationSource, now)
+        return newConditionBuilder(clock, observedGenerationSource)
                 .withType(type)
                 .withStatus(Condition.Status.UNKNOWN)
                 .withReason(e.getClass().getName())
