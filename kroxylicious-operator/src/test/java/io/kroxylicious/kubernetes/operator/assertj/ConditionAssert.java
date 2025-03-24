@@ -148,4 +148,11 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
         return this;
     }
 
+    public ConditionAssert isAcceptedUnknown(String reason, String message) {
+        hasType(Condition.Type.Accepted);
+        hasStatus(Condition.Status.UNKNOWN);
+        hasReason(reason);
+        hasMessage(message);
+        return this;
+    }
 }

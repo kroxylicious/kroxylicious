@@ -107,7 +107,9 @@ public class KafkaProxyReconciler implements
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
-        LOGGER.info("Completed reconciliation of {}/{}", namespace(primary), name(primary));
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Completed reconciliation of {}/{}", namespace(primary), name(primary));
+        }
         return UpdateControl.patchStatus(
                 buildStatus(primary, context, null));
     }
@@ -140,8 +142,13 @@ public class KafkaProxyReconciler implements
         }
         var now = ZonedDateTime.now(ZoneId.of("Z"));
         // @formatter:off
-        return new KafkaProxyBuilder(primary)
-                .editOrNewStatus()
+        return new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withName(ResourcesUtil.name(primary))
+                    .withNamespace(ResourcesUtil.namespace(primary))
+                    .withUid(ResourcesUtil.uid(primary))
+                .endMetadata()
+                .withNewStatus()
                     .withObservedGeneration(generation(primary))
                     .withConditions(effectiveReadyCondition(now, primary, exception ))
                     .withClusters(clusterConditions(now, primary, context ))

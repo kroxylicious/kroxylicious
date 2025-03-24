@@ -6,6 +6,10 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.time.Clock;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -13,23 +17,36 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
+import io.fabric8.kubernetes.client.CustomResource;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
+import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -224,4 +241,168 @@ public class ResourcesUtil {
                 owner,
                 primary -> ResourcesUtil.isReferent(refAccessor.apply(primary), referent));
     }
+
+    static List<Condition> maybeAddOrUpdateCondition(List<Condition> conditions, Condition condition) {
+        var type = Objects.requireNonNull(condition.getType());
+
+        Comparator<Condition> conditionComparator = Comparator
+                .comparing(Condition::getType)
+                .thenComparing(Comparator.comparing(Condition::getObservedGeneration).reversed())
+                .thenComparing(Condition::getStatus)
+                .thenComparing(Condition::getReason)
+                .thenComparing(Condition::getMessage)
+                .thenComparing(Condition::getLastTransitionTime);
+
+        TreeMap<Condition.Type, List<Condition>> byType = conditions.stream().collect(Collectors.groupingBy(
+                Condition::getType,
+                TreeMap::new, // order based on Type
+                Collectors.toList()));
+
+        var map = byType.entrySet().stream().map(entry -> {
+            // minimum must exist because values of groupingBy result are always non-empty
+            Condition minimumCondition = entry.getValue().stream().min(conditionComparator).orElseThrow();
+            var mutableList = new ArrayList<Condition>(1);
+            mutableList.add(minimumCondition);
+            return Map.entry(entry.getKey(), mutableList);
+        }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                (l1, l2) -> {
+                    throw new IllegalStateException();
+                },
+                TreeMap::new));
+
+        ArrayList<Condition> conditionsOfType = map.computeIfAbsent(type, k -> new ArrayList<>());
+        if (conditionsOfType.isEmpty()) {
+            conditionsOfType.add(condition);
+        }
+        else if (conditionsOfType.get(0).getObservedGeneration() <= condition.getObservedGeneration()) {
+            conditionsOfType.set(0, condition);
+        }
+
+        return map.values().stream().flatMap(Collection::stream).toList();
+    }
+
+    @SuppressWarnings("java:S4276") // BiConsumer<S, Long> is correct, because it's Long on the status classes
+    private static <R extends CustomResource<?, S>, S> R newStatus(R ingress,
+                                                                   Supplier<R> resourceSupplier,
+                                                                   Supplier<S> statusSupplier,
+                                                                   BiConsumer<S, List<Condition>> conditionSetter,
+                                                                   BiConsumer<S, Long> observedGenerationSetter,
+                                                                   List<Condition> conditions) {
+        var result = resourceSupplier.get();
+        result.setMetadata(new ObjectMetaBuilder()
+                .withName(ResourcesUtil.name(ingress))
+                .withNamespace(ResourcesUtil.namespace(ingress))
+                .withUid(ResourcesUtil.uid(ingress))
+                .build());
+        S status = statusSupplier.get();
+        conditionSetter.accept(status, conditions);
+        observedGenerationSetter.accept(status, ingress.getMetadata().getGeneration());
+        result.setStatus(status);
+        return result;
+    }
+
+    @NonNull
+    static KafkaService patchWithCondition(KafkaService service, Condition condition) {
+        return newStatus(
+                service,
+                KafkaService::new,
+                KafkaServiceStatus::new,
+                KafkaServiceStatus::setConditions,
+                KafkaServiceStatus::setObservedGeneration,
+                maybeAddOrUpdateCondition(
+                        Optional.of(service)
+                                .map(KafkaService::getStatus)
+                                .map(KafkaServiceStatus::getConditions)
+                                .orElse(List.of()),
+                        condition));
+    }
+
+    @NonNull
+    static KafkaProxyIngress patchWithCondition(KafkaProxyIngress ingress, Condition condition) {
+        return newStatus(
+                ingress,
+                KafkaProxyIngress::new,
+                KafkaProxyIngressStatus::new,
+                KafkaProxyIngressStatus::setConditions,
+                KafkaProxyIngressStatus::setObservedGeneration,
+                maybeAddOrUpdateCondition(
+                        Optional.of(ingress)
+                                .map(KafkaProxyIngress::getStatus)
+                                .map(KafkaProxyIngressStatus::getConditions)
+                                .orElse(List.of()),
+                        condition));
+    }
+
+    @NonNull
+    static KafkaProtocolFilter patchWithCondition(KafkaProtocolFilter filter, Condition condition) {
+        return newStatus(
+                filter,
+                KafkaProtocolFilter::new,
+                KafkaProtocolFilterStatus::new,
+                KafkaProtocolFilterStatus::setConditions,
+                KafkaProtocolFilterStatus::setObservedGeneration,
+                maybeAddOrUpdateCondition(
+                        Optional.of(filter)
+                                .map(KafkaProtocolFilter::getStatus)
+                                .map(KafkaProtocolFilterStatus::getConditions)
+                                .orElse(List.of()),
+                        condition));
+    }
+
+    static ConditionBuilder newConditionBuilder(Clock clock, HasMetadata observedGenerationSource) {
+        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
+        return new ConditionBuilder()
+                .withLastTransitionTime(now)
+                .withObservedGeneration(observedGenerationSource.getMetadata().getGeneration());
+    }
+
+    static Condition newTrueCondition(Clock clock, HasMetadata observedGenerationSource, Condition.Type type) {
+        return newConditionBuilder(clock, observedGenerationSource)
+                .withType(type)
+                .withStatus(Condition.Status.TRUE)
+                .build();
+    }
+
+    static Condition newFalseCondition(Clock clock,
+                                       HasMetadata observedGenerationSource,
+                                       Condition.Type type,
+                                       String reason,
+                                       String message) {
+        return newConditionBuilder(clock, observedGenerationSource)
+                .withType(type)
+                .withStatus(Condition.Status.FALSE)
+                .withReason(reason)
+                .withMessage(message)
+                .build();
+    }
+
+    static Condition newUnknownCondition(Clock clock,
+                                         HasMetadata observedGenerationSource,
+                                         Condition.Type type,
+                                         Exception e) {
+        return newConditionBuilder(clock, observedGenerationSource)
+                .withType(type)
+                .withStatus(Condition.Status.UNKNOWN)
+                .withReason(e.getClass().getName())
+                .withMessage(e.getMessage())
+                .build();
+    }
+
+    static Condition newResolvedRefsTrue(Clock clock, HasMetadata observedGenerationSource) {
+        return newTrueCondition(clock, observedGenerationSource, Condition.Type.ResolvedRefs);
+    }
+
+    static Condition newResolvedRefsFalse(Clock clock,
+                                          HasMetadata observedGenerationSource,
+                                          String reason,
+                                          String message) {
+        return newFalseCondition(clock, observedGenerationSource, Condition.Type.ResolvedRefs, reason, message);
+    }
+
+    static Condition resolvedRefsUnknown(Clock clock,
+                                         HasMetadata observedGenerationSource,
+                                         Exception e) {
+        return newUnknownCondition(clock, observedGenerationSource, Condition.Type.ResolvedRefs, e);
+    }
+
 }

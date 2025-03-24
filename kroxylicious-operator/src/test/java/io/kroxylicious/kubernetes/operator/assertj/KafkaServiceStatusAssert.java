@@ -7,7 +7,6 @@
 package io.kroxylicious.kubernetes.operator.assertj;
 
 import org.assertj.core.api.AbstractLongAssert;
-import org.assertj.core.api.AbstractObjectAssert;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ListAssert;
@@ -15,10 +14,12 @@ import org.assertj.core.api.ListAssert;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 
-public class KafkaServiceStatusAssert extends AbstractObjectAssert<KafkaServiceStatusAssert, KafkaServiceStatus> {
+public class KafkaServiceStatusAssert extends AbstractStatusAssert<KafkaServiceStatus, KafkaServiceStatusAssert> {
     protected KafkaServiceStatusAssert(
                                        KafkaServiceStatus o) {
-        super(o, KafkaServiceStatusAssert.class);
+        super(o, KafkaServiceStatusAssert.class,
+                KafkaServiceStatus::getObservedGeneration,
+                KafkaServiceStatus::getConditions);
     }
 
     public static KafkaServiceStatusAssert assertThat(KafkaServiceStatus actual) {
