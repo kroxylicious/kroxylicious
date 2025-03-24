@@ -240,8 +240,7 @@ class ResourcesUtilTest {
                 Arguments.argumentSet("existing condition with later generation not replaced 1",
                         List.of(resolvedRefs, resolvedRefsGen2), resolvedRefsLaterTime, List.of(resolvedRefsGen2)),
                 Arguments.argumentSet("existing condition with later generation not replaced 2",
-                        List.of(resolvedRefsGen2, resolvedRefs), resolvedRefsLaterTime, List.of(resolvedRefsGen2))
-        );
+                        List.of(resolvedRefsGen2, resolvedRefs), resolvedRefsLaterTime, List.of(resolvedRefsGen2)));
     }
 
     @ParameterizedTest
