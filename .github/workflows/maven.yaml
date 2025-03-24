@@ -80,7 +80,7 @@ jobs:
           minikube image build . -f Dockerfile -t ${KROXYLICIOUS_IMAGE} --build-opt=build-arg=KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION}"
           # KROXYLICIOUS_IMAGE env var is used by the Operator ITs
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> $GITHUB_ENV
-      - name: 'Build Kroxylicious maven project'
+      - name: 'Run integration tests'
         if: github.ref_name != 'main' || env.SONAR_TOKEN_SET != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
