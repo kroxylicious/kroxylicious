@@ -7,7 +7,6 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -52,11 +51,11 @@ public class KafkaProtocolFilterReconciler implements
         Reconciler<KafkaProtocolFilter> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProtocolFilterReconciler.class);
-    private final Clock clock;
+    private final UtcClock clock;
     private final SecureConfigInterpolator secureConfigInterpolator;
 
-    KafkaProtocolFilterReconciler(Clock clock, SecureConfigInterpolator secureConfigInterpolator) {
-        this.clock = Objects.requireNonNull(clock);
+    KafkaProtocolFilterReconciler(@NonNull Clock clock, SecureConfigInterpolator secureConfigInterpolator) {
+        this.clock = UtcClock.of(Objects.requireNonNull(clock));
         this.secureConfigInterpolator = Objects.requireNonNull(secureConfigInterpolator);
     }
 
@@ -123,9 +122,7 @@ public class KafkaProtocolFilterReconciler implements
                                                         KafkaProtocolFilter filter,
                                                         Context<KafkaProtocolFilter> context) {
 
-        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
-
-        ConditionBuilder conditionBuilder = newResolvedRefsCondition(filter, now);
+        ConditionBuilder conditionBuilder = newResolvedRefsCondition(filter, clock.now());
 
         var existingSecrets = context.getSecondaryResourcesAsStream(Secret.class)
                 .map(ResourcesUtil::name)
@@ -199,9 +196,8 @@ public class KafkaProtocolFilterReconciler implements
                                                                            KafkaProtocolFilter filter,
                                                                            Context<KafkaProtocolFilter> context,
                                                                            Exception e) {
-        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
         // ResolvedRefs to UNKNOWN
-        Condition condition = newResolvedRefsCondition(filter, now)
+        Condition condition = newResolvedRefsCondition(filter, clock.now())
                 .withStatus(Condition.Status.UNKNOWN)
                 .withReason(e.getClass().getName())
                 .withMessage(e.getMessage())

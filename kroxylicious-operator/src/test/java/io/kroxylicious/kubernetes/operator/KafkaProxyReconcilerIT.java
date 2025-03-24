@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -82,9 +83,10 @@ class KafkaProxyReconcilerIT {
         client = OperatorTestUtils.kubeClient();
     }
 
+    @SuppressWarnings("JUnitMalformedDeclaration")
     @RegisterExtension
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
-            .withReconciler(new KafkaProxyReconciler(SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
+            .withReconciler(new KafkaProxyReconciler(SecureConfigInterpolator.DEFAULT_INTERPOLATOR, Clock.systemUTC()))
             .withKubernetesClient(client)
             .withAdditionalCustomResourceDefinition(VirtualKafkaCluster.class)
             .withAdditionalCustomResourceDefinition(KafkaService.class)

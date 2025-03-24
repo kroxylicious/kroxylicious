@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator.kafkaservice;
 
 import java.time.Clock;
 import java.util.List;
+import java.util.Objects;
 
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
@@ -18,21 +19,24 @@ import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.operator.UtcClock;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 public final class KafkaServiceReconciler implements
         io.javaoperatorsdk.operator.api.reconciler.Reconciler<KafkaService> {
 
-    private final Clock clock;
+    private final UtcClock clock;
 
-    public KafkaServiceReconciler(Clock clock) {
-        this.clock = clock;
+    public KafkaServiceReconciler(@NonNull Clock clock) {
+        this.clock = UtcClock.of(Objects.requireNonNull(clock));
     }
 
     @Override
     public UpdateControl<KafkaService> reconcile(KafkaService resource, Context<KafkaService> context) {
         final Condition acceptedCondition = new ConditionBuilder()
                 .withType(Condition.Type.Accepted)
-                .withLastTransitionTime(clock.instant().atZone(clock.getZone()))
+                .withLastTransitionTime(clock.now())
                 .withObservedGeneration(resource.getMetadata().getGeneration())
                 .withStatus(Condition.Status.TRUE)
                 .build();

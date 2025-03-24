@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.time.Clock;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -359,7 +360,7 @@ class KafkaProxyReconcilerTest {
 
     @NonNull
     private static KafkaProxyReconciler newKafkaProxyReconciler() {
-        return new KafkaProxyReconciler(SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
+        return new KafkaProxyReconciler(SecureConfigInterpolator.DEFAULT_INTERPOLATOR, Clock.systemUTC());
     }
 
     @Test

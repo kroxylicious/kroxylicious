@@ -5,8 +5,8 @@
  */
 package io.kroxylicious.kubernetes.operator;
 
+import java.time.Clock;
 import java.time.Duration;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -85,9 +85,11 @@ public class KafkaProxyReconciler implements
     public static final String CLUSTERS_DEP = "clusters";
     static final String SEC = "sec";
     private final SecureConfigInterpolator secureConfigInterpolator;
+    private final UtcClock clock;
 
-    public KafkaProxyReconciler(SecureConfigInterpolator secureConfigInterpolator) {
+    public KafkaProxyReconciler(SecureConfigInterpolator secureConfigInterpolator, @NonNull Clock clock) {
         this.secureConfigInterpolator = secureConfigInterpolator;
+        this.clock = UtcClock.of(Objects.requireNonNull(clock));
     }
 
     static SecureConfigInterpolator secureConfigInterpolator(Context<KafkaProxy> context) {
@@ -132,13 +134,13 @@ public class KafkaProxyReconciler implements
 
     }
 
-    private static KafkaProxy buildStatus(KafkaProxy primary,
-                                          Context<KafkaProxy> context,
-                                          @Nullable Exception exception) {
+    private KafkaProxy buildStatus(KafkaProxy primary,
+                                   Context<KafkaProxy> context,
+                                   @Nullable Exception exception) {
         if (exception instanceof AggregatedOperatorException aoe && aoe.getAggregatedExceptions().size() == 1) {
             exception = aoe.getAggregatedExceptions().values().iterator().next();
         }
-        var now = ZonedDateTime.now(ZoneId.of("Z"));
+        var now = clock.now();
         // @formatter:off
         return new KafkaProxyBuilder(primary)
                 .editOrNewStatus()

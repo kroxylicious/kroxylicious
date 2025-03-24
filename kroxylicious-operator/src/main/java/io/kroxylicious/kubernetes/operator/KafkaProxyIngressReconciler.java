@@ -7,9 +7,9 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
-import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,10 +41,10 @@ public class KafkaProxyIngressReconciler implements
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyIngressReconciler.class);
     public static final String PROXY_EVENT_SOURCE_NAME = "proxy";
-    private final Clock clock;
+    private final UtcClock clock;
 
-    KafkaProxyIngressReconciler(Clock clock) {
-        this.clock = clock;
+    KafkaProxyIngressReconciler(@NonNull Clock clock) {
+        this.clock = UtcClock.of(Objects.requireNonNull(clock));
     }
 
     @Override
@@ -68,7 +68,7 @@ public class KafkaProxyIngressReconciler implements
                                                       Context<KafkaProxyIngress> context)
             throws Exception {
 
-        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
+        var now = clock.now();
 
         ConditionBuilder conditionBuilder = newResolvedRefsCondition(ingress, now);
 
@@ -111,7 +111,7 @@ public class KafkaProxyIngressReconciler implements
                                                                          KafkaProxyIngress ingress,
                                                                          Context<KafkaProxyIngress> context,
                                                                          Exception e) {
-        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
+        var now = clock.now();
         // ResolvedRefs to UNKNOWN
         Condition condition = newResolvedRefsCondition(ingress, now)
                 .withStatus(Condition.Status.UNKNOWN)
