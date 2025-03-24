@@ -74,7 +74,7 @@ class KafkaProxyReconcilerIT {
 
     // the initial operator image pull can take a long time and interfere with the tests
     @BeforeAll
-    public static void preloadOperandImage() {
+    static void preloadOperandImage() {
         OperatorTestUtils.preloadOperandImage();
     }
 

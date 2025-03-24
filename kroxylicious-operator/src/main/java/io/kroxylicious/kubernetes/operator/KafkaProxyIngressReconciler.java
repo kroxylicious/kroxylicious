@@ -65,8 +65,7 @@ public class KafkaProxyIngressReconciler implements
     @Override
     public UpdateControl<KafkaProxyIngress> reconcile(
                                                       KafkaProxyIngress ingress,
-                                                      Context<KafkaProxyIngress> context)
-            throws Exception {
+                                                      Context<KafkaProxyIngress> context) {
 
         var now = clock.now();
 
