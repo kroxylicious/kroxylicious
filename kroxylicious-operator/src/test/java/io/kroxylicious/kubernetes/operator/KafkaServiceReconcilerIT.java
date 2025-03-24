@@ -24,7 +24,6 @@ import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
-import io.kroxylicious.kubernetes.operator.kafkaservice.KafkaServiceReconciler;
 
 import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
 import static org.awaitility.Awaitility.await;

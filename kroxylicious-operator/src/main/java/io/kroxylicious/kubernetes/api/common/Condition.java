@@ -13,7 +13,6 @@ package io.kroxylicious.kubernetes.api.common;
 @com.fasterxml.jackson.annotation.JsonPropertyOrder({ "lastTransitionTime", "message", "observedGeneration", "reason", "status", "type" })
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 @javax.annotation.processing.Generated("io.fabric8.java.generator.CRGeneratorRunner")
-@lombok.ToString()
 @lombok.EqualsAndHashCode()
 @io.sundr.builder.annotations.Buildable(editableEnabled = false, validationEnabled = false, generateBuilderPackage = false, builderPackage = "io.fabric8.kubernetes.api.builder", refs = {
         @io.sundr.builder.annotations.BuildableReference(io.fabric8.kubernetes.api.model.ObjectMeta.class),
@@ -106,6 +105,18 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
 
     public void setReason(String reason) {
         this.reason = reason;
+    }
+
+    @Override
+    public String toString() {
+        return "Condition{" +
+                "observedGeneration=" + observedGeneration +
+                ", type=" + type +
+                ", status=" + status +
+                ", lastTransitionTime=" + lastTransitionTime +
+                ", reason='" + reason + '\'' +
+                ", message='" + message + '\'' +
+                '}';
     }
 
     public enum Status {

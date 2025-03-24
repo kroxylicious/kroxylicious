@@ -16,12 +16,12 @@ class KafkaServiceRefTest {
     // with the same group, kind and name.
     @SuppressWarnings("java:S5845")
     @Test
-    void shouldEqualAKafkaKindedAnyRef() {
-        var kafkaCRefFoo = new KafkaServiceRefBuilder().withName("foo").build();
-        var anyFoo = new AnyLocalRefBuilder().withName("foo").withKind(kafkaCRefFoo.getKind()).withGroup(kafkaCRefFoo.getGroup()).build();
-        assertThat(kafkaCRefFoo).isEqualTo(anyFoo);
-        assertThat(anyFoo).isEqualTo(kafkaCRefFoo);
-        assertThat(kafkaCRefFoo).hasSameHashCodeAs(anyFoo);
+    void shouldEqualAnyRefWithSameCoordinates() {
+        var serviceRefFoo = new KafkaServiceRefBuilder().withName("foo").build();
+        var anyFoo = new AnyLocalRefBuilder().withName("foo").withKind(serviceRefFoo.getKind()).withGroup(serviceRefFoo.getGroup()).build();
+        assertThat(serviceRefFoo).isEqualTo(anyFoo);
+        assertThat(anyFoo).isEqualTo(serviceRefFoo);
+        assertThat(serviceRefFoo).hasSameHashCodeAs(anyFoo);
     }
 
 }

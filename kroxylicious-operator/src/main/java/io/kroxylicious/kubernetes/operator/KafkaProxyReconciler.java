@@ -23,6 +23,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.AggregatedOperatorException;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.javaoperatorsdk.operator.api.reconciler.ContextInitializer;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.api.reconciler.Reconciler;
@@ -74,15 +75,30 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
 })
 // @formatter:on
 public class KafkaProxyReconciler implements
-        Reconciler<KafkaProxy> {
+        Reconciler<KafkaProxy>,
+        ContextInitializer<KafkaProxy> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyReconciler.class);
 
     public static final String CONFIG_DEP = "config";
     public static final String DEPLOYMENT_DEP = "deployment";
     public static final String CLUSTERS_DEP = "clusters";
+    static final String SEC = "sec";
+    private final SecureConfigInterpolator secureConfigInterpolator;
 
-    public KafkaProxyReconciler() {
+    public KafkaProxyReconciler(SecureConfigInterpolator secureConfigInterpolator) {
+        this.secureConfigInterpolator = secureConfigInterpolator;
+    }
+
+    static SecureConfigInterpolator secureConfigInterpolator(Context<KafkaProxy> context) {
+        return context.managedWorkflowAndDependentResourceContext().getMandatory(SEC, SecureConfigInterpolator.class);
+    }
+
+    @Override
+    public void initContext(
+                            KafkaProxy primary,
+                            Context<KafkaProxy> context) {
+        context.managedWorkflowAndDependentResourceContext().put(SEC, secureConfigInterpolator);
     }
 
     /**
@@ -91,7 +107,9 @@ public class KafkaProxyReconciler implements
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
-        LOGGER.info("Completed reconciliation of {}/{}", namespace(primary), name(primary));
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Completed reconciliation of {}/{}", namespace(primary), name(primary));
+        }
         return UpdateControl.patchStatus(
                 buildStatus(primary, context, null));
     }
@@ -124,8 +142,13 @@ public class KafkaProxyReconciler implements
         }
         var now = ZonedDateTime.now(ZoneId.of("Z"));
         // @formatter:off
-        return new KafkaProxyBuilder(primary)
-                .editOrNewStatus()
+        return new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withName(ResourcesUtil.name(primary))
+                    .withNamespace(ResourcesUtil.namespace(primary))
+                    .withUid(ResourcesUtil.uid(primary))
+                .endMetadata()
+                .withNewStatus()
                     .withObservedGeneration(generation(primary))
                     .withConditions(effectiveReadyCondition(now, primary, exception ))
                     .withClusters(clusterConditions(now, primary, context ))
@@ -429,5 +452,4 @@ public class KafkaProxyReconciler implements
     private static @NonNull Predicate<KafkaProxyIngress> ingressReferences(HasMetadata primary) {
         return ingress -> ingress.getSpec().getProxyRef().getName().equals(name(primary));
     }
-
 }

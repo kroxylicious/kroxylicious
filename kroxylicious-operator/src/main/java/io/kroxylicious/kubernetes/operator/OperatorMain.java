@@ -27,7 +27,6 @@ import io.micrometer.prometheusmetrics.PrometheusConfig;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import io.prometheus.metrics.exporter.httpserver.MetricsHandler;
 
-import io.kroxylicious.kubernetes.operator.kafkaservice.KafkaServiceReconciler;
 import io.kroxylicious.kubernetes.operator.management.UnsupportedHttpMethodFilter;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -80,13 +79,14 @@ public class OperatorMain {
      */
     void start() {
         operator.installShutdownHook(Duration.ofSeconds(10));
-        operator.register(new KafkaProxyReconciler());
+        operator.register(new KafkaProxyReconciler(SecureConfigInterpolator.DEFAULT_INTERPOLATOR));
         operator.register(new KafkaProxyIngressReconciler(Clock.systemUTC()));
         operator.register(new KafkaServiceReconciler(Clock.systemUTC()));
+        operator.register(new KafkaProtocolFilterReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR));
         addHttpGetHandler("/", () -> 404);
         managementServer.start();
-        operator.start();
         addHttpGetHandler(HTTP_PATH_LIVEZ, this::livezStatusCode);
+        operator.start();
         LOGGER.info("Operator started");
     }
 
@@ -111,7 +111,7 @@ public class OperatorMain {
             sc = 400;
             LOGGER.error("Ignoring exception caught while getting operator health info", e);
         }
-        LOGGER.trace("Responding {} to GET {}", sc, HTTP_PATH_LIVEZ);
+        (sc != 200 ? LOGGER.atWarn() : LOGGER.atDebug()).log("Responding {} to GET {}", sc, HTTP_PATH_LIVEZ);
         return sc;
     }
 
