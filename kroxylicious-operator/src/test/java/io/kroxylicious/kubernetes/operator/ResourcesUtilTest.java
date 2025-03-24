@@ -213,43 +213,40 @@ class ResourcesUtilTest {
                 .build();
 
         return List.of(
-                Arguments.of("should add to empty list",
+                Arguments.argumentSet("should add to empty list",
                         List.of(), resolvedRefs, List.of(resolvedRefs)),
-                Arguments.of("add is idempotent",
+                Arguments.argumentSet("add is idempotent",
                         List.of(resolvedRefs), resolvedRefs, List.of(resolvedRefs)),
-                Arguments.of("returns totally ordered 1",
+                Arguments.argumentSet("returns totally ordered 1",
                         List.of(accepted), resolvedRefs, List.of(resolvedRefs, accepted)),
-                Arguments.of("returns totally ordered 2",
+                Arguments.argumentSet("returns totally ordered 2",
                         List.of(resolvedRefs, accepted), resolvedRefs, List.of(resolvedRefs, accepted)),
-                Arguments.of("returns totally ordered 3",
+                Arguments.argumentSet("returns totally ordered 3",
                         List.of(accepted, resolvedRefs), resolvedRefs, List.of(resolvedRefs, accepted)),
-                Arguments.of("prefer arg when same observedGeneration 1",
+                Arguments.argumentSet("prefer arg when same observedGeneration 1",
                         List.of(resolvedRefs), resolvedRefsLaterTime, List.of(resolvedRefsLaterTime)),
-                Arguments.of("prefer arg when same observedGeneration 2",
+                Arguments.argumentSet("prefer arg when same observedGeneration 2",
                         List.of(resolvedRefsLaterTime), resolvedRefs, List.of(resolvedRefs)),
-                Arguments.of("prefer arg when same observedGeneration 3",
+                Arguments.argumentSet("prefer arg when same observedGeneration 3",
                         List.of(resolvedRefsGen2AndLaterTime), resolvedRefsGen2, List.of(resolvedRefsGen2)),
-                Arguments.of("prefer arg when same observedGeneration 4",
+                Arguments.argumentSet("prefer arg when same observedGeneration 4",
                         List.of(resolvedRefsGen2), resolvedRefsGen2AndLaterTime, List.of(resolvedRefsGen2AndLaterTime)),
-                Arguments.of("largest observedGeneration wins 1",
+                Arguments.argumentSet("largest observedGeneration wins 1",
                         List.of(resolvedRefs), resolvedRefsGen2, List.of(resolvedRefsGen2)),
-                Arguments.of("largest observedGeneration wins 2",
+                Arguments.argumentSet("largest observedGeneration wins 2",
                         List.of(resolvedRefsLaterTime), resolvedRefsGen2, List.of(resolvedRefsGen2)),
-                Arguments.of("replaces _all_ conditions with same type",
+                Arguments.argumentSet("replaces _all_ conditions with same type",
                         List.of(resolvedRefsLaterTime, resolvedRefs), resolvedRefsGen2, List.of(resolvedRefsGen2)),
-
-                Arguments.of("existing condition with later generation not replaced 1",
+                Arguments.argumentSet("existing condition with later generation not replaced 1",
                         List.of(resolvedRefs, resolvedRefsGen2), resolvedRefsLaterTime, List.of(resolvedRefsGen2)),
-
-                Arguments.of("existing condition with later generation not replaced 2",
+                Arguments.argumentSet("existing condition with later generation not replaced 2",
                         List.of(resolvedRefsGen2, resolvedRefs), resolvedRefsLaterTime, List.of(resolvedRefsGen2))
-
         );
     }
 
-    @ParameterizedTest(name = "{0}")
+    @ParameterizedTest
     @MethodSource
-    void maybeAddOrUpdateCondition(String testName, List<Condition> list, Condition condition, List<Condition> expectedResult) {
+    void maybeAddOrUpdateCondition(List<Condition> list, Condition condition, List<Condition> expectedResult) {
         assertThat(ResourcesUtil.maybeAddOrUpdateCondition(list, condition)).isEqualTo(expectedResult);
     }
 
