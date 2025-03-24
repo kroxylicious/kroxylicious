@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -13,12 +14,17 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
@@ -171,6 +177,66 @@ class ResourcesUtilTest {
                 .withApiVersion("filter.kroxylicious.io/v1alpha1")
                 .withNewMetadata().withName("foo").endMetadata().build()))
                 .isEqualTo(new FilterRefBuilder().withName("foo").build());
+    }
+
+    static List<Arguments> maybeAddOrUpdateCondition() {
+        Condition resolvedRefs = new ConditionBuilder()
+                .withObservedGeneration(1L)
+                .withLastTransitionTime(ZonedDateTime.now())
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.FALSE)
+                .withReason("reason")
+                .withMessage("message")
+                .build();
+
+        Condition accepted = new ConditionBuilder()
+                .withObservedGeneration(1L)
+                .withLastTransitionTime(ZonedDateTime.now())
+                .withType(Condition.Type.Accepted)
+                .withStatus(Condition.Status.FALSE)
+                .withReason("reason")
+                .withMessage("message")
+                .build();
+
+        Condition resolvedRefsLaterTime = new ConditionBuilder(resolvedRefs)
+                .withLastTransitionTime(ZonedDateTime.now().plusMinutes(1))
+                .build();
+
+        Condition resolvedRefsGen2 = new ConditionBuilder(resolvedRefs)
+                .withObservedGeneration(2L)
+                .build();
+
+        return List.of(
+                Arguments.of("should add to empty list",
+                        List.of(), resolvedRefs, List.of(resolvedRefs)),
+                Arguments.of("add is idempotent",
+                        List.of(resolvedRefs), resolvedRefs, List.of(resolvedRefs)),
+                Arguments.of("returns totally ordered 1",
+                        List.of(accepted), resolvedRefs, List.of(resolvedRefs, accepted)),
+                Arguments.of("returns totally ordered 2",
+                        List.of(resolvedRefs, accepted), resolvedRefs, List.of(resolvedRefs, accepted)),
+                Arguments.of("returns totally ordered 3",
+                        List.of(accepted, resolvedRefs), resolvedRefs, List.of(resolvedRefs, accepted)),
+                Arguments.of("oldest lastTransitionTime wins",
+                        List.of(resolvedRefs), resolvedRefsLaterTime, List.of(resolvedRefs)),
+                Arguments.of("largest observedGeneration wins",
+                        List.of(resolvedRefs), resolvedRefsGen2, List.of(resolvedRefsGen2)),
+                Arguments.of("replaces _all_ conditions with same type",
+                        List.of(resolvedRefsLaterTime, resolvedRefs), resolvedRefsGen2, List.of(resolvedRefsGen2)),
+
+                Arguments.of("existing condition with later generation not replaced 1",
+                        List.of(resolvedRefs, resolvedRefsGen2), resolvedRefsLaterTime, List.of(resolvedRefsGen2)),
+
+                Arguments.of("existing condition with later generation not replaced 2",
+                        List.of(resolvedRefsGen2, resolvedRefs), resolvedRefsLaterTime, List.of(resolvedRefsGen2))
+
+        );
+    }
+
+    @ParameterizedTest(name = "{0}")
+    @MethodSource
+    void maybeAddOrUpdateCondition(String testName, List<Condition> list, Condition condition, List<Condition> expectedResult) {
+        assertThat(ResourcesUtil.maybeAddOrUpdateCondition(list, condition)).isEqualTo(expectedResult);
     }
 
 }
