@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.io.File;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -26,6 +27,7 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousServiceTem
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+import static org.awaitility.Awaitility.await;
 
 /**
  * The type Kroxylicious.
@@ -125,5 +127,28 @@ public class Kroxylicious {
                 .filter(File::isFile)
                 .filter(file -> file.getName().endsWith(".yaml"))
                 .toList();
+    }
+
+    /**
+     * Gets number of replicas.
+     *
+     * @return the number of replicas
+     */
+    public int getNumberOfReplicas() {
+        LOGGER.info("Getting number of replicas..");
+        return kubeClient().getDeployment(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME).getStatus().getReplicas();
+    }
+
+    /**
+     * Scale replicas to.
+     *
+     * @param scaledTo the number of replicas to scale up/down
+     * @param timeout the timeout
+     */
+    public void scaleReplicasTo(int scaledTo, Duration timeout) {
+        LOGGER.info("Scaling number of replicas to {}..", scaledTo);
+        kubeClient().getClient().apps().deployments().inNamespace(deploymentNamespace).withName(Constants.KROXY_DEPLOYMENT_NAME).scale(scaledTo);
+        await().atMost(timeout).pollInterval(Duration.ofSeconds(1))
+                .until(() -> getNumberOfReplicas() == scaledTo && kubeClient().isDeploymentReady(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME));
     }
 }

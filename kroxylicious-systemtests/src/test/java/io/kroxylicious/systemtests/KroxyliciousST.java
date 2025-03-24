@@ -11,6 +11,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +51,7 @@ class KroxyliciousST extends AbstractST {
     @Test
     void produceAndConsumeMessage(String namespace) {
         int numberOfMessages = 1;
-        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE, 1);
+        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
         kroxyliciousOperator.deploy();
 
         // start Kroxylicious
@@ -83,7 +84,7 @@ class KroxyliciousST extends AbstractST {
     @Test
     void restartKafkaBrokers(String namespace) {
         int numberOfMessages = 25;
-        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE, 1);
+        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
         kroxyliciousOperator.deploy();
 
         // start Kroxylicious
@@ -115,11 +116,12 @@ class KroxyliciousST extends AbstractST {
      *
      * @param namespace the namespace
      */
+    @Disabled("Waiting for scalability support in Kroxylicious Proxy")
     @Test
     void kroxyWithReplicas(String namespace) {
         int numberOfMessages = 3;
         int replicas = 3;
-        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE, replicas);
+        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
         kroxyliciousOperator.deploy();
 
         // start Kroxylicious
@@ -127,7 +129,7 @@ class KroxyliciousST extends AbstractST {
         kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortIdentifiesNodeWithNoFilters();
         String bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
-        int currentReplicas = kroxyliciousOperator.getNumberOfReplicas();
+        int currentReplicas = kroxylicious.getNumberOfReplicas();
         given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
@@ -146,12 +148,14 @@ class KroxyliciousST extends AbstractST {
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
+    @Disabled("Waiting for scalability support in Kroxylicious Proxy")
     @Test
     void scaleUpKroxylicious(String namespace) {
         int replicas = 2;
         scaleKroxylicious(namespace, replicas, replicas + 1);
     }
 
+    @Disabled("Waiting for scalability support in Kroxylicious Proxy")
     @Test
     void scaleDownKroxylicious(String namespace) {
         int replicas = 3;
@@ -160,7 +164,7 @@ class KroxyliciousST extends AbstractST {
 
     private void scaleKroxylicious(String namespace, int replicas, int scaleTo) {
         int numberOfMessages = 10;
-        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE, replicas);
+        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
         kroxyliciousOperator.deploy();
 
         // start Kroxylicious
@@ -168,7 +172,7 @@ class KroxyliciousST extends AbstractST {
         kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortIdentifiesNodeWithNoFilters();
         String bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
-        int currentReplicas = kroxyliciousOperator.getNumberOfReplicas();
+        int currentReplicas = kroxylicious.getNumberOfReplicas();
         given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
@@ -178,8 +182,8 @@ class KroxyliciousST extends AbstractST {
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("And kroxylicious is scaled to {}").addArgument(scaleTo).log();
-        kroxyliciousOperator.scaleReplicasTo(scaleTo, Duration.ofMinutes(2));
-        currentReplicas = kroxyliciousOperator.getNumberOfReplicas();
+        kroxylicious.scaleReplicasTo(scaleTo, Duration.ofMinutes(2));
+        currentReplicas = kroxylicious.getNumberOfReplicas();
         assertThat(currentReplicas).withFailMessage("unexpected current scaled replicas").isEqualTo(scaleTo);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();

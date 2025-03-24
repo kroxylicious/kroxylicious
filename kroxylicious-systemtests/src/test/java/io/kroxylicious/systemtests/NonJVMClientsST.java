@@ -180,7 +180,7 @@ class NonJVMClientsST extends AbstractST {
     @BeforeEach
     void setUpBeforeEach(String namespace) {
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE, 1);
+        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
         kroxyliciousOperator.deploy();
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortIdentifiesNodeWithNoFilters();
