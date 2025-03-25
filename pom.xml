@@ -49,9 +49,9 @@
         <picocli.version>4.7.6</picocli.version>
         <netty.version>4.1.119.Final</netty.version>
         <netty.io_uring.version>0.0.26.Final</netty.io_uring.version>
-        <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
-        <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
-        <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
+        <netty.epoll.classifier>linux-${os.detected.arch}</netty.epoll.classifier>
+        <netty.io_uring.classifier>linux-${os.detected.arch}</netty.io_uring.classifier>
+        <netty.kqueue.classifier>osx-${os.detected.arch}</netty.kqueue.classifier>
         <assertj-core.version>3.27.3</assertj-core.version>
         <mockito.version>5.16.1</mockito.version>
         <micrometer.version>1.14.5</micrometer.version>
@@ -81,6 +81,7 @@
         <test-frame.version>0.10.0</test-frame.version>
         <junit-pioneer.version>2.3.0</junit-pioneer.version>
         <skip-validate-yaml-snippets>true</skip-validate-yaml-snippets>
+        <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
     </properties>
 
     <name>Parent POM</name>
@@ -493,6 +494,13 @@
 
 
     <build>
+        <extensions>
+            <extension>
+                <groupId>kr.motd.maven</groupId>
+                <artifactId>os-maven-plugin</artifactId>
+                <version>${os-maven-plugin.version}</version>
+            </extension>
+        </extensions>
         <!-- Keep alphabetic order -->
         <pluginManagement>
             <plugins>
