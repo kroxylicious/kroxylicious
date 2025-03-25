@@ -201,7 +201,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
             @NonNull
             public <T extends HasMetadata> T replace(@NonNull T resource) {
-                return testActorClient.resource(resource).inNamespace(operatorExtension.getNamespace()).replace();
+                return testActorClient.resource(resource).inNamespace(operatorExtension.getNamespace()).update();
             }
 
             @Override

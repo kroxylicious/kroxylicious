@@ -48,14 +48,13 @@ public class OperatorTestUtils {
     }
 
     static boolean isKubeClientAvailable() {
-        KubernetesClient result;
-        var client1 = PRESENCE_PROBING_KUBE_CLIENT_BUILD.build();
+        var client = PRESENCE_PROBING_KUBE_CLIENT_BUILD.build();
         try {
-            client1.namespaces().list();
+            client.namespaces().list();
             return true;
         }
         catch (KubernetesClientException e) {
-            client1.close();
+            client.close();
             return false;
         }
     }
