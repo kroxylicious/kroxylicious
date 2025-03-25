@@ -7,3 +7,4 @@
 io.kroxylicious.systemtests.resources.kms.aws.KubeAwsKmsCloudTestKmsFacadeFactory
 io.kroxylicious.systemtests.resources.kms.aws.KubeLocalStackTestKmsFacadeFactory
 io.kroxylicious.systemtests.resources.kms.vault.KubeVaultTestKmsFacadeFactory
+io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmKmsTestKmsFacadeFactory
