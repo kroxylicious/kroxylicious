@@ -7,12 +7,17 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AutoClose;
 import org.junit.jupiter.api.extension.AfterEachCallback;
@@ -36,6 +41,8 @@ import io.javaoperatorsdk.operator.junit.AbstractOperatorExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 
 /**
  * Designed to cooperate with {@link io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension}
@@ -82,64 +89,36 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
             .build();
     // @formatter:on
 
-    // @formatter:off
-    private final ClusterRoleBinding frameworkClusterRoleBinding = new ClusterRoleBindingBuilder()
-            .withNewMetadata()
-                .withName("framework-cluster-role-binding")
-            .endMetadata()
-            .withNewRoleRef()
-                .withName(frameworkClusterRole.getMetadata().getName())
-                .withKind(frameworkClusterRole.getKind())
-                .withApiGroup("rbac.authorization.k8s.io")
-            .endRoleRef()
-            .addNewSubject()
-                .withName(impersonatedUser)
-                .withKind("User")
-                .withApiGroup("rbac.authorization.k8s.io")
-            .endSubject()
-            .build();
-    // @formatter:on
+    private final Path resourceDirectory;
+    private final List<PathMatcher> clusterRolePathMatchers;
+    private List<ClusterRole> clusterRoles;
+    private List<ClusterRoleBinding> roleBindings;
+
+    public LocallyRunningOperatorRbacHandler(Path resourceDirectory, String... clusterRoleFileGlobs) {
+        Objects.requireNonNull(resourceDirectory);
+        this.resourceDirectory = resourceDirectory;
+        clusterRolePathMatchers = Arrays.stream(clusterRoleFileGlobs).map(g -> FileSystems.getDefault().getPathMatcher("glob:**/" + g)).toList();
+    }
 
     @Override
     public void beforeEach(ExtensionContext context) {
         try (var adminClient = OperatorTestUtils.kubeClient();
-                var files = Files.list(Path.of("install"))) {
-            files.sorted().forEach(resourceFile -> {
-                try (var resourceInputStream = new FileInputStream(resourceFile.toString())) {
-                    var list = adminClient.load(resourceInputStream).items();
-                    list.stream()
-                            .filter(this::isClusterRoleOrRoleBindingResource)
-                            .map(r -> {
-                                // We need to rewrite the RBAC so that rather than being in terms
-                                // of a ServiceAccount, they are in terms of our impersonating user.
-                                if (r instanceof ClusterRoleBinding crb) {
-                                    crb.getSubjects().stream()
-                                            .filter(s -> s.getKind().equals("ServiceAccount"))
-                                            .forEach(s -> {
-                                                var originalUser = s.getName();
-                                                s.setKind("User");
-                                                s.setNamespace(null);
-                                                s.setName(impersonatedUser);
-                                                s.setApiGroup("rbac.authorization.k8s.io");
-                                                LOGGER.trace("Updated cluster role binding for {} to match impersonated user {}", originalUser,
-                                                        impersonatedUser);
-                                            });
-                                }
-                                return r;
-                            })
-                            .forEach(r -> {
-                                LOGGER.trace("Creating/patching: {} from {}", r.getMetadata().getName(), resourceFile);
-                                adminClient.resource(r).createOr(EditReplacePatchable::patch);
-                            });
-                }
-                catch (IOException e) {
-                    throw new UncheckedIOException("failed to install cluster resources " + resourceFile, e);
-                }
+                var files = Files.list(resourceDirectory)) {
+            // The test framework itself needs these roles.
+            Stream<ClusterRole> frameworkClusterRoles = Stream.of(frameworkClusterRole);
+            Stream<ClusterRole> clusterRoles = Stream.concat(loadClusterRoles(files, adminClient), frameworkClusterRoles);
+
+            this.clusterRoles = clusterRoles.toList();
+            this.clusterRoles.forEach(r -> {
+                LOGGER.trace("Creating/patching: {}", name(r));
+                adminClient.resource(r).createOr(EditReplacePatchable::patch);
             });
 
-            // The test framework itself needs these roles.
-            adminClient.resource(frameworkClusterRole).createOr(EditReplacePatchable::patch);
-            adminClient.resource(frameworkClusterRoleBinding).createOr(EditReplacePatchable::patch);
+            this.roleBindings = this.clusterRoles.stream().map(this::bindingForRole).toList();
+            roleBindings.forEach(roleBinding -> {
+                LOGGER.trace("Creating role binding: {}", name(roleBinding));
+                adminClient.resource(roleBinding).createOr(EditReplacePatchable::patch);
+            });
 
             LOGGER.info("Applied Operator RBAC rules rewritten in terms of user {}.", impersonatedUser);
         }
@@ -149,26 +128,38 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     }
 
+    private ClusterRoleBinding bindingForRole(ClusterRole clusterRole) {
+        return new ClusterRoleBindingBuilder().withNewMetadata().withName(name(clusterRole) + "-" + impersonatedUser + "-binding").endMetadata()
+                .addNewSubject().withKind("User").withName(impersonatedUser).withApiGroup("rbac.authorization.k8s.io").endSubject()
+                .withNewRoleRef().withKind("ClusterRole").withName(name(clusterRole)).withApiGroup("rbac.authorization.k8s.io").endRoleRef().build();
+    }
+
+    private @NonNull Stream<ClusterRole> loadClusterRoles(Stream<Path> files, KubernetesClient adminClient) {
+        return files.filter(Files::isRegularFile).filter(path -> clusterRolePathMatchers.stream().anyMatch(matcher -> matcher.matches(path))).sorted()
+                .flatMap(resourceFile -> {
+                    try (var resourceInputStream = new FileInputStream(resourceFile.toString())) {
+                        var resources = adminClient.load(resourceInputStream).items();
+                        List<ClusterRole> roles = resources.stream().filter(resource -> resource instanceof ClusterRole).map(resource -> (ClusterRole) resource).toList();
+                        return roles.stream();
+                    }
+                    catch (IOException e) {
+                        throw new UncheckedIOException("failed to install cluster resources " + resourceFile, e);
+                    }
+                });
+    }
+
     @Override
     public void afterEach(ExtensionContext context) throws Exception {
-        try (var adminClient = OperatorTestUtils.kubeClient();
-                var files = Files.list(Path.of("install"))) {
-            files.forEach(resourceFile -> {
-                try {
-                    adminClient.load(new FileInputStream(resourceFile.toString())).items()
-                            .stream().filter(this::isClusterRoleOrRoleBindingResource)
-                            .forEach(r -> {
-                                LOGGER.trace("Deleting: {} from {}", r.getMetadata().getName(), resourceFile);
-                                adminClient.resource(r).delete();
-                            });
-                }
-                catch (FileNotFoundException e) {
-                    throw new UncheckedIOException("failed to uninstall cluster resource: " + resourceFile, e);
-                }
+        try (var adminClient = OperatorTestUtils.kubeClient()) {
+            this.roleBindings.forEach(roleBinding -> {
+                LOGGER.trace("Deleting ClusterRoleBinding: {}", name(roleBinding));
+                adminClient.resource(roleBinding).delete();
             });
 
-            adminClient.resource(frameworkClusterRole).delete();
-            adminClient.resource(frameworkClusterRoleBinding).delete();
+            this.clusterRoles.forEach(clusterRole -> {
+                LOGGER.trace("Deleting ClusterRole: {}", name(clusterRole));
+                adminClient.resource(clusterRole).delete();
+            });
         }
 
     }
@@ -218,10 +209,6 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
             }
 
         };
-    }
-
-    private boolean isClusterRoleOrRoleBindingResource(HasMetadata r) {
-        return r instanceof ClusterRoleBinding || r instanceof ClusterRole;
     }
 
     public interface TestActor {

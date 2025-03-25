@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
@@ -55,7 +56,7 @@ class VirtualKafkaClusterReconcilerIT {
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
     @RegisterExtension
-    LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler();
+    LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler(Path.of("install"), "*.ClusterRole*.yaml");
 
     @RegisterExtension
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
