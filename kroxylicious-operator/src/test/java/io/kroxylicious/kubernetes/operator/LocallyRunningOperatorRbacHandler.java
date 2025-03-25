@@ -105,8 +105,8 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
         try (var adminClient = OperatorTestUtils.kubeClient();
                 var files = Files.list(Path.of("install"))) {
             files.sorted().forEach(resourceFile -> {
-                try {
-                    var list = adminClient.load(new FileInputStream(resourceFile.toString())).items();
+                try (var resourceInputStream = new FileInputStream(resourceFile.toString())) {
+                    var list = adminClient.load(resourceInputStream).items();
                     list.stream()
                             .filter(this::isClusterRoleOrRoleBindingResource)
                             .map(r -> {
@@ -132,7 +132,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
                                 adminClient.resource(r).createOr(EditReplacePatchable::patch);
                             });
                 }
-                catch (FileNotFoundException e) {
+                catch (IOException e) {
                     throw new UncheckedIOException("failed to install cluster resources " + resourceFile, e);
                 }
             });
