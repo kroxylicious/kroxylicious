@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.fabric8.kubernetes.api.model.KubernetesResource;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
 /**
  * A reference, used in a kubernetes resource, to a KafkaProxy resource in the same namespace.
@@ -31,7 +31,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
         @io.sundr.builder.annotations.BuildableReference(io.fabric8.kubernetes.api.model.VolumeMount.class)
 })
 public class FilterRef
-        extends LocalRef<KafkaProxy>
+        extends LocalRef<KafkaProtocolFilter>
         implements io.fabric8.kubernetes.api.builder.Editable<FilterRefBuilder>,
         KubernetesResource {
 

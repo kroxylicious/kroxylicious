@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Map;
 
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -31,7 +32,11 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP.Protocol.TCP;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -46,6 +51,7 @@ class VirtualKafkaClusterReconcilerIT {
     private static final String CLUSTER_BAR = "bar-cluster";
     private static final String INGRESS_D = "ingress-d";
     private static final String SERVICE_H = "service-h";
+    private static final String FILTER_K = "service-k";
 
     private KubernetesClient client;
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
@@ -68,6 +74,7 @@ class VirtualKafkaClusterReconcilerIT {
             .withAdditionalCustomResourceDefinition(KafkaProxy.class)
             .withAdditionalCustomResourceDefinition(KafkaProxyIngress.class)
             .withAdditionalCustomResourceDefinition(KafkaService.class)
+            .withAdditionalCustomResourceDefinition(KafkaProtocolFilter.class)
             .waitForNamespaceDeletion(true)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
@@ -79,13 +86,28 @@ class VirtualKafkaClusterReconcilerIT {
     }
 
     @Test
+    void shouldResolveWhenClusterCreatedAfterReferents() {
+        // Given
+        extension.create(kafkaProxy(PROXY_A));
+        extension.create(clusterIpIngress(INGRESS_D, PROXY_A));
+        extension.create(kafkaService(SERVICE_H));
+        extension.create(filter(FILTER_K));
+
+        // When
+        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
+
+        // Then
+        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
+    }
+
+    @Test
     void shouldNotResolveWhileProxyInitiallyAbsent() {
         // Given
         extension.create(clusterIpIngress(INGRESS_D, PROXY_A));
         extension.create(kafkaService(SERVICE_H));
 
         // When
-        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H));
+        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
@@ -98,14 +120,58 @@ class VirtualKafkaClusterReconcilerIT {
     }
 
     @Test
-    void shouldResolveWhenProxyInitiallyPresent() {
+    void shouldNotResolveWhileServiceInitiallyAbsent() {
+        // Given
+        extension.create(clusterIpIngress(INGRESS_D, PROXY_A));
+        extension.create(kafkaProxy(PROXY_A));
+
+        // When
+        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
+
+        // Then
+        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
+
+        // And When
+        extension.create(kafkaService(SERVICE_H));
+
+        // Then
+        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
+    }
+
+    @Test
+    void shouldNotResolveWhileIngressInitiallyAbsent() {
+        // Given
+        extension.create(kafkaProxy(PROXY_A));
+        extension.create(kafkaService(SERVICE_H));
+
+        // When
+        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
+
+        // Then
+        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
+
+        // And When
+        extension.create(clusterIpIngress(INGRESS_D, PROXY_A));
+
+        // Then
+        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
+    }
+
+    @Test
+    void shouldNotResolveWhileFilterInitiallyAbsent() {
         // Given
         extension.create(kafkaProxy(PROXY_A));
         extension.create(clusterIpIngress(INGRESS_D, PROXY_A));
         extension.create(kafkaService(SERVICE_H));
 
         // When
-        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H));
+        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
+
+        // Then
+        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
+
+        // And When
+        extension.create(filter(FILTER_K));
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
@@ -117,7 +183,8 @@ class VirtualKafkaClusterReconcilerIT {
         KafkaProxy proxy = extension.create(kafkaProxy(PROXY_A));
         extension.create(clusterIpIngress(INGRESS_D, PROXY_A));
         extension.create(kafkaService(SERVICE_H));
-        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H));
+        extension.create(filter(FILTER_K));
+        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
 
         // When
@@ -127,25 +194,47 @@ class VirtualKafkaClusterReconcilerIT {
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
     }
 
-    private VirtualKafkaCluster cluster(String clusterName, String proxyName, String ingressName, String serviceName) {
+    @Test
+    void shouldNotResolveWhenFilterDeleted() {
+        // Given
+        extension.create(kafkaProxy(PROXY_A));
+        extension.create(clusterIpIngress(INGRESS_D, PROXY_A));
+        extension.create(kafkaService(SERVICE_H));
+        var filter = extension.create(filter(FILTER_K));
+        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
+        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
+
+        // When
+        extension.delete(filter);
+
+        // Then
+        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
+    }
+
+    private VirtualKafkaCluster cluster(String clusterName, String proxyName, String ingressName, String serviceName, @Nullable String filterName) {
         // @formatter:off
-        return new VirtualKafkaClusterBuilder()
+        var specBuilder = new VirtualKafkaClusterBuilder()
                 .withNewMetadata()
                     .withName(clusterName)
                 .endMetadata()
                 .withNewSpec()
-                    .withNewProxyRef()
-                        .withName(proxyName)
-                    .endProxyRef()
-                    .addNewIngressRef()
-                        .withName(ingressName)
-                    .endIngressRef()
-                    .withNewTargetKafkaServiceRef()
-                        .withName(serviceName)
-                    .endTargetKafkaServiceRef()
-                .endSpec()
-                .build();
+                .withNewProxyRef()
+                    .withName(proxyName)
+                .endProxyRef()
+                .addNewIngressRef()
+                    .withName(ingressName)
+                .endIngressRef()
+                .withNewTargetKafkaServiceRef()
+                    .withName(serviceName)
+                .endTargetKafkaServiceRef();
+        if (filterName != null) {
+            // filters are optional
+            specBuilder.addNewFilterRef()
+                    .withName(filterName)
+                .endFilterRef();
+        }
         // @formatter:on
+        return specBuilder.endSpec().build();
     }
 
     private void assertClusterStatusResolvedRefs(VirtualKafkaCluster cr, Condition.Status conditionStatus) {
@@ -199,6 +288,20 @@ class VirtualKafkaClusterReconcilerIT {
                 .endMetadata()
                 .editOrNewSpec()
                 .withBootstrapServers("foo.bootstrap:9090")
+                .endSpec()
+                .build();
+        // @formatter:on
+    }
+
+    private static KafkaProtocolFilter filter(String name) {
+        // @formatter:off
+        return new KafkaProtocolFilterBuilder()
+                .withNewMetadata()
+                .withName(name)
+                .endMetadata()
+                .editOrNewSpec()
+                .withType("com.example.Filter")
+                .withConfigTemplate(Map.of())
                 .endSpec()
                 .build();
         // @formatter:on
