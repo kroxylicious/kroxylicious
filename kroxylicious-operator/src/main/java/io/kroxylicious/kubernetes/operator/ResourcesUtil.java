@@ -31,6 +31,8 @@ import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.client.CustomResource;
+import io.fabric8.kubernetes.model.annotation.Group;
+import io.fabric8.kubernetes.model.annotation.Singular;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
@@ -204,8 +206,8 @@ public class ResourcesUtil {
                 .stream();
     }
 
-    static <T> boolean isReferent(LocalRef<T> ref, HasMetadata proxy) {
-        return Objects.equals(ResourcesUtil.name(proxy), ref.getName());
+    static <T> boolean isReferent(LocalRef<T> ref, HasMetadata resource) {
+        return Objects.equals(ResourcesUtil.name(resource), ref.getName());
     }
 
     /**
@@ -219,6 +221,13 @@ public class ResourcesUtil {
     @NonNull
     static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefAsResourceId(O owner, LocalRef<R> ref) {
         return Set.of(new ResourceID(ref.getName(), owner.getMetadata().getNamespace()));
+    }
+
+    @NonNull
+    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefsAsResourceIds(O owner, Optional<List<? extends LocalRef<R>>> refs) {
+        return refs.orElse(List.of()).stream()
+                .map(ref -> new ResourceID(ref.getName(), owner.getMetadata().getNamespace()))
+                .collect(Collectors.toSet());
     }
 
     /**
@@ -241,6 +250,18 @@ public class ResourcesUtil {
                 referent,
                 owner,
                 primary -> ResourcesUtil.isReferent(refAccessor.apply(primary), referent));
+    }
+
+    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers2(EventSourceContext<?> context,
+                                                                                         R referent,
+                                                                                         Class<O> owner,
+                                                                                         Function<O, List<? extends LocalRef<R>>> refAccessor) {
+        return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
+                referent,
+                owner,
+                primary -> {
+                    return refAccessor.apply(primary).stream().anyMatch(ref -> ResourcesUtil.isReferent(ref, referent));
+                });
     }
 
     static List<Condition> maybeAddOrUpdateCondition(List<Condition> conditions, Condition condition) {
@@ -420,6 +441,21 @@ public class ResourcesUtil {
                                          HasMetadata observedGenerationSource,
                                          Exception e) {
         return newUnknownCondition(clock, observedGenerationSource, Condition.Type.ResolvedRefs, e);
+    }
+
+    static String slug(String singular, String group, String name) {
+        return singular + "." + group + "/" + name;
+    }
+
+    static String slug(Class<? extends CustomResource> annotatedCrdClass, String crName) {
+        return slug(
+                annotatedCrdClass.getAnnotation(Singular.class).value(),
+                annotatedCrdClass.getAnnotation(Group.class).value(),
+                crName);
+    }
+
+    static String slug(CustomResource resource) {
+        return slug(resource.getSingular(), resource.getGroup(), name(resource));
     }
 
 }

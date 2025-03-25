@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.api.common;
 
+import java.util.Comparator;
 import java.util.Objects;
 
 /**
@@ -13,7 +14,11 @@ import java.util.Objects;
  * Two LocalRefs are equal iff they have the same group, kind and name (they don't need to have the same class)
  * @param <T> The Java type of the resource
  */
-public abstract class LocalRef<T> {
+public abstract class LocalRef<T> implements Comparable<LocalRef<T>> {
+
+    public static final Comparator<LocalRef<?>> COMPARATOR = Comparator.<LocalRef<?>, String> comparing(LocalRef::getKind)
+            .thenComparing(LocalRef::getGroup)
+            .thenComparing(LocalRef::getName);
 
     public abstract String getGroup();
 
@@ -39,5 +44,10 @@ public abstract class LocalRef<T> {
         return Objects.equals(getGroup(), other.getGroup())
                 && Objects.equals(getKind(), other.getKind())
                 && Objects.equals(getName(), other.getName());
+    }
+
+    @Override
+    public int compareTo(LocalRef<T> o) {
+        return COMPARATOR.compare(this, o);
     }
 }
