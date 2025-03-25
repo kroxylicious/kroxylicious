@@ -75,16 +75,31 @@ jobs:
       - name: 'Build & unit test Kroxylicious maven project'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn -B verify -DskipITs -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED}
-      - name: 'Build Kroxylicious Image on Minikube'
         run: |
           GIT_HASH="$(git rev-parse HEAD)"
           IMAGE_TAG="dev-git-${GIT_HASH}"
           KROXYLICIOUS_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)"
           KROXYLICIOUS_IMAGE="quay.io/kroxylicious/kroxylicious:${IMAGE_TAG}"
-          minikube image build . -f Dockerfile -t ${KROXYLICIOUS_IMAGE} --build-opt=build-arg=KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION}"
+          echo "KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}" >> "$GITHUB_ENV"
           # KROXYLICIOUS_IMAGE env var is used by the Operator ITs
-          echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> $GITHUB_ENV
+          echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_ENV"
+          mvn -B verify -DskipITs -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED}
+      - name: 'Set up Docker Buildx'
+        uses: docker/setup-buildx-action@v3
+      - name: 'Build tagged Docker image'
+        uses: docker/build-push-action@v6
+        with:
+          file: Dockerfile
+          context: .
+          build-args:
+            KROXYLICIOUS_VERSION=${{ env.KROXYLICIOUS_VERSION }}
+          tags: ${{ env.KROXYLICIOUS_IMAGE }}
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          load: 'true'
+      - name: 'Build Kroxylicious Image on Minikube'
+        run: minikube image load  ${{ env.KROXYLICIOUS_IMAGE }}
       - name: 'Run integration tests'
         if: github.ref_name != 'main' || env.SONAR_TOKEN_SET != 'true'
         env:
