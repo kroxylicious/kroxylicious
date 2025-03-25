@@ -117,7 +117,7 @@ jobs:
           path: "." # Optional.
           pattern: "*.sh" # Optional.
           level: "error"
-          fail_on_error: "true"
+          fail_level: "error"
           exclude: |
             "./.git/*" 
             "**/target"
