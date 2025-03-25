@@ -64,41 +64,41 @@ public final class VirtualKafkaClusterReconciler implements
 
     @Override
     public UpdateControl<VirtualKafkaCluster> reconcile(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
-        var existingProxies = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME).stream()
-                .map(ResourcesUtil::toLocalRef)
-                .collect(Collectors.toSet());
+        var existingProxies = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME);
         TreeSet<LocalRef<KafkaProxy>> missingProxies = Optional.ofNullable(cluster.getSpec())
                 .map(VirtualKafkaClusterSpec::getProxyRef)
                 .stream()
                 .collect(Collectors.toCollection(TreeSet::new));
-        missingProxies.removeAll(existingProxies);
-
-        var existingServices = context.getSecondaryResource(KafkaService.class, SERVICES_EVENT_SOURCE_NAME).stream()
+        missingProxies.removeAll(existingProxies.stream()
                 .map(ResourcesUtil::toLocalRef)
-                .collect(Collectors.toSet());
+                .toList());
+
+        var existingServices = context.getSecondaryResource(KafkaService.class, SERVICES_EVENT_SOURCE_NAME);
         TreeSet<LocalRef<KafkaService>> missingServices = Optional.ofNullable(cluster.getSpec())
                 .map(VirtualKafkaClusterSpec::getTargetKafkaServiceRef)
                 .stream()
                 .collect(Collectors.toCollection(TreeSet::new));
-        missingServices.removeAll(existingServices);
-
-        var existingIngresses = context.getSecondaryResourcesAsStream(KafkaProxyIngress.class)
+        missingServices.removeAll(existingServices.stream()
                 .map(ResourcesUtil::toLocalRef)
-                .collect(Collectors.toSet());
+                .toList());
+
+        var existingIngresses = context.getSecondaryResources(KafkaProxyIngress.class);
         TreeSet<LocalRef<KafkaProxyIngress>> missingIngresses = Optional.ofNullable(cluster.getSpec())
                 .map(VirtualKafkaClusterSpec::getIngressRefs)
                 .stream().flatMap(Collection::stream)
                 .collect(Collectors.toCollection(TreeSet::new));
-        missingIngresses.removeAll(existingIngresses);
-
-        var existingFilters = context.getSecondaryResourcesAsStream(KafkaProtocolFilter.class)
+        missingIngresses.removeAll(existingIngresses.stream()
                 .map(ResourcesUtil::toLocalRef)
-                .collect(Collectors.toSet());
+                .toList());
+
+        var existingFilters = context.getSecondaryResources(KafkaProtocolFilter.class);
         TreeSet<LocalRef<KafkaProtocolFilter>> missingFilters = Optional.ofNullable(cluster.getSpec())
                 .map(VirtualKafkaClusterSpec::getFilterRefs)
                 .stream().flatMap(Collection::stream)
                 .collect(Collectors.toCollection(TreeSet::new));
-        missingFilters.removeAll(existingFilters);
+        missingFilters.removeAll(existingFilters.stream()
+                .map(ResourcesUtil::toLocalRef)
+                .toList());
 
         Condition condition;
         if (missingProxies.isEmpty()
