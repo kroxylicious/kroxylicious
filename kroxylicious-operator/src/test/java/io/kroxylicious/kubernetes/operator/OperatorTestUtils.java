@@ -20,7 +20,6 @@ import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -38,31 +37,26 @@ public class OperatorTestUtils {
             .withConnectionTimeout(500)
             .endConfig();
 
-    static @Nullable KubernetesClient kubeClientIfAvailable() {
-        return kubeClientIfAvailable(new KubernetesClientBuilder());
+    static @NonNull KubernetesClient kubeClient() {
+        return kubeClient(new KubernetesClientBuilder());
     }
 
-    static @NonNull KubernetesClient kubeClient() {
-        KubernetesClient kubernetesClient = kubeClientIfAvailable(new KubernetesClientBuilder());
+    static @NonNull KubernetesClient kubeClient(KubernetesClientBuilder kubernetesClientBuilder) {
+        KubernetesClient kubernetesClient = kubernetesClientBuilder.build();
         assertThat(kubernetesClient).isNotNull();
         return kubernetesClient;
     }
 
-    static @Nullable KubernetesClient kubeClientIfAvailable(KubernetesClientBuilder kubernetesClientBuilder) {
-        var client = kubernetesClientBuilder.build();
+    static boolean isKubeClientAvailable() {
+        KubernetesClient result;
+        var client1 = PRESENCE_PROBING_KUBE_CLIENT_BUILD.build();
         try {
-            client.namespaces().list();
-            return client;
+            client1.namespaces().list();
+            return true;
         }
         catch (KubernetesClientException e) {
-            client.close();
-            return null;
-        }
-    }
-
-    static boolean isKubeClientAvailable() {
-        try (var client = kubeClientIfAvailable(PRESENCE_PROBING_KUBE_CLIENT_BUILD)) {
-            return client != null;
+            client1.close();
+            return false;
         }
     }
 

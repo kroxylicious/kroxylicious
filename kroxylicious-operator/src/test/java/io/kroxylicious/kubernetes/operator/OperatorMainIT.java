@@ -59,23 +59,21 @@ class OperatorMainIT {
 
     @BeforeAll
     static void beforeAll() {
-        LocallyRunOperatorExtension.applyCrd(KafkaProtocolFilter.class, OperatorTestUtils.kubeClientIfAvailable());
-        LocallyRunOperatorExtension.applyCrd(KafkaProxy.class, OperatorTestUtils.kubeClientIfAvailable());
-        LocallyRunOperatorExtension.applyCrd(VirtualKafkaCluster.class, OperatorTestUtils.kubeClientIfAvailable());
-        LocallyRunOperatorExtension.applyCrd(KafkaService.class, OperatorTestUtils.kubeClientIfAvailable());
-        LocallyRunOperatorExtension.applyCrd(KafkaProxyIngress.class, OperatorTestUtils.kubeClientIfAvailable());
+        LocallyRunOperatorExtension.applyCrd(KafkaProtocolFilter.class, OperatorTestUtils.kubeClient());
+        LocallyRunOperatorExtension.applyCrd(KafkaProxy.class, OperatorTestUtils.kubeClient());
+        LocallyRunOperatorExtension.applyCrd(VirtualKafkaCluster.class, OperatorTestUtils.kubeClient());
+        LocallyRunOperatorExtension.applyCrd(KafkaService.class, OperatorTestUtils.kubeClient());
+        LocallyRunOperatorExtension.applyCrd(KafkaProxyIngress.class, OperatorTestUtils.kubeClient());
     }
 
     @AfterAll
     static void afterAll() {
-        try (KubernetesClient kubernetesClient = OperatorTestUtils.kubeClientIfAvailable()) {
-            if (kubernetesClient != null) {
-                kubernetesClient.resources(KafkaProtocolFilter.class).delete();
-                kubernetesClient.resources(KafkaProxyIngress.class).delete();
-                kubernetesClient.resources(KafkaProxy.class).delete();
-                kubernetesClient.resources(VirtualKafkaCluster.class).delete();
-                kubernetesClient.resources(KafkaService.class).delete();
-            }
+        try (KubernetesClient kubernetesClient = OperatorTestUtils.kubeClient()) {
+            kubernetesClient.resources(KafkaProtocolFilter.class).delete();
+            kubernetesClient.resources(KafkaProxyIngress.class).delete();
+            kubernetesClient.resources(KafkaProxy.class).delete();
+            kubernetesClient.resources(VirtualKafkaCluster.class).delete();
+            kubernetesClient.resources(KafkaService.class).delete();
         }
     }
 
@@ -88,7 +86,7 @@ class OperatorMainIT {
     @AfterEach
     void afterEach() {
         if (kafkaProxy != null) {
-            final KubernetesClient kubernetesClient = Objects.requireNonNull(OperatorTestUtils.kubeClientIfAvailable());
+            final KubernetesClient kubernetesClient = Objects.requireNonNull(OperatorTestUtils.kubeClient());
             kubernetesClient.resource(kafkaProxy).delete();
             kubernetesClient.resource(clusterRef(CLUSTER_FOO_REF, CLUSTER_FOO_BOOTSTRAP)).delete();
             kubernetesClient.resource(clusterRef(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)).delete();
@@ -235,7 +233,7 @@ class OperatorMainIT {
     }
 
     private KafkaProxy createProxyInstance(KafkaProxyBuilder proxyBuilder) {
-        final KubernetesClient kubernetesClient = Objects.requireNonNull(OperatorTestUtils.kubeClientIfAvailable());
+        final KubernetesClient kubernetesClient = Objects.requireNonNull(OperatorTestUtils.kubeClient());
         kubernetesClient.resource(clusterRef(CLUSTER_FOO_REF, CLUSTER_FOO_BOOTSTRAP)).create();
         kubernetesClient.resource(clusterRef(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)).create();
         return kubernetesClient.resource(proxyBuilder.build()).create();

@@ -13,14 +13,13 @@ import java.util.Map;
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
@@ -45,7 +44,7 @@ import static org.awaitility.Awaitility.await;
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
 class VirtualKafkaClusterReconcilerIT {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyIngressReconcilerIT.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(VirtualKafkaClusterReconcilerIT.class);
 
     private static final String PROXY_A = "proxy-a";
     private static final String CLUSTER_BAR = "bar-cluster";
@@ -53,24 +52,15 @@ class VirtualKafkaClusterReconcilerIT {
     private static final String SERVICE_H = "service-h";
     private static final String FILTER_K = "service-k";
 
-    private KubernetesClient client;
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
-    // the initial operator image pull can take a long time and interfere with the tests
-    @BeforeAll
-    static void preloadOperandImage() {
-        OperatorTestUtils.preloadOperandImage();
-    }
-
-    @BeforeEach
-    void beforeEach() {
-        client = OperatorTestUtils.kubeClient();
-    }
+    @RegisterExtension
+    LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler();
 
     @RegisterExtension
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
             .withReconciler(new VirtualKafkaClusterReconciler(Clock.systemUTC()))
-            .withKubernetesClient(client)
+            .withKubernetesClient(rbacHandler.operatorClient())
             .withAdditionalCustomResourceDefinition(KafkaProxy.class)
             .withAdditionalCustomResourceDefinition(KafkaProxyIngress.class)
             .withAdditionalCustomResourceDefinition(KafkaService.class)
@@ -78,6 +68,14 @@ class VirtualKafkaClusterReconcilerIT {
             .waitForNamespaceDeletion(true)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
+
+    private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(extension);
+
+    // the initial operator image pull can take a long time and interfere with the tests
+    @BeforeAll
+    static void preloadOperandImage() {
+        OperatorTestUtils.preloadOperandImage();
+    }
 
     @AfterEach
     void stopOperator() {
@@ -88,13 +86,13 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldResolveWhenClusterCreatedAfterReferents() {
         // Given
-        extension.create(kafkaProxy(PROXY_A));
-        extension.create(clusterIpIngress(INGRESS_D, PROXY_A));
-        extension.create(kafkaService(SERVICE_H));
-        extension.create(filter(FILTER_K));
+        testActor.create(kafkaProxy(PROXY_A));
+        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
+        testActor.create(kafkaService(SERVICE_H));
+        testActor.create(filter(FILTER_K));
 
         // When
-        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
+        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
@@ -103,17 +101,17 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhileProxyInitiallyAbsent() {
         // Given
-        extension.create(clusterIpIngress(INGRESS_D, PROXY_A));
-        extension.create(kafkaService(SERVICE_H));
+        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
+        testActor.create(kafkaService(SERVICE_H));
 
         // When
-        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
+        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
 
         // And When
-        extension.create(kafkaProxy(PROXY_A));
+        testActor.create(kafkaProxy(PROXY_A));
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
@@ -122,17 +120,17 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhileServiceInitiallyAbsent() {
         // Given
-        extension.create(clusterIpIngress(INGRESS_D, PROXY_A));
-        extension.create(kafkaProxy(PROXY_A));
+        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
+        testActor.create(kafkaProxy(PROXY_A));
 
         // When
-        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
+        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
 
         // And When
-        extension.create(kafkaService(SERVICE_H));
+        testActor.create(kafkaService(SERVICE_H));
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
@@ -141,17 +139,18 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhileIngressInitiallyAbsent() {
         // Given
-        extension.create(kafkaProxy(PROXY_A));
-        extension.create(kafkaService(SERVICE_H));
+        testActor.create(kafkaProxy(PROXY_A));
+        testActor.create(kafkaService(SERVICE_H));
 
         // When
-        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
+        VirtualKafkaCluster resource = cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null);
+        VirtualKafkaCluster clusterBar = testActor.create(resource);
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
 
         // And When
-        extension.create(clusterIpIngress(INGRESS_D, PROXY_A));
+        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
@@ -160,18 +159,18 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhileFilterInitiallyAbsent() {
         // Given
-        extension.create(kafkaProxy(PROXY_A));
-        extension.create(clusterIpIngress(INGRESS_D, PROXY_A));
-        extension.create(kafkaService(SERVICE_H));
+        testActor.create(kafkaProxy(PROXY_A));
+        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
+        testActor.create(kafkaService(SERVICE_H));
 
         // When
-        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
+        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
 
         // And When
-        extension.create(filter(FILTER_K));
+        testActor.create(filter(FILTER_K));
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
@@ -180,15 +179,15 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhenProxyDeleted() {
         // Given
-        KafkaProxy proxy = extension.create(kafkaProxy(PROXY_A));
-        extension.create(clusterIpIngress(INGRESS_D, PROXY_A));
-        extension.create(kafkaService(SERVICE_H));
-        extension.create(filter(FILTER_K));
-        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
+        KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
+        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
+        testActor.create(kafkaService(SERVICE_H));
+        testActor.create(filter(FILTER_K));
+        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
 
         // When
-        extension.delete(proxy);
+        testActor.delete((HasMetadata) proxy);
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
@@ -197,15 +196,15 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhenFilterDeleted() {
         // Given
-        extension.create(kafkaProxy(PROXY_A));
-        extension.create(clusterIpIngress(INGRESS_D, PROXY_A));
-        extension.create(kafkaService(SERVICE_H));
-        var filter = extension.create(filter(FILTER_K));
-        VirtualKafkaCluster clusterBar = extension.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
+        testActor.create(kafkaProxy(PROXY_A));
+        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
+        testActor.create(kafkaService(SERVICE_H));
+        var filter = testActor.create(filter(FILTER_K));
+        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
 
         // When
-        extension.delete(filter);
+        testActor.delete(filter);
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
@@ -239,7 +238,7 @@ class VirtualKafkaClusterReconcilerIT {
 
     private void assertClusterStatusResolvedRefs(VirtualKafkaCluster cr, Condition.Status conditionStatus) {
         AWAIT.alias("ClusterStatusResolvedRefs").untilAsserted(() -> {
-            var vkc = extension.resources(VirtualKafkaCluster.class)
+            var vkc = testActor.resources(VirtualKafkaCluster.class)
                     .withName(ResourcesUtil.name(cr)).get();
             assertThat(vkc.getStatus()).isNotNull();
             VirtualKafkaClusterStatusAssert

@@ -15,7 +15,6 @@ import java.util.Map;
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -26,7 +25,6 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
@@ -47,7 +45,6 @@ class KafkaProtocolFilterReconcilerIT {
     private static final String C = "c";
     private static final String FILTER_ONE = "one";
 
-    private KubernetesClient client;
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
     // the initial operator image pull can take a long time and interfere with the tests
@@ -56,19 +53,20 @@ class KafkaProtocolFilterReconcilerIT {
         OperatorTestUtils.preloadOperandImage();
     }
 
-    @BeforeEach
-    void beforeEach() {
-        client = OperatorTestUtils.kubeClient();
-    }
+    @RegisterExtension
+    LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler();
 
     @RegisterExtension
+    @SuppressWarnings("JUnitMalformedDeclaration") // The beforeAll and beforeEach have the same effect so we can use it as an instance field.
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
             .withReconciler(new KafkaProtocolFilterReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
             .withAdditionalCustomResourceDefinition(KafkaProtocolFilter.class)
-            .withKubernetesClient(client)
+            .withKubernetesClient(rbacHandler.operatorClient())
             .waitForNamespaceDeletion(true)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
+
+    private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(extension);
 
     @AfterEach
     void stopOperator() {
@@ -82,32 +80,32 @@ class KafkaProtocolFilterReconcilerIT {
     }
 
     private KafkaProtocolFilter createFilterFirst() {
-        KafkaProtocolFilter filterOne = extension.create(filter(FILTER_ONE,
+        KafkaProtocolFilter filterOne = testActor.create(filter(FILTER_ONE,
                 "${secret:" + A + ":foo}", "${configmap:" + B + ":foo}"));
         assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced Secrets [a] ConfigMaps [b] not found");
-        extension.create(secret(A));
+        testActor.create(secret(A));
         assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced ConfigMaps [b] not found");
-        extension.create(cm(B));
+        testActor.create(cm(B));
         assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
         return filterOne;
     }
 
     @Test
     void shouldEventuallyResolveWhenASecretCreatedFirst() {
-        extension.create(secret(A));
-        KafkaProtocolFilter filterOne = extension.create(filter(FILTER_ONE,
+        testActor.create(secret(A));
+        KafkaProtocolFilter filterOne = testActor.create(filter(FILTER_ONE,
                 "${secret:" + A + ":foo}", "${secret:" + B + ":foo}"));
         assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced Secrets [b] not found");
-        extension.create(secret(B));
+        testActor.create(secret(B));
         assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
     }
 
     @Test
     void shouldEventuallyResolveWhenAllSecretsCreatedFirst() {
-        extension.create(secret(A));
-        extension.create(secret(B));
-        extension.create(secret(C));
-        KafkaProtocolFilter filterOne = extension.create(filter(FILTER_ONE,
+        testActor.create(secret(A));
+        testActor.create(secret(B));
+        testActor.create(secret(C));
+        KafkaProtocolFilter filterOne = testActor.create(filter(FILTER_ONE,
                 "${secret:" + A + ":foo}",
                 "${secret:" + B + ":foo}"));
         assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
@@ -115,10 +113,10 @@ class KafkaProtocolFilterReconcilerIT {
 
     @Test
     void shouldEventuallyResolveWhenSecretsAndConfigMapsFirst() {
-        extension.create(secret(A));
-        extension.create(cm(B));
-        extension.create(secret(C));
-        KafkaProtocolFilter filterOne = extension.create(filter(FILTER_ONE,
+        testActor.create(secret(A));
+        testActor.create(cm(B));
+        testActor.create(secret(C));
+        KafkaProtocolFilter filterOne = testActor.create(filter(FILTER_ONE,
                 "${secret:" + A + ":foo}",
                 "${configmap:" + B + ":foo}"));
         assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
@@ -128,11 +126,11 @@ class KafkaProtocolFilterReconcilerIT {
     void shouldUpdateStatusOnFilterModify() {
         shouldEventuallyResolveWhenFilterCreatedFirst();
 
-        KafkaProtocolFilter filterOne = extension.replace(filter(FILTER_ONE,
+        KafkaProtocolFilter filterOne = testActor.replace(filter(FILTER_ONE,
                 "${secret:" + C + ":foo}", "${configmap:" + B + ":foo}"));
         assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced Secrets [c] not found");
 
-        extension.create(secret(C));
+        testActor.create(secret(C));
         assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
     }
 
@@ -140,7 +138,7 @@ class KafkaProtocolFilterReconcilerIT {
     void shouldUpdateStatusOnSecretModify() {
         var filterOne = createFilterFirst();
 
-        extension.resources(Secret.class).withName(A).edit(secret -> secret.edit()
+        testActor.resources(Secret.class).withName(A).edit(secret -> secret.edit()
                 .addToData("baz", Base64.getEncoder().encodeToString("".getBytes(StandardCharsets.UTF_8)))
                 .build());
         assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
@@ -150,7 +148,7 @@ class KafkaProtocolFilterReconcilerIT {
     void shouldUpdateStatusOnSecretDelete() {
         var filterOne = createFilterFirst();
 
-        extension.delete(secret(A));
+        testActor.delete(secret(A));
         assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced Secrets [a] not found");
     }
 
@@ -158,7 +156,7 @@ class KafkaProtocolFilterReconcilerIT {
     void shouldUpdateStatusOnConfigMapDelete() {
         var filterOne = createFilterFirst();
 
-        extension.delete(cm(B));
+        testActor.delete(cm(B));
         assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced ConfigMaps [b] not found");
     }
 
@@ -183,7 +181,7 @@ class KafkaProtocolFilterReconcilerIT {
                                           Condition.Status conditionStatus,
                                           String message) {
         AWAIT.alias("FilterStatusResolvedRefs").untilAsserted(() -> {
-            var kpf = extension.resources(KafkaProtocolFilter.class)
+            var kpf = testActor.resources(KafkaProtocolFilter.class)
                     .withName(ResourcesUtil.name(cr)).get();
             assertThat(kpf.getStatus()).isNotNull();
             KafkaProtocolFilterStatusAssert
