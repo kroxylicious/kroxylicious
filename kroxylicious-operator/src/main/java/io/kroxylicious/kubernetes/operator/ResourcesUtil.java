@@ -270,9 +270,7 @@ public class ResourcesUtil {
         return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
                 referent,
                 owner,
-                primary -> {
-                    return refAccessor.apply(primary).stream().anyMatch(ref -> ResourcesUtil.isReferent(ref, referent));
-                });
+                primary -> refAccessor.apply(primary).stream().anyMatch(ref -> ResourcesUtil.isReferent(ref, referent)));
     }
 
     static List<Condition> maybeAddOrUpdateCondition(List<Condition> conditions, Condition condition) {
@@ -458,15 +456,11 @@ public class ResourcesUtil {
         return singular + "." + group + "/" + name;
     }
 
-    static String slug(Class<? extends CustomResource> annotatedCrdClass, String crName) {
+    static String slug(Class<? extends CustomResource<?, ?>> annotatedCrdClass, String crName) {
         return slug(
                 annotatedCrdClass.getAnnotation(Singular.class).value(),
                 annotatedCrdClass.getAnnotation(Group.class).value(),
                 crName);
-    }
-
-    static String slug(CustomResource resource) {
-        return slug(resource.getSingular(), resource.getGroup(), name(resource));
     }
 
 }

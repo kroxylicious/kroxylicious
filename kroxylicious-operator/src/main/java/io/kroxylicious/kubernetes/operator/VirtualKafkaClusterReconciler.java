@@ -11,6 +11,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -31,10 +32,13 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -55,6 +59,8 @@ public final class VirtualKafkaClusterReconciler implements
     public static final String SERVICES_EVENT_SOURCE_NAME = "services";
     public static final String INGRESSES_EVENT_SOURCE_NAME = "ingresses";
     public static final String FILTERS_EVENT_SOURCE_NAME = "filters";
+    public static final String TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND = "TransitivelyReferencedResourcesNotFound";
+    public static final String REFERENCED_RESOURCES_NOT_FOUND = "ReferencedResourcesNotFound";
 
     private final Clock clock;
 
@@ -64,7 +70,7 @@ public final class VirtualKafkaClusterReconciler implements
 
     @Override
     public UpdateControl<VirtualKafkaCluster> reconcile(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
-        var existingProxies = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME);
+        var existingProxies = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME).stream().collect(Collectors.toSet());
         TreeSet<LocalRef<KafkaProxy>> missingProxies = Optional.ofNullable(cluster.getSpec())
                 .map(VirtualKafkaClusterSpec::getProxyRef)
                 .stream()
@@ -73,7 +79,7 @@ public final class VirtualKafkaClusterReconciler implements
                 .map(ResourcesUtil::toLocalRef)
                 .toList());
 
-        var existingServices = context.getSecondaryResource(KafkaService.class, SERVICES_EVENT_SOURCE_NAME);
+        var existingServices = context.getSecondaryResource(KafkaService.class, SERVICES_EVENT_SOURCE_NAME).stream().collect(Collectors.toSet());
         TreeSet<LocalRef<KafkaService>> missingServices = Optional.ofNullable(cluster.getSpec())
                 .map(VirtualKafkaClusterSpec::getTargetKafkaServiceRef)
                 .stream()
@@ -105,18 +111,44 @@ public final class VirtualKafkaClusterReconciler implements
                 && missingServices.isEmpty()
                 && missingIngresses.isEmpty()
                 && missingFilters.isEmpty()) {
-            condition = ResourcesUtil.newResolvedRefsTrue(clock, cluster);
+            var unresolvedServices = existingServices.stream()
+                    .filter(ks -> hasAnyResolvedRefsFalse(Optional.ofNullable(ks.getStatus()).map(KafkaServiceStatus::getConditions).orElse(List.of())))
+                    .map(ResourcesUtil::toLocalRef)
+                    .collect(Collectors.toCollection(TreeSet::new));
+            var unresolvedIngresses = existingIngresses.stream()
+                    .filter(kafkaProxyIngress -> hasAnyResolvedRefsFalse(
+                            Optional.ofNullable(kafkaProxyIngress.getStatus()).map(KafkaProxyIngressStatus::getConditions).orElse(List.of())))
+                    .map(ResourcesUtil::toLocalRef)
+                    .collect(Collectors.toCollection(TreeSet::new));
+            var unresolvedFilters = existingFilters.stream()
+                    .filter(kpf -> hasAnyResolvedRefsFalse(Optional.ofNullable(kpf.getStatus()).map(KafkaProtocolFilterStatus::getConditions).orElse(List.of())))
+                    .map(ResourcesUtil::toLocalRef)
+                    .collect(Collectors.toCollection(TreeSet::new));
+            if (unresolvedServices.isEmpty()
+                    && unresolvedIngresses.isEmpty()
+                    && unresolvedFilters.isEmpty()) {
+                condition = ResourcesUtil.newResolvedRefsTrue(clock, cluster);
+            }
+            else {
+                Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", KafkaService.class, unresolvedServices);
+                Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", KafkaProxyIngress.class, unresolvedIngresses);
+                Stream<String> filterMsg = refsMessage("spec.filterRefs references ", KafkaProtocolFilter.class, unresolvedFilters);
+                condition = ResourcesUtil.newResolvedRefsFalse(clock,
+                        cluster,
+                        TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND,
+                        joiningMessages(serviceMsg, ingressMsg, filterMsg));
+            }
         }
         else {
-            Stream<String> proxyMsg = getMissingProxy("spec.proxyRef references ", KafkaProxy.class, missingProxies);
-            Stream<String> serviceMsg = getMissingProxy("spec.targetKafkaServiceRef references ", KafkaService.class, missingServices);
-            Stream<String> ingressMsg = getMissingProxy("spec.ingressRefs references ", KafkaProxyIngress.class, missingIngresses);
-            Stream<String> filterMsg = getMissingProxy("spec.filterRefs references ", KafkaProtocolFilter.class, missingFilters);
+            Stream<String> proxyMsg = refsMessage("spec.proxyRef references ", KafkaProxy.class, missingProxies);
+            Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", KafkaService.class, missingServices);
+            Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", KafkaProxyIngress.class, missingIngresses);
+            Stream<String> filterMsg = refsMessage("spec.filterRefs references ", KafkaProtocolFilter.class, missingFilters);
 
             condition = ResourcesUtil.newResolvedRefsFalse(clock,
                     cluster,
-                    "ReferencedResourcesNotFound",
-                    Stream.concat(Stream.concat(Stream.concat(proxyMsg, serviceMsg), ingressMsg), filterMsg).collect(Collectors.joining("; ")));
+                    REFERENCED_RESOURCES_NOT_FOUND,
+                    joiningMessages(proxyMsg, serviceMsg, ingressMsg, filterMsg));
         }
 
         UpdateControl<VirtualKafkaCluster> uc = UpdateControl.patchStatus(ResourcesUtil.patchWithCondition(cluster, condition));
@@ -127,10 +159,22 @@ public final class VirtualKafkaClusterReconciler implements
     }
 
     @NonNull
-    private static <R extends CustomResource<?, ?>> Stream<String> getMissingProxy(
-                                                                                   String prefix,
-                                                                                   Class<R> crdClass,
-                                                                                   TreeSet<? extends LocalRef<R>> refs) {
+    private static String joiningMessages(
+                                          Stream<String>... serviceMsg) {
+        return Stream.of(serviceMsg).flatMap(Function.identity()).collect(Collectors.joining("; "));
+    }
+
+    private static boolean hasAnyResolvedRefsFalse(List<Condition> conditions) {
+        return conditions.stream()
+                .anyMatch(c -> Condition.Type.ResolvedRefs.equals(c.getType())
+                        && Condition.Status.FALSE.equals(c.getStatus()));
+    }
+
+    @NonNull
+    private static <R extends CustomResource<?, ?>> Stream<String> refsMessage(
+                                                                               String prefix,
+                                                                               Class<R> crdClass,
+                                                                               TreeSet<? extends LocalRef<R>> refs) {
         return refs.isEmpty() ? Stream.of()
                 : Stream.of(
                         prefix + refs.stream()
