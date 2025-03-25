@@ -47,6 +47,7 @@ import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
 import static org.apache.kafka.common.protocol.ApiKeys.SHARE_ACKNOWLEDGE;
 import static org.apache.kafka.common.protocol.ApiKeys.SHARE_FETCH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 @ExtendWith(NettyLeakDetectorExtension.class)
 public class ProxyRpcTest {
@@ -117,7 +118,7 @@ public class ProxyRpcTest {
             }
             Request expectedAtMock = createRequestDefinition(apiAndVersion, expected, request);
             ResponsePayload responseJson = createResponseDefinition(apiAndVersion, response);
-            return Arguments.argumentSet(apiKeys.name, responseJson, clientRequest, expectedAtMock, responseJson);
+            return argumentSet(apiAndVersion.keys().name() + "@v" + apiAndVersion.apiVersion(), responseJson, clientRequest, expectedAtMock, responseJson);
         });
     }
 
