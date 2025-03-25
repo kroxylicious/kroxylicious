@@ -31,6 +31,7 @@ rules:
       - "kroxylicious.io"
     resources:
       - kafkaproxies/status
+      - virtualkafkaclusters/status
       - kafkaservices/status
       - kafkaproxyingresses/status
     verbs:

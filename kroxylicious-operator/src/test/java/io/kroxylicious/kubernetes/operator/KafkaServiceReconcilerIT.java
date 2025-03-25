@@ -33,6 +33,7 @@ class KafkaServiceReconcilerIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceReconcilerIT.class);
     private static final String UPDATED_BOOTSTRAP = "bar.bootstrap:9090";
+    public static final String SERVICE_A = "service-a";
 
     private KubernetesClient client;
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
@@ -60,8 +61,7 @@ class KafkaServiceReconcilerIT {
     @Test
     void shouldAcceptKafkaService() {
         // Given
-        final KafkaService kafkaService = extension.create(new KafkaServiceBuilder().withNewMetadata().withName("mycoolkafkaservice").endMetadata().editOrNewSpec()
-                .withBootstrapServers("foo.bootstrap:9090").endSpec().build());
+        final KafkaService kafkaService = extension.create(kafkaService(SERVICE_A));
         final KafkaService updated = kafkaService.edit().editSpec().withBootstrapServers(UPDATED_BOOTSTRAP).endSpec().build();
 
         // When
@@ -69,7 +69,7 @@ class KafkaServiceReconcilerIT {
 
         // Then
         AWAIT.untilAsserted(() -> {
-            final KafkaService mycoolkafkaservice = extension.get(KafkaService.class, "mycoolkafkaservice");
+            final KafkaService mycoolkafkaservice = extension.get(KafkaService.class, SERVICE_A);
             Assertions.assertThat(mycoolkafkaservice.getSpec().getBootstrapServers()).isEqualTo(UPDATED_BOOTSTRAP);
             assertThat(mycoolkafkaservice.getStatus())
                     .isNotNull()
@@ -84,16 +84,29 @@ class KafkaServiceReconcilerIT {
         // Given
 
         // When
-        extension.create(new KafkaServiceBuilder().withNewMetadata().withName("mycoolkafkaservice").endMetadata().build());
+        extension.create(new KafkaServiceBuilder().withNewMetadata().withName(SERVICE_A).endMetadata().build());
 
         // Then
         AWAIT.untilAsserted(() -> {
-            final KafkaService mycoolkafkaservice = extension.get(KafkaService.class, "mycoolkafkaservice");
+            final KafkaService mycoolkafkaservice = extension.get(KafkaService.class, SERVICE_A);
             assertThat(mycoolkafkaservice.getStatus())
                     .isNotNull()
                     .singleCondition()
                     .hasObservedGenerationInSyncWithMetadataOf(mycoolkafkaservice)
                     .isAcceptedTrue();
         });
+    }
+
+    private static KafkaService kafkaService(String name) {
+        // @formatter:off
+        return new KafkaServiceBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                .endMetadata()
+                .editOrNewSpec()
+                    .withBootstrapServers("foo.bootstrap:9090")
+                .endSpec()
+                .build();
+        // @formatter:on
     }
 }

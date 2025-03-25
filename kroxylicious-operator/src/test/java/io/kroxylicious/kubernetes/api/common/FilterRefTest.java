@@ -25,4 +25,22 @@ class FilterRefTest {
         assertThat(filterRefFoo).hasSameHashCodeAs(anyFoo);
     }
 
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @Test
+    void shouldCompareEqualAnyRefWithSameCoordinates() {
+        LocalRef refFoo = new FilterRefBuilder().withName("foo").build();
+        LocalRef anyFoo = new AnyLocalRefBuilder().withName("foo").withKind(refFoo.getKind()).withGroup(refFoo.getGroup()).build();
+        assertThat(refFoo).isEqualByComparingTo(anyFoo);
+        assertThat(anyFoo).isEqualByComparingTo(refFoo);
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    @Test
+    void shouldCompareLessThatAnyRefWithSameCoordinates() {
+        LocalRef refFoo = new FilterRefBuilder().withName("foo").build();
+        LocalRef anyFoo = new AnyLocalRefBuilder().withName("fooa").withKind(refFoo.getKind()).withGroup(refFoo.getGroup()).build();
+        assertThat(refFoo).isLessThan(anyFoo);
+        assertThat(anyFoo).isGreaterThan(refFoo);
+    }
+
 }
