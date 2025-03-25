@@ -252,10 +252,21 @@ public class ResourcesUtil {
                 primary -> ResourcesUtil.isReferent(refAccessor.apply(primary), referent));
     }
 
-    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers2(EventSourceContext<?> context,
-                                                                                         R referent,
-                                                                                         Class<O> owner,
-                                                                                         Function<O, List<? extends LocalRef<R>>> refAccessor) {
+    /**
+     * Like {@link #findReferrers(EventSourceContext, HasMetadata, Class, Function)}
+     * except for the case where the owner is able to reference multiple referents (i.e. {@code refAccessor} returns a Collection.
+     * @param context The context
+     * @param referent The potential referent
+     * @param owner The type of the owner of the reference
+     * @param refAccessor A function which returns the references from a given owner.
+     * @return The ids of reference owners which refer to the referent.
+     * @param <O> The type of the reference owner
+     * @param <R> The type of the referent
+     */
+    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrersMulti(EventSourceContext<?> context,
+                                                                                             R referent,
+                                                                                             Class<O> owner,
+                                                                                             Function<O, Collection<? extends LocalRef<R>>> refAccessor) {
         return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
                 referent,
                 owner,

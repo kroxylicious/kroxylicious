@@ -41,6 +41,12 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
+/**
+ * Reconciles a {@link VirtualKafkaCluster} by checking whether the resources
+ * referenced by the {@code spec.proxyRef.name}, {@code spec.targetClusterRef.name},
+ * {@code spec.ingressRefs[].name} and {@code spec.filterRefs[].name} actually exist,
+ * setting a {@link Condition.Type#ResolvedRefs} {@link Condition} accordingly.
+ */
 public final class VirtualKafkaClusterReconciler implements
         Reconciler<VirtualKafkaCluster> {
 
@@ -61,7 +67,7 @@ public final class VirtualKafkaClusterReconciler implements
         var existingProxies = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME).stream()
                 .map(ResourcesUtil::toLocalRef)
                 .collect(Collectors.toSet());
-        var missingProxies = Optional.ofNullable(cluster.getSpec())
+        TreeSet<LocalRef<KafkaProxy>> missingProxies = Optional.ofNullable(cluster.getSpec())
                 .map(VirtualKafkaClusterSpec::getProxyRef)
                 .stream()
                 .collect(Collectors.toCollection(TreeSet::new));
@@ -70,7 +76,7 @@ public final class VirtualKafkaClusterReconciler implements
         var existingServices = context.getSecondaryResource(KafkaService.class, SERVICES_EVENT_SOURCE_NAME).stream()
                 .map(ResourcesUtil::toLocalRef)
                 .collect(Collectors.toSet());
-        var missingServices = Optional.ofNullable(cluster.getSpec())
+        TreeSet<LocalRef<KafkaService>> missingServices = Optional.ofNullable(cluster.getSpec())
                 .map(VirtualKafkaClusterSpec::getTargetKafkaServiceRef)
                 .stream()
                 .collect(Collectors.toCollection(TreeSet::new));
@@ -79,7 +85,7 @@ public final class VirtualKafkaClusterReconciler implements
         var existingIngresses = context.getSecondaryResourcesAsStream(KafkaProxyIngress.class)
                 .map(ResourcesUtil::toLocalRef)
                 .collect(Collectors.toSet());
-        var missingIngresses = Optional.ofNullable(cluster.getSpec())
+        TreeSet<LocalRef<KafkaProxyIngress>> missingIngresses = Optional.ofNullable(cluster.getSpec())
                 .map(VirtualKafkaClusterSpec::getIngressRefs)
                 .stream().flatMap(Collection::stream)
                 .collect(Collectors.toCollection(TreeSet::new));
@@ -88,7 +94,7 @@ public final class VirtualKafkaClusterReconciler implements
         var existingFilters = context.getSecondaryResourcesAsStream(KafkaProtocolFilter.class)
                 .map(ResourcesUtil::toLocalRef)
                 .collect(Collectors.toSet());
-        var missingFilters = Optional.ofNullable(cluster.getSpec())
+        TreeSet<LocalRef<KafkaProtocolFilter>> missingFilters = Optional.ofNullable(cluster.getSpec())
                 .map(VirtualKafkaClusterSpec::getFilterRefs)
                 .stream().flatMap(Collection::stream)
                 .collect(Collectors.toCollection(TreeSet::new));
@@ -122,9 +128,9 @@ public final class VirtualKafkaClusterReconciler implements
 
     @NonNull
     private static <R extends CustomResource<?, ?>> Stream<String> getMissingProxy(
-                                                  String prefix,
-                                                  Class<R> crdClass,
-                                                  TreeSet<? extends LocalRef<R>> refs) {
+                                                                                   String prefix,
+                                                                                   Class<R> crdClass,
+                                                                                   TreeSet<? extends LocalRef<R>> refs) {
         return refs.isEmpty() ? Stream.of()
                 : Stream.of(
                         prefix + refs.stream()
@@ -151,8 +157,8 @@ public final class VirtualKafkaClusterReconciler implements
                 .withName(SERVICES_EVENT_SOURCE_NAME)
                 .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefAsResourceId(cluster,
                         cluster.getSpec().getTargetKafkaServiceRef()))
-                .withSecondaryToPrimaryMapper(filter -> ResourcesUtil.findReferrers(context,
-                        filter,
+                .withSecondaryToPrimaryMapper(service -> ResourcesUtil.findReferrers(context,
+                        service,
                         VirtualKafkaCluster.class,
                         cluster -> cluster.getSpec().getTargetKafkaServiceRef()))
                 .build();
@@ -163,8 +169,8 @@ public final class VirtualKafkaClusterReconciler implements
                 .withName(INGRESSES_EVENT_SOURCE_NAME)
                 .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefsAsResourceIds(cluster,
                         Optional.ofNullable(cluster.getSpec()).map(VirtualKafkaClusterSpec::getIngressRefs)))
-                .withSecondaryToPrimaryMapper(filter -> ResourcesUtil.findReferrers2(context,
-                        filter,
+                .withSecondaryToPrimaryMapper(ingress -> ResourcesUtil.findReferrersMulti(context,
+                        ingress,
                         VirtualKafkaCluster.class,
                         cluster -> cluster.getSpec().getIngressRefs()))
                 .build();
@@ -175,7 +181,7 @@ public final class VirtualKafkaClusterReconciler implements
                 .withName(FILTERS_EVENT_SOURCE_NAME)
                 .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefsAsResourceIds(cluster,
                         Optional.ofNullable(cluster.getSpec()).map(VirtualKafkaClusterSpec::getFilterRefs)))
-                .withSecondaryToPrimaryMapper(filter -> ResourcesUtil.findReferrers2(context,
+                .withSecondaryToPrimaryMapper(filter -> ResourcesUtil.findReferrersMulti(context,
                         filter,
                         VirtualKafkaCluster.class,
                         cluster -> cluster.getSpec().getFilterRefs()))
