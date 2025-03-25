@@ -67,7 +67,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     // @formatter:off
     private final ClusterRole frameworkClusterRole = new ClusterRoleBuilder()
             .withNewMetadata()
-                .withName("frameowork-cluster-role")
+                .withName("framework-cluster-role")
             .endMetadata()
             .addNewRule()
                 .addToApiGroups("")
@@ -85,7 +85,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     // @formatter:off
     private final ClusterRoleBinding frameworkClusterRoleBinding = new ClusterRoleBindingBuilder()
             .withNewMetadata()
-                .withName("frameowork-cluster-role-binding")
+                .withName("framework-cluster-role-binding")
             .endMetadata()
             .withNewRoleRef()
                 .withName(frameworkClusterRole.getMetadata().getName())
