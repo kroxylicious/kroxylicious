@@ -36,6 +36,7 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
     @Override
     public Stream<TestTemplateInvocationContext> provideTestTemplateInvocationContexts(ExtensionContext context) {
         return TestKmsFacadeFactory.getTestKmsFacadeFactories()
+                .filter(x -> x.getClass().getName().contains("systemtests"))
                 .map(TestKmsFacadeFactory::build)
                 .map(TestKubeKmsFacadeInvocationContextProvider.TemplateInvocationContext::new);
     }
