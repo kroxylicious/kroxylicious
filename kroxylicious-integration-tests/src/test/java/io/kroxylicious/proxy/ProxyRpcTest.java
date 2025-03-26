@@ -18,7 +18,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -49,7 +49,6 @@ import static org.apache.kafka.common.protocol.ApiKeys.SHARE_FETCH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
-@ExtendWith(NettyLeakDetectorExtension.class)
 public class ProxyRpcTest {
     private static MockServerKroxyliciousTester mockTester;
 
@@ -58,6 +57,9 @@ public class ProxyRpcTest {
      * FIND_COORDINATOR, METADATA, DESCRIBE_CLUSTER, kroxylicious takes charge of rewriting these responses itself.
      */
     private static final Set<ApiKeys> SKIPPED_API_KEYS = Set.of(API_VERSIONS, FIND_COORDINATOR, METADATA, DESCRIBE_CLUSTER, SHARE_ACKNOWLEDGE, SHARE_FETCH);
+
+    @RegisterExtension
+    static NettyLeakDetectorExtension nettyLeakDetectorExtension = new NettyLeakDetectorExtension(false, true, false, true);
 
     @BeforeAll
     public static void beforeAll() {
