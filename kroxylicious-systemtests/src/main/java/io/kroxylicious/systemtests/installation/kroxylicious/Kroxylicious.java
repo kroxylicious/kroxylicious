@@ -6,7 +6,11 @@
 
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
+import java.io.File;
 import java.time.Duration;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,6 +24,7 @@ import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousDeploymentTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousServiceTemplates;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
@@ -44,11 +49,6 @@ public class Kroxylicious {
         this.containerImage = kroxyUrl + Environment.KROXY_VERSION;
     }
 
-    private void createDefaultConfigMap(String clusterName) {
-        LOGGER.info("Deploy Kroxylicious default config Map without filters in {} namespace", deploymentNamespace);
-        resourceManager.createResourceWithWait(KroxyliciousConfigMapTemplates.defaultKroxyliciousConfig(clusterName, deploymentNamespace).build());
-    }
-
     private void createRecordEncryptionFilterConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
         LOGGER.info("Deploy Kroxylicious config Map with record encryption filter in {} namespace", deploymentNamespace);
         resourceManager
@@ -64,13 +64,10 @@ public class Kroxylicious {
     }
 
     /**
-     * Deploy - Port per broker plain with no filters config
-     * @param clusterName the cluster name
-     * @param replicas the replicas
+     * Deploy - Port Identifies Node with no filters config
      */
-    public void deployPortPerBrokerPlainWithNoFilters(String clusterName, int replicas) {
-        createDefaultConfigMap(clusterName);
-        deployPortPerBrokerPlain(replicas);
+    public void deployPortIdentifiesNodeWithNoFilters() {
+        deployKroxyliciousExample(Constants.PATH_TO_OPERATOR_SIMPLE_FILES);
     }
 
     /**
@@ -98,6 +95,41 @@ public class Kroxylicious {
     }
 
     /**
+     * Gets bootstrap.
+     *
+     * @param serviceNamePrefix the service name prefix
+     * @return the bootstrap
+     */
+    public String getBootstrap(String serviceNamePrefix) {
+        String serviceName = kubeClient().getServiceNameByPrefix(deploymentNamespace, serviceNamePrefix);
+        String clusterIP = kubeClient().getService(deploymentNamespace, serviceName).getSpec().getClusterIP();
+        if (clusterIP == null || clusterIP.isEmpty()) {
+            throw new KubeClusterException("Unable to get the clusterIP of Kroxylicious");
+        }
+        String bootstrap = clusterIP + ":9292";
+        LOGGER.debug("Kroxylicious bootstrap: {}", bootstrap);
+        return bootstrap;
+    }
+
+    /**
+     * Deploy kroxylicious example.
+     *
+     * @param path the path
+     */
+    public void deployKroxyliciousExample(String path) {
+        LOGGER.info("Deploying Kroxylicious from path {}", path);
+        DeploymentUtils.deployYamlFiles(deploymentNamespace, getExampleFiles(path));
+    }
+
+    private static List<File> getExampleFiles(String examplePath) {
+        return Arrays.stream(Objects.requireNonNull(new File(examplePath).listFiles()))
+                .sorted()
+                .filter(File::isFile)
+                .filter(file -> file.getName().endsWith(".yaml"))
+                .toList();
+    }
+
+    /**
      * Gets number of replicas.
      *
      * @return the number of replicas
@@ -105,21 +137,6 @@ public class Kroxylicious {
     public int getNumberOfReplicas() {
         LOGGER.info("Getting number of replicas..");
         return kubeClient().getDeployment(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME).getStatus().getReplicas();
-    }
-
-    /**
-     * Get bootstrap
-     *
-     * @return the bootstrap
-     */
-    public String getBootstrap() {
-        String clusterIP = kubeClient().getService(deploymentNamespace, Constants.KROXY_SERVICE_NAME).getSpec().getClusterIP();
-        if (clusterIP == null || clusterIP.isEmpty()) {
-            throw new KubeClusterException("Unable to get the clusterIP of Kroxylicious");
-        }
-        String bootstrap = clusterIP + ":9292";
-        LOGGER.debug("Kroxylicious bootstrap: {}", bootstrap);
-        return bootstrap;
     }
 
     /**

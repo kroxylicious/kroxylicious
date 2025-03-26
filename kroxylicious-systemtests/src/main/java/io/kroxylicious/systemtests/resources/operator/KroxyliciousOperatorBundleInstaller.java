@@ -23,7 +23,6 @@ import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.platform.commons.PreconditionViolationException;
 
-import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -36,7 +35,7 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
-import io.kroxylicious.systemtests.utils.NamespaceUtils;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -90,26 +89,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     }
 
     private void applyClusterOperatorInstallFiles(String namespaceName) {
-        for (File operatorFile : getFilteredOperatorFiles(Predicate.not(deploymentFiles))) {
-            final String resourceType = operatorFile.getName().split("\\.")[1];
-
-            if (resourceType.equals(Constants.NAMESPACE)) {
-                Namespace namespace = TestFrameUtils.configFromYaml(operatorFile, Namespace.class);
-                if (!NamespaceUtils.isNamespaceCreated(namespace.getMetadata().getName())) {
-                    kubeClient().getClient().resource(namespace).create();
-                }
-            }
-            else {
-                try {
-                    kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath()))
-                            .inNamespace(namespaceName)
-                            .create();
-                }
-                catch (FileNotFoundException e) {
-                    throw new UncheckedIOException(e);
-                }
-            }
-        }
+        DeploymentUtils.deployYamlFiles(namespaceName, getFilteredOperatorFiles(Predicate.not(deploymentFiles)));
     }
 
     /**

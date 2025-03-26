@@ -98,7 +98,7 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade);
-        bootstrap = kroxylicious.getBootstrap();
+        bootstrap = kroxylicious.getBootstrap(Constants.KROXY_SERVICE_NAME);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
@@ -130,7 +130,7 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade);
-        bootstrap = kroxylicious.getBootstrap();
+        bootstrap = kroxylicious.getBootstrap(Constants.KROXY_SERVICE_NAME);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
@@ -162,7 +162,7 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade, experimentalKmsConfig);
-        bootstrap = kroxylicious.getBootstrap();
+        bootstrap = kroxylicious.getBootstrap(Constants.KROXY_SERVICE_NAME);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
@@ -229,7 +229,7 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade, experimentalKmsConfig);
-        bootstrap = kroxylicious.getBootstrap();
+        bootstrap = kroxylicious.getBootstrap(Constants.KROXY_SERVICE_NAME);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);

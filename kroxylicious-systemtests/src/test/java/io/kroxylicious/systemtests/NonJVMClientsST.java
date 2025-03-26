@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -22,6 +23,7 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
+import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
@@ -37,9 +39,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 class NonJVMClientsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(NonJVMClientsST.class);
     private final String clusterName = "my-cluster";
+    private final String clusterIpServiceName = clusterName + "-cluster-ip";
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final String MESSAGE = "Hello-world";
     private String bootstrap;
+    private KroxyliciousOperator kroxyliciousOperator;
 
     /**
      * Produce and consume message with kcat.
@@ -176,9 +180,11 @@ class NonJVMClientsST extends AbstractST {
     @BeforeEach
     void setUpBeforeEach(String namespace) {
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
+        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
+        kroxyliciousOperator.deploy();
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
-        bootstrap = kroxylicious.getBootstrap();
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters();
+        bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
@@ -201,5 +207,10 @@ class NonJVMClientsST extends AbstractST {
         resourceManager.createResourceWithWait(
                 KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka, 3).build(),
                 kafka);
+    }
+
+    @AfterEach
+    void cleanUp() {
+        kroxyliciousOperator.delete();
     }
 }
