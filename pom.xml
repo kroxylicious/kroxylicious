@@ -81,7 +81,6 @@
         <test-frame.version>0.10.0</test-frame.version>
         <junit-pioneer.version>2.3.0</junit-pioneer.version>
         <skip-validate-yaml-snippets>true</skip-validate-yaml-snippets>
-        <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
     </properties>
 
     <name>Parent POM</name>
@@ -494,13 +493,6 @@
 
 
     <build>
-        <extensions>
-            <extension>
-                <groupId>kr.motd.maven</groupId>
-                <artifactId>os-maven-plugin</artifactId>
-                <version>${os-maven-plugin.version}</version>
-            </extension>
-        </extensions>
         <!-- Keep alphabetic order -->
         <pluginManagement>
             <plugins>
