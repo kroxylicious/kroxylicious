@@ -15,9 +15,4 @@ public final class TestTags {
      * Tag for test suites that ignores the KAFKA_CLIENT environmental variable.
      */
     public static final String EXTERNAL_KAFKA_CLIENTS = "externalKafkaClients";
-
-    /**
-     * Tag for test suites that test the Kroxylicious operator.
-     */
-    public static final String OPERATOR = "operator";
 }
