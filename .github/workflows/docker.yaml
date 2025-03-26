@@ -53,8 +53,10 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           build-args: |
-            KROXYLICIOUS_VERSION=${{ env.RELEASE_VERSION }} 
+            KROXYLICIOUS_VERSION=${{ env.RELEASE_VERSION }}
           tags: ${{ env.PROXY_IMAGE }}:${{ env.RELEASE_VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Build and maybe push Operator image
         uses: docker/build-push-action@v6
         with:
@@ -65,3 +67,5 @@ jobs:
           build-args: |
             KROXYLICIOUS_VERSION=${{ env.RELEASE_VERSION }}
           tags: ${{ env.OPERATOR_IMAGE }}:${{ env.RELEASE_VERSION }},${{ env.OPERATOR_IMAGE }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
