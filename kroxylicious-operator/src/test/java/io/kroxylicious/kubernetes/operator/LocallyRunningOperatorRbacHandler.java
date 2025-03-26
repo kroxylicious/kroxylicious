@@ -106,15 +106,13 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
                 var files = Files.list(resourceDirectory)) {
             // The test framework itself needs these roles.
             Stream<ClusterRole> frameworkClusterRoles = Stream.of(frameworkClusterRole);
-            Stream<ClusterRole> clusterRoles = Stream.concat(loadClusterRoles(files, adminClient), frameworkClusterRoles);
-
-            this.clusterRoles = clusterRoles.toList();
-            this.clusterRoles.forEach(r -> {
+            clusterRoles = Stream.concat(loadClusterRoles(files, adminClient), frameworkClusterRoles).toList();
+            clusterRoles.forEach(r -> {
                 LOGGER.trace("Creating/patching: {}", name(r));
                 adminClient.resource(r).createOr(EditReplacePatchable::patch);
             });
 
-            this.roleBindings = this.clusterRoles.stream().map(this::bindingForRole).toList();
+            roleBindings = this.clusterRoles.stream().map(this::bindingForRole).toList();
             roleBindings.forEach(roleBinding -> {
                 LOGGER.trace("Creating role binding: {}", name(roleBinding));
                 adminClient.resource(roleBinding).createOr(EditReplacePatchable::patch);
@@ -139,7 +137,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
                 .flatMap(resourceFile -> {
                     try (var resourceInputStream = new FileInputStream(resourceFile.toString())) {
                         var resources = adminClient.load(resourceInputStream).items();
-                        List<ClusterRole> roles = resources.stream().filter(resource -> resource instanceof ClusterRole).map(resource -> (ClusterRole) resource).toList();
+                        List<ClusterRole> roles = resources.stream().filter(ClusterRole.class::isInstance).map(ClusterRole.class::cast).toList();
                         return roles.stream();
                     }
                     catch (IOException e) {
