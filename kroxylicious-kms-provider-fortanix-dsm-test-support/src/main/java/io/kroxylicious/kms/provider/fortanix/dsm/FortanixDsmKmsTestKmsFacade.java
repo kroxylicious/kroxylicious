@@ -69,7 +69,7 @@ import static java.nio.charset.StandardCharsets.UTF_8;
  *     </tr>
  * </table>
  */
-public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, FortanixDsmKmsEdek> {
+class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, FortanixDsmKmsEdek> {
     private static final Logger LOGGER = LoggerFactory.getLogger(FortanixDsmKmsTestKmsFacade.class);
     private static final String TEST_RUN_INSTANCE_ID_METADATA_KEY = "testInstance";
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -103,7 +103,7 @@ public class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String
 
     private ApiKeySessionProvider adminSessionProvider;
 
-    public FortanixDsmKmsTestKmsFacade() {
+    FortanixDsmKmsTestKmsFacade() {
         this(KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT, KROXYLICIOUS_KMS_FORTANIX_API_KEY, KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY);
         if (!isAvailable()) {
             logUnavailabilty();
