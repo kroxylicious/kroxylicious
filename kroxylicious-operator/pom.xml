@@ -101,10 +101,6 @@
             <groupId>io.fabric8</groupId>
             <artifactId>generator-annotations</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-annotations</artifactId>
-        </dependency>
 
         <!-- extraAnnotations requires these additional dependencies -->
         <dependency>
