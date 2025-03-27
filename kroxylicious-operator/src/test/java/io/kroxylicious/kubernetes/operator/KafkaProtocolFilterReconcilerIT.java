@@ -55,8 +55,7 @@ class KafkaProtocolFilterReconcilerIT {
     }
 
     @RegisterExtension
-    LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler(Path.of("install"), "*.ClusterRole.kroxylicious-operator-filter-generic.yaml",
-            "*.ClusterRole.kroxylicious-operator-watched.yaml");
+    LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler(Path.of("install"), "*.ClusterRole.kroxylicious-operator-watched.yaml");
 
     @RegisterExtension
     @SuppressWarnings("JUnitMalformedDeclaration") // The beforeAll and beforeEach have the same effect so we can use it as an instance field.
