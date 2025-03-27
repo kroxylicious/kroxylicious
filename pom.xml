@@ -49,9 +49,9 @@
         <picocli.version>4.7.6</picocli.version>
         <netty.version>4.1.119.Final</netty.version>
         <netty.io_uring.version>0.0.26.Final</netty.io_uring.version>
-        <netty.epoll.classifier>linux-${os.detected.arch}</netty.epoll.classifier>
-        <netty.io_uring.classifier>linux-${os.detected.arch}</netty.io_uring.classifier>
-        <netty.kqueue.classifier>osx-${os.detected.arch}</netty.kqueue.classifier>
+        <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
+        <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
+        <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
         <assertj-core.version>3.27.3</assertj-core.version>
         <mockito.version>5.16.1</mockito.version>
         <micrometer.version>1.14.5</micrometer.version>
@@ -926,6 +926,19 @@
     </distributionManagement>
 
     <profiles>
+        <profile>
+            <id>aarch64</id>
+            <activation>
+                <os>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <netty.epoll.classifier>linux-aarch_64</netty.epoll.classifier>
+                <netty.io_uring.classifier>linux-aarch_64</netty.io_uring.classifier>
+                <netty.kqueue.classifier>osx-aarch_64</netty.kqueue.classifier>
+            </properties>
+        </profile>
         <profile>
             <id>qa</id>
             <activation>
