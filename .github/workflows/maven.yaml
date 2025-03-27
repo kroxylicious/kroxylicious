@@ -96,7 +96,7 @@ jobs:
           tags: ${{ env.KROXYLICIOUS_IMAGE }}
           push: false
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=max,compression=zstd
           load: 'true'
       - name: 'Build Kroxylicious Image on Minikube'
         run: minikube image load  ${{ env.KROXYLICIOUS_IMAGE }}
