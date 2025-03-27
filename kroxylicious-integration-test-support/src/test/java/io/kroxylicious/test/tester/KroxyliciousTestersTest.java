@@ -45,6 +45,8 @@ import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.clients.CloseableConsumer;
 import io.kroxylicious.testing.kafka.clients.CloseableProducer;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+import io.kroxylicious.testing.kafka.junit5ext.Name;
+import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -63,11 +65,12 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 @ExtendWith(KafkaClusterExtension.class)
 class KroxyliciousTestersTest {
 
-    public static final String TOPIC = "example";
+    @Name("underlyingCluster")
+    static KafkaCluster kafkaCluster;
 
     @Test
-    void testAdminMethods(KafkaCluster cluster) throws Exception {
-        try (var tester = kroxyliciousTester(proxy(cluster))) {
+    void testAdminMethods() throws Exception {
+        try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
             assertNotNull(tester.admin().describeCluster().clusterId().get(10, TimeUnit.SECONDS));
             assertNotNull(tester.admin(Map.of()).describeCluster().clusterId().get(10, TimeUnit.SECONDS));
             assertNotNull(tester.admin(DEFAULT_VIRTUAL_CLUSTER, Map.of()).describeCluster().clusterId().get(10, TimeUnit.SECONDS));
@@ -75,9 +78,9 @@ class KroxyliciousTestersTest {
     }
 
     @Test
-    void shouldReturnDifferentInstancesOfAdmin(KafkaCluster cluster) {
+    void shouldReturnDifferentInstancesOfAdmin() {
         // Given
-        try (var tester = kroxyliciousTester(proxy(cluster))) {
+        try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
             // Then
             assertDistinctInstanceOf(tester::admin);
             assertDistinctInstanceOf(() -> tester.admin(DEFAULT_VIRTUAL_CLUSTER));
@@ -87,9 +90,9 @@ class KroxyliciousTestersTest {
     }
 
     @Test
-    void shouldReturnClosableAdmin(KafkaCluster cluster) {
+    void shouldReturnClosableAdmin() {
         // Given
-        try (var tester = kroxyliciousTester(proxy(cluster))) {
+        try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
             // Then
             assertClientIsInstanceOf(CloseableAdmin.class, tester::admin);
             assertClientIsInstanceOf(CloseableAdmin.class, () -> tester.admin(DEFAULT_VIRTUAL_CLUSTER));
@@ -99,9 +102,9 @@ class KroxyliciousTestersTest {
     }
 
     @Test
-    void shouldReturnDifferentInstancesOfProducer(KafkaCluster cluster) {
+    void shouldReturnDifferentInstancesOfProducer() {
         // Given
-        try (var tester = kroxyliciousTester(proxy(cluster))) {
+        try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
             // Then
             assertDistinctInstanceOf(tester::producer);
             assertDistinctInstanceOf(() -> tester.producer(DEFAULT_VIRTUAL_CLUSTER));
@@ -113,9 +116,9 @@ class KroxyliciousTestersTest {
     }
 
     @Test
-    void shouldReturnClosableProducer(KafkaCluster cluster) {
+    void shouldReturnClosableProducer() {
         // Given
-        try (var tester = kroxyliciousTester(proxy(cluster))) {
+        try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
             // Then
             assertClientIsInstanceOf(CloseableProducer.class, tester::producer);
             assertClientIsInstanceOf(CloseableProducer.class, () -> tester.producer(DEFAULT_VIRTUAL_CLUSTER));
@@ -127,9 +130,9 @@ class KroxyliciousTestersTest {
     }
 
     @Test
-    void shouldReturnDifferentInstancesOfConsumer(KafkaCluster cluster) {
+    void shouldReturnDifferentInstancesOfConsumer() {
         // Given
-        try (var tester = kroxyliciousTester(proxy(cluster))) {
+        try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
             assertDistinctInstanceOf(tester::consumer);
             assertDistinctInstanceOf(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER));
             assertDistinctInstanceOf(() -> tester.consumer(Map.of()));
@@ -140,9 +143,9 @@ class KroxyliciousTestersTest {
     }
 
     @Test
-    void shouldReturnClosableConsumer(KafkaCluster cluster) {
+    void shouldReturnClosableConsumer() {
         // Given
-        try (var tester = kroxyliciousTester(proxy(cluster))) {
+        try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
             // Then
             assertClientIsInstanceOf(CloseableConsumer.class, tester::consumer);
             assertClientIsInstanceOf(CloseableConsumer.class, () -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER));
@@ -154,17 +157,19 @@ class KroxyliciousTestersTest {
     }
 
     @Test
-    void testConsumerMethods(KafkaCluster cluster) throws Exception {
-        KafkaProducer<String, String> producer = new KafkaProducer<>(cluster.getKafkaClientConfiguration(), new StringSerializer(), new StringSerializer());
-        producer.send(new ProducerRecord<>(TOPIC, "key", "value")).get(10, TimeUnit.SECONDS);
-        try (var tester = kroxyliciousTester(proxy(cluster))) {
-            withConsumer(tester::consumer, KroxyliciousTestersTest::assertOneRecordConsumedFrom);
-            withConsumer(() -> tester.consumer(randomGroupIdAndEarliestReset()), KroxyliciousTestersTest::assertOneRecordConsumedFrom);
-            withConsumer(() -> tester.consumer(Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()), KroxyliciousTestersTest::assertOneRecordConsumedFrom);
-            withConsumer(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER), KroxyliciousTestersTest::assertOneRecordConsumedFrom);
-            withConsumer(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, randomGroupIdAndEarliestReset()), KroxyliciousTestersTest::assertOneRecordConsumedFrom);
+    void testConsumerMethods(@Name("underlyingCluster") Topic topic) throws Exception {
+        KafkaProducer<String, String> producer = new KafkaProducer<>(kafkaCluster.getKafkaClientConfiguration(), new StringSerializer(), new StringSerializer());
+        String topicName = topic.name();
+        producer.send(new ProducerRecord<>(topicName, "key", "value")).get(10, TimeUnit.SECONDS);
+        try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
+            withConsumer(tester::consumer, consumer -> assertOneRecordConsumedFrom(consumer, topicName));
+            withConsumer(() -> tester.consumer(randomGroupIdAndEarliestReset()), consumer -> assertOneRecordConsumedFrom(consumer, topicName));
+            withConsumer(() -> tester.consumer(Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()),
+                    consumer -> assertOneRecordConsumedFrom(consumer, topicName));
+            withConsumer(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER), consumer -> assertOneRecordConsumedFrom(consumer, topicName));
+            withConsumer(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, randomGroupIdAndEarliestReset()), consumer -> assertOneRecordConsumedFrom(consumer, topicName));
             withConsumer(() -> tester.consumer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), randomGroupIdAndEarliestReset()),
-                    KroxyliciousTestersTest::assertOneRecordConsumedFrom);
+                    consumer -> assertOneRecordConsumedFrom(consumer, topicName));
         }
     }
 
@@ -175,57 +180,58 @@ class KroxyliciousTestersTest {
     }
 
     @Test
-    void testProducerMethods(KafkaCluster cluster) throws Exception {
-        try (var tester = kroxyliciousTester(proxy(cluster))) {
-            send(tester.producer());
-            send(tester.producer(Map.of()));
-            send(tester.producer(Serdes.String(), Serdes.String(), Map.of()));
-            send(tester.producer(DEFAULT_VIRTUAL_CLUSTER));
-            send(tester.producer(DEFAULT_VIRTUAL_CLUSTER, Map.of()));
-            send(tester.producer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), Map.of()));
+    void testProducerMethods(@Name("underlyingCluster") Topic topic) throws Exception {
+        try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
+            String topicName = topic.name();
+            send(tester.producer(), topicName);
+            send(tester.producer(Map.of()), topicName);
+            send(tester.producer(Serdes.String(), Serdes.String(), Map.of()), topicName);
+            send(tester.producer(DEFAULT_VIRTUAL_CLUSTER), topicName);
+            send(tester.producer(DEFAULT_VIRTUAL_CLUSTER, Map.of()), topicName);
+            send(tester.producer(DEFAULT_VIRTUAL_CLUSTER, Serdes.String(), Serdes.String(), Map.of()), topicName);
 
-            HashMap<String, Object> config = new HashMap<>(cluster.getKafkaClientConfiguration());
+            HashMap<String, Object> config = new HashMap<>(kafkaCluster.getKafkaClientConfiguration());
             config.putAll(randomGroupIdAndEarliestReset());
             KafkaConsumer<String, String> consumer = new KafkaConsumer<>(config, new StringDeserializer(), new StringDeserializer());
-            consumer.subscribe(List.of(TOPIC));
+            consumer.subscribe(List.of(topicName));
             int recordCount = consumer.poll(Duration.ofSeconds(10)).count();
             assertEquals(6, recordCount);
         }
     }
 
     @Test
-    void testRestartingProxyDoesNotCloseClients(KafkaCluster cluster) throws Exception {
-        try (var tester = kroxyliciousTester(proxy(cluster))) {
+    void testRestartingProxyDoesNotCloseClients(@Name("underlyingCluster") Topic topic) throws Exception {
+        try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
             var admin = tester.admin();
             var producer = tester.producer();
             var consumer = tester.consumer();
             assertThat(admin.describeCluster()).isNotNull();
-            send(producer);
-            consumer.subscribe(List.of(TOPIC));
+            send(producer, topic.name());
+            consumer.subscribe(List.of(topic.name()));
             assertThat(consumer.poll(Duration.ofSeconds(10))).isNotNull();
             tester.restartProxy();
             // assert some basic things here but if restarting the proxy restarted the clients these would except
             assertThat(admin.describeCluster()).isNotNull();
-            send(producer);
+            send(producer, topic.name());
             assertThat(consumer.poll(Duration.ofSeconds(10))).isNotNull();
         }
     }
 
     @Test
-    void testClosingTesterAlsoClosesClients(KafkaCluster cluster) throws Exception {
-        var tester = kroxyliciousTester(proxy(cluster));
+    void testClosingTesterAlsoClosesClients(@Name("underlyingCluster") Topic topic) throws Exception {
+        var tester = kroxyliciousTester(proxy(kafkaCluster));
         var admin = tester.admin();
         var producer = tester.producer();
         var consumer = tester.consumer();
         assertThat(admin.describeCluster()).isNotNull();
-        send(producer);
-        consumer.subscribe(List.of(TOPIC));
+        send(producer, topic.name());
+        consumer.subscribe(List.of(topic.name()));
         assertThat(consumer.poll(Duration.ofSeconds(10))).isNotNull();
         tester.close();
         // we expect the following to throw an exception, but if it doesn't we fail.
         try {
             admin.describeCluster();
-            send(producer);
+            send(producer, topic.name());
             consumer.poll(Duration.ofSeconds(10));
             fail("No exception was thrown when invoking clients that should be closed");
         }
@@ -235,9 +241,9 @@ class KroxyliciousTestersTest {
     }
 
     @Test
-    void testCanCloseTesterWithClosedClient(KafkaCluster cluster) {
+    void testCanCloseTesterWithClosedClient() {
         try {
-            var tester = kroxyliciousTester(proxy(cluster));
+            var tester = kroxyliciousTester(proxy(kafkaCluster));
             var admin = tester.admin();
             admin.close();
             tester.close();
@@ -280,8 +286,8 @@ class KroxyliciousTestersTest {
     }
 
     @Test
-    void testIllegalToAskForNonExistentVirtualCluster(KafkaCluster cluster) {
-        try (var tester = kroxyliciousTester(proxy(cluster))) {
+    void testIllegalToAskForNonExistentVirtualCluster() {
+        try (var tester = kroxyliciousTester(proxy(kafkaCluster))) {
             assertThrows(IllegalArgumentException.class, () -> tester.simpleTestClient("NON_EXIST"));
             assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST"));
             assertThrows(IllegalArgumentException.class, () -> tester.consumer("NON_EXIST", Map.of()));
@@ -295,8 +301,8 @@ class KroxyliciousTestersTest {
     }
 
     @Test
-    void testIllegalToAskForDefaultClientsWhenVirtualClustersAmbiguous(KafkaCluster cluster) {
-        String clusterBootstrapServers = cluster.getBootstrapServers();
+    void testIllegalToAskForDefaultClientsWhenVirtualClustersAmbiguous() {
+        String clusterBootstrapServers = kafkaCluster.getBootstrapServers();
         ConfigurationBuilder builder = new ConfigurationBuilder();
         ConfigurationBuilder proxy = addVirtualCluster(clusterBootstrapServers, addVirtualCluster(clusterBootstrapServers, builder, "foo",
                 "localhost:9192"), "bar", "localhost:9296");
@@ -353,8 +359,8 @@ class KroxyliciousTestersTest {
         }
     }
 
-    private static void send(Producer<String, String> producer) throws Exception {
-        producer.send(new ProducerRecord<>(TOPIC, "key", "value")).get(10, TimeUnit.SECONDS);
+    private static void send(Producer<String, String> producer, String topicName) throws Exception {
+        producer.send(new ProducerRecord<>(topicName, "key", "value")).get(10, TimeUnit.SECONDS);
     }
 
     @NonNull
@@ -362,8 +368,8 @@ class KroxyliciousTestersTest {
         return Map.of(ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString(), ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     }
 
-    private static void assertOneRecordConsumedFrom(Consumer<String, String> consumer) {
-        consumer.subscribe(List.of(TOPIC));
+    private static void assertOneRecordConsumedFrom(Consumer<String, String> consumer, String topicName) {
+        consumer.subscribe(List.of(topicName));
         ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(10));
         assertEquals(1, records.count());
     }
