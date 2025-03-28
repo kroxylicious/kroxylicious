@@ -6,11 +6,10 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.time.Clock;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import org.junit.jupiter.api.AfterEach;
@@ -33,7 +32,6 @@ import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMap
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRef;
-import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -329,13 +327,8 @@ class KafkaProxyReconcilerTest {
                 .build();
         // @formatter:on
         doReturn(mdrc).when(context).managedWorkflowAndDependentResourceContext();
-        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("my-cluster").withNamespace("my-ns").endMetadata().withNewSpec()
-                .withNewProxyRef()
-                .withName("my-proxy").endProxyRef().endSpec().build();
-        doReturn(Set.of(cluster)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
-        doReturn(Optional.of(Map.of("my-cluster", ClusterCondition.refNotFound(cluster, new FilterRefBuilder().withName("MissingFilter").build())))).when(mdrc).get(
-                SharedKafkaProxyContext.CLUSTER_CONDITIONS_KEY,
-                Map.class);
+        doReturn(Set.of(new VirtualKafkaClusterBuilder().withNewMetadata().withName("my-cluster").withNamespace("my-ns").endMetadata().withNewSpec().withNewProxyRef()
+                .withName("my-proxy").endProxyRef().endSpec().build())).when(context).getSecondaryResources(VirtualKafkaCluster.class);
 
         // When
         var updateControl = newKafkaProxyReconciler().reconcile(primary, context);
@@ -350,18 +343,11 @@ class KafkaProxyReconcilerTest {
                 .isReady()
                 .hasObservedGeneration(generation)
                 .hasLastTransitionTime(time);
-        statusAssert.singleCluster()
-                .nameIsEqualTo("my-cluster")
-                .singleCondition()
-                .isResolvedRefsFalse("Invalid", "Resource kafkaprotocolfilter.filter.kroxylicious.io/MissingFilter in namespace 'my-ns' was not found.")
-                .hasObservedGeneration(generation);
-        // TODO .lastTransitionTimeIsEqualTo(time);
-
     }
 
     @NonNull
     private static KafkaProxyReconciler newKafkaProxyReconciler() {
-        return new KafkaProxyReconciler(SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
+        return new KafkaProxyReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
     }
 
     @Test

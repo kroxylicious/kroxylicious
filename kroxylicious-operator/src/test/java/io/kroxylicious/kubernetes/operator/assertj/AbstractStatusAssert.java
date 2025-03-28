@@ -56,4 +56,17 @@ public abstract class AbstractStatusAssert<A, S extends AbstractStatusAssert<A, 
     public ConditionAssert singleCondition() {
         return conditions().singleElement(AssertFactory.condition());
     }
+
+    public ConditionListAssert conditionList() {
+        var conditions = conditionsAccessor.apply(actual);
+        return ConditionListAssert.assertThat(conditions);
+    }
+
+    public ConditionAssert firstCondition() {
+        return conditions().first(AssertFactory.condition());
+    }
+
+    public ConditionAssert lastCondition() {
+        return conditions().last(AssertFactory.condition());
+    }
 }

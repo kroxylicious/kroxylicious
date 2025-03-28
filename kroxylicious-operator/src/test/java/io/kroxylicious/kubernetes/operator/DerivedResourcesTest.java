@@ -11,6 +11,9 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -249,6 +252,7 @@ class DerivedResourcesTest {
             catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
+            KafkaProxyContext.init(Clock.fixed(Instant.EPOCH, ZoneId.of("Z")), SecureConfigInterpolator.DEFAULT_INTERPOLATOR, kafkaProxy, context);
 
             List<DynamicTest> tests = new ArrayList<>();
 
@@ -273,24 +277,8 @@ class DerivedResourcesTest {
                                 var expected = loadExpected(expectedFile, resourceType);
                                 assertSameYaml(actualResource, expected);
                                 unusedFiles.remove(expectedFile);
+
                             }));
-                }
-                for (var cluster : virtualKafkaClusters) {
-                    ClusterCondition actualClusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
-                    if (actualClusterCondition.type() == Condition.Type.Accepted && actualClusterCondition.status().equals(Condition.Status.TRUE)) {
-                        continue;
-                    }
-                    else {
-                        var expectedFile = testDir.resolve("cond-" + actualClusterCondition.type() + "-" + actualClusterCondition.cluster() + ".yaml");
-                        tests.add(DynamicTest.dynamicTest(
-                                "Condition " + actualClusterCondition.type() + " for cluster " + actualClusterCondition.cluster() + " matches contents of expected file "
-                                        + expectedFile,
-                                () -> {
-                                    var expected = loadExpected(expectedFile, ClusterCondition.class);
-                                    assertSameYaml(actualClusterCondition, expected);
-                                    unusedFiles.remove(expectedFile);
-                                }));
-                    }
                 }
             }
 
@@ -336,7 +324,9 @@ class DerivedResourcesTest {
     }
 
     @NonNull
-    private static Context<KafkaProxy> buildContext(Path testDir, List<VirtualKafkaCluster> virtualKafkaClusters, List<KafkaService> kafkaServiceRefs,
+    private static Context<KafkaProxy> buildContext(Path testDir,
+                                                    List<VirtualKafkaCluster> virtualKafkaClusters,
+                                                    List<KafkaService> kafkaServiceRefs,
                                                     List<KafkaProxyIngress> ingresses)
             throws IOException {
         Answer<?> throwOnUnmockedInvocation = invocation -> {
@@ -347,8 +337,6 @@ class DerivedResourcesTest {
         Context<KafkaProxy> context = mock(Context.class, throwOnUnmockedInvocation);
 
         var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext(null, null, context);
-        resourceContext.put(KafkaProxyReconciler.SEC, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
-
         doReturn(resourceContext).when(context).managedWorkflowAndDependentResourceContext();
 
         Set<KafkaProtocolFilter> filterInstances = new HashSet<>();
@@ -364,6 +352,7 @@ class DerivedResourcesTest {
         doReturn(Set.copyOf(virtualKafkaClusters)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
         doReturn(Set.copyOf(kafkaServiceRefs)).when(context).getSecondaryResources(KafkaService.class);
         doReturn(Set.copyOf(ingresses)).when(context).getSecondaryResources(KafkaProxyIngress.class);
+
         return context;
     }
 

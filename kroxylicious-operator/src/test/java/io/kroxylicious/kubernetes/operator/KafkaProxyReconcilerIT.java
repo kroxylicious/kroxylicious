@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -80,7 +81,7 @@ class KafkaProxyReconcilerIT {
     @RegisterExtension
     @SuppressWarnings("JUnitMalformedDeclaration") // The beforeAll and beforeEach have the same effect so we can use it as an instance field.
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
-            .withReconciler(new KafkaProxyReconciler(SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
+            .withReconciler(new KafkaProxyReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
             .withKubernetesClient(rbacHandler.operatorClient())
             .withAdditionalCustomResourceDefinition(VirtualKafkaCluster.class)
             .withAdditionalCustomResourceDefinition(KafkaService.class)
@@ -102,13 +103,13 @@ class KafkaProxyReconcilerIT {
         doCreate();
     }
 
-    private record CreatedResources(KafkaProxy proxy, Set<VirtualKafkaCluster> clusters, Set<KafkaService> clusterRefs, Set<KafkaProxyIngress> ingresses) {
+    private record CreatedResources(KafkaProxy proxy, Set<VirtualKafkaCluster> clusters, Set<KafkaService> services, Set<KafkaProxyIngress> ingresses) {
         VirtualKafkaCluster cluster(String name) {
             return findOnlyResourceNamed(name, clusters).orElseThrow();
         }
 
-        KafkaService clusterRef(String name) {
-            return findOnlyResourceNamed(name, clusterRefs).orElseThrow();
+        KafkaService kafkaService(String name) {
+            return findOnlyResourceNamed(name, services).orElseThrow();
         }
 
         KafkaProxyIngress ingress(String name) {
@@ -119,16 +120,16 @@ class KafkaProxyReconcilerIT {
     CreatedResources doCreate() {
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
         KafkaProtocolFilter filter = testActor.create(filter(FILTER_NAME));
-        KafkaService barClusterRef = testActor.create(clusterRef(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP));
+        KafkaService barService = testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP));
         KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy));
-        Set<KafkaService> clusterRefs = Set.of(barClusterRef);
-        VirtualKafkaCluster clusterBar = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxy, barClusterRef, ingressBar, filter));
+        Set<KafkaService> kafkaServices = Set.of(barService);
+        VirtualKafkaCluster clusterBar = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxy, barService, ingressBar, filter));
         Set<VirtualKafkaCluster> clusters = Set.of(clusterBar);
         assertProxyConfigContents(proxy, Set.of(CLUSTER_BAR_BOOTSTRAP, filter.getSpec().getType()), Set.of());
         assertDeploymentMountsConfigConfigMap(proxy);
         assertDeploymentBecomesReady(proxy);
         assertServiceTargetsProxyInstances(proxy, clusterBar, ingressBar);
-        return new CreatedResources(proxy, clusters, clusterRefs, Set.of(ingressBar));
+        return new CreatedResources(proxy, clusters, kafkaServices, Set.of(ingressBar));
     }
 
     private KafkaProxyIngress clusterIpIngress(String ingressName, KafkaProxy proxy) {
@@ -212,8 +213,8 @@ class KafkaProxyReconcilerIT {
     void testUpdateVirtualClusterTargetBootstrap() {
         final var createdResources = doCreate();
         KafkaProxy proxy = createdResources.proxy;
-        var clusterRef = createdResources.clusterRef(CLUSTER_BAR_REF).edit().editSpec().withBootstrapServers(NEW_BOOTSTRAP).endSpec().build();
-        testActor.replace(clusterRef);
+        var kafkaService = createdResources.kafkaService(CLUSTER_BAR_REF).edit().editSpec().withBootstrapServers(NEW_BOOTSTRAP).endSpec().build();
+        testActor.replace(kafkaService);
 
         assertDeploymentBecomesReady(proxy);
         AWAIT.untilAsserted(() -> {
@@ -232,7 +233,7 @@ class KafkaProxyReconcilerIT {
         KafkaProxy proxy = createdResources.proxy;
 
         String newClusterRefName = "new-cluster-ref";
-        testActor.create(clusterRef(newClusterRefName, NEW_BOOTSTRAP));
+        testActor.create(kafkaService(newClusterRefName, NEW_BOOTSTRAP));
 
         KafkaServiceRef newClusterRef = new KafkaServiceRefBuilder().withName(newClusterRefName).build();
         var cluster = createdResources.cluster(CLUSTER_BAR).edit().editSpec().withTargetKafkaServiceRef(newClusterRef).endSpec().build();
@@ -272,25 +273,27 @@ class KafkaProxyReconcilerIT {
         KafkaProxyIngress ingressFoo = testActor.create(clusterIpIngress(CLUSTER_FOO_CLUSTERIP_INGRESS, proxyA));
         KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxyB));
 
-        KafkaService fooClusterRef = testActor.create(clusterRef(CLUSTER_FOO_REF, CLUSTER_FOO_BOOTSTRAP));
-        KafkaService barClusterRef = testActor.create(clusterRef(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP));
+        KafkaService fooService = testActor.create(kafkaService(CLUSTER_FOO_REF, CLUSTER_FOO_BOOTSTRAP));
+        KafkaService barService = testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP));
         KafkaProtocolFilter filter = testActor.create(filter(FILTER_NAME));
 
-        VirtualKafkaCluster clusterFoo = testActor.create(virtualKafkaCluster(CLUSTER_FOO, proxyA, fooClusterRef, ingressFoo, filter));
-        VirtualKafkaCluster barCluster = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxyB, barClusterRef, ingressBar, filter));
+        VirtualKafkaCluster fooCluster = testActor.create(virtualKafkaCluster(CLUSTER_FOO, proxyA, fooService, ingressFoo, filter));
+        VirtualKafkaCluster barCluster = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxyB, barService, ingressBar, filter));
 
         assertProxyConfigContents(proxyA, Set.of(CLUSTER_FOO_BOOTSTRAP), Set.of());
         assertProxyConfigContents(proxyB, Set.of(CLUSTER_BAR_BOOTSTRAP), Set.of());
-        assertServiceTargetsProxyInstances(proxyA, clusterFoo, ingressFoo);
+        assertServiceTargetsProxyInstances(proxyA, fooCluster, ingressFoo);
         assertServiceTargetsProxyInstances(proxyB, barCluster, ingressBar);
 
         // must swap ingresses so both proxy instances have a single port-per-broker ingress
         testActor.replace(clusterIpIngress(CLUSTER_FOO_CLUSTERIP_INGRESS, proxyB));
         testActor.replace(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxyA));
-        var updatedFooCluster = new VirtualKafkaClusterBuilder(clusterFoo).editSpec().editProxyRef().withName(name(proxyB)).endProxyRef().endSpec()
+        var updatedFooCluster = new VirtualKafkaClusterBuilder(testActor.get(VirtualKafkaCluster.class, CLUSTER_FOO)).editSpec().editProxyRef().withName(name(proxyB))
+                .endProxyRef().endSpec()
                 .build();
         testActor.replace(updatedFooCluster);
-        var updatedBarCluster = new VirtualKafkaClusterBuilder(barCluster).editSpec().editProxyRef().withName(name(proxyA)).endProxyRef().endSpec()
+        var updatedBarCluster = new VirtualKafkaClusterBuilder(testActor.get(VirtualKafkaCluster.class, CLUSTER_BAR)).editSpec().editProxyRef().withName(name(proxyA))
+                .endProxyRef().endSpec()
                 .build();
         testActor.replace(updatedBarCluster);
 
@@ -300,7 +303,7 @@ class KafkaProxyReconcilerIT {
         assertProxyConfigContents(proxyA, Set.of(CLUSTER_BAR_BOOTSTRAP), Set.of(CLUSTER_FOO_BOOTSTRAP));
         assertProxyConfigContents(proxyB, Set.of(CLUSTER_FOO_BOOTSTRAP), Set.of(CLUSTER_BAR_BOOTSTRAP));
         assertServiceTargetsProxyInstances(proxyA, barCluster, ingressBar);
-        assertServiceTargetsProxyInstances(proxyB, clusterFoo, ingressFoo);
+        assertServiceTargetsProxyInstances(proxyB, fooCluster, ingressFoo);
     }
 
     private AbstractStringAssert<?> assertThatProxyConfigFor(KafkaProxy proxy) {
@@ -308,23 +311,23 @@ class KafkaProxyReconcilerIT {
         return assertThat(configMap)
                 .isNotNull()
                 .extracting(ConfigMap::getData, InstanceOfAssertFactories.map(String.class, String.class))
-                .containsKey(ProxyConfigConfigMap.CONFIG_YAML_KEY)
-                .extracting(map -> map.get(ProxyConfigConfigMap.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING);
+                .containsKey(ProxyConfigData.CONFIG_YAML_KEY)
+                .extracting(map -> map.get(ProxyConfigData.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING);
     }
 
-    private static VirtualKafkaCluster virtualKafkaCluster(String clusterName, KafkaProxy proxy, KafkaService clusterRef,
+    private static VirtualKafkaCluster virtualKafkaCluster(String clusterName, KafkaProxy proxy, KafkaService service,
                                                            KafkaProxyIngress ingress, KafkaProtocolFilter filter) {
         return new VirtualKafkaClusterBuilder().withNewMetadata().withName(clusterName).endMetadata()
                 .withNewSpec()
-                .withTargetKafkaServiceRef(new KafkaServiceRefBuilder().withName(name(clusterRef)).build())
+                .withTargetKafkaServiceRef(new KafkaServiceRefBuilder().withName(name(service)).build())
                 .withNewProxyRef().withName(name(proxy)).endProxyRef()
                 .addNewIngressRef().withName(name(ingress)).endIngressRef()
                 .withFilterRefs().addNewFilterRef().withName(name(filter)).endFilterRef()
                 .endSpec().build();
     }
 
-    private static KafkaService clusterRef(String clusterRefName, String clusterBootstrap) {
-        return new KafkaServiceBuilder().withNewMetadata().withName(clusterRefName).endMetadata()
+    private static KafkaService kafkaService(String serviceName, String clusterBootstrap) {
+        return new KafkaServiceBuilder().withNewMetadata().withName(serviceName).endMetadata()
                 .withNewSpec()
                 .withBootstrapServers(clusterBootstrap)
                 .endSpec().build();
