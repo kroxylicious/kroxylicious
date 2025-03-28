@@ -10,7 +10,7 @@ package io.kroxylicious.kubernetes.api.common;
  * A common Condition type, used in CR statuses.
  */
 @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-@com.fasterxml.jackson.annotation.JsonPropertyOrder({ "lastTransitionTime", "message", "observedGeneration", "reason", "status", "type" })
+@com.fasterxml.jackson.annotation.JsonPropertyOrder({ "observedGeneration", "type", "status", "lastTransitionTime", "reason", "message" })
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 @javax.annotation.processing.Generated("io.fabric8.java.generator.CRGeneratorRunner")
 @lombok.EqualsAndHashCode()
