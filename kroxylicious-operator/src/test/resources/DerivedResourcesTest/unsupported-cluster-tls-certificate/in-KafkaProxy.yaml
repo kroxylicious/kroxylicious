@@ -5,13 +5,8 @@
 #
 
 ---
-kind: KafkaService
+kind: KafkaProxy
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: myref
+  name: minimal
   namespace: proxy-ns
-spec:
-  bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-  tls:
-    certificateRef:
-      name: kafka-secret

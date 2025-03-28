@@ -54,8 +54,12 @@ public class SecureConfigInterpolator {
     private final Path mountPathBase;
 
     public SecureConfigInterpolator(String mountPathBase, Map<String, SecureConfigProvider> providers) {
+        this(Path.of(mountPathBase), providers);
+    }
+
+    public SecureConfigInterpolator(Path mountPathBase, Map<String, SecureConfigProvider> providers) {
         this.providers = providers;
-        this.mountPathBase = Path.of(mountPathBase);
+        this.mountPathBase = mountPathBase;
     }
 
     InterpolationResult interpolate(Object configTemplate) {

@@ -157,6 +157,12 @@
         </dependency>
 
         <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
+            <scope>compile</scope>
+        </dependency>
+
+        <dependency>
             <!-- This dep is because the operator uses the type safe API for generating proxy config
                  it should be replaced with a dependency on some kind of runtime-config-api module -->
             <groupId>io.kroxylicious</groupId>
@@ -346,6 +352,9 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.FilterRefs>
                             io.kroxylicious.kubernetes.api.common.FilterRef
                         </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.FilterRefs>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.CertificateRef>
+                            io.kroxylicious.kubernetes.api.common.AnyLocalRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.CertificateRef>
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions>
                             io.kroxylicious.kubernetes.api.common.Condition
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions>

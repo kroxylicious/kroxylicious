@@ -37,6 +37,7 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
+import io.kroxylicious.kubernetes.api.common.AnyLocalRef;
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
@@ -463,4 +464,10 @@ public class ResourcesUtil {
                 crName);
     }
 
+    public static AnyLocalRef applyDefaults(AnyLocalRef anyLocalRef, String group, String kind) {
+        return new AnyLocalRefBuilder()
+                .withGroup(Optional.ofNullable(anyLocalRef.getGroup()).orElse(group))
+                .withKind(Optional.ofNullable(anyLocalRef.getKind()).orElse(kind))
+                .withName(anyLocalRef.getName()).build();
+    }
 }

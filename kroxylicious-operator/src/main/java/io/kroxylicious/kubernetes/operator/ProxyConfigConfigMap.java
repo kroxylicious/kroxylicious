@@ -7,6 +7,7 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -18,21 +19,26 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
+import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkflowAndDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
+import io.kroxylicious.kubernetes.api.common.AnyLocalRef;
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterSpec;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
@@ -47,6 +53,8 @@ import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
+import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.Tls;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -65,8 +73,12 @@ public class ProxyConfigConfigMap
      */
     public static final String CONFIG_YAML_KEY = "proxy-config.yaml";
 
+    public static final Path SECURE_MOUNTS_PARENT_DIR = Path.of("/opt/kroxylicious/secure");
     public static final String SECURE_VOLUME_KEY = "secure-volumes";
     public static final String SECURE_VOLUME_MOUNT_KEY = "secure-volume-mounts";
+
+    public static final String TARGET_TLS_VOLUME_KEY = "target-tls-volumes";
+    public static final String TARGET_TLS_VOLUME_MOUNT_KEY = "target-tls-volume-mounts";
 
     private static final ObjectMapper OBJECT_MAPPER = ConfigParser.createObjectMapper();
 
@@ -92,18 +104,27 @@ public class ProxyConfigConfigMap
 
     public static List<Volume> secureVolumes(ManagedWorkflowAndDependentResourceContext managedDependentResourceContext) {
         Set<Volume> volumes = managedDependentResourceContext.get(ProxyConfigConfigMap.SECURE_VOLUME_KEY, Set.class).orElse(Set.of());
-        if (volumes.stream().map(Volume::getName).distinct().count() != volumes.size()) {
-            throw new IllegalStateException("Two volumes with different definitions share the same name");
-        }
-        return volumes.stream().toList();
+        Set<Volume> targetTlsVolumes = managedDependentResourceContext.get(ProxyConfigConfigMap.TARGET_TLS_VOLUME_KEY, Set.class).orElse(Set.of());
+        Map<String, List<Volume>> collect = Stream.concat(volumes.stream(), targetTlsVolumes.stream()).collect(Collectors.groupingBy(Volume::getName));
+        collect.entrySet().stream()
+                .filter(entry -> entry.getValue().size() > 1)
+                .findFirst().ifPresent(entry -> {
+                    throw new IllegalStateException("Two volumes with different definitions share the same name: " + entry.getKey());
+                });
+
+        return Stream.concat(volumes.stream(), targetTlsVolumes.stream()).toList();
     }
 
     public static List<VolumeMount> secureVolumeMounts(ManagedWorkflowAndDependentResourceContext managedDependentResourceContext) {
         Set<VolumeMount> mounts = managedDependentResourceContext.get(ProxyConfigConfigMap.SECURE_VOLUME_MOUNT_KEY, Set.class).orElse(Set.of());
-        if (mounts.stream().map(VolumeMount::getMountPath).distinct().count() != mounts.size()) {
-            throw new IllegalStateException("Two volume mounts with different definitions share the same mount path");
-        }
-        return mounts.stream().toList();
+        Set<VolumeMount> targetTlsMounts = managedDependentResourceContext.get(ProxyConfigConfigMap.TARGET_TLS_VOLUME_MOUNT_KEY, Set.class).orElse(Set.of());
+        Map<String, List<VolumeMount>> collect = Stream.concat(mounts.stream(), targetTlsMounts.stream()).collect(Collectors.groupingBy(VolumeMount::getMountPath));
+        collect.entrySet().stream()
+                .filter(entry -> entry.getValue().size() > 1)
+                .findFirst().ifPresent(entry -> {
+                    throw new IllegalStateException("Two volumes with different definitions share the same name: " + entry.getKey());
+                });
+        return Stream.concat(mounts.stream(), targetTlsMounts.stream()).toList();
     }
 
     @Override
@@ -129,7 +150,7 @@ public class ProxyConfigConfigMap
         List<NamedFilterDefinition> allFilterDefinitions = buildFilterDefinitions(context, model);
         Map<String, NamedFilterDefinition> namedDefinitions = allFilterDefinitions.stream().collect(Collectors.toMap(NamedFilterDefinition::name, f -> f));
 
-        var virtualClusters = buildVirtualClusters(namedDefinitions.keySet(), model);
+        var virtualClusters = buildVirtualClusters(context, namedDefinitions.keySet(), model);
 
         List<NamedFilterDefinition> referencedFilters = virtualClusters.stream().flatMap(c -> Optional.ofNullable(c.filters()).stream().flatMap(Collection::stream))
                 .distinct()
@@ -147,11 +168,14 @@ public class ProxyConfigConfigMap
     }
 
     @NonNull
-    private static List<VirtualCluster> buildVirtualClusters(Set<String> successfullyBuiltFilterNames, ProxyModel model) {
+    private static List<VirtualCluster> buildVirtualClusters(Context<KafkaProxy> context,
+                                                             Set<String> successfullyBuiltFilterNames,
+                                                             ProxyModel model) {
         return model.clustersWithValidIngresses().stream()
                 .filter(cluster -> Optional.ofNullable(cluster.getSpec().getFilterRefs()).stream().flatMap(Collection::stream).allMatch(
                         filters -> successfullyBuiltFilterNames.contains(filterDefinitionName(filters))))
-                .map(cluster -> getVirtualCluster(cluster, model.resolutionResult().kafkaServiceRef(cluster).orElseThrow(), model.ingressModel()))
+                .flatMap(cluster -> getVirtualCluster(context,
+                        cluster, model.resolutionResult().kafkaServiceRef(cluster).orElseThrow(), model.ingressModel()).stream())
                 .toList();
     }
 
@@ -226,19 +250,98 @@ public class ProxyConfigConfigMap
         return secureConfigInterpolator.interpolate(configTemplate);
     }
 
-    private static VirtualCluster getVirtualCluster(VirtualKafkaCluster cluster,
-                                                    KafkaService kafkaServiceRef,
-                                                    ProxyIngressModel ingressModel) {
+    private static Optional<VirtualCluster> getVirtualCluster(Context<KafkaProxy> context,
+                                                              VirtualKafkaCluster cluster,
+                                                              KafkaService kafkaService,
+                                                              ProxyIngressModel ingressModel) {
+        try {
+            ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(cluster).orElseThrow();
+            String bootstrap = kafkaService.getSpec().getBootstrapServers();
+            return Optional.of(new VirtualCluster(
+                    ResourcesUtil.name(cluster),
+                    new TargetCluster(bootstrap, buildTargetClusterTls(context, cluster, kafkaService)),
+                    null,
+                    Optional.empty(),
+                    virtualClusterIngressModel.gateways(),
+                    false, false,
+                    filterNamesForCluster(cluster)));
+        }
+        catch (InvalidClusterException e) {
+            SharedKafkaProxyContext.addClusterCondition(context, cluster, e.accepted());
+        }
+        return Optional.empty();
+    }
 
-        ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(cluster).orElseThrow();
-        String bootstrap = kafkaServiceRef.getSpec().getBootstrapServers();
-        return new VirtualCluster(
-                ResourcesUtil.name(cluster), new TargetCluster(bootstrap, Optional.empty()),
-                null,
-                Optional.empty(),
-                virtualClusterIngressModel.gateways(),
-                false, false,
-                filterNamesForCluster(cluster));
+    @NonNull
+    private static Optional<Tls> buildTargetClusterTls(Context<KafkaProxy> context,
+                                                       VirtualKafkaCluster cluster,
+                                                       KafkaService kafkaService) {
+        return Optional.ofNullable(kafkaService.getSpec())
+                .map(KafkaServiceSpec::getTls)
+                .map(io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls::getCertificateRef)
+                .map(certRef -> ResourcesUtil.applyDefaults(certRef, "", "Secret"))
+                .map(certRef -> {
+                    return new Tls(new KeyPair(
+                            virtualClusterTargetTlsKeyPath(context, cluster, certRef).containerPath().toString(),
+                            virtualClusterTargetTlsCertPath(context, cluster, certRef).containerPath().toString(),
+                            null),
+                            null, null, null);
+                });
+    }
+
+    private static ContainerFileReference virtualClusterTargetTlsKeyPath(Context<KafkaProxy> context,
+                                                                         VirtualKafkaCluster cluster,
+                                                                         AnyLocalRef certRef) {
+        return virtualClusterTargetTlsPath(context, cluster, certRef, "tls.key");
+    }
+
+    private static ContainerFileReference virtualClusterTargetTlsCertPath(Context<KafkaProxy> context,
+                                                                          VirtualKafkaCluster cluster,
+                                                                          AnyLocalRef certRef) {
+        return virtualClusterTargetTlsPath(context, cluster, certRef, "tls.crt");
+    }
+
+    private static ContainerFileReference virtualClusterTargetTlsPath(Context<KafkaProxy> context,
+                                                                      VirtualKafkaCluster cluster,
+                                                                      AnyLocalRef certRef,
+                                                                      String file) {
+        if ("Secret".equals(certRef.getKind())
+                && certRef.getGroup().isEmpty()) {
+            // Assume it's compatible with a Secret of `type: kubernetes.io/tls`
+            String other = "vc-target-tls-" + ResourcesUtil.name(cluster);
+            Path volumeMountPath = Path.of("/opt/kroxylicious/cluster")
+                    .resolve(ResourcesUtil.name(cluster))
+                    .resolve("target")
+                    .resolve("tls-key");
+            Volume volume = new VolumeBuilder()
+                    .withName(other)
+                    .withNewSecret()
+                    .withSecretName(certRef.getName())
+                    .addNewItem("tls.key", null, "tls.key")
+                    .addNewItem("tls.crt", null, "tls.crt")
+                    .endSecret()
+                    .build();
+            VolumeMount volumeMount = new VolumeMountBuilder()
+                    .withName(other)
+                    .withMountPath(volumeMountPath.toString())
+                    .withReadOnly(true)
+                    .build();
+            var ctx = context.managedWorkflowAndDependentResourceContext();
+            putOrMerged(ctx, TARGET_TLS_VOLUME_KEY, Set.of(volume));
+            putOrMerged(ctx, TARGET_TLS_VOLUME_MOUNT_KEY, Set.of(volumeMount));
+
+            return new ContainerFileReference(
+                    volume,
+                    volumeMount,
+                    volumeMountPath.resolve(file));
+        }
+        else {
+            throw new InvalidClusterException(ClusterCondition.refNotSupported(
+                    ResourcesUtil.name(cluster),
+                    certRef,
+                    "spec.targetCluster.tls.certificateRef",
+                    "kind: \"Secret\" in group \"\""));
+        }
     }
 
 }
