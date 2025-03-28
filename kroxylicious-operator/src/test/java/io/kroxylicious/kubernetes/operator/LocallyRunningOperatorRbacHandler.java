@@ -20,7 +20,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.AutoClose;
+import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -60,7 +60,7 @@ import static java.util.Objects.requireNonNull;
  * exposed by {@link #testActor(AbstractOperatorExtension)}.
  *
  */
-public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, AfterEachCallback {
+public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, AfterEachCallback, AfterAllCallback {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LocallyRunningOperatorRbacHandler.class);
 
@@ -84,11 +84,6 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     private final String impersonatedUser = UUID.randomUUID().toString();
 
-    @AutoClose
-    private final KubernetesClient operatorClient = OperatorTestUtils.kubeClient(
-            new KubernetesClientBuilder().editOrNewConfig().withImpersonateUsername(impersonatedUser).endConfig());
-
-    @AutoClose
     private final KubernetesClient testActorClient = OperatorTestUtils.kubeClient();
 
     private final List<ClusterRole> clusterRoles;
@@ -194,12 +189,8 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     @NonNull
     public KubernetesClient operatorClient() {
-        return operatorClient;
-    }
-
-    @NonNull
-    public KubernetesClient testActorClient() {
-        return testActorClient;
+        return OperatorTestUtils.kubeClient(
+                new KubernetesClientBuilder().editOrNewConfig().withImpersonateUsername(impersonatedUser).endConfig());
     }
 
     @NonNull
@@ -237,6 +228,11 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
             }
 
         };
+    }
+
+    @Override
+    public void afterAll(ExtensionContext context) throws Exception {
+        testActorClient.close();
     }
 
     public interface TestActor {

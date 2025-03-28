@@ -55,7 +55,7 @@ class VirtualKafkaClusterReconcilerIT {
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
     @RegisterExtension
-    LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler("install", "*.ClusterRole*.yaml");
+    static LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler("install", "*.ClusterRole*.yaml");
 
     @RegisterExtension
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
