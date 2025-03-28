@@ -11,7 +11,7 @@ import io.kroxylicious.systemtests.Constants;
 
 public class KroxyliciousKafkaClusterRefTemplates {
 
-    private KroxyliciousKafkaClusterRefTemplates(){
+    private KroxyliciousKafkaClusterRefTemplates() {
     }
 
     /**

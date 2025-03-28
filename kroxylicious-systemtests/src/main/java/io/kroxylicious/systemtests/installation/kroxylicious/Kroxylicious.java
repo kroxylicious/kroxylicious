@@ -74,8 +74,8 @@ public class Kroxylicious {
         KafkaProxyIngress kafkaProxyIngress = KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressDeployment(deploymentNamespace, "cluster-ip",
                 kafkaProxy).build();
         KafkaService kafkaService = KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefDeployment(deploymentNamespace, clusterName).build();
-        VirtualKafkaCluster virtualKafkaCluster = KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterDeployment(deploymentNamespace
-                , clusterName, kafkaProxy, kafkaService, kafkaProxyIngress).build();
+        VirtualKafkaCluster virtualKafkaCluster = KroxyliciousVirtualKafkaClusterTemplates
+                .defaultVirtualKafkaClusterDeployment(deploymentNamespace, clusterName, kafkaProxy, kafkaService, kafkaProxyIngress).build();
 
         resourceManager.createResourceWithWait(kafkaProxy);
         resourceManager.createResourceWithWait(kafkaProxyIngress);

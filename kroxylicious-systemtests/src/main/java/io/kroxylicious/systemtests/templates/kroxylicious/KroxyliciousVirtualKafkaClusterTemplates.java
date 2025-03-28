@@ -16,7 +16,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 
 public class KroxyliciousVirtualKafkaClusterTemplates {
 
-    private KroxyliciousVirtualKafkaClusterTemplates(){
+    private KroxyliciousVirtualKafkaClusterTemplates() {
     }
 
     /**
@@ -30,7 +30,7 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
      * @return the virtual kafka cluster builder
      */
     public static VirtualKafkaClusterBuilder defaultVirtualKafkaClusterDeployment(String namespaceName, String clusterName, KafkaProxy proxy, KafkaService clusterRef,
-                                                                         KafkaProxyIngress ingress) {
+                                                                                  KafkaProxyIngress ingress) {
         // @formatter:off
         return new VirtualKafkaClusterBuilder()
                 .withNewMetadata()
