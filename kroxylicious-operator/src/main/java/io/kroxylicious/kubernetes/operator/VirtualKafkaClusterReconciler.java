@@ -130,9 +130,9 @@ public final class VirtualKafkaClusterReconciler implements
                 condition = ResourcesUtil.newResolvedRefsTrue(clock, cluster);
             }
             else {
-                Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", KafkaService.class, unresolvedServices);
-                Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", KafkaProxyIngress.class, unresolvedIngresses);
-                Stream<String> filterMsg = refsMessage("spec.filterRefs references ", KafkaProtocolFilter.class, unresolvedFilters);
+                Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", cluster, unresolvedServices);
+                Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", cluster, unresolvedIngresses);
+                Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster, unresolvedFilters);
                 condition = ResourcesUtil.newResolvedRefsFalse(clock,
                         cluster,
                         TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND,
@@ -140,10 +140,10 @@ public final class VirtualKafkaClusterReconciler implements
             }
         }
         else {
-            Stream<String> proxyMsg = refsMessage("spec.proxyRef references ", KafkaProxy.class, missingProxies);
-            Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", KafkaService.class, missingServices);
-            Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", KafkaProxyIngress.class, missingIngresses);
-            Stream<String> filterMsg = refsMessage("spec.filterRefs references ", KafkaProtocolFilter.class, missingFilters);
+            Stream<String> proxyMsg = refsMessage("spec.proxyRef references ", cluster, missingProxies);
+            Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", cluster, missingServices);
+            Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", cluster, missingIngresses);
+            Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster, missingFilters);
 
             condition = ResourcesUtil.newResolvedRefsFalse(clock,
                     cluster,
@@ -173,12 +173,12 @@ public final class VirtualKafkaClusterReconciler implements
     @NonNull
     private static <R extends CustomResource<?, ?>> Stream<String> refsMessage(
                                                                                String prefix,
-                                                                               Class<R> crdClass,
+                                                                               VirtualKafkaCluster cluster,
                                                                                TreeSet<? extends LocalRef<R>> refs) {
         return refs.isEmpty() ? Stream.of()
                 : Stream.of(
                         prefix + refs.stream()
-                                .map(ref -> ResourcesUtil.slug(crdClass, ref.getName()))
+                                .map(ref -> ResourcesUtil.namespacedSlug(ref, cluster))
                                 .collect(Collectors.joining(", ")));
     }
 

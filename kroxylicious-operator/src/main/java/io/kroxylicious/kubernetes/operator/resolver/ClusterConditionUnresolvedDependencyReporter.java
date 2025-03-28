@@ -17,8 +17,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.ClusterCondition;
 import io.kroxylicious.kubernetes.operator.SharedKafkaProxyContext;
 
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
-
 public record ClusterConditionUnresolvedDependencyReporter(Context<KafkaProxy> context) implements UnresolvedDependencyReporter {
 
     @Override
@@ -33,6 +31,6 @@ public record ClusterConditionUnresolvedDependencyReporter(Context<KafkaProxy> c
                 .sorted(comparator).findFirst()
                 .orElseThrow();
         SharedKafkaProxyContext.addClusterCondition(context, cluster,
-                ClusterCondition.refNotFound(name(cluster), firstUnresolvedDependency));
+                ClusterCondition.refNotFound(cluster, firstUnresolvedDependency));
     }
 }

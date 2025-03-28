@@ -9,4 +9,5 @@ cluster: foo
 type: ResolvedRefs
 status: 'False'
 reason: Invalid
-message: "Resource of kind \"KafkaProxyIngress\" in group \"kroxylicious.io\" named \"MISSING\" does not exist."
+message: "Resource kafkaproxyingress.kroxylicious.io/MISSING in namespace 'proxy-ns'\
+    \ was not found."

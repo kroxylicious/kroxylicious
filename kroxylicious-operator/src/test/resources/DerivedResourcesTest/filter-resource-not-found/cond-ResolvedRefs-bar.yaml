@@ -9,5 +9,5 @@ cluster: "bar"
 type: "ResolvedRefs"
 status: "False"
 reason: "Invalid"
-message: "Resource of kind \"KafkaProtocolFilter\" in group \"filter.kroxylicious.io\"\
-    \ named \"missing\" does not exist."
+message: "Resource kafkaprotocolfilter.filter.kroxylicious.io/missing in namespace\
+    \ 'proxy-ns' was not found."
