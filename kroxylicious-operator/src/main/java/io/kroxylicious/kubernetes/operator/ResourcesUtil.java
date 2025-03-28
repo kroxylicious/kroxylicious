@@ -176,6 +176,7 @@ public class ResourcesUtil {
     }
 
     public static String group(HasMetadata resource) {
+        // core CustomResource classes like Secret, Deployment etc. have a group of empty string and their apiVersion is the String 'v1'
         if (!resource.getApiVersion().contains("/")) {
             return "";
         }
@@ -455,13 +456,15 @@ public class ResourcesUtil {
         return newUnknownCondition(clock, observedGenerationSource, Condition.Type.ResolvedRefs, e);
     }
 
-    public static String slug(String singular, String group, String name) {
-        String groupString = group.isEmpty() ? "" : "." + group;
-        return singular + groupString + "/" + name;
+    public static @NonNull String namespacedSlug(LocalRef<?> ref, HasMetadata resource) {
+        return slug(ref) + " in namespace '" + namespace(resource) + "'";
     }
 
-    public static String namespacedSlug(LocalRef<?> ref, HasMetadata resource) {
-        return slug(ref.getKind().toLowerCase(Locale.ROOT), ref.getGroup(), ref.getName()) + " in namespace '" + namespace(resource) + "'";
+    private static @NonNull String slug(LocalRef<?> ref) {
+        String group = ref.getGroup();
+        String name = ref.getName();
+        String groupString = group.isEmpty() ? "" : "." + group;
+        return ref.getKind().toLowerCase(Locale.ROOT) + groupString + "/" + name;
     }
 
 }
