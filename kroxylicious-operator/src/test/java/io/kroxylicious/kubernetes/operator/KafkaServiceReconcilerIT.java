@@ -12,14 +12,12 @@ import java.time.Duration;
 import org.assertj.core.api.Assertions;
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
@@ -35,22 +33,21 @@ class KafkaServiceReconcilerIT {
     private static final String UPDATED_BOOTSTRAP = "bar.bootstrap:9090";
     public static final String SERVICE_A = "service-a";
 
-    private KubernetesClient client;
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
-    @BeforeEach
-    void beforeEach() {
-        client = OperatorTestUtils.kubeClient();
-    }
+    @RegisterExtension
+    static LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler("install", "*.ClusterRole.kroxylicious-operator-watched.yaml");
 
     @SuppressWarnings("JUnitMalformedDeclaration") // The beforeAll and beforeEach have the same effect so we can use it as an instance field.
     @RegisterExtension
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
             .withReconciler(new KafkaServiceReconciler(Clock.systemUTC()))
-            .withKubernetesClient(client)
+            .withKubernetesClient(rbacHandler.operatorClient())
             .waitForNamespaceDeletion(true)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
+
+    private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(extension);
 
     @AfterEach
     void stopOperator() {
@@ -61,15 +58,15 @@ class KafkaServiceReconcilerIT {
     @Test
     void shouldAcceptKafkaService() {
         // Given
-        final KafkaService kafkaService = extension.create(kafkaService(SERVICE_A));
+        final KafkaService kafkaService = testActor.create(kafkaService(SERVICE_A));
         final KafkaService updated = kafkaService.edit().editSpec().withBootstrapServers(UPDATED_BOOTSTRAP).endSpec().build();
 
         // When
-        extension.replace(updated);
+        testActor.replace(updated);
 
         // Then
         AWAIT.untilAsserted(() -> {
-            final KafkaService mycoolkafkaservice = extension.get(KafkaService.class, SERVICE_A);
+            final KafkaService mycoolkafkaservice = testActor.get(KafkaService.class, SERVICE_A);
             Assertions.assertThat(mycoolkafkaservice.getSpec().getBootstrapServers()).isEqualTo(UPDATED_BOOTSTRAP);
             assertThat(mycoolkafkaservice.getStatus())
                     .isNotNull()
@@ -84,11 +81,11 @@ class KafkaServiceReconcilerIT {
         // Given
 
         // When
-        extension.create(new KafkaServiceBuilder().withNewMetadata().withName(SERVICE_A).endMetadata().build());
+        testActor.create(new KafkaServiceBuilder().withNewMetadata().withName(SERVICE_A).endMetadata().build());
 
         // Then
         AWAIT.untilAsserted(() -> {
-            final KafkaService mycoolkafkaservice = extension.get(KafkaService.class, SERVICE_A);
+            final KafkaService mycoolkafkaservice = testActor.get(KafkaService.class, SERVICE_A);
             assertThat(mycoolkafkaservice.getStatus())
                     .isNotNull()
                     .singleCondition()

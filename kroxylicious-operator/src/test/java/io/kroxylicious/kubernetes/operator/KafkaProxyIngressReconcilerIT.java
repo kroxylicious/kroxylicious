@@ -12,14 +12,12 @@ import java.time.Duration;
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.fabric8.kubernetes.client.KubernetesClient;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
@@ -42,7 +40,6 @@ class KafkaProxyIngressReconcilerIT {
     private static final String PROXY_B = "proxy-b";
     private static final String CLUSTER_BAR_CLUSTERIP_INGRESS = "bar-cluster-ip";
 
-    private KubernetesClient client;
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
     // the initial operator image pull can take a long time and interfere with the tests
@@ -51,19 +48,19 @@ class KafkaProxyIngressReconcilerIT {
         OperatorTestUtils.preloadOperandImage();
     }
 
-    @BeforeEach
-    void beforeEach() {
-        client = OperatorTestUtils.kubeClient();
-    }
+    @RegisterExtension
+    static LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler("install", "*.ClusterRole.kroxylicious-operator-watched.yaml");
 
     @RegisterExtension
+    @SuppressWarnings("JUnitMalformedDeclaration") // The beforeAll and beforeEach have the same effect so we can use it as an instance field.
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
             .withReconciler(new KafkaProxyIngressReconciler(Clock.systemUTC()))
-            .withKubernetesClient(client)
+            .withKubernetesClient(rbacHandler.operatorClient())
             .withAdditionalCustomResourceDefinition(KafkaProxy.class)
             .waitForNamespaceDeletion(true)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
+    private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(extension);
 
     @AfterEach
     void stopOperator() {
@@ -73,37 +70,37 @@ class KafkaProxyIngressReconcilerIT {
 
     @Test
     void testCreateIngressFirst() {
-        KafkaProxyIngress ingressBar = extension.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
+        KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
         assertIngressStatusResolvedRefs(ingressBar, Condition.Status.FALSE);
-        extension.create(kafkaProxy(PROXY_A));
+        testActor.create(kafkaProxy(PROXY_A));
         assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
     }
 
     @Test
     void testCreateProxyFirst() {
-        extension.create(kafkaProxy(PROXY_A));
-        KafkaProxyIngress ingressBar = extension.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
+        testActor.create(kafkaProxy(PROXY_A));
+        KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
         assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
     }
 
     @Test
     void testDeleteProxy() {
-        KafkaProxy proxy = extension.create(kafkaProxy(PROXY_A));
-        KafkaProxyIngress ingressBar = extension.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
+        KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
+        KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
         assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
 
-        extension.delete(proxy);
+        testActor.delete(proxy);
         assertIngressStatusResolvedRefs(ingressBar, Condition.Status.FALSE);
     }
 
     @Test
     void testSwitchProxy() {
-        extension.create(kafkaProxy(PROXY_A));
-        extension.create(kafkaProxy(PROXY_B));
-        KafkaProxyIngress ingressBar = extension.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
+        testActor.create(kafkaProxy(PROXY_A));
+        testActor.create(kafkaProxy(PROXY_B));
+        KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
         assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
 
-        extension.replace(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_B));
+        testActor.replace(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_B));
         assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
     }
 
@@ -115,7 +112,7 @@ class KafkaProxyIngressReconcilerIT {
 
     private void assertIngressStatusResolvedRefs(KafkaProxyIngress cr, Condition.Status conditionStatus) {
         AWAIT.alias("IngressStatusResolvedRefs").untilAsserted(() -> {
-            var kpi = extension.resources(KafkaProxyIngress.class)
+            var kpi = testActor.resources(KafkaProxyIngress.class)
                     .withName(ResourcesUtil.name(cr)).get();
             assertThat(kpi.getStatus()).isNotNull();
             KafkaProxyIngressStatusAssert
