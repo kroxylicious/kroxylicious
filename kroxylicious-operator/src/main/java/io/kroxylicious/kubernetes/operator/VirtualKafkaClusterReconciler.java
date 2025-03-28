@@ -18,6 +18,7 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -28,6 +29,7 @@ import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
+import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -56,6 +58,7 @@ public final class VirtualKafkaClusterReconciler implements
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualKafkaClusterReconciler.class);
     public static final String PROXY_EVENT_SOURCE_NAME = "proxy";
+    public static final String PROXY_CONFIG_MAP_EVENT_SOURCE_NAME = "proxy-config-map";
     public static final String SERVICES_EVENT_SOURCE_NAME = "services";
     public static final String INGRESSES_EVENT_SOURCE_NAME = "ingresses";
     public static final String FILTERS_EVENT_SOURCE_NAME = "filters";
@@ -127,7 +130,14 @@ public final class VirtualKafkaClusterReconciler implements
             if (unresolvedServices.isEmpty()
                     && unresolvedIngresses.isEmpty()
                     && unresolvedFilters.isEmpty()) {
-                condition = ResourcesUtil.newResolvedRefsTrue(clock, cluster);
+                Optional<ConfigMap> proxyConfigMap = context.getSecondaryResource(ConfigMap.class, PROXY_CONFIG_MAP_EVENT_SOURCE_NAME);
+                if (proxyConfigMap.isPresent()) {
+                    // TODO get the conditions from the data
+                }
+                else {
+                    // TODO I guess this should be ResolvedRefs=Unknown, Programmed=False, Accepted=Unknown
+                    condition = ResourcesUtil.newResolvedRefsTrue(clock, cluster);
+                }
             }
             else {
                 Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", cluster, unresolvedServices);
@@ -195,6 +205,17 @@ public final class VirtualKafkaClusterReconciler implements
                         cluster -> cluster.getSpec().getProxyRef()))
                 .build();
 
+        InformerEventSourceConfiguration<ConfigMap> clusterToProxyConfigMap = InformerEventSourceConfiguration.from(
+                        ConfigMap.class,
+                        VirtualKafkaCluster.class)
+                .withName(PROXY_CONFIG_MAP_EVENT_SOURCE_NAME)
+                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefAsResourceId(cluster, cluster.getSpec().getProxyRef()))
+                .withSecondaryToPrimaryMapper(configMap -> ResourcesUtil.findReferrers(context,
+                        configMap,
+                        VirtualKafkaCluster.class,
+                        cluster -> new AnyLocalRefBuilder().withGroup("").withKind("ConfigMap").withName(cluster.getSpec().getProxyRef().getName()).build()))
+                .build();
+
         InformerEventSourceConfiguration<KafkaService> clusterToService = InformerEventSourceConfiguration.from(
                 KafkaService.class,
                 VirtualKafkaCluster.class)
@@ -233,6 +254,7 @@ public final class VirtualKafkaClusterReconciler implements
 
         return List.of(
                 new InformerEventSource<>(clusterToProxy, context),
+                new InformerEventSource<>(clusterToProxyConfigMap, context),
                 new InformerEventSource<>(clusterToIngresses, context),
                 new InformerEventSource<>(clusterToService, context),
                 new InformerEventSource<>(clusterToFilters, context));

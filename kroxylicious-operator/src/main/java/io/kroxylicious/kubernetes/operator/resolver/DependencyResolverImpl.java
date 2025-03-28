@@ -48,13 +48,16 @@ public class DependencyResolverImpl implements DependencyResolver {
         if (virtualKafkaClusters.isEmpty()) {
             return EMPTY_RESOLUTION_RESULT;
         }
+
+        // TODO Replace this with the code from the VKCReconciler
         Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses = context.getSecondaryResources(KafkaProxyIngress.class).stream()
                 .collect(ResourcesUtil.toByLocalRefMap());
         Map<LocalRef<KafkaService>, KafkaService> clusterRefs = context.getSecondaryResources(KafkaService.class).stream()
                 .collect(ResourcesUtil.toByLocalRefMap());
         Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters = context.getSecondaryResources(KafkaProtocolFilter.class).stream()
                 .collect(ResourcesUtil.toByLocalRefMap());
-        var resolutionResult = virtualKafkaClusters.stream().map(cluster -> determineUnresolvedDependencies(cluster, ingresses, clusterRefs, filters))
+        var resolutionResult = virtualKafkaClusters.stream()
+                .map(cluster -> determineUnresolvedDependencies(cluster, ingresses, clusterRefs, filters))
                 .collect(Collectors.toSet());
         return new ResolutionResult(filters, ingresses, clusterRefs, resolutionResult);
     }
