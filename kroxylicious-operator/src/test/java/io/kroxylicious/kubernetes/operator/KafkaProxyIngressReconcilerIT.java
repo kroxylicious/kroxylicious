@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.nio.file.Path;
 import java.time.Clock;
 import java.time.Duration;
 
@@ -50,7 +49,7 @@ class KafkaProxyIngressReconcilerIT {
     }
 
     @RegisterExtension
-    LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler(Path.of("install"), "*.ClusterRole.kroxylicious-operator-watched.yaml");
+    LocallyRunningOperatorRbacHandler rbacHandler = new LocallyRunningOperatorRbacHandler("install", "*.ClusterRole.kroxylicious-operator-watched.yaml");
 
     @RegisterExtension
     @SuppressWarnings("JUnitMalformedDeclaration") // The beforeAll and beforeEach have the same effect so we can use it as an instance field.

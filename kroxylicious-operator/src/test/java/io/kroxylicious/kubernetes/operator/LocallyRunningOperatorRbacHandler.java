@@ -15,8 +15,9 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.AutoClose;
@@ -43,6 +44,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+import static java.util.Objects.requireNonNull;
 
 /**
  * Designed to cooperate with {@link io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension}
@@ -94,10 +96,34 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     private List<ClusterRole> clusterRoles;
     private List<ClusterRoleBinding> roleBindings;
 
-    public LocallyRunningOperatorRbacHandler(Path resourceDirectory, String... clusterRoleFileGlobs) {
-        Objects.requireNonNull(resourceDirectory);
-        this.resourceDirectory = resourceDirectory;
+    public LocallyRunningOperatorRbacHandler(String resourceDirectory, String... clusterRoleFileGlobs) {
+        this(Path.of(resourceDirectory), clusterRoleFileGlobs);
+    }
+
+    private LocallyRunningOperatorRbacHandler(Path resourceDirectory, String... clusterRoleFileGlobs) {
+        this.resourceDirectory = requireNonNull(resourceDirectory);
+        verifyClusterGlobs(clusterRoleFileGlobs);
+        verifyDirectoryExists(resourceDirectory);
         clusterRolePathMatchers = Arrays.stream(clusterRoleFileGlobs).map(g -> FileSystems.getDefault().getPathMatcher("glob:**/" + g)).toList();
+    }
+
+    private static void verifyClusterGlobs(String[] clusterRoleFileGlobs) {
+        if (clusterRoleFileGlobs.length < 1) {
+            throw new IllegalArgumentException("clusterRoleFileGlobs must not be empty");
+        }
+        Set<String> invalidGlobs = Arrays.stream(clusterRoleFileGlobs).filter(glob -> glob == null || glob.isEmpty()).collect(Collectors.toSet());
+        if (!invalidGlobs.isEmpty()) {
+            throw new IllegalArgumentException("clusterRoleFileGlobs contained invalid elements: " + invalidGlobs);
+        }
+    }
+
+    private static void verifyDirectoryExists(Path resourceDirectory) {
+        if (!Files.exists(resourceDirectory)) {
+            throw new IllegalArgumentException("Resource directory does not exist: " + resourceDirectory);
+        }
+        if (!Files.isDirectory(resourceDirectory)) {
+            throw new IllegalArgumentException("Resource directory is not a directory: " + resourceDirectory);
+        }
     }
 
     @Override
