@@ -64,6 +64,24 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     private static final Logger LOGGER = LoggerFactory.getLogger(LocallyRunningOperatorRbacHandler.class);
 
+    // @formatter:off
+    private static final ClusterRole FRAMEWORK_CLUSTER_ROLE = new ClusterRoleBuilder()
+            .withNewMetadata()
+            .withName("framework-cluster-role")
+            .endMetadata()
+            .addNewRule()
+            .addToApiGroups("")
+            .addToVerbs("get", "create", "delete", "patch")
+            .addToResources("namespaces")
+            .endRule()
+            .addNewRule()
+            .addToApiGroups("apiextensions.k8s.io")
+            .addToVerbs("get", "list", "watch", "create", "delete", "patch", "delete")
+            .addToResources("customresourcedefinitions")
+            .endRule()
+            .build();
+    // @formatter:on
+
     private final String impersonatedUser = UUID.randomUUID().toString();
 
     @AutoClose
@@ -73,38 +91,32 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
     @AutoClose
     private final KubernetesClient testActorClient = OperatorTestUtils.kubeClient();
 
-    // @formatter:off
-    private final ClusterRole frameworkClusterRole = new ClusterRoleBuilder()
-            .withNewMetadata()
-                .withName("framework-cluster-role")
-            .endMetadata()
-            .addNewRule()
-                .addToApiGroups("")
-                .addToVerbs("get", "create", "delete", "patch")
-                .addToResources("namespaces")
-            .endRule()
-            .addNewRule()
-                .addToApiGroups("apiextensions.k8s.io")
-                .addToVerbs("get", "list", "watch", "create", "delete", "patch", "delete")
-                .addToResources("customresourcedefinitions")
-                .endRule()
-            .build();
-    // @formatter:on
-
-    private final Path resourceDirectory;
-    private final List<PathMatcher> clusterRolePathMatchers;
-    private List<ClusterRole> clusterRoles;
-    private List<ClusterRoleBinding> roleBindings;
+    private final List<ClusterRole> clusterRoles;
+    private final List<ClusterRoleBinding> roleBindings;
 
     public LocallyRunningOperatorRbacHandler(String resourceDirectory, String... clusterRoleFileGlobs) {
         this(Path.of(resourceDirectory), clusterRoleFileGlobs);
     }
 
     private LocallyRunningOperatorRbacHandler(Path resourceDirectory, String... clusterRoleFileGlobs) {
-        this.resourceDirectory = requireNonNull(resourceDirectory);
+        requireNonNull(resourceDirectory);
         verifyClusterGlobs(clusterRoleFileGlobs);
         verifyDirectoryExists(resourceDirectory);
-        clusterRolePathMatchers = Arrays.stream(clusterRoleFileGlobs).map(g -> FileSystems.getDefault().getPathMatcher("glob:**/" + g)).toList();
+        clusterRoles = loadClusterRoles(resourceDirectory, clusterRoleFileGlobs);
+        roleBindings = this.clusterRoles.stream().map(this::bindingForRole).toList();
+    }
+
+    private List<ClusterRole> loadClusterRoles(Path resourceDirectory, String[] clusterRoleFileGlobs) {
+        var clusterRolePathMatchers = Arrays.stream(clusterRoleFileGlobs).map(g -> FileSystems.getDefault().getPathMatcher("glob:**/" + g)).toList();
+        try (var adminClient = OperatorTestUtils.kubeClient();
+                var files = Files.list(resourceDirectory)) {
+            // The test framework itself needs these roles.
+            Stream<ClusterRole> frameworkClusterRoles = Stream.of(FRAMEWORK_CLUSTER_ROLE);
+            return Stream.concat(loadClusterRoles(files, adminClient, clusterRolePathMatchers), frameworkClusterRoles).toList();
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private static void verifyClusterGlobs(String[] clusterRoleFileGlobs) {
@@ -128,17 +140,13 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
     @Override
     public void beforeEach(ExtensionContext context) {
-        try (var adminClient = OperatorTestUtils.kubeClient();
-                var files = Files.list(resourceDirectory)) {
+        try (var adminClient = OperatorTestUtils.kubeClient()) {
             // The test framework itself needs these roles.
-            Stream<ClusterRole> frameworkClusterRoles = Stream.of(frameworkClusterRole);
-            clusterRoles = Stream.concat(loadClusterRoles(files, adminClient), frameworkClusterRoles).toList();
             clusterRoles.forEach(r -> {
                 LOGGER.trace("Creating/patching: {}", name(r));
                 adminClient.resource(r).createOr(EditReplacePatchable::patch);
             });
 
-            roleBindings = this.clusterRoles.stream().map(this::bindingForRole).toList();
             roleBindings.forEach(roleBinding -> {
                 LOGGER.trace("Creating role binding: {}", name(roleBinding));
                 adminClient.resource(roleBinding).createOr(EditReplacePatchable::patch);
@@ -146,10 +154,6 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
             LOGGER.info("Applied Operator RBAC rules rewritten in terms of user {}.", impersonatedUser);
         }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-
     }
 
     private ClusterRoleBinding bindingForRole(ClusterRole clusterRole) {
@@ -158,7 +162,7 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
                 .withNewRoleRef().withKind("ClusterRole").withName(name(clusterRole)).withApiGroup("rbac.authorization.k8s.io").endRoleRef().build();
     }
 
-    private @NonNull Stream<ClusterRole> loadClusterRoles(Stream<Path> files, KubernetesClient adminClient) {
+    private @NonNull Stream<ClusterRole> loadClusterRoles(Stream<Path> files, KubernetesClient adminClient, List<PathMatcher> clusterRolePathMatchers) {
         return files.filter(Files::isRegularFile).filter(path -> clusterRolePathMatchers.stream().anyMatch(matcher -> matcher.matches(path))).sorted()
                 .flatMap(resourceFile -> {
                     try (var resourceInputStream = new FileInputStream(resourceFile.toString())) {
