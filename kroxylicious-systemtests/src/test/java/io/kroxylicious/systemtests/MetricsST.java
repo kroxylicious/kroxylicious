@@ -9,7 +9,7 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -115,9 +115,12 @@ class MetricsST extends AbstractST {
         resourceManager.createResourceWithWait(
                 KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka, 3).build(),
                 kafka);
+
+        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
+        kroxyliciousOperator.deploy();
     }
 
-    @AfterEach
+    @AfterAll
     void cleanUp() {
         kroxyliciousOperator.delete();
     }
@@ -135,10 +138,9 @@ class MetricsST extends AbstractST {
 
         String scraperPodName = kubeClient().listPodsByPrefixInName(namespace, scraperName).get(0).getMetadata().getName();
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
-        kroxyliciousOperator.deploy();
+
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortIdentifiesNodeWithNoFilters();
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
         bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
         kroxyliciousCollector = new MetricsCollector.Builder()
                 .withScraperPodName(scraperPodName)
