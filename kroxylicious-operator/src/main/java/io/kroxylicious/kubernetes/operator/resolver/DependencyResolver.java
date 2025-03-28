@@ -27,9 +27,8 @@ public interface DependencyResolver {
      * of dependencies, we resolve them too).
      *
      * @param context reconciliation context for a KafkaProxy
-     * @param unresolvedDependencyReporter unresolved dependency reporter
      * @return a resolution result containing all resolved resources, and a description of which resources could not be resolved
      */
-    ResolutionResult deepResolve(Context<KafkaProxy> context, UnresolvedDependencyReporter unresolvedDependencyReporter);
+    ResolutionResult deepResolve(Context<KafkaProxy> context);
 
 }

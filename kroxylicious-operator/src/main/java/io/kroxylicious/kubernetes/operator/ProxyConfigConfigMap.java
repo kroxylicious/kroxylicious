@@ -7,10 +7,12 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +22,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -30,13 +33,15 @@ import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkf
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRef;
+import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterSpec;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
-import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
+import io.kroxylicious.kubernetes.operator.model.ingress.IngressConflictException;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import io.kroxylicious.proxy.config.ConfigParser;
@@ -68,7 +73,7 @@ public class ProxyConfigConfigMap
     public static final String SECURE_VOLUME_KEY = "secure-volumes";
     public static final String SECURE_VOLUME_MOUNT_KEY = "secure-volume-mounts";
 
-    private static final ObjectMapper OBJECT_MAPPER = ConfigParser.createObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = ConfigParser.createObjectMapper().registerModule(new JavaTimeModule());
 
     private static String toYaml(Object filterDefs) {
         try {
@@ -109,6 +114,52 @@ public class ProxyConfigConfigMap
     @Override
     protected ConfigMap desired(KafkaProxy primary,
                                 Context<KafkaProxy> context) {
+        Clock clock = KafkaProxyContext.clock(context);
+        Map<String, String> data = new LinkedHashMap<>();
+        data.put(CONFIG_YAML_KEY, generateProxyConfig(primary, context));
+
+        ProxyModel proxyModel = KafkaProxyContext.model(context);
+        proxyModel.resolutionResult().clusterResults().stream()
+                .filter(ResolutionResult.ClusterResolutionResult::isAnyDependencyUnresolved)
+                .forEach(clusterResolutionResult -> {
+
+                    // TODO why not rely on the natural sort order?
+                    Comparator<LocalRef<?>> comparator = Comparator.<LocalRef<?>, String> comparing(LocalRef::getGroup)
+                            .thenComparing(LocalRef::getKind)
+                            .thenComparing(LocalRef::getName);
+
+                    LocalRef<?> firstUnresolvedDependency = clusterResolutionResult.unresolvedDependencySet().stream()
+                            .sorted(comparator).findFirst()
+                            .orElseThrow();
+                    String message = String.format("Resource %s was not found.",
+                            ResourcesUtil.namespacedSlug(firstUnresolvedDependency, clusterResolutionResult.cluster()));
+                    VirtualKafkaCluster cluster = clusterResolutionResult.cluster();
+                    String key = "cluster-" + ResourcesUtil.name(cluster);
+                    data.put(key,
+                            toYaml(ResourcesUtil.newFalseCondition(clock, cluster,
+                                    Condition.Type.ResolvedRefs, "Invalid", message)));
+                });
+
+        var model = proxyModel.ingressModel();
+        for (ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel : model.clusters()) {
+            VirtualKafkaCluster cluster = virtualClusterIngressModel.cluster();
+            String key = "cluster-" + ResourcesUtil.name(cluster);
+            Set<IngressConflictException> exceptions = virtualClusterIngressModel.ingressExceptions();
+            if (!exceptions.isEmpty()) {
+                IngressConflictException first = exceptions.iterator().next();
+
+                data.putIfAbsent(key,
+                        toYaml(ResourcesUtil.newFalseCondition(clock, cluster,
+                                Condition.Type.Accepted, "Invalid",
+                                "Ingress(es) [" + first.getIngressName() + "] of cluster conflicts with another ingress")));
+            }
+            else {
+                data.putIfAbsent(key,
+                        toYaml(ResourcesUtil.newTrueCondition(clock, cluster,
+                                Condition.Type.Accepted)));
+            }
+        }
+
         // @formatter:off
         return new ConfigMapBuilder()
                 .editOrNewMetadata()
@@ -117,15 +168,16 @@ public class ProxyConfigConfigMap
                     .addToLabels(standardLabels(primary))
                     .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
                 .endMetadata()
-                .withData(Map.of(CONFIG_YAML_KEY, generateProxyConfig(primary, context)))
+                .withData(data)
                 .build();
         // @formatter:on
     }
 
     String generateProxyConfig(KafkaProxy primary,
                                Context<KafkaProxy> context) {
-        ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder(context);
-        ProxyModel model = proxyModelBuilder.build(primary, context);
+
+        var model = KafkaProxyContext.model(context);
+
         List<NamedFilterDefinition> allFilterDefinitions = buildFilterDefinitions(context, model);
         Map<String, NamedFilterDefinition> namedDefinitions = allFilterDefinitions.stream().collect(Collectors.toMap(NamedFilterDefinition::name, f -> f));
 
@@ -162,15 +214,10 @@ public class ProxyConfigConfigMap
         List<NamedFilterDefinition> filterDefinitions = new ArrayList<>();
         Set<NamedFilterDefinition> uniqueValues = new HashSet<>();
         for (VirtualKafkaCluster cluster : model.clustersWithValidIngresses()) {
-            try {
-                for (NamedFilterDefinition namedFilterDefinition : filterDefinitions(context, cluster, model.resolutionResult())) {
-                    if (uniqueValues.add(namedFilterDefinition)) {
-                        filterDefinitions.add(namedFilterDefinition);
-                    }
+            for (NamedFilterDefinition namedFilterDefinition : filterDefinitions(context, cluster, model.resolutionResult())) {
+                if (uniqueValues.add(namedFilterDefinition)) {
+                    filterDefinitions.add(namedFilterDefinition);
                 }
-            }
-            catch (InvalidClusterException e) {
-                SharedKafkaProxyContext.addClusterCondition(context, cluster, e.accepted());
             }
         }
         filterDefinitions.sort(Comparator.comparing(NamedFilterDefinition::name));
@@ -191,8 +238,7 @@ public class ProxyConfigConfigMap
     }
 
     @NonNull
-    private List<NamedFilterDefinition> filterDefinitions(Context<KafkaProxy> context, VirtualKafkaCluster cluster, ResolutionResult resolutionResult)
-            throws InvalidClusterException {
+    private List<NamedFilterDefinition> filterDefinitions(Context<KafkaProxy> context, VirtualKafkaCluster cluster, ResolutionResult resolutionResult) {
 
         return Optional.ofNullable(cluster.getSpec().getFilterRefs()).orElse(List.of()).stream().map(filterCrRef -> {
 

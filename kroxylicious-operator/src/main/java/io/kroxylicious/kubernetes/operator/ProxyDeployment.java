@@ -30,8 +30,6 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.operator.model.ProxyModel;
-import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -69,8 +67,7 @@ public class ProxyDeployment
     @Override
     protected Deployment desired(KafkaProxy primary,
                                  Context<KafkaProxy> context) {
-        ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder(context);
-        ProxyModel model = proxyModelBuilder.build(primary, context);
+        var model = KafkaProxyContext.model(context);
         // @formatter:off
         return new DeploymentBuilder()
                 .editOrNewMetadata()
@@ -157,7 +154,7 @@ public class ProxyDeployment
                 .endPort();
         // broker ports
         virtualKafkaClusters.forEach(virtualKafkaCluster -> {
-            if (!SharedKafkaProxyContext.isBroken(context, virtualKafkaCluster)) {
+            if (!KafkaProxyContext.isBroken(context, virtualKafkaCluster)) {
                 ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(virtualKafkaCluster).orElseThrow();
                 for (ProxyIngressModel.IngressModel ingress : virtualClusterIngressModel.ingressModels()) {
                     ingress.proxyContainerPorts().forEach(containerBuilder::addToPorts);

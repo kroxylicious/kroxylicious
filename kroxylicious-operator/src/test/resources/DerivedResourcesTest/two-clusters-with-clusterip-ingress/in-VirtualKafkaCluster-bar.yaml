@@ -10,6 +10,7 @@ apiVersion: kroxylicious.io/v1alpha1
 metadata:
   name: bar
   namespace: proxy-ns
+  generation: 6
 spec:
   proxyRef:
     name: twocluster
