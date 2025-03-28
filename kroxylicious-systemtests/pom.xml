@@ -151,6 +151,12 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-operator</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-provider-hashicorp-vault-test-support</artifactId>
         </dependency>
         <dependency>

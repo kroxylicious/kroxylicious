@@ -34,8 +34,12 @@ import io.kroxylicious.systemtests.resources.ResourceOperation;
 import io.kroxylicious.systemtests.resources.ResourceType;
 import io.kroxylicious.systemtests.resources.kroxylicious.ConfigMapResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.DeploymentResource;
+import io.kroxylicious.systemtests.resources.kroxylicious.KafkaProxyIngressResource;
+import io.kroxylicious.systemtests.resources.kroxylicious.KafkaProxyResource;
+import io.kroxylicious.systemtests.resources.kroxylicious.KafkaServiceResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.SecretResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.ServiceResource;
+import io.kroxylicious.systemtests.resources.kroxylicious.VirtualKafkaClusterResource;
 import io.kroxylicious.systemtests.resources.kubernetes.ClusterOperatorCustomResourceDefinition;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaNodePoolResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaResource;
@@ -107,7 +111,11 @@ public class ResourceManager {
             new ConfigMapResource(),
             new DeploymentResource(),
             new SecretResource(),
-            new ClusterOperatorCustomResourceDefinition()
+            new ClusterOperatorCustomResourceDefinition(),
+            new KafkaProxyResource(),
+            new KafkaServiceResource(),
+            new KafkaProxyIngressResource(),
+            new VirtualKafkaClusterResource()
     };
 
     /**
