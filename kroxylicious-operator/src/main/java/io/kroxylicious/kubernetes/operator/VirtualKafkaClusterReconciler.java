@@ -206,8 +206,8 @@ public final class VirtualKafkaClusterReconciler implements
                 .build();
 
         InformerEventSourceConfiguration<ConfigMap> clusterToProxyConfigMap = InformerEventSourceConfiguration.from(
-                        ConfigMap.class,
-                        VirtualKafkaCluster.class)
+                ConfigMap.class,
+                VirtualKafkaCluster.class)
                 .withName(PROXY_CONFIG_MAP_EVENT_SOURCE_NAME)
                 .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefAsResourceId(cluster, cluster.getSpec().getProxyRef()))
                 .withSecondaryToPrimaryMapper(configMap -> ResourcesUtil.findReferrers(context,
