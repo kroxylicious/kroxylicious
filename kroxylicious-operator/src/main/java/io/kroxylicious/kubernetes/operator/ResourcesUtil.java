@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -31,8 +32,6 @@ import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.client.CustomResource;
-import io.fabric8.kubernetes.model.annotation.Group;
-import io.fabric8.kubernetes.model.annotation.Singular;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
@@ -54,6 +53,7 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class ResourcesUtil {
+
     private ResourcesUtil() {
     }
 
@@ -176,6 +176,9 @@ public class ResourcesUtil {
     }
 
     public static String group(HasMetadata resource) {
+        if (!resource.getApiVersion().contains("/")) {
+            return "";
+        }
         return resource.getApiVersion().substring(0, resource.getApiVersion().indexOf("/"));
     }
 
@@ -452,15 +455,13 @@ public class ResourcesUtil {
         return newUnknownCondition(clock, observedGenerationSource, Condition.Type.ResolvedRefs, e);
     }
 
-    static String slug(String singular, String group, String name) {
-        return singular + "." + group + "/" + name;
+    public static String slug(String singular, String group, String name) {
+        String groupString = group.isEmpty() ? "" : "." + group;
+        return singular + groupString + "/" + name;
     }
 
-    static String slug(Class<? extends CustomResource<?, ?>> annotatedCrdClass, String crName) {
-        return slug(
-                annotatedCrdClass.getAnnotation(Singular.class).value(),
-                annotatedCrdClass.getAnnotation(Group.class).value(),
-                crName);
+    public static String namespacedSlug(LocalRef<?> ref, HasMetadata resource) {
+        return slug(ref.getKind().toLowerCase(Locale.ROOT), ref.getGroup(), ref.getName()) + " in namespace '" + namespace(resource) + "'";
     }
 
 }

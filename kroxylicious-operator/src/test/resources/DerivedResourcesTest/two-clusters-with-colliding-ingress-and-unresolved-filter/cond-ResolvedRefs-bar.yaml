@@ -9,5 +9,5 @@ cluster: bar
 type: ResolvedRefs
 status: 'False'
 reason: Invalid
-message: "Resource of kind \"KafkaService\" in group \"kroxylicious.io\" named\
-    \ \"barref\" does not exist."
+message: "Resource kafkaservice.kroxylicious.io/barref in namespace 'proxy-ns' was\
+    \ not found."

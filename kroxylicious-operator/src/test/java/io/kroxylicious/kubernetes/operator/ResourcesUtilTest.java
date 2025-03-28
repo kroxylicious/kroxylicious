@@ -23,12 +23,14 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 
+import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
 import io.kroxylicious.kubernetes.api.common.ProxyRefBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
@@ -159,6 +161,40 @@ class ResourcesUtilTest {
         long generation = 123L;
         Secret secret = new SecretBuilder().withNewMetadata().withGeneration(generation).endMetadata().build();
         assertThat(ResourcesUtil.generation(secret)).isEqualTo(generation);
+    }
+
+    @Test
+    void toLocalRefNoGroup() {
+        assertThat(ResourcesUtil.toLocalRef(new SecretBuilder().withNewMetadata().withName("name").endMetadata().build()))
+                .isEqualTo(new AnyLocalRefBuilder().withName("name").withGroup("").withKind("Secret").build());
+    }
+
+    @Test
+    void toLocalRefWithGroup() {
+        assertThat(ResourcesUtil.toLocalRef(new KafkaProxyBuilder().withNewMetadata().withName("name").endMetadata().build()))
+                .isEqualTo(new AnyLocalRefBuilder().withName("name").withGroup("kroxylicious.io").withKind("KafkaProxy").build());
+    }
+
+    @Test
+    void slugEmptyGroup() {
+        assertThat(ResourcesUtil.slug("things", "", "name")).isEqualTo("things/name");
+    }
+
+    @Test
+    void slugWithNamespaceEmptyGroup() {
+        Secret secret = new SecretBuilder().withNewMetadata().withNamespace("my-ns").withName("secreto").endMetadata().build();
+        assertThat(ResourcesUtil.namespacedSlug(ResourcesUtil.toLocalRef(secret), secret)).isEqualTo("secret/secreto in namespace 'my-ns'");
+    }
+
+    @Test
+    void slugWithNamespaceNonEmptyGroup() {
+        KafkaProxy secret = new KafkaProxyBuilder().withNewMetadata().withNamespace("my-ns").withName("secreto").endMetadata().build();
+        assertThat(ResourcesUtil.namespacedSlug(ResourcesUtil.toLocalRef(secret), secret)).isEqualTo("kafkaproxy.kroxylicious.io/secreto in namespace 'my-ns'");
+    }
+
+    @Test
+    void slugNonEmptyGroup() {
+        assertThat(ResourcesUtil.slug("things", "kroxylicious.io", "name")).isEqualTo("things.kroxylicious.io/name");
     }
 
     @Test

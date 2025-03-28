@@ -329,9 +329,11 @@ class KafkaProxyReconcilerTest {
                 .build();
         // @formatter:on
         doReturn(mdrc).when(context).managedWorkflowAndDependentResourceContext();
-        doReturn(Set.of(new VirtualKafkaClusterBuilder().withNewMetadata().withName("my-cluster").withNamespace("my-ns").endMetadata().withNewSpec().withNewProxyRef()
-                .withName("my-proxy").endProxyRef().endSpec().build())).when(context).getSecondaryResources(VirtualKafkaCluster.class);
-        doReturn(Optional.of(Map.of("my-cluster", ClusterCondition.refNotFound("my-cluster", new FilterRefBuilder().withName("MissingFilter").build())))).when(mdrc).get(
+        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("my-cluster").withNamespace("my-ns").endMetadata().withNewSpec()
+                .withNewProxyRef()
+                .withName("my-proxy").endProxyRef().endSpec().build();
+        doReturn(Set.of(cluster)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
+        doReturn(Optional.of(Map.of("my-cluster", ClusterCondition.refNotFound(cluster, new FilterRefBuilder().withName("MissingFilter").build())))).when(mdrc).get(
                 SharedKafkaProxyContext.CLUSTER_CONDITIONS_KEY,
                 Map.class);
 
@@ -351,7 +353,7 @@ class KafkaProxyReconcilerTest {
         statusAssert.singleCluster()
                 .nameIsEqualTo("my-cluster")
                 .singleCondition()
-                .isResolvedRefsFalse("Invalid", "Resource of kind \"KafkaProtocolFilter\" in group \"filter.kroxylicious.io\" named \"MissingFilter\" does not exist.")
+                .isResolvedRefsFalse("Invalid", "Resource kafkaprotocolfilter.filter.kroxylicious.io/MissingFilter in namespace 'my-ns' was not found.")
                 .hasObservedGeneration(generation);
         // TODO .lastTransitionTimeIsEqualTo(time);
 
