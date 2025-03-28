@@ -16,6 +16,22 @@
     <version>0.12.0-SNAPSHOT</version>
     <packaging>pom</packaging>
 
+
+
+
+<repositories>
+    <repository>
+      <releases>
+        <enabled>true</enabled>
+      </releases>
+      <name>Apache Staging</name>
+      <id>apache-staging</id>
+      <url>https://repository.apache.org/content/groups/staging/</url>
+      <layout>default</layout>
+    </repository>
+  </repositories>
+
+
     <properties>
         <java.version>17</java.version>
         <java.test.version>17</java.test.version>
@@ -42,7 +58,7 @@
         <hamcrest.version>3.0</hamcrest.version>
         <jackson.version>2.18.1</jackson.version>
         <junit.version>5.12.1</junit.version>
-        <kafka.version>3.9.0</kafka.version>
+        <kafka.version>4.0.0</kafka.version>
         <kroxy.extension.version>0.10.0</kroxy.extension.version>
         <log4j.version>2.24.3</log4j.version>
         <caffeine.version>3.2.0</caffeine.version>
