@@ -15,8 +15,10 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -27,12 +29,17 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.builder.Editable;
+import io.fabric8.kubernetes.api.builder.VisitableBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRole;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBinding;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBindingBuilder;
 import io.fabric8.kubernetes.api.model.rbac.ClusterRoleBuilder;
+import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.dsl.EditReplacePatchable;
@@ -40,9 +47,36 @@ import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.junit.AbstractOperatorExtension;
 
+import io.kroxylicious.kubernetes.api.common.FilterRef;
+import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
+import io.kroxylicious.kubernetes.api.common.IngressRef;
+import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressSpecBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpecBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpecBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpecBuilder;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterSpec;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterSpecBuilder;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
+import static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP.Protocol.TCP;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static java.util.Objects.requireNonNull;
 
@@ -58,7 +92,6 @@ import static java.util.Objects.requireNonNull;
  * <br/>
  * For the test's interactions with Kubernetes, where more privileges are required, use the operations
  * exposed by {@link #testActor(AbstractOperatorExtension)}.
- *
  */
 public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, AfterEachCallback, AfterAllCallback {
 
@@ -235,6 +268,138 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
         testActorClient.close();
     }
 
+    public static class ResourceBuilder<SPEC_BUIlDER extends VisitableBuilder<SPEC, SPEC_BUIlDER>, SPEC extends Editable<SPEC_BUIlDER>, RESOURCE extends CustomResource<SPEC, ?>> {
+
+        private final RESOURCE resource;
+        private final TestActor testActor;
+
+        public ResourceBuilder(RESOURCE emptyResource, ObjectMeta meta, TestActor testActor) {
+            this.resource = emptyResource;
+            this.testActor = testActor;
+            this.resource.setMetadata(meta);
+        }
+
+        public ResourceBuilder<SPEC_BUIlDER, SPEC, RESOURCE> editSpec(Consumer<SPEC_BUIlDER> consumer) {
+            SPEC_BUIlDER edit = resource.getSpec().edit();
+            consumer.accept(edit);
+            resource.setSpec(edit.build());
+            return this;
+        }
+
+        public RESOURCE create() {
+            return testActor.create(resource);
+        }
+
+        public RESOURCE replace() {
+            return testActor.replace(resource);
+        }
+
+        public ResourceBuilder<SPEC_BUIlDER, SPEC, RESOURCE> withName(String name) {
+            this.resource.setMetadata(this.resource.getMetadata().edit().withName(name).build());
+            return this;
+        }
+    }
+
+    public static class KafkaServiceResourceBuilder extends ResourceBuilder<KafkaServiceSpecBuilder, KafkaServiceSpec, KafkaService> {
+
+        public KafkaServiceResourceBuilder(KafkaService emptyResource, ObjectMeta meta, TestActor testActor) {
+            super(emptyResource, meta, testActor);
+        }
+
+        public KafkaServiceResourceBuilder withBootstrapServers(String bootstrapServers) {
+            this.editSpec(b -> {
+                b.withBootstrapServers(bootstrapServers);
+            });
+            return this;
+        }
+    }
+
+    public static class KafkaProtocolFilterResourceBuilder extends ResourceBuilder<KafkaProtocolFilterSpecBuilder, KafkaProtocolFilterSpec, KafkaProtocolFilter> {
+
+        public KafkaProtocolFilterResourceBuilder(KafkaProtocolFilter emptyResource, ObjectMeta meta, TestActor testActor) {
+            super(emptyResource, meta, testActor);
+        }
+
+        public KafkaProtocolFilterResourceBuilder withArbitraryFilterConfig() {
+            this.editSpec(specBuilder -> {
+                specBuilder.withType("RecordValidation").withConfigTemplate(Map.of("rules", List.of(Map.of("allowNulls", false))));
+            });
+            return this;
+        }
+    }
+
+    public static class KafkaIngressResourceBuilder extends ResourceBuilder<KafkaProxyIngressSpecBuilder, KafkaProxyIngressSpec, KafkaProxyIngress> {
+
+        public KafkaIngressResourceBuilder(KafkaProxyIngress emptyResource, ObjectMeta meta, TestActor testActor) {
+            super(emptyResource, meta, testActor);
+        }
+
+        public KafkaIngressResourceBuilder withClusterIpForProxy(KafkaProxy proxy) {
+            this.editSpec(specBuilder -> {
+                specBuilder.withNewClusterIP().withProtocol(TCP).endClusterIP().withNewProxyRef().withName(name(proxy)).endProxyRef();
+            });
+            return this;
+        }
+
+        public KafkaIngressResourceBuilder withClusterIpForProxyName(String proxyName) {
+            this.editSpec(specBuilder -> {
+                specBuilder.withNewClusterIP().withProtocol(TCP).endClusterIP().withNewProxyRef().withName(proxyName).endProxyRef();
+            });
+            return this;
+        }
+    }
+
+    public static class VirtualKafkaClusterResourceBuilder extends ResourceBuilder<VirtualKafkaClusterSpecBuilder, VirtualKafkaClusterSpec, VirtualKafkaCluster> {
+
+        public VirtualKafkaClusterResourceBuilder(VirtualKafkaCluster emptyResource, ObjectMeta meta, TestActor testActor) {
+            super(emptyResource, meta, testActor);
+        }
+
+        public VirtualKafkaClusterResourceBuilder withProxyRef(KafkaProxy proxy) {
+            this.editSpec(specBuilder -> specBuilder.withNewProxyRef().withName(name(proxy)).endProxyRef());
+            return this;
+        }
+
+        public VirtualKafkaClusterResourceBuilder withProxyName(String proxyName) {
+            this.editSpec(specBuilder -> specBuilder.withNewProxyRef().withName(proxyName).endProxyRef());
+            return this;
+        }
+
+        public VirtualKafkaClusterResourceBuilder withTargetKafkaService(KafkaService service) {
+            this.editSpec(specBuilder -> specBuilder.withNewTargetKafkaServiceRef().withName(name(service)).endTargetKafkaServiceRef());
+            return this;
+        }
+
+        public VirtualKafkaClusterResourceBuilder withTargetKafkaServiceName(String serviceName) {
+            this.editSpec(specBuilder -> specBuilder.withNewTargetKafkaServiceRef().withName(serviceName).endTargetKafkaServiceRef());
+            return this;
+        }
+
+        public VirtualKafkaClusterResourceBuilder withFilters(KafkaProtocolFilter... filters) {
+            List<FilterRef> refs = Arrays.stream(filters).map(f -> new FilterRefBuilder().withName(name(f)).build()).toList();
+            this.editSpec(specBuilder -> specBuilder.withFilterRefs(refs));
+            return this;
+        }
+
+        public VirtualKafkaClusterResourceBuilder withFiltersNamed(String... filterNames) {
+            List<FilterRef> refs = Arrays.stream(filterNames).map(name -> new FilterRefBuilder().withName(name).build()).toList();
+            this.editSpec(specBuilder -> specBuilder.withFilterRefs(refs));
+            return this;
+        }
+
+        public VirtualKafkaClusterResourceBuilder withIngresses(KafkaProxyIngress... ingresses) {
+            List<IngressRef> refs = Arrays.stream(ingresses).map(f -> new IngressRefBuilder().withName(name(f)).build()).toList();
+            this.editSpec(specBuilder -> specBuilder.withIngressRefs(refs));
+            return this;
+        }
+
+        public VirtualKafkaClusterResourceBuilder withIngressesNamed(String... ingressNames) {
+            List<IngressRef> refs = Arrays.stream(ingressNames).map(name -> new IngressRefBuilder().withName(name).build()).toList();
+            this.editSpec(specBuilder -> specBuilder.withIngressRefs(refs));
+            return this;
+        }
+    }
+
     public interface TestActor {
         @NonNull
         <T extends HasMetadata> T create(@NonNull T resource);
@@ -249,5 +414,88 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
         @NonNull
         <T extends HasMetadata> NonNamespaceOperation<T, KubernetesResourceList<T>, Resource<T>> resources(@NonNull Class<T> type);
+
+        default ResourceBuilder<KafkaProxySpecBuilder, KafkaProxySpec, KafkaProxy> kafkaProxy() {
+            return kafkaProxy(randomName());
+        }
+
+        default ResourceBuilder<KafkaProxySpecBuilder, KafkaProxySpec, KafkaProxy> kafkaProxy(String name) {
+            KafkaProxy latest = get(KafkaProxy.class, name);
+            if (latest == null) {
+                return new ResourceBuilder<>(new KafkaProxyBuilder().withNewSpec().endSpec().build(),
+                        new ObjectMetaBuilder().withName(name).build(),
+                        this);
+            }
+            else {
+                return new ResourceBuilder<>(latest, latest.getMetadata(), this);
+            }
+        }
+
+        default KafkaProtocolFilterResourceBuilder protocolFilter() {
+            return protocolFilter(randomName());
+        }
+
+        default KafkaProtocolFilterResourceBuilder protocolFilter(String name) {
+            KafkaProtocolFilter latest = get(KafkaProtocolFilter.class, name);
+            if (latest == null) {
+                return new KafkaProtocolFilterResourceBuilder(new KafkaProtocolFilterBuilder().withNewSpec().endSpec().build(),
+                        new ObjectMetaBuilder().withName(name).build(),
+                        this);
+            }
+            else {
+                return new KafkaProtocolFilterResourceBuilder(latest, latest.getMetadata(), this);
+            }
+        }
+
+        default VirtualKafkaClusterResourceBuilder virtualKafkaCluster() {
+            return virtualKafkaCluster(randomName());
+        }
+
+        default VirtualKafkaClusterResourceBuilder virtualKafkaCluster(String name) {
+            VirtualKafkaCluster latest = get(VirtualKafkaCluster.class, name);
+            if (latest == null) {
+                return new VirtualKafkaClusterResourceBuilder(new VirtualKafkaClusterBuilder().withNewSpec().endSpec().build(),
+                        new ObjectMetaBuilder().withName(name).build(),
+                        this);
+            }
+            else {
+                return new VirtualKafkaClusterResourceBuilder(latest, latest.getMetadata(), this);
+            }
+        }
+
+        default KafkaIngressResourceBuilder ingress() {
+            return ingress(randomName());
+        }
+
+        default KafkaIngressResourceBuilder ingress(String name) {
+            KafkaProxyIngress latest = get(KafkaProxyIngress.class, name);
+            if (latest == null) {
+                return new KafkaIngressResourceBuilder(new KafkaProxyIngressBuilder().withNewSpec().endSpec().build(), new ObjectMetaBuilder().withName(name).build(),
+                        this);
+            }
+            else {
+                return new KafkaIngressResourceBuilder(latest, latest.getMetadata(), this);
+            }
+        }
+
+        default KafkaServiceResourceBuilder kafkaService() {
+            return kafkaService(randomName());
+        }
+
+        default KafkaServiceResourceBuilder kafkaService(String name) {
+            KafkaService latest = get(KafkaService.class, name);
+            if (latest == null) {
+                return new KafkaServiceResourceBuilder(new KafkaServiceBuilder().withNewSpec().endSpec().build(), new ObjectMetaBuilder().withName(name).build(),
+                        this);
+            }
+            else {
+                return new KafkaServiceResourceBuilder(latest, latest.getMetadata(), this);
+            }
+        }
+
+    }
+
+    private static @NonNull String randomName() {
+        return MobyNamesGenerator.getRandomName().replace("_", "-");
     }
 }

@@ -22,12 +22,10 @@ import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.KafkaProxyIngressStatusAssert;
 
-import static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP.Protocol.TCP;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -35,10 +33,6 @@ import static org.awaitility.Awaitility.await;
 class KafkaProxyIngressReconcilerIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyReconcilerIT.class);
-
-    private static final String PROXY_A = "proxy-a";
-    private static final String PROXY_B = "proxy-b";
-    private static final String CLUSTER_BAR_CLUSTERIP_INGRESS = "bar-cluster-ip";
 
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
@@ -70,23 +64,24 @@ class KafkaProxyIngressReconcilerIT {
 
     @Test
     void testCreateIngressFirst() {
-        KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
-        assertIngressStatusResolvedRefs(ingressBar, Condition.Status.FALSE);
-        testActor.create(kafkaProxy(PROXY_A));
-        assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
+        String proxyName = "proxy-a";
+        KafkaProxyIngress ingress = testActor.ingress().withClusterIpForProxyName(proxyName).create();
+        assertIngressStatusResolvedRefs(ingress, Condition.Status.FALSE);
+        testActor.kafkaProxy().withName(proxyName).create();
+        assertIngressStatusResolvedRefs(ingress, Condition.Status.TRUE);
     }
 
     @Test
     void testCreateProxyFirst() {
-        testActor.create(kafkaProxy(PROXY_A));
-        KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
+        KafkaProxy kafkaProxy = testActor.kafkaProxy().create();
+        KafkaProxyIngress ingressBar = testActor.ingress().withClusterIpForProxy(kafkaProxy).create();
         assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
     }
 
     @Test
     void testDeleteProxy() {
-        KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
-        KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
+        KafkaProxy proxy = testActor.kafkaProxy().create();
+        KafkaProxyIngress ingressBar = testActor.ingress().withClusterIpForProxy(proxy).create();
         assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
 
         testActor.delete(proxy);
@@ -95,19 +90,13 @@ class KafkaProxyIngressReconcilerIT {
 
     @Test
     void testSwitchProxy() {
-        testActor.create(kafkaProxy(PROXY_A));
-        testActor.create(kafkaProxy(PROXY_B));
-        KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
+        KafkaProxy kafkaProxyA = testActor.kafkaProxy().create();
+        KafkaProxy kafkaProxyB = testActor.kafkaProxy().create();
+        KafkaProxyIngress ingressBar = testActor.ingress().withClusterIpForProxy(kafkaProxyA).create();
         assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
 
-        testActor.replace(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_B));
+        testActor.ingress(name(ingressBar)).withClusterIpForProxy(kafkaProxyB).replace();
         assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
-    }
-
-    private KafkaProxyIngress clusterIpIngress(String ingressName, String proxyName) {
-        return new KafkaProxyIngressBuilder().withNewMetadata().withName(ingressName).endMetadata()
-                .withNewSpec().withNewClusterIP().withProtocol(TCP).endClusterIP().withNewProxyRef().withName(proxyName).endProxyRef().endSpec()
-                .build();
     }
 
     private void assertIngressStatusResolvedRefs(KafkaProxyIngress cr, Condition.Status conditionStatus) {
@@ -123,16 +112,6 @@ class KafkaProxyIngressReconcilerIT {
                     .hasStatus(conditionStatus)
                     .hasObservedGenerationInSyncWithMetadataOf(kpi);
         });
-    }
-
-    KafkaProxy kafkaProxy(String name) {
-        // @formatter:off
-        return new KafkaProxyBuilder()
-                .withNewMetadata()
-                    .withName(name)
-                .endMetadata()
-                .build();
-        // @formatter:on
     }
 
 }

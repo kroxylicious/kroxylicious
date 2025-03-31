@@ -29,7 +29,6 @@ import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.KafkaProtocolFilterStatusAssert;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -43,7 +42,6 @@ class KafkaProtocolFilterReconcilerIT {
     private static final String A = "a";
     private static final String B = "b";
     private static final String C = "c";
-    private static final String FILTER_ONE = "one";
 
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
@@ -80,8 +78,7 @@ class KafkaProtocolFilterReconcilerIT {
     }
 
     private KafkaProtocolFilter createFilterFirst() {
-        KafkaProtocolFilter filterOne = testActor.create(filter(FILTER_ONE,
-                "${secret:" + A + ":foo}", "${configmap:" + B + ":foo}"));
+        KafkaProtocolFilter filterOne = filter(testActor, "${secret:" + A + ":foo}", "${configmap:" + B + ":foo}");
         assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced Secrets [a] ConfigMaps [b] not found");
         testActor.create(secret(A));
         assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced ConfigMaps [b] not found");
@@ -93,8 +90,7 @@ class KafkaProtocolFilterReconcilerIT {
     @Test
     void shouldEventuallyResolveWhenASecretCreatedFirst() {
         testActor.create(secret(A));
-        KafkaProtocolFilter filterOne = testActor.create(filter(FILTER_ONE,
-                "${secret:" + A + ":foo}", "${secret:" + B + ":foo}"));
+        KafkaProtocolFilter filterOne = filter(testActor, "${secret:" + A + ":foo}", "${secret:" + B + ":foo}");
         assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced Secrets [b] not found");
         testActor.create(secret(B));
         assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
@@ -105,9 +101,7 @@ class KafkaProtocolFilterReconcilerIT {
         testActor.create(secret(A));
         testActor.create(secret(B));
         testActor.create(secret(C));
-        KafkaProtocolFilter filterOne = testActor.create(filter(FILTER_ONE,
-                "${secret:" + A + ":foo}",
-                "${secret:" + B + ":foo}"));
+        KafkaProtocolFilter filterOne = filter(testActor, "${secret:" + A + ":foo}", "${secret:" + B + ":foo}");
         assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
     }
 
@@ -116,18 +110,14 @@ class KafkaProtocolFilterReconcilerIT {
         testActor.create(secret(A));
         testActor.create(cm(B));
         testActor.create(secret(C));
-        KafkaProtocolFilter filterOne = testActor.create(filter(FILTER_ONE,
-                "${secret:" + A + ":foo}",
-                "${configmap:" + B + ":foo}"));
+        KafkaProtocolFilter filterOne = filter(testActor, "${secret:" + A + ":foo}", "${configmap:" + B + ":foo}");
         assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
     }
 
     @Test
     void shouldUpdateStatusOnFilterModify() {
         shouldEventuallyResolveWhenFilterCreatedFirst();
-
-        KafkaProtocolFilter filterOne = testActor.replace(filter(FILTER_ONE,
-                "${secret:" + C + ":foo}", "${configmap:" + B + ":foo}"));
+        KafkaProtocolFilter filterOne = filter(testActor, "${secret:" + C + ":foo}", "${configmap:" + B + ":foo}");
         assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced Secrets [c] not found");
 
         testActor.create(secret(C));
@@ -160,21 +150,16 @@ class KafkaProtocolFilterReconcilerIT {
         assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced ConfigMaps [b] not found");
     }
 
-    private KafkaProtocolFilter filter(String filterName, String refA, String refB) {
-        // @formatter:off
-        return new KafkaProtocolFilterBuilder()
-                .withNewMetadata()
-                    .withName(filterName)
-                .endMetadata()
-                .withNewSpec()
-                    .withType("org.example.Filter")
+    private KafkaProtocolFilter filter(LocallyRunningOperatorRbacHandler.TestActor testActor, String refA, String refB) {
+        return testActor.protocolFilter().editSpec(specBuilder -> {
+            // @formatter:off
+            specBuilder.withType("org.example.Filter")
                     .withConfigTemplate(Map.of(
                             "normalProp", "normalValue",
                             "securePropA", refA,
-                            "securePropB", refB))
-                .endSpec()
-                .build();
-        // @formatter:on
+                            "securePropB", refB));
+            // @formatter:on
+        }).create();
     }
 
     private void assertStatusResolvedRefs(KafkaProtocolFilter cr,

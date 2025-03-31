@@ -250,6 +250,11 @@
             <artifactId>kubernetes-model-rbac</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>info.schnatterer.moby-names-generator</groupId>
+            <artifactId>moby-names-generator</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

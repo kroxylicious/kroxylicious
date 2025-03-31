@@ -8,7 +8,6 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.util.Map;
 
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -19,25 +18,16 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
-import static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP.Protocol.TCP;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -45,12 +35,6 @@ import static org.awaitility.Awaitility.await;
 class VirtualKafkaClusterReconcilerIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualKafkaClusterReconcilerIT.class);
-
-    private static final String PROXY_A = "proxy-a";
-    private static final String CLUSTER_BAR = "bar-cluster";
-    private static final String INGRESS_D = "ingress-d";
-    private static final String SERVICE_H = "service-h";
-    private static final String FILTER_K = "service-k";
 
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
@@ -86,13 +70,14 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldResolveWhenClusterCreatedAfterReferents() {
         // Given
-        testActor.create(kafkaProxy(PROXY_A));
-        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
-        testActor.create(kafkaService(SERVICE_H));
-        testActor.create(filter(FILTER_K));
+        KafkaProxy kafkaProxy = testActor.kafkaProxy().create();
+        KafkaProxyIngress ingress = testActor.ingress().withClusterIpForProxy(kafkaProxy).create();
+        KafkaService kafkaService = testActor.kafkaService().withBootstrapServers("foo.bootstrap:9090").create();
+        KafkaProtocolFilter filter = testActor.protocolFilter().withArbitraryFilterConfig().create();
 
         // When
-        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
+        VirtualKafkaCluster clusterBar = testActor.virtualKafkaCluster().withProxyRef(kafkaProxy).withIngresses(ingress).withFilters(filter)
+                .withTargetKafkaService(kafkaService).create();
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
@@ -101,17 +86,19 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhileProxyInitiallyAbsent() {
         // Given
-        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
-        testActor.create(kafkaService(SERVICE_H));
+        String proxy = "proxy-a";
+        KafkaProxyIngress ingress = testActor.ingress().withClusterIpForProxyName(proxy).create();
+        KafkaService kafkaService = testActor.kafkaService().withBootstrapServers("foo.bootstrap:9090").create();
 
         // When
-        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
+        VirtualKafkaCluster clusterBar = testActor.virtualKafkaCluster().withProxyName(proxy).withIngresses(ingress)
+                .withTargetKafkaService(kafkaService).create();
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
 
         // And When
-        testActor.create(kafkaProxy(PROXY_A));
+        testActor.kafkaProxy(proxy).create();
 
         // Then
         assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
@@ -120,120 +107,102 @@ class VirtualKafkaClusterReconcilerIT {
     @Test
     void shouldNotResolveWhileServiceInitiallyAbsent() {
         // Given
-        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
-        testActor.create(kafkaProxy(PROXY_A));
+        KafkaProxy kafkaProxy = testActor.kafkaProxy().create();
+        KafkaProxyIngress ingress = testActor.ingress().withClusterIpForProxy(kafkaProxy).create();
 
         // When
-        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
+        String serviceName = "service-h";
+        VirtualKafkaCluster cluster = testActor.virtualKafkaCluster().withProxyRef(kafkaProxy).withIngresses(ingress).withTargetKafkaServiceName(serviceName).create();
 
         // Then
-        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
+        assertClusterStatusResolvedRefs(cluster, Condition.Status.FALSE);
 
         // And When
-        testActor.create(kafkaService(SERVICE_H));
+        testActor.kafkaService(serviceName).withBootstrapServers("foo.bootstrap:9092").create();
 
         // Then
-        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
+        assertClusterStatusResolvedRefs(cluster, Condition.Status.TRUE);
     }
 
     @Test
     void shouldNotResolveWhileIngressInitiallyAbsent() {
         // Given
-        testActor.create(kafkaProxy(PROXY_A));
-        testActor.create(kafkaService(SERVICE_H));
+        KafkaProxy kafkaProxy = testActor.kafkaProxy().create();
+        KafkaService kafkaService = testActor.kafkaService().withBootstrapServers("foo.bootstrap:9090").create();
 
         // When
-        VirtualKafkaCluster resource = cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null);
-        VirtualKafkaCluster clusterBar = testActor.create(resource);
+        String ingressName = "ingress-d";
+        VirtualKafkaCluster cluster = testActor.virtualKafkaCluster().withProxyRef(kafkaProxy).withTargetKafkaService(kafkaService).withIngressesNamed(ingressName)
+                .withTargetKafkaService(kafkaService).create();
 
         // Then
-        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
+        assertClusterStatusResolvedRefs(cluster, Condition.Status.FALSE);
 
         // And When
-        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
+        testActor.ingress(ingressName).withClusterIpForProxy(kafkaProxy).create();
 
         // Then
-        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
+        assertClusterStatusResolvedRefs(cluster, Condition.Status.TRUE);
     }
 
     @Test
     void shouldNotResolveWhileFilterInitiallyAbsent() {
         // Given
-        testActor.create(kafkaProxy(PROXY_A));
-        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
-        testActor.create(kafkaService(SERVICE_H));
+        KafkaProxy kafkaProxy = testActor.kafkaProxy().create();
+        KafkaProxyIngress ingress = testActor.ingress().withClusterIpForProxy(kafkaProxy).create();
+        KafkaService kafkaService = testActor.kafkaService().withBootstrapServers("foo.bootstrap:9090").create();
 
         // When
-        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
+        String filterName = "service-k";
+        VirtualKafkaCluster cluster = testActor.virtualKafkaCluster().withProxyRef(kafkaProxy).withTargetKafkaService(kafkaService).withIngresses(ingress)
+                .withTargetKafkaService(kafkaService).withFiltersNamed(filterName).create();
 
         // Then
-        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
+        assertClusterStatusResolvedRefs(cluster, Condition.Status.FALSE);
 
         // And When
-        testActor.create(filter(FILTER_K));
+        testActor.protocolFilter(filterName).withArbitraryFilterConfig().create();
 
         // Then
-        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
+        assertClusterStatusResolvedRefs(cluster, Condition.Status.TRUE);
     }
 
     @Test
     void shouldNotResolveWhenProxyDeleted() {
         // Given
-        KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
-        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
-        testActor.create(kafkaService(SERVICE_H));
-        testActor.create(filter(FILTER_K));
-        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
-        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
+        KafkaProxy kafkaProxy = testActor.kafkaProxy().create();
+        KafkaProxyIngress ingress = testActor.ingress().withClusterIpForProxy(kafkaProxy).create();
+        KafkaService kafkaService = testActor.kafkaService().withBootstrapServers("foo.bootstrap:9090").create();
+        KafkaProtocolFilter filter = testActor.protocolFilter().withArbitraryFilterConfig().create();
+
+        VirtualKafkaCluster cluster = testActor.virtualKafkaCluster().withProxyRef(kafkaProxy).withTargetKafkaService(kafkaService).withIngresses(ingress)
+                .withTargetKafkaService(kafkaService).withFilters(filter).create();
+        assertClusterStatusResolvedRefs(cluster, Condition.Status.TRUE);
 
         // When
-        testActor.delete((HasMetadata) proxy);
+        testActor.delete(kafkaProxy);
 
         // Then
-        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
+        assertClusterStatusResolvedRefs(cluster, Condition.Status.FALSE);
     }
 
     @Test
     void shouldNotResolveWhenFilterDeleted() {
         // Given
-        testActor.create(kafkaProxy(PROXY_A));
-        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
-        testActor.create(kafkaService(SERVICE_H));
-        var filter = testActor.create(filter(FILTER_K));
-        VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
-        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.TRUE);
+        KafkaProxy kafkaProxy = testActor.kafkaProxy().create();
+        KafkaProxyIngress ingress = testActor.ingress().withClusterIpForProxy(kafkaProxy).create();
+        KafkaService kafkaService = testActor.kafkaService().withBootstrapServers("foo.bootstrap:9090").create();
+        KafkaProtocolFilter filter = testActor.protocolFilter().withArbitraryFilterConfig().create();
+
+        VirtualKafkaCluster cluster = testActor.virtualKafkaCluster().withProxyRef(kafkaProxy).withTargetKafkaService(kafkaService).withIngresses(ingress)
+                .withTargetKafkaService(kafkaService).withFilters(filter).create();
+        assertClusterStatusResolvedRefs(cluster, Condition.Status.TRUE);
 
         // When
         testActor.delete(filter);
 
         // Then
-        assertClusterStatusResolvedRefs(clusterBar, Condition.Status.FALSE);
-    }
-
-    private VirtualKafkaCluster cluster(String clusterName, String proxyName, String ingressName, String serviceName, @Nullable String filterName) {
-        // @formatter:off
-        var specBuilder = new VirtualKafkaClusterBuilder()
-                .withNewMetadata()
-                    .withName(clusterName)
-                .endMetadata()
-                .withNewSpec()
-                .withNewProxyRef()
-                    .withName(proxyName)
-                .endProxyRef()
-                .addNewIngressRef()
-                    .withName(ingressName)
-                .endIngressRef()
-                .withNewTargetKafkaServiceRef()
-                    .withName(serviceName)
-                .endTargetKafkaServiceRef();
-        if (filterName != null) {
-            // filters are optional
-            specBuilder.addNewFilterRef()
-                    .withName(filterName)
-                .endFilterRef();
-        }
-        // @formatter:on
-        return specBuilder.endSpec().build();
+        assertClusterStatusResolvedRefs(cluster, Condition.Status.FALSE);
     }
 
     private void assertClusterStatusResolvedRefs(VirtualKafkaCluster cr, Condition.Status conditionStatus) {
@@ -249,61 +218,6 @@ class VirtualKafkaClusterReconcilerIT {
                     .hasStatus(conditionStatus)
                     .hasObservedGenerationInSyncWithMetadataOf(vkc);
         });
-    }
-
-    KafkaProxy kafkaProxy(String name) {
-        // @formatter:off
-        return new KafkaProxyBuilder()
-                .withNewMetadata()
-                    .withName(name)
-                .endMetadata()
-                .build();
-        // @formatter:on
-    }
-
-    private KafkaProxyIngress clusterIpIngress(String ingressName, String proxyName) {
-        // @formatter:off
-        return new KafkaProxyIngressBuilder()
-                .withNewMetadata()
-                    .withName(ingressName)
-                .endMetadata()
-                .withNewSpec()
-                    .withNewClusterIP()
-                        .withProtocol(TCP)
-                    .endClusterIP()
-                    .withNewProxyRef()
-                        .withName(proxyName)
-                    .endProxyRef()
-                .endSpec()
-                .build();
-        // @formatter:on
-    }
-
-    private static KafkaService kafkaService(String name) {
-        // @formatter:off
-        return new KafkaServiceBuilder()
-                .withNewMetadata()
-                .withName(name)
-                .endMetadata()
-                .editOrNewSpec()
-                .withBootstrapServers("foo.bootstrap:9090")
-                .endSpec()
-                .build();
-        // @formatter:on
-    }
-
-    private static KafkaProtocolFilter filter(String name) {
-        // @formatter:off
-        return new KafkaProtocolFilterBuilder()
-                .withNewMetadata()
-                .withName(name)
-                .endMetadata()
-                .editOrNewSpec()
-                .withType("com.example.Filter")
-                .withConfigTemplate(Map.of())
-                .endSpec()
-                .build();
-        // @formatter:on
     }
 
 }

@@ -21,8 +21,8 @@ import org.slf4j.LoggerFactory;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -31,7 +31,6 @@ class KafkaServiceReconcilerIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceReconcilerIT.class);
     private static final String UPDATED_BOOTSTRAP = "bar.bootstrap:9090";
-    public static final String SERVICE_A = "service-a";
 
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
@@ -58,15 +57,14 @@ class KafkaServiceReconcilerIT {
     @Test
     void shouldAcceptKafkaService() {
         // Given
-        final KafkaService kafkaService = testActor.create(kafkaService(SERVICE_A));
-        final KafkaService updated = kafkaService.edit().editSpec().withBootstrapServers(UPDATED_BOOTSTRAP).endSpec().build();
+        final KafkaService kafkaService = testActor.kafkaService().withBootstrapServers("foohost:9092").create();
 
         // When
-        testActor.replace(updated);
+        testActor.kafkaService(name(kafkaService)).withBootstrapServers(UPDATED_BOOTSTRAP).replace();
 
         // Then
         AWAIT.untilAsserted(() -> {
-            final KafkaService mycoolkafkaservice = testActor.get(KafkaService.class, SERVICE_A);
+            final KafkaService mycoolkafkaservice = testActor.get(KafkaService.class, name(kafkaService));
             Assertions.assertThat(mycoolkafkaservice.getSpec().getBootstrapServers()).isEqualTo(UPDATED_BOOTSTRAP);
             assertThat(mycoolkafkaservice.getStatus())
                     .isNotNull()
@@ -81,11 +79,11 @@ class KafkaServiceReconcilerIT {
         // Given
 
         // When
-        testActor.create(new KafkaServiceBuilder().withNewMetadata().withName(SERVICE_A).endMetadata().build());
+        KafkaService kafkaService = testActor.kafkaService().withBootstrapServers("foohost:9092").create();
 
         // Then
         AWAIT.untilAsserted(() -> {
-            final KafkaService mycoolkafkaservice = testActor.get(KafkaService.class, SERVICE_A);
+            final KafkaService mycoolkafkaservice = testActor.get(KafkaService.class, name(kafkaService));
             assertThat(mycoolkafkaservice.getStatus())
                     .isNotNull()
                     .singleCondition()
@@ -94,16 +92,4 @@ class KafkaServiceReconcilerIT {
         });
     }
 
-    private static KafkaService kafkaService(String name) {
-        // @formatter:off
-        return new KafkaServiceBuilder()
-                .withNewMetadata()
-                    .withName(name)
-                .endMetadata()
-                .editOrNewSpec()
-                    .withBootstrapServers("foo.bootstrap:9090")
-                .endSpec()
-                .build();
-        // @formatter:on
-    }
 }
