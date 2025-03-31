@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 
 import org.awaitility.core.ConditionFactory;
@@ -23,6 +24,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -33,6 +35,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
+import io.kroxylicious.kubernetes.operator.assertj.ConditionAssert;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
 
@@ -48,8 +51,10 @@ class VirtualKafkaClusterReconcilerIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualKafkaClusterReconcilerIT.class);
 
     private static final String PROXY_A = "proxy-a";
+    private static final String PROXY_B = "proxy-b";
     private static final String CLUSTER_BAR = "bar-cluster";
     private static final String INGRESS_D = "ingress-d";
+    private static final String INGRESS_E = "ingress-e";
     private static final String SERVICE_H = "service-h";
     private static final String FILTER_K = "service-k";
 
@@ -96,7 +101,7 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
 
         // Then
-        assertClusterStatuses(clusterBar, null, Condition.Status.TRUE);
+        assertClusterAcceptedTrue(clusterBar);
     }
 
     @Test
@@ -109,13 +114,13 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
 
         // Then
-        assertClusterStatuses(clusterBar, Condition.Status.FALSE, null);
+        assertClusterResolvedRefsFalse(clusterBar, VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND);
 
         // And When
         testActor.create(kafkaProxy(PROXY_A));
 
         // Then
-        assertClusterStatuses(clusterBar, null, Condition.Status.TRUE);
+        assertClusterAcceptedTrue(clusterBar);
     }
 
     @Test
@@ -128,13 +133,13 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
 
         // Then
-        assertClusterStatuses(clusterBar, Condition.Status.FALSE, null);
+        assertClusterResolvedRefsFalse(clusterBar, VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND);
 
         // And When
         testActor.create(kafkaService(SERVICE_H));
 
         // Then
-        assertClusterStatuses(clusterBar, null, Condition.Status.TRUE);
+        assertClusterAcceptedTrue(clusterBar);
     }
 
     @Test
@@ -148,13 +153,13 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(resource);
 
         // Then
-        assertClusterStatuses(clusterBar, Condition.Status.FALSE, null);
+        assertClusterResolvedRefsFalse(clusterBar, VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND);
 
         // And When
         testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
 
         // Then
-        assertClusterStatuses(clusterBar, null, Condition.Status.TRUE);
+        assertClusterAcceptedTrue(clusterBar);
     }
 
     @Test
@@ -168,13 +173,13 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
 
         // Then
-        assertClusterStatuses(clusterBar, Condition.Status.FALSE, null);
+        assertClusterResolvedRefsFalse(clusterBar, VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND);
 
         // And When
         testActor.create(filter(FILTER_K));
 
         // Then
-        assertClusterStatuses(clusterBar, null, Condition.Status.TRUE);
+        assertClusterAcceptedTrue(clusterBar);
     }
 
     @Test
@@ -185,13 +190,13 @@ class VirtualKafkaClusterReconcilerIT {
         testActor.create(kafkaService(SERVICE_H));
         testActor.create(filter(FILTER_K));
         VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
-        assertClusterStatuses(clusterBar, null, Condition.Status.TRUE);
+        assertClusterAcceptedTrue(clusterBar);
 
         // When
         testActor.delete((HasMetadata) proxy);
 
         // Then
-        assertClusterStatuses(clusterBar, Condition.Status.FALSE, null);
+        assertClusterResolvedRefsFalse(clusterBar, VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND);
     }
 
     @Test
@@ -202,16 +207,64 @@ class VirtualKafkaClusterReconcilerIT {
         testActor.create(kafkaService(SERVICE_H));
         var filter = testActor.create(filter(FILTER_K));
         VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
-        assertClusterStatuses(clusterBar, null, Condition.Status.TRUE);
+        assertClusterAcceptedTrue(clusterBar);
 
         // When
         testActor.delete(filter);
 
         // Then
-        assertClusterStatuses(clusterBar, Condition.Status.FALSE, null);
+        assertClusterResolvedRefsFalse(clusterBar, VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND);
+    }
+
+    @Test
+    void shouldNotResolveWhileIngressRefersToOtherProxy() {
+        // Given
+        testActor.create(kafkaProxy(PROXY_A));
+        testActor.create(kafkaProxy(PROXY_B));
+        testActor.create(kafkaService(SERVICE_H));
+        testActor.create(clusterIpIngress(INGRESS_D, PROXY_B)); // not A, which is what the VKC references
+
+        // When
+        VirtualKafkaCluster resource = cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null);
+        VirtualKafkaCluster clusterBar = testActor.create(resource);
+
+        // Then
+        assertClusterResolvedRefsFalse(clusterBar, ProxyConfigConfigMap.REASON_INVALID);
+
+        // And when
+        testActor.replace(clusterIpIngress(INGRESS_D, PROXY_A));
+
+        // Then
+        assertClusterAcceptedTrue(clusterBar);
+    }
+
+    @Test
+    void shouldNotResolveWhileTwoIpIngresses() {
+        // Given
+        testActor.create(kafkaProxy(PROXY_A));
+        testActor.create(kafkaService(SERVICE_H));
+        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
+        testActor.create(clusterIpIngress(INGRESS_E, PROXY_A));
+
+        // When
+        VirtualKafkaCluster resource = cluster(CLUSTER_BAR, PROXY_A, List.of(INGRESS_D, INGRESS_E), SERVICE_H, null);
+        VirtualKafkaCluster clusterBar = testActor.create(resource);
+
+        // Then
+        assertClusterAcceptedFalse(clusterBar, ProxyConfigConfigMap.REASON_INVALID);
+
+        // And when
+        testActor.replace(cluster(CLUSTER_BAR, PROXY_A, List.of(INGRESS_D), SERVICE_H, null));
+
+        // Then
+        assertClusterAcceptedTrue(clusterBar);
     }
 
     private VirtualKafkaCluster cluster(String clusterName, String proxyName, String ingressName, String serviceName, @Nullable String filterName) {
+        return cluster(clusterName, proxyName, List.of(ingressName), serviceName, filterName);
+    }
+
+    private VirtualKafkaCluster cluster(String clusterName, String proxyName, List<String> ingressNamees, String serviceName, @Nullable String filterName) {
         // @formatter:off
         var specBuilder = new VirtualKafkaClusterBuilder()
                 .withNewMetadata()
@@ -221,9 +274,7 @@ class VirtualKafkaClusterReconcilerIT {
                 .withNewProxyRef()
                     .withName(proxyName)
                 .endProxyRef()
-                .addNewIngressRef()
-                    .withName(ingressName)
-                .endIngressRef()
+                .addAllToIngressRefs(ingressNamees.stream().map(name -> new IngressRefBuilder().withName(name).build()).toList())
                 .withNewTargetKafkaServiceRef()
                     .withName(serviceName)
                 .endTargetKafkaServiceRef();
@@ -237,9 +288,24 @@ class VirtualKafkaClusterReconcilerIT {
         return specBuilder.endSpec().build();
     }
 
+    private void assertClusterResolvedRefsFalse(VirtualKafkaCluster cr, String expectedReason) {
+        assertClusterStatuses(cr, Condition.Status.FALSE, expectedReason, null, null);
+    }
+
+    private void assertClusterAcceptedTrue(VirtualKafkaCluster cr) {
+        assertClusterStatuses(cr, null, null, Condition.Status.TRUE, null);
+    }
+
+    private void assertClusterAcceptedFalse(VirtualKafkaCluster cr,
+                                       String expectedReason) {
+        assertClusterStatuses(cr, null, null, Condition.Status.FALSE, expectedReason);
+    }
+
     private void assertClusterStatuses(VirtualKafkaCluster cr,
                                        @Nullable Condition.Status resolvedRefsStatus,
-                                       @Nullable Condition.Status acceptedStatus) {
+                                       @Nullable String resolvedRefsReason,
+                                       @Nullable Condition.Status acceptedStatus,
+                                       @Nullable String acceptedReason) {
         AWAIT.alias("ClusterStatusResolvedRefs").untilAsserted(() -> {
             var vkc = testActor.resources(VirtualKafkaCluster.class)
                     .withName(ResourcesUtil.name(cr)).get();
@@ -249,19 +315,25 @@ class VirtualKafkaClusterReconcilerIT {
                     .hasObservedGenerationInSyncWithMetadataOf(vkc)
                     .conditionList();
             if (acceptedStatus == null) {
-                conditionListAssert
+                ConditionAssert conditionAssert = conditionListAssert
                         .containsOnlyTypes(Condition.Type.ResolvedRefs)
                         .singleOfType(Condition.Type.ResolvedRefs)
                         .hasStatus(resolvedRefsStatus)
                         .hasObservedGenerationInSyncWithMetadataOf(vkc);
+                if (resolvedRefsReason != null) {
+                    conditionAssert.hasReason(resolvedRefsReason);
+                }
             }
             else {
                 conditionListAssert
                         .containsOnlyTypes(Condition.Type.Accepted);
-                conditionListAssert
+                ConditionAssert conditionAssert = conditionListAssert
                         .singleOfType(Condition.Type.Accepted)
                         .hasStatus(acceptedStatus)
                         .hasObservedGenerationInSyncWithMetadataOf(vkc);
+                if (acceptedReason != null) {
+                    conditionAssert.hasReason(acceptedReason);
+                }
             }
         });
     }

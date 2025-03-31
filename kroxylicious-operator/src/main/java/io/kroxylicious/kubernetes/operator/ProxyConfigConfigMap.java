@@ -58,6 +58,8 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 public class ProxyConfigConfigMap
         extends CRUDKubernetesDependentResource<ConfigMap, KafkaProxy> {
 
+    public static String REASON_INVALID = "Invalid";
+
     /**
      * The key of the {@code config.yaml} entry in the desired {@code Secret}.
      */
@@ -127,7 +129,7 @@ public class ProxyConfigConfigMap
             if (!virtualClusterIngressModel.ingressExceptions().isEmpty()) {
                 IngressConflictException first = virtualClusterIngressModel.ingressExceptions().iterator().next();
                 accepted = ResourcesUtil.newFalseCondition(clock, cluster,
-                        Condition.Type.Accepted, "Invalid",
+                        Condition.Type.Accepted, REASON_INVALID,
                         "Ingress(es) [" + first.getIngressName() + "] of cluster conflicts with another ingress");
             }
             else {
@@ -160,7 +162,7 @@ public class ProxyConfigConfigMap
                     data.addConditionsForCluster(
                             ResourcesUtil.name(cluster),
                             List.of(ResourcesUtil.newFalseCondition(clock, cluster,
-                                    Condition.Type.ResolvedRefs, "Invalid", message)));
+                                    Condition.Type.ResolvedRefs, REASON_INVALID, message)));
                 });
     }
 
