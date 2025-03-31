@@ -97,7 +97,7 @@ public class ProxyConfigConfigMap
                                 Context<KafkaProxy> context) {
         Clock clock = KafkaProxyContext.clock(context);
         var data = new ProxyConfigData();
-        data.setProxyConfiguration(generateProxyConfig(primary, context));
+        data.setProxyConfiguration(generateProxyConfig(context));
 
         ProxyModel proxyModel = KafkaProxyContext.model(context);
         addResolvedRefsConditions(clock, proxyModel, data);
@@ -164,8 +164,7 @@ public class ProxyConfigConfigMap
                 });
     }
 
-    Configuration generateProxyConfig(KafkaProxy primary,
-                                      Context<KafkaProxy> context) {
+    Configuration generateProxyConfig(Context<KafkaProxy> context) {
 
         var model = KafkaProxyContext.model(context);
 
@@ -178,15 +177,13 @@ public class ProxyConfigConfigMap
                 .distinct()
                 .map(namedDefinitions::get).toList();
 
-        Configuration configuration = new Configuration(
+        return new Configuration(
                 new ManagementConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())), referencedFilters,
                 null, // no defaultFilters <= each of the virtualClusters specifies its own
                 virtualClusters,
                 List.of(), false,
                 // micrometer
                 Optional.empty());
-
-        return configuration;
     }
 
     @NonNull

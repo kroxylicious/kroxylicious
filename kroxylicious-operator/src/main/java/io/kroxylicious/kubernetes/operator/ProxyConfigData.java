@@ -84,7 +84,7 @@ public class ProxyConfigData {
             });
         }
         catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
+            throw new UncheckedIOException(e);
         }
     }
 

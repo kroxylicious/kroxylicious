@@ -18,9 +18,12 @@ import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 
 public class KafkaProxyContext {
 
-    static final String SEC = "sec";
-    static final String MODEL = "model";
-    public static final String CLOCK = "clock";
+    private static final String KEY_SEC = "sec";
+    private static final String KEY_MODEL = "model";
+    private static final String KEY_CLOCK = "clock";
+
+    private KafkaProxyContext() {
+    }
 
     static void init(Clock clock,
                      SecureConfigInterpolator secureConfigInterpolator,
@@ -28,25 +31,25 @@ public class KafkaProxyContext {
                      Context<KafkaProxy> context) {
         var rc = context.managedWorkflowAndDependentResourceContext();
 
-        rc.put(CLOCK, Clock.fixed(clock.instant(), clock.getZone()));
+        rc.put(KEY_CLOCK, Clock.fixed(clock.instant(), clock.getZone()));
 
-        rc.put(SEC, secureConfigInterpolator);
+        rc.put(KEY_SEC, secureConfigInterpolator);
 
         ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
         ProxyModel model = proxyModelBuilder.build(proxy, context);
-        rc.put(MODEL, model);
+        rc.put(KEY_MODEL, model);
     }
 
     static Clock clock(Context<KafkaProxy> context) {
-        return context.managedWorkflowAndDependentResourceContext().getMandatory(CLOCK, Clock.class);
+        return context.managedWorkflowAndDependentResourceContext().getMandatory(KEY_CLOCK, Clock.class);
     }
 
     static SecureConfigInterpolator secureConfigInterpolator(Context<KafkaProxy> context) {
-        return context.managedWorkflowAndDependentResourceContext().getMandatory(SEC, SecureConfigInterpolator.class);
+        return context.managedWorkflowAndDependentResourceContext().getMandatory(KEY_SEC, SecureConfigInterpolator.class);
     }
 
     static ProxyModel model(Context<KafkaProxy> context) {
-        return context.managedWorkflowAndDependentResourceContext().getMandatory(MODEL, ProxyModel.class);
+        return context.managedWorkflowAndDependentResourceContext().getMandatory(KEY_MODEL, ProxyModel.class);
     }
 
     static boolean isBroken(Context<KafkaProxy> context, VirtualKafkaCluster cluster) {

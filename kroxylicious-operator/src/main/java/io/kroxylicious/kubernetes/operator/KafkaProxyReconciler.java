@@ -114,7 +114,7 @@ public class KafkaProxyReconciler implements
             LOGGER.info("Completed reconciliation of {}/{}", namespace(primary), name(primary));
         }
         return UpdateControl.patchStatus(
-                buildStatus(primary, context, null));
+                buildStatus(primary, null));
     }
 
     /**
@@ -126,7 +126,7 @@ public class KafkaProxyReconciler implements
                                                                   Exception exception) {
         // Post-condition: status.conditions should be in a canonical order (to avoid non-terminating reconciliations)
         // Post-condition: There is only one Ready condition
-        var control = ErrorStatusUpdateControl.patchStatus(buildStatus(primary, context, exception));
+        var control = ErrorStatusUpdateControl.patchStatus(buildStatus(primary, exception));
         if (exception instanceof InvalidResourceException) {
             control.withNoRetry();
         }
@@ -138,7 +138,6 @@ public class KafkaProxyReconciler implements
     }
 
     private static KafkaProxy buildStatus(KafkaProxy primary,
-                                          Context<KafkaProxy> context,
                                           @Nullable Exception exception) {
         if (exception instanceof AggregatedOperatorException aoe && aoe.getAggregatedExceptions().size() == 1) {
             exception = aoe.getAggregatedExceptions().values().iterator().next();
@@ -163,7 +162,7 @@ public class KafkaProxyReconciler implements
      * Determines whether the {@code Ready} condition has had a state transition,
      * and returns an appropriate new {@code Ready} condition.
      *
-     * @param now
+     * @param now The current time
      * @param primary The primary.
      * @param exception An exception, or null if the reconciliation was successful.
      * @return The {@code Ready} condition to use in {@code status.conditions}.
@@ -214,7 +213,7 @@ public class KafkaProxyReconciler implements
     }
 
     /**
-     * @param now
+     * @param now The current time
      * @param primary The primary.
      * @param exception An exception, or null if the reconciliation was successful.
      * @return The {@code Ready} condition to use in {@code status.conditions}
