@@ -95,11 +95,11 @@ public class ProxyConfigConfigMap
     @Override
     protected ConfigMap desired(KafkaProxy primary,
                                 Context<KafkaProxy> context) {
-        Clock clock = KafkaProxyContext.clock(context);
+        Clock clock = KafkaProxyContext.proxyContext(context).clock();
         var data = new ProxyConfigData();
         data.setProxyConfiguration(generateProxyConfig(context));
 
-        ProxyModel proxyModel = KafkaProxyContext.model(context);
+        ProxyModel proxyModel = KafkaProxyContext.proxyContext(context).model();
         addResolvedRefsConditions(clock, proxyModel, data);
         addAcceptedConditions(clock, proxyModel, data);
 
@@ -166,7 +166,7 @@ public class ProxyConfigConfigMap
 
     Configuration generateProxyConfig(Context<KafkaProxy> context) {
 
-        var model = KafkaProxyContext.model(context);
+        var model = KafkaProxyContext.proxyContext(context).model();
 
         List<NamedFilterDefinition> allFilterDefinitions = buildFilterDefinitions(context, model);
         Map<String, NamedFilterDefinition> namedDefinitions = allFilterDefinitions.stream().collect(Collectors.toMap(NamedFilterDefinition::name, f -> f));

@@ -67,7 +67,7 @@ public class ProxyDeployment
     @Override
     protected Deployment desired(KafkaProxy primary,
                                  Context<KafkaProxy> context) {
-        var model = KafkaProxyContext.model(context);
+        var model = KafkaProxyContext.proxyContext(context).model();
         // @formatter:off
         return new DeploymentBuilder()
                 .editOrNewMetadata()
@@ -154,7 +154,7 @@ public class ProxyDeployment
                 .endPort();
         // broker ports
         virtualKafkaClusters.forEach(virtualKafkaCluster -> {
-            if (!KafkaProxyContext.isBroken(context, virtualKafkaCluster)) {
+            if (!KafkaProxyContext.proxyContext(context).isBroken(virtualKafkaCluster)) {
                 ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(virtualKafkaCluster).orElseThrow();
                 for (ProxyIngressModel.IngressModel ingress : virtualClusterIngressModel.ingressModels()) {
                     ingress.proxyContainerPorts().forEach(containerBuilder::addToPorts);

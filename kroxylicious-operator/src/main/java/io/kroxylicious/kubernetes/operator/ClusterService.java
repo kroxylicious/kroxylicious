@@ -48,9 +48,10 @@ public class ClusterService
     public Map<String, Service> desiredResources(
                                                  KafkaProxy primary,
                                                  Context<KafkaProxy> context) {
-        var model = KafkaProxyContext.model(context);
+        KafkaProxyContext kafkaProxyContext = KafkaProxyContext.proxyContext(context);
+        var model = kafkaProxyContext.model();
         Stream<Service> serviceStream = model.clustersWithValidIngresses().stream()
-                .filter(cluster -> !KafkaProxyContext.isBroken(context, cluster))
+                .filter(cluster -> !kafkaProxyContext.isBroken(cluster))
                 .flatMap(cluster -> model.ingressModel().clusterIngressModel(cluster).map(ProxyIngressModel.VirtualClusterIngressModel::services).orElse(Stream.empty()));
         return serviceStream.collect(toByNameMap());
     }

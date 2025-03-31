@@ -96,7 +96,7 @@ public class KafkaProxyReconciler implements
     }
 
     static SecureConfigInterpolator secureConfigInterpolator(Context<KafkaProxy> context) {
-        return KafkaProxyContext.secureConfigInterpolator(context);
+        return KafkaProxyContext.proxyContext(context).secureConfigInterpolator();
     }
 
     @Override
@@ -105,7 +105,7 @@ public class KafkaProxyReconciler implements
                             Context<KafkaProxy> context) {
         ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
         ProxyModel model = proxyModelBuilder.build(proxy, context);
-        KafkaProxyContext.init(clock, secureConfigInterpolator, model, context);
+        KafkaProxyContext.init(context, clock, secureConfigInterpolator, model);
     }
 
     /**

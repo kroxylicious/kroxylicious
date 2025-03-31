@@ -257,7 +257,11 @@ class DerivedResourcesTest {
 
             ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
             ProxyModel model = proxyModelBuilder.build(kafkaProxy, context);
-            KafkaProxyContext.init(Clock.fixed(Instant.EPOCH, ZoneId.of("Z")), SecureConfigInterpolator.DEFAULT_INTERPOLATOR, model, context);
+            KafkaProxyContext.init(
+                    context,
+                    Clock.fixed(Instant.EPOCH, ZoneId.of("Z")),
+                    SecureConfigInterpolator.DEFAULT_INTERPOLATOR,
+                    model);
 
             List<DynamicTest> tests = new ArrayList<>();
 
