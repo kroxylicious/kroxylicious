@@ -297,7 +297,7 @@ class VirtualKafkaClusterReconcilerIT {
     }
 
     private void assertClusterAcceptedFalse(VirtualKafkaCluster cr,
-                                       String expectedReason) {
+                                            String expectedReason) {
         assertClusterStatuses(cr, null, null, Condition.Status.FALSE, expectedReason);
     }
 

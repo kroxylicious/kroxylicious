@@ -147,7 +147,6 @@ public class ProxyConfigConfigMap
                 .filter(ResolutionResult.ClusterResolutionResult::isAnyDependencyUnresolved)
                 .forEach(clusterResolutionResult -> {
 
-                    // TODO why not rely on the natural sort order?
                     Comparator<LocalRef<?>> comparator = Comparator.<LocalRef<?>, String> comparing(LocalRef::getGroup)
                             .thenComparing(LocalRef::getKind)
                             .thenComparing(LocalRef::getName);
@@ -257,7 +256,7 @@ public class ProxyConfigConfigMap
     }
 
     private SecureConfigInterpolator.InterpolationResult interpolateConfig(Context<KafkaProxy> context, KafkaProtocolFilterSpec spec) {
-        SecureConfigInterpolator secureConfigInterpolator = KafkaProxyReconciler.secureConfigInterpolator(context);
+        SecureConfigInterpolator secureConfigInterpolator = KafkaProxyContext.proxyContext(context).secureConfigInterpolator();
         Object configTemplate = Objects.requireNonNull(spec.getConfigTemplate(), "ConfigTemplate is required in the KafkaProtocolFilterSpec");
         return secureConfigInterpolator.interpolate(configTemplate);
     }

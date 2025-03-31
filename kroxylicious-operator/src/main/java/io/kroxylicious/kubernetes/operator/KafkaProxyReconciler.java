@@ -95,10 +95,6 @@ public class KafkaProxyReconciler implements
         this.secureConfigInterpolator = secureConfigInterpolator;
     }
 
-    static SecureConfigInterpolator secureConfigInterpolator(Context<KafkaProxy> context) {
-        return KafkaProxyContext.proxyContext(context).secureConfigInterpolator();
-    }
-
     @Override
     public void initContext(
                             KafkaProxy proxy,
