@@ -160,8 +160,7 @@ public class ProxyConfigConfigMap
                     data.addConditionsForCluster(
                             ResourcesUtil.name(cluster),
                             List.of(ResourcesUtil.newFalseCondition(clock, cluster,
-                                    Condition.Type.ResolvedRefs, "Invalid", message)
-                    ));
+                                    Condition.Type.ResolvedRefs, "Invalid", message)));
                 });
     }
 
