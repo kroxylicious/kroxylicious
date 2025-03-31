@@ -277,7 +277,15 @@ public class ResourcesUtil {
                 primary -> refAccessor.apply(primary).stream().anyMatch(ref -> ResourcesUtil.isReferent(ref, referent)));
     }
 
-    static List<Condition> maybeAddOrUpdateCondition(List<Condition> conditions, List<Condition> conditionsToAdd) {
+    /**
+     * Return new conditions by adding the given {@code conditionsToAdd} to the given {@code conditions},
+     * keeping a single condition of each type.
+     * When a {@code conditionToAdd} has a null status that condition will be removed.
+     * @param conditions The existing conditions
+     * @param conditionsToAdd The conditions to add
+     * @return The new conditions.
+     */
+    static List<Condition> maybeAddOrUpdateConditions(List<Condition> conditions, List<Condition> conditionsToAdd) {
         Comparator<Condition> conditionComparator = Comparator
                 .comparing(Condition::getType)
                 .thenComparing(Comparator.comparing(Condition::getObservedGeneration).reversed())
@@ -349,7 +357,7 @@ public class ResourcesUtil {
                 VirtualKafkaClusterStatus::new,
                 VirtualKafkaClusterStatus::setConditions,
                 VirtualKafkaClusterStatus::setObservedGeneration,
-                maybeAddOrUpdateCondition(
+                maybeAddOrUpdateConditions(
                         Optional.of(cluster)
                                 .map(VirtualKafkaCluster::getStatus)
                                 .map(VirtualKafkaClusterStatus::getConditions)
@@ -365,7 +373,7 @@ public class ResourcesUtil {
                 KafkaServiceStatus::new,
                 KafkaServiceStatus::setConditions,
                 KafkaServiceStatus::setObservedGeneration,
-                maybeAddOrUpdateCondition(
+                maybeAddOrUpdateConditions(
                         Optional.of(service)
                                 .map(KafkaService::getStatus)
                                 .map(KafkaServiceStatus::getConditions)
@@ -381,7 +389,7 @@ public class ResourcesUtil {
                 KafkaProxyIngressStatus::new,
                 KafkaProxyIngressStatus::setConditions,
                 KafkaProxyIngressStatus::setObservedGeneration,
-                maybeAddOrUpdateCondition(
+                maybeAddOrUpdateConditions(
                         Optional.of(ingress)
                                 .map(KafkaProxyIngress::getStatus)
                                 .map(KafkaProxyIngressStatus::getConditions)
@@ -397,7 +405,7 @@ public class ResourcesUtil {
                 KafkaProtocolFilterStatus::new,
                 KafkaProtocolFilterStatus::setConditions,
                 KafkaProtocolFilterStatus::setObservedGeneration,
-                maybeAddOrUpdateCondition(
+                maybeAddOrUpdateConditions(
                         Optional.of(filter)
                                 .map(KafkaProtocolFilter::getStatus)
                                 .map(KafkaProtocolFilterStatus::getConditions)

@@ -46,6 +46,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.operator.model.ProxyModel;
+import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -101,7 +103,9 @@ public class KafkaProxyReconciler implements
     public void initContext(
                             KafkaProxy proxy,
                             Context<KafkaProxy> context) {
-        KafkaProxyContext.init(clock, secureConfigInterpolator, proxy, context);
+        ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
+        ProxyModel model = proxyModelBuilder.build(proxy, context);
+        KafkaProxyContext.init(clock, secureConfigInterpolator, model, context);
     }
 
     /**

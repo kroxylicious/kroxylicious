@@ -14,7 +14,6 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
-import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 
 public class KafkaProxyContext {
 
@@ -27,7 +26,7 @@ public class KafkaProxyContext {
 
     static void init(Clock clock,
                      SecureConfigInterpolator secureConfigInterpolator,
-                     KafkaProxy proxy,
+                     ProxyModel model,
                      Context<KafkaProxy> context) {
         var rc = context.managedWorkflowAndDependentResourceContext();
 
@@ -35,8 +34,6 @@ public class KafkaProxyContext {
 
         rc.put(KEY_SEC, secureConfigInterpolator);
 
-        ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
-        ProxyModel model = proxyModelBuilder.build(proxy, context);
         rc.put(KEY_MODEL, model);
     }
 
@@ -55,9 +52,9 @@ public class KafkaProxyContext {
     static boolean isBroken(Context<KafkaProxy> context, VirtualKafkaCluster cluster) {
         var model = KafkaProxyContext.model(context);
         var fullyResolved = model.resolutionResult().fullyResolvedClustersInNameOrder().stream().map(ResourcesUtil::name).collect(Collectors.toSet());
-        return !(fullyResolved.contains(ResourcesUtil.name(cluster))
-                && model.ingressModel().clusterIngressModel(cluster).stream()
-                        .allMatch(ingressModel -> ingressModel.ingressExceptions().isEmpty()));
+        return !fullyResolved.contains(ResourcesUtil.name(cluster))
+                || !model.ingressModel().clusterIngressModel(cluster).stream()
+                        .allMatch(ingressModel -> ingressModel.ingressExceptions().isEmpty());
 
     }
 

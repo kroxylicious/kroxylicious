@@ -205,7 +205,7 @@ class ResourcesUtilTest {
                 .isEqualTo(new FilterRefBuilder().withName("foo").build());
     }
 
-    static List<Arguments> maybeAddOrUpdateCondition() {
+    static List<Arguments> maybeAddOrUpdateConditions() {
         ZonedDateTime now = ZonedDateTime.now();
         Condition resolvedRefs = new ConditionBuilder()
                 .withObservedGeneration(1L)
@@ -271,8 +271,8 @@ class ResourcesUtilTest {
 
     @ParameterizedTest
     @MethodSource
-    void maybeAddOrUpdateCondition(List<Condition> list, Condition condition, List<Condition> expectedResult) {
-        assertThat(ResourcesUtil.maybeAddOrUpdateCondition(list, List.of(condition))).isEqualTo(expectedResult);
+    void maybeAddOrUpdateConditions(List<Condition> list, Condition condition, List<Condition> expectedResult) {
+        assertThat(ResourcesUtil.maybeAddOrUpdateConditions(list, List.of(condition))).isEqualTo(expectedResult);
     }
 
 }

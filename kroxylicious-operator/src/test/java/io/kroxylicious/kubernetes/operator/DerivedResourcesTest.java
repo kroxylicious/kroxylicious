@@ -51,6 +51,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.operator.model.ProxyModel;
+import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -252,7 +254,10 @@ class DerivedResourcesTest {
             catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
-            KafkaProxyContext.init(Clock.fixed(Instant.EPOCH, ZoneId.of("Z")), SecureConfigInterpolator.DEFAULT_INTERPOLATOR, kafkaProxy, context);
+
+            ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
+            ProxyModel model = proxyModelBuilder.build(kafkaProxy, context);
+            KafkaProxyContext.init(Clock.fixed(Instant.EPOCH, ZoneId.of("Z")), SecureConfigInterpolator.DEFAULT_INTERPOLATOR, model, context);
 
             List<DynamicTest> tests = new ArrayList<>();
 
