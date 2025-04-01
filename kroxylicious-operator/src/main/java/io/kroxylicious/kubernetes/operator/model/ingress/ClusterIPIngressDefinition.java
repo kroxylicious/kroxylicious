@@ -20,6 +20,7 @@ import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.proxy.config.NamedRange;
@@ -30,8 +31,22 @@ import io.kroxylicious.proxy.service.HostPort;
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
+import static java.lang.Math.toIntExact;
 
-record ClusterIPIngressDefinition(KafkaProxyIngress resource, VirtualKafkaCluster cluster, KafkaProxy primary) implements IngressDefinition {
+record ClusterIPIngressDefinition(KafkaProxyIngress resource, VirtualKafkaCluster cluster, KafkaProxy primary,
+                                  List<NodeIdRanges> nodeIdRanges)
+        implements IngressDefinition {
+
+    ClusterIPIngressDefinition {
+        Objects.requireNonNull(resource);
+        Objects.requireNonNull(cluster);
+        Objects.requireNonNull(primary);
+        Objects.requireNonNull(nodeIdRanges);
+        if (nodeIdRanges.isEmpty()) {
+            throw new IllegalArgumentException("nodeIdRanges cannot be empty");
+        }
+    }
+
     private record ClusterIPIngressInstance(ClusterIPIngressDefinition definition, int firstIdentifyingPort, int lastIdentifyingPort)
             implements IngressInstance {
         ClusterIPIngressInstance {
@@ -41,9 +56,15 @@ record ClusterIPIngressDefinition(KafkaProxyIngress resource, VirtualKafkaCluste
 
         @Override
         public VirtualClusterGateway gatewayConfig() {
+            List<NamedRange> portRanges = IntStream.range(0, definition.nodeIdRanges.size()).mapToObj(i -> {
+                NodeIdRanges range = definition.nodeIdRanges.get(i);
+                String name = Optional.ofNullable(range.getName()).orElse("range-" + i);
+                return new NamedRange(name, toIntExact(range.getStart()), toIntExact(range.getEnd()));
+            }).toList();
             return new VirtualClusterGateway("default",
                     new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", firstIdentifyingPort),
-                            qualifiedServiceHost(), null, List.of(new NamedRange("default", 0, NUM_BROKERS - 1))),
+                            qualifiedServiceHost(), null,
+                            portRanges),
                     null,
                     Optional.empty());
         }
@@ -82,9 +103,9 @@ record ClusterIPIngressDefinition(KafkaProxyIngress resource, VirtualKafkaCluste
         public Stream<ContainerPort> proxyContainerPorts() {
             Stream<ContainerPort> bootstrapPort = Stream.of(new ContainerPortBuilder().withContainerPort(firstIdentifyingPort)
                     .withName(firstIdentifyingPort + "-bootstrap").build());
-            Stream<ContainerPort> ingressNodePorts = IntStream.range(0, NUM_BROKERS).mapToObj(
-                    nodeId -> {
-                        int port = firstIdentifyingPort + nodeId + 1;
+            Stream<ContainerPort> ingressNodePorts = IntStream.range(0, definition().nodeCount()).mapToObj(
+                    nodeIdx -> {
+                        int port = firstIdentifyingPort + nodeIdx + 1;
                         return new ContainerPortBuilder().withContainerPort(port)
                                 .withName(port + "-node").build();
                     });
@@ -95,9 +116,6 @@ record ClusterIPIngressDefinition(KafkaProxyIngress resource, VirtualKafkaCluste
             return name(definition.cluster) + "-" + name(definition.resource) + "." + namespace(definition.cluster) + ".svc.cluster.local";
         }
     }
-
-    // TODO replace with nodeid declaration in CRD
-    private static final int NUM_BROKERS = 3;
 
     private static String serviceName(VirtualKafkaCluster cluster, KafkaProxyIngress resource) {
         Objects.requireNonNull(cluster);
@@ -113,7 +131,12 @@ record ClusterIPIngressDefinition(KafkaProxyIngress resource, VirtualKafkaCluste
     @Override
     public int numIdentifyingPortsRequired() {
         // one per broker plus the bootstrap
-        return NUM_BROKERS + 1;
+        return nodeCount() + 1;
+    }
+
+    // note: we use CRD validation to enforce end >= start at the apiserver level
+    private int nodeCount() {
+        return nodeIdRanges.stream().mapToInt(range -> toIntExact((range.getEnd() - range.getStart()) + 1)).sum();
     }
 
 }
