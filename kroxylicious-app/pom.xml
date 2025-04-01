@@ -23,6 +23,9 @@
 
     <name>Proxy application</name>
     <description>A runnable proxy application. Provides the main() method.</description>
+    <properties>
+        <container-registry-org>quay.io/kroxylicious/</container-registry-org>
+    </properties>
 
     <dependencies>
         <!-- project dependencies - runtime and compile -->
@@ -172,6 +175,26 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+                <configuration>
+                    <from>
+                        <image>registry://registry.access.redhat.com/ubi9/ubi-minimal:9.2</image>
+                    </from>
+                    <to>
+                        <image>${container-registry-org}kroxylicious:${project.version}</image>
+                    </to>
+                    <extraDirectories>
+                        <paths>
+
+                        </paths>
+                    </extraDirectories>
+                    <!--                    <container>-->
+                    <!--                        <entrypoint>"/usr/bin/tini", "&#45;&#45;", "/opt/kroxylicious/bin/kroxylicious-start.sh"</entrypoint>-->
+                    <!--                    </container>-->
+                </configuration>
             </plugin>
         </plugins>
         <resources>
