@@ -20,6 +20,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
@@ -36,11 +38,15 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder
 import io.kroxylicious.kubernetes.operator.assertj.ConditionAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class VirtualKafkaClusterReconcilerTest {
+
+    public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
 
     // @formatter:off
     public static final VirtualKafkaCluster CLUSTER_NO_FILTERS = new VirtualKafkaClusterBuilder()
@@ -111,6 +117,7 @@ class VirtualKafkaClusterReconcilerTest {
                 Arguments.argumentSet("no filter",
                         CLUSTER_NO_FILTERS,
                         Optional.of(PROXY),
+                        Optional.of(buildProxyConfigMapWithConditions(CLUSTER_NO_FILTERS)),
                         Optional.of(SERVICE),
                         Set.of(INGRESS),
                         Set.of(),
@@ -118,12 +125,14 @@ class VirtualKafkaClusterReconcilerTest {
                 Arguments.argumentSet("one filter",
                         CLUSTER_ONE_FILTER,
                         Optional.of(PROXY),
+                        Optional.of(buildProxyConfigMapWithConditions(CLUSTER_ONE_FILTER)),
                         Optional.of(SERVICE),
                         Set.of(INGRESS),
                         Set.of(FILTER_MY_FILTER),
                         (Consumer<ConditionAssert>) ConditionAssert::isResolvedRefsTrue),
                 Arguments.argumentSet("proxy not found",
                         CLUSTER_NO_FILTERS,
+                        Optional.empty(),
                         Optional.empty(),
                         Optional.of(SERVICE),
                         Set.of(INGRESS),
@@ -135,6 +144,7 @@ class VirtualKafkaClusterReconcilerTest {
                         CLUSTER_NO_FILTERS,
                         Optional.of(PROXY),
                         Optional.empty(),
+                        Optional.empty(),
                         Set.of(INGRESS),
                         Set.of(),
                         (Consumer<ConditionAssert>) ca -> ca.isResolvedRefsFalse(
@@ -143,6 +153,7 @@ class VirtualKafkaClusterReconcilerTest {
                 Arguments.argumentSet("service has unresolved refs",
                         CLUSTER_NO_FILTERS,
                         Optional.of(PROXY),
+                        Optional.empty(),
                         Optional.of(new KafkaServiceBuilder(SERVICE).withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
                                 .withStatus(Condition.Status.FALSE).endCondition().endStatus().build()),
                         Set.of(INGRESS),
@@ -153,6 +164,7 @@ class VirtualKafkaClusterReconcilerTest {
                 Arguments.argumentSet("ingress not found",
                         CLUSTER_NO_FILTERS,
                         Optional.of(PROXY),
+                        Optional.empty(),
                         Optional.of(SERVICE),
                         Set.of(),
                         Set.of(),
@@ -162,6 +174,7 @@ class VirtualKafkaClusterReconcilerTest {
                 Arguments.argumentSet("ingress has unresolved refs",
                         CLUSTER_NO_FILTERS,
                         Optional.of(PROXY),
+                        Optional.empty(),
                         Optional.of(SERVICE),
                         Set.of(new KafkaProxyIngressBuilder(INGRESS).withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
                                 .withStatus(Condition.Status.FALSE).endCondition().endStatus().build()),
@@ -172,6 +185,7 @@ class VirtualKafkaClusterReconcilerTest {
                 Arguments.argumentSet("filter not found",
                         CLUSTER_ONE_FILTER,
                         Optional.of(PROXY),
+                        Optional.empty(),
                         Optional.of(SERVICE),
                         Set.of(INGRESS),
                         Set.of(),
@@ -181,6 +195,7 @@ class VirtualKafkaClusterReconcilerTest {
                 Arguments.argumentSet("filter has unresolved refs",
                         CLUSTER_ONE_FILTER,
                         Optional.of(PROXY),
+                        Optional.empty(),
                         Optional.of(SERVICE),
                         Set.of(INGRESS),
                         Set.of(new KafkaProtocolFilterBuilder(FILTER_MY_FILTER).withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
@@ -190,20 +205,36 @@ class VirtualKafkaClusterReconcilerTest {
                                 "spec.filterRefs references kafkaprotocolfilter.filter.kroxylicious.io/my-filter in namespace 'my-namespace'")));
     }
 
+    @NonNull
+    private static ConfigMap buildProxyConfigMapWithConditions(VirtualKafkaCluster clusterOneFilter) {
+        // @formatter:off
+        return new ConfigMapBuilder()
+                .withNewMetadata()
+                    .withName(clusterOneFilter.getSpec().getProxyRef().getName())
+                .endMetadata()
+                .withData(new ProxyConfigData().addConditionsForCluster(
+                    ResourcesUtil.name(clusterOneFilter),
+                    List.of(ResourcesUtil.newResolvedRefsTrue(TEST_CLOCK, clusterOneFilter))).build())
+                .build();
+        // @formatter:on
+    }
+
     @ParameterizedTest
     @MethodSource
     void shouldSetResolvedRefsToTrueOrFalse(VirtualKafkaCluster cluster,
                                             Optional<KafkaProxy> existingProxy,
+                                            Optional<ConfigMap> existingProxyConfigMap,
                                             Optional<KafkaService> existingService,
                                             Set<KafkaProxyIngress> existingIngresses,
                                             Set<KafkaProtocolFilter> existingFilters,
                                             Consumer<ConditionAssert> asserter) {
         // given
-        Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
+        Clock z = TEST_CLOCK;
         var reconciler = new VirtualKafkaClusterReconciler(z);
 
         Context<VirtualKafkaCluster> context = mock(Context.class);
         when(context.getSecondaryResource(KafkaProxy.class, VirtualKafkaClusterReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(existingProxy);
+        when(context.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.PROXY_CONFIG_MAP_EVENT_SOURCE_NAME)).thenReturn(existingProxyConfigMap);
         when(context.getSecondaryResource(KafkaService.class, VirtualKafkaClusterReconciler.SERVICES_EVENT_SOURCE_NAME)).thenReturn(existingService);
         when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(existingIngresses);
         when(context.getSecondaryResources(KafkaProtocolFilter.class)).thenReturn(existingFilters);
@@ -217,7 +248,7 @@ class VirtualKafkaClusterReconcilerTest {
         assertThat(update.getResource()).isPresent();
         ConditionAssert conditionAssert = VirtualKafkaClusterStatusAssert.assertThat(update.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(cluster)
-                .singleCondition()
+                .conditionList().singleOfType(Condition.Type.ResolvedRefs)
                 .hasObservedGenerationInSyncWithMetadataOf(cluster)
                 .hasLastTransitionTime(ZonedDateTime.ofInstant(z.instant(), z.getZone()));
         asserter.accept(conditionAssert);
@@ -227,8 +258,7 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void shouldSetResolvedRefsToUnknown() {
         // given
-        Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-        var reconciler = new VirtualKafkaClusterReconciler(z);
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK);
 
         Context<VirtualKafkaCluster> context = mock(Context.class);
 
@@ -243,7 +273,7 @@ class VirtualKafkaClusterReconcilerTest {
                 .singleCondition()
                 .hasObservedGenerationInSyncWithMetadataOf(CLUSTER_NO_FILTERS)
                 .isResolvedRefsUnknown("java.lang.RuntimeException", "Boom!")
-                .hasLastTransitionTime(ZonedDateTime.ofInstant(z.instant(), z.getZone()));
+                .hasLastTransitionTime(ZonedDateTime.ofInstant(TEST_CLOCK.instant(), TEST_CLOCK.getZone()));
 
     }
 }

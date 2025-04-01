@@ -7,16 +7,11 @@
 package io.kroxylicious.kubernetes.operator.model.ingress;
 
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
-import io.javaoperatorsdk.operator.api.reconciler.Context;
-
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.operator.ClusterCondition;
-import io.kroxylicious.kubernetes.operator.SharedKafkaProxyContext;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 
 import static io.kroxylicious.kubernetes.operator.ProxyDeployment.PROXY_PORT_START;
@@ -40,12 +35,11 @@ public class IngressAllocator {
      * to potentially unacceptable virtual clusters if we can.
      *
      * @param primary primary being reconciled
-     * @param context context
      * @param resolutionResult
      * @return non-null ProxyIngressModel
      */
     public static ProxyIngressModel allocateProxyIngressModel(KafkaProxy primary,
-                                                              Context<KafkaProxy> context, ResolutionResult resolutionResult) {
+                                                              ResolutionResult resolutionResult) {
         AtomicInteger exclusivePorts = new AtomicInteger(PROXY_PORT_START);
         // include broken clusters in the model, so that if they are healed the ports will stay the same
         Stream<VirtualKafkaCluster> virtualKafkaClusterStream = resolutionResult.allClustersInNameOrder().stream();
@@ -53,19 +47,7 @@ public class IngressAllocator {
                 .map(it -> new ProxyIngressModel.VirtualClusterIngressModel(it, allocateIngressModel(primary, it, exclusivePorts,
                         resolutionResult)))
                 .toList();
-        ProxyIngressModel model = new ProxyIngressModel(list);
-        reportConflictingIngresses(context, model);
-        return model;
-    }
-
-    private static void reportConflictingIngresses(Context<KafkaProxy> context, ProxyIngressModel model) {
-        for (ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel : model.clusters()) {
-            Set<IngressConflictException> exceptions = virtualClusterIngressModel.ingressExceptions();
-            if (!exceptions.isEmpty()) {
-                VirtualKafkaCluster cluster = virtualClusterIngressModel.cluster();
-                SharedKafkaProxyContext.addClusterCondition(context, cluster, ClusterCondition.ingressConflict(name(cluster), exceptions));
-            }
-        }
+        return new ProxyIngressModel(list);
     }
 
     private static List<ProxyIngressModel.IngressModel> allocateIngressModel(KafkaProxy primary, VirtualKafkaCluster it, AtomicInteger ports,
