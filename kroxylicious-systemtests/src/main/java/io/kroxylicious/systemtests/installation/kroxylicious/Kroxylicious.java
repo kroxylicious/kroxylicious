@@ -6,11 +6,7 @@
 
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
-import java.io.File;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,8 +19,11 @@ import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousDeploymentTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaClusterRefTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyIngressTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousServiceTemplates;
-import io.kroxylicious.systemtests.utils.DeploymentUtils;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
@@ -66,8 +65,14 @@ public class Kroxylicious {
     /**
      * Deploy - Port Identifies Node with no filters config
      */
-    public void deployPortIdentifiesNodeWithNoFilters() {
-        deployKroxyliciousExample(Constants.PATH_TO_OPERATOR_SIMPLE_FILES);
+    public void deployPortIdentifiesNodeWithNoFilters(String clusterName) {
+        resourceManager.createResourceFromBuilder(
+                KroxyliciousKafkaProxyTemplates.defaultKafkaProxyDeployment(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
+                KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressDeployment(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
+                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
+                KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefDeployment(deploymentNamespace, clusterName),
+                KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterDeployment(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
+                        clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP));
     }
 
     /**
@@ -109,24 +114,6 @@ public class Kroxylicious {
         String bootstrap = clusterIP + ":9292";
         LOGGER.debug("Kroxylicious bootstrap: {}", bootstrap);
         return bootstrap;
-    }
-
-    /**
-     * Deploy kroxylicious example.
-     *
-     * @param path the path
-     */
-    public void deployKroxyliciousExample(String path) {
-        LOGGER.info("Deploying Kroxylicious from path {}", path);
-        DeploymentUtils.deployYamlFiles(deploymentNamespace, getExampleFiles(path));
-    }
-
-    private static List<File> getExampleFiles(String examplePath) {
-        return Arrays.stream(Objects.requireNonNull(new File(examplePath).listFiles()))
-                .sorted()
-                .filter(File::isFile)
-                .filter(file -> file.getName().endsWith(".yaml"))
-                .toList();
     }
 
     /**

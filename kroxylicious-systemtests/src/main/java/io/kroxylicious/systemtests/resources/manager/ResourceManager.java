@@ -17,6 +17,7 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.builder.Builder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -24,6 +25,10 @@ import io.skodjob.testframe.resources.ResourceItem;
 import io.strimzi.api.kafka.model.common.Spec;
 import io.strimzi.api.kafka.model.kafka.Status;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.enums.ConditionStatus;
 import io.kroxylicious.systemtests.k8s.HelmClient;
@@ -34,6 +39,7 @@ import io.kroxylicious.systemtests.resources.ResourceOperation;
 import io.kroxylicious.systemtests.resources.ResourceType;
 import io.kroxylicious.systemtests.resources.kroxylicious.ConfigMapResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.DeploymentResource;
+import io.kroxylicious.systemtests.resources.kroxylicious.KroxyliciousResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.SecretResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.ServiceResource;
 import io.kroxylicious.systemtests.resources.kubernetes.ClusterOperatorCustomResourceDefinition;
@@ -107,8 +113,45 @@ public class ResourceManager {
             new ConfigMapResource(),
             new DeploymentResource(),
             new SecretResource(),
-            new ClusterOperatorCustomResourceDefinition()
+            new ClusterOperatorCustomResourceDefinition(),
+            new KroxyliciousResource<>(KafkaProxy.class),
+            new KroxyliciousResource<>(KafkaService.class),
+            new KroxyliciousResource<>(KafkaProxyIngress.class),
+            new KroxyliciousResource<>(VirtualKafkaCluster.class)
     };
+
+    /**
+     * Create resource with wait.
+     *
+     * @param <T>     the type parameter
+     * @param resources the resources
+     */
+    @SafeVarargs
+    public final <T extends HasMetadata> void createResourceWithoutWait(Builder<T>... resources) {
+        createResource(false, Arrays.stream(resources).map(Builder::build).toList().toArray(new HasMetadata[0]));
+    }
+
+    /**
+     * Create resource with wait.
+     *
+     * @param <T>     the type parameter
+     * @param resourceBuilder the resourcesBuilder to construct the resource from
+     */
+    public final <T extends HasMetadata> T createResourceWithWait(Builder<T> resourceBuilder) {
+        T builtResource = resourceBuilder.build();
+        createResource(true, builtResource);
+        return builtResource;
+    }
+
+    /**
+     * Create resource with wait.
+     *
+     * @param resources the resources
+     */
+    @SafeVarargs
+    public final void createResourceFromBuilder(Builder<? extends HasMetadata>... resources) {
+        createResource(true, Arrays.stream(resources).map(Builder::build).toList().toArray(new HasMetadata[0]));
+    }
 
     /**
      * Create resource without wait.

@@ -92,6 +92,10 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-model-common</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.strimzi</groupId>
             <artifactId>api</artifactId>
         </dependency>
@@ -148,6 +152,12 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-operator</artifactId>
+            <version>${project.version}</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
