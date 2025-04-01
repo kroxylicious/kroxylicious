@@ -39,3 +39,24 @@ data:
           - name: "default"
             start: 0
             end: 2
+  cluster-bar: |
+    ---
+    - observedGeneration: 6
+      type: "Accepted"
+      status: "True"
+      lastTransitionTime: "1970-01-01T00:00:00Z"
+    - observedGeneration: 6
+      type: "ResolvedRefs"
+      lastTransitionTime: "1970-01-01T00:00:00Z"
+  cluster-foo: |
+    ---
+    - observedGeneration: 7
+      type: "Accepted"
+      status: "False"
+      lastTransitionTime: "1970-01-01T00:00:00Z"
+      reason: "Invalid"
+      message: "Ingress(es) [cluster-ip-foo] of cluster conflicts with another ingress"
+    - observedGeneration: 7
+      type: "ResolvedRefs"
+      lastTransitionTime: "1970-01-01T00:00:00Z"
+

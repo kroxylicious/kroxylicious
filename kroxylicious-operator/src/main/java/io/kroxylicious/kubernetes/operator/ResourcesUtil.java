@@ -277,9 +277,15 @@ public class ResourcesUtil {
                 primary -> refAccessor.apply(primary).stream().anyMatch(ref -> ResourcesUtil.isReferent(ref, referent)));
     }
 
-    static List<Condition> maybeAddOrUpdateCondition(List<Condition> conditions, Condition condition) {
-        var type = Objects.requireNonNull(condition.getType());
-
+    /**
+     * Return new conditions by adding the given {@code conditionsToAdd} to the given {@code conditions},
+     * keeping a single condition of each type.
+     * When a {@code conditionToAdd} has a null status that condition will be removed.
+     * @param conditions The existing conditions
+     * @param conditionsToAdd The conditions to add
+     * @return The new conditions.
+     */
+    static List<Condition> maybeAddOrUpdateConditions(List<Condition> conditions, List<Condition> conditionsToAdd) {
         Comparator<Condition> conditionComparator = Comparator
                 .comparing(Condition::getType)
                 .thenComparing(Comparator.comparing(Condition::getObservedGeneration).reversed())
@@ -288,32 +294,39 @@ public class ResourcesUtil {
                 .thenComparing(Condition::getMessage)
                 .thenComparing(Condition::getLastTransitionTime);
 
-        TreeMap<Condition.Type, List<Condition>> byType = conditions.stream().collect(Collectors.groupingBy(
-                Condition::getType,
-                TreeMap::new, // order based on Type
-                Collectors.toList()));
+        for (Condition condition : conditionsToAdd) {
+            var type = Objects.requireNonNull(condition.getType());
 
-        var map = byType.entrySet().stream().map(entry -> {
-            // minimum must exist because values of groupingBy result are always non-empty
-            Condition minimumCondition = entry.getValue().stream().min(conditionComparator).orElseThrow();
-            var mutableList = new ArrayList<Condition>(1);
-            mutableList.add(minimumCondition);
-            return Map.entry(entry.getKey(), mutableList);
-        }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
-                (l1, l2) -> {
-                    throw new IllegalStateException();
-                },
-                TreeMap::new));
+            Map<Condition.Type, List<Condition>> byType = conditions.stream().collect(Collectors.groupingBy(
+                    Condition::getType));
 
-        ArrayList<Condition> conditionsOfType = map.computeIfAbsent(type, k -> new ArrayList<>());
-        if (conditionsOfType.isEmpty()) {
-            conditionsOfType.add(condition);
+            var map = byType.entrySet().stream().map(entry -> {
+                // minimum must exist because values of groupingBy result are always non-empty
+                Condition minimumCondition = entry.getValue().stream().min(conditionComparator).orElseThrow();
+                var mutableList = new ArrayList<Condition>(1);
+                mutableList.add(minimumCondition);
+                return Map.entry(entry.getKey(), mutableList);
+            }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
+                    (l1, l2) -> {
+                        throw new IllegalStateException();
+                    },
+                    TreeMap::new));
+
+            if (condition.getStatus() == null) {
+                map.remove(type);
+            }
+            else {
+                ArrayList<Condition> conditionsOfType = map.computeIfAbsent(type, k -> new ArrayList<>());
+                if (conditionsOfType.isEmpty()) {
+                    conditionsOfType.add(condition);
+                }
+                else if (conditionsOfType.get(0).getObservedGeneration() <= condition.getObservedGeneration()) {
+                    conditionsOfType.set(0, condition);
+                }
+            }
+            conditions = map.values().stream().flatMap(Collection::stream).toList();
         }
-        else if (conditionsOfType.get(0).getObservedGeneration() <= condition.getObservedGeneration()) {
-            conditionsOfType.set(0, condition);
-        }
-
-        return map.values().stream().flatMap(Collection::stream).toList();
+        return conditions;
     }
 
     @SuppressWarnings("java:S4276") // BiConsumer<S, Long> is correct, because it's Long on the status classes
@@ -337,19 +350,19 @@ public class ResourcesUtil {
     }
 
     @NonNull
-    static VirtualKafkaCluster patchWithCondition(VirtualKafkaCluster cluster, Condition condition) {
+    static VirtualKafkaCluster patchWithCondition(VirtualKafkaCluster cluster, List<Condition> conditions) {
         return newStatus(
                 cluster,
                 VirtualKafkaCluster::new,
                 VirtualKafkaClusterStatus::new,
                 VirtualKafkaClusterStatus::setConditions,
                 VirtualKafkaClusterStatus::setObservedGeneration,
-                maybeAddOrUpdateCondition(
+                maybeAddOrUpdateConditions(
                         Optional.of(cluster)
                                 .map(VirtualKafkaCluster::getStatus)
                                 .map(VirtualKafkaClusterStatus::getConditions)
                                 .orElse(List.of()),
-                        condition));
+                        conditions));
     }
 
     @NonNull
@@ -360,12 +373,12 @@ public class ResourcesUtil {
                 KafkaServiceStatus::new,
                 KafkaServiceStatus::setConditions,
                 KafkaServiceStatus::setObservedGeneration,
-                maybeAddOrUpdateCondition(
+                maybeAddOrUpdateConditions(
                         Optional.of(service)
                                 .map(KafkaService::getStatus)
                                 .map(KafkaServiceStatus::getConditions)
                                 .orElse(List.of()),
-                        condition));
+                        List.of(condition)));
     }
 
     @NonNull
@@ -376,12 +389,12 @@ public class ResourcesUtil {
                 KafkaProxyIngressStatus::new,
                 KafkaProxyIngressStatus::setConditions,
                 KafkaProxyIngressStatus::setObservedGeneration,
-                maybeAddOrUpdateCondition(
+                maybeAddOrUpdateConditions(
                         Optional.of(ingress)
                                 .map(KafkaProxyIngress::getStatus)
                                 .map(KafkaProxyIngressStatus::getConditions)
                                 .orElse(List.of()),
-                        condition));
+                        List.of(condition)));
     }
 
     @NonNull
@@ -392,12 +405,12 @@ public class ResourcesUtil {
                 KafkaProtocolFilterStatus::new,
                 KafkaProtocolFilterStatus::setConditions,
                 KafkaProtocolFilterStatus::setObservedGeneration,
-                maybeAddOrUpdateCondition(
+                maybeAddOrUpdateConditions(
                         Optional.of(filter)
                                 .map(KafkaProtocolFilter::getStatus)
                                 .map(KafkaProtocolFilterStatus::getConditions)
                                 .orElse(List.of()),
-                        condition));
+                        List.of(condition)));
     }
 
     static ConditionBuilder newConditionBuilder(Clock clock, HasMetadata observedGenerationSource) {

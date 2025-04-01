@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.kubernetes.operator;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -45,6 +46,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.operator.model.ProxyModel;
+import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -83,22 +86,22 @@ public class KafkaProxyReconciler implements
     public static final String CONFIG_DEP = "config";
     public static final String DEPLOYMENT_DEP = "deployment";
     public static final String CLUSTERS_DEP = "clusters";
-    static final String SEC = "sec";
+
+    private final Clock clock;
     private final SecureConfigInterpolator secureConfigInterpolator;
 
-    public KafkaProxyReconciler(SecureConfigInterpolator secureConfigInterpolator) {
+    public KafkaProxyReconciler(Clock clock, SecureConfigInterpolator secureConfigInterpolator) {
+        this.clock = clock;
         this.secureConfigInterpolator = secureConfigInterpolator;
-    }
-
-    static SecureConfigInterpolator secureConfigInterpolator(Context<KafkaProxy> context) {
-        return context.managedWorkflowAndDependentResourceContext().getMandatory(SEC, SecureConfigInterpolator.class);
     }
 
     @Override
     public void initContext(
-                            KafkaProxy primary,
+                            KafkaProxy proxy,
                             Context<KafkaProxy> context) {
-        context.managedWorkflowAndDependentResourceContext().put(SEC, secureConfigInterpolator);
+        ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
+        ProxyModel model = proxyModelBuilder.build(proxy, context);
+        KafkaProxyContext.init(context, clock, secureConfigInterpolator, model);
     }
 
     /**
@@ -111,7 +114,7 @@ public class KafkaProxyReconciler implements
             LOGGER.info("Completed reconciliation of {}/{}", namespace(primary), name(primary));
         }
         return UpdateControl.patchStatus(
-                buildStatus(primary, context, null));
+                buildStatus(primary, null));
     }
 
     /**
@@ -123,7 +126,7 @@ public class KafkaProxyReconciler implements
                                                                   Exception exception) {
         // Post-condition: status.conditions should be in a canonical order (to avoid non-terminating reconciliations)
         // Post-condition: There is only one Ready condition
-        var control = ErrorStatusUpdateControl.patchStatus(buildStatus(primary, context, exception));
+        var control = ErrorStatusUpdateControl.patchStatus(buildStatus(primary, exception));
         if (exception instanceof InvalidResourceException) {
             control.withNoRetry();
         }
@@ -135,7 +138,6 @@ public class KafkaProxyReconciler implements
     }
 
     private static KafkaProxy buildStatus(KafkaProxy primary,
-                                          Context<KafkaProxy> context,
                                           @Nullable Exception exception) {
         if (exception instanceof AggregatedOperatorException aoe && aoe.getAggregatedExceptions().size() == 1) {
             exception = aoe.getAggregatedExceptions().values().iterator().next();
@@ -150,30 +152,17 @@ public class KafkaProxyReconciler implements
                 .endMetadata()
                 .withNewStatus()
                     .withObservedGeneration(generation(primary))
-                    .withConditions(effectiveReadyCondition(now, primary, exception ))
-                    .withClusters(clusterConditions(now, primary, context ))
+                    .withConditions(effectiveReadyCondition(now, primary, exception))
                 .endStatus()
             .build();
         // @formatter:on
-    }
-
-    private static List<io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters> clusterConditions(ZonedDateTime now,
-                                                                                                             KafkaProxy primary,
-                                                                                                             Context<KafkaProxy> context) {
-        return ResourcesUtil.clustersInNameOrder(context).map(cluster -> {
-            ClusterCondition clusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
-            var conditions = newClusterCondition(now, primary, clusterCondition);
-            return new io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.ClustersBuilder()
-                    .withName(name(cluster))
-                    .withConditions(conditions).build();
-        }).toList();
     }
 
     /**
      * Determines whether the {@code Ready} condition has had a state transition,
      * and returns an appropriate new {@code Ready} condition.
      *
-     * @param now
+     * @param now The current time
      * @param primary The primary.
      * @param exception An exception, or null if the reconciliation was successful.
      * @return The {@code Ready} condition to use in {@code status.conditions}.
@@ -224,7 +213,7 @@ public class KafkaProxyReconciler implements
     }
 
     /**
-     * @param now
+     * @param now The current time
      * @param primary The primary.
      * @param exception An exception, or null if the reconciliation was successful.
      * @return The {@code Ready} condition to use in {@code status.conditions}
@@ -242,20 +231,6 @@ public class KafkaProxyReconciler implements
                 .withReason(conditionReason(exception))
                 .withStatus(exception == null ? Condition.Status.TRUE : Condition.Status.FALSE)
                 .withType(conditionType)
-                .build();
-    }
-
-    private static Condition newClusterCondition(
-                                                 ZonedDateTime now,
-                                                 KafkaProxy primary,
-                                                 ClusterCondition clusterCondition) {
-        return new ConditionBuilder()
-                .withLastTransitionTime(now)
-                .withMessage(clusterCondition.message())
-                .withObservedGeneration(generation(primary))
-                .withReason(clusterCondition.reason())
-                .withStatus(clusterCondition.status())
-                .withType(clusterCondition.type())
                 .build();
     }
 
