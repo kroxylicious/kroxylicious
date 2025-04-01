@@ -21,7 +21,7 @@ public class KafkaServiceResource implements ResourceType<KafkaService> {
 
     @Override
     public String getKind() {
-        return Constants.KAFKA_SERVICE;
+        return Constants.KAFKA_SERVICE_KIND;
     }
 
     @Override

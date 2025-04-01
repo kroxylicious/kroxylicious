@@ -21,7 +21,7 @@ public class KafkaProxyResource implements ResourceType<KafkaProxy> {
 
     @Override
     public String getKind() {
-        return Constants.KAFKA_PROXY;
+        return Constants.KAFKA_PROXY_KIND;
     }
 
     @Override

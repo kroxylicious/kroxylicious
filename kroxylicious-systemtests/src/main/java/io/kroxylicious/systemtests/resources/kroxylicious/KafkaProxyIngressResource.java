@@ -21,7 +21,7 @@ public class KafkaProxyIngressResource implements ResourceType<KafkaProxyIngress
 
     @Override
     public String getKind() {
-        return Constants.KAFKA_PROXY_INGRESS;
+        return Constants.KAFKA_PROXY_INGRESS_KIND;
     }
 
     @Override

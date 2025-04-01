@@ -21,7 +21,7 @@ public class VirtualKafkaClusterResource implements ResourceType<VirtualKafkaClu
 
     @Override
     public String getKind() {
-        return Constants.VIRTUAL_KAFKA_CLUSTER;
+        return Constants.VIRTUAL_KAFKA_CLUSTER_KIND;
     }
 
     @Override

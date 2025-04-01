@@ -123,10 +123,10 @@ public final class Constants {
     public static final String SECRET = "Secret";
     public static final String SERVICE = "Service";
     public static final String SERVICE_ACCOUNT = "ServiceAccount";
-    public static final String KAFKA_PROXY = "KafkaProxy";
-    public static final String KAFKA_PROXY_INGRESS = "KafkaProxyIngress";
-    public static final String KAFKA_SERVICE = "KafkaService";
-    public static final String VIRTUAL_KAFKA_CLUSTER = "VirtualKafkaCluster";
+    public static final String KAFKA_PROXY_KIND = "KafkaProxy";
+    public static final String KAFKA_PROXY_INGRESS_KIND = "KafkaProxyIngress";
+    public static final String KAFKA_SERVICE_KIND = "KafkaService";
+    public static final String VIRTUAL_KAFKA_CLUSTER_KIND = "VirtualKafkaCluster";
 
     /**
      * Test clients image url
