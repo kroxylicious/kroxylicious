@@ -23,6 +23,7 @@ public final class Constants {
     public static final String KROXYLICIOUS_OPERATOR_NAMESPACE = "kroxylicious-operator";
     public static final String KROXY_DEPLOYMENT_NAME = "kroxylicious-proxy";
     public static final String KROXYLICIOUS_PROXY_SIMPLE_NAME = "simple";
+    public static final String KROXYLICIOUS_INGRESS_CLUSTER_IP = "cluster-ip";
 
     /**
      * The service name for kroxylicious. Used for the bootstrap url
@@ -123,10 +124,6 @@ public final class Constants {
     public static final String SECRET = "Secret";
     public static final String SERVICE = "Service";
     public static final String SERVICE_ACCOUNT = "ServiceAccount";
-    public static final String KAFKA_PROXY_KIND = "KafkaProxy";
-    public static final String KAFKA_PROXY_INGRESS_KIND = "KafkaProxyIngress";
-    public static final String KAFKA_SERVICE_KIND = "KafkaService";
-    public static final String VIRTUAL_KAFKA_CLUSTER_KIND = "VirtualKafkaCluster";
 
     /**
      * Test clients image url

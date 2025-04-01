@@ -7,12 +7,7 @@
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
-
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 
 public class KroxyliciousVirtualKafkaClusterTemplates {
 
@@ -24,13 +19,13 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
      *
      * @param namespaceName the namespace name
      * @param clusterName the cluster name
-     * @param proxy the proxy
-     * @param clusterRef the cluster ref
-     * @param ingress the ingress
+     * @param proxyName the proxy name
+     * @param clusterRefName the cluster ref name
+     * @param ingressName the ingress name
      * @return the virtual kafka cluster builder
      */
-    public static VirtualKafkaClusterBuilder defaultVirtualKafkaClusterDeployment(String namespaceName, String clusterName, KafkaProxy proxy, KafkaService clusterRef,
-                                                                                  KafkaProxyIngress ingress) {
+    public static VirtualKafkaClusterBuilder defaultVirtualKafkaClusterDeployment(String namespaceName, String clusterName, String proxyName, String clusterRefName,
+                                                                                  String ingressName) {
         // @formatter:off
         return new VirtualKafkaClusterBuilder()
                 .withNewMetadata()
@@ -39,13 +34,13 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
                 .endMetadata()
                 .withNewSpec()
                     .withTargetKafkaServiceRef(new KafkaServiceRefBuilder()
-                            .withName(name(clusterRef))
+                            .withName(clusterRefName)
                             .build())
                     .withNewProxyRef()
-                        .withName(name(proxy))
+                        .withName(proxyName)
                     .endProxyRef()
                     .addNewIngressRef()
-                        .withName(name(ingress))
+                        .withName(ingressName)
                     .endIngressRef()
                 .endSpec();
         // @formatter:on
