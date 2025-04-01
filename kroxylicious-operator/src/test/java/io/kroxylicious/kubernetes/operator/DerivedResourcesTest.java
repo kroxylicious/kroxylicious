@@ -22,10 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.DynamicContainer;
@@ -193,22 +191,9 @@ class DerivedResourcesTest {
         return dependentResourcesShouldEqual(list);
     }
 
-    static List<Path> filesInDir(Path dir, Pattern pattern) {
-        var result = new ArrayList<Path>();
-        try (var expected = Files.newDirectoryStream(dir, path -> pattern.matcher(path.getFileName().toString()).matches())) {
-            for (Path f : expected) {
-                result.add(f);
-            }
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-        return result;
-    }
-
     Stream<DynamicContainer> dependentResourcesShouldEqual(List<DesiredFn<KafkaProxy, ?>> list) {
-        var dir = Path.of("target", "test-classes", DerivedResourcesTest.class.getSimpleName());
-        return filesInDir(dir, Pattern.compile(".*")).stream()
+        List<Path> paths = TestFiles.subDirectoriesForTest(DerivedResourcesTest.class);
+        return paths.stream()
                 .map(testDir -> {
                     String testCase = fileName(testDir);
                     try {
@@ -235,17 +220,18 @@ class DerivedResourcesTest {
                                                  Path testDir)
             throws IOException {
         try {
-            var unusedFiles = childFilesMatching(testDir, "*");
+            var unusedFiles = TestFiles.childFilesMatching(testDir, "*");
             String inFileName = "in-KafkaProxy.yaml";
             Path input = testDir.resolve(inFileName);
             KafkaProxy kafkaProxy = kafkaProxyFromFile(input);
-            List<VirtualKafkaCluster> virtualKafkaClusters = resourcesFromFiles(childFilesMatching(testDir, "in-VirtualKafkaCluster-*"), VirtualKafkaCluster.class);
-            List<KafkaService> kafkaServiceRefs = resourcesFromFiles(childFilesMatching(testDir, "in-KafkaService-*"), KafkaService.class);
+            List<VirtualKafkaCluster> virtualKafkaClusters = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-VirtualKafkaCluster-*"),
+                    VirtualKafkaCluster.class);
+            List<KafkaService> kafkaServiceRefs = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-KafkaService-*"), KafkaService.class);
             assertMinimalMetadata(kafkaProxy.getMetadata(), inFileName);
-            List<KafkaProxyIngress> ingresses = kafkaProxyIngressesFromFiles(childFilesMatching(testDir, "in-KafkaProxyIngress-*"));
+            List<KafkaProxyIngress> ingresses = kafkaProxyIngressesFromFiles(TestFiles.childFilesMatching(testDir, "in-KafkaProxyIngress-*"));
 
             unusedFiles.remove(input);
-            unusedFiles.removeAll(childFilesMatching(testDir, "in-*"));
+            unusedFiles.removeAll(TestFiles.childFilesMatching(testDir, "in-*"));
 
             Context<KafkaProxy> context;
             try {
@@ -321,15 +307,6 @@ class DerivedResourcesTest {
             // but the resources were not .equals() => probably a bug in the resources .equals(Object)
             Assertions.fail();
         }
-    }
-
-    @NonNull
-    private static HashSet<Path> childFilesMatching(
-                                                    Path testDir,
-                                                    String glob)
-            throws IOException {
-        return StreamSupport.stream(Files.newDirectoryStream(testDir, glob).spliterator(), false)
-                .collect(Collectors.toCollection(HashSet::new));
     }
 
     @NonNull
