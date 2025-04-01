@@ -11,6 +11,9 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -35,7 +38,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 
-import io.fabric8.kubernetes.api.model.GenericKubernetesResource;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -43,12 +45,14 @@ import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManag
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependentResource;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaClusterRef;
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions;
-import io.kroxylicious.kubernetes.operator.config.RuntimeDecl;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.operator.model.ProxyModel;
+import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -110,17 +114,6 @@ class DerivedResourcesTest {
         // sanity check that the identifiers are unique
         assertThat(uniqueResources).isEqualTo(paths.size());
         return ingresses;
-    }
-
-    public static RuntimeDecl configFromFile(Path path) {
-        // TODO should validate against the Config schema, because the DependentResource
-        // should never see an invalid config in production
-        try {
-            return YAML_MAPPER.readValue(path.toFile(), RuntimeDecl.class);
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
     @FunctionalInterface
@@ -229,7 +222,7 @@ class DerivedResourcesTest {
 
     }
 
-    record ConditionStruct(ConditionType type,
+    record ConditionStruct(Condition.Type type,
                            String cluster,
                            String status,
                            String reason,
@@ -247,7 +240,7 @@ class DerivedResourcesTest {
             Path input = testDir.resolve(inFileName);
             KafkaProxy kafkaProxy = kafkaProxyFromFile(input);
             List<VirtualKafkaCluster> virtualKafkaClusters = resourcesFromFiles(childFilesMatching(testDir, "in-VirtualKafkaCluster-*"), VirtualKafkaCluster.class);
-            List<KafkaClusterRef> kafkaClusterRefs = resourcesFromFiles(childFilesMatching(testDir, "in-KafkaClusterRef-*"), KafkaClusterRef.class);
+            List<KafkaService> kafkaServiceRefs = resourcesFromFiles(childFilesMatching(testDir, "in-KafkaService-*"), KafkaService.class);
             assertMinimalMetadata(kafkaProxy.getMetadata(), inFileName);
             List<KafkaProxyIngress> ingresses = kafkaProxyIngressesFromFiles(childFilesMatching(testDir, "in-KafkaProxyIngress-*"));
 
@@ -256,11 +249,19 @@ class DerivedResourcesTest {
 
             Context<KafkaProxy> context;
             try {
-                context = buildContext(testDir, virtualKafkaClusters, kafkaClusterRefs, ingresses);
+                context = buildContext(testDir, virtualKafkaClusters, kafkaServiceRefs, ingresses);
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
+
+            ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
+            ProxyModel model = proxyModelBuilder.build(kafkaProxy, context);
+            KafkaProxyContext.init(
+                    context,
+                    Clock.fixed(Instant.EPOCH, ZoneId.of("Z")),
+                    SecureConfigInterpolator.DEFAULT_INTERPOLATOR,
+                    model);
 
             List<DynamicTest> tests = new ArrayList<>();
 
@@ -285,24 +286,8 @@ class DerivedResourcesTest {
                                 var expected = loadExpected(expectedFile, resourceType);
                                 assertSameYaml(actualResource, expected);
                                 unusedFiles.remove(expectedFile);
+
                             }));
-                }
-                for (var cluster : virtualKafkaClusters) {
-                    ClusterCondition actualClusterCondition = SharedKafkaProxyContext.clusterCondition(context, cluster);
-                    if (actualClusterCondition.type() == ConditionType.Accepted && actualClusterCondition.status().equals(Conditions.Status.TRUE)) {
-                        continue;
-                    }
-                    else {
-                        var expectedFile = testDir.resolve("cond-" + actualClusterCondition.type() + "-" + actualClusterCondition.cluster() + ".yaml");
-                        tests.add(DynamicTest.dynamicTest(
-                                "Condition " + actualClusterCondition.type() + " for cluster " + actualClusterCondition.cluster() + " matches contents of expected file "
-                                        + expectedFile,
-                                () -> {
-                                    var expected = loadExpected(expectedFile, ClusterCondition.class);
-                                    assertSameYaml(actualClusterCondition, expected);
-                                    unusedFiles.remove(expectedFile);
-                                }));
-                    }
                 }
             }
 
@@ -348,7 +333,9 @@ class DerivedResourcesTest {
     }
 
     @NonNull
-    private static Context<KafkaProxy> buildContext(Path testDir, List<VirtualKafkaCluster> virtualKafkaClusters, List<KafkaClusterRef> kafkaClusterRefs,
+    private static Context<KafkaProxy> buildContext(Path testDir,
+                                                    List<VirtualKafkaCluster> virtualKafkaClusters,
+                                                    List<KafkaService> kafkaServiceRefs,
                                                     List<KafkaProxyIngress> ingresses)
             throws IOException {
         Answer<?> throwOnUnmockedInvocation = invocation -> {
@@ -359,26 +346,22 @@ class DerivedResourcesTest {
         Context<KafkaProxy> context = mock(Context.class, throwOnUnmockedInvocation);
 
         var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext(null, null, context);
-
         doReturn(resourceContext).when(context).managedWorkflowAndDependentResourceContext();
 
-        var runtimeDecl = OperatorMain.runtimeDecl();
-        Set<GenericKubernetesResource> filterInstances = new HashSet<>();
-        for (var filterApi : runtimeDecl.filterApis()) {
-            String fileName = "in-" + filterApi.kind() + "-*.yaml";
-            try (var dirStream = Files.newDirectoryStream(testDir, fileName)) {
-                for (Path p : dirStream) {
-                    GenericKubernetesResource resource = YAML_MAPPER.readValue(p.toFile(), GenericKubernetesResource.class);
-                    assertMinimalMetadata(resource.getMetadata(), fileName);
-                    filterInstances.add(resource);
-                }
+        Set<KafkaProtocolFilter> filterInstances = new HashSet<>();
+        String fileName = "in-" + HasMetadata.getKind(KafkaProtocolFilter.class) + "-*.yaml";
+        try (var dirStream = Files.newDirectoryStream(testDir, fileName)) {
+            for (Path p : dirStream) {
+                KafkaProtocolFilter resource = YAML_MAPPER.readValue(p.toFile(), KafkaProtocolFilter.class);
+                assertMinimalMetadata(resource.getMetadata(), fileName);
+                filterInstances.add(resource);
             }
         }
-        doReturn(filterInstances).when(context).getSecondaryResources(GenericKubernetesResource.class);
+        doReturn(filterInstances).when(context).getSecondaryResources(KafkaProtocolFilter.class);
         doReturn(Set.copyOf(virtualKafkaClusters)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
-        doReturn(Set.copyOf(kafkaClusterRefs)).when(context).getSecondaryResources(KafkaClusterRef.class);
+        doReturn(Set.copyOf(kafkaServiceRefs)).when(context).getSecondaryResources(KafkaService.class);
         doReturn(Set.copyOf(ingresses)).when(context).getSecondaryResources(KafkaProxyIngress.class);
-        SharedKafkaProxyContext.runtimeDecl(context, runtimeDecl);
+
         return context;
     }
 

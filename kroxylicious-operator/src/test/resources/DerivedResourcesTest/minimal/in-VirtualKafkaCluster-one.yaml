@@ -10,11 +10,11 @@ apiVersion: kroxylicious.io/v1alpha1
 metadata:
   name: one
   namespace: proxy-ns
+  generation: 4
 spec:
   proxyRef:
     name: minimal
-  targetCluster:
-    clusterRef:
-      name: myref
+  targetKafkaServiceRef:
+    name: myref
   ingressRefs:
     - name: cluster-ip

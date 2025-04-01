@@ -38,7 +38,7 @@
 
         <disruptor.version>4.0.0</disruptor.version>
         <freemarker.version>2.3.34</freemarker.version>
-        <guava.version>33.4.0-jre</guava.version>
+        <guava.version>33.4.6-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
         <jackson.version>2.18.1</jackson.version>
         <junit.version>5.12.1</junit.version>
@@ -53,11 +53,11 @@
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
         <assertj-core.version>3.27.3</assertj-core.version>
-        <mockito.version>5.16.0</mockito.version>
-        <micrometer.version>1.14.4</micrometer.version>
+        <mockito.version>5.16.1</mockito.version>
+        <micrometer.version>1.14.5</micrometer.version>
         <slf4j.version>2.0.17</slf4j.version>
         <sundr-builder-annotations.version>0.200.3</sundr-builder-annotations.version>
-        <spotbugs-annotations.version>4.9.2</spotbugs-annotations.version>
+        <spotbugs-annotations.version>4.9.3</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
@@ -532,7 +532,7 @@
                 <plugin>
                     <groupId>com.mycila</groupId>
                     <artifactId>license-maven-plugin</artifactId>
-                    <version>4.6</version>
+                    <version>5.0.0</version>
                     <configuration>
                         <strictCheck>true</strictCheck>
                         <licenseSets>
@@ -566,7 +566,7 @@
                 <plugin>
                     <groupId>net.revelc.code.formatter</groupId>
                     <artifactId>formatter-maven-plugin</artifactId>
-                    <version>2.25.0</version>
+                    <version>2.26.0</version>
                     <configuration>
                         <!--suppress MavenModelInspection -->
                         <configFile>${rootdir}/etc/eclipse-formatter-config.xml</configFile>
@@ -645,7 +645,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-failsafe-plugin</artifactId>
-                    <version>3.5.2</version>
+                    <version>3.5.3</version>
                     <configuration>
                         <skipTests>${skipITs}</skipTests>
                         <failIfNoTests>false</failIfNoTests>
@@ -700,7 +700,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.5.2</version>
+                    <version>3.5.3</version>
                     <configuration>
                         <skipTests>${skipUTs}</skipTests>
                         <failIfNoTests>false</failIfNoTests>
@@ -926,6 +926,19 @@
     </distributionManagement>
 
     <profiles>
+        <profile>
+            <id>aarch64</id>
+            <activation>
+                <os>
+                    <arch>aarch64</arch>
+                </os>
+            </activation>
+            <properties>
+                <netty.epoll.classifier>linux-aarch_64</netty.epoll.classifier>
+                <netty.io_uring.classifier>linux-aarch_64</netty.io_uring.classifier>
+                <netty.kqueue.classifier>osx-aarch_64</netty.kqueue.classifier>
+            </properties>
+        </profile>
         <profile>
             <id>qa</id>
             <activation>

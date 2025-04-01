@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -13,10 +14,26 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
+
+import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
+import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
+import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
+import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
+import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
+import io.kroxylicious.kubernetes.api.common.ProxyRefBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
@@ -144,6 +161,118 @@ class ResourcesUtilTest {
         long generation = 123L;
         Secret secret = new SecretBuilder().withNewMetadata().withGeneration(generation).endMetadata().build();
         assertThat(ResourcesUtil.generation(secret)).isEqualTo(generation);
+    }
+
+    @Test
+    void toLocalRefNoGroup() {
+        assertThat(ResourcesUtil.toLocalRef(new SecretBuilder().withNewMetadata().withName("name").endMetadata().build()))
+                .isEqualTo(new AnyLocalRefBuilder().withName("name").withGroup("").withKind("Secret").build());
+    }
+
+    @Test
+    void toLocalRefWithGroup() {
+        assertThat(ResourcesUtil.toLocalRef(new KafkaProxyBuilder().withNewMetadata().withName("name").endMetadata().build()))
+                .isEqualTo(new AnyLocalRefBuilder().withName("name").withGroup("kroxylicious.io").withKind("KafkaProxy").build());
+    }
+
+    @Test
+    void slugWithNamespaceEmptyGroup() {
+        Secret secret = new SecretBuilder().withNewMetadata().withNamespace("my-ns").withName("secreto").endMetadata().build();
+        assertThat(ResourcesUtil.namespacedSlug(ResourcesUtil.toLocalRef(secret), secret)).isEqualTo("secret/secreto in namespace 'my-ns'");
+    }
+
+    @Test
+    void slugWithNamespaceNonEmptyGroup() {
+        KafkaProxy secret = new KafkaProxyBuilder().withNewMetadata().withNamespace("my-ns").withName("secreto").endMetadata().build();
+        assertThat(ResourcesUtil.namespacedSlug(ResourcesUtil.toLocalRef(secret), secret)).isEqualTo("kafkaproxy.kroxylicious.io/secreto in namespace 'my-ns'");
+    }
+
+    @Test
+    void toLocalRef() {
+        assertThat(ResourcesUtil.toLocalRef(new KafkaProxyBuilder().withNewMetadata().withName("foo").endMetadata().build()))
+                .isEqualTo(new ProxyRefBuilder().withName("foo").build());
+
+        assertThat(ResourcesUtil.toLocalRef(new KafkaServiceBuilder().withNewMetadata().withName("foo").endMetadata().build()))
+                .isEqualTo(new KafkaServiceRefBuilder().withName("foo").build());
+
+        assertThat(ResourcesUtil.toLocalRef(new KafkaProxyIngressBuilder().withNewMetadata().withName("foo").endMetadata().build()))
+                .isEqualTo(new IngressRefBuilder().withName("foo").build());
+
+        assertThat(ResourcesUtil.toLocalRef(new GenericKubernetesResourceBuilder()
+                .withKind("KafkaProtocolFilter")
+                .withApiVersion("filter.kroxylicious.io/v1alpha1")
+                .withNewMetadata().withName("foo").endMetadata().build()))
+                .isEqualTo(new FilterRefBuilder().withName("foo").build());
+    }
+
+    static List<Arguments> maybeAddOrUpdateConditions() {
+        ZonedDateTime now = ZonedDateTime.now();
+        Condition resolvedRefs = new ConditionBuilder()
+                .withObservedGeneration(1L)
+                .withLastTransitionTime(now)
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.FALSE)
+                .withReason("reason")
+                .withMessage("message")
+                .build();
+
+        Condition accepted = new ConditionBuilder()
+                .withObservedGeneration(1L)
+                .withLastTransitionTime(now)
+                .withType(Condition.Type.Accepted)
+                .withStatus(Condition.Status.FALSE)
+                .withReason("reason")
+                .withMessage("message")
+                .build();
+
+        Condition resolvedRefsLaterTime = new ConditionBuilder(resolvedRefs)
+                .withLastTransitionTime(now.plusMinutes(1))
+                .build();
+
+        Condition resolvedRefsGen2 = new ConditionBuilder(resolvedRefs)
+                .withObservedGeneration(2L)
+                .build();
+
+        Condition resolvedRefsGen2AndLaterTime = new ConditionBuilder(resolvedRefs)
+                .withLastTransitionTime(now.plusMinutes(1))
+                .withObservedGeneration(2L)
+                .build();
+
+        return List.of(
+                Arguments.argumentSet("should add to empty list",
+                        List.of(), resolvedRefs, List.of(resolvedRefs)),
+                Arguments.argumentSet("add is idempotent",
+                        List.of(resolvedRefs), resolvedRefs, List.of(resolvedRefs)),
+                Arguments.argumentSet("returns totally ordered 1",
+                        List.of(accepted), resolvedRefs, List.of(resolvedRefs, accepted)),
+                Arguments.argumentSet("returns totally ordered 2",
+                        List.of(resolvedRefs, accepted), resolvedRefs, List.of(resolvedRefs, accepted)),
+                Arguments.argumentSet("returns totally ordered 3",
+                        List.of(accepted, resolvedRefs), resolvedRefs, List.of(resolvedRefs, accepted)),
+                Arguments.argumentSet("prefer arg when same observedGeneration 1",
+                        List.of(resolvedRefs), resolvedRefsLaterTime, List.of(resolvedRefsLaterTime)),
+                Arguments.argumentSet("prefer arg when same observedGeneration 2",
+                        List.of(resolvedRefsLaterTime), resolvedRefs, List.of(resolvedRefs)),
+                Arguments.argumentSet("prefer arg when same observedGeneration 3",
+                        List.of(resolvedRefsGen2AndLaterTime), resolvedRefsGen2, List.of(resolvedRefsGen2)),
+                Arguments.argumentSet("prefer arg when same observedGeneration 4",
+                        List.of(resolvedRefsGen2), resolvedRefsGen2AndLaterTime, List.of(resolvedRefsGen2AndLaterTime)),
+                Arguments.argumentSet("largest observedGeneration wins 1",
+                        List.of(resolvedRefs), resolvedRefsGen2, List.of(resolvedRefsGen2)),
+                Arguments.argumentSet("largest observedGeneration wins 2",
+                        List.of(resolvedRefsLaterTime), resolvedRefsGen2, List.of(resolvedRefsGen2)),
+                Arguments.argumentSet("replaces _all_ conditions with same type",
+                        List.of(resolvedRefsLaterTime, resolvedRefs), resolvedRefsGen2, List.of(resolvedRefsGen2)),
+                Arguments.argumentSet("existing condition with later generation not replaced 1",
+                        List.of(resolvedRefs, resolvedRefsGen2), resolvedRefsLaterTime, List.of(resolvedRefsGen2)),
+                Arguments.argumentSet("existing condition with later generation not replaced 2",
+                        List.of(resolvedRefsGen2, resolvedRefs), resolvedRefsLaterTime, List.of(resolvedRefsGen2)));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void maybeAddOrUpdateConditions(List<Condition> list, Condition condition, List<Condition> expectedResult) {
+        assertThat(ResourcesUtil.maybeAddOrUpdateConditions(list, List.of(condition))).isEqualTo(expectedResult);
     }
 
 }

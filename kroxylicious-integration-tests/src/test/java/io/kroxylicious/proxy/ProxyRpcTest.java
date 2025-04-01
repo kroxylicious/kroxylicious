@@ -18,8 +18,9 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.RegisterExtension;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
@@ -46,19 +47,19 @@ import static org.apache.kafka.common.protocol.ApiKeys.METADATA;
 import static org.apache.kafka.common.protocol.ApiKeys.SHARE_ACKNOWLEDGE;
 import static org.apache.kafka.common.protocol.ApiKeys.SHARE_FETCH;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
-@ExtendWith(NettyLeakDetectorExtension.class)
 public class ProxyRpcTest {
     private static MockServerKroxyliciousTester mockTester;
-
-    public record Scenario(String name, ResponsePayload givenMockResponse, Request whenSendRequest, Request thenMockReceivesRequest,
-                           ResponsePayload thenResponseReceived) {}
 
     /**
      * API_VERSIONS is not proxied, kroxylicious can respond to this itself
      * FIND_COORDINATOR, METADATA, DESCRIBE_CLUSTER, kroxylicious takes charge of rewriting these responses itself.
      */
     private static final Set<ApiKeys> SKIPPED_API_KEYS = Set.of(API_VERSIONS, FIND_COORDINATOR, METADATA, DESCRIBE_CLUSTER, SHARE_ACKNOWLEDGE, SHARE_FETCH);
+
+    @RegisterExtension
+    static NettyLeakDetectorExtension nettyLeakDetectorExtension = new NettyLeakDetectorExtension(false, true, false, true);
 
     @BeforeAll
     public static void beforeAll() {
@@ -82,17 +83,17 @@ public class ProxyRpcTest {
 
     @MethodSource("scenarios")
     @ParameterizedTest
-    void testKroxyliciousCanDecodeManipulateAndProxyRPC(Scenario scenario) {
-        mockTester.addMockResponseForApiKey(scenario.givenMockResponse());
+    void testKroxyliciousCanDecodeManipulateAndProxyRPC(ResponsePayload mockResponse, Request requestToSend, Request expectAtMock, ResponsePayload expectedResponse) {
+        mockTester.addMockResponseForApiKey(mockResponse);
         try (KafkaClient kafkaClient = mockTester.simpleTestClient()) {
-            Response response = kafkaClient.getSync(scenario.whenSendRequest());
-            assertEquals(scenario.thenMockReceivesRequest(), mockTester.getOnlyRequest(), "unexpected request received at mock for scenario: " + scenario.name());
-            assertEquals(scenario.thenResponseReceived(), response.payload(), "unexpected response received from kroxylicious for scenario: " + scenario.name());
+            Response response = kafkaClient.getSync(requestToSend);
+            assertEquals(expectAtMock, mockTester.getOnlyRequest(), "unexpected request received at mock");
+            assertEquals(expectedResponse, response.payload(), "unexpected response received from kroxylicious");
         }
     }
 
     @NonNull
-    private static Stream<Scenario> scenarios() {
+    private static Stream<Arguments> scenarios() {
         Map<ApiAndVersion, ApiMessage> requestSamples = ApiMessageSampleGenerator.createRequestSamples();
         Map<ApiAndVersion, ApiMessage> responseSamples = ApiMessageSampleGenerator.createResponseSamples();
         return Arrays.stream(ApiKeys.values()).filter(apiKeys -> !SKIPPED_API_KEYS.contains(apiKeys))
@@ -101,8 +102,9 @@ public class ProxyRpcTest {
 
     private static final ApiAndVersion v0HeaderVersion = new ApiAndVersion(CONTROLLED_SHUTDOWN, (short) 0);
 
-    private static @NonNull Stream<Scenario> toScenario(Map<ApiAndVersion, ApiMessage> requestSamples, Map<ApiAndVersion, ApiMessage> responseSample, ApiKeys apiKeys) {
+    private static @NonNull Stream<Arguments> toScenario(Map<ApiAndVersion, ApiMessage> requestSamples, Map<ApiAndVersion, ApiMessage> responseSample, ApiKeys apiKeys) {
         ApiMessageType messageType = apiKeys.messageType;
+
         IntStream supported = IntStream.range(messageType.lowestSupportedVersion(), apiKeys.messageType.highestSupportedVersion(true) + 1);
         return supported.mapToObj(version -> new ApiAndVersion(apiKeys, (short) version)).map(apiAndVersion -> {
             ApiMessage request = requestSamples.get(apiAndVersion);
@@ -118,7 +120,7 @@ public class ProxyRpcTest {
             }
             Request expectedAtMock = createRequestDefinition(apiAndVersion, expected, request);
             ResponsePayload responseJson = createResponseDefinition(apiAndVersion, response);
-            return new Scenario(apiKeys.name, responseJson, clientRequest, expectedAtMock, responseJson);
+            return argumentSet(apiAndVersion.keys().name() + "@v" + apiAndVersion.apiVersion(), responseJson, clientRequest, expectedAtMock, responseJson);
         });
     }
 

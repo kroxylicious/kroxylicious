@@ -13,12 +13,9 @@ metadata:
 spec:
   proxyRef:
     name: example
-  targetCluster:
-    clusterRef:
-      name: fooref
-  filters:
-    - group: filter.kroxylicious.io
-      kind: KafkaProtocolFilter
-      name: filter-one
+  targetKafkaServiceRef:
+    name: fooref
+  filterRefs:
+    - name: filter-one
   ingressRefs:
     - name: cluster-ip

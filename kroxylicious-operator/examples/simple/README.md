@@ -10,3 +10,8 @@ To try this example out:
 1. Install kubectl
 2. `cd` to this directory
 3. `kubectl apply -f .`
+4. Try producing and consuming some messages with commands like this:
+   ```
+   kubectl exec -it my-cluster-dual-role-0 -n kafka -- /bin/bash ./bin/kafka-console-producer.sh --bootstrap-server my-cluster-cluster-ip.my-proxy.svc.cluster.local:9292 --topic mytopic
+   kubectl exec -it my-cluster-dual-role-0 -n kafka -- /bin/bash ./bin/kafka-console-consumer.sh --bootstrap-server my-cluster-cluster-ip.my-proxy.svc.cluster.local:9292 --topic mytopic --from-beginning
+   ```

@@ -19,7 +19,11 @@ import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousDeploymentTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaClusterRefTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyIngressTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousServiceTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
@@ -44,11 +48,6 @@ public class Kroxylicious {
         this.containerImage = kroxyUrl + Environment.KROXY_VERSION;
     }
 
-    private void createDefaultConfigMap(String clusterName) {
-        LOGGER.info("Deploy Kroxylicious default config Map without filters in {} namespace", deploymentNamespace);
-        resourceManager.createResourceWithWait(KroxyliciousConfigMapTemplates.defaultKroxyliciousConfig(clusterName, deploymentNamespace).build());
-    }
-
     private void createRecordEncryptionFilterConfigMap(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
         LOGGER.info("Deploy Kroxylicious config Map with record encryption filter in {} namespace", deploymentNamespace);
         resourceManager
@@ -64,13 +63,16 @@ public class Kroxylicious {
     }
 
     /**
-     * Deploy - Port per broker plain with no filters config
-     * @param clusterName the cluster name
-     * @param replicas the replicas
+     * Deploy - Port Identifies Node with no filters config
      */
-    public void deployPortPerBrokerPlainWithNoFilters(String clusterName, int replicas) {
-        createDefaultConfigMap(clusterName);
-        deployPortPerBrokerPlain(replicas);
+    public void deployPortIdentifiesNodeWithNoFilters(String clusterName) {
+        resourceManager.createResourceFromBuilder(
+                KroxyliciousKafkaProxyTemplates.defaultKafkaProxyDeployment(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
+                KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressDeployment(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
+                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
+                KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefDeployment(deploymentNamespace, clusterName),
+                KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterDeployment(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
+                        clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP));
     }
 
     /**
@@ -98,6 +100,23 @@ public class Kroxylicious {
     }
 
     /**
+     * Gets bootstrap.
+     *
+     * @param serviceNamePrefix the service name prefix
+     * @return the bootstrap
+     */
+    public String getBootstrap(String serviceNamePrefix) {
+        String serviceName = kubeClient().getServiceNameByPrefix(deploymentNamespace, serviceNamePrefix);
+        String clusterIP = kubeClient().getService(deploymentNamespace, serviceName).getSpec().getClusterIP();
+        if (clusterIP == null || clusterIP.isEmpty()) {
+            throw new KubeClusterException("Unable to get the clusterIP of Kroxylicious");
+        }
+        String bootstrap = clusterIP + ":9292";
+        LOGGER.debug("Kroxylicious bootstrap: {}", bootstrap);
+        return bootstrap;
+    }
+
+    /**
      * Gets number of replicas.
      *
      * @return the number of replicas
@@ -105,21 +124,6 @@ public class Kroxylicious {
     public int getNumberOfReplicas() {
         LOGGER.info("Getting number of replicas..");
         return kubeClient().getDeployment(deploymentNamespace, Constants.KROXY_DEPLOYMENT_NAME).getStatus().getReplicas();
-    }
-
-    /**
-     * Get bootstrap
-     *
-     * @return the bootstrap
-     */
-    public String getBootstrap() {
-        String clusterIP = kubeClient().getService(deploymentNamespace, Constants.KROXY_SERVICE_NAME).getSpec().getClusterIP();
-        if (clusterIP == null || clusterIP.isEmpty()) {
-            throw new KubeClusterException("Unable to get the clusterIP of Kroxylicious");
-        }
-        String bootstrap = clusterIP + ":9292";
-        LOGGER.debug("Kroxylicious bootstrap: {}", bootstrap);
-        return bootstrap;
     }
 
     /**

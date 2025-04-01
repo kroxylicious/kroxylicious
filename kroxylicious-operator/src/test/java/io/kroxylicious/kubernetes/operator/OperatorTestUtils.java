@@ -6,13 +6,26 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientBuilder;
 import io.fabric8.kubernetes.client.KubernetesClientException;
+import io.fabric8.kubernetes.client.readiness.Readiness;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static org.assertj.core.api.Assertions.assertThat;
 
 public class OperatorTestUtils {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(OperatorTestUtils.class);
 
     /**
      * The timeouts etc of this client build are tuned to handle the case where Kubernetes isn't present.
@@ -24,25 +37,48 @@ public class OperatorTestUtils {
             .withConnectionTimeout(500)
             .endConfig();
 
-    static @Nullable KubernetesClient kubeClientIfAvailable() {
-        return kubeClientIfAvailable(new KubernetesClientBuilder());
+    static @NonNull KubernetesClient kubeClient() {
+        return kubeClient(new KubernetesClientBuilder());
     }
 
-    static @Nullable KubernetesClient kubeClientIfAvailable(KubernetesClientBuilder kubernetesClientBuilder) {
-        var client = kubernetesClientBuilder.build();
-        try {
-            client.namespaces().list();
-            return client;
-        }
-        catch (KubernetesClientException e) {
-            client.close();
-            return null;
-        }
+    static @NonNull KubernetesClient kubeClient(KubernetesClientBuilder kubernetesClientBuilder) {
+        KubernetesClient kubernetesClient = kubernetesClientBuilder.build();
+        assertThat(kubernetesClient).isNotNull();
+        return kubernetesClient;
     }
 
     static boolean isKubeClientAvailable() {
-        try (var client = kubeClientIfAvailable(PRESENCE_PROBING_KUBE_CLIENT_BUILD)) {
-            return client != null;
+        var client = PRESENCE_PROBING_KUBE_CLIENT_BUILD.build();
+        try {
+            client.namespaces().list();
+            return true;
+        }
+        catch (KubernetesClientException e) {
+            client.close();
+            return false;
+        }
+    }
+
+    public static void preloadOperandImage() {
+        try (var client = kubeClient()) {
+            String operandImage = ProxyDeployment.getOperandImage();
+            var pod = client.run().withName("preload-operand-image")
+                    .withNewRunConfig()
+                    .withImage(operandImage)
+                    .withRestartPolicy("Never")
+                    .withCommand("ls").done();
+            try {
+                client.resource(pod).waitUntilCondition(Readiness::isPodSucceeded, 2, TimeUnit.MINUTES);
+            }
+            finally {
+                var reread = client.resource(pod).get();
+                if (!Readiness.isPodSucceeded(reread)) {
+                    var reasons = reread.getStatus().getContainerStatuses().stream().map(ContainerStatus::getState).map(Objects::toString)
+                            .collect(Collectors.joining(","));
+                    LOGGER.error("Preloading operand image failed, phase: {}, container state: {}", reread.getStatus().getPhase(), reasons);
+                }
+                client.resource(pod).delete();
+            }
         }
     }
 }

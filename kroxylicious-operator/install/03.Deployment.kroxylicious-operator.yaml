@@ -32,8 +32,19 @@ spec:
           args: [ ]
           resources:
             limits:
-              memory: 300M
-              cpu: 1
+              memory: 400M
+              cpu: "1"
             requests:
-              memory: 300M
-              cpu: 1
+              memory: 400M
+              cpu: "1"
+          ports:
+            - containerPort: 8080
+              name: http
+          livenessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 5
+            httpGet:
+              port: http
+              path: /livez

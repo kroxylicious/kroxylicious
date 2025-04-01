@@ -13,16 +13,11 @@ metadata:
 spec:
   proxyRef:
     name: example
-  targetCluster:
     # This cluster should be absent from the output proxy-operator-operator-operator-config.yaml, because there is no Two with name missing
-    clusterRef:
-      name: myref
-  filters:
-    - group: filter.kroxylicious.io
-      kind: KafkaProtocolFilter
-      name: filter-one
-    - group: filter.kroxylicious.io
-      kind: KafkaProtocolFilter
-      name: filter-two
+  targetKafkaServiceRef:
+    name: myref
+  filterRefs:
+    - name: filter-one
+    - name: filter-two
   ingressRefs:
     - name: cluster-ip-foo

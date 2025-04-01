@@ -9,7 +9,9 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +21,7 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
+import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
@@ -35,8 +38,10 @@ class KroxyliciousST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousST.class);
     private static Kroxylicious kroxylicious;
     private final String clusterName = "my-cluster";
+    private final String clusterIpServiceName = clusterName + "-cluster-ip";
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final String MESSAGE = "Hello-world";
+    private KroxyliciousOperator kroxyliciousOperator;
 
     /**
      * Produce and consume message.
@@ -50,8 +55,8 @@ class KroxyliciousST extends AbstractST {
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
-        String bootstrap = kroxylicious.getBootstrap();
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
+        String bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
@@ -81,8 +86,8 @@ class KroxyliciousST extends AbstractST {
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
-        String bootstrap = kroxylicious.getBootstrap();
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
+        String bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
@@ -107,6 +112,7 @@ class KroxyliciousST extends AbstractST {
      *
      * @param namespace the namespace
      */
+    @Disabled("Waiting for scalability support in Kroxylicious Proxy")
     @Test
     void kroxyWithReplicas(String namespace) {
         int numberOfMessages = 3;
@@ -115,8 +121,8 @@ class KroxyliciousST extends AbstractST {
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(replicas).log();
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, replicas);
-        String bootstrap = kroxylicious.getBootstrap();
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
+        String bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
         int currentReplicas = kroxylicious.getNumberOfReplicas();
         given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
 
@@ -136,12 +142,14 @@ class KroxyliciousST extends AbstractST {
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
+    @Disabled("Waiting for scalability support in Kroxylicious Proxy")
     @Test
     void scaleUpKroxylicious(String namespace) {
         int replicas = 2;
         scaleKroxylicious(namespace, replicas, replicas + 1);
     }
 
+    @Disabled("Waiting for scalability support in Kroxylicious Proxy")
     @Test
     void scaleDownKroxylicious(String namespace) {
         int replicas = 3;
@@ -154,8 +162,8 @@ class KroxyliciousST extends AbstractST {
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(replicas).log();
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, replicas);
-        String bootstrap = kroxylicious.getBootstrap();
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
+        String bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
         int currentReplicas = kroxylicious.getNumberOfReplicas();
         given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
 
@@ -180,6 +188,11 @@ class KroxyliciousST extends AbstractST {
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
+    @AfterAll
+    void cleanUp() {
+        kroxyliciousOperator.delete();
+    }
+
     /**
      * Sets before all.
      */
@@ -188,14 +201,18 @@ class KroxyliciousST extends AbstractST {
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
         if (!kafkaPods.isEmpty()) {
             LOGGER.atInfo().setMessage("Skipping kafka deployment. It is already deployed!").log();
-            return;
         }
-        LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
+        else {
+            LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
 
-        Kafka kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, 3).build();
+            Kafka kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, 3).build();
 
-        resourceManager.createResourceWithWait(
-                KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka, 3).build(),
-                kafka);
+            resourceManager.createResourceWithWait(
+                    KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka, 3).build(),
+                    kafka);
+        }
+
+        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
+        kroxyliciousOperator.deploy();
     }
 }

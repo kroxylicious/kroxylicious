@@ -1,0 +1,6 @@
+
+[discrete]
+= About this guide
+
+This guide covers using the proxy, including configuration, security and operation.
+Other guides should be consulted if you want to developing plugins for Kroxylicious.

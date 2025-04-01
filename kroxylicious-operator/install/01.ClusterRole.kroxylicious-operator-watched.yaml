@@ -14,25 +14,56 @@ metadata:
     app.kubernetes.io/name: kroxylicious
     app.kubernetes.io/component: operator
 rules:
-  - apiGroups:
+  - # The operator needs to know about its own CRs
+    apiGroups:
       - "kroxylicious.io"
     resources:
       - kafkaproxies
       - virtualkafkaclusters
-      - kafkaclusterrefs
+      - kafkaservices
       - kafkaproxyingresses
     verbs:
       - get
       - list
       - watch
-      # - create
-      # - patch
-      # - update
-  - apiGroups:
+  - # The operator needs to update the status on its own CRs
+    apiGroups:
       - "kroxylicious.io"
     resources:
       - kafkaproxies/status
+      - virtualkafkaclusters/status
+      - kafkaservices/status
+      - kafkaproxyingresses/status
     verbs:
       - get
       - patch
       - update
+  - # The operator needs to know about its own CRs
+    apiGroups:
+      - "filter.kroxylicious.io"
+    resources:
+      - kafkaprotocolfilters
+    verbs:
+      - get
+      - list
+      - watch
+  - # The operator needs to update the status on its own CRs
+    apiGroups:
+      - "filter.kroxylicious.io"
+    resources:
+      - kafkaprotocolfilters/status
+    verbs:
+      - get
+      - patch
+      - update
+  - # the operator needs get/list/watch on these because they can be referenced
+    # from our CRs, so the operator needs to be able to resolve them.
+    apiGroups:
+      - ""
+    resources:
+      - secrets
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch

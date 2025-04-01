@@ -22,6 +22,9 @@ public final class Constants {
     public static final String KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME = "kroxylicious-operator";
     public static final String KROXYLICIOUS_OPERATOR_NAMESPACE = "kroxylicious-operator";
     public static final String KROXY_DEPLOYMENT_NAME = "kroxylicious-proxy";
+    public static final String KROXYLICIOUS_PROXY_SIMPLE_NAME = "simple";
+    public static final String KROXYLICIOUS_INGRESS_CLUSTER_IP = "cluster-ip";
+
     /**
      * The service name for kroxylicious. Used for the bootstrap url
      */
@@ -169,6 +172,10 @@ public final class Constants {
      */
     public static final String PATH_TO_OPERATOR = System.getProperty("user.dir") + "/../kroxylicious-operator";
     public static final String PATH_TO_OPERATOR_INSTALL_FILES = PATH_TO_OPERATOR + "/install";
+    public static final String PATH_TO_OPERATOR_EXAMPLE_FILES = PATH_TO_OPERATOR + "/examples";
+    public static final String PATH_TO_OPERATOR_SIMPLE_FILES = PATH_TO_OPERATOR_EXAMPLE_FILES + "/simple";
+    public static final String PATH_TO_OPERATOR_RECORD_ENCRYPTION_FILES = PATH_TO_OPERATOR_EXAMPLE_FILES + "/record-encryption";
+    public static final String PATH_TO_OPERATOR_RECORD_VALIDATION_FILES = PATH_TO_OPERATOR_EXAMPLE_FILES + "/record-validation";
 
     /**
      * Auxiliary variables for storing data across our tests

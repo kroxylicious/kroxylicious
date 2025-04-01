@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,7 @@ import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.enums.ComponentType;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
+import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.metrics.MetricsCollector;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
 import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
@@ -40,10 +42,12 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 class MetricsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsST.class);
     private final String clusterName = "my-cluster";
+    private final String clusterIpServiceName = clusterName + "-cluster-ip";
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final String MESSAGE = "Hello-world";
     private MetricsCollector kroxyliciousCollector;
     private String bootstrap;
+    private KroxyliciousOperator kroxyliciousOperator;
 
     @Test
     void kroxyliciousMetricsBeforeSendingMessages() {
@@ -102,15 +106,24 @@ class MetricsST extends AbstractST {
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
         if (!kafkaPods.isEmpty()) {
             LOGGER.atInfo().setMessage("Skipping kafka deployment. It is already deployed!").log();
-            return;
         }
-        LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
+        else {
+            LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
 
-        Kafka kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, 3).build();
+            Kafka kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, 3).build();
 
-        resourceManager.createResourceWithWait(
-                KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka, 3).build(),
-                kafka);
+            resourceManager.createResourceWithWait(
+                    KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka, 3).build(),
+                    kafka);
+        }
+
+        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
+        kroxyliciousOperator.deploy();
+    }
+
+    @AfterAll
+    void cleanUp() {
+        kroxyliciousOperator.delete();
     }
 
     @SuppressWarnings("java:S2925")
@@ -126,14 +139,15 @@ class MetricsST extends AbstractST {
 
         String scraperPodName = kubeClient().listPodsByPrefixInName(namespace, scraperName).get(0).getMetadata().getName();
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
+
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithNoFilters(clusterName, 1);
-        bootstrap = kroxylicious.getBootstrap();
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
+        bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
         kroxyliciousCollector = new MetricsCollector.Builder()
                 .withScraperPodName(scraperPodName)
                 .withNamespaceName(namespace)
                 .withComponentType(ComponentType.KROXYLICIOUS)
-                .withComponentName(Constants.KROXY_DEPLOYMENT_NAME)
+                .withComponentName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME)
                 .build();
         kroxyliciousCollector.collectMetricsFromPods();
     }
