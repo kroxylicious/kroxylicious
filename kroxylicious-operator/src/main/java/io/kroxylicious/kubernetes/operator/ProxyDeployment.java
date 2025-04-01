@@ -30,8 +30,6 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.operator.model.ProxyModel;
-import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -47,7 +45,7 @@ public class ProxyDeployment
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyDeployment.class);
     public static final String CONFIG_VOLUME = "config-volume";
-    public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigConfigMap.CONFIG_YAML_KEY;
+    public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigData.CONFIG_YAML_KEY;
     public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
     private static final int MANAGEMENT_PORT = 9190;
     private static final String MANAGEMENT_PORT_NAME = "management";
@@ -69,8 +67,7 @@ public class ProxyDeployment
     @Override
     protected Deployment desired(KafkaProxy primary,
                                  Context<KafkaProxy> context) {
-        ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder(context);
-        ProxyModel model = proxyModelBuilder.build(primary, context);
+        var model = KafkaProxyContext.proxyContext(context).model();
         // @formatter:off
         return new DeploymentBuilder()
                 .editOrNewMetadata()
@@ -147,7 +144,7 @@ public class ProxyDeployment
                 .addNewVolumeMount()
                     .withName(CONFIG_VOLUME)
                     .withMountPath(ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
-                    .withSubPath(ProxyConfigConfigMap.CONFIG_YAML_KEY)
+                    .withSubPath(ProxyConfigData.CONFIG_YAML_KEY)
                 .endVolumeMount()
                 .addAllToVolumeMounts(ProxyConfigConfigMap.secureVolumeMounts(context.managedWorkflowAndDependentResourceContext()))
                 // management port
@@ -157,7 +154,7 @@ public class ProxyDeployment
                 .endPort();
         // broker ports
         virtualKafkaClusters.forEach(virtualKafkaCluster -> {
-            if (!SharedKafkaProxyContext.isBroken(context, virtualKafkaCluster)) {
+            if (!KafkaProxyContext.proxyContext(context).isBroken(virtualKafkaCluster)) {
                 ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(virtualKafkaCluster).orElseThrow();
                 for (ProxyIngressModel.IngressModel ingress : virtualClusterIngressModel.ingressModels()) {
                     ingress.proxyContainerPorts().forEach(containerBuilder::addToPorts);

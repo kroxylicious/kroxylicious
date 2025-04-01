@@ -42,23 +42,24 @@ public class DependencyResolverImpl implements DependencyResolver {
     }
 
     @Override
-    public ResolutionResult deepResolve(Context<KafkaProxy> context, UnresolvedDependencyReporter unresolvedDependencyReporter) {
+    public ResolutionResult deepResolve(Context<KafkaProxy> context) {
         Objects.requireNonNull(context);
         Set<VirtualKafkaCluster> virtualKafkaClusters = context.getSecondaryResources(VirtualKafkaCluster.class);
         if (virtualKafkaClusters.isEmpty()) {
             return EMPTY_RESOLUTION_RESULT;
         }
+
+        // TODO Replace this with the code from the VKCReconciler
         Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses = context.getSecondaryResources(KafkaProxyIngress.class).stream()
                 .collect(ResourcesUtil.toByLocalRefMap());
         Map<LocalRef<KafkaService>, KafkaService> clusterRefs = context.getSecondaryResources(KafkaService.class).stream()
                 .collect(ResourcesUtil.toByLocalRefMap());
         Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters = context.getSecondaryResources(KafkaProtocolFilter.class).stream()
                 .collect(ResourcesUtil.toByLocalRefMap());
-        var resolutionResult = virtualKafkaClusters.stream().map(cluster -> determineUnresolvedDependencies(cluster, ingresses, clusterRefs, filters))
+        var resolutionResult = virtualKafkaClusters.stream()
+                .map(cluster -> determineUnresolvedDependencies(cluster, ingresses, clusterRefs, filters))
                 .collect(Collectors.toSet());
-        ResolutionResult result = new ResolutionResult(filters, ingresses, clusterRefs, resolutionResult);
-        reportClustersThatDidNotFullyResolve(result, unresolvedDependencyReporter);
-        return result;
+        return new ResolutionResult(filters, ingresses, clusterRefs, resolutionResult);
     }
 
     private ClusterResolutionResult determineUnresolvedDependencies(VirtualKafkaCluster cluster,
@@ -108,14 +109,6 @@ public class DependencyResolverImpl implements DependencyResolver {
         return filterResourceGroup.equals(filterRef.getGroup())
                 && filterResource.getKind().equals(filterRef.getKind())
                 && name(filterResource).equals(filterRef.getName());
-    }
-
-    private static void reportClustersThatDidNotFullyResolve(ResolutionResult resolutionResult,
-                                                             UnresolvedDependencyReporter unresolvedDependencyReporter) {
-        resolutionResult.clusterResults().stream()
-                .filter(ClusterResolutionResult::isAnyDependencyUnresolved)
-                .forEach(clusterResolutionResult -> unresolvedDependencyReporter.reportUnresolvedDependencies(clusterResolutionResult.cluster(),
-                        clusterResolutionResult.unresolvedDependencySet()));
     }
 
 }
