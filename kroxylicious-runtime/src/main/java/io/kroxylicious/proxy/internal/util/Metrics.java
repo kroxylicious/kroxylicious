@@ -40,30 +40,23 @@ public class Metrics {
 
     public static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES = "kroxylicious_payload_size_bytes";
 
-    private static final String FLOWING_TAG = "flowing";
+    public static final String FLOWING_TAG = "flowing";
     public static final String VIRTUAL_CLUSTER_TAG = "virtualCluster";
 
-    public static final Tag FLOWING_DOWNSTREAM = Tag.of(FLOWING_TAG, "downstream");
+    public static final String DOWNSTREAM = "downstream";
+    public static final String UPSTREAM = "upstream";
 
     @NonNull
     public static Counter taggedCounter(String counterName, List<Tag> tags) {
         return counter(counterName, tags);
     }
 
-    public static Counter inboundDownstreamMessagesCounter() {
-        return taggedCounter(KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, List.of(FLOWING_DOWNSTREAM));
-    }
-
-    public static Counter inboundDownstreamDecodedMessagesCounter() {
-        return taggedCounter(KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, List.of(FLOWING_DOWNSTREAM));
-    }
-
     public static DistributionSummary payloadSizeBytesUpstreamSummary(ApiKeys apiKey, short apiVersion) {
-        return payloadSizeBytesSummary(apiKey, apiVersion, "upstream");
+        return payloadSizeBytesSummary(apiKey, apiVersion, UPSTREAM);
     }
 
     public static DistributionSummary payloadSizeBytesDownstreamSummary(ApiKeys apiKey, short apiVersion) {
-        return payloadSizeBytesSummary(apiKey, apiVersion, "downstream");
+        return payloadSizeBytesSummary(apiKey, apiVersion, DOWNSTREAM);
     }
 
     private static DistributionSummary payloadSizeBytesSummary(ApiKeys apiKey, short apiVersion, String flowing) {

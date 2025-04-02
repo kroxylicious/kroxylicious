@@ -518,9 +518,8 @@ class KafkaProxyFrontendHandlerTest {
         while ((outboundMessage = outboundChannel.readOutbound()) != null) {
             assertThat(outboundMessage).isNotNull();
             ArrayList<Object> objects = new ArrayList<>();
-            new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl()).decode(
-                    outboundChannel.pipeline().firstContext(),
-                    outboundMessage, objects);
+            new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), "randomCluster")
+                    .decode(outboundChannel.pipeline().firstContext(), outboundMessage, objects);
             assertThat(objects).hasSize(1);
             if (objects.get(0) instanceof DecodedRequestFrame<?> f) {
                 // noinspection unchecked
@@ -588,8 +587,7 @@ class KafkaProxyFrontendHandlerTest {
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
     }
 
-    @NonNull
-    private void getNetFilter(NetFilter.NetFilterContext netFilterContext) {
+    private void getNetFilter(@NonNull NetFilter.NetFilterContext netFilterContext) {
         connectContext.set(netFilterContext);
         netFilterContext.initiateConnect(new HostPort(CLUSTER_HOST, CLUSTER_PORT), List.of());
     }
