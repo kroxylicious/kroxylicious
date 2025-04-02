@@ -122,18 +122,18 @@ public class ProxyConfigConfigMap
         var model = proxyModel.ingressModel();
         for (ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel : model.clusters()) {
             VirtualKafkaCluster cluster = virtualClusterIngressModel.cluster();
-            Condition removedResolvedRefs = ResourcesUtil.newConditionBuilder(clock, cluster)
+            Condition removedResolvedRefs = Conditions.newConditionBuilder(clock, cluster)
                     .withType(Condition.Type.ResolvedRefs)
                     .build();
             Condition accepted;
             if (!virtualClusterIngressModel.ingressExceptions().isEmpty()) {
                 IngressConflictException first = virtualClusterIngressModel.ingressExceptions().iterator().next();
-                accepted = ResourcesUtil.newFalseCondition(clock, cluster,
-                        Condition.Type.Accepted, REASON_INVALID,
+                accepted = Conditions.newFalseCondition(clock, cluster,
+                        Condition.Type.Accepted, Condition.REASON_INVALID,
                         "Ingress(es) [" + first.getIngressName() + "] of cluster conflicts with another ingress");
             }
             else {
-                accepted = ResourcesUtil.newTrueCondition(clock, cluster,
+                accepted = Conditions.newTrueCondition(clock, cluster,
                         Condition.Type.Accepted);
             }
             if (!data.hasConditionsForCluster(ResourcesUtil.name(cluster))) {
@@ -160,8 +160,8 @@ public class ProxyConfigConfigMap
 
                     data.addConditionsForCluster(
                             ResourcesUtil.name(cluster),
-                            List.of(ResourcesUtil.newFalseCondition(clock, cluster,
-                                    Condition.Type.ResolvedRefs, REASON_INVALID, message)));
+                            List.of(Conditions.newFalseCondition(clock, cluster,
+                                    Condition.Type.ResolvedRefs, Condition.REASON_INVALID, message)));
                 });
     }
 

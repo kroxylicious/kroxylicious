@@ -146,7 +146,7 @@ public class KafkaProtocolFilterReconciler implements
         Condition condition;
         if (existingSecrets.containsAll(referencedSecrets)
                 && existingConfigMaps.containsAll(referencedConfigMaps)) {
-            condition = ResourcesUtil.newResolvedRefsTrue(clock, filter);
+            condition = Conditions.newTrueCondition(clock, filter, Condition.Type.ResolvedRefs);
         }
         else {
             referencedSecrets.removeAll(existingSecrets);
@@ -159,13 +159,10 @@ public class KafkaProtocolFilterReconciler implements
                 message += " ConfigMaps [" + String.join(", ", referencedConfigMaps) + "]";
             }
             message += " not found";
-            condition = ResourcesUtil.newResolvedRefsFalse(clock,
-                    filter,
-                    "MissingInterpolationReferences",
-                    message);
+            condition = Conditions.newFalseCondition(clock, filter, Condition.Type.ResolvedRefs, Condition.REASON_INTERPOLATED_REFS_NOT_FOUND, message);
         }
 
-        KafkaProtocolFilter newFilter = ResourcesUtil.patchWithCondition(filter, condition);
+        KafkaProtocolFilter newFilter = Conditions.patchWithCondition(filter, condition);
         LOGGER.debug("Patching with status {}", newFilter.getStatus());
         UpdateControl<KafkaProtocolFilter> uc = UpdateControl.patchStatus(newFilter);
         if (LOGGER.isInfoEnabled()) {
@@ -180,9 +177,7 @@ public class KafkaProtocolFilterReconciler implements
                                                                            Context<KafkaProtocolFilter> context,
                                                                            Exception e) {
         // ResolvedRefs to UNKNOWN
-        Condition condition = ResourcesUtil.resolvedRefsUnknown(clock, filter, e);
-        ErrorStatusUpdateControl<KafkaProtocolFilter> uc = ErrorStatusUpdateControl.patchStatus(
-                ResourcesUtil.patchWithCondition(filter, condition));
+        ErrorStatusUpdateControl<KafkaProtocolFilter> uc = Conditions.newUnknownConditionStatusPatch(clock, filter, Condition.Type.ResolvedRefs, e);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(filter), name(filter), e.toString());
         }

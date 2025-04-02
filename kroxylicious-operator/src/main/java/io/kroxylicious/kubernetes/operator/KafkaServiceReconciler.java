@@ -37,8 +37,8 @@ public final class KafkaServiceReconciler implements
 
     @Override
     public UpdateControl<KafkaService> reconcile(KafkaService service, Context<KafkaService> context) {
-        final Condition acceptedCondition = ResourcesUtil.newTrueCondition(clock, service, Condition.Type.Accepted);
-        UpdateControl<KafkaService> uc = UpdateControl.patchStatus(ResourcesUtil.patchWithCondition(service, acceptedCondition));
+        final Condition acceptedCondition = Conditions.newTrueCondition(clock, service, Condition.Type.Accepted);
+        UpdateControl<KafkaService> uc = UpdateControl.patchStatus(Conditions.patchWithCondition(service, acceptedCondition));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(service), name(service));
         }
@@ -53,8 +53,7 @@ public final class KafkaServiceReconciler implements
     @Override
     public ErrorStatusUpdateControl<KafkaService> updateErrorStatus(KafkaService service, Context<KafkaService> context, Exception e) {
         // ResolvedRefs to UNKNOWN
-        Condition condition = ResourcesUtil.newUnknownCondition(clock, service, Condition.Type.Accepted, e);
-        ErrorStatusUpdateControl<KafkaService> uc = ErrorStatusUpdateControl.patchStatus(ResourcesUtil.patchWithCondition(service, condition));
+        ErrorStatusUpdateControl<KafkaService> uc = Conditions.newUnknownConditionStatusPatch(clock, service, Condition.Type.Accepted, e);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(service), name(service), e.toString());
         }
