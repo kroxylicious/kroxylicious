@@ -273,7 +273,7 @@ class ResourcesUtilTest {
     @ParameterizedTest
     @MethodSource
     void maybeAddOrUpdateConditions(List<Condition> list, Condition condition, List<Condition> expectedResult) {
-        assertThat(ResourcesUtil.maybeAddOrUpdateConditions(list, List.of(condition))).isEqualTo(expectedResult);
+        assertThat(Conditions.maybeAddOrUpdateConditions(list, List.of(condition))).isEqualTo(expectedResult);
     }
 
 }

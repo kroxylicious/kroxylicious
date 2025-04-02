@@ -142,11 +142,9 @@ public final class VirtualKafkaClusterReconciler implements
                 Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", cluster, unresolvedIngresses);
                 Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster, unresolvedFilters);
                 conditions = List.of(
-                        ResourcesUtil.newResolvedRefsFalse(clock,
-                                cluster,
-                                TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND,
+                        Conditions.newFalseCondition(clock, cluster, Condition.Type.ResolvedRefs, Condition.REASON_TRANSITIVE_REFS_NOT_FOUND,
                                 joiningMessages(serviceMsg, ingressMsg, filterMsg)),
-                        ResourcesUtil.newConditionBuilder(clock, cluster)
+                        Conditions.newConditionBuilder(clock, cluster)
                                 .withType(Condition.Type.Accepted).build());
             }
         }
@@ -157,15 +155,13 @@ public final class VirtualKafkaClusterReconciler implements
             Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster, missingFilters);
 
             conditions = List.of(
-                    ResourcesUtil.newResolvedRefsFalse(clock,
-                            cluster,
-                            REFERENCED_RESOURCES_NOT_FOUND,
+                    Conditions.newFalseCondition(clock, cluster, Condition.Type.ResolvedRefs, Condition.REASON_REFS_NOT_FOUND,
                             joiningMessages(proxyMsg, serviceMsg, ingressMsg, filterMsg)),
-                    ResourcesUtil.newConditionBuilder(clock, cluster)
+                    Conditions.newConditionBuilder(clock, cluster)
                             .withType(Condition.Type.Accepted).build());
         }
 
-        UpdateControl<VirtualKafkaCluster> uc = UpdateControl.patchStatus(ResourcesUtil.patchWithCondition(cluster, conditions));
+        UpdateControl<VirtualKafkaCluster> uc = UpdateControl.patchStatus(Conditions.patchWithCondition(cluster, conditions));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(cluster), name(cluster));
         }
@@ -267,9 +263,7 @@ public final class VirtualKafkaClusterReconciler implements
     @Override
     public ErrorStatusUpdateControl<VirtualKafkaCluster> updateErrorStatus(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context, Exception e) {
         // ResolvedRefs to UNKNOWN
-        List<Condition> conditions = List.of(
-                ResourcesUtil.newUnknownCondition(clock, cluster, Condition.Type.ResolvedRefs, e));
-        ErrorStatusUpdateControl<VirtualKafkaCluster> uc = ErrorStatusUpdateControl.patchStatus(ResourcesUtil.patchWithCondition(cluster, conditions));
+        ErrorStatusUpdateControl<VirtualKafkaCluster> uc = Conditions.newUnknownConditionStatusPatch(clock, cluster, Condition.Type.ResolvedRefs, e);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(cluster), name(cluster), e.toString());
         }

@@ -70,16 +70,14 @@ public class KafkaProxyIngressReconciler implements
 
         Condition condition;
         if (proxyOpt.isPresent()) {
-            condition = ResourcesUtil.newResolvedRefsTrue(clock, ingress);
+            condition = Conditions.newTrueCondition(clock, ingress, Condition.Type.ResolvedRefs);
         }
         else {
-            condition = ResourcesUtil.newResolvedRefsFalse(clock,
-                    ingress,
-                    "spec.proxyRef.name",
-                    "KafkaProxy not found");
+            condition = Conditions.newFalseCondition(clock, ingress, Condition.Type.ResolvedRefs, Condition.REASON_REFS_NOT_FOUND,
+                    "KafkaProxy spec.proxyRef.name not found");
         }
 
-        UpdateControl<KafkaProxyIngress> uc = UpdateControl.patchStatus(ResourcesUtil.patchWithCondition(ingress, condition));
+        UpdateControl<KafkaProxyIngress> uc = UpdateControl.patchStatus(Conditions.patchWithCondition(ingress, condition));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(ingress), name(ingress));
         }
@@ -92,9 +90,7 @@ public class KafkaProxyIngressReconciler implements
                                                                          Context<KafkaProxyIngress> context,
                                                                          Exception e) {
         // ResolvedRefs to UNKNOWN
-        Condition condition = ResourcesUtil.resolvedRefsUnknown(clock, ingress, e);
-        ErrorStatusUpdateControl<KafkaProxyIngress> uc = ErrorStatusUpdateControl.patchStatus(
-                ResourcesUtil.patchWithCondition(ingress, condition));
+        ErrorStatusUpdateControl<KafkaProxyIngress> uc = Conditions.newUnknownConditionStatusPatch(clock, ingress, Condition.Type.ResolvedRefs, e);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(ingress), name(ingress), e.toString());
         }
