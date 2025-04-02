@@ -105,8 +105,9 @@ public class KafkaProxyFrontendHandler
     KafkaProxyFrontendHandler(
                               @NonNull NetFilter netFilter,
                               @NonNull SaslDecodePredicate dp,
-                              EndpointGateway endpointGateway) {
-        this(netFilter, dp, endpointGateway, new ProxyChannelStateMachine());
+                              EndpointGateway endpointGateway,
+                              @NonNull String clusterName) {
+        this(netFilter, dp, endpointGateway, new ProxyChannelStateMachine(clusterName));
     }
 
     @VisibleForTesting

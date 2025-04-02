@@ -108,7 +108,7 @@ class KafkaProxyFrontendHandlerTest {
     public void buildChannel() {
         inboundChannel = new EmbeddedChannel();
         corrId = 0;
-        proxyChannelStateMachine = new ProxyChannelStateMachine();
+        proxyChannelStateMachine = new ProxyChannelStateMachine("RandomCluster");
     }
 
     @AfterEach

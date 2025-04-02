@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal.util;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -38,8 +39,7 @@ public class Metrics {
     public static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES = "kroxylicious_payload_size_bytes";
 
     private static final String FLOWING_TAG = "flowing";
-
-    public static final Tag FLOWING_UPSTREAM = Tag.of(FLOWING_TAG, "upstream");
+    public static final String VIRTUAL_CLUSTER_TAG = "virtualCluster";
 
     public static final Tag FLOWING_DOWNSTREAM = Tag.of(FLOWING_TAG, "downstream");
 
@@ -57,19 +57,29 @@ public class Metrics {
     }
 
     public static DistributionSummary payloadSizeBytesUpstreamSummary(ApiKeys apiKey, short apiVersion) {
-        return payloadSizeBytesSummary(apiKey, apiVersion, FLOWING_UPSTREAM);
+        return payloadSizeBytesSummary(apiKey, apiVersion, "upstream");
     }
 
     public static DistributionSummary payloadSizeBytesDownstreamSummary(ApiKeys apiKey, short apiVersion) {
-        return payloadSizeBytesSummary(apiKey, apiVersion, FLOWING_DOWNSTREAM);
+        return payloadSizeBytesSummary(apiKey, apiVersion, "downstream");
     }
 
-    private static DistributionSummary payloadSizeBytesSummary(ApiKeys apiKey, short apiVersion, Tag flowing) {
-        List<Tag> tags = List.of(
-                Tag.of("ApiKey", apiKey.name()),
-                Tag.of("ApiVersion", String.valueOf(apiVersion)),
-                flowing);
+    private static DistributionSummary payloadSizeBytesSummary(ApiKeys apiKey, short apiVersion, String flowing) {
+        List<Tag> tags = tags(
+                "ApiKey", apiKey.name(),
+                "ApiVersion", String.valueOf(apiVersion),
+                FLOWING_TAG, flowing);
         return summary(KROXYLICIOUS_PAYLOAD_SIZE_BYTES, tags);
     }
 
+    public static List<Tag> tags(String... tagsAndValues) {
+        if (tagsAndValues.length % 2 != 0) {
+            throw new IllegalArgumentException("tag name supplied without a value");
+        }
+        List<Tag> tagsList = new ArrayList<>();
+        for (int i = 0; i < tagsAndValues.length; i += 2) {
+            tagsList.add(Tag.of(tagsAndValues[i], tagsAndValues[i + 1]));
+        }
+        return List.copyOf(tagsList);
+    }
 }

@@ -214,7 +214,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                 endpointReconciler,
                 new ApiVersionsIntersectFilter(apiVersionsService),
                 new ApiVersionsDowngradeFilter(apiVersionsService));
-        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, binding.endpointGateway());
+        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, binding.endpointGateway(), virtualCluster.getClusterName());
 
         pipeline.addLast("netHandler", frontendHandler);
         addLoggingErrorHandler(pipeline);

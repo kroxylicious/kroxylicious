@@ -104,7 +104,7 @@ class ProxyChannelStateMachineEndToEndTest {
 
     @BeforeEach
     void setUp() {
-        proxyChannelStateMachine = new ProxyChannelStateMachine();
+        proxyChannelStateMachine = new ProxyChannelStateMachine("RandomCluster");
     }
 
     @AfterEach

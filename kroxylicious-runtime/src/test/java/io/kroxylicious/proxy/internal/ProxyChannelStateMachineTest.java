@@ -88,7 +88,7 @@ class ProxyChannelStateMachineTest {
 
     @BeforeEach
     void setUp() {
-        proxyChannelStateMachine = new ProxyChannelStateMachine();
+        proxyChannelStateMachine = new ProxyChannelStateMachine("virtualClusterA");
         backendHandler = mock(KafkaProxyBackendHandler.class);
         frontendHandler = mock(KafkaProxyFrontendHandler.class);
         simpleMeterRegistry = new SimpleMeterRegistry();
@@ -709,8 +709,7 @@ class ProxyChannelStateMachineTest {
                 argumentSet("Forwarding TLS on", (Runnable) this::stateMachineInForwarding, true),
                 argumentSet("Forwarding TLS off ", (Runnable) this::stateMachineInForwarding, false),
                 argumentSet("Closed TLS on", (Runnable) this::stateMachineInClosed, true),
-                argumentSet("Closed TLS off ", (Runnable) this::stateMachineInClosed, false)
-        );
+                argumentSet("Closed TLS off ", (Runnable) this::stateMachineInClosed, false));
     }
 
     public Stream<Arguments> givenStates() {
@@ -720,8 +719,7 @@ class ProxyChannelStateMachineTest {
                 argumentSet("Connecting", (Runnable) this::stateMachineInConnecting),
                 argumentSet("ClientActive ", (Runnable) this::stateMachineInClientActive),
                 argumentSet("Forwarding", (Runnable) this::stateMachineInForwarding),
-                argumentSet("Closed", (Runnable) this::stateMachineInClosed)
-        );
+                argumentSet("Closed", (Runnable) this::stateMachineInClosed));
     }
 
     private void stateMachineInClientActive() {

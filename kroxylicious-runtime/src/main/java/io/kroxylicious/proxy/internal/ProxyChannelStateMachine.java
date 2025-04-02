@@ -17,6 +17,7 @@ import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Tag;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
@@ -28,6 +29,7 @@ import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -106,11 +108,12 @@ public class ProxyChannelStateMachine {
     private final Counter downstreamErrorCounter;
     private final Counter upstreamErrorCounter;
 
-    public ProxyChannelStateMachine() {
-        downstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_CONNECTIONS, List.of());
-        downstreamErrorCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_ERRORS, List.of());
-        upstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTIONS, List.of());
-        upstreamErrorCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_ERRORS, List.of());
+    public ProxyChannelStateMachine(String clusterName) {
+        List<Tag> tags = Metrics.tags(Metrics.VIRTUAL_CLUSTER_TAG, clusterName);
+        downstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_CONNECTIONS, tags);
+        downstreamErrorCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_ERRORS, tags);
+        upstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTIONS, tags);
+        upstreamErrorCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_ERRORS, tags);
     }
 
     /**
@@ -531,6 +534,7 @@ public class ProxyChannelStateMachine {
         Objects.requireNonNull(frontendHandler).inSelectingServer();
     }
 
+    @SuppressWarnings("ConstantValue")
     private void toClosed(@Nullable Throwable errorCodeEx) {
         if (state instanceof Closed) {
             return;
