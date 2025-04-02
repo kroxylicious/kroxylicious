@@ -41,6 +41,8 @@ import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_DOWNSTREAM_CONNECTIONS;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_DOWNSTREAM_ERRORS;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTIONS;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_ERRORS;
 import static io.kroxylicious.proxy.internal.util.Metrics.taggedCounter;
 import static org.slf4j.LoggerFactory.getLogger;
@@ -107,13 +109,17 @@ public class ProxyChannelStateMachine {
     private final Counter upstreamConnectionsCounter;
     private final Counter downstreamErrorCounter;
     private final Counter upstreamErrorCounter;
+    private final Counter connectionAttemptsCounter;
+    private final Counter upstreamConnectionFailureCounter;
 
     public ProxyChannelStateMachine(String clusterName) {
         List<Tag> tags = Metrics.tags(Metrics.VIRTUAL_CLUSTER_TAG, clusterName);
         downstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_CONNECTIONS, tags);
         downstreamErrorCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_ERRORS, tags);
         upstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTIONS, tags);
+        connectionAttemptsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS, tags);
         upstreamErrorCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_ERRORS, tags);
+        upstreamConnectionFailureCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES, tags);
     }
 
     /**
@@ -390,6 +396,9 @@ public class ProxyChannelStateMachine {
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
                 .addArgument(cause != null ? cause.getMessage() : "")
                 .log("Exception from the server channel: {}. Increase log level to DEBUG for stacktrace");
+        if (state instanceof ProxyChannelState.Connecting) {
+            upstreamConnectionFailureCounter.increment();
+        }
         upstreamErrorCounter.increment();
         toClosed(cause);
     }
@@ -435,6 +444,7 @@ public class ProxyChannelStateMachine {
         setState(connecting);
         backendHandler = new KafkaProxyBackendHandler(this, virtualClusterModel);
         frontendHandler.inConnecting(connecting.remote(), filters, backendHandler);
+        connectionAttemptsCounter.increment();
     }
 
     private void toForwarding(Forwarding forwarding) {

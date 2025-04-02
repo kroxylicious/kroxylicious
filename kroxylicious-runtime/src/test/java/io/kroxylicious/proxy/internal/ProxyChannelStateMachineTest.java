@@ -46,6 +46,7 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslContextBuilder;
 
+import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -80,7 +81,10 @@ class ProxyChannelStateMachineTest {
     private static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
             "1.1.1.1", "2.2.2.2", 46421, 9092);
     private static final Offset<Double> BLOODY_CLOSE = Offset.offset(0.00005);
-    private final RuntimeException cause = new RuntimeException("There's Klingons on the starboard bow");
+    private static final String CLUSTER_NAME = "virtualClusterA";
+    private static final VirtualClusterModel VIRTUAL_CLUSTER_MODEL = new VirtualClusterModel(CLUSTER_NAME, new TargetCluster("", Optional.empty()), false, false,
+            List.of());
+    private final RuntimeException failure = new RuntimeException("There's Klingons on the starboard bow");
     private ProxyChannelStateMachine proxyChannelStateMachine;
     private KafkaProxyBackendHandler backendHandler;
     private KafkaProxyFrontendHandler frontendHandler;
@@ -88,7 +92,7 @@ class ProxyChannelStateMachineTest {
 
     @BeforeEach
     void setUp() {
-        proxyChannelStateMachine = new ProxyChannelStateMachine("virtualClusterA");
+        proxyChannelStateMachine = new ProxyChannelStateMachine(CLUSTER_NAME);
         backendHandler = mock(KafkaProxyBackendHandler.class);
         frontendHandler = mock(KafkaProxyFrontendHandler.class);
         simpleMeterRegistry = new SimpleMeterRegistry();
@@ -125,7 +129,7 @@ class ProxyChannelStateMachineTest {
         givenState.run();
 
         // When
-        proxyChannelStateMachine.onClientException(cause, tlsEnabled);
+        proxyChannelStateMachine.onClientException(failure, tlsEnabled);
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_downstream_errors").counter())
@@ -142,7 +146,7 @@ class ProxyChannelStateMachineTest {
         givenState.run();
 
         // When
-        proxyChannelStateMachine.onServerException(cause);
+        proxyChannelStateMachine.onServerException(failure);
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_upstream_errors").counter())
@@ -153,7 +157,7 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void shouldServerConnections() {
+    void shouldCountSuccessfulUpstreamConnections() {
         // Given
         stateMachineInConnecting();
 
@@ -162,6 +166,38 @@ class ProxyChannelStateMachineTest {
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_upstream_connections").counter())
+                .isNotNull()
+                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
+                .satisfies(counter -> assertThat(counter.count())
+                        .isCloseTo(1.0, BLOODY_CLOSE));
+    }
+
+    @Test
+    void shouldCountUpstreamConnectionsAttempts() {
+        // Given
+        stateMachineInSelectingServer();
+
+        // When
+        proxyChannelStateMachine.onNetFilterInitiateConnect(HostPort.parse("localhost:9090"), List.of(), VIRTUAL_CLUSTER_MODEL, null);
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_upstream_connection_attempts").counter())
+                .isNotNull()
+                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
+                .satisfies(counter -> assertThat(counter.count())
+                        .isCloseTo(1.0, BLOODY_CLOSE));
+    }
+
+    @Test
+    void shouldCountUpstreamConnectionsFailures() {
+        // Given
+        stateMachineInConnecting();
+
+        // When
+        proxyChannelStateMachine.onServerException(failure);
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_upstream_connection_failures").counter())
                 .isNotNull()
                 .satisfies(counter -> assertThat(counter.getId()).isNotNull())
                 .satisfies(counter -> assertThat(counter.count())
