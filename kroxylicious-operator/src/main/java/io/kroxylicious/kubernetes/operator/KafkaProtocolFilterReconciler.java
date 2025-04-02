@@ -176,13 +176,6 @@ public class KafkaProtocolFilterReconciler implements
         return uc;
     }
 
-    private static ConditionBuilder newResolvedRefsCondition(KafkaProtocolFilter filter, Instant now) {
-        return new ConditionBuilder()
-                .withType(Condition.Type.ResolvedRefs)
-                .withLastTransitionTime(now)
-                .withObservedGeneration(ResourcesUtil.generation(filter));
-    }
-
     @Override
     public ErrorStatusUpdateControl<KafkaProtocolFilter> updateErrorStatus(
                                                                            KafkaProtocolFilter filter,
