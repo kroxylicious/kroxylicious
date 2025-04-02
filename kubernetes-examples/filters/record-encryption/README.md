@@ -22,7 +22,7 @@ Running the example will take about 10 minutes.
 
 ## Prerequisites
 
-See [prerequistes](../README.md#prerequisites-to-run-the-kubernetes-examples).
+See [prerequistes](../../README.md#prerequisites-to-run-the-kubernetes-examples).
 
 ## Running the example
 
