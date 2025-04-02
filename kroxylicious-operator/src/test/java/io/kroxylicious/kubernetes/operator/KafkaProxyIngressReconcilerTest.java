@@ -9,7 +9,6 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -27,6 +26,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class KafkaProxyIngressReconcilerTest {
+
+    public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
 
     // @formatter:off
     public static final KafkaProxyIngress INGRESS = new KafkaProxyIngressBuilder()
@@ -54,8 +55,7 @@ class KafkaProxyIngressReconcilerTest {
     @Test
     void shouldSetResolvedRefsToFalseWhenProxyNotFound() throws Exception {
         // given
-        Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-        var reconciler = new KafkaProxyIngressReconciler(z);
+        var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
 
         Context<KafkaProxyIngress> context = mock(Context.class);
         when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.empty());
@@ -72,7 +72,7 @@ class KafkaProxyIngressReconcilerTest {
                 .singleCondition()
                 .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
                 .isResolvedRefsFalse("spec.proxyRef.name", "KafkaProxy not found")
-                .hasLastTransitionTime(ZonedDateTime.ofInstant(z.instant(), z.getZone()));
+                .hasLastTransitionTime(TEST_CLOCK.instant());
 
     }
 
@@ -97,7 +97,7 @@ class KafkaProxyIngressReconcilerTest {
                 .singleCondition()
                 .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
                 .isResolvedRefsTrue()
-                .hasLastTransitionTime(ZonedDateTime.ofInstant(z.instant(), z.getZone()));
+                .hasLastTransitionTime(TEST_CLOCK.instant());
 
     }
 
@@ -120,7 +120,7 @@ class KafkaProxyIngressReconcilerTest {
                 .singleCondition()
                 .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
                 .isResolvedRefsUnknown("java.lang.RuntimeException", "Boom!")
-                .hasLastTransitionTime(ZonedDateTime.ofInstant(z.instant(), z.getZone()));
+                .hasLastTransitionTime(TEST_CLOCK.instant());
 
     }
 }

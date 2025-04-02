@@ -9,7 +9,6 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -35,6 +34,8 @@ import static org.mockito.Mockito.mock;
 @ExtendWith(MockitoExtension.class)
 class KafkaServiceReconcilerTest {
 
+    public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
+
     public static final long OBSERVED_GENERATION = 1345L;
     KubernetesClient kubeClient;
     KubernetesMockServer mockServer;
@@ -53,8 +54,8 @@ class KafkaServiceReconcilerTest {
     void shouldSetAcceptedToUnknown() {
         // given
         final KafkaService kafkaService = new KafkaServiceBuilder().withNewMetadata().withGeneration(OBSERVED_GENERATION).endMetadata().build();
-        Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-        var reconciler = new KafkaServiceReconciler(z);
+
+        var reconciler = new KafkaServiceReconciler(TEST_CLOCK);
 
         Context<KafkaService> context = mock(Context.class);
 
@@ -69,7 +70,7 @@ class KafkaServiceReconcilerTest {
                 .singleCondition()
                 .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
                 .isAcceptedUnknown("java.lang.RuntimeException", "Boom!")
-                .hasLastTransitionTime(ZonedDateTime.ofInstant(z.instant(), z.getZone()));
+                .hasLastTransitionTime(TEST_CLOCK.instant());
 
     }
 

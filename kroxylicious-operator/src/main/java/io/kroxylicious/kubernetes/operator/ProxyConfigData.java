@@ -15,7 +15,6 @@ import java.util.Map;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.proxy.config.ConfigParser;
@@ -31,7 +30,7 @@ public class ProxyConfigData {
 
     public static final String CONFIG_YAML_KEY = "proxy-config.yaml";
     public static final String CLUSTER_KEY_PREFIX = "cluster-";
-    static final ObjectMapper OBJECT_MAPPER = ConfigParser.createObjectMapper().registerModule(new JavaTimeModule());
+    static final ObjectMapper OBJECT_MAPPER = ConfigParser.createObjectMapper();
 
     private static String toYaml(Object filterDefs) {
         try {

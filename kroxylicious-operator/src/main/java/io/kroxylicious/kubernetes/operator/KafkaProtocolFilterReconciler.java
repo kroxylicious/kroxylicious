@@ -7,8 +7,6 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -37,7 +35,6 @@ import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
-import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
@@ -123,8 +120,6 @@ public class KafkaProtocolFilterReconciler implements
                                                         KafkaProtocolFilter filter,
                                                         Context<KafkaProtocolFilter> context) {
 
-        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
-
         var existingSecrets = context.getSecondaryResourcesAsStream(Secret.class)
                 .map(ResourcesUtil::name)
                 .collect(Collectors.toSet());
@@ -177,13 +172,6 @@ public class KafkaProtocolFilterReconciler implements
             LOGGER.info("Completed reconciliation of {}/{}", namespace(filter), name(filter));
         }
         return uc;
-    }
-
-    private static ConditionBuilder newResolvedRefsCondition(KafkaProtocolFilter filter, ZonedDateTime now) {
-        return new ConditionBuilder()
-                .withType(Condition.Type.ResolvedRefs)
-                .withLastTransitionTime(now)
-                .withObservedGeneration(ResourcesUtil.generation(filter));
     }
 
     @Override

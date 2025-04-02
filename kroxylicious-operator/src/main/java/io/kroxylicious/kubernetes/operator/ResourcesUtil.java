@@ -7,8 +7,6 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -414,7 +412,7 @@ public class ResourcesUtil {
     }
 
     static ConditionBuilder newConditionBuilder(Clock clock, HasMetadata observedGenerationSource) {
-        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
+        var now = clock.instant();
         return new ConditionBuilder()
                 .withLastTransitionTime(now)
                 .withObservedGeneration(observedGenerationSource.getMetadata().getGeneration());
