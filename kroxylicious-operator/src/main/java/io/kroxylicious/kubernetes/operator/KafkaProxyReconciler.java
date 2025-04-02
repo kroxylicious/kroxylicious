@@ -7,8 +7,7 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -137,12 +136,12 @@ public class KafkaProxyReconciler implements
 
     }
 
-    private static KafkaProxy buildStatus(KafkaProxy primary,
-                                          @Nullable Exception exception) {
+    private KafkaProxy buildStatus(KafkaProxy primary,
+                                   @Nullable Exception exception) {
         if (exception instanceof AggregatedOperatorException aoe && aoe.getAggregatedExceptions().size() == 1) {
             exception = aoe.getAggregatedExceptions().values().iterator().next();
         }
-        var now = ZonedDateTime.now(ZoneId.of("Z"));
+        var now = clock.instant();
         // @formatter:off
         return new KafkaProxyBuilder()
                 .withNewMetadata()
@@ -167,7 +166,7 @@ public class KafkaProxyReconciler implements
      * @param exception An exception, or null if the reconciliation was successful.
      * @return The {@code Ready} condition to use in {@code status.conditions}.
      */
-    private static Condition effectiveReadyCondition(ZonedDateTime now,
+    private static Condition effectiveReadyCondition(Instant now,
                                                      KafkaProxy primary,
                                                      @Nullable Exception exception) {
         final var oldReady = primary.getStatus() == null || primary.getStatus().getConditions() == null
@@ -220,7 +219,7 @@ public class KafkaProxyReconciler implements
      *         <strong>if the condition had has a state transition</strong>.
      */
     private static Condition newCondition(
-                                          ZonedDateTime now,
+                                          Instant now,
                                           Condition.Type conditionType,
                                           KafkaProxy primary,
                                           @Nullable Exception exception) {

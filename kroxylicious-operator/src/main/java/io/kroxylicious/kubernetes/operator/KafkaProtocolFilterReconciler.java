@@ -7,8 +7,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -123,8 +122,6 @@ public class KafkaProtocolFilterReconciler implements
                                                         KafkaProtocolFilter filter,
                                                         Context<KafkaProtocolFilter> context) {
 
-        var now = ZonedDateTime.ofInstant(clock.instant(), ZoneId.of("Z"));
-
         var existingSecrets = context.getSecondaryResourcesAsStream(Secret.class)
                 .map(ResourcesUtil::name)
                 .collect(Collectors.toSet());
@@ -179,7 +176,7 @@ public class KafkaProtocolFilterReconciler implements
         return uc;
     }
 
-    private static ConditionBuilder newResolvedRefsCondition(KafkaProtocolFilter filter, ZonedDateTime now) {
+    private static ConditionBuilder newResolvedRefsCondition(KafkaProtocolFilter filter, Instant now) {
         return new ConditionBuilder()
                 .withType(Condition.Type.ResolvedRefs)
                 .withLastTransitionTime(now)

@@ -7,8 +7,8 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
+import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -55,6 +55,8 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class KafkaProxyReconcilerTest {
+
+    public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
 
     @Mock
     Context<KafkaProxy> context;
@@ -140,7 +142,7 @@ class KafkaProxyReconcilerTest {
     void remainInReadyTrueShouldRetainTransitionTime() {
         // Given
         long generation = 42L;
-        var time = ZonedDateTime.now(ZoneId.of("Z"));
+        var time = TEST_CLOCK.instant();
         // @formatter:off
         var primary = new KafkaProxyBuilder()
                 .withNewMetadata()
@@ -181,7 +183,7 @@ class KafkaProxyReconcilerTest {
     void transitionToReadyFalseShouldChangeTransitionTime() {
         // Given
         long generation = 42L;
-        var time = ZonedDateTime.now(ZoneId.of("Z"));
+        var time = Instant.now();
         // @formatter:off
         var primary = new KafkaProxyBuilder()
                 .withNewMetadata()
@@ -222,7 +224,7 @@ class KafkaProxyReconcilerTest {
     void remainInReadyFalseShouldRetainTransitionTime() {
         // Given
         long generation = 42L;
-        var time = ZonedDateTime.now(ZoneId.of("Z"));
+        var time = TEST_CLOCK.instant();
         // @formatter:off
         var primary = new KafkaProxyBuilder()
                  .withNewMetadata()
@@ -264,7 +266,7 @@ class KafkaProxyReconcilerTest {
     void transitionToReadyTrueShouldChangeTransitionTime() {
         // Given
         long generation = 42L;
-        var time = ZonedDateTime.now(ZoneId.of("Z"));
+        var time = TEST_CLOCK.instant();
         // @formatter:off
         var primary = new KafkaProxyBuilder()
                 .withNewMetadata()
@@ -305,7 +307,7 @@ class KafkaProxyReconcilerTest {
     void transitionToReadyFalseShouldChangeTransitionTime2() {
         // Given
         long generation = 42L;
-        var time = ZonedDateTime.now(ZoneId.of("Z"));
+        var time = TEST_CLOCK.instant();
         // @formatter:off
         var primary = new KafkaProxyBuilder()
                 .withNewMetadata()

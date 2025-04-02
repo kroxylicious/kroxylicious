@@ -9,7 +9,6 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -250,7 +249,7 @@ class VirtualKafkaClusterReconcilerTest {
                 .hasObservedGenerationInSyncWithMetadataOf(cluster)
                 .conditionList().singleOfType(Condition.Type.ResolvedRefs)
                 .hasObservedGenerationInSyncWithMetadataOf(cluster)
-                .hasLastTransitionTime(ZonedDateTime.ofInstant(z.instant(), z.getZone()));
+                .hasLastTransitionTime(TEST_CLOCK.instant());
         asserter.accept(conditionAssert);
 
     }
@@ -273,7 +272,7 @@ class VirtualKafkaClusterReconcilerTest {
                 .singleCondition()
                 .hasObservedGenerationInSyncWithMetadataOf(CLUSTER_NO_FILTERS)
                 .isResolvedRefsUnknown("java.lang.RuntimeException", "Boom!")
-                .hasLastTransitionTime(ZonedDateTime.ofInstant(TEST_CLOCK.instant(), TEST_CLOCK.getZone()));
+                .hasLastTransitionTime(TEST_CLOCK.instant());
 
     }
 }

@@ -6,13 +6,13 @@
 
 package io.kroxylicious.kubernetes.operator.assertj;
 
-import java.time.ZonedDateTime;
+import java.time.Instant;
 
 import org.assertj.core.api.AbstractComparableAssert;
+import org.assertj.core.api.AbstractInstantAssert;
 import org.assertj.core.api.AbstractLongAssert;
 import org.assertj.core.api.AbstractObjectAssert;
 import org.assertj.core.api.AbstractStringAssert;
-import org.assertj.core.api.AbstractZonedDateTimeAssert;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ObjectAssert;
@@ -91,11 +91,11 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
         return this;
     }
 
-    public AbstractZonedDateTimeAssert<?> lastTransitionTime() {
+    public AbstractInstantAssert<?> lastTransitionTime() {
         return Assertions.assertThat(actual.getLastTransitionTime());
     }
 
-    public ConditionAssert hasLastTransitionTime(ZonedDateTime time) {
+    public ConditionAssert hasLastTransitionTime(Instant time) {
         lastTransitionTime().isEqualTo(time);
         return this;
     }

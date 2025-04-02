@@ -9,7 +9,6 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -36,6 +35,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class KafkaProtocolFilterReconcilerTest {
+
+    public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
 
     // @formatter:off
     public static final KafkaProtocolFilter FILTER = new KafkaProtocolFilterBuilder()
@@ -100,8 +101,8 @@ class KafkaProtocolFilterReconcilerTest {
     @MethodSource
     void shouldSetResolvedRefs(Context<KafkaProtocolFilter> context, Consumer<ConditionAssert> asserter) {
         // given
-        Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-        var reconciler = new KafkaProtocolFilterReconciler(z, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
+
+        var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
 
         // when
         var update = reconciler.reconcile(FILTER, context);
@@ -114,7 +115,7 @@ class KafkaProtocolFilterReconcilerTest {
                 .hasObservedGenerationInSyncWithMetadataOf(FILTER)
                 .singleCondition()
                 .hasObservedGenerationInSyncWithMetadataOf(FILTER)
-                .hasLastTransitionTime(ZonedDateTime.ofInstant(z.instant(), z.getZone()));
+                .hasLastTransitionTime(TEST_CLOCK.instant());
 
         asserter.accept(x);
 
@@ -123,8 +124,7 @@ class KafkaProtocolFilterReconcilerTest {
     @Test
     void shouldSetResolvedRefsToUnknown() {
         // given
-        Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-        var reconciler = new KafkaProtocolFilterReconciler(z, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
+        var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
 
         Context<KafkaProtocolFilter> context = mock(Context.class);
 
@@ -139,7 +139,7 @@ class KafkaProtocolFilterReconcilerTest {
                 .singleCondition()
                 .hasObservedGenerationInSyncWithMetadataOf(FILTER)
                 .isResolvedRefsUnknown("java.lang.RuntimeException", "Boom!")
-                .hasLastTransitionTime(ZonedDateTime.ofInstant(z.instant(), z.getZone()));
+                .hasLastTransitionTime(TEST_CLOCK.instant());
 
     }
 }

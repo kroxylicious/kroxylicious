@@ -6,7 +6,8 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.time.ZonedDateTime;
+import java.time.Clock;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -206,7 +207,7 @@ class ResourcesUtilTest {
     }
 
     static List<Arguments> maybeAddOrUpdateConditions() {
-        ZonedDateTime now = ZonedDateTime.now();
+        var now = Clock.systemUTC().instant();
         Condition resolvedRefs = new ConditionBuilder()
                 .withObservedGeneration(1L)
                 .withLastTransitionTime(now)
@@ -226,7 +227,7 @@ class ResourcesUtilTest {
                 .build();
 
         Condition resolvedRefsLaterTime = new ConditionBuilder(resolvedRefs)
-                .withLastTransitionTime(now.plusMinutes(1))
+                .withLastTransitionTime(now.plus(1, ChronoUnit.MINUTES))
                 .build();
 
         Condition resolvedRefsGen2 = new ConditionBuilder(resolvedRefs)
@@ -234,7 +235,7 @@ class ResourcesUtilTest {
                 .build();
 
         Condition resolvedRefsGen2AndLaterTime = new ConditionBuilder(resolvedRefs)
-                .withLastTransitionTime(now.plusMinutes(1))
+                .withLastTransitionTime(now.plus(1, ChronoUnit.MINUTES))
                 .withObservedGeneration(2L)
                 .build();
 
