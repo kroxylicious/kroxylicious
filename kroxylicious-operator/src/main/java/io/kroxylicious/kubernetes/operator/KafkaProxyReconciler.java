@@ -6,7 +6,6 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
@@ -109,30 +108,25 @@ public class KafkaProxyReconciler implements
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
+        var uc = Conditions.newTrueConditionStatusPatch(clock, primary, Condition.Type.Ready);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(primary), name(primary));
         }
-        return UpdateControl.patchStatus(
-                buildStatus(primary, null));
+        return uc;
     }
 
     /**
      * The unhappy path, where some dependent resource threw an exception
      */
     @Override
-    public ErrorStatusUpdateControl<KafkaProxy> updateErrorStatus(KafkaProxy primary,
+    public ErrorStatusUpdateControl<KafkaProxy> updateErrorStatus(KafkaProxy proxy,
                                                                   Context<KafkaProxy> context,
-                                                                  Exception exception) {
-        // Post-condition: status.conditions should be in a canonical order (to avoid non-terminating reconciliations)
-        // Post-condition: There is only one Ready condition
-        var control = ErrorStatusUpdateControl.patchStatus(buildStatus(primary, exception));
-        if (exception instanceof InvalidResourceException) {
-            control.withNoRetry();
+                                                                  Exception e) {
+        var uc = Conditions.newUnknownConditionStatusPatch(clock, proxy, Condition.Type.Ready, e);
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(proxy), name(proxy), e.toString());
         }
-        else {
-            control.rescheduleAfter(Duration.ofSeconds(10));
-        }
-        return control;
+        return uc;
 
     }
 

@@ -179,7 +179,7 @@ public class KafkaProtocolFilterReconciler implements
         // ResolvedRefs to UNKNOWN
         ErrorStatusUpdateControl<KafkaProtocolFilter> uc = Conditions.newUnknownConditionStatusPatch(clock, filter, Condition.Type.ResolvedRefs, e);
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(filter), name(filter), e.toString());
+            LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(filter), name(filter), e.toString());
         }
         return uc;
     }

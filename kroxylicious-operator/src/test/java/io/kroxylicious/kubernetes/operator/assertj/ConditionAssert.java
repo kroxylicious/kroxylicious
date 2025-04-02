@@ -100,14 +100,6 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
         return this;
     }
 
-    public ConditionAssert isReady() {
-        hasType(Condition.Type.Ready);
-        hasStatus(Condition.Status.TRUE);
-        reason().isEmpty();
-        message().isEmpty();
-        return this;
-    }
-
     public ConditionAssert isAcceptedTrue() {
         hasType(Condition.Type.Accepted);
         hasStatus(Condition.Status.TRUE);
