@@ -37,7 +37,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_STATE;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_DOWNSTREAM_CONNECTIONS;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_DOWNSTREAM_ERRORS;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTIONS;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_ERRORS;
 import static io.kroxylicious.proxy.internal.util.Metrics.taggedCounter;
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -101,10 +103,14 @@ public class ProxyChannelStateMachine {
     private static final Logger LOGGER = getLogger(ProxyChannelStateMachine.class);
     private final Counter downstreamConnectionsCounter;
     private final Counter upstreamConnectionsCounter;
+    private final Counter downstreamErrorCounter;
+    private final Counter upstreamErrorCounter;
 
     public ProxyChannelStateMachine() {
         downstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_CONNECTIONS, List.of());
+        downstreamErrorCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_ERRORS, List.of());
         upstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTIONS, List.of());
+        upstreamErrorCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_ERRORS, List.of());
     }
 
     /**
@@ -381,6 +387,7 @@ public class ProxyChannelStateMachine {
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
                 .addArgument(cause != null ? cause.getMessage() : "")
                 .log("Exception from the server channel: {}. Increase log level to DEBUG for stacktrace");
+        upstreamErrorCounter.increment();
         toClosed(cause);
     }
 
@@ -406,6 +413,7 @@ public class ProxyChannelStateMachine {
                     .log("Exception from the client channel: {}. Increase log level to DEBUG for stacktrace");
             errorCodeEx = Errors.UNKNOWN_SERVER_ERROR.exception();
         }
+        downstreamErrorCounter.increment();
         toClosed(errorCodeEx);
     }
 
@@ -534,7 +542,9 @@ public class ProxyChannelStateMachine {
         }
 
         // Close the client connection with any error code
-        Objects.requireNonNull(frontendHandler).inClosed(errorCodeEx);
+        if (frontendHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)
+            frontendHandler.inClosed(errorCodeEx);
+        }
     }
 
     private void setState(@NonNull ProxyChannelState state) {

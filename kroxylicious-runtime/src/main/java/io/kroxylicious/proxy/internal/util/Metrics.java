@@ -23,9 +23,15 @@ public class Metrics {
 
     // creating a constant for all Metrics in the one place so we can easily see what metrics there are
 
+    private static final String KROXYLICIOUS_DOWNSTREAM = "kroxylicious_downstream_";
+    private static final String KROXYLICIOUS_UPSTREAM = "kroxylicious_upstream_";
+
     public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES = "kroxylicious_inbound_downstream_messages";
-    public static final String KROXYLICIOUS_DOWNSTREAM_CONNECTIONS = "kroxylicious_downstream_connections";
-    public static final String KROXYLICIOUS_UPSTREAM_CONNECTIONS = "kroxylicious_upstream_connections";
+    public static final String KROXYLICIOUS_DOWNSTREAM_CONNECTIONS = KROXYLICIOUS_DOWNSTREAM + "connections";
+    public static final String KROXYLICIOUS_DOWNSTREAM_ERRORS = KROXYLICIOUS_DOWNSTREAM + "errors";
+
+    public static final String KROXYLICIOUS_UPSTREAM_CONNECTIONS = KROXYLICIOUS_UPSTREAM + "connections";
+    public static final String KROXYLICIOUS_UPSTREAM_ERRORS = KROXYLICIOUS_UPSTREAM + "errors";
 
     public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES = "kroxylicious_inbound_downstream_decoded_messages";
 

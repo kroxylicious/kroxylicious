@@ -30,6 +30,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentMatchers;
@@ -59,6 +60,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.notNull;
 import static org.mockito.Mockito.doAnswer;
@@ -78,6 +80,7 @@ class ProxyChannelStateMachineTest {
     private static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
             "1.1.1.1", "2.2.2.2", 46421, 9092);
     private static final Offset<Double> BLOODY_CLOSE = Offset.offset(0.00005);
+    private final RuntimeException cause = new RuntimeException("There's Klingons on the starboard bow");
     private ProxyChannelStateMachine proxyChannelStateMachine;
     private KafkaProxyBackendHandler backendHandler;
     private KafkaProxyFrontendHandler frontendHandler;
@@ -109,6 +112,40 @@ class ProxyChannelStateMachineTest {
 
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_downstream_connections").counter())
+                .isNotNull()
+                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
+                .satisfies(counter -> assertThat(counter.count())
+                        .isCloseTo(1.0, BLOODY_CLOSE));
+    }
+
+    @ParameterizedTest
+    @MethodSource("clientErrorStates")
+    void shouldCountClientExceptions(Runnable givenState, Boolean tlsEnabled) {
+        // Given
+        givenState.run();
+
+        // When
+        proxyChannelStateMachine.onClientException(cause, tlsEnabled);
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_downstream_errors").counter())
+                .isNotNull()
+                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
+                .satisfies(counter -> assertThat(counter.count())
+                        .isCloseTo(1.0, BLOODY_CLOSE));
+    }
+
+    @ParameterizedTest
+    @MethodSource("givenStates")
+    void shouldCountServerExceptions(Runnable givenState) {
+        // Given
+        givenState.run();
+
+        // When
+        proxyChannelStateMachine.onServerException(cause);
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_upstream_errors").counter())
                 .isNotNull()
                 .satisfies(counter -> assertThat(counter.getId()).isNotNull())
                 .satisfies(counter -> assertThat(counter.count())
@@ -651,14 +688,40 @@ class ProxyChannelStateMachineTest {
         // Then
     }
 
-    public Stream<Runnable> givenStates() {
+    public Stream<Arguments> clientErrorStates() {
         return Stream.of(
-                this::stateMachineInApiVersionsState,
-                this::stateMachineInHaProxy,
-                this::stateMachineInConnecting,
-                this::stateMachineInClientActive,
-                this::stateMachineInForwarding,
-                this::stateMachineInClosed);
+                argumentSet("STARTING TLS on", (Runnable) () -> {
+                    // no Op
+                }, true),
+                argumentSet("STARTING TLS off ", (Runnable) () -> {
+                    // no Op
+                }, false),
+                argumentSet("API Versions TLS on", (Runnable) this::stateMachineInApiVersionsState, true),
+                argumentSet("API Versions TLS off ", (Runnable) this::stateMachineInApiVersionsState, false),
+                argumentSet("HA Proxy TLS on", (Runnable) this::stateMachineInHaProxy, true),
+                argumentSet("HA Proxy TLS off ", (Runnable) this::stateMachineInHaProxy, false),
+                argumentSet("Selecting Server TLS on", (Runnable) this::stateMachineInSelectingServer, true),
+                argumentSet("Selecting Server TLS off ", (Runnable) this::stateMachineInSelectingServer, false),
+                argumentSet("Connecting TLS on", (Runnable) this::stateMachineInConnecting, true),
+                argumentSet("Connecting TLS off ", (Runnable) this::stateMachineInConnecting, false),
+                argumentSet("Client Active TLS on", (Runnable) this::stateMachineInClientActive, true),
+                argumentSet("Client Active TLS off ", (Runnable) this::stateMachineInClientActive, false),
+                argumentSet("Forwarding TLS on", (Runnable) this::stateMachineInForwarding, true),
+                argumentSet("Forwarding TLS off ", (Runnable) this::stateMachineInForwarding, false),
+                argumentSet("Closed TLS on", (Runnable) this::stateMachineInClosed, true),
+                argumentSet("Closed TLS off ", (Runnable) this::stateMachineInClosed, false)
+        );
+    }
+
+    public Stream<Arguments> givenStates() {
+        return Stream.of(
+                argumentSet("API Versions", (Runnable) this::stateMachineInApiVersionsState),
+                argumentSet("HA Proxy", (Runnable) this::stateMachineInHaProxy),
+                argumentSet("Connecting", (Runnable) this::stateMachineInConnecting),
+                argumentSet("ClientActive ", (Runnable) this::stateMachineInClientActive),
+                argumentSet("Forwarding", (Runnable) this::stateMachineInForwarding),
+                argumentSet("Closed", (Runnable) this::stateMachineInClosed)
+        );
     }
 
     private void stateMachineInClientActive() {
