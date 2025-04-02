@@ -22,7 +22,7 @@ class ConditionTest {
         // Given
         Condition build = new ConditionBuilder().withLastTransitionTime(Instant.EPOCH).build();
         // When
-        var conditionWithEpoch  = new ObjectMapper().writeValueAsString(build);
+        var conditionWithEpoch = new ObjectMapper().writeValueAsString(build);
         // Then
         assertThat(conditionWithEpoch).isEqualTo("{\"lastTransitionTime\":\"1970-01-01T00:00:00Z\"}");
     }
@@ -33,7 +33,7 @@ class ConditionTest {
         ObjectMapper objectMapper = new ObjectMapper();
         Condition wroteCondition = new ConditionBuilder().withLastTransitionTime(Instant.EPOCH).build();
         // When
-        var conditionString  = objectMapper.writeValueAsString(wroteCondition);
+        var conditionString = objectMapper.writeValueAsString(wroteCondition);
         var readCondition = objectMapper.readValue(conditionString, Condition.class);
         // Then
         assertThat(readCondition).isEqualTo(wroteCondition);
