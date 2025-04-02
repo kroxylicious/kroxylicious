@@ -16,6 +16,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 
+import io.micrometer.core.instrument.Counter;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
@@ -35,6 +36,9 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_STATE;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_DOWNSTREAM_CONNECTIONS;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTIONS;
+import static io.kroxylicious.proxy.internal.util.Metrics.taggedCounter;
 import static org.slf4j.LoggerFactory.getLogger;
 
 /**
@@ -95,6 +99,13 @@ import static org.slf4j.LoggerFactory.getLogger;
 public class ProxyChannelStateMachine {
     private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "NetFilter called NetFilterContext.initiateConnect() more than once";
     private static final Logger LOGGER = getLogger(ProxyChannelStateMachine.class);
+    private final Counter downstreamConnectionsCounter;
+    private final Counter upstreamConnectionsCounter;
+
+    public ProxyChannelStateMachine() {
+        downstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_CONNECTIONS, List.of());
+        upstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTIONS, List.of());
+    }
 
     /**
      * The current state. This can be changed via a call to one of the {@code on*()} methods.
@@ -403,6 +414,7 @@ public class ProxyChannelStateMachine {
                                 @NonNull KafkaProxyFrontendHandler frontendHandler) {
         setState(clientActive);
         frontendHandler.inClientActive();
+        downstreamConnectionsCounter.increment();
     }
 
     private void toConnecting(
@@ -417,6 +429,7 @@ public class ProxyChannelStateMachine {
     private void toForwarding(Forwarding forwarding) {
         setState(forwarding);
         Objects.requireNonNull(frontendHandler).inForwarding();
+        upstreamConnectionsCounter.increment();
     }
 
     /**

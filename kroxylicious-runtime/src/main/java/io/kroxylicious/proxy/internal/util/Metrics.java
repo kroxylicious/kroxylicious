@@ -14,6 +14,8 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Tag;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static io.micrometer.core.instrument.Metrics.counter;
 import static io.micrometer.core.instrument.Metrics.summary;
 
@@ -21,24 +23,31 @@ public class Metrics {
 
     // creating a constant for all Metrics in the one place so we can easily see what metrics there are
 
-    private static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES = "kroxylicious_inbound_downstream_messages";
+    public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES = "kroxylicious_inbound_downstream_messages";
+    public static final String KROXYLICIOUS_DOWNSTREAM_CONNECTIONS = "kroxylicious_downstream_connections";
+    public static final String KROXYLICIOUS_UPSTREAM_CONNECTIONS = "kroxylicious_upstream_connections";
 
-    private static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES = "kroxylicious_inbound_downstream_decoded_messages";
+    public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES = "kroxylicious_inbound_downstream_decoded_messages";
 
-    private static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES = "kroxylicious_payload_size_bytes";
+    public static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES = "kroxylicious_payload_size_bytes";
 
     private static final String FLOWING_TAG = "flowing";
 
-    private static final Tag FLOWING_UPSTREAM = Tag.of(FLOWING_TAG, "upstream");
+    public static final Tag FLOWING_UPSTREAM = Tag.of(FLOWING_TAG, "upstream");
 
-    private static final Tag FLOWING_DOWNSTREAM = Tag.of(FLOWING_TAG, "downstream");
+    public static final Tag FLOWING_DOWNSTREAM = Tag.of(FLOWING_TAG, "downstream");
+
+    @NonNull
+    public static Counter taggedCounter(String counterName, List<Tag> tags) {
+        return counter(counterName, tags);
+    }
 
     public static Counter inboundDownstreamMessagesCounter() {
-        return counter(KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, List.of(FLOWING_DOWNSTREAM));
+        return taggedCounter(KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, List.of(FLOWING_DOWNSTREAM));
     }
 
     public static Counter inboundDownstreamDecodedMessagesCounter() {
-        return counter(KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, List.of(FLOWING_DOWNSTREAM));
+        return taggedCounter(KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, List.of(FLOWING_DOWNSTREAM));
     }
 
     public static DistributionSummary payloadSizeBytesUpstreamSummary(ApiKeys apiKey, short apiVersion) {

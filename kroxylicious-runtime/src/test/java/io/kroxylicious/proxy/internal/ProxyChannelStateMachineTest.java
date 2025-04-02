@@ -23,6 +23,8 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.Errors;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.assertj.core.data.Offset;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
@@ -33,6 +35,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentMatchers;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
@@ -70,18 +74,61 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class ProxyChannelStateMachineTest {
 
-    public static final HostPort BROKER_ADDRESS = new HostPort("localhost", 9092);
-    public static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
+    private static final HostPort BROKER_ADDRESS = new HostPort("localhost", 9092);
+    private static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
             "1.1.1.1", "2.2.2.2", 46421, 9092);
+    private static final Offset<Double> BLOODY_CLOSE = Offset.offset(0.00005);
     private ProxyChannelStateMachine proxyChannelStateMachine;
     private KafkaProxyBackendHandler backendHandler;
     private KafkaProxyFrontendHandler frontendHandler;
+    private SimpleMeterRegistry simpleMeterRegistry;
 
     @BeforeEach
     void setUp() {
         proxyChannelStateMachine = new ProxyChannelStateMachine();
         backendHandler = mock(KafkaProxyBackendHandler.class);
         frontendHandler = mock(KafkaProxyFrontendHandler.class);
+        simpleMeterRegistry = new SimpleMeterRegistry();
+        Metrics.globalRegistry.add(simpleMeterRegistry);
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (simpleMeterRegistry != null) {
+            simpleMeterRegistry.getMeters().forEach(Metrics.globalRegistry::remove);
+            Metrics.globalRegistry.remove(simpleMeterRegistry);
+        }
+    }
+
+    @Test
+    void shouldCountClientConnections() {
+        // Given
+
+        // When
+        proxyChannelStateMachine.onClientActive(frontendHandler);
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_downstream_connections").counter())
+                .isNotNull()
+                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
+                .satisfies(counter -> assertThat(counter.count())
+                        .isCloseTo(1.0, BLOODY_CLOSE));
+    }
+
+    @Test
+    void shouldServerConnections() {
+        // Given
+        stateMachineInConnecting();
+
+        // When
+        proxyChannelStateMachine.onServerActive();
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_upstream_connections").counter())
+                .isNotNull()
+                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
+                .satisfies(counter -> assertThat(counter.count())
+                        .isCloseTo(1.0, BLOODY_CLOSE));
     }
 
     @Test
