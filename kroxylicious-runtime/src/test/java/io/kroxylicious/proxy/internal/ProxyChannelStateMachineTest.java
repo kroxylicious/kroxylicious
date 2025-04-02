@@ -80,7 +80,7 @@ class ProxyChannelStateMachineTest {
     private static final HostPort BROKER_ADDRESS = new HostPort("localhost", 9092);
     private static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
             "1.1.1.1", "2.2.2.2", 46421, 9092);
-    private static final Offset<Double> BLOODY_CLOSE = Offset.offset(0.00005);
+    private static final Offset<Double> CLOSE_ENOUGH = Offset.offset(0.00005);
     private static final String CLUSTER_NAME = "virtualClusterA";
     private static final VirtualClusterModel VIRTUAL_CLUSTER_MODEL = new VirtualClusterModel(CLUSTER_NAME, new TargetCluster("", Optional.empty()), false, false,
             List.of());
@@ -119,7 +119,7 @@ class ProxyChannelStateMachineTest {
                 .isNotNull()
                 .satisfies(counter -> assertThat(counter.getId()).isNotNull())
                 .satisfies(counter -> assertThat(counter.count())
-                        .isCloseTo(1.0, BLOODY_CLOSE));
+                        .isCloseTo(1.0, CLOSE_ENOUGH));
     }
 
     @ParameterizedTest
@@ -136,7 +136,7 @@ class ProxyChannelStateMachineTest {
                 .isNotNull()
                 .satisfies(counter -> assertThat(counter.getId()).isNotNull())
                 .satisfies(counter -> assertThat(counter.count())
-                        .isCloseTo(1.0, BLOODY_CLOSE));
+                        .isCloseTo(1.0, CLOSE_ENOUGH));
     }
 
     @ParameterizedTest
@@ -153,7 +153,7 @@ class ProxyChannelStateMachineTest {
                 .isNotNull()
                 .satisfies(counter -> assertThat(counter.getId()).isNotNull())
                 .satisfies(counter -> assertThat(counter.count())
-                        .isCloseTo(1.0, BLOODY_CLOSE));
+                        .isCloseTo(1.0, CLOSE_ENOUGH));
     }
 
     @Test
@@ -169,7 +169,7 @@ class ProxyChannelStateMachineTest {
                 .isNotNull()
                 .satisfies(counter -> assertThat(counter.getId()).isNotNull())
                 .satisfies(counter -> assertThat(counter.count())
-                        .isCloseTo(1.0, BLOODY_CLOSE));
+                        .isCloseTo(1.0, CLOSE_ENOUGH));
     }
 
     @Test
@@ -185,7 +185,7 @@ class ProxyChannelStateMachineTest {
                 .isNotNull()
                 .satisfies(counter -> assertThat(counter.getId()).isNotNull())
                 .satisfies(counter -> assertThat(counter.count())
-                        .isCloseTo(1.0, BLOODY_CLOSE));
+                        .isCloseTo(1.0, CLOSE_ENOUGH));
     }
 
     @Test
@@ -201,7 +201,7 @@ class ProxyChannelStateMachineTest {
                 .isNotNull()
                 .satisfies(counter -> assertThat(counter.getId()).isNotNull())
                 .satisfies(counter -> assertThat(counter.count())
-                        .isCloseTo(1.0, BLOODY_CLOSE));
+                        .isCloseTo(1.0, CLOSE_ENOUGH));
     }
 
     @Test
