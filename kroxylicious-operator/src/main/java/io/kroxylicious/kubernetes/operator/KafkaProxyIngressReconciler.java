@@ -92,7 +92,7 @@ public class KafkaProxyIngressReconciler implements
         // ResolvedRefs to UNKNOWN
         ErrorStatusUpdateControl<KafkaProxyIngress> uc = Conditions.newUnknownConditionStatusPatch(clock, ingress, Condition.Type.ResolvedRefs, e);
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(ingress), name(ingress), e.toString());
+            LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(ingress), name(ingress), e.toString());
         }
         return uc;
     }

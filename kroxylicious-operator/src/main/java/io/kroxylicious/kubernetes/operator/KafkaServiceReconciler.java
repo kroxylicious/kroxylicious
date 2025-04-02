@@ -55,7 +55,7 @@ public final class KafkaServiceReconciler implements
         // ResolvedRefs to UNKNOWN
         ErrorStatusUpdateControl<KafkaService> uc = Conditions.newUnknownConditionStatusPatch(clock, service, Condition.Type.Accepted, e);
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(service), name(service), e.toString());
+            LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(service), name(service), e.toString());
         }
         return uc;
     }

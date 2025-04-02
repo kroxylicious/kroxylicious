@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.TreeMap;
 import java.util.function.BiConsumer;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -24,9 +25,12 @@ import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
 
+import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
+
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
@@ -41,10 +45,76 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class Conditions {
 
+    public static final Comparator<Condition> STATE_TRANSITION_COMPARATOR = Comparator.comparing(Condition::getMessage)
+            .thenComparing(Condition::getReason)
+            .thenComparing(Condition::getStatus)
+            .thenComparing(Condition::getType);
     private final Condition condition;
 
-    public Conditions(Condition condition) {
+    private Conditions(Condition condition) {
+        Objects.requireNonNull(condition, "condition cannot be null");
         this.condition = condition;
+    }
+
+    /**
+     * Get a Conditions from the list of conditions on a CR's status.
+     * @param conditionsList Conditions from the list of conditions on a CR's status.
+     * @return An optional conditions object
+     */
+    static Optional<Conditions> fromList(List<Condition> conditionsList) {
+        // Belt+braces: There _should_ be at most one such condition, but we assume there's more than one
+        // we pick the condition with the largest observedGeneration (there's on point keeping old conditions around)
+        // then we prefer Unknown over False over True statuses
+        // finally we compare the last transition time, though this is only serialized with second resolution
+        // and there's no guarantee that they call came from the same clock.
+        return conditionsList.stream()
+                .max(Comparator.comparing(Condition::getObservedGeneration)
+                        .thenComparing(Condition::getStatus).reversed()
+                        .thenComparing(Condition::getLastTransitionTime))
+                .map(Conditions::new);
+    }
+
+
+    public static Conditions updateWith(Optional<Conditions> existingConditions, Condition condition) {
+        return existingConditions.map(existing -> {
+            if (condition.getObservedGeneration() == null) {
+                return existing;
+            }
+            if (existing.condition.getObservedGeneration() == null) {
+                return new Conditions(condition);
+            }
+            if (condition.getObservedGeneration() >= existing.condition.getObservedGeneration()) {
+                return new Conditions(condition);
+            }
+            else {
+                return existing;
+            }
+        }).orElse(new Conditions(condition));
+    }
+
+    public List<Condition> toList() {
+        return List.of(condition);
+    }
+
+    private static List<Condition> newConditions(List<Condition> oldConditions, Condition newCondition) {
+        Optional<Conditions> existingConditions = fromList(oldConditions);
+        Conditions conditions = updateWith(existingConditions, newCondition);
+
+        if (Condition.Status.TRUE == conditions.condition.getStatus()) {
+            // True is the default status, so if the new condition would be True then return the empty list.
+            return List.of();
+        }
+        if (existingConditions.isPresent()) {
+            // If the two conditions are the same except for observedGeneration
+            // and lastTransitionTime then update the new condition's lastTransitionTime
+            // because it doesn't really represent a state transition
+            var existing = existingConditions.get();
+            if (STATE_TRANSITION_COMPARATOR.compare(existing.condition, conditions.condition) == 0
+                    && existing.condition.getLastTransitionTime() != null) {
+                conditions.condition.setLastTransitionTime(existing.condition.getLastTransitionTime());
+            }
+        }
+        return conditions.toList();
     }
 
     /**
@@ -152,22 +222,6 @@ public class Conditions {
     }
 
     @NonNull
-    static KafkaProxy patchWithCondition(KafkaProxy proxy, Condition condition) {
-        return newStatus(
-                proxy,
-                KafkaProxy::new,
-                KafkaProxyStatus::new,
-                KafkaProxyStatus::setConditions,
-                KafkaProxyStatus::setObservedGeneration,
-                maybeAddOrUpdateConditions(
-                        Optional.of(proxy)
-                                .map(KafkaProxy::getStatus)
-                                .map(KafkaProxyStatus::getConditions)
-                                .orElse(List.of()),
-                        List.of(condition)));
-    }
-
-    @NonNull
     static KafkaProxyIngress patchWithCondition(KafkaProxyIngress ingress, Condition condition) {
         return newStatus(
                 ingress,
@@ -226,6 +280,55 @@ public class Conditions {
                 .build();
     }
 
+    private static Condition newUnknownCondition(Clock clock, KafkaProxy observedResource, Condition.Type type, Exception e) {
+        return newConditionBuilder(clock, observedResource)
+                .withType(type)
+                .withStatus(Condition.Status.UNKNOWN)
+                .withReason(e.getClass().getName())
+                .withMessage(e.getMessage())
+                .build();
+    }
+
+    private static <U> U kafkaProxyStatusPatch(KafkaProxy observedProxy,
+                                               Condition unknownCondition,
+                                               Function<KafkaProxy, U> fn) {
+        var patch = new KafkaProxyBuilder()
+                .withNewStatus()
+                .withObservedGeneration(ResourcesUtil.generation(observedProxy))
+                .withConditions(newConditions(Optional.ofNullable(observedProxy.getStatus()).map(KafkaProxyStatus::getConditions).orElse(List.of()), unknownCondition))
+                .endStatus()
+                .build();
+
+        return fn.apply(patch);
+    }
+
+    static ErrorStatusUpdateControl<KafkaProxy> newUnknownConditionStatusPatch(Clock clock,
+                                                                               KafkaProxy observedProxy,
+                                                                               Condition.Type type,
+                                                                               Exception e) {
+        Condition unknownCondition = newUnknownCondition(clock, observedProxy, type, e);
+        Function<KafkaProxy, ErrorStatusUpdateControl<KafkaProxy>> fn = ErrorStatusUpdateControl::patchStatus;
+        return kafkaProxyStatusPatch(observedProxy, unknownCondition, fn);
+    }
+
+    static UpdateControl<KafkaProxy> newFalseConditionStatusPatch(Clock clock,
+                                                                  KafkaProxy observedProxy,
+                                                                  Condition.Type type,
+                                                                  String reason,
+                                                                  String message) {
+        Condition falseCondition = newFalseCondition(clock, observedProxy, type, reason, message);
+        Function<KafkaProxy, UpdateControl<KafkaProxy>> fn = UpdateControl::patchStatus;
+        return kafkaProxyStatusPatch(observedProxy, falseCondition, fn);
+    }
+
+    static UpdateControl<KafkaProxy> newTrueConditionStatusPatch(Clock clock,
+                                                                 KafkaProxy observedProxy,
+                                                                 Condition.Type type) {
+        Condition trueCondition = newTrueCondition(clock, observedProxy, type);
+        Function<KafkaProxy, UpdateControl<KafkaProxy>> fn = UpdateControl::patchStatus;
+        return kafkaProxyStatusPatch(observedProxy, trueCondition, fn);
+    }
+
     static ErrorStatusUpdateControl<KafkaProtocolFilter> newUnknownConditionStatusPatch(Clock clock,
                                                                                         KafkaProtocolFilter observedResource,
                                                                                         Condition.Type type,
@@ -274,21 +377,8 @@ public class Conditions {
         return ErrorStatusUpdateControl.patchStatus(newResource);
     }
 
-    static ErrorStatusUpdateControl<KafkaProxy> newUnknownConditionStatusPatch(Clock clock,
-                                                                               KafkaProxy observedResource,
-                                                                               Condition.Type type,
-                                                                               Exception e) {
-        Condition unknownCondition = newConditionBuilder(clock, observedResource)
-                .withType(type)
-                .withStatus(Condition.Status.UNKNOWN)
-                .withReason(e.getClass().getName())
-                .withMessage(e.getMessage())
-                .build();
 
-        var newResource = Conditions.patchWithCondition(observedResource, unknownCondition);
 
-        return ErrorStatusUpdateControl.patchStatus(newResource);
-    }
 
     static ErrorStatusUpdateControl<VirtualKafkaCluster> newUnknownConditionStatusPatch(Clock clock,
                                                                                         VirtualKafkaCluster observedResource,
@@ -306,16 +396,4 @@ public class Conditions {
         return ErrorStatusUpdateControl.patchStatus(newResource);
     }
 
-    public Conditions update(Condition condition) {
-        if (condition.getObservedGeneration() >= this.condition.getObservedGeneration()) {
-            return new Conditions(condition);
-        }
-        else {
-            return this;
-        }
-    }
-
-    public List<Condition> toList() {
-        return List.of(condition);
-    }
 }

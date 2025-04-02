@@ -265,7 +265,7 @@ public final class VirtualKafkaClusterReconciler implements
         // ResolvedRefs to UNKNOWN
         ErrorStatusUpdateControl<VirtualKafkaCluster> uc = Conditions.newUnknownConditionStatusPatch(clock, cluster, Condition.Type.ResolvedRefs, e);
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(cluster), name(cluster), e.toString());
+            LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(cluster), name(cluster), e.toString());
         }
         return uc;
     }

@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
@@ -90,21 +91,15 @@ class KafkaProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = newKafkaProxyReconciler().reconcile(primary, context);
+        var updateControl = newKafkaProxyReconciler(TEST_CLOCK).reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
         var statusAssert = assertThat(updateControl.getResource())
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
-        statusAssert.observedGeneration().isEqualTo(generation);
-        var first = statusAssert.singleCondition();
-        first.observedGeneration().isEqualTo(generation);
-        first.lastTransitionTime().isNotNull();
-        first.type().isEqualTo(Condition.Type.Ready);
-        first.status().isEqualTo(Condition.Status.TRUE);
-        first.message().isEqualTo("");
-        first.reason().isEqualTo("");
+        statusAssert.hasObservedGeneration(generation)
+                .conditions().isEmpty();
     }
 
     @Test
@@ -112,7 +107,7 @@ class KafkaProxyReconcilerTest {
         // Given
         // @formatter:off
         long generation = 42L;
-        var primary = new KafkaProxyBuilder()
+        var proxy = new KafkaProxyBuilder()
                 .withNewMetadata()
                 .withGeneration(generation)
                 .withName("my-proxy")
@@ -121,28 +116,28 @@ class KafkaProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = newKafkaProxyReconciler()
-                .updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+        var updateControl = newKafkaProxyReconciler(TEST_CLOCK)
+                .updateErrorStatus(proxy, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
         var statusAssert = assertThat(updateControl.getResource())
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
-        statusAssert.observedGeneration().isEqualTo(generation);
-        var first = statusAssert.singleCondition();
-        first.observedGeneration().isEqualTo(generation);
-        first.lastTransitionTime().isNotNull();
-        first.type().isEqualTo(Condition.Type.Ready);
-        first.status().isEqualTo(Condition.Status.FALSE);
-        first.message().isEqualTo("Resource was terrible");
-        first.reason().isEqualTo("InvalidResourceException");
+        statusAssert.hasObservedGeneration(generation)
+                .singleCondition()
+                .hasObservedGeneration(generation)
+                .hasLastTransitionTime(TEST_CLOCK.instant())
+                .hasType(Condition.Type.Ready)
+                .hasStatus(Condition.Status.UNKNOWN)
+                .hasReason(InvalidResourceException.class.getName())
+                .hasMessage("Resource was terrible");
+
     }
 
     @Test
     void remainInReadyTrueShouldRetainTransitionTime() {
         // Given
         long generation = 42L;
-        var time = TEST_CLOCK.instant();
         // @formatter:off
         var primary = new KafkaProxyBuilder()
                 .withNewMetadata()
@@ -155,35 +150,31 @@ class KafkaProxyReconcilerTest {
                         .withStatus(Condition.Status.TRUE)
                         .withMessage("")
                         .withReason("")
-                        .withLastTransitionTime(time)
+                        .withLastTransitionTime(TEST_CLOCK.instant())
                     .endCondition()
                 .endStatus()
                 .build();
         // @formatter:on
 
+        Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
+
         // When
-        var updateControl = newKafkaProxyReconciler().reconcile(primary, context);
+
+        var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
         var statusAssert = assertThat(updateControl.getResource())
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
-        statusAssert.observedGeneration().isEqualTo(generation);
-        var first = statusAssert.singleCondition();
-        first.observedGeneration().isEqualTo(generation);
-        first.hasLastTransitionTime(time);
-        first.type().isEqualTo(Condition.Type.Ready);
-        first.status().isEqualTo(Condition.Status.TRUE);
-        first.message().isEqualTo("");
-        first.reason().isEqualTo("");
+        statusAssert.hasObservedGeneration(generation)
+                .conditions().isEmpty();
     }
 
     @Test
-    void transitionToReadyFalseShouldChangeTransitionTime() {
+    void transitionToReadyUnknownShouldChangeTransitionTime() {
         // Given
         long generation = 42L;
-        var time = Instant.now();
         // @formatter:off
         var primary = new KafkaProxyBuilder()
                 .withNewMetadata()
@@ -192,39 +183,40 @@ class KafkaProxyReconcilerTest {
                 .endMetadata()
                 .withNewStatus()
                     .addNewCondition()
+                        .withObservedGeneration(generation)
                         .withType(Condition.Type.Ready)
                         .withStatus(Condition.Status.TRUE)
                         .withMessage("")
                         .withReason("")
-                        .withLastTransitionTime(time)
+                        .withLastTransitionTime(TEST_CLOCK.instant())
                     .endCondition()
                 .endStatus()
                 .build();
         // @formatter:on
+        Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
 
         // When
-        var updateControl = newKafkaProxyReconciler()
+        var updateControl = newKafkaProxyReconciler(reconciliationTime)
                 .updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
         var statusAssert = assertThat(updateControl.getResource())
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
-        statusAssert.observedGeneration().isEqualTo(generation);
-        var first = statusAssert.singleCondition();
-        first.observedGeneration().isEqualTo(generation);
-        first.lastTransitionTime().isNotEqualTo(time);
-        first.type().isEqualTo(Condition.Type.Ready);
-        first.status().isEqualTo(Condition.Status.FALSE);
-        first.message().isEqualTo("Resource was terrible");
-        first.reason().isEqualTo(InvalidResourceException.class.getSimpleName());
+        statusAssert.hasObservedGeneration(generation)
+                .singleCondition()
+                .hasObservedGeneration(generation)
+                .hasLastTransitionTime(reconciliationTime.instant())
+                .hasType(Condition.Type.Ready)
+                .hasStatus(Condition.Status.UNKNOWN)
+                .hasReason(InvalidResourceException.class.getName())
+                .hasMessage("Resource was terrible");
     }
 
     @Test
-    void remainInReadyFalseShouldRetainTransitionTime() {
+    void remainInReadyUnknownShouldRetainTransitionTime() {
         // Given
         long generation = 42L;
-        var time = TEST_CLOCK.instant();
         // @formatter:off
         var primary = new KafkaProxyBuilder()
                  .withNewMetadata()
@@ -234,17 +226,18 @@ class KafkaProxyReconcilerTest {
                 .withNewStatus()
                     .addNewCondition()
                         .withType(Condition.Type.Ready)
-                        .withStatus(Condition.Status.FALSE)
+                        .withStatus(Condition.Status.UNKNOWN)
                         .withMessage("Resource was terrible")
                         .withReason(InvalidResourceException.class.getSimpleName())
-                        .withLastTransitionTime(time)
+                        .withLastTransitionTime(TEST_CLOCK.instant())
                     .endCondition()
                 .endStatus()
                 .build();
         // @formatter:on
+        Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
 
         // When
-        var updateControl = newKafkaProxyReconciler()
+        var updateControl = newKafkaProxyReconciler(reconciliationTime)
                 .updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
@@ -252,23 +245,22 @@ class KafkaProxyReconcilerTest {
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
 
-        statusAssert.observedGeneration().isEqualTo(generation);
-        var first = statusAssert.singleCondition();
-        first.hasObservedGeneration(generation);
-        first.hasLastTransitionTime(time);
-        first.type().isEqualTo(Condition.Type.Ready);
-        first.status().isEqualTo(Condition.Status.FALSE);
-        first.message().isEqualTo("Resource was terrible");
-        first.reason().isEqualTo(InvalidResourceException.class.getSimpleName());
+        statusAssert.hasObservedGeneration(generation)
+                .singleCondition()
+                .hasObservedGeneration(generation)
+                .hasLastTransitionTime(reconciliationTime.instant())
+                .hasType(Condition.Type.Ready)
+                .hasStatus(Condition.Status.UNKNOWN)
+                .hasReason(InvalidResourceException.class.getName())
+                .hasMessage("Resource was terrible");
     }
 
     @Test
     void transitionToReadyTrueShouldChangeTransitionTime() {
         // Given
         long generation = 42L;
-        var time = TEST_CLOCK.instant();
         // @formatter:off
-        var primary = new KafkaProxyBuilder()
+        var proxy = new KafkaProxyBuilder()
                 .withNewMetadata()
                     .withGeneration(generation)
                     .withName("my-proxy")
@@ -279,35 +271,29 @@ class KafkaProxyReconcilerTest {
                         .withStatus(Condition.Status.FALSE)
                         .withMessage("Resource was terrible")
                         .withReason(InvalidResourceException.class.getSimpleName())
-                        .withLastTransitionTime(time)
+                        .withLastTransitionTime(TEST_CLOCK.instant())
                     .endCondition()
                 .endStatus()
                 .build();
         // @formatter:on
+        Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
 
         // When
-        var updateControl = newKafkaProxyReconciler().reconcile(primary, context);
+        var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(proxy, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
         var statusAssert = assertThat(updateControl.getResource())
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
-        statusAssert.observedGeneration().isEqualTo(generation);
-        var first = statusAssert.singleCondition();
-        first.observedGeneration().isEqualTo(generation);
-        first.lastTransitionTime().isNotEqualTo(time);
-        first.type().isEqualTo(Condition.Type.Ready);
-        first.status().isEqualTo(Condition.Status.TRUE);
-        first.message().isEqualTo("");
-        first.reason().isEqualTo("");
+        statusAssert.hasObservedGeneration(generation)
+                .conditions().isEmpty();
     }
 
     @Test
     void transitionToReadyFalseShouldChangeTransitionTime2() {
         // Given
         long generation = 42L;
-        var time = TEST_CLOCK.instant();
         // @formatter:off
         var primary = new KafkaProxyBuilder()
                 .withNewMetadata()
@@ -319,37 +305,36 @@ class KafkaProxyReconcilerTest {
                 .endSpec()
                 .withNewStatus()
                     .addNewCondition()
+                        .withObservedGeneration(generation)
                         .withType(Condition.Type.Ready)
                         .withStatus(Condition.Status.TRUE)
                         .withMessage("")
                         .withReason("")
-                        .withLastTransitionTime(time)
+                        .withLastTransitionTime(TEST_CLOCK.instant())
                     .endCondition()
                 .endStatus()
                 .build();
         // @formatter:on
+        Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
         doReturn(mdrc).when(context).managedWorkflowAndDependentResourceContext();
         doReturn(Set.of(new VirtualKafkaClusterBuilder().withNewMetadata().withName("my-cluster").withNamespace("my-ns").endMetadata().withNewSpec().withNewProxyRef()
                 .withName("my-proxy").endProxyRef().endSpec().build())).when(context).getSecondaryResources(VirtualKafkaCluster.class);
 
         // When
-        var updateControl = newKafkaProxyReconciler().reconcile(primary, context);
+        var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
         var statusAssert = assertThat(updateControl.getResource())
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
-        statusAssert.observedGeneration().isEqualTo(generation);
-        statusAssert.singleCondition()
-                .isReady()
-                .hasObservedGeneration(generation)
-                .hasLastTransitionTime(time);
+        statusAssert.hasObservedGeneration(generation)
+                .conditions().isEmpty();
     }
 
     @NonNull
-    private static KafkaProxyReconciler newKafkaProxyReconciler() {
-        return new KafkaProxyReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
+    private static KafkaProxyReconciler newKafkaProxyReconciler(Clock reconciliationTime) {
+        return new KafkaProxyReconciler(reconciliationTime, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
     }
 
     @Test
