@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal.util;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 
@@ -65,6 +66,22 @@ public class Metrics {
                 "ApiVersion", String.valueOf(apiVersion),
                 FLOWING_TAG, flowing);
         return summary(KROXYLICIOUS_PAYLOAD_SIZE_BYTES, tags);
+    }
+
+    public static List<Tag> tags(@NonNull String name, String value) {
+        return List.of(Tag.of(name, required(value)));
+    }
+
+    public static List<Tag> tags(@NonNull String name1, String value1, @NonNull String name2, String value2) {
+        return List.of(Tag.of(name1, required(value1)), Tag.of(name2, required(value2)));
+    }
+
+    @NonNull
+    private static String required(String value) {
+        if ((Objects.isNull(value) || value.trim().isEmpty())) {
+            throw new IllegalArgumentException("tag value supplied without a value");
+        }
+        return value;
     }
 
     public static List<Tag> tags(String... tagsAndValues) {

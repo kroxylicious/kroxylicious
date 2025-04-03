@@ -40,6 +40,20 @@ class MetricsTest {
     }
 
     @Test
+    void shouldBuildTagListWithTwoTags() {
+        // Given
+
+        // When
+        List<Tag> tags = Metrics.tags("TagA", "value1",
+                "TagB", "value2");
+
+        // Then
+        assertThat(tags).containsExactly(
+                Tag.of("TagA", "value1"),
+                Tag.of("TagB", "value2"));
+    }
+
+    @Test
     void shouldBuildTagListWithMultipleTags() {
         // Given
 
@@ -49,7 +63,8 @@ class MetricsTest {
                 "TagC", "value3");
 
         // Then
-        assertThat(tags).containsExactly(Tag.of("TagA", "value1"),
+        assertThat(tags).containsExactly(
+                Tag.of("TagA", "value1"),
                 Tag.of("TagB", "value2"),
                 Tag.of("TagC", "value3"));
     }
@@ -61,6 +76,26 @@ class MetricsTest {
         // When
         // Then
         assertThatThrownBy(() -> Metrics.tags("TagA"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldThrowIfOneOfTwoTagNameHasNoValue() {
+        // Given
+
+        // When
+        // Then
+        assertThatThrownBy(() -> Metrics.tags("TagA", "value1", "TagB"))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldThrowIfOneOfSeveralTagsNameHasNoValue() {
+        // Given
+
+        // When
+        // Then
+        assertThatThrownBy(() -> Metrics.tags("TagA", "value1", "TagB", "value2", "TagC", "value3", "TagD"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 }
