@@ -32,6 +32,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
+import org.junitpioneer.jupiter.RestoreSystemProperties;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
@@ -64,6 +65,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.DOUBLE;
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
 @EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
+@RestoreSystemProperties
 class OauthBearerValidationIT {
 
     private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:2.1.10");
@@ -83,6 +85,7 @@ class OauthBearerValidationIT {
     private static final Predicate<SimpleMetric> DOWNSTREAM_SASL_AUTHENTICATE_PREDICATE = m -> m.name().equals(KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC)
             && m.labels().entrySet().containsAll(
                     Map.of("ApiKey", "SASL_AUTHENTICATE", "flowing", "downstream").entrySet());
+    private static final String ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG = "org.apache.kafka.sasl.oauthbearer.allowed.urls";
     @SaslMechanism(value = OAuthBearerLoginModule.OAUTHBEARER_MECHANISM)
     @BrokerConfig(name = "listener.name.external.sasl.oauthbearer.jwks.endpoint.url", value = JWKS_ENDPOINT_URL)
     @BrokerConfig(name = "listener.name.external.sasl.oauthbearer.expected.audience", value = EXPECTED_AUDIENCE)
@@ -92,6 +95,9 @@ class OauthBearerValidationIT {
 
     @BeforeAll
     public static void beforeAll() {
+        // required to permit Kafka to interact with our endpoint.
+        System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, JWKS_ENDPOINT_URL + "," + TOKEN_ENDPOINT_URL);
+
         oauthServer = new OauthServerContainer(OauthBearerValidationIT.DOCKER_IMAGE_NAME);
         oauthServer.setWaitStrategy(new LogMessageWaitStrategy().withRegEx(".*started server on address.*"));
         oauthServer.addFixedExposedPort(OAUTH_SERVER_PORT, OAUTH_SERVER_PORT);
@@ -156,6 +162,8 @@ class OauthBearerValidationIT {
         var badTokenFile = Files.createTempFile(tempdir, "badtoken", "b64");
         Files.writeString(badTokenFile, BAD_TOKEN);
         var config = getClientConfig(badTokenFile.toUri());
+
+        System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, JWKS_ENDPOINT_URL + "," + badTokenFile.toUri());
 
         try (var tester = kroxyliciousTester(getConfiguredProxyBuilder());
                 var admin = tester.admin(config);

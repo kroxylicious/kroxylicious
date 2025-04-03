@@ -27,7 +27,8 @@ class RequestFactoryTest {
     @Test
     void shouldGenerateRequestForEveryApiKey() {
         // Given
-        final EnumSet<ApiKeys> expectedKeys = EnumSet.complementOf(RequestFactory.SPECIAL_CASES);
+        var expectedKeys = RequestFactory.supportedApiKeys();
+        var absentKeys = EnumSet.complementOf(EnumSet.copyOf(expectedKeys));
 
         // When
         final Stream<RequestFactory.ApiMessageVersion> apiMessages = RequestFactory.apiMessageFor(ApiKeys::latestVersion);
@@ -39,7 +40,7 @@ class RequestFactoryTest {
                         RequestFactory.ApiMessageVersion::apiMessage));
         assertThat(allMessages).hasSameSizeAs(expectedKeys)
                 .allSatisfy((apiKeys, apiMessage) -> {
-                    assertThat(apiKeys).isNotIn(RequestFactory.SPECIAL_CASES);
+                    assertThat(apiKeys).isNotIn(absentKeys);
                     assertThat(apiMessages).isNotNull();
                 });
     }
@@ -72,5 +73,20 @@ class RequestFactoryTest {
 
     static Stream<ApiKeys> specialCases() {
         return RequestFactory.SPECIAL_CASES.stream();
+    }
+
+    @ParameterizedTest
+    @MethodSource("removedApiKeys")
+    void shouldThrowExceptionIfRemovedCaseRequested(ApiKeys apiKey) {
+        // Given
+
+        // When
+        assertThatThrownBy(() -> RequestFactory.apiMessageFor(ApiKeys::latestVersion, apiKey)).isInstanceOf(IllegalArgumentException.class);
+
+        // Then
+    }
+
+    static Stream<ApiKeys> removedApiKeys() {
+        return RequestFactory.REMOVED_API_KEYS.stream();
     }
 }

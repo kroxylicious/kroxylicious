@@ -109,12 +109,6 @@ public class ArrayFilterInvoker implements FilterInvoker {
         if (filter instanceof BrokerRegistrationResponseFilter) {
             responseInvokers.put(62, new BrokerRegistrationResponseFilterInvoker((BrokerRegistrationResponseFilter) filter));
         }
-        if (filter instanceof ControlledShutdownRequestFilter) {
-            requestInvokers.put(7, new ControlledShutdownRequestFilterInvoker((ControlledShutdownRequestFilter) filter));
-        }
-        if (filter instanceof ControlledShutdownResponseFilter) {
-            responseInvokers.put(7, new ControlledShutdownResponseFilterInvoker((ControlledShutdownResponseFilter) filter));
-        }
         if (filter instanceof CreateAclsRequestFilter) {
             requestInvokers.put(30, new CreateAclsRequestFilterInvoker((CreateAclsRequestFilter) filter));
         }
@@ -301,12 +295,6 @@ public class ArrayFilterInvoker implements FilterInvoker {
         if (filter instanceof JoinGroupResponseFilter) {
             responseInvokers.put(11, new JoinGroupResponseFilterInvoker((JoinGroupResponseFilter) filter));
         }
-        if (filter instanceof LeaderAndIsrRequestFilter) {
-            requestInvokers.put(4, new LeaderAndIsrRequestFilterInvoker((LeaderAndIsrRequestFilter) filter));
-        }
-        if (filter instanceof LeaderAndIsrResponseFilter) {
-            responseInvokers.put(4, new LeaderAndIsrResponseFilterInvoker((LeaderAndIsrResponseFilter) filter));
-        }
         if (filter instanceof LeaveGroupRequestFilter) {
             requestInvokers.put(13, new LeaveGroupRequestFilterInvoker((LeaveGroupRequestFilter) filter));
         }
@@ -391,12 +379,6 @@ public class ArrayFilterInvoker implements FilterInvoker {
         if (filter instanceof SaslHandshakeResponseFilter) {
             responseInvokers.put(17, new SaslHandshakeResponseFilterInvoker((SaslHandshakeResponseFilter) filter));
         }
-        if (filter instanceof StopReplicaRequestFilter) {
-            requestInvokers.put(5, new StopReplicaRequestFilterInvoker((StopReplicaRequestFilter) filter));
-        }
-        if (filter instanceof StopReplicaResponseFilter) {
-            responseInvokers.put(5, new StopReplicaResponseFilterInvoker((StopReplicaResponseFilter) filter));
-        }
         if (filter instanceof SyncGroupRequestFilter) {
             requestInvokers.put(14, new SyncGroupRequestFilterInvoker((SyncGroupRequestFilter) filter));
         }
@@ -420,12 +402,6 @@ public class ArrayFilterInvoker implements FilterInvoker {
         }
         if (filter instanceof UpdateFeaturesResponseFilter) {
             responseInvokers.put(57, new UpdateFeaturesResponseFilterInvoker((UpdateFeaturesResponseFilter) filter));
-        }
-        if (filter instanceof UpdateMetadataRequestFilter) {
-            requestInvokers.put(6, new UpdateMetadataRequestFilterInvoker((UpdateMetadataRequestFilter) filter));
-        }
-        if (filter instanceof UpdateMetadataResponseFilter) {
-            responseInvokers.put(6, new UpdateMetadataResponseFilterInvoker((UpdateMetadataResponseFilter) filter));
         }
         if (filter instanceof VoteRequestFilter) {
             requestInvokers.put(52, new VoteRequestFilterInvoker((VoteRequestFilter) filter));
@@ -451,7 +427,7 @@ public class ArrayFilterInvoker implements FilterInvoker {
      * @param header        The request header.
      * @param body          The request body.
      * @param filterContext The filter context.
-     * @return
+     * @return request filter result
      */
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
@@ -471,7 +447,7 @@ public class ArrayFilterInvoker implements FilterInvoker {
      * @param header        The request header.
      * @param body          The request body.
      * @param filterContext The filter context.
-     * @return
+     * @return response filter result
      */
     @Override
     public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,

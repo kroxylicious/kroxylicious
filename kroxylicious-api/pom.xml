@@ -162,6 +162,15 @@
                         <breakBuildBasedOnSemanticVersioningForMajorVersionZero>${ApiCompatability.EnforceForMajorVersionZero}</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
                         <excludes>
                             <exclude>io.kroxylicious.proxy.filter.FilterFactoryContext#eventLoop()</exclude> <!-- https://github.com/kroxylicious/kroxylicious/issues/1380 scheduled removal of deprecated API method -->
+                            <!-- The following filter exclusions relate to RPCs that were removed at Kafka 4.0 -->
+                            <exclude>io.kroxylicious.proxy.filter.ControlledShutdownRequestFilter</exclude>
+                            <exclude>io.kroxylicious.proxy.filter.ControlledShutdownResponseFilter</exclude>
+                            <excludes>io.kroxylicious.proxy.filter.LeaderAndIsrRequestFilter</excludes>
+                            <excludes>io.kroxylicious.proxy.filter.LeaderAndIsrResponseFilter</excludes>
+                            <excludes>io.kroxylicious.proxy.filter.StopReplicaRequestFilter</excludes>
+                            <excludes>io.kroxylicious.proxy.filter.StopReplicaResponseFilter</excludes>
+                            <excludes>io.kroxylicious.proxy.filter.UpdateMetadataRequestFilter</excludes>
+                            <excludes>io.kroxylicious.proxy.filter.UpdateMetadataResponseFilter</excludes>
                         </excludes>
                         <!-- see documentation -->
                     </parameter>

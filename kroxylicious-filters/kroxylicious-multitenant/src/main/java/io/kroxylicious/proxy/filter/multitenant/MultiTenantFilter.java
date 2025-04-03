@@ -16,6 +16,8 @@ import org.apache.kafka.common.message.AddOffsetsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnRequestData;
 import org.apache.kafka.common.message.AddPartitionsToTxnResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
+import org.apache.kafka.common.message.ConsumerGroupDescribeResponseData;
 import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
@@ -60,6 +62,8 @@ import io.kroxylicious.proxy.filter.AddOffsetsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnResponseFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
+import io.kroxylicious.proxy.filter.ConsumerGroupDescribeRequestFilter;
+import io.kroxylicious.proxy.filter.ConsumerGroupDescribeResponseFilter;
 import io.kroxylicious.proxy.filter.CreateTopicsRequestFilter;
 import io.kroxylicious.proxy.filter.CreateTopicsResponseFilter;
 import io.kroxylicious.proxy.filter.DeleteTopicsRequestFilter;
@@ -125,6 +129,7 @@ class MultiTenantFilter
         OffsetDeleteRequestFilter, OffsetDeleteResponseFilter,
         OffsetForLeaderEpochRequestFilter, OffsetForLeaderEpochResponseFilter,
         FindCoordinatorRequestFilter, FindCoordinatorResponseFilter,
+        ConsumerGroupDescribeRequestFilter, ConsumerGroupDescribeResponseFilter,
         ListGroupsResponseFilter,
         JoinGroupRequestFilter,
         SyncGroupRequestFilter,
@@ -321,6 +326,20 @@ class MultiTenantFilter
     public CompletionStage<ResponseFilterResult> onFindCoordinatorResponse(short apiVersion, ResponseHeaderData header, FindCoordinatorResponseData response,
                                                                            FilterContext context) {
         response.coordinators().forEach(coordinator -> removeTenantPrefix(context, coordinator::key, coordinator::setKey, false));
+        return context.forwardResponse(header, response);
+    }
+
+    @Override
+    public CompletionStage<RequestFilterResult> onConsumerGroupDescribeRequest(short apiVersion, RequestHeaderData header, ConsumerGroupDescribeRequestData request,
+                                                                               FilterContext context) {
+        request.setGroupIds(request.groupIds().stream().map(group -> applyTenantPrefix(context, group)).toList());
+        return context.forwardRequest(header, request);
+    }
+
+    @Override
+    public CompletionStage<ResponseFilterResult> onConsumerGroupDescribeResponse(short apiVersion, ResponseHeaderData header, ConsumerGroupDescribeResponseData response,
+                                                                                 FilterContext context) {
+        response.groups().forEach(group -> removeTenantPrefix(context, group::groupId, group::setGroupId, false));
         return context.forwardResponse(header, response);
     }
 

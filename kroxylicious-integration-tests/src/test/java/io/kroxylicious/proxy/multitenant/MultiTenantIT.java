@@ -38,11 +38,12 @@ import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.ConsumerGroupState;
+import org.apache.kafka.common.GroupState;
 import org.apache.kafka.common.IsolationLevel;
 import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicCollection.TopicNameCollection;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.GroupIdNotFoundException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -61,6 +62,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.allOf;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
@@ -412,15 +414,12 @@ class MultiTenantIT extends BaseMultiTenantIT {
     }
 
     private void verifyConsumerGroupsWithDescribe(Admin admin, Set<String> expectedPresent, Set<String> expectedAbsent) throws Exception {
-        var describedGroups = admin.describeConsumerGroups(Stream.concat(expectedPresent.stream(), expectedAbsent.stream()).toList()).all().get();
-        assertThat(describedGroups).hasSize(expectedAbsent.size() + expectedPresent.size());
+        var describedGroups = admin.describeConsumerGroups(expectedPresent).all().get();
+        assertThat(describedGroups).allSatisfy((s, consumerGroupDescription) -> assertThat(consumerGroupDescription.groupState()).isNotIn(GroupState.DEAD));
 
-        var actualPresent = retainKeySubset(describedGroups, expectedPresent);
-        var actualAbsent = retainKeySubset(describedGroups, expectedAbsent);
-
-        // The consumer group comes back as "dead" when it doesn't exist, so we have to check that it's not dead/it is dead if we don't expect to see it
-        assertThat(actualPresent).allSatisfy((s, consumerGroupDescription) -> assertThat(consumerGroupDescription.state()).isNotIn(ConsumerGroupState.DEAD));
-        assertThat(actualAbsent).allSatisfy((s, consumerGroupDescription) -> assertThat(consumerGroupDescription.state()).isIn(ConsumerGroupState.DEAD));
+        var describeFuture = admin.describeConsumerGroups(expectedAbsent).all();
+        assertThatThrownBy(describeFuture::get)
+                .hasRootCauseInstanceOf(GroupIdNotFoundException.class);
     }
 
     @NonNull

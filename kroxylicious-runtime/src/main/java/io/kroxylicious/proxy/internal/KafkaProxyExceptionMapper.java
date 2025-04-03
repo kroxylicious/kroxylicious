@@ -10,7 +10,6 @@ import java.util.stream.Collectors;
 
 import org.apache.kafka.common.ElectionType;
 import org.apache.kafka.common.IsolationLevel;
-import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.acl.AccessControlEntryFilter;
 import org.apache.kafka.common.acl.AclBindingFilter;
@@ -34,7 +33,6 @@ import org.apache.kafka.common.message.BrokerHeartbeatRequestData;
 import org.apache.kafka.common.message.BrokerRegistrationRequestData;
 import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
 import org.apache.kafka.common.message.ConsumerGroupHeartbeatRequestData;
-import org.apache.kafka.common.message.ControlledShutdownRequestData;
 import org.apache.kafka.common.message.ControllerRegistrationRequestData;
 import org.apache.kafka.common.message.CreateAclsRequestData;
 import org.apache.kafka.common.message.CreateDelegationTokenRequestData;
@@ -71,7 +69,6 @@ import org.apache.kafka.common.message.IncrementalAlterConfigsRequestData;
 import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitializeShareGroupStateRequestData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
-import org.apache.kafka.common.message.LeaderAndIsrRequestData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
 import org.apache.kafka.common.message.ListClientMetricsResourcesRequestData;
 import org.apache.kafka.common.message.ListGroupsRequestData;
@@ -96,12 +93,10 @@ import org.apache.kafka.common.message.ShareAcknowledgeRequestData;
 import org.apache.kafka.common.message.ShareFetchRequestData;
 import org.apache.kafka.common.message.ShareGroupDescribeRequestData;
 import org.apache.kafka.common.message.ShareGroupHeartbeatRequestData;
-import org.apache.kafka.common.message.StopReplicaRequestData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
 import org.apache.kafka.common.message.UnregisterBrokerRequestData;
 import org.apache.kafka.common.message.UpdateFeaturesRequestData;
-import org.apache.kafka.common.message.UpdateMetadataRequestData;
 import org.apache.kafka.common.message.UpdateRaftVoterRequestData;
 import org.apache.kafka.common.message.VoteRequestData;
 import org.apache.kafka.common.message.WriteShareGroupStateRequestData;
@@ -127,7 +122,6 @@ import org.apache.kafka.common.requests.BrokerHeartbeatRequest;
 import org.apache.kafka.common.requests.BrokerRegistrationRequest;
 import org.apache.kafka.common.requests.ConsumerGroupDescribeRequest;
 import org.apache.kafka.common.requests.ConsumerGroupHeartbeatRequest;
-import org.apache.kafka.common.requests.ControlledShutdownRequest;
 import org.apache.kafka.common.requests.ControllerRegistrationRequest;
 import org.apache.kafka.common.requests.CreateAclsRequest;
 import org.apache.kafka.common.requests.CreateDelegationTokenRequest;
@@ -164,7 +158,6 @@ import org.apache.kafka.common.requests.IncrementalAlterConfigsRequest;
 import org.apache.kafka.common.requests.InitProducerIdRequest;
 import org.apache.kafka.common.requests.InitializeShareGroupStateRequest;
 import org.apache.kafka.common.requests.JoinGroupRequest;
-import org.apache.kafka.common.requests.LeaderAndIsrRequest;
 import org.apache.kafka.common.requests.LeaveGroupRequest;
 import org.apache.kafka.common.requests.ListClientMetricsResourcesRequest;
 import org.apache.kafka.common.requests.ListGroupsRequest;
@@ -188,12 +181,10 @@ import org.apache.kafka.common.requests.ShareAcknowledgeRequest;
 import org.apache.kafka.common.requests.ShareFetchRequest;
 import org.apache.kafka.common.requests.ShareGroupDescribeRequest;
 import org.apache.kafka.common.requests.ShareGroupHeartbeatRequest;
-import org.apache.kafka.common.requests.StopReplicaRequest;
 import org.apache.kafka.common.requests.SyncGroupRequest;
 import org.apache.kafka.common.requests.TxnOffsetCommitRequest;
 import org.apache.kafka.common.requests.UnregisterBrokerRequest;
 import org.apache.kafka.common.requests.UpdateFeaturesRequest;
-import org.apache.kafka.common.requests.UpdateMetadataRequest;
 import org.apache.kafka.common.requests.UpdateRaftVoterRequest;
 import org.apache.kafka.common.requests.VoteRequest;
 import org.apache.kafka.common.requests.WriteShareGroupStateRequest;
@@ -357,7 +348,7 @@ public class KafkaProxyExceptionMapper {
                 req = new AddOffsetsToTxnRequest((AddOffsetsToTxnRequestData) reqBody, apiVersion);
                 break;
             case END_TXN:
-                req = new EndTxnRequest.Builder((EndTxnRequestData) reqBody)
+                req = new EndTxnRequest.Builder((EndTxnRequestData) reqBody, apiVersion > EndTxnRequest.LAST_STABLE_VERSION_BEFORE_TRANSACTION_V2)
                         .build(apiVersion);
                 break;
             case WRITE_TXN_MARKERS:
@@ -508,39 +499,6 @@ public class KafkaProxyExceptionMapper {
                 break;
             case FETCH_SNAPSHOT:
                 req = new FetchSnapshotRequest((FetchSnapshotRequestData) reqBody, apiVersion);
-                break;
-            case LEADER_AND_ISR:
-                LeaderAndIsrRequestData lisr = (LeaderAndIsrRequestData) reqBody;
-                req = new LeaderAndIsrRequest.Builder(apiVersion, lisr.controllerId(),
-                        lisr.controllerEpoch(), lisr.brokerEpoch(),
-                        lisr.ungroupedPartitionStates(),
-                        lisr.topicStates().stream().collect(Collectors.toMap(
-                                LeaderAndIsrRequestData.LeaderAndIsrTopicState::topicName,
-                                LeaderAndIsrRequestData.LeaderAndIsrTopicState::topicId)),
-                        lisr.liveLeaders().stream().map(
-                                x -> new Node(
-                                        x.brokerId(),
-                                        x.hostName(),
-                                        x.port()))
-                                .toList())
-                        .build(apiVersion);
-                break;
-            case STOP_REPLICA:
-                StopReplicaRequestData stopReplica = (StopReplicaRequestData) reqBody;
-                req = new StopReplicaRequest.Builder(apiVersion,
-                        stopReplica.controllerId(),
-                        stopReplica.controllerEpoch(),
-                        stopReplica.brokerEpoch(),
-                        stopReplica.deletePartitions(),
-                        stopReplica.topicStates())
-                        .build(apiVersion);
-                break;
-            case UPDATE_METADATA:
-                req = new UpdateMetadataRequest((UpdateMetadataRequestData) reqBody, apiVersion);
-                break;
-            case CONTROLLED_SHUTDOWN:
-                req = new ControlledShutdownRequest.Builder((ControlledShutdownRequestData) reqBody, apiVersion)
-                        .build(apiVersion);
                 break;
             case BROKER_REGISTRATION:
                 req = new BrokerRegistrationRequest((BrokerRegistrationRequestData) reqBody, apiVersion);
