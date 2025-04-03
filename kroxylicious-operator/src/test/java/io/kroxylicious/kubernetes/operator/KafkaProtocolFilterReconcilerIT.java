@@ -82,11 +82,11 @@ class KafkaProtocolFilterReconcilerIT {
     private KafkaProtocolFilter createFilterFirst() {
         KafkaProtocolFilter filterOne = testActor.create(filter(FILTER_ONE,
                 "${secret:" + A + ":foo}", "${configmap:" + B + ":foo}"));
-        assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced Secrets [a] ConfigMaps [b] not found");
+        assertResolvedRefsFalse(filterOne, "Referenced Secrets [a] ConfigMaps [b] not found");
         testActor.create(secret(A));
-        assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced ConfigMaps [b] not found");
+        assertResolvedRefsFalse(filterOne, "Referenced ConfigMaps [b] not found");
         testActor.create(cm(B));
-        assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
+        assertAllConditionsTrue(filterOne);
         return filterOne;
     }
 
@@ -95,9 +95,9 @@ class KafkaProtocolFilterReconcilerIT {
         testActor.create(secret(A));
         KafkaProtocolFilter filterOne = testActor.create(filter(FILTER_ONE,
                 "${secret:" + A + ":foo}", "${secret:" + B + ":foo}"));
-        assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced Secrets [b] not found");
+        assertResolvedRefsFalse(filterOne, "Referenced Secrets [b] not found");
         testActor.create(secret(B));
-        assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
+        assertAllConditionsTrue(filterOne);
     }
 
     @Test
@@ -108,7 +108,19 @@ class KafkaProtocolFilterReconcilerIT {
         KafkaProtocolFilter filterOne = testActor.create(filter(FILTER_ONE,
                 "${secret:" + A + ":foo}",
                 "${secret:" + B + ":foo}"));
-        assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
+        assertAllConditionsTrue(filterOne);
+    }
+
+    private void assertAllConditionsTrue(KafkaProtocolFilter filterOne) {
+        AWAIT.alias("FilterStatusResolvedRefs").untilAsserted(() -> {
+            var kpf = testActor.resources(KafkaProtocolFilter.class)
+                    .withName(ResourcesUtil.name(filterOne)).get();
+            assertThat(kpf.getStatus()).isNotNull();
+            KafkaProtocolFilterStatusAssert
+                    .assertThat(kpf.getStatus())
+                    .hasObservedGenerationInSyncWithMetadataOf(kpf)
+                    .conditionList().isEmpty();
+        });
     }
 
     @Test
@@ -119,7 +131,7 @@ class KafkaProtocolFilterReconcilerIT {
         KafkaProtocolFilter filterOne = testActor.create(filter(FILTER_ONE,
                 "${secret:" + A + ":foo}",
                 "${configmap:" + B + ":foo}"));
-        assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
+        assertAllConditionsTrue(filterOne);
     }
 
     @Test
@@ -128,10 +140,10 @@ class KafkaProtocolFilterReconcilerIT {
 
         KafkaProtocolFilter filterOne = testActor.replace(filter(FILTER_ONE,
                 "${secret:" + C + ":foo}", "${configmap:" + B + ":foo}"));
-        assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced Secrets [c] not found");
+        assertResolvedRefsFalse(filterOne, "Referenced Secrets [c] not found");
 
         testActor.create(secret(C));
-        assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
+        assertAllConditionsTrue(filterOne);
     }
 
     @Test
@@ -141,7 +153,7 @@ class KafkaProtocolFilterReconcilerIT {
         testActor.resources(Secret.class).withName(A).edit(secret -> secret.edit()
                 .addToData("baz", Base64.getEncoder().encodeToString("".getBytes(StandardCharsets.UTF_8)))
                 .build());
-        assertStatusResolvedRefs(filterOne, Condition.Status.TRUE, null);
+        assertAllConditionsTrue(filterOne);
     }
 
     @Test
@@ -149,7 +161,7 @@ class KafkaProtocolFilterReconcilerIT {
         var filterOne = createFilterFirst();
 
         testActor.delete(secret(A));
-        assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced Secrets [a] not found");
+        assertResolvedRefsFalse(filterOne, "Referenced Secrets [a] not found");
     }
 
     @Test
@@ -157,7 +169,7 @@ class KafkaProtocolFilterReconcilerIT {
         var filterOne = createFilterFirst();
 
         testActor.delete(cm(B));
-        assertStatusResolvedRefs(filterOne, Condition.Status.FALSE, "Referenced ConfigMaps [b] not found");
+        assertResolvedRefsFalse(filterOne, "Referenced ConfigMaps [b] not found");
     }
 
     private KafkaProtocolFilter filter(String filterName, String refA, String refB) {
@@ -177,9 +189,8 @@ class KafkaProtocolFilterReconcilerIT {
         // @formatter:on
     }
 
-    private void assertStatusResolvedRefs(KafkaProtocolFilter cr,
-                                          Condition.Status conditionStatus,
-                                          String message) {
+    private void assertResolvedRefsFalse(KafkaProtocolFilter cr,
+                                         String message) {
         AWAIT.alias("FilterStatusResolvedRefs").untilAsserted(() -> {
             var kpf = testActor.resources(KafkaProtocolFilter.class)
                     .withName(ResourcesUtil.name(cr)).get();
@@ -189,7 +200,7 @@ class KafkaProtocolFilterReconcilerIT {
                     .hasObservedGenerationInSyncWithMetadataOf(kpf)
                     .singleCondition()
                     .hasType(Condition.Type.ResolvedRefs)
-                    .hasStatus(conditionStatus)
+                    .hasStatus(Condition.Status.FALSE)
                     .hasMessage(message)
                     .hasObservedGenerationInSyncWithMetadataOf(kpf);
         });

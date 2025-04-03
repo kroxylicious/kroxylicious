@@ -38,6 +38,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -278,7 +279,7 @@ public class Conditions {
                 .build();
     }
 
-    private static Condition newUnknownCondition(Clock clock, KafkaProxy observedResource, Condition.Type type, Exception e) {
+    private static Condition newUnknownCondition(Clock clock, HasMetadata observedResource, Condition.Type type, Exception e) {
         return newConditionBuilder(clock, observedResource)
                 .withType(type)
                 .withStatus(Condition.Status.UNKNOWN)
@@ -327,21 +328,55 @@ public class Conditions {
         return kafkaProxyStatusPatch(observedProxy, trueCondition, fn);
     }
 
+
+
+
+    private static <U> U filterStatusPatch(KafkaProtocolFilter observedProxy,
+                                           Condition unknownCondition,
+                                           Function<KafkaProtocolFilter, U> fn) {
+        // @formatter:off
+        var patch = new KafkaProtocolFilterBuilder()
+                .withNewMetadata()
+                    .withUid(ResourcesUtil.uid(observedProxy))
+                    .withName(ResourcesUtil.name(observedProxy))
+                    .withNamespace(ResourcesUtil.namespace(observedProxy))
+                .endMetadata()
+                .withNewStatus()
+                    .withObservedGeneration(ResourcesUtil.generation(observedProxy))
+                    .withConditions(newConditions(Optional.ofNullable(observedProxy.getStatus()).map(KafkaProtocolFilterStatus::getConditions).orElse(List.of()), unknownCondition))
+                .endStatus()
+                .build();
+        // @formatter:on
+        return fn.apply(patch);
+    }
+
     static ErrorStatusUpdateControl<KafkaProtocolFilter> newUnknownConditionStatusPatch(Clock clock,
-                                                                                        KafkaProtocolFilter observedResource,
+                                                                                        KafkaProtocolFilter observedFilter,
                                                                                         Condition.Type type,
                                                                                         Exception e) {
-        Condition unknownCondition = newConditionBuilder(clock, observedResource)
-                .withType(type)
-                .withStatus(Condition.Status.UNKNOWN)
-                .withReason(e.getClass().getName())
-                .withMessage(e.getMessage())
-                .build();
-
-        var newResource = Conditions.patchWithCondition(observedResource, unknownCondition);
-
-        return ErrorStatusUpdateControl.patchStatus(newResource);
+        Condition unknownCondition = newUnknownCondition(clock, observedFilter, type, e);
+        Function<KafkaProtocolFilter, ErrorStatusUpdateControl<KafkaProtocolFilter>> fn = ErrorStatusUpdateControl::patchStatus;
+        return filterStatusPatch(observedFilter, unknownCondition, fn);
     }
+
+    static UpdateControl<KafkaProtocolFilter> newFalseConditionStatusPatch(Clock clock,
+                                                                           KafkaProtocolFilter observedProxy,
+                                                                  Condition.Type type,
+                                                                  String reason,
+                                                                  String message) {
+        Condition falseCondition = newFalseCondition(clock, observedProxy, type, reason, message);
+        Function<KafkaProtocolFilter, UpdateControl<KafkaProtocolFilter>> fn = UpdateControl::patchStatus;
+        return filterStatusPatch(observedProxy, falseCondition, fn);
+    }
+
+    static UpdateControl<KafkaProtocolFilter> newTrueConditionStatusPatch(Clock clock,
+                                                                          KafkaProtocolFilter observedProxy,
+                                                                 Condition.Type type) {
+        Condition trueCondition = newTrueCondition(clock, observedProxy, type);
+        Function<KafkaProtocolFilter, UpdateControl<KafkaProtocolFilter>> fn = UpdateControl::patchStatus;
+        return filterStatusPatch(observedProxy, trueCondition, fn);
+    }
+
 
     static ErrorStatusUpdateControl<KafkaProxyIngress> newUnknownConditionStatusPatch(Clock clock,
                                                                                       KafkaProxyIngress observedResource,
