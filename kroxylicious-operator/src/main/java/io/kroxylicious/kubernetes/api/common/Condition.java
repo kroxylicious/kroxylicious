@@ -6,9 +6,6 @@
 
 package io.kroxylicious.kubernetes.api.common;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.annotation.JsonSerialize;
-
 /**
  * A common Condition type, used in CR statuses.
  */
@@ -42,17 +39,13 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     @com.fasterxml.jackson.annotation.JsonProperty("lastTransitionTime")
     @com.fasterxml.jackson.annotation.JsonPropertyDescription("lastTransitionTime is the last time the condition transitioned from one status to another. \nThis should be when the underlying condition changed. \nIf that is not known, then using the time when the API field changed is acceptable.\n")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
-    @JsonDeserialize(using = InstantDeserializer.class)
-    @JsonSerialize(using = InstantSerializer.class)
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING)
     private java.time.Instant lastTransitionTime;
 
-    @JsonDeserialize(using = InstantDeserializer.class)
-    @JsonSerialize(using = InstantSerializer.class)
     public java.time.Instant getLastTransitionTime() {
         return lastTransitionTime;
     }
 
-    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss[XXX][VV]")
     public void setLastTransitionTime(java.time.Instant lastTransitionTime) {
         this.lastTransitionTime = lastTransitionTime;
     }
