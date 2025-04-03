@@ -291,13 +291,19 @@ public class Conditions {
     private static <U> U kafkaProxyStatusPatch(KafkaProxy observedProxy,
                                                Condition unknownCondition,
                                                Function<KafkaProxy, U> fn) {
+        // @formatter:off
         var patch = new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withUid(ResourcesUtil.uid(observedProxy))
+                    .withName(ResourcesUtil.name(observedProxy))
+                    .withNamespace(ResourcesUtil.namespace(observedProxy))
+                .endMetadata()
                 .withNewStatus()
-                .withObservedGeneration(ResourcesUtil.generation(observedProxy))
-                .withConditions(newConditions(Optional.ofNullable(observedProxy.getStatus()).map(KafkaProxyStatus::getConditions).orElse(List.of()), unknownCondition))
+                    .withObservedGeneration(ResourcesUtil.generation(observedProxy))
+                    .withConditions(newConditions(Optional.ofNullable(observedProxy.getStatus()).map(KafkaProxyStatus::getConditions).orElse(List.of()), unknownCondition))
                 .endStatus()
                 .build();
-
+        // @formatter:on
         return fn.apply(patch);
     }
 
@@ -327,9 +333,6 @@ public class Conditions {
         Function<KafkaProxy, UpdateControl<KafkaProxy>> fn = UpdateControl::patchStatus;
         return kafkaProxyStatusPatch(observedProxy, trueCondition, fn);
     }
-
-
-
 
     private static <U> U filterStatusPatch(KafkaProtocolFilter observedProxy,
                                            Condition unknownCondition,
@@ -361,9 +364,9 @@ public class Conditions {
 
     static UpdateControl<KafkaProtocolFilter> newFalseConditionStatusPatch(Clock clock,
                                                                            KafkaProtocolFilter observedProxy,
-                                                                  Condition.Type type,
-                                                                  String reason,
-                                                                  String message) {
+                                                                           Condition.Type type,
+                                                                           String reason,
+                                                                           String message) {
         Condition falseCondition = newFalseCondition(clock, observedProxy, type, reason, message);
         Function<KafkaProtocolFilter, UpdateControl<KafkaProtocolFilter>> fn = UpdateControl::patchStatus;
         return filterStatusPatch(observedProxy, falseCondition, fn);
@@ -371,12 +374,11 @@ public class Conditions {
 
     static UpdateControl<KafkaProtocolFilter> newTrueConditionStatusPatch(Clock clock,
                                                                           KafkaProtocolFilter observedProxy,
-                                                                 Condition.Type type) {
+                                                                          Condition.Type type) {
         Condition trueCondition = newTrueCondition(clock, observedProxy, type);
         Function<KafkaProtocolFilter, UpdateControl<KafkaProtocolFilter>> fn = UpdateControl::patchStatus;
         return filterStatusPatch(observedProxy, trueCondition, fn);
     }
-
 
     static ErrorStatusUpdateControl<KafkaProxyIngress> newUnknownConditionStatusPatch(Clock clock,
                                                                                       KafkaProxyIngress observedResource,
