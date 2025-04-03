@@ -184,7 +184,8 @@ public class KafkaProtocolFilterReconciler implements
                                                                            Context<KafkaProtocolFilter> context,
                                                                            Exception e) {
         // ResolvedRefs to UNKNOWN
-        ErrorStatusUpdateControl<KafkaProtocolFilter> uc = ErrorStatusUpdateControl.patchStatus(Conditions.newUnknownConditionStatusPatch(clock, filter, Condition.Type.ResolvedRefs, e));
+        ErrorStatusUpdateControl<KafkaProtocolFilter> uc = ErrorStatusUpdateControl
+                .patchStatus(Conditions.newUnknownConditionStatusPatch(clock, filter, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(filter), name(filter), e.toString());
         }

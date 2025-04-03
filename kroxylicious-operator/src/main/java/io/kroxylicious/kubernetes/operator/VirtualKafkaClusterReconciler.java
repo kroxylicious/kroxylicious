@@ -260,7 +260,8 @@ public final class VirtualKafkaClusterReconciler implements
     @Override
     public ErrorStatusUpdateControl<VirtualKafkaCluster> updateErrorStatus(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context, Exception e) {
         // ResolvedRefs to UNKNOWN
-        ErrorStatusUpdateControl<VirtualKafkaCluster> uc = ErrorStatusUpdateControl.patchStatus(Conditions.newUnknownConditionStatusPatch(clock, cluster, Condition.Type.ResolvedRefs, e));
+        ErrorStatusUpdateControl<VirtualKafkaCluster> uc = ErrorStatusUpdateControl
+                .patchStatus(Conditions.newUnknownConditionStatusPatch(clock, cluster, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(cluster), name(cluster), e.toString());
         }
