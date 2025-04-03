@@ -147,9 +147,13 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
         @Override
         public void rotateKek(String alias) {
             var key = read(alias);
+            // The LocalStack's new implementation of RotateOnDemand doesn't preserve key history
+            // https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,RotateKeyOnDemand,-ScheduleKeyDeletion
+            // https://github.com/localstack/localstack/pull/12342
 
-            // We are using ListKeyRotationsRequest as a probe to discover our server's capabilities.
-            // If we get 501 status code we will know that we are on LocalStack
+            // We are using ListKeyRotationsRequest as a probe to discover AWS's capabilities.
+            // If we get 501 status code we will know that we are on LocalStack as it does not implement it
+            // (see https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,ListKeyRotations,-ListKeys)
             final ListKeyRotationsRequest listKeyRotationKey = new ListKeyRotationsRequest(key.keyMetadata().keyId());
             var listKeyRotationRequest = createRequest(listKeyRotationKey, TRENT_SERVICE_LIST_KEY_ROTATIONS);
 
@@ -166,10 +170,6 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
         }
 
         private void pseudoRotate(String alias) {
-            // RotateKeyOnDemand is now implemented in LocalStack
-            // The LocalStack's new implementation of RotateOnDemand doesn't preserve key history
-            // https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,RotateKeyOnDemand,-ScheduleKeyDeletion
-            // https://github.com/localstack/localstack/pull/12342
 
             // mimic rotate by creating a new key and repoint the alias at it, leaving the original key in place.
             final CreateKeyRequest request = new CreateKeyRequest("[rotated] key for alias: " + alias);
