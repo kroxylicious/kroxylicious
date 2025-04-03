@@ -41,8 +41,8 @@ data:
             end: 2
   cluster-one: |
     ---
-    - type: "Accepted"
-      status: "True"
-      lastTransitionTime: "1970-01-01T00:00:00Z"
-    - type: "ResolvedRefs"
-      lastTransitionTime: "1970-01-01T00:00:00Z"
+    metadata:
+      name: "one"
+      namespace: "proxy-ns"
+    status:
+      conditions: []

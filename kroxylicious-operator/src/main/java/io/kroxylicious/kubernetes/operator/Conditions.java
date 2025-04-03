@@ -7,22 +7,13 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.TreeMap;
-import java.util.function.BiConsumer;
 import java.util.function.Function;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
-import io.fabric8.kubernetes.client.CustomResource;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 
@@ -38,12 +29,11 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class Conditions {
 
@@ -116,94 +106,6 @@ public class Conditions {
             }
         }
         return conditions.toList();
-    }
-
-    /**
-     * Return new conditions by adding the given {@code conditionsToAdd} to the given {@code conditions},
-     * keeping a single condition of each type.
-     * When a {@code conditionToAdd} has a null status that condition will be removed.
-     * @param conditions The existing conditions
-     * @param conditionsToAdd The conditions to add
-     * @return The new conditions.
-     */
-    static List<Condition> maybeAddOrUpdateConditions(List<Condition> conditions, List<Condition> conditionsToAdd) {
-        Comparator<Condition> conditionComparator = Comparator
-                .comparing(Condition::getType)
-                .thenComparing(Comparator.comparing(Condition::getObservedGeneration).reversed())
-                .thenComparing(Condition::getStatus)
-                .thenComparing(Condition::getReason)
-                .thenComparing(Condition::getMessage)
-                .thenComparing(Condition::getLastTransitionTime);
-
-        for (Condition condition : conditionsToAdd) {
-            var type = Objects.requireNonNull(condition.getType());
-
-            Map<Condition.Type, List<Condition>> byType = conditions.stream().collect(Collectors.groupingBy(
-                    Condition::getType));
-
-            var map = byType.entrySet().stream().map(entry -> {
-                // minimum must exist because values of groupingBy result are always non-empty
-                Condition minimumCondition = entry.getValue().stream().min(conditionComparator).orElseThrow();
-                var mutableList = new ArrayList<Condition>(1);
-                mutableList.add(minimumCondition);
-                return Map.entry(entry.getKey(), mutableList);
-            }).collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue,
-                    (l1, l2) -> {
-                        throw new IllegalStateException();
-                    },
-                    TreeMap::new));
-
-            if (condition.getStatus() == null) {
-                map.remove(type);
-            }
-            else {
-                ArrayList<Condition> conditionsOfType = map.computeIfAbsent(type, k -> new ArrayList<>());
-                if (conditionsOfType.isEmpty()) {
-                    conditionsOfType.add(condition);
-                }
-                else if (conditionsOfType.get(0).getObservedGeneration() <= condition.getObservedGeneration()) {
-                    conditionsOfType.set(0, condition);
-                }
-            }
-            conditions = map.values().stream().flatMap(Collection::stream).toList();
-        }
-        return conditions;
-    }
-
-    @SuppressWarnings("java:S4276") // BiConsumer<S, Long> is correct, because it's Long on the status classes
-    private static <R extends CustomResource<?, S>, S> R newStatus(R ingress,
-                                                                   Supplier<R> resourceSupplier,
-                                                                   Supplier<S> statusSupplier,
-                                                                   BiConsumer<S, List<Condition>> conditionSetter,
-                                                                   BiConsumer<S, Long> observedGenerationSetter,
-                                                                   List<Condition> conditions) {
-        var result = resourceSupplier.get();
-        result.setMetadata(new ObjectMetaBuilder()
-                .withName(ResourcesUtil.name(ingress))
-                .withNamespace(ResourcesUtil.namespace(ingress))
-                .withUid(ResourcesUtil.uid(ingress))
-                .build());
-        S status = statusSupplier.get();
-        conditionSetter.accept(status, conditions);
-        observedGenerationSetter.accept(status, ingress.getMetadata().getGeneration());
-        result.setStatus(status);
-        return result;
-    }
-
-    @NonNull
-    static VirtualKafkaCluster patchWithCondition(VirtualKafkaCluster cluster, List<Condition> conditions) {
-        return newStatus(
-                cluster,
-                VirtualKafkaCluster::new,
-                VirtualKafkaClusterStatus::new,
-                VirtualKafkaClusterStatus::setConditions,
-                VirtualKafkaClusterStatus::setObservedGeneration,
-                maybeAddOrUpdateConditions(
-                        Optional.of(cluster)
-                                .map(VirtualKafkaCluster::getStatus)
-                                .map(VirtualKafkaClusterStatus::getConditions)
-                                .orElse(List.of()),
-                        conditions));
     }
 
     static ConditionBuilder newConditionBuilder(Clock clock, HasMetadata observedGenerationSource) {
@@ -428,23 +330,47 @@ public class Conditions {
         return serviceStatusPatch(observedProxy, trueCondition, fn);
     }
 
-    /// ////////////////////////////
-    /// /////////////////////////
+    private static VirtualKafkaCluster clusterStatusPatch(VirtualKafkaCluster observedIngress,
+                                            Condition unknownCondition) {
+        // @formatter:off
+        var patch = new VirtualKafkaClusterBuilder()
+                .withNewMetadata()
+                    .withUid(ResourcesUtil.uid(observedIngress))
+                    .withName(ResourcesUtil.name(observedIngress))
+                    .withNamespace(ResourcesUtil.namespace(observedIngress))
+                .endMetadata()
+                .withNewStatus()
+                    .withObservedGeneration(ResourcesUtil.generation(observedIngress))
+                    .withConditions(newConditions(Optional.ofNullable(observedIngress.getStatus()).map(VirtualKafkaClusterStatus::getConditions).orElse(List.of()), unknownCondition))
+                .endStatus()
+                .build();
+        // @formatter:on
+        return patch;
+    }
 
     static ErrorStatusUpdateControl<VirtualKafkaCluster> newUnknownConditionStatusPatch(Clock clock,
-                                                                                        VirtualKafkaCluster observedResource,
+                                                                                        VirtualKafkaCluster observedFilter,
                                                                                         Condition.Type type,
                                                                                         Exception e) {
-        Condition unknownCondition = newConditionBuilder(clock, observedResource)
-                .withType(type)
-                .withStatus(Condition.Status.UNKNOWN)
-                .withReason(e.getClass().getName())
-                .withMessage(e.getMessage())
-                .build();
-
-        var newResource = Conditions.patchWithCondition(observedResource, List.of(unknownCondition));
-
-        return ErrorStatusUpdateControl.patchStatus(newResource);
+        Condition unknownCondition = newUnknownCondition(clock, observedFilter, type, e);
+        return ErrorStatusUpdateControl.patchStatus(clusterStatusPatch(observedFilter, unknownCondition));
     }
+
+    static VirtualKafkaCluster newFalseConditionStatusPatch(Clock clock,
+                                                                           VirtualKafkaCluster observedProxy,
+                                                                           Condition.Type type,
+                                                                           String reason,
+                                                                           String message) {
+        Condition falseCondition = newFalseCondition(clock, observedProxy, type, reason, message);
+        return clusterStatusPatch(observedProxy, falseCondition);
+    }
+
+    static VirtualKafkaCluster newTrueConditionStatusPatch(Clock clock,
+                                                                          VirtualKafkaCluster observedProxy,
+                                                                          Condition.Type type) {
+        Condition trueCondition = newTrueCondition(clock, observedProxy, type);
+        return clusterStatusPatch(observedProxy, trueCondition);
+    }
+
 
 }
