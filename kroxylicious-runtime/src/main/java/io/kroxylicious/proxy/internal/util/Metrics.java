@@ -76,22 +76,22 @@ public class Metrics {
         return List.of(Tag.of(name1, required(value1)), Tag.of(name2, required(value2)));
     }
 
-    @NonNull
-    private static String required(String value) {
-        if ((Objects.isNull(value) || value.trim().isEmpty())) {
-            throw new IllegalArgumentException("tag value supplied without a value");
-        }
-        return value;
-    }
-
     public static List<Tag> tags(String... tagsAndValues) {
         if (tagsAndValues.length % 2 != 0) {
             throw new IllegalArgumentException("tag name supplied without a value");
         }
         List<Tag> tagsList = new ArrayList<>();
         for (int i = 0; i < tagsAndValues.length; i += 2) {
-            tagsList.add(Tag.of(tagsAndValues[i], tagsAndValues[i + 1]));
+            tagsList.add(Tag.of(tagsAndValues[i], required(tagsAndValues[i + 1])));
         }
         return List.copyOf(tagsList);
+    }
+
+    @NonNull
+    private static String required(String value) {
+        if ((Objects.isNull(value) || value.trim().isEmpty())) {
+            throw new IllegalArgumentException("tag value supplied without a value");
+        }
+        return value;
     }
 }
