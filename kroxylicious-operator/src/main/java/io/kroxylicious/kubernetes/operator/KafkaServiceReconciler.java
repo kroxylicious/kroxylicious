@@ -52,7 +52,8 @@ public final class KafkaServiceReconciler implements
     @Override
     public ErrorStatusUpdateControl<KafkaService> updateErrorStatus(KafkaService service, Context<KafkaService> context, Exception e) {
         // ResolvedRefs to UNKNOWN
-        ErrorStatusUpdateControl<KafkaService> uc = ErrorStatusUpdateControl.patchStatus(Conditions.newUnknownConditionStatusPatch(clock, service, Condition.Type.Accepted, e));
+        ErrorStatusUpdateControl<KafkaService> uc = ErrorStatusUpdateControl
+                .patchStatus(Conditions.newUnknownConditionStatusPatch(clock, service, Condition.Type.Accepted, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(service), name(service), e.toString());
         }

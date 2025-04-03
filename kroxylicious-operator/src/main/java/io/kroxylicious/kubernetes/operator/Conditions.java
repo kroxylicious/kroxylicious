@@ -142,7 +142,7 @@ public class Conditions {
     }
 
     private static KafkaProxy kafkaProxyStatusPatch(KafkaProxy observedProxy,
-                                               Condition unknownCondition) {
+                                                    Condition unknownCondition) {
         // @formatter:off
         return new KafkaProxyBuilder()
                 .withNewMetadata()
