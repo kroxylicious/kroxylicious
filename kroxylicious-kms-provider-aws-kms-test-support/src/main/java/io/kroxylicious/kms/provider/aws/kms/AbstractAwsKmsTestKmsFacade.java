@@ -28,6 +28,8 @@ import io.kroxylicious.kms.provider.aws.kms.model.DeleteAliasRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyResponse;
 import io.kroxylicious.kms.provider.aws.kms.model.ErrorResponse;
+import io.kroxylicious.kms.provider.aws.kms.model.ListKeyRotationsRequest;
+import io.kroxylicious.kms.provider.aws.kms.model.ListKeyRotationsResponse;
 import io.kroxylicious.kms.provider.aws.kms.model.RotateKeyRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionResponse;
@@ -53,12 +55,15 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
     private static final String TRENT_SERVICE_ROTATE_KEY = "TrentService.RotateKeyOnDemand";
     private static final String TRENT_SERVICE_DELETE_ALIAS = "TrentService.DeleteAlias";
     private static final String TRENT_SERVICE_SCHEDULE_KEY_DELETION = "TrentService.ScheduleKeyDeletion";
+    private static final String TRENT_SERVICE_LIST_KEY_ROTATIONS = "TrentService.ListKeyRotations";
 
     private static final TypeReference<CreateKeyResponse> CREATE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     private static final TypeReference<DescribeKeyResponse> DESCRIBE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     private static final TypeReference<ScheduleKeyDeletionResponse> SCHEDULE_KEY_DELETION_RESPONSE_TYPE_REF = new TypeReference<>() {
+    };
+    private static final TypeReference<ListKeyRotationsResponse> LIST_KEY_ROTATIONS_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     private static final TypeReference<ErrorResponse> ERROR_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
@@ -142,6 +147,17 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
         @Override
         public void rotateKek(String alias) {
             var key = read(alias);
+            final ListKeyRotationsRequest listKeyRotationKey = new ListKeyRotationsRequest(key.keyMetadata().keyId());
+            var listKeyRotationRequest = createRequest(listKeyRotationKey, TRENT_SERVICE_LIST_KEY_ROTATIONS);
+
+            try {
+                sendRequest(alias, listKeyRotationRequest, LIST_KEY_ROTATIONS_RESPONSE_TYPE_REF);
+            }
+            catch (AwsNotImplementException e) {
+                pseudoRotate(alias);
+                return;
+            }
+
             final RotateKeyRequest rotateKey = new RotateKeyRequest(key.keyMetadata().keyId());
             var rotateKeyRequest = createRequest(rotateKey, TRENT_SERVICE_ROTATE_KEY);
             try {
