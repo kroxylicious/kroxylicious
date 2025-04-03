@@ -24,7 +24,6 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
-
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
@@ -73,7 +72,6 @@ public class Conditions {
                         .thenComparing(Condition::getLastTransitionTime))
                 .map(Conditions::new);
     }
-
 
     public static Conditions updateWith(Optional<Conditions> existingConditions, Condition condition) {
         return existingConditions.map(existing -> {
@@ -376,9 +374,6 @@ public class Conditions {
 
         return ErrorStatusUpdateControl.patchStatus(newResource);
     }
-
-
-
 
     static ErrorStatusUpdateControl<VirtualKafkaCluster> newUnknownConditionStatusPatch(Clock clock,
                                                                                         VirtualKafkaCluster observedResource,
