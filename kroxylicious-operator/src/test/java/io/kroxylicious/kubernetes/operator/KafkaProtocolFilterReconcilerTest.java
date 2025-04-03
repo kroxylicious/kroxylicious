@@ -25,6 +25,7 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;

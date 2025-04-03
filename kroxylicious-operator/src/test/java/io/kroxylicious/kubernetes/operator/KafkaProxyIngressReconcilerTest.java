@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -71,7 +72,7 @@ class KafkaProxyIngressReconcilerTest {
                 .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
                 .singleCondition()
                 .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
-                .isResolvedRefsFalse("spec.proxyRef.name", "KafkaProxy not found")
+                .isResolvedRefsFalse(Condition.REASON_REFS_NOT_FOUND, "KafkaProxy spec.proxyRef.name not found")
                 .hasLastTransitionTime(TEST_CLOCK.instant());
 
     }

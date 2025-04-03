@@ -133,15 +133,15 @@ public class KafkaProtocolFilterReconciler implements
         var interpolationResult = secureConfigInterpolator.interpolate(filter.getSpec().getConfigTemplate());
         var referencedSecrets = interpolationResult.volumes().stream()
                 .flatMap(volume -> Optional.ofNullable(volume.getSecret())
-                .map(SecretVolumeSource::getSecretName)
-                .stream())
+                        .map(SecretVolumeSource::getSecretName)
+                        .stream())
                 .collect(Collectors.toCollection(TreeSet::new));
         LOGGER.debug("Referenced secrets: {}", referencedSecrets);
 
         var referencedConfigMaps = interpolationResult.volumes().stream()
                 .flatMap(volume -> Optional.ofNullable(volume.getConfigMap())
-                .map(ConfigMapVolumeSource::getName)
-                .stream())
+                        .map(ConfigMapVolumeSource::getName)
+                        .stream())
                 .collect(Collectors.toCollection(TreeSet::new));
         LOGGER.debug("Referenced configmaps: {}", referencedConfigMaps);
 
