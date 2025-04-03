@@ -70,9 +70,7 @@ class KafkaServiceReconcilerIT {
             Assertions.assertThat(mycoolkafkaservice.getSpec().getBootstrapServers()).isEqualTo(UPDATED_BOOTSTRAP);
             assertThat(mycoolkafkaservice.getStatus())
                     .isNotNull()
-                    .singleCondition()
-                    .hasObservedGenerationInSyncWithMetadataOf(mycoolkafkaservice)
-                    .isAcceptedTrue();
+                    .conditionList().isEmpty();
         });
     }
 
@@ -88,9 +86,7 @@ class KafkaServiceReconcilerIT {
             final KafkaService mycoolkafkaservice = testActor.get(KafkaService.class, SERVICE_A);
             assertThat(mycoolkafkaservice.getStatus())
                     .isNotNull()
-                    .singleCondition()
-                    .hasObservedGenerationInSyncWithMetadataOf(mycoolkafkaservice)
-                    .isAcceptedTrue();
+                    .conditionList().isEmpty();
         });
     }
 

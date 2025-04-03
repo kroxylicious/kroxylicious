@@ -83,27 +83,10 @@ class KafkaServiceReconcilerTest {
         final UpdateControl<KafkaService> updateControl = kafkaProtocolFilterReconciler.reconcile(kafkaService, context);
 
         // Then
-        assertThat(updateControl)
-                .isNotNull()
-                .satisfies(
-                        input -> {
-                            assertThat(input.isPatchStatus())
-                                    .isTrue();
-                            assertThat(input.getResource())
-                                    .isNotEmpty()
-                                    .get()
-                                    .extracting(KafkaService::getStatus)
-                                    .satisfies(kafkaServiceStatus -> {
-                                        assertThat(kafkaServiceStatus)
-                                                .observedGeneration()
-                                                .isEqualTo(OBSERVED_GENERATION);
-                                        assertThat(kafkaServiceStatus)
-                                                .singleCondition()
-                                                .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
-                                                .isAcceptedTrue();
-                                    }
-
-                                    );
-                        });
+        assertThat(updateControl).isNotNull();
+        assertThat(updateControl.getResource()).isPresent();
+        KafkaServiceStatusAssert.assertThat(updateControl.getResource().get().getStatus())
+                .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
+                .conditionList().isEmpty();
     }
 }

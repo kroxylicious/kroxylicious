@@ -37,8 +37,7 @@ public final class KafkaServiceReconciler implements
 
     @Override
     public UpdateControl<KafkaService> reconcile(KafkaService service, Context<KafkaService> context) {
-        final Condition acceptedCondition = Conditions.newTrueCondition(clock, service, Condition.Type.Accepted);
-        UpdateControl<KafkaService> uc = UpdateControl.patchStatus(Conditions.patchWithCondition(service, acceptedCondition));
+        UpdateControl<KafkaService> uc = Conditions.newTrueConditionStatusPatch(clock, service, Condition.Type.Accepted);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(service), name(service));
         }
