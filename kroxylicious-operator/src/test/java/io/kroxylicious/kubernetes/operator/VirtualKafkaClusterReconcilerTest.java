@@ -14,8 +14,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
-import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
-
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -36,6 +34,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
+import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -207,16 +206,14 @@ class VirtualKafkaClusterReconcilerTest {
 
     @NonNull
     private static BiConsumer<VirtualKafkaCluster, ConditionListAssert> assertResolvedRefsFalse(
-            String referencedResourcesNotFound,
-            String message
-    ) {
-        return (BiConsumer<VirtualKafkaCluster, ConditionListAssert>) (cluster, cl) ->
-                cl.singleOfType(Condition.Type.ResolvedRefs)
-                        .hasObservedGenerationInSyncWithMetadataOf(cluster)
-                        .hasLastTransitionTime(TEST_CLOCK.instant())
-                        .isResolvedRefsFalse(
-                                referencedResourcesNotFound,
-                                message);
+                                                                                                String referencedResourcesNotFound,
+                                                                                                String message) {
+        return (BiConsumer<VirtualKafkaCluster, ConditionListAssert>) (cluster, cl) -> cl.singleOfType(Condition.Type.ResolvedRefs)
+                .hasObservedGenerationInSyncWithMetadataOf(cluster)
+                .hasLastTransitionTime(TEST_CLOCK.instant())
+                .isResolvedRefsFalse(
+                        referencedResourcesNotFound,
+                        message);
     }
 
     @NonNull

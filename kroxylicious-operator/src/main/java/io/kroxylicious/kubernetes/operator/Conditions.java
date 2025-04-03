@@ -282,8 +282,6 @@ public class Conditions {
         return ingressStatusPatch(observedProxy, trueCondition, fn);
     }
 
-
-
     private static <U> U serviceStatusPatch(KafkaService observedIngress,
                                             Condition unknownCondition,
                                             Function<KafkaService, U> fn) {
@@ -331,7 +329,7 @@ public class Conditions {
     }
 
     private static VirtualKafkaCluster clusterStatusPatch(VirtualKafkaCluster observedIngress,
-                                            Condition unknownCondition) {
+                                                          Condition unknownCondition) {
         // @formatter:off
         var patch = new VirtualKafkaClusterBuilder()
                 .withNewMetadata()
@@ -357,20 +355,19 @@ public class Conditions {
     }
 
     static VirtualKafkaCluster newFalseConditionStatusPatch(Clock clock,
-                                                                           VirtualKafkaCluster observedProxy,
-                                                                           Condition.Type type,
-                                                                           String reason,
-                                                                           String message) {
+                                                            VirtualKafkaCluster observedProxy,
+                                                            Condition.Type type,
+                                                            String reason,
+                                                            String message) {
         Condition falseCondition = newFalseCondition(clock, observedProxy, type, reason, message);
         return clusterStatusPatch(observedProxy, falseCondition);
     }
 
     static VirtualKafkaCluster newTrueConditionStatusPatch(Clock clock,
-                                                                          VirtualKafkaCluster observedProxy,
-                                                                          Condition.Type type) {
+                                                           VirtualKafkaCluster observedProxy,
+                                                           Condition.Type type) {
         Condition trueCondition = newTrueCondition(clock, observedProxy, type);
         return clusterStatusPatch(observedProxy, trueCondition);
     }
-
 
 }
