@@ -142,7 +142,8 @@ public final class VirtualKafkaClusterReconciler implements
                 Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", cluster, unresolvedServices);
                 Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", cluster, unresolvedIngresses);
                 Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster, unresolvedFilters);
-                uc = UpdateControl.patchStatus(Conditions.newFalseConditionStatusPatch(clock, cluster, Condition.Type.ResolvedRefs, Condition.REASON_TRANSITIVE_REFS_NOT_FOUND,
+                uc = UpdateControl
+                        .patchStatus(Conditions.newFalseConditionStatusPatch(clock, cluster, Condition.Type.ResolvedRefs, Condition.REASON_TRANSITIVE_REFS_NOT_FOUND,
                                 joiningMessages(serviceMsg, ingressMsg, filterMsg)));
             }
         }
@@ -153,7 +154,7 @@ public final class VirtualKafkaClusterReconciler implements
             Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster, missingFilters);
 
             uc = UpdateControl.patchStatus(Conditions.newFalseConditionStatusPatch(clock, cluster, Condition.Type.ResolvedRefs, Condition.REASON_REFS_NOT_FOUND,
-                            joiningMessages(proxyMsg, serviceMsg, ingressMsg, filterMsg)));
+                    joiningMessages(proxyMsg, serviceMsg, ingressMsg, filterMsg)));
         }
 
         if (LOGGER.isInfoEnabled()) {
