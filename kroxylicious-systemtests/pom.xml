@@ -176,6 +176,10 @@
             <artifactId>kroxylicious-kms-provider-fortanix-dsm-test-support</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-record-encryption</artifactId>
+        </dependency>
+        <dependency>
             <groupId>org.apache.logging.log4j</groupId>
             <artifactId>log4j-api</artifactId>
         </dependency>

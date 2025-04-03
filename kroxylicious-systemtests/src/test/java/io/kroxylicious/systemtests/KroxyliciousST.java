@@ -38,7 +38,7 @@ class KroxyliciousST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousST.class);
     private static Kroxylicious kroxylicious;
     private final String clusterName = "my-cluster";
-    private final String clusterIpServiceName = clusterName + "-cluster-ip";
+    private final String clusterIpServiceName = clusterName + "-" + Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP;
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final String MESSAGE = "Hello-world";
     private KroxyliciousOperator kroxyliciousOperator;

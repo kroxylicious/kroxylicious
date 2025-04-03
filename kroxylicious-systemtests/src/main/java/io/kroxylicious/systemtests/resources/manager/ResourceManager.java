@@ -29,6 +29,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.enums.ConditionStatus;
 import io.kroxylicious.systemtests.k8s.HelmClient;
@@ -117,7 +118,8 @@ public class ResourceManager {
             new KroxyliciousResource<>(KafkaProxy.class),
             new KroxyliciousResource<>(KafkaService.class),
             new KroxyliciousResource<>(KafkaProxyIngress.class),
-            new KroxyliciousResource<>(VirtualKafkaCluster.class)
+            new KroxyliciousResource<>(VirtualKafkaCluster.class),
+            new KroxyliciousResource<>(KafkaProtocolFilter.class)
     };
 
     /**
@@ -151,17 +153,6 @@ public class ResourceManager {
     @SafeVarargs
     public final void createResourceFromBuilder(Builder<? extends HasMetadata>... resources) {
         createResource(true, Arrays.stream(resources).map(Builder::build).toList().toArray(new HasMetadata[0]));
-    }
-
-    /**
-     * Create resource without wait.
-     *
-     * @param <T>    the type parameter
-     * @param resources the resources
-     */
-    @SafeVarargs
-    public final <T extends HasMetadata> void createResourceWithoutWait(T... resources) {
-        createResource(false, resources);
     }
 
     /**

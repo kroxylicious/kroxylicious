@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,6 +27,7 @@ import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.extensions.TestKubeKmsFacadeInvocationContextProvider;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
+import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
 import io.kroxylicious.systemtests.steps.KafkaSteps;
@@ -44,29 +46,40 @@ class RecordEncryptionST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordEncryptionST.class);
     private static final String MESSAGE = "Hello-world";
     private final String clusterName = "my-cluster";
+    private final String clusterIpServiceName = clusterName + "-" + Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP;
     private String bootstrap;
     private TestKekManager testKekManager;
+    private KroxyliciousOperator kroxyliciousOperator;
 
     @BeforeAll
     void setUp() {
         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName);
         if (!kafkaPods.isEmpty()) {
             LOGGER.atInfo().setMessage("Skipping kafka deployment. It is already deployed!").log();
-            return;
         }
-        LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
+        else {
+            LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
 
-        Kafka kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, 3).build();
+            Kafka kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, 3).build();
 
-        resourceManager.createResourceWithWait(
-                KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka, 3).build(),
-                kafka);
+            resourceManager.createResourceWithWait(
+                    KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka, 3).build(),
+                    kafka);
+        }
+
+        kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
+        kroxyliciousOperator.deploy();
     }
 
     @BeforeEach
     void beforeEach() {
         bootstrap = null;
         testKekManager = null;
+    }
+
+    @AfterAll
+    void cleanUp() {
+        kroxyliciousOperator.delete();
     }
 
     @AfterEach
@@ -97,8 +110,8 @@ class RecordEncryptionST extends AbstractST {
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade);
-        bootstrap = kroxylicious.getBootstrap(Constants.KROXY_SERVICE_NAME);
+        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, testKmsFacade);
+        bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
@@ -129,8 +142,8 @@ class RecordEncryptionST extends AbstractST {
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade);
-        bootstrap = kroxylicious.getBootstrap(Constants.KROXY_SERVICE_NAME);
+        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, testKmsFacade);
+        bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
@@ -161,8 +174,8 @@ class RecordEncryptionST extends AbstractST {
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade, experimentalKmsConfig);
-        bootstrap = kroxylicious.getBootstrap(Constants.KROXY_SERVICE_NAME);
+        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, testKmsFacade, experimentalKmsConfig);
+        bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
@@ -228,8 +241,8 @@ class RecordEncryptionST extends AbstractST {
         // start Kroxylicious
         LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
         Kroxylicious kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, 1, testKmsFacade, experimentalKmsConfig);
-        bootstrap = kroxylicious.getBootstrap(Constants.KROXY_SERVICE_NAME);
+        kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, testKmsFacade, experimentalKmsConfig);
+        bootstrap = kroxylicious.getBootstrap(clusterIpServiceName);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
