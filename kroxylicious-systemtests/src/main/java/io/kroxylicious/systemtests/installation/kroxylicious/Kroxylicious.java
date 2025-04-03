@@ -46,8 +46,7 @@ public class Kroxylicious {
     private void createRecordEncryptionFilterConfigMap(TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
         LOGGER.info("Deploy Kroxylicious config Map with record encryption filter in {} namespace", deploymentNamespace);
         resourceManager.createResourceFromBuilder(
-                KroxyliciousFilterTemplates.kroxyliciousRecordEncryptionFilter(deploymentNamespace, testKmsFacade, experimentalKmsConfig)
-        );
+                KroxyliciousFilterTemplates.kroxyliciousRecordEncryptionFilter(deploymentNamespace, testKmsFacade, experimentalKmsConfig));
     }
 
     /**
@@ -62,7 +61,8 @@ public class Kroxylicious {
                 KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressDeployment(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
                         Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
                 KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefDeployment(deploymentNamespace, clusterName),
-                KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterDeployment(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
+                KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterDeployment(deploymentNamespace, clusterName,
+                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
                         clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, filterNames));
     }
 
@@ -96,7 +96,8 @@ public class Kroxylicious {
      * @param testKmsFacade the test kms facade
      * @param experimentalKmsConfig the experimental kms config
      */
-    public void deployPortPerBrokerPlainWithRecordEncryptionFilter(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
+    public void deployPortPerBrokerPlainWithRecordEncryptionFilter(String clusterName, TestKmsFacade<?, ?, ?> testKmsFacade,
+                                                                   ExperimentalKmsConfig experimentalKmsConfig) {
         createRecordEncryptionFilterConfigMap(testKmsFacade, experimentalKmsConfig);
         deployPortIdentifiesNodeWithFilters(clusterName, List.of(Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME));
     }

@@ -21,7 +21,7 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
     }
 
     private static VirtualKafkaClusterBuilder baseVirtualKafkaClusterDeployment(String namespaceName, String clusterName, String proxyName, String clusterRefName,
-                                                                                  String ingressName) {
+                                                                                String ingressName) {
         // @formatter:off
         return new VirtualKafkaClusterBuilder()
                 .withNewMetadata()
@@ -69,7 +69,7 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
      * @return the virtual kafka cluster builder
      */
     public static VirtualKafkaClusterBuilder virtualKafkaClusterWithFilterDeployment(String namespaceName, String clusterName, String proxyName, String clusterRefName,
-                                                                                  String ingressName, List<String> filterNames) {
+                                                                                     String ingressName, List<String> filterNames) {
         return baseVirtualKafkaClusterDeployment(namespaceName, clusterName, proxyName, clusterRefName, ingressName)
                 .editSpec()
                 .addAllToFilterRefs(getFilterRefs(filterNames))

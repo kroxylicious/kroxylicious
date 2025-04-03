@@ -55,7 +55,7 @@ public final class KroxyliciousFilterTemplates {
      * @return the kafka protocol filter builder
      */
     public static KafkaProtocolFilterBuilder kroxyliciousRecordEncryptionFilter(String namespaceName, TestKmsFacade<?, ?, ?> testKmsFacade,
-                                                                      ExperimentalKmsConfig experimentalKmsConfig) {
+                                                                                ExperimentalKmsConfig experimentalKmsConfig) {
         return baseFilterDeployment(namespaceName, Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME)
                 .withNewSpec()
                 .withType(RecordEncryption.class.getTypeName())
@@ -65,18 +65,19 @@ public final class KroxyliciousFilterTemplates {
 
     private static Map<String, Object> getRecordEncryptionConfigMap(TestKmsFacade<?, ?, ?> testKmsFacade, ExperimentalKmsConfig experimentalKmsConfig) {
         Map<String, Object> kmsConfigMap = OBJECT_MAPPER
-                .convertValue(testKmsFacade.getKmsServiceConfig(), new TypeReference<>() {});
+                .convertValue(testKmsFacade.getKmsServiceConfig(), new TypeReference<>() {
+                });
 
         var map = new HashMap<>(Map.of(
                 "kms", testKmsFacade.getKmsServiceClass().getSimpleName(),
                 "kmsConfig", kmsConfigMap,
                 "selector", "TemplateKekSelector",
-                "selectorConfig", Map.of("template", "KEK_$(topicName)")
-        ));
+                "selectorConfig", Map.of("template", "KEK_$(topicName)")));
 
-        if(experimentalKmsConfig != null) {
+        if (experimentalKmsConfig != null) {
             Map<String, Object> experimentalKmsConfigMap = OBJECT_MAPPER
-                    .convertValue(experimentalKmsConfig, new TypeReference<>() {});
+                    .convertValue(experimentalKmsConfig, new TypeReference<>() {
+                    });
             map.put("experimental", experimentalKmsConfigMap);
         }
 
