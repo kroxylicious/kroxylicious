@@ -135,6 +135,8 @@ public final class VirtualKafkaClusterReconciler implements
                         .flatMap(cm -> Optional.ofNullable(cm.getData()))
                         .map(ProxyConfigData::new)
                         .flatMap(data -> data.getStatusPatchForCluster(ResourcesUtil.name(cluster)))
+                        // TODO should apply the logic of Condition here too, because we don't know if the conditions we got from the CM
+                        // were based on an outdated generation and that the status we're batching over isn't newer
                         .map(UpdateControl::patchStatus)
                         .orElse(UpdateControl.noUpdate());
             }
@@ -258,7 +260,7 @@ public final class VirtualKafkaClusterReconciler implements
     @Override
     public ErrorStatusUpdateControl<VirtualKafkaCluster> updateErrorStatus(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context, Exception e) {
         // ResolvedRefs to UNKNOWN
-        ErrorStatusUpdateControl<VirtualKafkaCluster> uc = Conditions.newUnknownConditionStatusPatch(clock, cluster, Condition.Type.ResolvedRefs, e);
+        ErrorStatusUpdateControl<VirtualKafkaCluster> uc = ErrorStatusUpdateControl.patchStatus(Conditions.newUnknownConditionStatusPatch(clock, cluster, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(cluster), name(cluster), e.toString());
         }

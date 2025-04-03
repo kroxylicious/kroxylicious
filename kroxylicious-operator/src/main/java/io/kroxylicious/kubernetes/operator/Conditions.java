@@ -11,11 +11,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
-import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
@@ -144,11 +141,10 @@ public class Conditions {
                 .build();
     }
 
-    private static <U> U kafkaProxyStatusPatch(KafkaProxy observedProxy,
-                                               Condition unknownCondition,
-                                               Function<KafkaProxy, U> fn) {
+    private static KafkaProxy kafkaProxyStatusPatch(KafkaProxy observedProxy,
+                                               Condition unknownCondition) {
         // @formatter:off
-        var patch = new KafkaProxyBuilder()
+        return new KafkaProxyBuilder()
                 .withNewMetadata()
                     .withUid(ResourcesUtil.uid(observedProxy))
                     .withName(ResourcesUtil.name(observedProxy))
@@ -160,41 +156,36 @@ public class Conditions {
                 .endStatus()
                 .build();
         // @formatter:on
-        return fn.apply(patch);
     }
 
-    static ErrorStatusUpdateControl<KafkaProxy> newUnknownConditionStatusPatch(Clock clock,
-                                                                               KafkaProxy observedProxy,
-                                                                               Condition.Type type,
-                                                                               Exception e) {
+    static KafkaProxy newUnknownConditionStatusPatch(Clock clock,
+                                                     KafkaProxy observedProxy,
+                                                     Condition.Type type,
+                                                     Exception e) {
         Condition unknownCondition = newUnknownCondition(clock, observedProxy, type, e);
-        Function<KafkaProxy, ErrorStatusUpdateControl<KafkaProxy>> fn = ErrorStatusUpdateControl::patchStatus;
-        return kafkaProxyStatusPatch(observedProxy, unknownCondition, fn);
+        return kafkaProxyStatusPatch(observedProxy, unknownCondition);
     }
 
-    static UpdateControl<KafkaProxy> newFalseConditionStatusPatch(Clock clock,
-                                                                  KafkaProxy observedProxy,
-                                                                  Condition.Type type,
-                                                                  String reason,
-                                                                  String message) {
+    static KafkaProxy newFalseConditionStatusPatch(Clock clock,
+                                                   KafkaProxy observedProxy,
+                                                   Condition.Type type,
+                                                   String reason,
+                                                   String message) {
         Condition falseCondition = newFalseCondition(clock, observedProxy, type, reason, message);
-        Function<KafkaProxy, UpdateControl<KafkaProxy>> fn = UpdateControl::patchStatus;
-        return kafkaProxyStatusPatch(observedProxy, falseCondition, fn);
+        return kafkaProxyStatusPatch(observedProxy, falseCondition);
     }
 
-    static UpdateControl<KafkaProxy> newTrueConditionStatusPatch(Clock clock,
-                                                                 KafkaProxy observedProxy,
-                                                                 Condition.Type type) {
+    static KafkaProxy newTrueConditionStatusPatch(Clock clock,
+                                                  KafkaProxy observedProxy,
+                                                  Condition.Type type) {
         Condition trueCondition = newTrueCondition(clock, observedProxy, type);
-        Function<KafkaProxy, UpdateControl<KafkaProxy>> fn = UpdateControl::patchStatus;
-        return kafkaProxyStatusPatch(observedProxy, trueCondition, fn);
+        return kafkaProxyStatusPatch(observedProxy, trueCondition);
     }
 
-    private static <U> U filterStatusPatch(KafkaProtocolFilter observedProxy,
-                                           Condition unknownCondition,
-                                           Function<KafkaProtocolFilter, U> fn) {
+    private static KafkaProtocolFilter filterStatusPatch(KafkaProtocolFilter observedProxy,
+                                                         Condition unknownCondition) {
         // @formatter:off
-        var patch = new KafkaProtocolFilterBuilder()
+        return new KafkaProtocolFilterBuilder()
                 .withNewMetadata()
                     .withUid(ResourcesUtil.uid(observedProxy))
                     .withName(ResourcesUtil.name(observedProxy))
@@ -206,41 +197,36 @@ public class Conditions {
                 .endStatus()
                 .build();
         // @formatter:on
-        return fn.apply(patch);
     }
 
-    static ErrorStatusUpdateControl<KafkaProtocolFilter> newUnknownConditionStatusPatch(Clock clock,
-                                                                                        KafkaProtocolFilter observedFilter,
-                                                                                        Condition.Type type,
-                                                                                        Exception e) {
+    static KafkaProtocolFilter newUnknownConditionStatusPatch(Clock clock,
+                                                              KafkaProtocolFilter observedFilter,
+                                                              Condition.Type type,
+                                                              Exception e) {
         Condition unknownCondition = newUnknownCondition(clock, observedFilter, type, e);
-        Function<KafkaProtocolFilter, ErrorStatusUpdateControl<KafkaProtocolFilter>> fn = ErrorStatusUpdateControl::patchStatus;
-        return filterStatusPatch(observedFilter, unknownCondition, fn);
+        return filterStatusPatch(observedFilter, unknownCondition);
     }
 
-    static UpdateControl<KafkaProtocolFilter> newFalseConditionStatusPatch(Clock clock,
-                                                                           KafkaProtocolFilter observedProxy,
-                                                                           Condition.Type type,
-                                                                           String reason,
-                                                                           String message) {
+    static KafkaProtocolFilter newFalseConditionStatusPatch(Clock clock,
+                                                            KafkaProtocolFilter observedProxy,
+                                                            Condition.Type type,
+                                                            String reason,
+                                                            String message) {
         Condition falseCondition = newFalseCondition(clock, observedProxy, type, reason, message);
-        Function<KafkaProtocolFilter, UpdateControl<KafkaProtocolFilter>> fn = UpdateControl::patchStatus;
-        return filterStatusPatch(observedProxy, falseCondition, fn);
+        return filterStatusPatch(observedProxy, falseCondition);
     }
 
-    static UpdateControl<KafkaProtocolFilter> newTrueConditionStatusPatch(Clock clock,
-                                                                          KafkaProtocolFilter observedProxy,
-                                                                          Condition.Type type) {
+    static KafkaProtocolFilter newTrueConditionStatusPatch(Clock clock,
+                                                           KafkaProtocolFilter observedProxy,
+                                                           Condition.Type type) {
         Condition trueCondition = newTrueCondition(clock, observedProxy, type);
-        Function<KafkaProtocolFilter, UpdateControl<KafkaProtocolFilter>> fn = UpdateControl::patchStatus;
-        return filterStatusPatch(observedProxy, trueCondition, fn);
+        return filterStatusPatch(observedProxy, trueCondition);
     }
 
-    private static <U> U ingressStatusPatch(KafkaProxyIngress observedIngress,
-                                            Condition unknownCondition,
-                                            Function<KafkaProxyIngress, U> fn) {
+    private static KafkaProxyIngress ingressStatusPatch(KafkaProxyIngress observedIngress,
+                                                        Condition unknownCondition) {
         // @formatter:off
-        var patch = new KafkaProxyIngressBuilder()
+        return new KafkaProxyIngressBuilder()
                 .withNewMetadata()
                     .withUid(ResourcesUtil.uid(observedIngress))
                     .withName(ResourcesUtil.name(observedIngress))
@@ -252,86 +238,77 @@ public class Conditions {
                 .endStatus()
                 .build();
         // @formatter:on
-        return fn.apply(patch);
     }
 
-    static ErrorStatusUpdateControl<KafkaProxyIngress> newUnknownConditionStatusPatch(Clock clock,
-                                                                                      KafkaProxyIngress observedFilter,
-                                                                                      Condition.Type type,
-                                                                                      Exception e) {
+    static KafkaProxyIngress newUnknownConditionStatusPatch(Clock clock,
+                                                            KafkaProxyIngress observedFilter,
+                                                            Condition.Type type,
+                                                            Exception e) {
         Condition unknownCondition = newUnknownCondition(clock, observedFilter, type, e);
-        Function<KafkaProxyIngress, ErrorStatusUpdateControl<KafkaProxyIngress>> fn = ErrorStatusUpdateControl::patchStatus;
-        return ingressStatusPatch(observedFilter, unknownCondition, fn);
+        return ingressStatusPatch(observedFilter, unknownCondition);
     }
 
-    static UpdateControl<KafkaProxyIngress> newFalseConditionStatusPatch(Clock clock,
-                                                                         KafkaProxyIngress observedProxy,
-                                                                         Condition.Type type,
-                                                                         String reason,
-                                                                         String message) {
+    static KafkaProxyIngress newFalseConditionStatusPatch(Clock clock,
+                                                          KafkaProxyIngress observedProxy,
+                                                          Condition.Type type,
+                                                          String reason,
+                                                          String message) {
         Condition falseCondition = newFalseCondition(clock, observedProxy, type, reason, message);
-        Function<KafkaProxyIngress, UpdateControl<KafkaProxyIngress>> fn = UpdateControl::patchStatus;
-        return ingressStatusPatch(observedProxy, falseCondition, fn);
+        return ingressStatusPatch(observedProxy, falseCondition);
     }
 
-    static UpdateControl<KafkaProxyIngress> newTrueConditionStatusPatch(Clock clock,
-                                                                        KafkaProxyIngress observedProxy,
-                                                                        Condition.Type type) {
+    static KafkaProxyIngress newTrueConditionStatusPatch(Clock clock,
+                                                         KafkaProxyIngress observedProxy,
+                                                         Condition.Type type) {
         Condition trueCondition = newTrueCondition(clock, observedProxy, type);
-        Function<KafkaProxyIngress, UpdateControl<KafkaProxyIngress>> fn = UpdateControl::patchStatus;
-        return ingressStatusPatch(observedProxy, trueCondition, fn);
+        return ingressStatusPatch(observedProxy, trueCondition);
     }
 
-    private static <U> U serviceStatusPatch(KafkaService observedIngress,
-                                            Condition unknownCondition,
-                                            Function<KafkaService, U> fn) {
+    private static KafkaService serviceStatusPatch(KafkaService observedIngress,
+                                                   Condition unknownCondition) {
         // @formatter:off
-        var patch = new KafkaServiceBuilder()
+        return new KafkaServiceBuilder()
                 .withNewMetadata()
-                .withUid(ResourcesUtil.uid(observedIngress))
-                .withName(ResourcesUtil.name(observedIngress))
-                .withNamespace(ResourcesUtil.namespace(observedIngress))
+                    .withUid(ResourcesUtil.uid(observedIngress))
+                    .withName(ResourcesUtil.name(observedIngress))
+                    .withNamespace(ResourcesUtil.namespace(observedIngress))
                 .endMetadata()
                 .withNewStatus()
-                .withObservedGeneration(ResourcesUtil.generation(observedIngress))
-                .withConditions(newConditions(Optional.ofNullable(observedIngress.getStatus()).map(KafkaServiceStatus::getConditions).orElse(List.of()), unknownCondition))
+                    .withObservedGeneration(ResourcesUtil.generation(observedIngress))
+                    .withConditions(newConditions(Optional.ofNullable(observedIngress.getStatus()).map(KafkaServiceStatus::getConditions).orElse(List.of()), unknownCondition))
                 .endStatus()
                 .build();
         // @formatter:on
-        return fn.apply(patch);
     }
 
-    static ErrorStatusUpdateControl<KafkaService> newUnknownConditionStatusPatch(Clock clock,
-                                                                                 KafkaService observedFilter,
-                                                                                 Condition.Type type,
-                                                                                 Exception e) {
+    static KafkaService newUnknownConditionStatusPatch(Clock clock,
+                                                       KafkaService observedFilter,
+                                                       Condition.Type type,
+                                                       Exception e) {
         Condition unknownCondition = newUnknownCondition(clock, observedFilter, type, e);
-        Function<KafkaService, ErrorStatusUpdateControl<KafkaService>> fn = ErrorStatusUpdateControl::patchStatus;
-        return serviceStatusPatch(observedFilter, unknownCondition, fn);
+        return serviceStatusPatch(observedFilter, unknownCondition);
     }
 
-    static UpdateControl<KafkaService> newFalseConditionStatusPatch(Clock clock,
-                                                                    KafkaService observedProxy,
-                                                                    Condition.Type type,
-                                                                    String reason,
-                                                                    String message) {
+    static KafkaService newFalseConditionStatusPatch(Clock clock,
+                                                     KafkaService observedProxy,
+                                                     Condition.Type type,
+                                                     String reason,
+                                                     String message) {
         Condition falseCondition = newFalseCondition(clock, observedProxy, type, reason, message);
-        Function<KafkaService, UpdateControl<KafkaService>> fn = UpdateControl::patchStatus;
-        return serviceStatusPatch(observedProxy, falseCondition, fn);
+        return serviceStatusPatch(observedProxy, falseCondition);
     }
 
-    static UpdateControl<KafkaService> newTrueConditionStatusPatch(Clock clock,
-                                                                   KafkaService observedProxy,
-                                                                   Condition.Type type) {
+    static KafkaService newTrueConditionStatusPatch(Clock clock,
+                                                    KafkaService observedProxy,
+                                                    Condition.Type type) {
         Condition trueCondition = newTrueCondition(clock, observedProxy, type);
-        Function<KafkaService, UpdateControl<KafkaService>> fn = UpdateControl::patchStatus;
-        return serviceStatusPatch(observedProxy, trueCondition, fn);
+        return serviceStatusPatch(observedProxy, trueCondition);
     }
 
     private static VirtualKafkaCluster clusterStatusPatch(VirtualKafkaCluster observedIngress,
                                                           Condition unknownCondition) {
         // @formatter:off
-        var patch = new VirtualKafkaClusterBuilder()
+        return new VirtualKafkaClusterBuilder()
                 .withNewMetadata()
                     .withUid(ResourcesUtil.uid(observedIngress))
                     .withName(ResourcesUtil.name(observedIngress))
@@ -343,15 +320,14 @@ public class Conditions {
                 .endStatus()
                 .build();
         // @formatter:on
-        return patch;
     }
 
-    static ErrorStatusUpdateControl<VirtualKafkaCluster> newUnknownConditionStatusPatch(Clock clock,
-                                                                                        VirtualKafkaCluster observedFilter,
-                                                                                        Condition.Type type,
-                                                                                        Exception e) {
+    static VirtualKafkaCluster newUnknownConditionStatusPatch(Clock clock,
+                                                              VirtualKafkaCluster observedFilter,
+                                                              Condition.Type type,
+                                                              Exception e) {
         Condition unknownCondition = newUnknownCondition(clock, observedFilter, type, e);
-        return ErrorStatusUpdateControl.patchStatus(clusterStatusPatch(observedFilter, unknownCondition));
+        return clusterStatusPatch(observedFilter, unknownCondition);
     }
 
     static VirtualKafkaCluster newFalseConditionStatusPatch(Clock clock,
