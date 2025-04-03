@@ -1,0 +1,26 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+resource:
+  kind: KafkaProxyIngress
+  apiVersion: kroxylicious.io/v1alpha1
+  metadata:
+    name: cluster-ip-bar
+    namespace: proxy-ns
+    generation: 2
+  spec:
+    proxyRef:
+      name: "0aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+        50aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+        100aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+        150aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+        200aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
+        aaaa"
+    clusterIP:
+      protocol: TCP
+expectFailureMessageToContain: |
+  spec.proxyRef.name: Too long

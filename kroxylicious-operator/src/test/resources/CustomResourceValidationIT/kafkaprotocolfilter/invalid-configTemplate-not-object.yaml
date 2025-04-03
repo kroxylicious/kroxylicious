@@ -1,0 +1,18 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+resource:
+  kind: KafkaProtocolFilter
+  apiVersion: filter.kroxylicious.io/v1alpha1
+  metadata:
+    name: filter-one
+    namespace: proxy-ns
+  spec:
+    type: "RecordEncryption"
+    configTemplate: [ ]
+expectFailureMessageToContain: |
+  spec.configTemplate: Invalid value: "array"
