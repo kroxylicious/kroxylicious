@@ -73,9 +73,6 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
         return baseVirtualKafkaClusterDeployment(namespaceName, clusterName, proxyName, clusterRefName, ingressName)
                 .editSpec()
                 .addAllToFilterRefs(getFilterRefs(filterNames))
-//                .addToFilterRefs(new FilterRefBuilder()
-//                        .withName(filterName)
-//                        .build())
                 .endSpec();
     }
 

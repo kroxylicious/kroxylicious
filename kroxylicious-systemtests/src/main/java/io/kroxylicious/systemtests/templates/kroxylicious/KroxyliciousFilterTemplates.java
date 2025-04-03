@@ -46,6 +46,14 @@ public final class KroxyliciousFilterTemplates {
         // @formatter:on
     }
 
+    /**
+     * Kroxylicious record encryption filter.
+     *
+     * @param namespaceName the namespace name
+     * @param testKmsFacade the test kms facade
+     * @param experimentalKmsConfig the experimental kms config
+     * @return the kafka protocol filter builder
+     */
     public static KafkaProtocolFilterBuilder kroxyliciousRecordEncryptionFilter(String namespaceName, TestKmsFacade<?, ?, ?> testKmsFacade,
                                                                       ExperimentalKmsConfig experimentalKmsConfig) {
         return baseFilterDeployment(namespaceName, Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME)
