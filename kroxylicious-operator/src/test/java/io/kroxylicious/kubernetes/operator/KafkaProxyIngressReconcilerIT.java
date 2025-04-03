@@ -71,26 +71,26 @@ class KafkaProxyIngressReconcilerIT {
     @Test
     void testCreateIngressFirst() {
         KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
-        assertIngressStatusResolvedRefs(ingressBar, Condition.Status.FALSE);
+        assertResolvedRefsFalse(ingressBar);
         testActor.create(kafkaProxy(PROXY_A));
-        assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
+        assertAllConditionsTrue(ingressBar);
     }
 
     @Test
     void testCreateProxyFirst() {
         testActor.create(kafkaProxy(PROXY_A));
         KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
-        assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
+        assertAllConditionsTrue(ingressBar);
     }
 
     @Test
     void testDeleteProxy() {
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
         KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
-        assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
+        assertAllConditionsTrue(ingressBar);
 
         testActor.delete(proxy);
-        assertIngressStatusResolvedRefs(ingressBar, Condition.Status.FALSE);
+        assertResolvedRefsFalse(ingressBar);
     }
 
     @Test
@@ -98,10 +98,10 @@ class KafkaProxyIngressReconcilerIT {
         testActor.create(kafkaProxy(PROXY_A));
         testActor.create(kafkaProxy(PROXY_B));
         KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_A));
-        assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
+        assertAllConditionsTrue(ingressBar);
 
         testActor.replace(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, PROXY_B));
-        assertIngressStatusResolvedRefs(ingressBar, Condition.Status.TRUE);
+        assertAllConditionsTrue(ingressBar);
     }
 
     private KafkaProxyIngress clusterIpIngress(String ingressName, String proxyName) {
@@ -110,7 +110,20 @@ class KafkaProxyIngressReconcilerIT {
                 .build();
     }
 
-    private void assertIngressStatusResolvedRefs(KafkaProxyIngress cr, Condition.Status conditionStatus) {
+    private void assertAllConditionsTrue(KafkaProxyIngress ingressBar) {
+        AWAIT.alias("IngressStatusResolvedRefs").untilAsserted(() -> {
+            var kpi = testActor.resources(KafkaProxyIngress.class)
+                    .withName(ResourcesUtil.name(ingressBar)).get();
+            assertThat(kpi.getStatus()).isNotNull();
+            KafkaProxyIngressStatusAssert
+                    .assertThat(kpi.getStatus())
+                    .hasObservedGenerationInSyncWithMetadataOf(kpi)
+                    .conditionList()
+                    .isEmpty();
+        });
+    }
+
+    private void assertResolvedRefsFalse(KafkaProxyIngress cr) {
         AWAIT.alias("IngressStatusResolvedRefs").untilAsserted(() -> {
             var kpi = testActor.resources(KafkaProxyIngress.class)
                     .withName(ResourcesUtil.name(cr)).get();
@@ -120,7 +133,7 @@ class KafkaProxyIngressReconcilerIT {
                     .hasObservedGenerationInSyncWithMetadataOf(kpi)
                     .singleCondition()
                     .hasType(Condition.Type.ResolvedRefs)
-                    .hasStatus(conditionStatus)
+                    .hasStatus(Condition.Status.FALSE)
                     .hasObservedGenerationInSyncWithMetadataOf(kpi);
         });
     }
