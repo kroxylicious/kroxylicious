@@ -145,10 +145,10 @@ public class KafkaProtocolFilterReconciler implements
                 .collect(Collectors.toCollection(TreeSet::new));
         LOGGER.debug("Referenced configmaps: {}", referencedConfigMaps);
 
-        UpdateControl<KafkaProtocolFilter> uc;
+        KafkaProtocolFilter patch;
         if (existingSecrets.containsAll(referencedSecrets)
                 && existingConfigMaps.containsAll(referencedConfigMaps)) {
-            uc = Conditions.newTrueConditionStatusPatch(
+            patch = Conditions.newTrueConditionStatusPatch(
                     clock,
                     filter,
                     Condition.Type.ResolvedRefs);
@@ -164,7 +164,7 @@ public class KafkaProtocolFilterReconciler implements
                 message += " ConfigMaps [" + String.join(", ", referencedConfigMaps) + "]";
             }
             message += " not found";
-            uc = Conditions.newFalseConditionStatusPatch(
+            patch = Conditions.newFalseConditionStatusPatch(
                     clock,
                     filter,
                     Condition.Type.ResolvedRefs,
@@ -175,7 +175,7 @@ public class KafkaProtocolFilterReconciler implements
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(filter), name(filter));
         }
-        return uc;
+        return UpdateControl.patchStatus(patch);
     }
 
     @Override
@@ -184,7 +184,7 @@ public class KafkaProtocolFilterReconciler implements
                                                                            Context<KafkaProtocolFilter> context,
                                                                            Exception e) {
         // ResolvedRefs to UNKNOWN
-        ErrorStatusUpdateControl<KafkaProtocolFilter> uc = Conditions.newUnknownConditionStatusPatch(clock, filter, Condition.Type.ResolvedRefs, e);
+        ErrorStatusUpdateControl<KafkaProtocolFilter> uc = ErrorStatusUpdateControl.patchStatus(Conditions.newUnknownConditionStatusPatch(clock, filter, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(filter), name(filter), e.toString());
         }

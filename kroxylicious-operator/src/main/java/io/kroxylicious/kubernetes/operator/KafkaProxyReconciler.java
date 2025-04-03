@@ -100,7 +100,7 @@ public class KafkaProxyReconciler implements
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
-        var uc = Conditions.newTrueConditionStatusPatch(clock, primary, Condition.Type.Ready);
+        var uc = UpdateControl.patchStatus(Conditions.newTrueConditionStatusPatch(clock, primary, Condition.Type.Ready));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(primary), name(primary));
         }
@@ -114,7 +114,7 @@ public class KafkaProxyReconciler implements
     public ErrorStatusUpdateControl<KafkaProxy> updateErrorStatus(KafkaProxy proxy,
                                                                   Context<KafkaProxy> context,
                                                                   Exception e) {
-        var uc = Conditions.newUnknownConditionStatusPatch(clock, proxy, Condition.Type.Ready, e);
+        var uc = ErrorStatusUpdateControl.patchStatus(Conditions.newUnknownConditionStatusPatch(clock, proxy, Condition.Type.Ready, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(proxy), name(proxy), e.toString());
         }

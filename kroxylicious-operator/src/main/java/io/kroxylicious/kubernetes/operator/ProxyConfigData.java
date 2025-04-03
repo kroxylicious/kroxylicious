@@ -70,7 +70,9 @@ public class ProxyConfigData {
 
     record VirtualKafkaClusterPatch(ObjectMeta metadata,
                                     VirtualKafkaClusterStatus status) {
-
+        // Use a dedicated class for JSON serialization because if we use a VKC itself
+        // we get some extra fields which we don't really need
+        // (like kind, apigroup and one for io.fabric8.kubernetes.client.CustomResource#getCRDName())
         public VirtualKafkaCluster toResource() {
             return new VirtualKafkaClusterBuilder().withMetadata(metadata()).withStatus(status()).build();
         }
