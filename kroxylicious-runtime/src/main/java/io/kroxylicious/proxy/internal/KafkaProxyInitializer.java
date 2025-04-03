@@ -192,7 +192,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         var dp = new SaslDecodePredicate(!authnHandlers.isEmpty());
         // The decoder, this only cares about the filters
         // because it needs to know whether to decode requests
-        KafkaRequestDecoder decoder = new KafkaRequestDecoder(dp, virtualCluster.socketFrameMaxSizeBytes(), apiVersionsService);
+        KafkaRequestDecoder decoder = new KafkaRequestDecoder(dp, virtualCluster.socketFrameMaxSizeBytes(), apiVersionsService, virtualCluster.getClusterName());
         pipeline.addLast("requestDecoder", decoder);
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder());
         pipeline.addLast("responseOrderer", new ResponseOrderer());
@@ -214,7 +214,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                 endpointReconciler,
                 new ApiVersionsIntersectFilter(apiVersionsService),
                 new ApiVersionsDowngradeFilter(apiVersionsService));
-        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, binding.endpointGateway());
+        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, binding.endpointGateway(), virtualCluster.getClusterName());
 
         pipeline.addLast("netHandler", frontendHandler);
         addLoggingErrorHandler(pipeline);

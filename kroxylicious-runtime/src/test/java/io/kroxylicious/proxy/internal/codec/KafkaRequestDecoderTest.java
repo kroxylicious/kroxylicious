@@ -32,11 +32,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KafkaRequestDecoderTest {
 
+    private static final String CLUSTER_NAME = "randomCluster";
+
     @Test
     void decodeUnknownApiVersionsRespectsOverridenLatestVersion() {
         short latestSupportedApiVersionsOverride = (short) 2;
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(Map.of(ApiKeys.API_VERSIONS, latestSupportedApiVersionsOverride));
-        EmbeddedChannel embeddedChannel = new EmbeddedChannel(new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, 1024, apiVersionsService));
+        EmbeddedChannel embeddedChannel = newEmbeddedChannel(apiVersionsService);
         RequestHeaderData header = latestVersionHeaderWithAllFields(ApiKeys.API_VERSIONS, (short) (latestSupportedApiVersionsOverride + 1));
         byte[] arbitraryBodyBytes = new byte[]{ 1, 2, 3, 4 };
         ObjectSerializationCache cache = new ObjectSerializationCache();
@@ -66,15 +68,14 @@ class KafkaRequestDecoderTest {
                 short version = ApiKeys.API_VERSIONS.requestHeaderVersion((short) 0);
                 assertUnwritable(requestHeaderData, cache, version);
             });
-            assertThat(decodedRequestFrame.body()).isInstanceOfSatisfying(ApiVersionsRequestData.class, apiVersionsRequestData -> {
-                assertUnwritable(apiVersionsRequestData, cache, (short) 0);
-            });
+            assertThat(decodedRequestFrame.body()).isInstanceOfSatisfying(ApiVersionsRequestData.class,
+                    apiVersionsRequestData -> assertUnwritable(apiVersionsRequestData, cache, (short) 0));
         });
     }
 
     @Test
     void decodeUnknownApiVersions() {
-        EmbeddedChannel embeddedChannel = new EmbeddedChannel(new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, 1024, new ApiVersionsServiceImpl()));
+        EmbeddedChannel embeddedChannel = newEmbeddedChannel(new ApiVersionsServiceImpl());
         RequestHeaderData header = latestVersionHeaderWithAllFields(ApiKeys.API_VERSIONS, Short.MAX_VALUE);
         byte[] arbitraryBodyBytes = new byte[]{ 1, 2, 3, 4 };
         ObjectSerializationCache cache = new ObjectSerializationCache();
@@ -104,16 +105,15 @@ class KafkaRequestDecoderTest {
                 short version = ApiKeys.API_VERSIONS.requestHeaderVersion((short) 0);
                 assertUnwritable(requestHeaderData, cache, version);
             });
-            assertThat(decodedRequestFrame.body()).isInstanceOfSatisfying(ApiVersionsRequestData.class, apiVersionsRequestData -> {
-                assertUnwritable(apiVersionsRequestData, cache, (short) 0);
-            });
+            assertThat(decodedRequestFrame.body()).isInstanceOfSatisfying(ApiVersionsRequestData.class,
+                    apiVersionsRequestData -> assertUnwritable(apiVersionsRequestData, cache, (short) 0));
         });
     }
 
     // after ApiVersions negotiation we should never encounter a request from the client for an api version unknown to the proxy
     @Test
     void throwsOnUnsupportedVersionOfNonApiVersionsRequests() {
-        EmbeddedChannel embeddedChannel = new EmbeddedChannel(new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, 1024, new ApiVersionsServiceImpl()));
+        EmbeddedChannel embeddedChannel = newEmbeddedChannel(new ApiVersionsServiceImpl());
         short maxSupportedVersion = ApiKeys.METADATA.latestVersion(true);
         short unsupportedVersion = (short) (maxSupportedVersion + 1);
         RequestHeaderData header = latestVersionHeaderWithAllFields(ApiKeys.METADATA, unsupportedVersion);
@@ -127,10 +127,14 @@ class KafkaRequestDecoderTest {
         accessor.writeInt(messageSize);
         header.write(accessor, cache, requestHeaderVersion);
         accessor.writeByteArray(arbitraryBodyBytes);
-        assertThatThrownBy(() -> {
-            embeddedChannel.writeInbound(buffer);
-        }).isInstanceOf(DecoderException.class).cause().isInstanceOf(IllegalStateException.class)
+        assertThatThrownBy(() -> embeddedChannel.writeInbound(buffer)).isInstanceOf(DecoderException.class).cause().isInstanceOf(IllegalStateException.class)
                 .hasMessage("client apiVersion %d ahead of proxy maximum %d for api key: METADATA", unsupportedVersion, maxSupportedVersion);
+    }
+
+    @NonNull
+    private static EmbeddedChannel newEmbeddedChannel(ApiVersionsServiceImpl apiVersionsService) {
+        return new EmbeddedChannel(
+                new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, 1024, apiVersionsService, CLUSTER_NAME));
     }
 
     private static @NonNull RequestHeaderData latestVersionHeaderWithAllFields(ApiKeys requestApiKey, short requestApiVersion) {

@@ -16,6 +16,8 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Tag;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
@@ -27,6 +29,7 @@ import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -35,6 +38,13 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_STATE;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_DOWNSTREAM_CONNECTIONS;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_DOWNSTREAM_ERRORS;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTIONS;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_ERRORS;
+import static io.kroxylicious.proxy.internal.util.Metrics.taggedCounter;
 import static org.slf4j.LoggerFactory.getLogger;
 
 /**
@@ -95,6 +105,22 @@ import static org.slf4j.LoggerFactory.getLogger;
 public class ProxyChannelStateMachine {
     private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "NetFilter called NetFilterContext.initiateConnect() more than once";
     private static final Logger LOGGER = getLogger(ProxyChannelStateMachine.class);
+    private final Counter downstreamConnectionsCounter;
+    private final Counter upstreamConnectionsCounter;
+    private final Counter downstreamErrorCounter;
+    private final Counter upstreamErrorCounter;
+    private final Counter connectionAttemptsCounter;
+    private final Counter upstreamConnectionFailureCounter;
+
+    public ProxyChannelStateMachine(String clusterName) {
+        List<Tag> tags = Metrics.tags(Metrics.VIRTUAL_CLUSTER_TAG, clusterName);
+        downstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_CONNECTIONS, tags);
+        downstreamErrorCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_ERRORS, tags);
+        upstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTIONS, tags);
+        connectionAttemptsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS, tags);
+        upstreamErrorCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_ERRORS, tags);
+        upstreamConnectionFailureCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES, tags);
+    }
 
     /**
      * The current state. This can be changed via a call to one of the {@code on*()} methods.
@@ -370,6 +396,10 @@ public class ProxyChannelStateMachine {
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
                 .addArgument(cause != null ? cause.getMessage() : "")
                 .log("Exception from the server channel: {}. Increase log level to DEBUG for stacktrace");
+        if (state instanceof ProxyChannelState.Connecting) {
+            upstreamConnectionFailureCounter.increment();
+        }
+        upstreamErrorCounter.increment();
         toClosed(cause);
     }
 
@@ -395,6 +425,7 @@ public class ProxyChannelStateMachine {
                     .log("Exception from the client channel: {}. Increase log level to DEBUG for stacktrace");
             errorCodeEx = Errors.UNKNOWN_SERVER_ERROR.exception();
         }
+        downstreamErrorCounter.increment();
         toClosed(errorCodeEx);
     }
 
@@ -403,6 +434,7 @@ public class ProxyChannelStateMachine {
                                 @NonNull KafkaProxyFrontendHandler frontendHandler) {
         setState(clientActive);
         frontendHandler.inClientActive();
+        downstreamConnectionsCounter.increment();
     }
 
     private void toConnecting(
@@ -412,11 +444,13 @@ public class ProxyChannelStateMachine {
         setState(connecting);
         backendHandler = new KafkaProxyBackendHandler(this, virtualClusterModel);
         frontendHandler.inConnecting(connecting.remote(), filters, backendHandler);
+        connectionAttemptsCounter.increment();
     }
 
     private void toForwarding(Forwarding forwarding) {
         setState(forwarding);
         Objects.requireNonNull(frontendHandler).inForwarding();
+        upstreamConnectionsCounter.increment();
     }
 
     /**
@@ -510,6 +544,7 @@ public class ProxyChannelStateMachine {
         Objects.requireNonNull(frontendHandler).inSelectingServer();
     }
 
+    @SuppressWarnings("ConstantValue")
     private void toClosed(@Nullable Throwable errorCodeEx) {
         if (state instanceof Closed) {
             return;
@@ -521,7 +556,9 @@ public class ProxyChannelStateMachine {
         }
 
         // Close the client connection with any error code
-        Objects.requireNonNull(frontendHandler).inClosed(errorCodeEx);
+        if (frontendHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)
+            frontendHandler.inClosed(errorCodeEx);
+        }
     }
 
     private void setState(@NonNull ProxyChannelState state) {

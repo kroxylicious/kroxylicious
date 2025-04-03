@@ -65,6 +65,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
         }
     };
     public static final KafkaRequestDecoder MAX_FRAME_SIZE_10_BYTES_DECODER = getKafkaRequestDecoder(DECODE_EVERYTHING, 10);
+    private static final String CLUSTER_NAME = "randomVCluster";
 
     static List<Object[]> produceRequestApiVersions() {
         List<Short> produceVersions = requestApiVersions(ApiMessageType.PRODUCE).toList();
@@ -93,7 +94,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                                         .forFilters(FilterAndInvoker.build(
                                                 (ApiVersionsRequestFilter) (version, header, request, context) -> context.requestFilterResultBuilder()
                                                         .forward(header, request).completed())),
-                                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl()),
+                                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), CLUSTER_NAME),
                         DecodedRequestFrame.class,
                         (RequestHeaderData header) -> header, true),
                 "Unexpected correlation id");
@@ -174,14 +175,14 @@ public class RequestDecoderTest extends AbstractCodecTest {
                                                                                                      FilterContext context) {
                                         return context.requestFilterResultBuilder().forward(header, request).completed();
                                     }
-                                })), DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl()),
+                                })), DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), CLUSTER_NAME),
                         OpaqueRequestFrame.class, true),
                 "Unexpected correlation id");
     }
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    void testApiVersionsFrameLessOneByte(short apiVersion) throws Exception {
+    void testApiVersionsFrameLessOneByte(short apiVersion) {
         RequestHeaderData encodedHeader = exampleRequestHeader(apiVersion);
         ApiVersionsRequestData encodedBody = exampleApiVersionsRequest();
 
@@ -193,17 +194,16 @@ public class RequestDecoderTest extends AbstractCodecTest {
         var messages = new ArrayList<>();
         new KafkaRequestDecoder(
                 DecodePredicate.forFilters(
-                        FilterAndInvoker.build((ApiVersionsRequestFilter) (version, header, request, context) -> {
-                            return context.requestFilterResultBuilder().forward(header, request).completed();
-                        })),
-                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl())
+                        FilterAndInvoker.build((ApiVersionsRequestFilter) (version, header, request, context) -> context.requestFilterResultBuilder()
+                                .forward(header, request).completed())),
+                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), CLUSTER_NAME)
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
         assertEquals(0, byteBuf.readerIndex());
     }
 
-    private void doTestApiVersionsFrameFirstNBytes(short apiVersion, int n, int expectRead) throws Exception {
+    private void doTestApiVersionsFrameFirstNBytes(short apiVersion, int n, int expectRead) {
         RequestHeaderData encodedHeader = exampleRequestHeader(apiVersion);
         ApiVersionsRequestData encodedBody = exampleApiVersionsRequest();
 
@@ -228,24 +228,24 @@ public class RequestDecoderTest extends AbstractCodecTest {
     private static KafkaRequestDecoder getKafkaRequestDecoder(DecodePredicate predicate, int socketFrameMaxSizeBytes) {
         return new KafkaRequestDecoder(
                 predicate,
-                socketFrameMaxSizeBytes, new ApiVersionsServiceImpl());
+                socketFrameMaxSizeBytes, new ApiVersionsServiceImpl(), CLUSTER_NAME);
     }
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    void testApiVersionsFrameFirst3Bytes(short apiVersion) throws Exception {
+    void testApiVersionsFrameFirst3Bytes(short apiVersion) {
         doTestApiVersionsFrameFirstNBytes(apiVersion, 3, 0);
     }
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    void testApiVersionsFrameFirst5Bytes(short apiVersion) throws Exception {
+    void testApiVersionsFrameFirst5Bytes(short apiVersion) {
         doTestApiVersionsFrameFirstNBytes(apiVersion, 5, 0);
     }
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    void testApiVersionsExactlyTwoFrames(short apiVersion) throws Exception {
+    void testApiVersionsExactlyTwoFrames(short apiVersion) {
         RequestHeaderData encodedHeader = exampleRequestHeader(apiVersion);
 
         ApiVersionsRequestData encodedBody = exampleApiVersionsRequest();
@@ -270,7 +270,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         FilterAndInvoker
                                 .build((ApiVersionsRequestFilter) (version, head, request, context) -> context.requestFilterResultBuilder().forward(header, request)
                                         .completed())),
-                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl())
+                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), CLUSTER_NAME)
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(DecodedRequestFrame.class, DecodedRequestFrame.class), messageClasses(messages));
@@ -320,7 +320,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
      */
     @ParameterizedTest
     @MethodSource("produceRequestApiVersions")
-    void testAcksParsingWhenDecoding(short produceVersion, short acks) throws Exception {
+    void testAcksParsingWhenDecoding(short produceVersion, short acks) {
 
         var header = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.PRODUCE.id)

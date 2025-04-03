@@ -19,6 +19,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Tag;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelOption;
@@ -153,9 +154,12 @@ public final class KafkaProxy implements AutoCloseable {
                     .join();
 
             // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
-            // TODO add a virtual host tag to metrics
-            Metrics.inboundDownstreamMessagesCounter();
-            Metrics.inboundDownstreamDecodedMessagesCounter();
+            virtualClusterModels.forEach(virtualClusterModel -> {
+                List<Tag> tags = Metrics.tags(Metrics.FLOWING_TAG, Metrics.DOWNSTREAM, Metrics.VIRTUAL_CLUSTER_TAG, virtualClusterModel.getClusterName());
+                Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, tags);
+                Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, tags);
+            });
+
             return this;
         }
         catch (RuntimeException e) {
