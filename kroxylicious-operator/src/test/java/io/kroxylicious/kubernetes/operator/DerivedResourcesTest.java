@@ -33,8 +33,10 @@ import org.junitpioneer.jupiter.SetEnvironmentVariable;
 import org.mockito.stubbing.Answer;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
@@ -63,9 +65,10 @@ import static org.mockito.Mockito.mock;
 
 class DerivedResourcesTest {
 
-    static final YAMLMapper YAML_MAPPER = new YAMLMapper()
+    static final ObjectMapper YAML_MAPPER = new YAMLMapper()
             .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
-            .enable(YAMLGenerator.Feature.LITERAL_BLOCK_STYLE);
+            .enable(YAMLGenerator.Feature.LITERAL_BLOCK_STYLE)
+            .registerModule(new JavaTimeModule());
 
     public static KafkaProxy kafkaProxyFromFile(Path path) {
         // TODO should validate against the CRD schema, because the DependentResource

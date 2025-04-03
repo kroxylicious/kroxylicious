@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -22,7 +23,7 @@ class ConditionTest {
         // Given
         Condition build = new ConditionBuilder().withLastTransitionTime(Instant.EPOCH).build();
         // When
-        var conditionWithEpoch = new ObjectMapper().writeValueAsString(build);
+        var conditionWithEpoch = new ObjectMapper().registerModule(new JavaTimeModule()).writeValueAsString(build);
         // Then
         assertThat(conditionWithEpoch).isEqualTo("{\"lastTransitionTime\":\"1970-01-01T00:00:00Z\"}");
     }
@@ -30,8 +31,8 @@ class ConditionTest {
     @Test
     void roundTrip() throws JsonProcessingException {
         // Given
-        ObjectMapper objectMapper = new ObjectMapper();
-        Condition wroteCondition = new ConditionBuilder().withLastTransitionTime(Instant.EPOCH).build();
+        ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+        Condition wroteCondition = new ConditionBuilder().withLastTransitionTime(Instant.now()).build();
         // When
         var conditionString = objectMapper.writeValueAsString(wroteCondition);
         var readCondition = objectMapper.readValue(conditionString, Condition.class);
