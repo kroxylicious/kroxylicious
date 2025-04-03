@@ -55,8 +55,8 @@ data:
       - "filter-two.KafkaProtocolFilter.filter.kroxylicious.io"
   cluster-foo: |
     ---
-    - type: "Accepted"
-      status: "True"
-      lastTransitionTime: "1970-01-01T00:00:00Z"
-    - type: "ResolvedRefs"
-      lastTransitionTime: "1970-01-01T00:00:00Z"
+    metadata:
+      name: "foo"
+      namespace: "proxy-ns"
+    status:
+      conditions: []

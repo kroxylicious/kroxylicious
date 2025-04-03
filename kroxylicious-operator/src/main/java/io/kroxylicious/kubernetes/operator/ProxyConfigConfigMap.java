@@ -122,22 +122,20 @@ public class ProxyConfigConfigMap
         var model = proxyModel.ingressModel();
         for (ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel : model.clusters()) {
             VirtualKafkaCluster cluster = virtualClusterIngressModel.cluster();
-            Condition removedResolvedRefs = Conditions.newConditionBuilder(clock, cluster)
-                    .withType(Condition.Type.ResolvedRefs)
-                    .build();
-            Condition accepted;
+
+            VirtualKafkaCluster patch;
             if (!virtualClusterIngressModel.ingressExceptions().isEmpty()) {
                 IngressConflictException first = virtualClusterIngressModel.ingressExceptions().iterator().next();
-                accepted = Conditions.newFalseCondition(clock, cluster,
+                patch = Conditions.newFalseConditionStatusPatch(clock, cluster,
                         Condition.Type.Accepted, Condition.REASON_INVALID,
                         "Ingress(es) [" + first.getIngressName() + "] of cluster conflicts with another ingress");
             }
             else {
-                accepted = Conditions.newTrueCondition(clock, cluster,
+                patch = Conditions.newTrueConditionStatusPatch(clock, cluster,
                         Condition.Type.Accepted);
             }
-            if (!data.hasConditionsForCluster(ResourcesUtil.name(cluster))) {
-                data.addConditionsForCluster(ResourcesUtil.name(cluster), List.of(accepted, removedResolvedRefs));
+            if (!data.hasStatusPatchForCluster(ResourcesUtil.name(cluster))) {
+                data.addStatusPatchForCluster(ResourcesUtil.name(cluster), patch);
             }
         }
     }
@@ -158,10 +156,10 @@ public class ProxyConfigConfigMap
                             ResourcesUtil.namespacedSlug(firstUnresolvedDependency, clusterResolutionResult.cluster()));
                     VirtualKafkaCluster cluster = clusterResolutionResult.cluster();
 
-                    data.addConditionsForCluster(
+                    data.addStatusPatchForCluster(
                             ResourcesUtil.name(cluster),
-                            List.of(Conditions.newFalseCondition(clock, cluster,
-                                    Condition.Type.ResolvedRefs, Condition.REASON_INVALID, message)));
+                            Conditions.newFalseConditionStatusPatch(clock, cluster,
+                                    Condition.Type.ResolvedRefs, Condition.REASON_INVALID, message));
                 });
     }
 

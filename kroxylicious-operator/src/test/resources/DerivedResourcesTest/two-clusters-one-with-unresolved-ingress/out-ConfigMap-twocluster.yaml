@@ -41,16 +41,21 @@ data:
             end: 2
   cluster-foo: |
     ---
-    - type: "ResolvedRefs"
-      status: "False"
-      lastTransitionTime: "1970-01-01T00:00:00Z"
-      reason: "Invalid"
-      message: "Resource kafkaproxyingress.kroxylicious.io/MISSING in namespace 'proxy-ns'\
-        \ was not found."
+    metadata:
+      name: "foo"
+      namespace: "proxy-ns"
+    status:
+      conditions:
+      - type: "ResolvedRefs"
+        status: "False"
+        lastTransitionTime: "1970-01-01T00:00:00Z"
+        reason: "Invalid"
+        message: "Resource kafkaproxyingress.kroxylicious.io/MISSING in namespace 'proxy-ns'\
+          \ was not found."
   cluster-bar: |
     ---
-    - type: "Accepted"
-      status: "True"
-      lastTransitionTime: "1970-01-01T00:00:00Z"
-    - type: "ResolvedRefs"
-      lastTransitionTime: "1970-01-01T00:00:00Z"
+    metadata:
+      name: "bar"
+      namespace: "proxy-ns"
+    status:
+      conditions: []
