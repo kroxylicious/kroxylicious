@@ -233,13 +233,13 @@ public class RequestDecoderTest extends AbstractCodecTest {
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    void testApiVersionsFrameFirst3Bytes(short apiVersion) throws Exception {
+    void testApiVersionsFrameFirst3Bytes(short apiVersion) {
         doTestApiVersionsFrameFirstNBytes(apiVersion, 3, 0);
     }
 
     @ParameterizedTest
     @MethodSource("requestApiVersions")
-    void testApiVersionsFrameFirst5Bytes(short apiVersion) throws Exception {
+    void testApiVersionsFrameFirst5Bytes(short apiVersion) {
         doTestApiVersionsFrameFirstNBytes(apiVersion, 5, 0);
     }
 
