@@ -11,8 +11,6 @@ ARG TARGETARCH
 
 USER root
 WORKDIR /opt/kroxylicious
-COPY . .
-RUN mvn -q -B clean package -Pdist -Dquick
 
 # Download Tini
 ENV TINI_VERSION=v0.19.0
@@ -38,6 +36,9 @@ RUN set -ex; \
         echo "${TINI_SHA256_AMD64} *${TINI_DEST}" | sha256sum -c; \
     fi; \
     chmod +x ${TINI_DEST}
+
+COPY . .
+RUN mvn -q -B clean package -Pdist -Dquick
 
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.2
 
