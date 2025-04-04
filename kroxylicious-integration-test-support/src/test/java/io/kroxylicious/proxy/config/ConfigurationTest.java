@@ -46,6 +46,13 @@ class ConfigurationTest {
             .withBootstrapAddress(HostPort.parse("example.com:1234"))
             .endPortIdentifiesNode()
             .build();
+    private static final VirtualCluster VIRTUAL_CLUSTER = new VirtualClusterBuilder()
+            .withName("demo")
+            .withNewTargetCluster()
+            .withBootstrapServers("kafka.example:1234")
+            .endTargetCluster()
+            .addToGateways(VIRTUAL_CLUSTER_GATEWAY)
+            .build();
     private final ConfigParser configParser = new ConfigParser();
 
     @Test
@@ -272,11 +279,21 @@ class ConfigurationTest {
                         "examplePluginConfig", Map.of("pluginKey", "pluginValue"))
                 .build();
         return Stream.of(argumentSet("Top level",
-                new ConfigurationBuilder().withUseIoUring(true).build(),
+                new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withUseIoUring(true).build(),
                 """
-                        useIoUring: true"""),
+                        useIoUring: true
+                        virtualClusters:
+                          - name: demo
+                            targetCluster:
+                              bootstrapServers: kafka.example:1234
+                            gateways:
+                            - name: default
+                              portIdentifiesNode:
+                                bootstrapAddress: example.com:1234
+                        """),
                 argumentSet("With filters",
                         new ConfigurationBuilder()
+                                .addToVirtualClusters(VIRTUAL_CLUSTER)
                                 .addToFilters(filter.asFilterDefinition())
                                 .build(),
                         """
@@ -286,9 +303,18 @@ class ConfigurationTest {
                                         examplePlugin: ExamplePluginInstance
                                         examplePluginConfig:
                                           pluginKey: pluginValue
+                                    virtualClusters:
+                                      - name: demo
+                                        targetCluster:
+                                          bootstrapServers: kafka.example:1234
+                                        gateways:
+                                        - name: default
+                                          portIdentifiesNode:
+                                            bootstrapAddress: example.com:1234
                                 """),
                 argumentSet("With filterDefinitions",
                         new ConfigurationBuilder()
+                                .addToVirtualClusters(VIRTUAL_CLUSTER)
                                 .addToFilterDefinitions(filter)
                                 .addToDefaultFilters(filter.name())
                                 .build(),
@@ -302,6 +328,14 @@ class ConfigurationTest {
                                           pluginKey: pluginValue
                                     defaultFilters:
                                       - filter-1
+                                    virtualClusters:
+                                      - name: demo
+                                        targetCluster:
+                                          bootstrapServers: kafka.example:1234
+                                        gateways:
+                                        - name: default
+                                          portIdentifiesNode:
+                                            bootstrapAddress: example.com:1234
                                 """),
                 argumentSet("With Virtual Cluster - single gateway",
                         new ConfigurationBuilder()
@@ -586,7 +620,7 @@ class ConfigurationTest {
         assertThatThrownBy(() -> new Configuration(null,
                 filterDefinitions,
                 null,
-                null,
+                List.of(VIRTUAL_CLUSTER),
                 filters,
                 null,
                 false,
@@ -605,7 +639,7 @@ class ConfigurationTest {
         assertThatThrownBy(() -> new Configuration(null,
                 filterDefinitions,
                 null,
-                null,
+                List.of(VIRTUAL_CLUSTER),
                 null,
                 null,
                 false,
@@ -621,7 +655,7 @@ class ConfigurationTest {
         List<String> defaultFilters = List.of("missing");
         assertThatThrownBy(() -> new Configuration(null, filterDefinitions,
                 defaultFilters,
-                null,
+                List.of(VIRTUAL_CLUSTER),
                 null, false,
                 development))
                 .isInstanceOf(IllegalConfigurationException.class)

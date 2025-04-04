@@ -11,6 +11,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 import java.util.function.IntSupplier;
 
 import org.slf4j.Logger;
@@ -67,6 +68,18 @@ public class OperatorMain {
     public static void main(String[] args) {
         try {
             new OperatorMain().start();
+
+            new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        new CountDownLatch(1).await();
+                    }
+                    catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            }).start();
         }
         catch (Exception e) {
             LOGGER.error("Operator has thrown exception during startup. Will now exit.", e);

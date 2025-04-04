@@ -57,10 +57,10 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
 
-// @formatter:off
 @Workflow(dependents = {
         @Dependent(
                 name = KafkaProxyReconciler.CONFIG_DEP,
+                reconcilePrecondition = ProxyConfigConfigMap.class,
                 type = ProxyConfigConfigMap.class
         ),
         @Dependent(
@@ -96,8 +96,8 @@ public class KafkaProxyReconciler implements
 
     @Override
     public void initContext(
-                            KafkaProxy proxy,
-                            Context<KafkaProxy> context) {
+            KafkaProxy proxy,
+            Context<KafkaProxy> context) {
         ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
         ProxyModel model = proxyModelBuilder.build(proxy, context);
         KafkaProxyContext.init(context, clock, secureConfigInterpolator, model);
@@ -145,15 +145,15 @@ public class KafkaProxyReconciler implements
         // @formatter:off
         return new KafkaProxyBuilder()
                 .withNewMetadata()
-                    .withName(ResourcesUtil.name(primary))
-                    .withNamespace(ResourcesUtil.namespace(primary))
-                    .withUid(ResourcesUtil.uid(primary))
+                .withName(ResourcesUtil.name(primary))
+                .withNamespace(ResourcesUtil.namespace(primary))
+                .withUid(ResourcesUtil.uid(primary))
                 .endMetadata()
                 .withNewStatus()
-                    .withObservedGeneration(generation(primary))
-                    .withConditions(effectiveReadyCondition(now, primary, exception))
+                .withObservedGeneration(generation(primary))
+                .withConditions(effectiveReadyCondition(now, primary, exception))
                 .endStatus()
-            .build();
+                .build();
         // @formatter:on
     }
 
@@ -219,10 +219,10 @@ public class KafkaProxyReconciler implements
      *         <strong>if the condition had has a state transition</strong>.
      */
     private static Condition newCondition(
-                                          Instant now,
-                                          Condition.Type conditionType,
-                                          KafkaProxy primary,
-                                          @Nullable Exception exception) {
+            Instant now,
+            Condition.Type conditionType,
+            KafkaProxy primary,
+            @Nullable Exception exception) {
         return new ConditionBuilder()
                 .withLastTransitionTime(now)
                 .withMessage(conditionMessage(exception))
@@ -427,3 +427,4 @@ public class KafkaProxyReconciler implements
         return ingress -> ingress.getSpec().getProxyRef().getName().equals(name(primary));
     }
 }
+// @formatter:off
