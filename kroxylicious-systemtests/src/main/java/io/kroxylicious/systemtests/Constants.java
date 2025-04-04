@@ -27,14 +27,6 @@ public final class Constants {
     public static final String KROXYLICIOUS_ENCRYPTION_FILTER_NAME = "encryption";
 
     /**
-     * The service name for kroxylicious. Used for the bootstrap url
-     */
-    public static final String KROXY_SERVICE_NAME = "kroxylicious-service";
-    /**
-     * The constant KROXY_CONFIG_NAME.
-     */
-    public static final String KROXY_CONFIG_NAME = "kroxylicious-config";
-    /**
      * Strimzi cluster operator deployment name
      */
     public static final String STRIMZI_DEPLOYMENT_NAME = "strimzi-cluster-operator";
@@ -52,20 +44,6 @@ public final class Constants {
      * API versions of Strimzi CustomResources
      */
     public static final String KAFKA_API_VERSION_V1BETA2 = "kafka.strimzi.io/v1beta2";
-
-    /**
-     * Kind of Strimzi CustomResources
-     */
-    public static final String KAFKA_KIND = "Kafka";
-
-    /**
-     * Kind of kafka users
-     */
-    public static final String KAFKA_USER_KIND = "KafkaUser";
-    /**
-     * Kind of kafka node pools
-     */
-    public static final String KAFKA_NODE_POOL_KIND = "KafkaNodePool";
 
     /**
      * Load balancer type name.
@@ -116,15 +94,16 @@ public final class Constants {
      */
     public static final String DEPLOYMENT = "Deployment";
     public static final String DEPLOYMENT_TYPE = "deployment-type";
-    public static final String CUSTOM_RESOURCE_DEFINITION = "CustomResourceDefinition";
     public static final String CLUSTER_ROLE = "ClusterRole";
     public static final String CONFIG_MAP = "ConfigMap";
     public static final String JOB = "Job";
     public static final String NAMESPACE = "Namespace";
-    public static final String POD = "Pod";
     public static final String SECRET = "Secret";
     public static final String SERVICE = "Service";
     public static final String SERVICE_ACCOUNT = "ServiceAccount";
+    public static final String KAFKA_KIND = "Kafka";
+    public static final String KAFKA_USER_KIND = "KafkaUser";
+    public static final String KAFKA_NODE_POOL_KIND = "KafkaNodePool";
 
     /**
      * Test clients image url
@@ -173,10 +152,6 @@ public final class Constants {
      */
     public static final String PATH_TO_OPERATOR = System.getProperty("user.dir") + "/../kroxylicious-operator";
     public static final String PATH_TO_OPERATOR_INSTALL_FILES = PATH_TO_OPERATOR + "/install";
-    public static final String PATH_TO_OPERATOR_EXAMPLE_FILES = PATH_TO_OPERATOR + "/examples";
-    public static final String PATH_TO_OPERATOR_SIMPLE_FILES = PATH_TO_OPERATOR_EXAMPLE_FILES + "/simple";
-    public static final String PATH_TO_OPERATOR_RECORD_ENCRYPTION_FILES = PATH_TO_OPERATOR_EXAMPLE_FILES + "/record-encryption";
-    public static final String PATH_TO_OPERATOR_RECORD_VALIDATION_FILES = PATH_TO_OPERATOR_EXAMPLE_FILES + "/record-validation";
 
     /**
      * Auxiliary variables for storing data across our tests

@@ -13,7 +13,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.executor.Exec;
-import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.cmd.KubeCmdClient;
 import io.kroxylicious.systemtests.k8s.cmd.Kubectl;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -54,20 +53,5 @@ public class Kubernetes implements KubeCluster {
 
     public String toString() {
         return CMD;
-    }
-
-    public boolean isOpenshift() {
-        List<String> cmd = Arrays.asList(CMD, "api-versions");
-        try {
-            ExecResult result = Exec.exec(cmd);
-            if (!result.isSuccess()) {
-                throw new KubeClusterException("Something went wrong when executing " + cmd + " command: " + result.err());
-            }
-            return result.out().contains("openshift.io");
-        }
-        catch (KubeClusterException e) {
-            LOGGER.error("Failed whilst sniffing for OpenShift: ", e);
-            throw e;
-        }
     }
 }

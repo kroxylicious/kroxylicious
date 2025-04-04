@@ -36,13 +36,6 @@ public interface KubeCluster {
      */
     boolean isClusterUp();
 
-    /**
-     * Return true if this kind of cluster is openshift
-     *
-     * @return the boolean
-     */
-    boolean isOpenshift();
-
     /** Return a default CMD cmdClient for this kind of cluster.
      * @return the kube cmd client
      */

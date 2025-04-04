@@ -29,13 +29,13 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.skodjob.testframe.enums.InstallType;
 import io.skodjob.testframe.installation.InstallationMethod;
+import io.skodjob.testframe.resources.KubeResourceManager;
 import io.skodjob.testframe.utils.ImageUtils;
 import io.skodjob.testframe.utils.TestFrameUtils;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
-import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -72,7 +72,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     public KroxyliciousOperatorBundleInstaller(String namespaceInstallTo) {
         this.namespaceInstallTo = namespaceInstallTo;
         this.replicas = 1;
-        this.extensionContext = ResourceManager.getTestContext();
+        this.extensionContext = KubeResourceManager.get().getTestContext();// ResourceManager.getTestContext();
         this.kroxyliciousOperatorName = Constants.KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME;
     }
 
@@ -148,7 +148,8 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .endSpec()
                 .build();
 
-        ResourceManager.getInstance().createResourceWithWait(operatorDeployment);
+        KubeResourceManager.get().createResourceWithWait(operatorDeployment);
+//        ResourceManager.getInstance().createResourceWithWait(operatorDeployment);
     }
 
     /**
@@ -166,7 +167,9 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .toList();
         for (File crdFile : crdFiles) {
             CustomResourceDefinition customResourceDefinition = TestFrameUtils.configFromYaml(crdFile, CustomResourceDefinition.class);
-            ResourceManager.getInstance().createResourceWithWait(customResourceDefinition);
+            KubeResourceManager.get().createResourceWithWait(customResourceDefinition);
+//            KubeResourceManager.get().printAllResources(Level.INFO);
+//            ResourceManager.getInstance().createResourceWithWait(customResourceDefinition);
         }
     }
 
@@ -240,9 +243,10 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
             try {
                 if (!Environment.SKIP_TEARDOWN) {
                     for (File operatorFile : getFilteredOperatorFiles(Predicate.not(deploymentFiles))) {
+                        LOGGER.info("Deleting Kroxylicious Operator element: {}", operatorFile.getName());
                         kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).inAnyNamespace().delete();
                     }
-                    ResourceManager.getInstance().deleteResources();
+                    KubeResourceManager.get().deleteResources(true);
                 }
             }
             catch (Exception e) {

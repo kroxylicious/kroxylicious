@@ -21,6 +21,8 @@ import org.junit.jupiter.api.extension.ParameterResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.skodjob.testframe.resources.KubeResourceManager;
+
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.logs.TestLogCollector;
@@ -75,6 +77,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
         if (!Environment.SKIP_TEARDOWN) {
             ResourceManager.setTestContext(extensionContext);
             NamespaceUtils.deleteAllNamespacesFromSet();
+            KubeResourceManager.get().deleteResources(true);
         }
     }
 
@@ -91,7 +94,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
             });
         }
         finally {
-            NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(namespace, testClassName);
+            NamespaceUtils.deleteNamespaceWithoutWaitAndRemoveFromSet(namespace, testClassName);
         }
     }
 
