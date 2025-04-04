@@ -42,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.assertAll;
 class MetricsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsST.class);
     private final String clusterName = "my-cluster";
-    private final String clusterIpServiceName = clusterName + "-cluster-ip";
+    private final String clusterIpServiceName = clusterName + "-" + Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP;
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final String MESSAGE = "Hello-world";
     private MetricsCollector kroxyliciousCollector;
@@ -130,7 +130,7 @@ class MetricsST extends AbstractST {
     @BeforeEach
     void beforeEach(String namespace) throws InterruptedException {
         final String scraperName = namespace + "-" + Constants.SCRAPER_LABEL_VALUE;
-        resourceManager.createResourceWithWait(ScraperTemplates.scraperPod(namespace, scraperName).build());
+        resourceManager.createResourceWithWait(ScraperTemplates.scraperPod(namespace, scraperName));
         cluster.setNamespace(namespace);
 
         LOGGER.atInfo().setMessage("Sleeping for {} seconds to give operators and operands some time to stabilize before collecting metrics.")

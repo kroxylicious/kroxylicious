@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.platform.commons.PreconditionViolationException;
 
+import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -139,6 +140,9 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .withImage(ImageUtils.changeRegistryOrgAndTag(deploymentImage, Environment.KROXY_REGISTRY, Environment.KROXY_ORG, Environment.KROXY_TAG))
                 .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                 .endContainer()
+                .withImagePullSecrets(new LocalObjectReferenceBuilder()
+                        .withName("regcred")
+                        .build())
                 .endSpec()
                 .endTemplate()
                 .endSpec()
