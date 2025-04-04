@@ -37,13 +37,39 @@ spec:
               type: object
             spec:
               type: object
-              required: ["bootstrapServers"]
+              required: [ "bootstrapServers" ]
               properties:
                 bootstrapServers:
                   description: Bootstrap servers of the Kafka cluster.
                   type: string
                   minLength: 1
                   pattern: ^(([^:]+:[0-9]{1,5}),)*([^:]+:[0-9]{1,5})$
+                nodeIdRanges:
+                  type: array
+                  minItems: 1
+                  description: |
+                    Declares the ranges of node ids present in the Kafka Cluster this KafkaService refers to. Default 
+                    value is a single range starting with node id 0 and ending with 2 inclusive. Note that if you wish
+                    to expose this cluster using plain (non-TLS) connections it is desirable to use a compact set of
+                    node id ranges, as every node id in every range requires a distinct listening port.
+                    See also: https://kafka.apache.org/documentation/#brokerconfigs_node.id
+                  items:
+                    type: object
+                    required: [ "start", "end" ]
+                    x-kubernetes-validations:
+                      - rule: "self.start <= self.end"
+                        message: "end should be greater than or equal to start"
+                    properties:
+                      name:
+                        description: "the name of this node id range"
+                        type: string
+                        minLength: 1
+                      start:
+                        description: "The first node id in the range"
+                        type: integer
+                      end:
+                        description: "The last node id in the range, inclusive"
+                        type: integer
             status:
               type: object
               properties:

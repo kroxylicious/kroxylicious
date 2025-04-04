@@ -43,6 +43,7 @@ import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -84,7 +85,18 @@ public class ConfigParser implements PluginFactoryRegistry {
     }
 
     public static ObjectMapper createObjectMapper() {
-        return (ObjectMapper) new ObjectMapper(new YAMLFactory())
+        return (ObjectMapper) createBaseObjectMapper()
+                .registerModule(new PluginModule())
+                .setHandlerInstantiator(new PluginHandlerInstantiator());
+    }
+
+    /**
+     * A simple object mapper for parsing kroxylicious configuration, without our plugin loading extensions
+     * @return object mapper
+     */
+    @VisibleForTesting
+    public static ObjectMapper createBaseObjectMapper() {
+        return new ObjectMapper(new YAMLFactory())
                 .registerModule(new ParameterNamesModule())
                 .registerModule(new Jdk8Module())
                 .registerModule(new SimpleModule().addSerializer(HostPort.class, new ToStringSerializer()))
@@ -96,9 +108,7 @@ public class ConfigParser implements PluginFactoryRegistry {
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .disable(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY)
                 .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
-                .setSerializationInclusion(JsonInclude.Include.NON_DEFAULT)
-                .registerModule(new PluginModule())
-                .setHandlerInstantiator(new PluginHandlerInstantiator());
+                .setSerializationInclusion(JsonInclude.Include.NON_DEFAULT);
     }
 
     private static class PluginModule extends SimpleModule {

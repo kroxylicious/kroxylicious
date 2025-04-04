@@ -1,0 +1,18 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+resource:
+  kind: KafkaService
+  apiVersion: kroxylicious.io/v1alpha1
+  metadata:
+    name: fooref
+    namespace: proxy-ns
+  spec:
+    bootstrapServers: 'localhost:9092'
+    nodeIdRanges: {}
+expectFailureMessageToContain: |
+  spec.nodeIdRanges: Invalid value: "object"
