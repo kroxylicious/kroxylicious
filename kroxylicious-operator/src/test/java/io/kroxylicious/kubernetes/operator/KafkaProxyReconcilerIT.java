@@ -234,12 +234,11 @@ class KafkaProxyReconcilerIT {
 
     private ProxyConfigAssert assertProxyConfigInConfigMap(KafkaProxy proxy) {
         var configMap = testActor.get(ConfigMap.class, ProxyConfigConfigMap.configMapName(proxy));
-        ProxyConfigAssert proxyConfig = assertThat(configMap)
+        return assertThat(configMap)
                 .isNotNull()
                 .extracting(ConfigMap::getData, InstanceOfAssertFactories.map(String.class, String.class))
                 .containsKey(ProxyConfigData.CONFIG_YAML_KEY)
                 .extracting(map -> parse(map.get(ProxyConfigData.CONFIG_YAML_KEY)), OperatorAssertions.CONFIGURATION);
-        return proxyConfig;
     }
 
     private static Configuration parse(String content) {

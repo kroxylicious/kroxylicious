@@ -318,9 +318,9 @@ class ClusterIPIngressDefinitionTest {
 
     @Test
     void rangesMustBeNonEmpty() {
-        assertThatThrownBy(() -> {
-            new ClusterIPIngressDefinition(INGRESS, VIRTUAL_KAFKA_CLUSTER, PROXY, List.of());
-        }).isInstanceOf(IllegalArgumentException.class);
+        List<NodeIdRanges> nodeIdRanges = List.of();
+        assertThatThrownBy(() -> new ClusterIPIngressDefinition(INGRESS, VIRTUAL_KAFKA_CLUSTER, PROXY, nodeIdRanges))
+                .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

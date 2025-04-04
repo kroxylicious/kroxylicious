@@ -142,7 +142,7 @@ class ProxyConfigAssertTest {
     void namedRangeStart() {
         NamedRange range = new NamedRange("range", 1, 3);
         ProxyConfigAssert.NamedRangeAssert namedRangeAssert = new ProxyConfigAssert.NamedRangeAssert(range);
-        Assertions.assertThat(namedRangeAssert.hasStart(1));
+        namedRangeAssert.hasStart(1);
         Assertions.assertThatThrownBy(() -> {
             namedRangeAssert.hasStart(2);
         }).hasMessage("expected node id range start to be 2 but was 1");
@@ -152,7 +152,7 @@ class ProxyConfigAssertTest {
     void namedRangeEnd() {
         NamedRange range = new NamedRange("range", 1, 3);
         ProxyConfigAssert.NamedRangeAssert namedRangeAssert = new ProxyConfigAssert.NamedRangeAssert(range);
-        Assertions.assertThat(namedRangeAssert.hasEnd(3));
+        namedRangeAssert.hasEnd(3);
         Assertions.assertThatThrownBy(() -> {
             namedRangeAssert.hasEnd(2);
         }).hasMessage("expected node id range end to be 2 but was 3");
