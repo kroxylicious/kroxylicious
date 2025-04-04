@@ -23,6 +23,7 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
+import io.javaoperatorsdk.operator.api.reconciler.dependent.DependentResource;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkflowAndDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
@@ -39,6 +40,7 @@ import io.kroxylicious.kubernetes.operator.model.ingress.IngressConflictExceptio
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
@@ -56,7 +58,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
  */
 @KubernetesDependent
 public class ProxyConfigConfigMap
-        extends CRUDKubernetesDependentResource<ConfigMap, KafkaProxy> {
+        extends CRUDKubernetesDependentResource<ConfigMap, KafkaProxy> implements  io.javaoperatorsdk.operator.processing.dependent.workflow.Condition<ConfigMap, KafkaProxy>  {
 
     public static String REASON_INVALID = "Invalid";
 
@@ -95,11 +97,26 @@ public class ProxyConfigConfigMap
     }
 
     @Override
+    public boolean isMet(DependentResource<ConfigMap, KafkaProxy> dependentResource, KafkaProxy primary, Context<KafkaProxy> context) {
+        try {
+            Configuration configuration = generateProxyConfig(context);
+            context.managedWorkflowAndDependentResourceContext().put("configuration", configuration);
+            return true;
+        }
+        catch (IllegalConfigurationException ice) {
+            return false;
+        }
+    }
+
+    @Override
     protected ConfigMap desired(KafkaProxy primary,
                                 Context<KafkaProxy> context) {
         Clock clock = KafkaProxyContext.proxyContext(context).clock();
+        // the configuration object won't be present if isMet has returned false
+        // this is the case if the dependant resource is to be removed.
+        var configuration = context.managedWorkflowAndDependentResourceContext().get("configuration", Configuration.class);
         var data = new ProxyConfigData();
-        data.setProxyConfiguration(generateProxyConfig(context));
+        configuration.ifPresent(data::setProxyConfiguration);
 
         ProxyModel proxyModel = KafkaProxyContext.proxyContext(context).model();
         addResolvedRefsConditions(clock, proxyModel, data);
@@ -151,8 +168,7 @@ public class ProxyConfigConfigMap
                             .thenComparing(LocalRef::getKind)
                             .thenComparing(LocalRef::getName);
 
-                    LocalRef<?> firstUnresolvedDependency = clusterResolutionResult.unresolvedDependencySet().stream()
-                            .sorted(comparator).findFirst()
+                    LocalRef<?> firstUnresolvedDependency = clusterResolutionResult.unresolvedDependencySet().stream().min(comparator)
                             .orElseThrow();
                     String message = String.format("Resource %s was not found.",
                             ResourcesUtil.namespacedSlug(firstUnresolvedDependency, clusterResolutionResult.cluster()));

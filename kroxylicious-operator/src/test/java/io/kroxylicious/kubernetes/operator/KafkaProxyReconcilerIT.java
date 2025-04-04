@@ -256,8 +256,13 @@ class KafkaProxyReconcilerIT {
         KafkaProxy proxy = createdResources.proxy;
         testActor.delete(createdResources.cluster(CLUSTER_BAR));
 
-        AWAIT.untilAsserted(() -> assertThatProxyConfigFor(proxy).doesNotContain(CLUSTER_BAR_BOOTSTRAP));
+//        AWAIT.untilAsserted(() -> assertThatProxyConfigFor(proxy).doesNotContain(CLUSTER_BAR_BOOTSTRAP));
         AWAIT.untilAsserted(() -> {
+            var configMap = testActor.get(ConfigMap.class, ProxyConfigConfigMap.configMapName(proxy));
+            assertThat(configMap)
+                    .describedAs("Expect ConfigMap for cluster 'bar' to have been deleted")
+                    .isNull();
+
             var service = testActor.get(Service.class, CLUSTER_BAR);
             assertThat(service)
                     .describedAs("Expect Service for cluster 'bar' to have been deleted")

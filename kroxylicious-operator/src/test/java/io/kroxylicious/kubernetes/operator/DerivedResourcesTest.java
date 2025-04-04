@@ -187,6 +187,8 @@ class DerivedResourcesTest {
         // Note that the order in this list should reflect the dependency order declared in the ProxyReconciler's
         // @ControllerConfiguration annotation, because the statefulness of Context<KafkaProxy> means that
         // later DependentResource can depend on Context state created by earlier DependentResources.
+
+        // KW could we drive from the annotations?
         var list = List.<DesiredFn<KafkaProxy, ?>> of(
                 new SingletonDependentResourceDesiredFn<>(new ProxyConfigConfigMap(), "ConfigMap", ProxyConfigConfigMap::desired),
                 new SingletonDependentResourceDesiredFn<>(new ProxyDeployment(), "Deployment", ProxyDeployment::desired),
