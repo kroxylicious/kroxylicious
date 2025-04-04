@@ -95,7 +95,7 @@ jobs:
             KROXYLICIOUS_VERSION=${{ env.KROXYLICIOUS_VERSION }}
           tags: ${{ env.KROXYLICIOUS_IMAGE }}
           push: false
-          cache-from: type=gha,type=registry,quay.io/kroxylicious//proxy-build-cache:main
+          cache-from: type=gha,type=registry,quay.io/kroxylicious/proxy-build-cache:main
           cache-to: type=gha,mode=max,compression=zstd
           load: 'true'
       - name: 'Build Kroxylicious Image on Minikube'
