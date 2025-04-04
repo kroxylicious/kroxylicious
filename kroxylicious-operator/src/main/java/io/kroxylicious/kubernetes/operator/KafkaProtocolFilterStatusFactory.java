@@ -32,7 +32,7 @@ public class KafkaProtocolFilterStatusFactory extends StatusFactory<KafkaProtoco
                 .endMetadata()
                 .withNewStatus()
                     .withObservedGeneration(ResourcesUtil.generation(observedProxy))
-                    .withConditions(ResourceState.newConditions(Optional.ofNullable(observedProxy.getStatus()).map(KafkaProtocolFilterStatus::getConditions).orElse(List.of()), new ResourceState(condition)))
+                    .withConditions(ResourceState.newConditions(Optional.ofNullable(observedProxy.getStatus()).map(KafkaProtocolFilterStatus::getConditions).orElse(List.of()), ResourceState.of(condition)))
                 .endStatus()
                 .build();
         // @formatter:on

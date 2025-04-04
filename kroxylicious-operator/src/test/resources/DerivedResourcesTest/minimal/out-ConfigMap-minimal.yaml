@@ -45,5 +45,9 @@ data:
       name: "one"
       namespace: "proxy-ns"
     status:
-      conditions: []
+      conditions:
+      - observedGeneration: 4
+        type: "Accepted"
+        status: "True"
+        lastTransitionTime: "1970-01-01T00:00:00Z"
       observedGeneration: 4

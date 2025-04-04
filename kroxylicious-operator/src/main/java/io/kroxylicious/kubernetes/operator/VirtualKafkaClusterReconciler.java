@@ -137,32 +137,34 @@ public final class VirtualKafkaClusterReconciler implements
                         .map(ProxyConfigData::new)
                         .flatMap(data -> data.getStatusPatchForCluster(ResourcesUtil.name(cluster)))
                         .map(patch -> {
-                            // apply the logic of Condition here too, because we don't know if the conditions we got from the CM
-                            // were based on a now outdated generation (i.e. that the status we're patching over isn't newer)
-                            var statusObservedGeneration = Optional.ofNullable(cluster.getStatus())
-                                    .flatMap(status -> Optional.ofNullable(status.getObservedGeneration()));
-                            if (statusObservedGeneration.isEmpty()) {
-                                return patch;
-                            }
-                            else {
-                                List<Condition> existingConditions = Optional.ofNullable(cluster.getStatus()).map(VirtualKafkaClusterStatus::getConditions)
-                                        .orElse(List.of());
-                                List<Condition> oldConditions = existingConditions;
-                                List<Condition> patchConditions = patch.getStatus().getConditions();
-                                var x = ResourceState.fromList(patchConditions);
-                                if (x.isPresent()) {
-                                    ResourceState resourceState = ResourceState.fromList(ResourceState.newConditions(oldConditions,
-                                            x.get())).get();
-                                    return statusFactory.clusterStatusPatch(cluster,
-                                            resourceState);
-                                }
-                                else {
-                                    return patch;
-                                }
-                            }
+                            var rr = ResourceState.of(statusFactory.newTrueCondition(cluster, Condition.Type.ResolvedRefs));
+                            var acc = ResourceState.fromList(patch.getStatus().getConditions());
+                            //var l = rr.replacementFor(acc).toList();
+                            return statusFactory.clusterStatusPatch(cluster, rr.replacementFor(acc));
                         })
-                        .map(UpdateControl::patchStatus)
-                        .orElse(UpdateControl.noUpdate());
+                                    //                        .map(patch -> {
+                                    //                            // apply the logic of Condition here too, because we don't know if the conditions we got from the CM
+                                    //                            // were based on a now outdated generation (i.e. that the status we're patching over isn't newer)
+                                    //                            var statusObservedGeneration = Optional.ofNullable(cluster.getStatus())
+                                    //                                    .flatMap(status -> Optional.ofNullable(status.getObservedGeneration()));
+                                    //                            if (statusObservedGeneration.isEmpty()) {
+                                    //                                return patch;
+                                    //                            }
+                                    //                            else {
+                                    //                                List<Condition> existingConditions = Optional.ofNullable(cluster.getStatus()).map(VirtualKafkaClusterStatus::getConditions)
+                                    //                                        .orElse(List.of());
+                                    //                                List<Condition> oldConditions = existingConditions;
+                                    //                                List<Condition> patchConditions = patch.getStatus().getConditions();
+                                    //                                var x = ResourceState.fromList(patchConditions);
+                                    //                                ResourceState resourceState = ResourceState.fromList(ResourceState.newConditions(oldConditions,
+                                    //                                        x));
+                                    //                                return statusFactory.clusterStatusPatch(cluster,
+                                    //                                        resourceState);
+                                    //                            }
+                                    //                        })
+                                    .map(UpdateControl::patchStatus)
+                                    .orElse(UpdateControl.noUpdate());
+
             }
             else {
                 Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", cluster, unresolvedServices);

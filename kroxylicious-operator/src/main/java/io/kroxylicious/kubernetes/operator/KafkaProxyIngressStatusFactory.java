@@ -31,7 +31,7 @@ public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngr
                 .endMetadata()
                 .withNewStatus()
                     .withObservedGeneration(ResourcesUtil.generation(observedIngress))
-                    .withConditions(ResourceState.newConditions(Optional.ofNullable(observedIngress.getStatus()).map(KafkaProxyIngressStatus::getConditions).orElse(List.of()), new ResourceState(condition)))
+                    .withConditions(ResourceState.newConditions(Optional.ofNullable(observedIngress.getStatus()).map(KafkaProxyIngressStatus::getConditions).orElse(List.of()), ResourceState.of(condition)))
                 .endStatus()
                 .build();
         // @formatter:on

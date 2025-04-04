@@ -22,6 +22,7 @@ import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.KafkaServiceStatusAssert;
@@ -86,6 +87,9 @@ class KafkaServiceReconcilerTest {
         assertThat(updateControl.getResource()).isPresent();
         KafkaServiceStatusAssert.assertThat(updateControl.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
-                .conditionList().isEmpty();
+                .conditionList()
+                .containsOnlyTypes(Condition.Type.Accepted)
+                .singleOfType(Condition.Type.Accepted)
+                .isAcceptedTrue();
     }
 }

@@ -32,7 +32,7 @@ public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
                 .endMetadata()
                 .withNewStatus()
                     .withObservedGeneration(ResourcesUtil.generation(observedProxy))
-                    .withConditions(ResourceState.newConditions(Optional.ofNullable(observedProxy.getStatus()).map(KafkaProxyStatus::getConditions).orElse(List.of()), new ResourceState(condition)))
+                    .withConditions(ResourceState.newConditions(Optional.ofNullable(observedProxy.getStatus()).map(KafkaProxyStatus::getConditions).orElse(List.of()), ResourceState.of(condition)))
                 .endStatus()
                 .build();
         // @formatter:on

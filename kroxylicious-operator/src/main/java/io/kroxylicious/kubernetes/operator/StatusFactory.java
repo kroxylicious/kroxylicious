@@ -18,7 +18,7 @@ public abstract class StatusFactory<R extends CustomResource<?, ?>> {
 
     private final Clock clock;
 
-    public StatusFactory(Clock clock) {
+    protected StatusFactory(Clock clock) {
         this.clock = clock;
     }
 

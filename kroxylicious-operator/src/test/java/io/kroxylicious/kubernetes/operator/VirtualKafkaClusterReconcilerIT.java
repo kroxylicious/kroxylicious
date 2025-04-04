@@ -11,6 +11,8 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
+import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
+
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -295,7 +297,6 @@ class VirtualKafkaClusterReconcilerIT {
                     .assertThat(vkc.getStatus())
                     .hasObservedGenerationInSyncWithMetadataOf(vkc)
                     .conditionList()
-                    .containsOnlyTypes(Condition.Type.ResolvedRefs)
                     .singleOfType(Condition.Type.ResolvedRefs)
                     .hasStatus(Condition.Status.FALSE)
                     .hasObservedGenerationInSyncWithMetadataOf(vkc)
@@ -308,10 +309,16 @@ class VirtualKafkaClusterReconcilerIT {
             var vkc = testActor.resources(VirtualKafkaCluster.class)
                     .withName(ResourcesUtil.name(cr)).get();
             assertThat(vkc.getStatus()).isNotNull();
-            VirtualKafkaClusterStatusAssert
+            ConditionListAssert conditionListAssert = VirtualKafkaClusterStatusAssert
                     .assertThat(vkc.getStatus())
                     .hasObservedGenerationInSyncWithMetadataOf(vkc)
-                    .conditionList().isEmpty();
+                    .conditionList();
+            conditionListAssert
+                    .singleOfType(Condition.Type.ResolvedRefs)
+                    .isResolvedRefsTrue(vkc);
+            conditionListAssert
+                    .singleOfType(Condition.Type.Accepted)
+                    .isAcceptedTrue(vkc);
         });
     }
 
@@ -325,7 +332,6 @@ class VirtualKafkaClusterReconcilerIT {
                     .assertThat(vkc.getStatus())
                     .hasObservedGenerationInSyncWithMetadataOf(vkc)
                     .conditionList()
-                    .containsOnlyTypes(Condition.Type.Accepted)
                     .singleOfType(Condition.Type.Accepted)
                     .hasStatus(Condition.Status.FALSE)
                     .hasObservedGenerationInSyncWithMetadataOf(vkc)

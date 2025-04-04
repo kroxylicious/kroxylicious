@@ -119,7 +119,8 @@ class KafkaProxyIngressReconcilerIT {
                     .assertThat(kpi.getStatus())
                     .hasObservedGenerationInSyncWithMetadataOf(kpi)
                     .conditionList()
-                    .isEmpty();
+                    .singleElement()
+                    .isResolvedRefsTrue(kpi);
         });
     }
 

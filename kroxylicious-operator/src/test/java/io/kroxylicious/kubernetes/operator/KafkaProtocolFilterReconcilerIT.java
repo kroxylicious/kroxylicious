@@ -119,7 +119,9 @@ class KafkaProtocolFilterReconcilerIT {
             KafkaProtocolFilterStatusAssert
                     .assertThat(kpf.getStatus())
                     .hasObservedGenerationInSyncWithMetadataOf(kpf)
-                    .conditionList().isEmpty();
+                    .conditionList()
+                    .singleElement()
+                    .isResolvedRefsTrue(kpf);
         });
     }
 
