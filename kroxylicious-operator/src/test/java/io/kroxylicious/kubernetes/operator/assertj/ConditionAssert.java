@@ -148,7 +148,7 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
 
     public ConditionAssert isResolvedRefsTrue(HasMetadata thing) {
         isResolvedRefsTrue()
-        .hasObservedGenerationInSyncWithMetadataOf(thing);
+                .hasObservedGenerationInSyncWithMetadataOf(thing);
         return this;
     }
 

@@ -9,8 +9,6 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Clock;
 import java.time.Duration;
 
-import io.kroxylicious.kubernetes.api.common.Condition;
-
 import org.assertj.core.api.Assertions;
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
