@@ -240,7 +240,7 @@ class VirtualKafkaClusterReconcilerTest {
     }
 
     private static void assertAllConditionsTrue(VirtualKafkaCluster cluster, ConditionListAssert cl) {
-        cl.isEmpty();
+        cl.singleElement().isResolvedRefsTrue(cluster);
     }
 
     @ParameterizedTest

@@ -96,7 +96,8 @@ class KafkaProxyIngressReconcilerTest {
         KafkaProxyIngressStatusAssert.assertThat(update.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
                 .conditionList()
-                .isEmpty();
+                .singleElement()
+                .isResolvedRefsTrue(INGRESS);
 
     }
 

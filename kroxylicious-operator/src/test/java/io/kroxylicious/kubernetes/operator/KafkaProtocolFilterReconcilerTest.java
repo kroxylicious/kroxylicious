@@ -89,7 +89,9 @@ class KafkaProtocolFilterReconcilerTest {
         when(neitherExists.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of());
         return List.of(
                 Arguments.argumentSet("both exist", bothExist,
-                        (Consumer<ConditionListAssert>) ConditionListAssert::isEmpty),
+                        (Consumer<ConditionListAssert>) conditionList -> conditionList
+                                .singleElement()
+                                .isResolvedRefsTrue()),
                 Arguments.argumentSet("secret exists", secretExists,
                         (Consumer<ConditionListAssert>) conditionList -> conditionList
                                 .singleOfType(Condition.Type.ResolvedRefs)

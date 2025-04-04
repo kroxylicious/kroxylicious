@@ -43,7 +43,7 @@ public class VirtualKafkaClusterStatusFactory extends StatusFactory<VirtualKafka
                                                        Condition.Type type,
                                                        Exception e) {
         Condition unknownCondition = newUnknownCondition(observedFilter, type, e);
-        return clusterStatusPatch(observedFilter, new ResourceState(unknownCondition));
+        return clusterStatusPatch(observedFilter, ResourceState.of(unknownCondition));
     }
 
     @Override
@@ -52,13 +52,13 @@ public class VirtualKafkaClusterStatusFactory extends StatusFactory<VirtualKafka
                                                      String reason,
                                                      String message) {
         Condition falseCondition = newFalseCondition(observedProxy, type, reason, message);
-        return clusterStatusPatch(observedProxy, new ResourceState(falseCondition));
+        return clusterStatusPatch(observedProxy, ResourceState.of(falseCondition));
     }
 
     @Override
     VirtualKafkaCluster newTrueConditionStatusPatch(VirtualKafkaCluster observedProxy,
                                                     Condition.Type type) {
         Condition trueCondition = newTrueCondition(observedProxy, type);
-        return clusterStatusPatch(observedProxy, new ResourceState(trueCondition));
+        return clusterStatusPatch(observedProxy, ResourceState.of(trueCondition));
     }
 }

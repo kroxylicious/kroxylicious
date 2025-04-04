@@ -9,6 +9,8 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Clock;
 import java.time.Duration;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
+
 import org.assertj.core.api.Assertions;
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
@@ -70,7 +72,9 @@ class KafkaServiceReconcilerIT {
             Assertions.assertThat(mycoolkafkaservice.getSpec().getBootstrapServers()).isEqualTo(UPDATED_BOOTSTRAP);
             assertThat(mycoolkafkaservice.getStatus())
                     .isNotNull()
-                    .conditionList().isEmpty();
+                    .conditionList()
+                    .singleElement()
+                    .isAcceptedTrue();
         });
     }
 
@@ -86,7 +90,9 @@ class KafkaServiceReconcilerIT {
             final KafkaService mycoolkafkaservice = testActor.get(KafkaService.class, SERVICE_A);
             assertThat(mycoolkafkaservice.getStatus())
                     .isNotNull()
-                    .conditionList().isEmpty();
+                    .conditionList()
+                    .singleElement()
+                    .isAcceptedTrue();
         });
     }
 

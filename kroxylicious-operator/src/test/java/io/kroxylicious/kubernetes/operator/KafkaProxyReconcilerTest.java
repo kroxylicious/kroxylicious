@@ -99,7 +99,10 @@ class KafkaProxyReconcilerTest {
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
         statusAssert.hasObservedGeneration(generation)
-                .conditions().isEmpty();
+                .conditionList()
+                .containsOnlyTypes(Condition.Type.Ready)
+                .singleOfType(Condition.Type.Ready)
+                .isReadyTrue();
     }
 
     @Test
@@ -168,7 +171,10 @@ class KafkaProxyReconcilerTest {
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
         statusAssert.hasObservedGeneration(generation)
-                .conditions().isEmpty();
+                .conditionList()
+                .containsOnlyTypes(Condition.Type.Ready)
+                .singleOfType(Condition.Type.Ready)
+                .isReadyTrue();
     }
 
     @Test
@@ -287,7 +293,10 @@ class KafkaProxyReconcilerTest {
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
         statusAssert.hasObservedGeneration(generation)
-                .conditions().isEmpty();
+                .conditionList()
+                .containsOnlyTypes(Condition.Type.Ready)
+                .singleOfType(Condition.Type.Ready)
+                .isReadyTrue();
     }
 
     @Test
@@ -329,7 +338,10 @@ class KafkaProxyReconcilerTest {
                 .isNotEmpty().get()
                 .extracting(KafkaProxy::getStatus, AssertFactory.status());
         statusAssert.hasObservedGeneration(generation)
-                .conditions().isEmpty();
+                .conditionList()
+                .containsOnlyTypes(Condition.Type.Ready)
+                .singleOfType(Condition.Type.Ready)
+                .isReadyTrue();
     }
 
     @NonNull
