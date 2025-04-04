@@ -17,7 +17,9 @@ WARM_UP_NUM_RECORDS_PRE_TEST=${WARM_UP_NUM_RECORDS_PRE_TEST:-1000}
 COMMIT_ID=${COMMIT_ID:=$(git rev-parse --short HEAD)}
 
 
-PROFILING_OUTPUT_DIRECTORY=${PROFILING_OUTPUT_DIRECTORY:-"/tmp/results"}
+PROFILING_OUTPUT_DIRECTORY=${PROFILING_OUTPUT_DIRECTORY:-"/tmp/perf-test/results"}
+LOGS_OUTPUT_DIRECTORY=${logs_OUTPUT_DIRECTORY:-"${PERF_TESTS_DIR}/tmp/perf-test/logs"}
+mkdir -p "${LOGS_OUTPUT_DIRECTORY}"
 
 ON_SHUTDOWN=()
 GREEN='\033[0;32m'
@@ -108,6 +110,10 @@ setupAsyncProfilerKroxy() {
 deleteAsyncProfilerKroxy() {
   rm -rf /tmp/asprof
   rm -rf "${LOADER_DIR}"
+}
+
+dumpBrokerLogs() {
+  ${CONTAINER_ENGINE} logs kafka > "${LOGS_OUTPUT_DIRECTORY}/broker.log"
 }
 
 startAsyncProfilerKroxy() {
@@ -247,16 +253,19 @@ doPerfTest () {
 }
 
 onExit() {
+  local trigger_code=$?
   for cmd in "${ON_SHUTDOWN[@]}"
   do
     eval "${cmd}"
   done
+  ${trigger_code} # make sure any of the shutdown commands don't mask the original exit code
 }
 
 trap onExit EXIT
 
 TMP=$(mktemp -d)
 ON_SHUTDOWN+=("rm -rf ${TMP}")
+ON_SHUTDOWN+=("dumpBrokerLogs")
 
 # Bring up Kafka
 ON_SHUTDOWN+=("runDockerCompose down")
