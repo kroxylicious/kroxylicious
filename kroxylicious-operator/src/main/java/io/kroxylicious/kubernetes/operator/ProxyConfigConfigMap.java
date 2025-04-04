@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.kubernetes.operator;
 
-import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -97,7 +96,7 @@ public class ProxyConfigConfigMap
     @Override
     protected ConfigMap desired(KafkaProxy primary,
                                 Context<KafkaProxy> context) {
-        Clock clock = KafkaProxyContext.proxyContext(context).clock();
+        var clock = KafkaProxyContext.proxyContext(context).virtualKafkaClusterStatusFactory();
         var data = new ProxyConfigData();
         data.setProxyConfiguration(generateProxyConfig(context));
 
@@ -118,7 +117,7 @@ public class ProxyConfigConfigMap
         // @formatter:on
     }
 
-    private static void addAcceptedConditions(Clock clock, ProxyModel proxyModel, ProxyConfigData data) {
+    private static void addAcceptedConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigData data) {
         var model = proxyModel.ingressModel();
         for (ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel : model.clusters()) {
             VirtualKafkaCluster cluster = virtualClusterIngressModel.cluster();
@@ -126,12 +125,12 @@ public class ProxyConfigConfigMap
             VirtualKafkaCluster patch;
             if (!virtualClusterIngressModel.ingressExceptions().isEmpty()) {
                 IngressConflictException first = virtualClusterIngressModel.ingressExceptions().iterator().next();
-                patch = Conditions.newFalseConditionStatusPatch(clock, cluster,
+                patch = statusFactory.newFalseConditionStatusPatch(cluster,
                         Condition.Type.Accepted, Condition.REASON_INVALID,
                         "Ingress(es) [" + first.getIngressName() + "] of cluster conflicts with another ingress");
             }
             else {
-                patch = Conditions.newTrueConditionStatusPatch(clock, cluster,
+                patch = statusFactory.newTrueConditionStatusPatch(cluster,
                         Condition.Type.Accepted);
             }
             if (!data.hasStatusPatchForCluster(ResourcesUtil.name(cluster))) {
@@ -140,7 +139,7 @@ public class ProxyConfigConfigMap
         }
     }
 
-    private static void addResolvedRefsConditions(Clock clock, ProxyModel proxyModel, ProxyConfigData data) {
+    private static void addResolvedRefsConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigData data) {
         proxyModel.resolutionResult().clusterResults().stream()
                 .filter(ResolutionResult.ClusterResolutionResult::isAnyDependencyUnresolved)
                 .forEach(clusterResolutionResult -> {
@@ -158,7 +157,7 @@ public class ProxyConfigConfigMap
 
                     data.addStatusPatchForCluster(
                             ResourcesUtil.name(cluster),
-                            Conditions.newFalseConditionStatusPatch(clock, cluster,
+                            statusFactory.newFalseConditionStatusPatch(cluster,
                                     Condition.Type.ResolvedRefs, Condition.REASON_INVALID, message));
                 });
     }

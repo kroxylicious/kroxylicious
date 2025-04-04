@@ -29,15 +29,15 @@ public final class KafkaServiceReconciler implements
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceReconciler.class);
 
-    private final Clock clock;
+    private final KafkaServiceStatusFactory statusFactory;
 
     public KafkaServiceReconciler(Clock clock) {
-        this.clock = clock;
+        this.statusFactory = new KafkaServiceStatusFactory(clock);
     }
 
     @Override
     public UpdateControl<KafkaService> reconcile(KafkaService service, Context<KafkaService> context) {
-        UpdateControl<KafkaService> uc = UpdateControl.patchStatus(Conditions.newTrueConditionStatusPatch(clock, service, Condition.Type.Accepted));
+        UpdateControl<KafkaService> uc = UpdateControl.patchStatus(statusFactory.newTrueConditionStatusPatch(service, Condition.Type.Accepted));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(service), name(service));
         }
@@ -53,7 +53,7 @@ public final class KafkaServiceReconciler implements
     public ErrorStatusUpdateControl<KafkaService> updateErrorStatus(KafkaService service, Context<KafkaService> context, Exception e) {
         // ResolvedRefs to UNKNOWN
         ErrorStatusUpdateControl<KafkaService> uc = ErrorStatusUpdateControl
-                .patchStatus(Conditions.newUnknownConditionStatusPatch(clock, service, Condition.Type.Accepted, e));
+                .patchStatus(statusFactory.newUnknownConditionStatusPatch(service, Condition.Type.Accepted, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(service), name(service), e.toString());
         }

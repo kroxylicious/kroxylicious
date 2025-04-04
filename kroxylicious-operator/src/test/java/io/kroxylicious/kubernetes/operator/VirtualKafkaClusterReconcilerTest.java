@@ -46,6 +46,7 @@ import static org.mockito.Mockito.when;
 class VirtualKafkaClusterReconcilerTest {
 
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
+    private static final VirtualKafkaClusterStatusFactory STATUS_FACTORY = new VirtualKafkaClusterStatusFactory(TEST_CLOCK);
 
     // @formatter:off
     public static final VirtualKafkaCluster CLUSTER_NO_FILTERS = new VirtualKafkaClusterBuilder()
@@ -116,7 +117,7 @@ class VirtualKafkaClusterReconcilerTest {
                 Arguments.argumentSet("no filter",
                         CLUSTER_NO_FILTERS,
                         Optional.of(PROXY),
-                        Optional.of(buildProxyConfigMapWithConditions(CLUSTER_NO_FILTERS)),
+                        Optional.of(buildProxyConfigMapWithPatch(CLUSTER_NO_FILTERS)),
                         Optional.of(SERVICE),
                         Set.of(INGRESS),
                         Set.of(),
@@ -124,11 +125,19 @@ class VirtualKafkaClusterReconcilerTest {
                 Arguments.argumentSet("one filter",
                         CLUSTER_ONE_FILTER,
                         Optional.of(PROXY),
-                        Optional.of(buildProxyConfigMapWithConditions(CLUSTER_ONE_FILTER)),
+                        Optional.of(buildProxyConfigMapWithPatch(CLUSTER_ONE_FILTER)),
                         Optional.of(SERVICE),
                         Set.of(INGRESS),
                         Set.of(FILTER_MY_FILTER),
                         (BiConsumer<VirtualKafkaCluster, ConditionListAssert>) VirtualKafkaClusterReconcilerTest::assertAllConditionsTrue),
+                // Arguments.argumentSet("one filter with stale configmap",
+                // new VirtualKafkaClusterBuilder(CLUSTER_ONE_FILTER).editOrNewStatus().withObservedGeneration(ResourcesUtil.generation(CLUSTER_NO_FILTERS)).endStatus().build(),
+                // Optional.of(PROXY),
+                // Optional.of(buildProxyConfigMapWithPatch(new VirtualKafkaClusterBuilder(CLUSTER_ONE_FILTER).editMetadata().withGeneration(40L).endMetadata().build())),
+                // Optional.of(SERVICE),
+                // Set.of(INGRESS),
+                // Set.of(FILTER_MY_FILTER),
+                // (BiConsumer<VirtualKafkaCluster, ConditionListAssert>) VirtualKafkaClusterReconcilerTest::assertAllConditionsTrue),
                 Arguments.argumentSet("proxy not found",
                         CLUSTER_NO_FILTERS,
                         Optional.empty(),
@@ -217,7 +226,7 @@ class VirtualKafkaClusterReconcilerTest {
     }
 
     @NonNull
-    private static ConfigMap buildProxyConfigMapWithConditions(VirtualKafkaCluster clusterOneFilter) {
+    private static ConfigMap buildProxyConfigMapWithPatch(VirtualKafkaCluster clusterOneFilter) {
         // @formatter:off
         return new ConfigMapBuilder()
                 .withNewMetadata()
@@ -225,7 +234,7 @@ class VirtualKafkaClusterReconcilerTest {
                 .endMetadata()
                 .withData(new ProxyConfigData().addStatusPatchForCluster(
                     ResourcesUtil.name(clusterOneFilter),
-                    Conditions.newTrueConditionStatusPatch(TEST_CLOCK, clusterOneFilter, Condition.Type.ResolvedRefs)).build())
+                    STATUS_FACTORY.newTrueConditionStatusPatch(clusterOneFilter, Condition.Type.ResolvedRefs)).build())
                 .build();
         // @formatter:on
     }

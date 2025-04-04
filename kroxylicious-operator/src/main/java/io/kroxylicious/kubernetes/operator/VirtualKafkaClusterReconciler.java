@@ -39,6 +39,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 
@@ -65,10 +66,10 @@ public final class VirtualKafkaClusterReconciler implements
     public static final String TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND = "TransitivelyReferencedResourcesNotFound";
     public static final String REFERENCED_RESOURCES_NOT_FOUND = "ReferencedResourcesNotFound";
 
-    private final Clock clock;
+    private final VirtualKafkaClusterStatusFactory statusFactory;
 
     public VirtualKafkaClusterReconciler(Clock clock) {
-        this.clock = clock;
+        this.statusFactory = new VirtualKafkaClusterStatusFactory(clock);
     }
 
     @Override
@@ -135,8 +136,31 @@ public final class VirtualKafkaClusterReconciler implements
                         .flatMap(cm -> Optional.ofNullable(cm.getData()))
                         .map(ProxyConfigData::new)
                         .flatMap(data -> data.getStatusPatchForCluster(ResourcesUtil.name(cluster)))
-                        // TODO should apply the logic of Condition here too, because we don't know if the conditions we got from the CM
-                        // were based on an outdated generation and that the status we're batching over isn't newer
+                        .map(patch -> {
+                            // apply the logic of Condition here too, because we don't know if the conditions we got from the CM
+                            // were based on a now outdated generation (i.e. that the status we're patching over isn't newer)
+                            var statusObservedGeneration = Optional.ofNullable(cluster.getStatus())
+                                    .flatMap(status -> Optional.ofNullable(status.getObservedGeneration()));
+                            if (statusObservedGeneration.isEmpty()) {
+                                return patch;
+                            }
+                            else {
+                                List<Condition> existingConditions = Optional.ofNullable(cluster.getStatus()).map(VirtualKafkaClusterStatus::getConditions)
+                                        .orElse(List.of());
+                                List<Condition> oldConditions = existingConditions;
+                                List<Condition> patchConditions = patch.getStatus().getConditions();
+                                var x = ResourceState.fromList(patchConditions);
+                                if (x.isPresent()) {
+                                    ResourceState resourceState = ResourceState.fromList(ResourceState.newConditions(oldConditions,
+                                            x.get())).get();
+                                    return statusFactory.clusterStatusPatch(cluster,
+                                            resourceState);
+                                }
+                                else {
+                                    return patch;
+                                }
+                            }
+                        })
                         .map(UpdateControl::patchStatus)
                         .orElse(UpdateControl.noUpdate());
             }
@@ -145,7 +169,7 @@ public final class VirtualKafkaClusterReconciler implements
                 Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", cluster, unresolvedIngresses);
                 Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster, unresolvedFilters);
                 uc = UpdateControl
-                        .patchStatus(Conditions.newFalseConditionStatusPatch(clock, cluster, Condition.Type.ResolvedRefs, Condition.REASON_TRANSITIVE_REFS_NOT_FOUND,
+                        .patchStatus(statusFactory.newFalseConditionStatusPatch(cluster, Condition.Type.ResolvedRefs, Condition.REASON_TRANSITIVE_REFS_NOT_FOUND,
                                 joiningMessages(serviceMsg, ingressMsg, filterMsg)));
             }
         }
@@ -155,7 +179,7 @@ public final class VirtualKafkaClusterReconciler implements
             Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", cluster, missingIngresses);
             Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster, missingFilters);
 
-            uc = UpdateControl.patchStatus(Conditions.newFalseConditionStatusPatch(clock, cluster, Condition.Type.ResolvedRefs, Condition.REASON_REFS_NOT_FOUND,
+            uc = UpdateControl.patchStatus(statusFactory.newFalseConditionStatusPatch(cluster, Condition.Type.ResolvedRefs, Condition.REASON_REFS_NOT_FOUND,
                     joiningMessages(proxyMsg, serviceMsg, ingressMsg, filterMsg)));
         }
 
@@ -261,7 +285,7 @@ public final class VirtualKafkaClusterReconciler implements
     public ErrorStatusUpdateControl<VirtualKafkaCluster> updateErrorStatus(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context, Exception e) {
         // ResolvedRefs to UNKNOWN
         ErrorStatusUpdateControl<VirtualKafkaCluster> uc = ErrorStatusUpdateControl
-                .patchStatus(Conditions.newUnknownConditionStatusPatch(clock, cluster, Condition.Type.ResolvedRefs, e));
+                .patchStatus(statusFactory.newUnknownConditionStatusPatch(cluster, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(cluster), name(cluster), e.toString());
         }
