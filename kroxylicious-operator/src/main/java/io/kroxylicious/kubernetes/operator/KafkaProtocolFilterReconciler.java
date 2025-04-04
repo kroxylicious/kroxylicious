@@ -49,11 +49,11 @@ public class KafkaProtocolFilterReconciler implements
         Reconciler<KafkaProtocolFilter> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProtocolFilterReconciler.class);
-    private final Clock clock;
+    private final KafkaProtocolFilterStatusFactory statusFactory;
     private final SecureConfigInterpolator secureConfigInterpolator;
 
     KafkaProtocolFilterReconciler(Clock clock, SecureConfigInterpolator secureConfigInterpolator) {
-        this.clock = Objects.requireNonNull(clock);
+        this.statusFactory = new KafkaProtocolFilterStatusFactory(Objects.requireNonNull(clock));
         this.secureConfigInterpolator = Objects.requireNonNull(secureConfigInterpolator);
     }
 
@@ -148,8 +148,7 @@ public class KafkaProtocolFilterReconciler implements
         KafkaProtocolFilter patch;
         if (existingSecrets.containsAll(referencedSecrets)
                 && existingConfigMaps.containsAll(referencedConfigMaps)) {
-            patch = Conditions.newTrueConditionStatusPatch(
-                    clock,
+            patch = statusFactory.newTrueConditionStatusPatch(
                     filter,
                     Condition.Type.ResolvedRefs);
         }
@@ -164,8 +163,7 @@ public class KafkaProtocolFilterReconciler implements
                 message += " ConfigMaps [" + String.join(", ", referencedConfigMaps) + "]";
             }
             message += " not found";
-            patch = Conditions.newFalseConditionStatusPatch(
-                    clock,
+            patch = statusFactory.newFalseConditionStatusPatch(
                     filter,
                     Condition.Type.ResolvedRefs,
                     Condition.REASON_INTERPOLATED_REFS_NOT_FOUND,
@@ -185,7 +183,7 @@ public class KafkaProtocolFilterReconciler implements
                                                                            Exception e) {
         // ResolvedRefs to UNKNOWN
         ErrorStatusUpdateControl<KafkaProtocolFilter> uc = ErrorStatusUpdateControl
-                .patchStatus(Conditions.newUnknownConditionStatusPatch(clock, filter, Condition.Type.ResolvedRefs, e));
+                .patchStatus(statusFactory.newUnknownConditionStatusPatch(filter, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(filter), name(filter), e.toString());
         }

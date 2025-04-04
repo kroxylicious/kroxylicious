@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
 import java.util.List;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,10 +39,10 @@ public class KafkaProxyIngressReconciler implements
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyIngressReconciler.class);
     public static final String PROXY_EVENT_SOURCE_NAME = "proxy";
-    private final Clock clock;
+    private final KafkaProxyIngressStatusFactory statusFactory;
 
     KafkaProxyIngressReconciler(Clock clock) {
-        this.clock = clock;
+        this.statusFactory = new KafkaProxyIngressStatusFactory(Objects.requireNonNull(clock));
     }
 
     @Override
@@ -70,12 +71,12 @@ public class KafkaProxyIngressReconciler implements
 
         KafkaProxyIngress patch;
         if (proxyOpt.isPresent()) {
-            patch = Conditions.newTrueConditionStatusPatch(clock,
+            patch = statusFactory.newTrueConditionStatusPatch(
                     ingress,
                     Condition.Type.ResolvedRefs);
         }
         else {
-            patch = Conditions.newFalseConditionStatusPatch(clock,
+            patch = statusFactory.newFalseConditionStatusPatch(
                     ingress,
                     Condition.Type.ResolvedRefs,
                     Condition.REASON_REFS_NOT_FOUND,
@@ -95,7 +96,7 @@ public class KafkaProxyIngressReconciler implements
                                                                          Exception e) {
         // ResolvedRefs to UNKNOWN
         ErrorStatusUpdateControl<KafkaProxyIngress> uc = ErrorStatusUpdateControl
-                .patchStatus(Conditions.newUnknownConditionStatusPatch(clock, ingress, Condition.Type.ResolvedRefs, e));
+                .patchStatus(statusFactory.newUnknownConditionStatusPatch(ingress, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(ingress), name(ingress), e.toString());
         }

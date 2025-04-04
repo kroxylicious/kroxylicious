@@ -6,7 +6,10 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -77,11 +80,11 @@ public class KafkaProxyReconciler implements
     public static final String DEPLOYMENT_DEP = "deployment";
     public static final String CLUSTERS_DEP = "clusters";
 
-    private final Clock clock;
     private final SecureConfigInterpolator secureConfigInterpolator;
+    private KafkaProxyStatusFactory statusFactory;
 
     public KafkaProxyReconciler(Clock clock, SecureConfigInterpolator secureConfigInterpolator) {
-        this.clock = clock;
+        this.statusFactory = new KafkaProxyStatusFactory(Objects.requireNonNull(clock));
         this.secureConfigInterpolator = secureConfigInterpolator;
     }
 
@@ -91,7 +94,7 @@ public class KafkaProxyReconciler implements
                             Context<KafkaProxy> context) {
         ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
         ProxyModel model = proxyModelBuilder.build(proxy, context);
-        KafkaProxyContext.init(context, clock, secureConfigInterpolator, model);
+        KafkaProxyContext.init(context, new VirtualKafkaClusterStatusFactory(Clock.fixed(Instant.EPOCH, ZoneId.of("Z"))), secureConfigInterpolator, model);
     }
 
     /**
@@ -100,7 +103,7 @@ public class KafkaProxyReconciler implements
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
-        var uc = UpdateControl.patchStatus(Conditions.newTrueConditionStatusPatch(clock, primary, Condition.Type.Ready));
+        var uc = UpdateControl.patchStatus(statusFactory.newTrueConditionStatusPatch(primary, Condition.Type.Ready));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(primary), name(primary));
         }
@@ -114,7 +117,7 @@ public class KafkaProxyReconciler implements
     public ErrorStatusUpdateControl<KafkaProxy> updateErrorStatus(KafkaProxy proxy,
                                                                   Context<KafkaProxy> context,
                                                                   Exception e) {
-        var uc = ErrorStatusUpdateControl.patchStatus(Conditions.newUnknownConditionStatusPatch(clock, proxy, Condition.Type.Ready, e));
+        var uc = ErrorStatusUpdateControl.patchStatus(statusFactory.newUnknownConditionStatusPatch(proxy, Condition.Type.Ready, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(proxy), name(proxy), e.toString());
         }
