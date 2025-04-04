@@ -100,19 +100,17 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
         return this;
     }
 
-    public ConditionAssert isReady() {
-        hasType(Condition.Type.Ready);
-        hasStatus(Condition.Status.TRUE);
-        reason().isEmpty();
-        message().isEmpty();
-        return this;
-    }
-
     public ConditionAssert isAcceptedTrue() {
         hasType(Condition.Type.Accepted);
         hasStatus(Condition.Status.TRUE);
         hasNoReason();
         hasNoMessage();
+        return this;
+    }
+
+    public ConditionAssert isAcceptedTrue(HasMetadata thing) {
+        isAcceptedTrue()
+                .hasObservedGenerationInSyncWithMetadataOf(thing);
         return this;
     }
 
@@ -142,6 +140,36 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
 
     public ConditionAssert isResolvedRefsTrue() {
         hasType(Condition.Type.ResolvedRefs);
+        hasStatus(Condition.Status.TRUE);
+        hasNoReason();
+        hasNoMessage();
+        return this;
+    }
+
+    public ConditionAssert isResolvedRefsTrue(HasMetadata thing) {
+        isResolvedRefsTrue()
+                .hasObservedGenerationInSyncWithMetadataOf(thing);
+        return this;
+    }
+
+    public ConditionAssert isReadyUnknown(String reason, String message) {
+        hasType(Condition.Type.Ready);
+        hasStatus(Condition.Status.UNKNOWN);
+        hasReason(reason);
+        hasMessage(message);
+        return this;
+    }
+
+    public ConditionAssert isReadyFalse(String reason, String message) {
+        hasType(Condition.Type.Ready);
+        hasStatus(Condition.Status.FALSE);
+        hasReason(reason);
+        hasMessage(message);
+        return this;
+    }
+
+    public ConditionAssert isReadyTrue() {
+        hasType(Condition.Type.Ready);
         hasStatus(Condition.Status.TRUE);
         hasNoReason();
         hasNoMessage();

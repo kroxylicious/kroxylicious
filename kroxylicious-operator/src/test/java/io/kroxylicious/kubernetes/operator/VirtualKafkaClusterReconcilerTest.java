@@ -12,7 +12,7 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -34,7 +34,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
-import io.kroxylicious.kubernetes.operator.assertj.ConditionAssert;
+import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -46,6 +46,7 @@ import static org.mockito.Mockito.when;
 class VirtualKafkaClusterReconcilerTest {
 
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
+    private static final VirtualKafkaClusterStatusFactory STATUS_FACTORY = new VirtualKafkaClusterStatusFactory(TEST_CLOCK);
 
     // @formatter:off
     public static final VirtualKafkaCluster CLUSTER_NO_FILTERS = new VirtualKafkaClusterBuilder()
@@ -116,19 +117,27 @@ class VirtualKafkaClusterReconcilerTest {
                 Arguments.argumentSet("no filter",
                         CLUSTER_NO_FILTERS,
                         Optional.of(PROXY),
-                        Optional.of(buildProxyConfigMapWithConditions(CLUSTER_NO_FILTERS)),
+                        Optional.of(buildProxyConfigMapWithPatch(CLUSTER_NO_FILTERS)),
                         Optional.of(SERVICE),
                         Set.of(INGRESS),
                         Set.of(),
-                        (Consumer<ConditionAssert>) ConditionAssert::isResolvedRefsTrue),
+                        (BiConsumer<VirtualKafkaCluster, ConditionListAssert>) VirtualKafkaClusterReconcilerTest::assertAllConditionsTrue),
                 Arguments.argumentSet("one filter",
                         CLUSTER_ONE_FILTER,
                         Optional.of(PROXY),
-                        Optional.of(buildProxyConfigMapWithConditions(CLUSTER_ONE_FILTER)),
+                        Optional.of(buildProxyConfigMapWithPatch(CLUSTER_ONE_FILTER)),
                         Optional.of(SERVICE),
                         Set.of(INGRESS),
                         Set.of(FILTER_MY_FILTER),
-                        (Consumer<ConditionAssert>) ConditionAssert::isResolvedRefsTrue),
+                        (BiConsumer<VirtualKafkaCluster, ConditionListAssert>) VirtualKafkaClusterReconcilerTest::assertAllConditionsTrue),
+                // Arguments.argumentSet("one filter with stale configmap",
+                // new VirtualKafkaClusterBuilder(CLUSTER_ONE_FILTER).editOrNewStatus().withObservedGeneration(ResourcesUtil.generation(CLUSTER_NO_FILTERS)).endStatus().build(),
+                // Optional.of(PROXY),
+                // Optional.of(buildProxyConfigMapWithPatch(new VirtualKafkaClusterBuilder(CLUSTER_ONE_FILTER).editMetadata().withGeneration(40L).endMetadata().build())),
+                // Optional.of(SERVICE),
+                // Set.of(INGRESS),
+                // Set.of(FILTER_MY_FILTER),
+                // (BiConsumer<VirtualKafkaCluster, ConditionListAssert>) VirtualKafkaClusterReconcilerTest::assertAllConditionsTrue),
                 Arguments.argumentSet("proxy not found",
                         CLUSTER_NO_FILTERS,
                         Optional.empty(),
@@ -136,7 +145,7 @@ class VirtualKafkaClusterReconcilerTest {
                         Optional.of(SERVICE),
                         Set.of(INGRESS),
                         Set.of(),
-                        (Consumer<ConditionAssert>) ca -> ca.isResolvedRefsFalse(
+                        assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND,
                                 "spec.proxyRef references kafkaproxy.kroxylicious.io/my-proxy in namespace 'my-namespace'")),
                 Arguments.argumentSet("service not found",
@@ -146,7 +155,7 @@ class VirtualKafkaClusterReconcilerTest {
                         Optional.empty(),
                         Set.of(INGRESS),
                         Set.of(),
-                        (Consumer<ConditionAssert>) ca -> ca.isResolvedRefsFalse(
+                        assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND,
                                 "spec.targetKafkaServiceRef references kafkaservice.kroxylicious.io/my-kafka in namespace 'my-namespace'")),
                 Arguments.argumentSet("service has unresolved refs",
@@ -157,7 +166,7 @@ class VirtualKafkaClusterReconcilerTest {
                                 .withStatus(Condition.Status.FALSE).endCondition().endStatus().build()),
                         Set.of(INGRESS),
                         Set.of(),
-                        (Consumer<ConditionAssert>) ca -> ca.isResolvedRefsFalse(
+                        assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND,
                                 "spec.targetKafkaServiceRef references kafkaservice.kroxylicious.io/my-kafka in namespace 'my-namespace'")),
                 Arguments.argumentSet("ingress not found",
@@ -167,7 +176,7 @@ class VirtualKafkaClusterReconcilerTest {
                         Optional.of(SERVICE),
                         Set.of(),
                         Set.of(),
-                        (Consumer<ConditionAssert>) ca -> ca.isResolvedRefsFalse(
+                        assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND,
                                 "spec.ingressRefs references kafkaproxyingress.kroxylicious.io/my-ingress in namespace 'my-namespace'")),
                 Arguments.argumentSet("ingress has unresolved refs",
@@ -178,7 +187,7 @@ class VirtualKafkaClusterReconcilerTest {
                         Set.of(new KafkaProxyIngressBuilder(INGRESS).withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
                                 .withStatus(Condition.Status.FALSE).endCondition().endStatus().build()),
                         Set.of(),
-                        (Consumer<ConditionAssert>) ca -> ca.isResolvedRefsFalse(
+                        assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND,
                                 "spec.ingressRefs references kafkaproxyingress.kroxylicious.io/my-ingress in namespace 'my-namespace'")),
                 Arguments.argumentSet("filter not found",
@@ -188,7 +197,7 @@ class VirtualKafkaClusterReconcilerTest {
                         Optional.of(SERVICE),
                         Set.of(INGRESS),
                         Set.of(),
-                        (Consumer<ConditionAssert>) ca -> ca.isResolvedRefsFalse(
+                        assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND,
                                 "spec.filterRefs references kafkaprotocolfilter.filter.kroxylicious.io/my-filter in namespace 'my-namespace'")),
                 Arguments.argumentSet("filter has unresolved refs",
@@ -199,23 +208,39 @@ class VirtualKafkaClusterReconcilerTest {
                         Set.of(INGRESS),
                         Set.of(new KafkaProtocolFilterBuilder(FILTER_MY_FILTER).withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
                                 .withStatus(Condition.Status.FALSE).endCondition().endStatus().build()),
-                        (Consumer<ConditionAssert>) ca -> ca.isResolvedRefsFalse(
+                        assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND,
                                 "spec.filterRefs references kafkaprotocolfilter.filter.kroxylicious.io/my-filter in namespace 'my-namespace'")));
     }
 
     @NonNull
-    private static ConfigMap buildProxyConfigMapWithConditions(VirtualKafkaCluster clusterOneFilter) {
+    private static BiConsumer<VirtualKafkaCluster, ConditionListAssert> assertResolvedRefsFalse(
+                                                                                                String referencedResourcesNotFound,
+                                                                                                String message) {
+        return (BiConsumer<VirtualKafkaCluster, ConditionListAssert>) (cluster, cl) -> cl.singleOfType(Condition.Type.ResolvedRefs)
+                .hasObservedGenerationInSyncWithMetadataOf(cluster)
+                .hasLastTransitionTime(TEST_CLOCK.instant())
+                .isResolvedRefsFalse(
+                        referencedResourcesNotFound,
+                        message);
+    }
+
+    @NonNull
+    private static ConfigMap buildProxyConfigMapWithPatch(VirtualKafkaCluster clusterOneFilter) {
         // @formatter:off
         return new ConfigMapBuilder()
                 .withNewMetadata()
                     .withName(clusterOneFilter.getSpec().getProxyRef().getName())
                 .endMetadata()
-                .withData(new ProxyConfigData().addConditionsForCluster(
+                .withData(new ProxyConfigData().addStatusPatchForCluster(
                     ResourcesUtil.name(clusterOneFilter),
-                    List.of(ResourcesUtil.newResolvedRefsTrue(TEST_CLOCK, clusterOneFilter))).build())
+                    STATUS_FACTORY.newTrueConditionStatusPatch(clusterOneFilter, Condition.Type.ResolvedRefs)).build())
                 .build();
         // @formatter:on
+    }
+
+    private static void assertAllConditionsTrue(VirtualKafkaCluster cluster, ConditionListAssert cl) {
+        cl.singleElement().isResolvedRefsTrue(cluster);
     }
 
     @ParameterizedTest
@@ -226,7 +251,7 @@ class VirtualKafkaClusterReconcilerTest {
                                             Optional<KafkaService> existingService,
                                             Set<KafkaProxyIngress> existingIngresses,
                                             Set<KafkaProtocolFilter> existingFilters,
-                                            Consumer<ConditionAssert> asserter) {
+                                            BiConsumer<VirtualKafkaCluster, ConditionListAssert> asserter) {
         // given
         Clock z = TEST_CLOCK;
         var reconciler = new VirtualKafkaClusterReconciler(z);
@@ -245,12 +270,10 @@ class VirtualKafkaClusterReconcilerTest {
         assertThat(update).isNotNull();
         assertThat(update.isPatchStatus()).isTrue();
         assertThat(update.getResource()).isPresent();
-        ConditionAssert conditionAssert = VirtualKafkaClusterStatusAssert.assertThat(update.getResource().get().getStatus())
+        ConditionListAssert conditionAssert = VirtualKafkaClusterStatusAssert.assertThat(update.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(cluster)
-                .conditionList().singleOfType(Condition.Type.ResolvedRefs)
-                .hasObservedGenerationInSyncWithMetadataOf(cluster)
-                .hasLastTransitionTime(TEST_CLOCK.instant());
-        asserter.accept(conditionAssert);
+                .conditionList();
+        asserter.accept(cluster, conditionAssert);
 
     }
 

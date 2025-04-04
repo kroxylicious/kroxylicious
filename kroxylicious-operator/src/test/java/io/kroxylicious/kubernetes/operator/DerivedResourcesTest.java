@@ -248,7 +248,7 @@ class DerivedResourcesTest {
             ProxyModel model = proxyModelBuilder.build(kafkaProxy, context);
             KafkaProxyContext.init(
                     context,
-                    Clock.fixed(Instant.EPOCH, ZoneId.of("Z")),
+                    new VirtualKafkaClusterStatusFactory(Clock.fixed(Instant.EPOCH, ZoneId.of("Z"))),
                     SecureConfigInterpolator.DEFAULT_INTERPOLATOR,
                     model);
 

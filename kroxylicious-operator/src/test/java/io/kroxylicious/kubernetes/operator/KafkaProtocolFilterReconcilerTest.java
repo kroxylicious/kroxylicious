@@ -25,9 +25,10 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
-import io.kroxylicious.kubernetes.operator.assertj.ConditionAssert;
+import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.KafkaProtocolFilterStatusAssert;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -88,18 +89,38 @@ class KafkaProtocolFilterReconcilerTest {
         when(neitherExists.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of());
         return List.of(
                 Arguments.argumentSet("both exist", bothExist,
-                        (Consumer<ConditionAssert>) ConditionAssert::isResolvedRefsTrue),
-                Arguments.argumentSet("secret exists", secretExists, (Consumer<ConditionAssert>) x -> x.isResolvedRefsFalse("MissingInterpolationReferences",
-                        "Referenced ConfigMaps [my-configmap] not found")),
-                Arguments.argumentSet("configmap exists", cmExists, (Consumer<ConditionAssert>) x -> x.isResolvedRefsFalse("MissingInterpolationReferences",
-                        "Referenced Secrets [my-secret] not found")),
-                Arguments.argumentSet("neither exists", neitherExists, (Consumer<ConditionAssert>) x -> x.isResolvedRefsFalse("MissingInterpolationReferences",
-                        "Referenced Secrets [my-secret] ConfigMaps [my-configmap] not found")));
+                        (Consumer<ConditionListAssert>) conditionList -> conditionList
+                                .singleElement()
+                                .isResolvedRefsTrue()),
+                Arguments.argumentSet("secret exists", secretExists,
+                        (Consumer<ConditionListAssert>) conditionList -> conditionList
+                                .singleOfType(Condition.Type.ResolvedRefs)
+                                .hasStatus(Condition.Status.FALSE)
+                                .hasObservedGenerationInSyncWithMetadataOf(FILTER)
+                                .hasLastTransitionTime(TEST_CLOCK.instant())
+                                .hasReason(Condition.REASON_INTERPOLATED_REFS_NOT_FOUND)
+                                .hasMessage("Referenced ConfigMaps [my-configmap] not found")),
+                Arguments.argumentSet("configmap exists", cmExists,
+                        (Consumer<ConditionListAssert>) conditionList -> conditionList
+                                .singleOfType(Condition.Type.ResolvedRefs)
+                                .hasStatus(Condition.Status.FALSE)
+                                .hasObservedGenerationInSyncWithMetadataOf(FILTER)
+                                .hasLastTransitionTime(TEST_CLOCK.instant())
+                                .hasReason(Condition.REASON_INTERPOLATED_REFS_NOT_FOUND)
+                                .hasMessage("Referenced Secrets [my-secret] not found")),
+                Arguments.argumentSet("neither exists", neitherExists,
+                        (Consumer<ConditionListAssert>) conditionList -> conditionList
+                                .singleOfType(Condition.Type.ResolvedRefs)
+                                .hasStatus(Condition.Status.FALSE)
+                                .hasObservedGenerationInSyncWithMetadataOf(FILTER)
+                                .hasLastTransitionTime(TEST_CLOCK.instant())
+                                .hasReason(Condition.REASON_INTERPOLATED_REFS_NOT_FOUND)
+                                .hasMessage("Referenced Secrets [my-secret] ConfigMaps [my-configmap] not found")));
     }
 
     @ParameterizedTest
     @MethodSource
-    void shouldSetResolvedRefs(Context<KafkaProtocolFilter> context, Consumer<ConditionAssert> asserter) {
+    void shouldSetResolvedRefs(Context<KafkaProtocolFilter> context, Consumer<ConditionListAssert> asserter) {
         // given
 
         var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
@@ -113,9 +134,7 @@ class KafkaProtocolFilterReconcilerTest {
         assertThat(update.getResource()).isPresent();
         var x = KafkaProtocolFilterStatusAssert.assertThat(update.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(FILTER)
-                .singleCondition()
-                .hasObservedGenerationInSyncWithMetadataOf(FILTER)
-                .hasLastTransitionTime(TEST_CLOCK.instant());
+                .conditionList();
 
         asserter.accept(x);
 

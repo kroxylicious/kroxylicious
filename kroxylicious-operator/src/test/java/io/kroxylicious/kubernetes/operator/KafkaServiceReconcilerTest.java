@@ -22,11 +22,11 @@ import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.KafkaServiceStatusAssert;
 
-import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 
@@ -83,27 +83,13 @@ class KafkaServiceReconcilerTest {
         final UpdateControl<KafkaService> updateControl = kafkaProtocolFilterReconciler.reconcile(kafkaService, context);
 
         // Then
-        assertThat(updateControl)
-                .isNotNull()
-                .satisfies(
-                        input -> {
-                            assertThat(input.isPatchStatus())
-                                    .isTrue();
-                            assertThat(input.getResource())
-                                    .isNotEmpty()
-                                    .get()
-                                    .extracting(KafkaService::getStatus)
-                                    .satisfies(kafkaServiceStatus -> {
-                                        assertThat(kafkaServiceStatus)
-                                                .observedGeneration()
-                                                .isEqualTo(OBSERVED_GENERATION);
-                                        assertThat(kafkaServiceStatus)
-                                                .singleCondition()
-                                                .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
-                                                .isAcceptedTrue();
-                                    }
-
-                                    );
-                        });
+        assertThat(updateControl).isNotNull();
+        assertThat(updateControl.getResource()).isPresent();
+        KafkaServiceStatusAssert.assertThat(updateControl.getResource().get().getStatus())
+                .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
+                .conditionList()
+                .containsOnlyTypes(Condition.Type.Accepted)
+                .singleOfType(Condition.Type.Accepted)
+                .isAcceptedTrue();
     }
 }
