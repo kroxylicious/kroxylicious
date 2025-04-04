@@ -56,8 +56,11 @@ record ClusterIPIngressDefinition(KafkaProxyIngress resource, VirtualKafkaCluste
 
         @Override
         public VirtualClusterGateway gatewayConfig() {
-            List<NamedRange> portRanges = definition.nodeIdRanges.stream()
-                    .map(range -> new NamedRange(range.getName(), toIntExact(range.getStart()), toIntExact(range.getEnd()))).toList();
+            List<NamedRange> portRanges = IntStream.range(0, definition.nodeIdRanges.size()).mapToObj(i -> {
+                NodeIdRanges range = definition.nodeIdRanges.get(i);
+                String name = Optional.ofNullable(range.getName()).orElse("range-" + i);
+                return new NamedRange(name, toIntExact(range.getStart()), toIntExact(range.getEnd()));
+            }).toList();
             return new VirtualClusterGateway("default",
                     new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", firstIdentifyingPort),
                             qualifiedServiceHost(), null,

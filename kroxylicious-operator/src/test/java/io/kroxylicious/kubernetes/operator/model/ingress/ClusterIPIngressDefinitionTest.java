@@ -38,6 +38,7 @@ import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -240,6 +241,39 @@ class ClusterIPIngressDefinitionTest {
     }
 
     @Test
+    void gatewayConfigNameDefault() {
+        // given
+        int rangeStart = 1;
+        int rangeEnd = 3;
+
+        int rangeStart2 = 5;
+        int rangeEnd2 = 6;
+        ClusterIPIngressDefinition definition = new ClusterIPIngressDefinition(INGRESS, VIRTUAL_KAFKA_CLUSTER, PROXY,
+                List.of(createNodeIdRange(null, rangeStart, rangeEnd), createNodeIdRange(null, rangeStart2, rangeEnd2)));
+        // 5 ports for the nodeId ranges + 1 for bootstrap
+        IngressInstance instance = definition.createInstance(2, 7);
+        assertThat(instance).isNotNull();
+
+        // when
+        VirtualClusterGateway gateway = instance.gatewayConfig();
+
+        // then
+        assertThat(gateway).isNotNull();
+        assertThat(gateway.name()).isEqualTo("default");
+        assertThat(gateway.tls()).isEmpty();
+        assertThat(gateway.sniHostIdentifiesNode()).isNull();
+        assertThat(gateway.portIdentifiesNode()).isNotNull().satisfies(portIdentifiesNode -> {
+            assertThat(portIdentifiesNode.bootstrapAddress()).isEqualTo(new HostPort("localhost", 2));
+            assertThat(portIdentifiesNode.nodeStartPort()).isNull(); // we use the default of bootstrap port + 1
+            String expectedAdvertisedAddress = CLUSTER_NAME + "-" + INGRESS_NAME + "." + NAMESPACE + ".svc.cluster.local";
+            assertThat(portIdentifiesNode.advertisedBrokerAddressPattern()).isEqualTo(expectedAdvertisedAddress);
+            NamedRange expectedRange = new NamedRange("range-0", rangeStart, rangeEnd);
+            NamedRange expectedRange2 = new NamedRange("range-1", rangeStart2, rangeEnd2);
+            assertThat(portIdentifiesNode.nodeIdRanges()).containsExactly(expectedRange, expectedRange2);
+        });
+    }
+
+    @Test
     void gatewayConfigMultipleRange() {
         // given
         String rangeName = "a";
@@ -352,7 +386,7 @@ class ClusterIPIngressDefinitionTest {
         return orderedLabels;
     }
 
-    private static NodeIdRanges createNodeIdRange(String name, long start, long endInclusive) {
+    private static NodeIdRanges createNodeIdRange(@Nullable String name, long start, long endInclusive) {
         return new NodeIdRangesBuilder().withName(name).withStart(start).withEnd(endInclusive).build();
     }
 

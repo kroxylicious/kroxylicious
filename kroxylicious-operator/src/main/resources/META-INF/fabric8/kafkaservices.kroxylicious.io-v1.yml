@@ -55,7 +55,7 @@ spec:
                     See also: https://kafka.apache.org/documentation/#brokerconfigs_node.id
                   items:
                     type: object
-                    required: [ "name", "start", "end" ]
+                    required: [ "start", "end" ]
                     x-kubernetes-validations:
                       - rule: "self.start <= self.end"
                         message: "end should be greater than or equal to start"
