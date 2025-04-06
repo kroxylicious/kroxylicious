@@ -317,8 +317,6 @@ class KafkaProxyReconcilerTest {
                         .withObservedGeneration(generation)
                         .withType(Condition.Type.Ready)
                         .withStatus(Condition.Status.TRUE)
-                        .withMessage("")
-                        .withReason("")
                         .withLastTransitionTime(TEST_CLOCK.instant())
                     .endCondition()
                 .endStatus()

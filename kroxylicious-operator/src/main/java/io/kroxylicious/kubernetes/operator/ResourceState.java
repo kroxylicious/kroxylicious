@@ -20,6 +20,8 @@ import java.util.stream.Stream;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 public class ResourceState {
 
     public static final Comparator<Condition> STATE_TRANSITION_COMPARATOR = Comparator.comparing(Condition::getMessage, Comparator.nullsLast(String::compareTo))
@@ -71,15 +73,72 @@ public class ResourceState {
                             if (c2.getObservedGeneration() == null) {
                                 return c1;
                             }
-                            if (c1.getObservedGeneration() >= c2.getObservedGeneration()) {
-                                return c1;
+                            else if (Objects.equals(c1.getObservedGeneration(), c2.getObservedGeneration())) {
+                                if (Objects.equals(c1.getStatus(), c2.getStatus())) {
+                                    return earliest(c1, c2);
+                                }
+                                else {
+                                    return mostRecent(c1, c2);
+                                }
                             }
                             else {
-                                return c2;
+                                if (c1.getObservedGeneration() > c2.getObservedGeneration()) {
+                                    c1.setLastTransitionTime(minTransitionTime(c1, c2));
+                                    return c1;
+                                }
+                                else {
+                                    c2.setLastTransitionTime(minTransitionTime(c1, c2));
+                                    return c2;
+                                }
                             }
                         },
                         TreeMap::new)));
 
+    }
+
+    private Instant minTransitionTime(Condition conditionA, Condition conditionB) {
+        if (conditionA.getLastTransitionTime() == null) {
+            return conditionB.getLastTransitionTime();
+        }
+        else if (conditionB.getLastTransitionTime() == null) {
+            return conditionA.getLastTransitionTime();
+        }
+        else if (conditionA.getLastTransitionTime().isBefore(conditionB.getLastTransitionTime())) {
+            return conditionA.getLastTransitionTime();
+        }
+        else {
+            return conditionB.getLastTransitionTime();
+        }
+    }
+
+    private static @NonNull Condition mostRecent(Condition c1, Condition c2) {
+        if (c1.getLastTransitionTime() == null) {
+            return c2;
+        }
+        else if (c2.getLastTransitionTime() == null) {
+            return c1;
+        }
+        else if (c1.getLastTransitionTime().isAfter(c2.getLastTransitionTime())) {
+            return c1;
+        }
+        else {
+            return c2;
+        }
+    }
+
+    private static @NonNull Condition earliest(Condition c1, Condition c2) {
+        if (c1.getLastTransitionTime() == null) {
+            return c2;
+        }
+        else if (c2.getLastTransitionTime() == null) {
+            return c1;
+        }
+        else if (c1.getLastTransitionTime().isBefore(c2.getLastTransitionTime())) {
+            return c1;
+        }
+        else {
+            return c2;
+        }
     }
 
     public List<Condition> toList() {

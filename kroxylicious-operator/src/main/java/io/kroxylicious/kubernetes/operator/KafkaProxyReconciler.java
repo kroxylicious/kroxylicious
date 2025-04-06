@@ -6,8 +6,6 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;

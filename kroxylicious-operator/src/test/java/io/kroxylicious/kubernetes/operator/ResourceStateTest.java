@@ -50,28 +50,80 @@ class ResourceStateTest {
         assertThat(ResourceState.newConditions(List.of(c13True), ResourceState.fromList(List.of(c12)))).isEqualTo(List.of(c13True));
     }
 
+    // the reconciler often has to process a resource without the generation changing.
     @Test
-    void shouldPreserveLastTransitionTime() {
+    void shouldPreserveLastTransitionTimeWhenGenerationAndStatusUnchanged() {
         Instant originalTime = TEST_TIME.instant();
-        Condition c12 = new ConditionBuilder()
+        Condition originalCondition = new ConditionBuilder()
                 .withObservedGeneration(12L)
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
                 .withLastTransitionTime(originalTime)
                 .build();
 
-        Condition c13 = new ConditionBuilder()
+        Condition newCondition = new ConditionBuilder()
+                .withObservedGeneration(12L)
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.FALSE)
+                .withLastTransitionTime(originalTime.plus(1, ChronoUnit.MINUTES))
+                .build();
+
+        // when
+        List<Condition> actual = ResourceState.newConditions(List.of(originalCondition), ResourceState.fromList(List.of(newCondition)));
+
+        // then
+        assertThat(actual).isEqualTo(List.of(originalCondition));
+    }
+
+    // the reconciler often has to process a resource without the generation changing.
+    @Test
+    void shouldPreserveLastTransitionTimeWhenGenerationAndStatusChanged() {
+        Instant originalTime = TEST_TIME.instant();
+        Condition originalCondition = new ConditionBuilder()
+                .withObservedGeneration(12L)
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.FALSE)
+                .withLastTransitionTime(originalTime)
+                .build();
+
+        Condition newCondition = new ConditionBuilder()
+                .withObservedGeneration(12L)
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.TRUE)
+                .withLastTransitionTime(originalTime.plus(1, ChronoUnit.MINUTES))
+                .build();
+
+        // when
+        List<Condition> actual = ResourceState.newConditions(List.of(originalCondition), ResourceState.fromList(List.of(newCondition)));
+
+        // then
+        assertThat(actual).isEqualTo(List.of(newCondition));
+    }
+
+    @Test
+    void shouldPreserveLastTransitionTime() {
+        // given
+        Instant originalTime = TEST_TIME.instant();
+        Condition originalCondition = new ConditionBuilder()
+                .withObservedGeneration(12L)
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.FALSE)
+                .withLastTransitionTime(originalTime)
+                .build();
+
+        Condition newCondition = new ConditionBuilder()
                 .withObservedGeneration(13L)
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
                 .withLastTransitionTime(originalTime.plus(1, ChronoUnit.MINUTES))
                 .build();
 
-        var c13WithOriginalTime = new ConditionBuilder(c13).withLastTransitionTime(originalTime).build();
+        // when
+        var newConditionWithOriginalTransitionTime = new ConditionBuilder(newCondition).withLastTransitionTime(originalTime).build();
+        List<Condition> actual = ResourceState.newConditions(List.of(originalCondition), ResourceState.fromList(List.of(newCondition)));
 
-        // assertThat(ResourceState.newConditions(List.of(c12), ResourceState.fromList(List.of(c13)))).isEqualTo(List.of(c13WithOriginalTime));
-        // // Let's not retrospectively change the ltt on an existing condition
-        // assertThat(ResourceState.newConditions(List.of(c13), ResourceState.fromList(List.of(c12)))).isEqualTo(List.of(c13));
+        // then
+        assertThat(actual).isEqualTo(List.of(newConditionWithOriginalTransitionTime));
     }
 
 }
