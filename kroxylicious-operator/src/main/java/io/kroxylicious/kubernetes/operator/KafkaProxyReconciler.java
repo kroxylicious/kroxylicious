@@ -80,11 +80,13 @@ public class KafkaProxyReconciler implements
     public static final String DEPLOYMENT_DEP = "deployment";
     public static final String CLUSTERS_DEP = "clusters";
 
+    private final Clock clock;
     private final SecureConfigInterpolator secureConfigInterpolator;
     private KafkaProxyStatusFactory statusFactory;
 
     public KafkaProxyReconciler(Clock clock, SecureConfigInterpolator secureConfigInterpolator) {
         this.statusFactory = new KafkaProxyStatusFactory(Objects.requireNonNull(clock));
+        this.clock = clock;
         this.secureConfigInterpolator = secureConfigInterpolator;
     }
 
@@ -94,7 +96,7 @@ public class KafkaProxyReconciler implements
                             Context<KafkaProxy> context) {
         ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
         ProxyModel model = proxyModelBuilder.build(proxy, context);
-        KafkaProxyContext.init(context, new VirtualKafkaClusterStatusFactory(Clock.fixed(Instant.EPOCH, ZoneId.of("Z"))), secureConfigInterpolator, model);
+        KafkaProxyContext.init(context, new VirtualKafkaClusterStatusFactory(clock), secureConfigInterpolator, model);
     }
 
     /**
