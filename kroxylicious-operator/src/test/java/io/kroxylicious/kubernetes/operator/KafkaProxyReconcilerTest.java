@@ -224,6 +224,7 @@ class KafkaProxyReconcilerTest {
         // Given
         long generation = 42L;
         // @formatter:off
+        Instant originalInstant = TEST_CLOCK.instant();
         var primary = new KafkaProxyBuilder()
                  .withNewMetadata()
                     .withGeneration(generation)
@@ -235,7 +236,7 @@ class KafkaProxyReconcilerTest {
                         .withStatus(Condition.Status.UNKNOWN)
                         .withMessage("Resource was terrible")
                         .withReason(InvalidResourceException.class.getSimpleName())
-                        .withLastTransitionTime(TEST_CLOCK.instant())
+                        .withLastTransitionTime(originalInstant)
                     .endCondition()
                 .endStatus()
                 .build();
@@ -254,7 +255,7 @@ class KafkaProxyReconcilerTest {
         statusAssert.hasObservedGeneration(generation)
                 .singleCondition()
                 .hasObservedGeneration(generation)
-                .hasLastTransitionTime(reconciliationTime.instant())
+                .hasLastTransitionTime(originalInstant)
                 .hasType(Condition.Type.Ready)
                 .hasStatus(Condition.Status.UNKNOWN)
                 .hasReason(InvalidResourceException.class.getName())

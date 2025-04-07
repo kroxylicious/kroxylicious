@@ -13,21 +13,22 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.SortedMap;
 import java.util.TreeMap;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import static java.util.function.Function.identity;
 
 public class ResourceState {
 
-    public static final Comparator<Condition> STATE_TRANSITION_COMPARATOR = Comparator.comparing(Condition::getMessage, Comparator.nullsLast(String::compareTo))
-            .thenComparing(Condition::getReason, Comparator.nullsLast(String::compareTo))
-            .thenComparing(Condition::getStatus, Comparator.nullsLast(Condition.Status::compareTo))
-            .thenComparing(Condition::getType, Comparator.nullsLast(Condition.Type::compareTo));
+    // we are aiming for a deterministic ordering, so we order by status if observed generation and last transition time are equal
+    @VisibleForTesting
+    static final Comparator<Condition> FRESHEST_CONDITION = Comparator.comparing(Condition::getObservedGeneration, Comparator.nullsFirst(Long::compareTo))
+            .thenComparing(Condition::getLastTransitionTime, Comparator.nullsFirst(Instant::compareTo))
+            .thenComparing(Condition::getStatus, Comparator.nullsFirst(Condition.Status::compareTo));
 
     private final SortedMap<Condition.Type, Condition> conditions;
 
@@ -48,118 +49,38 @@ public class ResourceState {
     static ResourceState fromList(List<Condition> conditionsList) {
         // Belt+braces: There _should_ be at most one such condition, but we assume there's more than one
         // we pick the condition with the largest observedGeneration (there's on point keeping old conditions around)
-        // then we prefer Unknown over False over True statuses
-        // finally we compare the last transition time, though this is only serialized with second resolution
-        // and there's no guarantee that they call came from the same clock.
+        // then we compare the last transition time, there's no guarantee that they call came from the same clock
+        // finally we prefer Unknown over False over True statuses
         Map<Condition.Type, List<Condition>> collect = conditionsList.stream().collect(Collectors.groupingBy(Condition::getType));
-        Map<Condition.Type, Condition> collect1 = collect.entrySet().stream()
-                .filter(entry -> entry.getKey() != null && entry.getValue().size() > 0)
-                .collect(Collectors.toMap(entry -> entry.getKey(),
+        Map<Condition.Type, Condition> freshestConditionPerType = collect.entrySet().stream()
+                .filter(entry -> entry.getKey() != null && !entry.getValue().isEmpty())
+                .collect(Collectors.toMap(Map.Entry::getKey,
                         entry -> entry.getValue().stream()
-                                .max(Comparator.comparing(Condition::getObservedGeneration, Comparator.nullsFirst(Long::compareTo))
-                                        .thenComparing(Condition::getStatus, Comparator.nullsFirst(Condition.Status::compareTo)).reversed()
-                                        .thenComparing(Condition::getLastTransitionTime, Comparator.nullsFirst(Instant::compareTo)))
-                                .get()));
-        return new ResourceState(collect1);
+                                .max(FRESHEST_CONDITION)
+                                .orElseThrow()));
+        return new ResourceState(freshestConditionPerType);
     }
 
     public ResourceState replacementFor(ResourceState existingState) {
-        return new ResourceState(Stream.concat(this.conditions.values().stream(), existingState.conditions.values().stream())
-                .collect(Collectors.toMap(Condition::getType, Function.identity(),
-                        (c1, c2) -> {
-                            if (c1.getObservedGeneration() == null) {
-                                return c2;
-                            }
-                            if (c2.getObservedGeneration() == null) {
-                                return c1;
-                            }
-                            else if (Objects.equals(c1.getObservedGeneration(), c2.getObservedGeneration())) {
-                                if (Objects.equals(c1.getStatus(), c2.getStatus())) {
-                                    String mostRecentMessage = mostRecent(c1, c2).getMessage();
-                                    Condition earliest = earliest(c1, c2);
-                                    if (mostRecentMessage != null) {
-                                        return earliest.edit().withMessage(mostRecentMessage).build();
-                                    }
-                                    else {
-                                        return earliest;
-                                    }
-                                }
-                                else {
-                                    return mostRecent(c1, c2);
-                                }
-                            }
-                            else {
-                                if (c1.getObservedGeneration() > c2.getObservedGeneration()) {
-                                    if (Objects.equals(c1.getStatus(), c2.getStatus())) {
-                                        return c1.edit().withLastTransitionTime(minTransitionTime(c1, c2)).build();
-                                    }
-                                    else {
-                                        return c1;
-                                    }
-                                }
-                                else {
-                                    if (Objects.equals(c1.getStatus(), c2.getStatus())) {
-                                        return c2.edit().withLastTransitionTime(minTransitionTime(c1, c2)).build();
-                                    }
-                                    else {
-                                        return c2;
-                                    }
-                                }
-                            }
-                        },
-                        TreeMap::new)));
-
+        Stream<Condition> allConditions = Stream.concat(this.conditions.values().stream(), existingState.conditions.values().stream());
+        return new ResourceState(allConditions.collect(Collectors.toMap(Condition::getType, identity(), this::buildNewCondition, TreeMap::new)));
     }
 
-    private Instant minTransitionTime(Condition conditionA, Condition conditionB) {
-        if (conditionA.getLastTransitionTime() == null) {
-            return conditionB.getLastTransitionTime();
+    Condition buildNewCondition(Condition c1, Condition c2) {
+        Condition freshest = FRESHEST_CONDITION.compare(c1, c2) < 0 ? c2 : c1;
+        Condition leastFresh = c1 == freshest ? c2 : c1;
+        ConditionBuilder builder = freshest.edit();
+        if (Objects.equals(freshest.getStatus(), leastFresh.getStatus())) {
+            if (leastFresh.getLastTransitionTime() != null) {
+                // retain older transition time if the status is unchanged
+                builder.withLastTransitionTime(leastFresh.getLastTransitionTime());
+            }
         }
-        else if (conditionB.getLastTransitionTime() == null) {
-            return conditionA.getLastTransitionTime();
-        }
-        else if (conditionA.getLastTransitionTime().isBefore(conditionB.getLastTransitionTime())) {
-            return conditionA.getLastTransitionTime();
-        }
-        else {
-            return conditionB.getLastTransitionTime();
-        }
-    }
-
-    private static @NonNull Condition mostRecent(Condition c1, Condition c2) {
-        if (c1.getLastTransitionTime() == null) {
-            return c2;
-        }
-        else if (c2.getLastTransitionTime() == null) {
-            return c1;
-        }
-        else if (c1.getLastTransitionTime().isAfter(c2.getLastTransitionTime())) {
-            return c1;
-        }
-        else {
-            return c2;
-        }
-    }
-
-    private static @NonNull Condition earliest(Condition c1, Condition c2) {
-        if (c1.getLastTransitionTime() == null) {
-            return c2;
-        }
-        else if (c2.getLastTransitionTime() == null) {
-            return c1;
-        }
-        else if (c1.getLastTransitionTime().isBefore(c2.getLastTransitionTime())) {
-            return c1;
-        }
-        else {
-            return c2;
-        }
+        return builder.build();
     }
 
     public List<Condition> toList() {
-        return conditions.entrySet().stream()
-                .map(Map.Entry::getValue)
-                .collect(Collectors.toList());
+        return conditions.values().stream().toList();
     }
 
     @VisibleForTesting

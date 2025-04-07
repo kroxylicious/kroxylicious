@@ -94,7 +94,7 @@ public class ProxyConfigData {
         }
         try {
             return Optional.of(CONFIG_OBJECT_MAPPER.readValue(str, VirtualKafkaClusterPatch.class))
-                    .map(patch -> patch.toResource());
+                    .map(VirtualKafkaClusterPatch::toResource);
         }
         catch (JsonProcessingException e) {
             throw new UncheckedIOException(e);
