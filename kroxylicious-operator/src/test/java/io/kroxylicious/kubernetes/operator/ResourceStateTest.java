@@ -211,6 +211,31 @@ class ResourceStateTest {
     }
 
     @Test
+    void shouldNotPreserveNullLastTransitionTimeIfStatusUnchangedOverGenerations() {
+        // given
+        Condition originalCondition = new ConditionBuilder()
+                .withObservedGeneration(12L)
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.FALSE)
+                .withLastTransitionTime(null)
+                .build();
+
+        Instant newStatusTime = TEST_TIME.instant();
+        Condition newCondition = new ConditionBuilder()
+                .withObservedGeneration(13L)
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.FALSE)
+                .withLastTransitionTime(newStatusTime)
+                .build();
+
+        // when
+        List<Condition> actual = ResourceState.newConditions(List.of(originalCondition), ResourceState.fromList(List.of(newCondition)));
+
+        // then
+        assertThat(actual).isEqualTo(List.of(newCondition));
+    }
+
+    @Test
     void shouldUseLatestTransitionTimeIfStatusChangedOverGenerations() {
         // given
         Instant originalTime = TEST_TIME.instant();
