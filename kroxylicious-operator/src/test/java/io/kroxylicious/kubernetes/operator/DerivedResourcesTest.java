@@ -345,8 +345,7 @@ class DerivedResourcesTest {
     private static <T> T loadExpected(Path path, Class<T> type) {
         File file = path.toFile();
         try {
-            T value = YAML_MAPPER.readValue(file, type);
-            return value;
+            return YAML_MAPPER.readValue(file, type);
         }
         catch (IOException e) {
             throw new UncheckedIOException("Reading " + file + " as YAML for type " + type, e);

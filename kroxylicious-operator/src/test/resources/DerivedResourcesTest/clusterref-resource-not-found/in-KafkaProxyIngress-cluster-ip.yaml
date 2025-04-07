@@ -10,6 +10,7 @@ apiVersion: kroxylicious.io/v1alpha1
 metadata:
   name: cluster-ip
   namespace: proxy-ns
+  generation: 2
 spec:
   proxyRef:
     name: example

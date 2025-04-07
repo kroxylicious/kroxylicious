@@ -21,7 +21,7 @@ metadata:
       kind: "KafkaProxy"
       name: "twocluster"
 data:
-  proxy-config.yaml: | 
+  proxy-config.yaml: |-
     ---
     management:
       endpoints:
@@ -39,27 +39,30 @@ data:
           - name: "default"
             start: 0
             end: 2
-  cluster-foo: |
+  cluster-foo: |-
     ---
     metadata:
       name: "foo"
       namespace: "proxy-ns"
     status:
       conditions:
-      - type: "ResolvedRefs"
+      - observedGeneration: 4
+        type: "ResolvedRefs"
         status: "False"
         lastTransitionTime: "1970-01-01T00:00:00Z"
         reason: "Invalid"
         message: "Resource kafkaproxyingress.kroxylicious.io/MISSING in namespace 'proxy-ns'\
           \ was not found."
-  cluster-bar: |
+      observedGeneration: 4
+  cluster-bar: |-
     ---
     metadata:
       name: "bar"
       namespace: "proxy-ns"
     status:
       conditions:
-      - type: "Accepted"
+      - observedGeneration: 3
+        type: "Accepted"
         status: "True"
         lastTransitionTime: "1970-01-01T00:00:00Z"
-
+      observedGeneration: 3

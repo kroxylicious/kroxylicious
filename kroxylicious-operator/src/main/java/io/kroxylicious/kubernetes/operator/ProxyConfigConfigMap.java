@@ -19,6 +19,7 @@ import java.util.stream.Collectors;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -137,6 +138,14 @@ public class ProxyConfigConfigMap
                 data.addStatusPatchForCluster(ResourcesUtil.name(cluster), patch);
             }
         }
+    }
+
+    private static Long getObservedGeneration(VirtualKafkaCluster cluster) {
+        ObjectMeta metadata = cluster.getMetadata();
+        if (metadata == null) {
+            return 0L;
+        }
+        return metadata.getGeneration();
     }
 
     private static void addResolvedRefsConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigData data) {

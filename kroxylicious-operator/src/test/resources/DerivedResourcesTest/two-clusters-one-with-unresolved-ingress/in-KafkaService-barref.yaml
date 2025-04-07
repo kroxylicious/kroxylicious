@@ -10,5 +10,6 @@ apiVersion: kroxylicious.io/v1alpha1
 metadata:
   name: barref
   namespace: proxy-ns
+  generation: 2
 spec:
   bootstrapServers: first-kafka.kafka1.svc.cluster.local:9092

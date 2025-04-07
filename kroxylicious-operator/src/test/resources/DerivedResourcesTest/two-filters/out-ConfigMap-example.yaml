@@ -21,7 +21,7 @@ metadata:
       kind: "KafkaProxy"
       name: "example"
 data:
-  proxy-config.yaml: |
+  proxy-config.yaml: |-
     ---
     management:
       endpoints:
@@ -53,14 +53,15 @@ data:
       filters:
       - "filter-one.KafkaProtocolFilter.filter.kroxylicious.io"
       - "filter-two.KafkaProtocolFilter.filter.kroxylicious.io"
-  cluster-foo: |
+  cluster-foo: |-
     ---
     metadata:
       name: "foo"
       namespace: "proxy-ns"
     status:
       conditions:
-      - type: "Accepted"
+      - observedGeneration: 12
+        type: "Accepted"
         status: "True"
         lastTransitionTime: "1970-01-01T00:00:00Z"
-
+      observedGeneration: 12

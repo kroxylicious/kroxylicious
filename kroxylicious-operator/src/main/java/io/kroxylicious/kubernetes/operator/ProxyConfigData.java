@@ -38,7 +38,7 @@ public class ProxyConfigData {
 
     private static String toYaml(Object filterDefs) {
         try {
-            return CONFIG_OBJECT_MAPPER.writeValueAsString(filterDefs);
+            return CONFIG_OBJECT_MAPPER.writeValueAsString(filterDefs).stripTrailing();
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);

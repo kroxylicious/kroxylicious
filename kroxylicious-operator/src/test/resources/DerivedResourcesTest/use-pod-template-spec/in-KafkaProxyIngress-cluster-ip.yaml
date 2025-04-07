@@ -10,6 +10,7 @@ apiVersion: kroxylicious.io/v1alpha1
 metadata:
   name: cluster-ip
   namespace: proxy-ns
+  generation: 100
 spec:
   proxyRef:
     name: use-pod-template-spec
