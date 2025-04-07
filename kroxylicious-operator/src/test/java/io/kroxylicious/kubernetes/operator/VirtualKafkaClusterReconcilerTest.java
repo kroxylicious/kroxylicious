@@ -228,8 +228,8 @@ class VirtualKafkaClusterReconcilerTest {
 
     @NonNull
     private static BiConsumer<VirtualKafkaCluster, ConditionListAssert> assertResolvedRefsFalse(
-            String referencedResourcesNotFound,
-            String message) {
+                                                                                                String referencedResourcesNotFound,
+                                                                                                String message) {
         return (BiConsumer<VirtualKafkaCluster, ConditionListAssert>) (cluster, cl) -> cl.singleOfType(Condition.Type.ResolvedRefs)
                 .hasObservedGenerationInSyncWithMetadataOf(cluster)
                 .hasLastTransitionTime(TEST_CLOCK.instant())
