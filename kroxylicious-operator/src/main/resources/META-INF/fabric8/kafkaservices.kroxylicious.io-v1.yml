@@ -90,3 +90,6 @@ spec:
                       type:
                         description: type of condition in CamelCase or in foo.example.com/CamelCase.
                         type: string
+                    required:
+                      - lastTransitionTime
+                      - observedGeneration
