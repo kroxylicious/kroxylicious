@@ -166,22 +166,6 @@ public class ResourceState {
     static List<Condition> newConditions(List<Condition> oldConditions, ResourceState newStatus) {
         ResourceState existingConditions = fromList(oldConditions);
         ResourceState replacement = newStatus.replacementFor(existingConditions);
-
-        // if (existingConditions.isPresent()) {
-        // // If the two conditions are the same except for observedGeneration
-        // // and lastTransitionTime then update the new condition's lastTransitionTime
-        // // because it doesn't really represent a state transition
-        // var existing = existingConditions.get();
-        // if (STATE_TRANSITION_COMPARATOR.compare(existing.conditions, replacement.conditions) == 0) {
-        // @Nullable
-        // Instant i1 = existing.conditions.getLastTransitionTime();
-        // @Nullable
-        // Instant i2 = replacement.conditions.getLastTransitionTime();
-        // Instant min = Comparator.nullsLast(Instant::compareTo).compare(i1, i2) < 0 ? i1 : i2;
-        // replacement = new ResourceState(, new ConditionBuilder(replacement.conditions)
-        // .withLastTransitionTime(min).build());
-        // }
-        // }
         return replacement.toList();
     }
 

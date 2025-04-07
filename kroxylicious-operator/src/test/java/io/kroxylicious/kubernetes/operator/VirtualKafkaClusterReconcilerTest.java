@@ -131,14 +131,16 @@ class VirtualKafkaClusterReconcilerTest {
                         Set.of(INGRESS),
                         Set.of(FILTER_MY_FILTER),
                         (BiConsumer<VirtualKafkaCluster, ConditionListAssert>) VirtualKafkaClusterReconcilerTest::assertAllConditionsTrue),
-                // Arguments.argumentSet("one filter with stale configmap",
-                // new VirtualKafkaClusterBuilder(CLUSTER_ONE_FILTER).editOrNewStatus().withObservedGeneration(ResourcesUtil.generation(CLUSTER_NO_FILTERS)).endStatus().build(),
-                // Optional.of(PROXY),
-                // Optional.of(buildProxyConfigMapWithPatch(new VirtualKafkaClusterBuilder(CLUSTER_ONE_FILTER).editMetadata().withGeneration(40L).endMetadata().build())),
-                // Optional.of(SERVICE),
-                // Set.of(INGRESS),
-                // Set.of(FILTER_MY_FILTER),
-                // (BiConsumer<VirtualKafkaCluster, ConditionListAssert>) VirtualKafkaClusterReconcilerTest::assertAllConditionsTrue),
+                Arguments.argumentSet("one filter with stale configmap",
+                        new VirtualKafkaClusterBuilder(CLUSTER_ONE_FILTER).editOrNewStatus().withObservedGeneration(ResourcesUtil.generation(CLUSTER_NO_FILTERS))
+                                .endStatus().build(),
+                        Optional.of(PROXY),
+                        Optional.of(buildProxyConfigMapWithPatch(
+                                new VirtualKafkaClusterBuilder(CLUSTER_ONE_FILTER).editMetadata().withGeneration(40L).endMetadata().build())),
+                        Optional.of(SERVICE),
+                        Set.of(INGRESS),
+                        Set.of(FILTER_MY_FILTER),
+                        (BiConsumer<VirtualKafkaCluster, ConditionListAssert>) VirtualKafkaClusterReconcilerTest::assertAllConditionsTrue),
                 Arguments.argumentSet("proxy not found",
                         CLUSTER_NO_FILTERS,
                         Optional.empty(),
@@ -226,8 +228,8 @@ class VirtualKafkaClusterReconcilerTest {
 
     @NonNull
     private static BiConsumer<VirtualKafkaCluster, ConditionListAssert> assertResolvedRefsFalse(
-                                                                                                String referencedResourcesNotFound,
-                                                                                                String message) {
+            String referencedResourcesNotFound,
+            String message) {
         return (BiConsumer<VirtualKafkaCluster, ConditionListAssert>) (cluster, cl) -> cl.singleOfType(Condition.Type.ResolvedRefs)
                 .hasObservedGenerationInSyncWithMetadataOf(cluster)
                 .hasLastTransitionTime(TEST_CLOCK.instant())
