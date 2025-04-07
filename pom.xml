@@ -78,7 +78,7 @@
         <netty-leak-detector-junit-extension.version>0.0.6</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.12.1</wiremock.version>
         <docker-java.version>3.4.2</docker-java.version>
-        <test-frame.version>0.10.0</test-frame.version>
+        <test-frame.version>0.11.0</test-frame.version>
         <junit-pioneer.version>2.3.0</junit-pioneer.version>
         <skip-validate-yaml-snippets>true</skip-validate-yaml-snippets>
     </properties>
