@@ -16,11 +16,14 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.skodjob.testframe.listeners.TestVisualSeparatorExtension;
+
+import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.strimzi.Strimzi;
-import io.kroxylicious.systemtests.interfaces.TestSeparator;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
@@ -29,7 +32,9 @@ import io.kroxylicious.systemtests.utils.NamespaceUtils;
  * The type Abstract st.
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class AbstractST implements TestSeparator {
+@ExtendWith(TestVisualSeparatorExtension.class)
+@ExtendWith(KroxyliciousExtension.class)
+class AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractST.class);
 
     /**
@@ -83,7 +88,7 @@ class AbstractST implements TestSeparator {
         else {
             LOGGER.warn("Teardown was skipped because SKIP_TEARDOWN was set to 'true'");
         }
-        LOGGER.info(String.join("", Collections.nCopies(76, SEPARATOR_CHAR)));
+        LOGGER.info(String.join("", Collections.nCopies(76, "#")));
         LOGGER.info("{} Test Suite - FINISHED", testInfo.getTestClass().get().getName());
     }
 

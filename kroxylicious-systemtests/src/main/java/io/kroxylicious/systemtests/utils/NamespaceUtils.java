@@ -36,23 +36,10 @@ public class NamespaceUtils {
      * @param namespace the namespace
      */
     public static void deleteNamespaceWithWait(String namespace) {
-        deleteNamespace(namespace, true);
-    }
-
-    /**
-     * Delete namespace without wait.
-     *
-     * @param namespace the namespace
-     */
-    public static void deleteNamespaceWithoutWait(String namespace) {
-        deleteNamespace(namespace, false);
-    }
-
-    private static void deleteNamespace(String namespace, boolean wait) {
         LOGGER.info("Deleting namespace: {}", namespace);
         kubeClient().deleteNamespace(namespace);
         await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
-                .until(() -> !wait || kubeClient().getNamespace(namespace) == null);
+                .until(() -> kubeClient().getNamespace(namespace) == null);
 
         LOGGER.info("Namespace: {} deleted", namespace);
     }
@@ -155,17 +142,6 @@ public class NamespaceUtils {
      */
     public static void deleteNamespaceWithWaitAndRemoveFromSet(String namespaceName, String testSuiteName) {
         deleteNamespaceWithWait(namespaceName);
-        deleteNamespaceFromSet(namespaceName, testSuiteName);
-    }
-
-    /**
-     * Delete namespace without wait and remove from set.
-     *
-     * @param namespaceName the namespace name
-     * @param testSuiteName the test suite name
-     */
-    public static void deleteNamespaceWithoutWaitAndRemoveFromSet(String namespaceName, String testSuiteName) {
-        deleteNamespaceWithoutWait(namespaceName);
         deleteNamespaceFromSet(namespaceName, testSuiteName);
     }
 

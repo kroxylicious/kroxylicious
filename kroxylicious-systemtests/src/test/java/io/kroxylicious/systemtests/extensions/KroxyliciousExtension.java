@@ -94,7 +94,7 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
             });
         }
         finally {
-            NamespaceUtils.deleteNamespaceWithoutWaitAndRemoveFromSet(namespace, testClassName);
+            NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(namespace, testClassName);
         }
     }
 
