@@ -13,6 +13,8 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,8 +92,8 @@ public class KafkaProxyReconciler implements
 
     @Override
     public void initContext(
-                            KafkaProxy proxy,
-                            Context<KafkaProxy> context) {
+            KafkaProxy proxy,
+            Context<KafkaProxy> context) {
         ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
         ProxyModel model = proxyModelBuilder.build(proxy, context);
         KafkaProxyContext.init(context, new VirtualKafkaClusterStatusFactory(clock), secureConfigInterpolator, model);

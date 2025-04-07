@@ -32,6 +32,7 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
+import io.kroxylicious.kubernetes.api.common.ProxyRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
@@ -74,13 +75,12 @@ public final class VirtualKafkaClusterReconciler implements
     @Override
     public UpdateControl<VirtualKafkaCluster> reconcile(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
         var existingProxies = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME).stream().collect(Collectors.toSet());
+        var existingProxyRefs = existingProxies.stream().map(ResourcesUtil::toLocalRef).toList();
         TreeSet<LocalRef<KafkaProxy>> missingProxies = Optional.ofNullable(cluster.getSpec())
                 .map(VirtualKafkaClusterSpec::getProxyRef)
                 .stream()
                 .collect(Collectors.toCollection(TreeSet::new));
-        missingProxies.removeAll(existingProxies.stream()
-                .map(ResourcesUtil::toLocalRef)
-                .toList());
+        missingProxies.removeAll(existingProxyRefs);
 
         var existingServices = context.getSecondaryResource(KafkaService.class, SERVICES_EVENT_SOURCE_NAME).stream().collect(Collectors.toSet());
         TreeSet<LocalRef<KafkaService>> missingServices = Optional.ofNullable(cluster.getSpec())
@@ -127,9 +127,17 @@ public final class VirtualKafkaClusterReconciler implements
                     .filter(kpf -> hasAnyResolvedRefsFalse(Optional.ofNullable(kpf.getStatus()).map(KafkaProtocolFilterStatus::getConditions).orElse(List.of())))
                     .map(ResourcesUtil::toLocalRef)
                     .collect(Collectors.toCollection(TreeSet::new));
+
+            TreeSet<ProxyRef> ingressProxyRefs = existingIngresses.stream().map(i -> i.getSpec().getProxyRef()).collect(Collectors.toCollection(TreeSet::new));
+            // if the ingress references a different proxy to the virtual cluster, we will not have loaded the proxy.
+            // TODO can we discriminate between unresolved this mismatch?
+            TreeSet<ProxyRef> mismatchedIngressProxyRef = ingressProxyRefs.stream().filter(i -> !existingProxyRefs.contains(i))
+                    .collect(Collectors.toCollection(TreeSet::new));
+
             if (unresolvedServices.isEmpty()
                     && unresolvedIngresses.isEmpty()
-                    && unresolvedFilters.isEmpty()) {
+                    && unresolvedFilters.isEmpty()
+                    && mismatchedIngressProxyRef.isEmpty()) {
                 uc = context
                         .getSecondaryResource(ConfigMap.class, PROXY_CONFIG_MAP_EVENT_SOURCE_NAME)
                         .flatMap(cm -> Optional.ofNullable(cm.getData()))
@@ -169,9 +177,10 @@ public final class VirtualKafkaClusterReconciler implements
                 Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", cluster, unresolvedServices);
                 Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", cluster, unresolvedIngresses);
                 Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster, unresolvedFilters);
+                Stream<String> ingressProxyMessage = refsMessage("a spec.ingressRef had an inconsistent or missing proxyRef ", cluster, mismatchedIngressProxyRef);
                 uc = UpdateControl
                         .patchStatus(statusFactory.newFalseConditionStatusPatch(cluster, Condition.Type.ResolvedRefs, Condition.REASON_TRANSITIVE_REFS_NOT_FOUND,
-                                joiningMessages(serviceMsg, ingressMsg, filterMsg)));
+                                joiningMessages(serviceMsg, ingressMsg, filterMsg, ingressProxyMessage)));
             }
         }
         else {

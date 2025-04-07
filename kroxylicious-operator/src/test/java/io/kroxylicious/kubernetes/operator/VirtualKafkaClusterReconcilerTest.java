@@ -48,37 +48,37 @@ class VirtualKafkaClusterReconcilerTest {
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
     private static final VirtualKafkaClusterStatusFactory STATUS_FACTORY = new VirtualKafkaClusterStatusFactory(TEST_CLOCK);
 
-    // @formatter:off
+    public static final String PROXY_NAME = "my-proxy";
     public static final VirtualKafkaCluster CLUSTER_NO_FILTERS = new VirtualKafkaClusterBuilder()
             .withNewMetadata()
-                .withName("foo")
-                .withNamespace("my-namespace")
-                .withGeneration(42L)
+            .withName("foo")
+            .withNamespace("my-namespace")
+            .withGeneration(42L)
             .endMetadata()
             .withNewSpec()
-                .withNewProxyRef()
-                    .withName("my-proxy")
-                .endProxyRef()
-                .addNewIngressRef()
-                    .withName("my-ingress")
-                .endIngressRef()
-                .withNewTargetKafkaServiceRef()
-                    .withName("my-kafka")
-                .endTargetKafkaServiceRef()
+            .withNewProxyRef()
+            .withName(PROXY_NAME)
+            .endProxyRef()
+            .addNewIngressRef()
+            .withName("my-ingress")
+            .endIngressRef()
+            .withNewTargetKafkaServiceRef()
+            .withName("my-kafka")
+            .endTargetKafkaServiceRef()
             .endSpec()
             .build();
     public static final VirtualKafkaCluster CLUSTER_ONE_FILTER = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
             .editSpec()
-                .addNewFilterRef()
-                    .withName("my-filter")
-                .endFilterRef()
+            .addNewFilterRef()
+            .withName("my-filter")
+            .endFilterRef()
             .endSpec()
             .build();
 
     public static final KafkaProxy PROXY = new KafkaProxyBuilder()
             .withNewMetadata()
-                .withName("my-proxy")
-                .withGeneration(101L)
+            .withName(PROXY_NAME)
+            .withGeneration(101L)
             .endMetadata()
             .withNewSpec()
             .endSpec()
@@ -86,8 +86,8 @@ class VirtualKafkaClusterReconcilerTest {
 
     public static final KafkaService SERVICE = new KafkaServiceBuilder()
             .withNewMetadata()
-                .withName("my-kafka")
-                .withGeneration(201L)
+            .withName("my-kafka")
+            .withGeneration(201L)
             .endMetadata()
             .withNewSpec()
             .endSpec()
@@ -95,10 +95,11 @@ class VirtualKafkaClusterReconcilerTest {
 
     public static final KafkaProxyIngress INGRESS = new KafkaProxyIngressBuilder()
             .withNewMetadata()
-                .withName("my-ingress")
-                .withGeneration(301L)
+            .withName("my-ingress")
+            .withGeneration(301L)
             .endMetadata()
             .withNewSpec()
+            .withNewProxyRef().withName(PROXY_NAME).endProxyRef()
             .endSpec()
             .build();
 
@@ -158,6 +159,16 @@ class VirtualKafkaClusterReconcilerTest {
                         assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND,
                                 "spec.targetKafkaServiceRef references kafkaservice.kroxylicious.io/my-kafka in namespace 'my-namespace'")),
+                Arguments.argumentSet("ingress refers to a different proxy than virtual cluster",
+                        CLUSTER_NO_FILTERS,
+                        Optional.of(PROXY),
+                        Optional.empty(),
+                        Optional.of(SERVICE),
+                        Set.of(INGRESS.edit().editSpec().withNewProxyRef().withName("not-my-proxy").endProxyRef().endSpec().build()),
+                        Set.of(),
+                        assertResolvedRefsFalse(
+                                VirtualKafkaClusterReconciler.TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND,
+                                "a spec.ingressRef had an inconsistent or missing proxyRef kafkaproxy.kroxylicious.io/not-my-proxy in namespace 'my-namespace'")),
                 Arguments.argumentSet("service has unresolved refs",
                         CLUSTER_NO_FILTERS,
                         Optional.of(PROXY),

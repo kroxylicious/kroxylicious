@@ -228,7 +228,7 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(resource);
 
         // Then
-        assertClusterResolvedRefsFalse(clusterBar, ProxyConfigConfigMap.REASON_INVALID);
+        assertClusterResolvedRefsFalse(clusterBar, VirtualKafkaClusterReconciler.TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND);
 
         // And when
         testActor.replace(clusterIpIngress(INGRESS_D, PROXY_A));
