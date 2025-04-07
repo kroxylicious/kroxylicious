@@ -72,7 +72,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     public KroxyliciousOperatorBundleInstaller(String namespaceInstallTo) {
         this.namespaceInstallTo = namespaceInstallTo;
         this.replicas = 1;
-        this.extensionContext = KubeResourceManager.get().getTestContext();// ResourceManager.getTestContext();
+        this.extensionContext = KubeResourceManager.get().getTestContext();
         this.kroxyliciousOperatorName = Constants.KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME;
     }
 
