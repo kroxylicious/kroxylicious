@@ -70,11 +70,9 @@ public class ResourceState {
         Condition freshest = FRESHEST_CONDITION.compare(c1, c2) < 0 ? c2 : c1;
         Condition leastFresh = c1 == freshest ? c2 : c1;
         ConditionBuilder builder = freshest.edit();
-        if (Objects.equals(freshest.getStatus(), leastFresh.getStatus())) {
-            if (leastFresh.getLastTransitionTime() != null) {
-                // retain older transition time if the status is unchanged
-                builder.withLastTransitionTime(leastFresh.getLastTransitionTime());
-            }
+        if (Objects.equals(freshest.getStatus(), leastFresh.getStatus()) && leastFresh.getLastTransitionTime() != null) {
+            // retain older transition time if the status is unchanged
+            builder.withLastTransitionTime(leastFresh.getLastTransitionTime());
         }
         return builder.build();
     }
@@ -83,7 +81,6 @@ public class ResourceState {
         return conditions.values().stream().toList();
     }
 
-    @VisibleForTesting
     static List<Condition> newConditions(List<Condition> oldConditions, ResourceState newStatus) {
         ResourceState existingConditions = fromList(oldConditions);
         ResourceState replacement = newStatus.replacementFor(existingConditions);
