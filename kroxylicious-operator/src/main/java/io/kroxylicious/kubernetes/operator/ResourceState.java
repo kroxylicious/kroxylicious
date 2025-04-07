@@ -75,7 +75,12 @@ public class ResourceState {
                             }
                             else if (Objects.equals(c1.getObservedGeneration(), c2.getObservedGeneration())) {
                                 if (Objects.equals(c1.getStatus(), c2.getStatus())) {
-                                    return earliest(c1, c2);
+                                    String mostRecentMessage = mostRecent(c1, c2).getMessage();
+                                    Condition earliest = earliest(c1, c2);
+                                    if (mostRecentMessage != null) {
+                                        earliest.setMessage(mostRecentMessage);
+                                    }
+                                    return earliest;
                                 }
                                 else {
                                     return mostRecent(c1, c2);

@@ -75,6 +75,33 @@ class ResourceStateTest {
         assertThat(actual).isEqualTo(List.of(originalCondition));
     }
 
+    @Test
+    void shouldUpdateMessageWhenGenerationAndStatusUnchanged() {
+        Instant originalTime = TEST_TIME.instant();
+        Condition originalCondition = new ConditionBuilder()
+                .withObservedGeneration(12L)
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.FALSE)
+                .withMessage("original message")
+                .withLastTransitionTime(originalTime)
+                .build();
+
+        Condition newCondition = new ConditionBuilder()
+                .withObservedGeneration(12L)
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.FALSE)
+                .withMessage("new message")
+                .withLastTransitionTime(originalTime.plus(1, ChronoUnit.MINUTES))
+                .build();
+
+        // when
+        var originalConditionWithNewMessage = new ConditionBuilder(originalCondition).withMessage("new message").build();
+        List<Condition> actual = ResourceState.newConditions(List.of(originalCondition), ResourceState.fromList(List.of(newCondition)));
+
+        // then
+        assertThat(actual).isEqualTo(List.of(originalConditionWithNewMessage));
+    }
+
     // the reconciler often has to process a resource without the generation changing.
     @Test
     void shouldPreserveLastTransitionTimeWhenGenerationAndStatusChanged() {
