@@ -45,7 +45,6 @@ import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManag
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependentResource;
 
-import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
@@ -210,14 +209,6 @@ class DerivedResourcesTest {
 
     }
 
-    record ConditionStruct(Condition.Type type,
-                           String cluster,
-                           String status,
-                           String reason,
-                           String message) {
-
-    }
-
     @NonNull
     private static List<DynamicTest> testsForDir(List<DesiredFn<KafkaProxy, ?>> dependentResources,
                                                  Path testDir)
@@ -255,14 +246,16 @@ class DerivedResourcesTest {
             List<DynamicTest> tests = new ArrayList<>();
 
             var dr = dependentResources.stream()
-                    .flatMap(r -> r.invokeDesired(kafkaProxy, context).values().stream().map(x -> Map.entry(r.resourceType(), x)))
+                    .flatMap(r -> r.invokeDesired(kafkaProxy, context).values()
+                            .stream()
+                            .map(x -> Map.entry(r.resourceType(), x)))
                     .collect(Collectors.groupingBy(Map.Entry::getKey))
                     .entrySet()
                     .stream()
                     .collect(Collectors.toMap(Map.Entry::getKey,
                             e -> e.getValue().stream().map(Map.Entry::getValue).collect(Collectors.toCollection(() -> new TreeSet<>(
                                     Comparator.comparing(ResourcesUtil::name))))));
-            for (var entry : dr.entrySet()) {
+            for (var entry : dr.entrySet().stream().sorted(Comparator.comparing(entry -> entry.getKey().getSimpleName())).toList()) {
                 var resourceType = entry.getKey();
                 var actualResources = entry.getValue();
                 for (var actualResource : actualResources) {
@@ -345,8 +338,6 @@ class DerivedResourcesTest {
         return context;
     }
 
-    record ErrorStruct(String type, String message) {}
-
     private static String fileName(Path testDir) {
         return testDir.getFileName().toString();
     }
@@ -354,7 +345,8 @@ class DerivedResourcesTest {
     private static <T> T loadExpected(Path path, Class<T> type) {
         File file = path.toFile();
         try {
-            return YAML_MAPPER.readValue(file, type);
+            T value = YAML_MAPPER.readValue(file, type);
+            return value;
         }
         catch (IOException e) {
             throw new UncheckedIOException("Reading " + file + " as YAML for type " + type, e);
