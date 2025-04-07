@@ -78,9 +78,11 @@ public class ResourceState {
                                     String mostRecentMessage = mostRecent(c1, c2).getMessage();
                                     Condition earliest = earliest(c1, c2);
                                     if (mostRecentMessage != null) {
-                                        earliest.setMessage(mostRecentMessage);
+                                        return earliest.edit().withMessage(mostRecentMessage).build();
                                     }
-                                    return earliest;
+                                    else {
+                                        return earliest;
+                                    }
                                 }
                                 else {
                                     return mostRecent(c1, c2);
@@ -88,12 +90,20 @@ public class ResourceState {
                             }
                             else {
                                 if (c1.getObservedGeneration() > c2.getObservedGeneration()) {
-                                    c1.setLastTransitionTime(minTransitionTime(c1, c2));
-                                    return c1;
+                                    if (Objects.equals(c1.getStatus(), c2.getStatus())) {
+                                        return c1.edit().withLastTransitionTime(minTransitionTime(c1, c2)).build();
+                                    }
+                                    else {
+                                        return c1;
+                                    }
                                 }
                                 else {
-                                    c2.setLastTransitionTime(minTransitionTime(c1, c2));
-                                    return c2;
+                                    if (Objects.equals(c1.getStatus(), c2.getStatus())) {
+                                        return c2.edit().withLastTransitionTime(minTransitionTime(c1, c2)).build();
+                                    }
+                                    else {
+                                        return c2;
+                                    }
                                 }
                             }
                         },

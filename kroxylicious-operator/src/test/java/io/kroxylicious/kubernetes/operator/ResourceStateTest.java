@@ -128,7 +128,7 @@ class ResourceStateTest {
     }
 
     @Test
-    void shouldPreserveLastTransitionTime() {
+    void shouldPreserveLastTransitionTimeIfStatusUnchangedOverGenerations() {
         // given
         Instant originalTime = TEST_TIME.instant();
         Condition originalCondition = new ConditionBuilder()
@@ -151,6 +151,31 @@ class ResourceStateTest {
 
         // then
         assertThat(actual).isEqualTo(List.of(newConditionWithOriginalTransitionTime));
+    }
+
+    @Test
+    void shouldUseLatestTransitionTimeIfStatusChangedOverGenerations() {
+        // given
+        Instant originalTime = TEST_TIME.instant();
+        Condition originalCondition = new ConditionBuilder()
+                .withObservedGeneration(12L)
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.FALSE)
+                .withLastTransitionTime(originalTime)
+                .build();
+
+        Condition newCondition = new ConditionBuilder()
+                .withObservedGeneration(13L)
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.TRUE)
+                .withLastTransitionTime(originalTime.plus(1, ChronoUnit.MINUTES))
+                .build();
+
+        // when
+        List<Condition> actual = ResourceState.newConditions(List.of(originalCondition), ResourceState.fromList(List.of(newCondition)));
+
+        // then
+        assertThat(actual).isEqualTo(List.of(newCondition));
     }
 
 }
