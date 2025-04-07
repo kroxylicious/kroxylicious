@@ -53,7 +53,7 @@
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
         <assertj-core.version>3.27.3</assertj-core.version>
-        <mockito.version>5.16.1</mockito.version>
+        <mockito.version>5.17.0</mockito.version>
         <micrometer.version>1.14.5</micrometer.version>
         <slf4j.version>2.0.17</slf4j.version>
         <sundr-builder-annotations.version>0.200.3</sundr-builder-annotations.version>
@@ -78,7 +78,7 @@
         <netty-leak-detector-junit-extension.version>0.0.6</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.12.1</wiremock.version>
         <docker-java.version>3.4.2</docker-java.version>
-        <test-frame.version>0.10.0</test-frame.version>
+        <test-frame.version>0.11.0</test-frame.version>
         <junit-pioneer.version>2.3.0</junit-pioneer.version>
         <skip-validate-yaml-snippets>true</skip-validate-yaml-snippets>
     </properties>
