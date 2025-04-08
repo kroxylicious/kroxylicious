@@ -29,7 +29,7 @@ public class KafkaUserType implements ResourceType<KafkaUser> {
 
     @Override
     public String getKind() {
-        return Constants.KAFKA_USER_KIND;
+        return Constants.STRIMZI_KAFKA_USER_KIND;
     }
 
     @Override

@@ -29,7 +29,7 @@ public class KafkaType implements ResourceType<Kafka> {
 
     @Override
     public String getKind() {
-        return Constants.KAFKA_KIND;
+        return Constants.STRIMZI_KAFKA_KIND;
     }
 
     @Override

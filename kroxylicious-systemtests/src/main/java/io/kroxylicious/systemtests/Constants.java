@@ -21,7 +21,7 @@ public final class Constants {
      */
     public static final String KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME = "kroxylicious-operator";
     public static final String KROXYLICIOUS_OPERATOR_NAMESPACE = "kroxylicious-operator";
-    public static final String KROXY_DEPLOYMENT_NAME = "kroxylicious-proxy";
+    public static final String KROXYLICIOUS_DEPLOYMENT_NAME = "kroxylicious-proxy";
     public static final String KROXYLICIOUS_PROXY_SIMPLE_NAME = "simple";
     public static final String KROXYLICIOUS_INGRESS_CLUSTER_IP = "cluster-ip";
     public static final String KROXYLICIOUS_ENCRYPTION_FILTER_NAME = "encryption";
@@ -101,9 +101,9 @@ public final class Constants {
     public static final String SECRET = "Secret";
     public static final String SERVICE = "Service";
     public static final String SERVICE_ACCOUNT = "ServiceAccount";
-    public static final String KAFKA_KIND = "Kafka";
-    public static final String KAFKA_USER_KIND = "KafkaUser";
-    public static final String KAFKA_NODE_POOL_KIND = "KafkaNodePool";
+    public static final String STRIMZI_KAFKA_KIND = "Kafka";
+    public static final String STRIMZI_KAFKA_USER_KIND = "KafkaUser";
+    public static final String STRIMZI_KAFKA_NODE_POOL_KIND = "KafkaNodePool";
 
     /**
      * Test clients image url

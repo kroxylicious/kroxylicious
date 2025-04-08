@@ -94,7 +94,7 @@ public class KafkaTemplates {
     private static KafkaBuilder defaultKafka(String namespaceName, String clusterName, int kafkaReplicas, int zkReplicas) {
         return new KafkaBuilder()
                 .withApiVersion(Constants.KAFKA_API_VERSION_V1BETA2)
-                .withKind(Constants.KAFKA_KIND)
+                .withKind(Constants.STRIMZI_KAFKA_KIND)
                 .withNewMetadata()
                 .withName(clusterName)
                 .withNamespace(namespaceName)

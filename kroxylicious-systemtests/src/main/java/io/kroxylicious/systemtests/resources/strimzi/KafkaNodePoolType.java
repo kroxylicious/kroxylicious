@@ -27,7 +27,7 @@ public class KafkaNodePoolType implements ResourceType<KafkaNodePool> {
 
     @Override
     public String getKind() {
-        return Constants.KAFKA_NODE_POOL_KIND;
+        return Constants.STRIMZI_KAFKA_NODE_POOL_KIND;
     }
 
     @Override
