@@ -21,6 +21,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.skodjob.testframe.listeners.TestVisualSeparatorExtension;
+import io.skodjob.testframe.utils.LoggerUtils;
 
 import io.kroxylicious.systemtests.extensions.KroxyliciousExtension;
 import io.kroxylicious.systemtests.installation.strimzi.Strimzi;
@@ -88,7 +89,7 @@ class AbstractST {
         else {
             LOGGER.warn("Teardown was skipped because SKIP_TEARDOWN was set to 'true'");
         }
-        LOGGER.info(String.join("", Collections.nCopies(76, "#")));
+        LoggerUtils.logSeparator("#", 76);
         LOGGER.info("{} Test Suite - FINISHED", testInfo.getTestClass().get().getName());
     }
 
