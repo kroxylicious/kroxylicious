@@ -49,7 +49,7 @@ public class ProxyConfigStateDependentResource
     protected ConfigMap desired(KafkaProxy primary,
                                 Context<KafkaProxy> context) {
         var statusFactory = KafkaProxyContext.proxyContext(context).virtualKafkaClusterStatusFactory();
-        var data = new ProxyConfigData();
+        var data = new ProxyConfigStateData();
 
         var proxyModel = KafkaProxyContext.proxyContext(context).model();
 
@@ -69,7 +69,7 @@ public class ProxyConfigStateDependentResource
         // @formatter:on
     }
 
-    private static void addAcceptedConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigData data) {
+    private static void addAcceptedConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigStateData data) {
         var model = proxyModel.ingressModel();
         for (ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel : model.clusters()) {
             VirtualKafkaCluster cluster = virtualClusterIngressModel.cluster();
@@ -91,7 +91,7 @@ public class ProxyConfigStateDependentResource
         }
     }
 
-    private static void addResolvedRefsConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigData data) {
+    private static void addResolvedRefsConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigStateData data) {
         proxyModel.resolutionResult().clusterResults().stream()
                 .filter(ResolutionResult.ClusterResolutionResult::isAnyDependencyUnresolved)
                 .forEach(clusterResolutionResult -> {
