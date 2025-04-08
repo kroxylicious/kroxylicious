@@ -14,7 +14,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 
-import static io.kroxylicious.kubernetes.operator.ProxyDeployment.PROXY_PORT_START;
+import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.PROXY_PORT_START;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 
 /**

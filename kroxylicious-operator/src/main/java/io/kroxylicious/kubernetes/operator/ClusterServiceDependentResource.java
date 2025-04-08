@@ -28,11 +28,11 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
  * instances in the same namespace without impacts clients using the Service's DNS name.
  */
 @KubernetesDependent
-public class ClusterService
+public class ClusterServiceDependentResource
         extends CRUDKubernetesDependentResource<Service, KafkaProxy>
         implements BulkDependentResource<Service, KafkaProxy> {
 
-    public ClusterService() {
+    public ClusterServiceDependentResource() {
         super(Service.class);
     }
 

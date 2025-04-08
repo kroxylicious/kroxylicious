@@ -3,10 +3,9 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
+
 package io.kroxylicious.kubernetes.operator;
 
-import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
@@ -20,14 +19,10 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.Volume;
-import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.DependentResource;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkflowAndDependentResourceContext;
-import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
-import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
+import io.javaoperatorsdk.operator.processing.dependent.workflow.Condition;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -46,93 +41,25 @@ import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
-import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
-import static io.kroxylicious.kubernetes.operator.ProxyConfigData.CONFIG_OBJECT_MAPPER;
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
-
 /**
- * Generates a Kube {@code ConfigMap} containing the proxy config YAML.
+ * Tests whether the proxy's config would be a legal state.
  */
-@KubernetesDependent
-public class ProxyConfigConfigMap
-        extends CRUDKubernetesDependentResource<ConfigMap, KafkaProxy>
-        implements io.javaoperatorsdk.operator.processing.dependent.workflow.Condition<ConfigMap, KafkaProxy> {
-
-    public static final String CONFIG_YAML_KEY = "proxy-config.yaml";
-    public static String REASON_INVALID = "Invalid";
-
-    /**
-     * The key of the {@code config.yaml} entry in the desired {@code Secret}.
-     */
-
-    public static final String SECURE_VOLUME_KEY = "secure-volumes";
-    public static final String SECURE_VOLUME_MOUNT_KEY = "secure-volume-mounts";
-    public static final String CONFIGURATION_DATA_KEY = "configuration";
-
-    public ProxyConfigConfigMap() {
-        super(ConfigMap.class);
-    }
-
-    /**
-     * @return The {@code metadata.name} of the desired ConfigMap {@code Secret}.
-     */
-    static String configMapName(KafkaProxy primary) {
-        return ResourcesUtil.name(primary);
-    }
-
-    public static List<Volume> secureVolumes(ManagedWorkflowAndDependentResourceContext managedDependentResourceContext) {
-        Set<Volume> volumes = managedDependentResourceContext.get(ProxyConfigConfigMap.SECURE_VOLUME_KEY, Set.class).orElse(Set.of());
-        if (volumes.stream().map(Volume::getName).distinct().count() != volumes.size()) {
-            throw new IllegalStateException("Two volumes with different definitions share the same name");
-        }
-        return volumes.stream().toList();
-    }
-
-    public static List<VolumeMount> secureVolumeMounts(ManagedWorkflowAndDependentResourceContext managedDependentResourceContext) {
-        Set<VolumeMount> mounts = managedDependentResourceContext.get(ProxyConfigConfigMap.SECURE_VOLUME_MOUNT_KEY, Set.class).orElse(Set.of());
-        if (mounts.stream().map(VolumeMount::getMountPath).distinct().count() != mounts.size()) {
-            throw new IllegalStateException("Two volume mounts with different definitions share the same mount path");
-        }
-        return mounts.stream().toList();
-    }
+public class ProxyConfigReconcilePrecondition implements Condition<ConfigMap, KafkaProxy> {
 
     @Override
     public boolean isMet(DependentResource<ConfigMap, KafkaProxy> dependentResource, KafkaProxy primary, Context<KafkaProxy> context) {
         try {
             var configuration = generateProxyConfig(context);
-            context.managedWorkflowAndDependentResourceContext().put(CONFIGURATION_DATA_KEY, configuration);
+            context.managedWorkflowAndDependentResourceContext().put(ProxyConfigDependentResource.CONFIGURATION_DATA_KEY, configuration);
             return true;
         }
         catch (IllegalConfigurationException ice) {
-            context.managedWorkflowAndDependentResourceContext().put(CONFIGURATION_DATA_KEY, null);
+            context.managedWorkflowAndDependentResourceContext().put(ProxyConfigDependentResource.CONFIGURATION_DATA_KEY, null);
             return false;
         }
     }
 
-    @Override
-    protected ConfigMap desired(KafkaProxy primary,
-                                Context<KafkaProxy> context) {
-        // the configuration object won't be present if isMet has returned false
-        // this is the case if the dependant resource is to be removed.
-        Optional<Configuration> configuration = context.managedWorkflowAndDependentResourceContext().get(CONFIGURATION_DATA_KEY, Configuration.class);
-        var data = configuration.map(c -> Map.of(CONFIG_YAML_KEY, toYaml(c))).orElse(Map.of());
-
-        // @formatter:off
-        return new ConfigMapBuilder()
-                .editOrNewMetadata()
-                    .withName(configMapName(primary))
-                    .withNamespace(namespace(primary))
-                    .addToLabels(standardLabels(primary))
-                    .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
-                .endMetadata()
-                .withData(data)
-                .build();
-        // @formatter:on
-    }
-
-    Configuration generateProxyConfig(Context<KafkaProxy> context) {
+    private Configuration generateProxyConfig(Context<KafkaProxy> context) {
 
         var model = KafkaProxyContext.proxyContext(context).model();
 
@@ -154,7 +81,6 @@ public class ProxyConfigConfigMap
                 Optional.empty());
     }
 
-    @NonNull
     private static List<VirtualCluster> buildVirtualClusters(Set<String> successfullyBuiltFilterNames, ProxyModel model) {
         return model.clustersWithValidIngresses().stream()
                 .filter(cluster -> Optional.ofNullable(cluster.getSpec().getFilterRefs()).stream().flatMap(Collection::stream).allMatch(
@@ -162,8 +88,6 @@ public class ProxyConfigConfigMap
                 .map(cluster -> getVirtualCluster(cluster, model.resolutionResult().kafkaServiceRef(cluster).orElseThrow(), model.ingressModel()))
                 .toList();
     }
-
-    @NonNull
 
     private List<NamedFilterDefinition> buildFilterDefinitions(Context<KafkaProxy> context,
                                                                ProxyModel model) {
@@ -184,16 +108,14 @@ public class ProxyConfigConfigMap
         return Optional.ofNullable(cluster.getSpec().getFilterRefs())
                 .orElse(List.of())
                 .stream()
-                .map(ProxyConfigConfigMap::filterDefinitionName)
+                .map(ProxyConfigReconcilePrecondition::filterDefinitionName)
                 .toList();
     }
 
-    @NonNull
     private static String filterDefinitionName(FilterRef filterCrRef) {
         return filterCrRef.getName() + "." + filterCrRef.getKind() + "." + filterCrRef.getGroup();
     }
 
-    @NonNull
     private List<NamedFilterDefinition> filterDefinitions(Context<KafkaProxy> context, VirtualKafkaCluster cluster, ResolutionResult resolutionResult) {
 
         return Optional.ofNullable(cluster.getSpec().getFilterRefs()).orElse(List.of()).stream().map(filterCrRef -> {
@@ -205,8 +127,8 @@ public class ProxyConfigConfigMap
             String type = spec.getType();
             SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(context, spec);
             ManagedWorkflowAndDependentResourceContext ctx = context.managedWorkflowAndDependentResourceContext();
-            putOrMerged(ctx, SECURE_VOLUME_KEY, interpolationResult.volumes());
-            putOrMerged(ctx, SECURE_VOLUME_MOUNT_KEY, interpolationResult.mounts());
+            putOrMerged(ctx, ProxyConfigDependentResource.SECURE_VOLUME_KEY, interpolationResult.volumes());
+            putOrMerged(ctx, ProxyConfigDependentResource.SECURE_VOLUME_MOUNT_KEY, interpolationResult.mounts());
             return new NamedFilterDefinition(filterDefinitionName, type, interpolationResult.config());
 
         }).toList();
@@ -241,15 +163,6 @@ public class ProxyConfigConfigMap
                 virtualClusterIngressModel.gateways(),
                 false, false,
                 filterNamesForCluster(cluster));
-    }
-
-    private static String toYaml(Object filterDefs) {
-        try {
-            return CONFIG_OBJECT_MAPPER.writeValueAsString(filterDefs).stripTrailing();
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
     }
 
 }

@@ -47,7 +47,7 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.kubernetes.operator.ProxyConfigStateConfigMap.CONFIG_STATE_SUFFIX;
+import static io.kroxylicious.kubernetes.operator.ProxyConfigStateDependentResource.CONFIG_STATE_CONFIG_MAP_SUFFIX;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
@@ -222,16 +222,12 @@ public final class VirtualKafkaClusterReconciler implements
                 ConfigMap.class,
                 VirtualKafkaCluster.class)
                 .withName(PROXY_CONFIG_STATE_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> {
-                    Set<ResourceID> resourceIDS = ResourcesUtil.localRefAsResourceId(cluster, cluster.getSpec().getProxyRef());
-
-                    // FIXME
-                    return resourceIDS.stream().map(x -> new ResourceID(x.getName() + CONFIG_STATE_SUFFIX, x.getNamespace().orElse(null))).collect(Collectors.toSet());
-                })
+                .withPrimaryToSecondaryMapper(VirtualKafkaClusterReconciler::toConfigStateResourceName)
                 .withSecondaryToPrimaryMapper(configMap -> ResourcesUtil.findReferrers(context,
                         configMap,
                         VirtualKafkaCluster.class,
-                        cluster -> new AnyLocalRefBuilder().withGroup("").withKind("ConfigMap").withName(cluster.getSpec().getProxyRef().getName() + CONFIG_STATE_SUFFIX)
+                        cluster -> new AnyLocalRefBuilder().withGroup("").withKind("ConfigMap")
+                                .withName(cluster.getSpec().getProxyRef().getName() + CONFIG_STATE_CONFIG_MAP_SUFFIX)
                                 .build()))
                 .build();
 
@@ -289,4 +285,10 @@ public final class VirtualKafkaClusterReconciler implements
         }
         return uc;
     }
+
+    private static Set<ResourceID> toConfigStateResourceName(VirtualKafkaCluster cluster) {
+        return ResourcesUtil.localRefAsResourceId(cluster, cluster.getSpec().getProxyRef())
+                .stream().map(x -> new ResourceID(x.getName() + CONFIG_STATE_CONFIG_MAP_SUFFIX, x.getNamespace().orElse(null))).collect(Collectors.toSet());
+    }
+
 }

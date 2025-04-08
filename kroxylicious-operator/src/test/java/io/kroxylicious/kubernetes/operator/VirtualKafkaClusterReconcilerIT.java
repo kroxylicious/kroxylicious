@@ -250,7 +250,7 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(resource);
 
         // Then
-        assertClusterAcceptedFalse(clusterBar, ProxyConfigConfigMap.REASON_INVALID);
+        assertClusterAcceptedFalse(clusterBar, ProxyConfigDependentResource.REASON_INVALID);
 
         // And when
         testActor.replace(cluster(CLUSTER_BAR, PROXY_A, List.of(INGRESS_D), SERVICE_H, null));

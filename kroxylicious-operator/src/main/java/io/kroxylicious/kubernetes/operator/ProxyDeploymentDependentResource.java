@@ -40,12 +40,12 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
  * Generates the Kube {@code Deployment} for the proxy
  */
 @KubernetesDependent
-public class ProxyDeployment
+public class ProxyDeploymentDependentResource
         extends CRUDKubernetesDependentResource<Deployment, KafkaProxy> {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ProxyDeployment.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProxyDeploymentDependentResource.class);
     public static final String CONFIG_VOLUME = "config-volume";
-    public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigConfigMap.CONFIG_YAML_KEY;
+    public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigDependentResource.CONFIG_YAML_KEY;
     public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
     private static final int MANAGEMENT_PORT = 9190;
     private static final String MANAGEMENT_PORT_NAME = "management";
@@ -53,7 +53,7 @@ public class ProxyDeployment
     private final String kroxyliciousImage = getOperandImage();
     static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
 
-    public ProxyDeployment() {
+    public ProxyDeploymentDependentResource() {
         super(Deployment.class);
     }
 
@@ -115,10 +115,10 @@ public class ProxyDeployment
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
                         .withNewConfigMap()
-                            .withName(ProxyConfigConfigMap.configMapName(primary))
+                            .withName(ProxyConfigDependentResource.configMapName(primary))
                         .endConfigMap()
                     .endVolume()
-                    .addAllToVolumes(ProxyConfigConfigMap.secureVolumes(context.managedWorkflowAndDependentResourceContext()))
+                    .addAllToVolumes(ProxyConfigDependentResource.secureVolumes(context.managedWorkflowAndDependentResourceContext()))
                 .endSpec()
                 .build();
         // @formatter:on
@@ -139,14 +139,14 @@ public class ProxyDeployment
                 .withFailureThreshold(3)
                 .endLivenessProbe()
                 .withImage(kroxyliciousImage)
-                .withArgs("--config", ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
+                .withArgs("--config", ProxyDeploymentDependentResource.CONFIG_PATH_IN_CONTAINER)
                 // volume mount
                 .addNewVolumeMount()
                     .withName(CONFIG_VOLUME)
-                    .withMountPath(ProxyDeployment.CONFIG_PATH_IN_CONTAINER)
-                    .withSubPath(ProxyConfigConfigMap.CONFIG_YAML_KEY)
+                    .withMountPath(ProxyDeploymentDependentResource.CONFIG_PATH_IN_CONTAINER)
+                    .withSubPath(ProxyConfigDependentResource.CONFIG_YAML_KEY)
                 .endVolumeMount()
-                .addAllToVolumeMounts(ProxyConfigConfigMap.secureVolumeMounts(context.managedWorkflowAndDependentResourceContext()))
+                .addAllToVolumeMounts(ProxyConfigDependentResource.secureVolumeMounts(context.managedWorkflowAndDependentResourceContext()))
                 // management port
                 .addNewPort()
                     .withContainerPort(MANAGEMENT_PORT)
@@ -174,7 +174,7 @@ public class ProxyDeployment
         }
         else {
             var name = "/kroxylicious-image.properties";
-            try (var is = ProxyDeployment.class.getResourceAsStream(name)) {
+            try (var is = ProxyDeploymentDependentResource.class.getResourceAsStream(name)) {
                 if (is == null) {
                     throw new IllegalStateException("Failed to find %s on classpath".formatted(name));
                 }

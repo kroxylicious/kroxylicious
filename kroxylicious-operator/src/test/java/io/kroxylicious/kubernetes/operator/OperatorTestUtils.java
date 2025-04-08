@@ -61,7 +61,7 @@ public class OperatorTestUtils {
 
     public static void preloadOperandImage() {
         try (var client = kubeClient()) {
-            String operandImage = ProxyDeployment.getOperandImage();
+            String operandImage = ProxyDeploymentDependentResource.getOperandImage();
             var pod = client.run().withName("preload-operand-image")
                     .withNewRunConfig()
                     .withImage(operandImage)

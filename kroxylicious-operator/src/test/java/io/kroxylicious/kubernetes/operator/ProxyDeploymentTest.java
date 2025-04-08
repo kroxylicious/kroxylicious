@@ -19,7 +19,7 @@ import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 
-import static io.kroxylicious.kubernetes.operator.ProxyDeployment.KROXYLICIOUS_IMAGE_ENV_VAR;
+import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.KROXYLICIOUS_IMAGE_ENV_VAR;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class ProxyDeploymentTest {
@@ -29,14 +29,14 @@ class ProxyDeploymentTest {
     @Test
     @ClearEnvironmentVariable(key = KROXYLICIOUS_IMAGE_ENV_VAR)
     void operandImageDefault() {
-        assertThat(ProxyDeployment.getOperandImage())
+        assertThat(ProxyDeploymentDependentResource.getOperandImage())
                 .matches("^quay.io/kroxylicious/kroxylicious:.*");
     }
 
     @Test
     @SetEnvironmentVariable(key = KROXYLICIOUS_IMAGE_ENV_VAR, value = "quay.io/myorg/kroxylicious:1")
     void operandImageOverrideFromEnvironment() {
-        assertThat(ProxyDeployment.getOperandImage())
+        assertThat(ProxyDeploymentDependentResource.getOperandImage())
                 .isEqualTo("quay.io/myorg/kroxylicious:1");
     }
 
@@ -46,7 +46,7 @@ class ProxyDeploymentTest {
         PodTemplateSpec podTemplate = new PodTemplateSpecBuilder().withNewMetadata().addToLabels("c", "d").addToLabels("a", "b").endMetadata().build();
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName(PROXY_NAME).endMetadata()
                 .withNewSpec().withPodTemplate(podTemplate).endSpec().build();
-        Map<String, String> labels = ProxyDeployment.podLabels(proxy);
+        Map<String, String> labels = ProxyDeploymentDependentResource.podLabels(proxy);
         LinkedHashMap<String, String> expected = new LinkedHashMap<>();
         expected.put("app", "kroxylicious");
         expected.put("c", "d");

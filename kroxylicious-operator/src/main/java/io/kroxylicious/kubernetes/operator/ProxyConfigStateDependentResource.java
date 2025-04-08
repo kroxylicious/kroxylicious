@@ -29,12 +29,12 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
  * Generates a Kube {@code ConfigMap} containing some internal state related to proxy configuration.
  */
 @KubernetesDependent
-public class ProxyConfigStateConfigMap
+public class ProxyConfigStateDependentResource
         extends CRUDKubernetesDependentResource<ConfigMap, KafkaProxy> {
 
-    public static final String CONFIG_STATE_SUFFIX = "-config-state";
+    public static final String CONFIG_STATE_CONFIG_MAP_SUFFIX = "-config-state";
 
-    public ProxyConfigStateConfigMap() {
+    public ProxyConfigStateDependentResource() {
         super(ConfigMap.class);
     }
 
@@ -42,7 +42,7 @@ public class ProxyConfigStateConfigMap
      * @return The {@code metadata.name} of the desired ConfigMap {@code Secret}.
      */
     static String configMapName(KafkaProxy primary) {
-        return ResourcesUtil.name(primary) + CONFIG_STATE_SUFFIX;
+        return ResourcesUtil.name(primary) + CONFIG_STATE_CONFIG_MAP_SUFFIX;
     }
 
     @Override
