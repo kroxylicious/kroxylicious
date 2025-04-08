@@ -21,7 +21,7 @@ metadata:
       kind: "KafkaProxy"
       name: "twocluster"
 data:
-  proxy-config.yaml: | 
+  proxy-config.yaml: |-
     ---
     management:
       endpoints:
@@ -39,7 +39,7 @@ data:
           - name: "default"
             start: 0
             end: 2
-  cluster-bar: |
+  cluster-bar: |-
     ---
     metadata:
       name: "bar"
@@ -51,7 +51,7 @@ data:
         status: "True"
         lastTransitionTime: "1970-01-01T00:00:00Z"
       observedGeneration: 6
-  cluster-foo: |
+  cluster-foo: |-
     ---
     metadata:
       name: "foo"

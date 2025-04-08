@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Stream;
@@ -57,7 +56,7 @@ class TestFilesTest {
 
     @Test
     void childFilesMatchingWithEmptyDir(@TempDir Path tempDir) throws IOException {
-        HashSet<Path> paths = TestFiles.childFilesMatching(tempDir, "any");
+        Set<Path> paths = TestFiles.childFilesMatching(tempDir, "any");
         assertThat(paths).isEmpty();
     }
 
@@ -65,7 +64,7 @@ class TestFilesTest {
     void childFilesExactMatching(@TempDir Path tempDir) throws IOException {
         Files.writeString(tempDir.resolve("a"), "a");
         Files.writeString(tempDir.resolve("aa"), "aa");
-        HashSet<Path> paths = TestFiles.childFilesMatching(tempDir, "a");
+        Set<Path> paths = TestFiles.childFilesMatching(tempDir, "a");
         assertThat(paths).containsExactly(tempDir.resolve("a"));
     }
 
@@ -81,7 +80,7 @@ class TestFilesTest {
     @ParameterizedTest
     void childFilesMatchingGlob(Set<String> filenames, String glob, Set<String> expectedToResolve, @TempDir Path tempDir) throws IOException {
         filenames.forEach(s -> writeFile(tempDir, s));
-        HashSet<Path> paths = TestFiles.childFilesMatching(tempDir, glob);
+        Set<Path> paths = TestFiles.childFilesMatching(tempDir, glob);
         Set<Path> expectedPaths = expectedToResolve.stream().map(tempDir::resolve).collect(toSet());
         assertThat(paths).containsExactlyInAnyOrderElementsOf(expectedPaths);
     }

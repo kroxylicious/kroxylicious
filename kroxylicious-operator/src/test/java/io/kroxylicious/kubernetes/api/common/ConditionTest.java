@@ -21,18 +21,18 @@ class ConditionTest {
     @Test
     void serializedFormShouldUseIso8601() throws JsonProcessingException {
         // Given
-        Condition build = new ConditionBuilder().withLastTransitionTime(Instant.EPOCH).build();
+        Condition build = new ConditionBuilder().withLastTransitionTime(Instant.EPOCH).withObservedGeneration(345678L).build();
         // When
         var conditionWithEpoch = new ObjectMapper().registerModule(new JavaTimeModule()).writeValueAsString(build);
         // Then
-        assertThat(conditionWithEpoch).isEqualTo("{\"lastTransitionTime\":\"1970-01-01T00:00:00Z\"}");
+        assertThat(conditionWithEpoch).contains("\"lastTransitionTime\":\"1970-01-01T00:00:00Z\"");
     }
 
     @Test
     void roundTrip() throws JsonProcessingException {
         // Given
         ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
-        Condition wroteCondition = new ConditionBuilder().withLastTransitionTime(Instant.now()).build();
+        Condition wroteCondition = new ConditionBuilder().withLastTransitionTime(Instant.now()).withObservedGeneration(1L).build();
         // When
         var conditionString = objectMapper.writeValueAsString(wroteCondition);
         var readCondition = objectMapper.readValue(conditionString, Condition.class);

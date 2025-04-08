@@ -10,6 +10,7 @@ apiVersion: filter.kroxylicious.io/v1alpha1
 metadata:
   name: filter-two
   namespace: proxy-ns
+  generation: 8
 spec:
   type: com.example.what.Ever
   configTemplate:

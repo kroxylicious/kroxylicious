@@ -21,7 +21,7 @@ metadata:
       kind: "KafkaProxy"
       name: "minimal"
 data:
-  proxy-config.yaml: |
+  proxy-config.yaml: |-
     ---
     management:
       endpoints:
@@ -39,7 +39,7 @@ data:
           - name: "default"
             start: 0
             end: 2
-  cluster-one: |
+  cluster-one: |-
     ---
     metadata:
       name: "one"

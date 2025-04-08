@@ -10,6 +10,7 @@ apiVersion: kroxylicious.io/v1alpha1
 metadata:
   name: foo
   namespace: proxy-ns
+  generation: 1
 spec:
   proxyRef:
     name: example

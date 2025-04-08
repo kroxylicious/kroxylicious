@@ -37,18 +37,21 @@ class ResourceStateTest {
                 .withObservedGeneration(12L)
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
+                .withLastTransitionTime(Instant.EPOCH)
                 .build();
 
         var c13 = new ConditionBuilder()
                 .withObservedGeneration(13L)
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
+                .withLastTransitionTime(Instant.EPOCH)
                 .build();
 
         var c13True = new ConditionBuilder()
                 .withObservedGeneration(13L)
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.TRUE)
+                .withLastTransitionTime(Instant.EPOCH)
                 .build();
 
         assertThat(ResourceState.newConditions(List.of(c12), ResourceState.fromList(List.of(c13)))).isEqualTo(List.of(c13));
@@ -63,21 +66,16 @@ class ResourceStateTest {
         Condition template = new ConditionBuilder().withStatus(Condition.Status.FALSE)
                 .withObservedGeneration(1L)
                 .withLastTransitionTime(now).build();
-        Condition nullObservedGeneration = template.edit().withObservedGeneration(null).build();
         Condition observedGenerationOne = template.edit().withObservedGeneration(1L).build();
         Condition observedGenerationTwo = template.edit().withObservedGeneration(2L).build();
         Condition nullStatus = template.edit().withStatus(null).build();
         Condition falseStatus = template.edit().withStatus(Condition.Status.FALSE).build();
         Condition trueStatus = template.edit().withStatus(Condition.Status.TRUE).build();
         Condition unknownStatus = template.edit().withStatus(Condition.Status.UNKNOWN).build();
-        Condition nullLastTransitionTime = template.edit().withLastTransitionTime(null).build();
         Condition lastTransitionTimeEpoch = template.edit().withLastTransitionTime(Instant.EPOCH).build();
         Condition lastTransitionTimeEpochPlusOneMin = template.edit().withLastTransitionTime(Instant.EPOCH.plus(1, ChronoUnit.MINUTES)).build();
         return Stream.of(Arguments.argumentSet("higher generation is greater than lower generation", observedGenerationOne, observedGenerationTwo, LESS_THAN),
-                Arguments.argumentSet("non-null generation is higher than null generation", nullObservedGeneration, observedGenerationTwo, LESS_THAN),
                 Arguments.argumentSet("same generation, fresher transition time is higher", lastTransitionTimeEpoch, lastTransitionTimeEpochPlusOneMin, LESS_THAN),
-                Arguments.argumentSet("same generation, any transition time higher than null transition time", nullLastTransitionTime, lastTransitionTimeEpoch,
-                        LESS_THAN),
                 Arguments.argumentSet("same generation, same transition time, any status is higher than null status", nullStatus, unknownStatus, LESS_THAN),
                 Arguments.argumentSet("same generation, same transition time, unknown status is higher than false", falseStatus, unknownStatus, LESS_THAN),
                 Arguments.argumentSet("same generation, same transition time, false status is higher than true", trueStatus, falseStatus, LESS_THAN),
@@ -208,31 +206,6 @@ class ResourceStateTest {
 
         // then
         assertThat(actual).isEqualTo(List.of(newConditionWithOriginalTransitionTime));
-    }
-
-    @Test
-    void shouldNotPreserveNullLastTransitionTimeIfStatusUnchangedOverGenerations() {
-        // given
-        Condition originalCondition = new ConditionBuilder()
-                .withObservedGeneration(12L)
-                .withType(Condition.Type.ResolvedRefs)
-                .withStatus(Condition.Status.FALSE)
-                .withLastTransitionTime(null)
-                .build();
-
-        Instant newStatusTime = TEST_TIME.instant();
-        Condition newCondition = new ConditionBuilder()
-                .withObservedGeneration(13L)
-                .withType(Condition.Type.ResolvedRefs)
-                .withStatus(Condition.Status.FALSE)
-                .withLastTransitionTime(newStatusTime)
-                .build();
-
-        // when
-        List<Condition> actual = ResourceState.newConditions(List.of(originalCondition), ResourceState.fromList(List.of(newCondition)));
-
-        // then
-        assertThat(actual).isEqualTo(List.of(newCondition));
     }
 
     @Test

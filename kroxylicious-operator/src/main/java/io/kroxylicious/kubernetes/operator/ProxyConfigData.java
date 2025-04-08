@@ -38,7 +38,9 @@ public class ProxyConfigData {
 
     private static String toYaml(Object filterDefs) {
         try {
-            return CONFIG_OBJECT_MAPPER.writeValueAsString(filterDefs);
+            // .stripTrailing() is required to standardise the trailing white space. Standardising ensures that we don't trigger Jackson/SnakeYaml magic for enabling
+            // or disabling the chomp operator when appending this string to a YAML document. stripTrailing in preference to strip as its fractionally cheaper.
+            return CONFIG_OBJECT_MAPPER.writeValueAsString(filterDefs).stripTrailing();
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);

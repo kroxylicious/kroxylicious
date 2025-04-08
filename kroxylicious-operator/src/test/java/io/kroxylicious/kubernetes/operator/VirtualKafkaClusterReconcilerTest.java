@@ -175,8 +175,12 @@ class VirtualKafkaClusterReconcilerTest {
                         CLUSTER_NO_FILTERS,
                         Optional.of(PROXY),
                         Optional.empty(),
-                        Optional.of(new KafkaServiceBuilder(SERVICE).withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
-                                .withStatus(Condition.Status.FALSE).endCondition().endStatus().build()),
+                        Optional.of(new KafkaServiceBuilder(SERVICE).withNewStatus().addNewCondition()
+                                .withType(Condition.Type.ResolvedRefs)
+                                .withStatus(Condition.Status.FALSE)
+                                .withLastTransitionTime(Instant.now())
+                                .withObservedGeneration(1L)
+                                .endCondition().endStatus().build()),
                         Set.of(INGRESS),
                         Set.of(),
                         assertResolvedRefsFalse(
@@ -198,7 +202,10 @@ class VirtualKafkaClusterReconcilerTest {
                         Optional.empty(),
                         Optional.of(SERVICE),
                         Set.of(new KafkaProxyIngressBuilder(INGRESS).withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
-                                .withStatus(Condition.Status.FALSE).endCondition().endStatus().build()),
+                                .withStatus(Condition.Status.FALSE)
+                                .withLastTransitionTime(Instant.now())
+                                .withObservedGeneration(1L)
+                                .endCondition().endStatus().build()),
                         Set.of(),
                         assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND,
@@ -220,7 +227,8 @@ class VirtualKafkaClusterReconcilerTest {
                         Optional.of(SERVICE),
                         Set.of(INGRESS),
                         Set.of(new KafkaProtocolFilterBuilder(FILTER_MY_FILTER).withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
-                                .withStatus(Condition.Status.FALSE).endCondition().endStatus().build()),
+                                .withStatus(Condition.Status.FALSE).withLastTransitionTime(Instant.now())
+                                .withObservedGeneration(1L).endCondition().endStatus().build()),
                         assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND,
                                 "spec.filterRefs references kafkaprotocolfilter.filter.kroxylicious.io/my-filter in namespace 'my-namespace'")));

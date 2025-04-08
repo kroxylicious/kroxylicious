@@ -10,6 +10,7 @@ apiVersion: kroxylicious.io/v1alpha1
 metadata:
   name: use-pod-template-spec
   namespace: proxy-ns
+  generation: 4654
 spec:
   podTemplate:
     metadata:

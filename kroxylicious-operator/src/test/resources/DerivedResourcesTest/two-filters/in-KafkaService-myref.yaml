@@ -10,5 +10,6 @@ apiVersion: kroxylicious.io/v1alpha1
 metadata:
   name: myref
   namespace: proxy-ns
+  generation: 12
 spec:
   bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
