@@ -19,6 +19,7 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.type.TypeReference;
 
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
+import io.skodjob.testframe.utils.KubeUtils;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
@@ -32,7 +33,6 @@ import io.kroxylicious.systemtests.utils.TestUtils;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
-import static io.kroxylicious.systemtests.k8s.KubeClusterResource.getInstance;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
@@ -72,7 +72,7 @@ public class KcatClient implements KafkaClient {
 
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kcat").addArgument(topicName).log();
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kcat-" + TestUtils.getRandomPodNameSuffix();
-        String jsonOverrides = getInstance().isOpenshift() ? TestUtils.getJsonFileContent("nonJVMClient_openshift.json").replace("%NAME%", name) : "";
+        String jsonOverrides = KubeUtils.isOcp() ? TestUtils.getJsonFileContent("nonJVMClient_openshift.json").replace("%NAME%", name) : "";
 
         List<String> executableCommand = new ArrayList<>(List.of(cmdKubeClient(deployNamespace).toString(), "run", "-i",
                 "-n", deployNamespace, name,

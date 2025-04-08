@@ -16,10 +16,8 @@ import io.fabric8.kubernetes.api.model.NamespaceBuilder;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodStatus;
 import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.NonDeletingOperation;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -189,34 +187,6 @@ public class KubeClient {
     // ================================
 
     /**
-     * Create or update deployment deployment.
-     *
-     * @param deployment the deployment
-     */
-    public void createOrUpdateDeployment(Deployment deployment) {
-        client.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).resource(deployment).createOr(NonDeletingOperation::update);
-    }
-
-    /**
-     * Delete deployment.
-     *
-     * @param namespaceName the namespace name
-     * @param deploymentName the deployment name
-     */
-    public void deleteDeployment(String namespaceName, String deploymentName) {
-        client.apps().deployments().inNamespace(namespaceName).withName(deploymentName).withPropagationPolicy(DeletionPropagation.FOREGROUND).delete();
-    }
-
-    /**
-     * Update deployment.
-     *
-     * @param deployment the deployment
-     */
-    public void updateDeployment(Deployment deployment) {
-        client.apps().deployments().inNamespace(deployment.getMetadata().getNamespace()).resource(deployment).update();
-    }
-
-    /**
      * Gets deployment
      * @param namespaceName the namespace name
      * @param deploymentName the deployment name
@@ -320,42 +290,5 @@ public class KubeClient {
      */
     public String logsInSpecificNamespace(String namespaceName, String podName) {
         return client.pods().inNamespace(namespaceName).withName(podName).getLog();
-    }
-
-    // =====================================
-    // ---> CUSTOM RESOURCE DEFINITIONS <---
-    // =====================================
-
-    /**
-     * Method for creating the specified CustomResourceDefinition.
-     * In case that the CRD is already created, it is being updated.
-     * This can be caused by not cleared CRDs from other tests or in case we shut down the test before the cleanup
-     * phase.
-     * The skip of the cleanup phase can then break the CO installation - because the resource already exists.
-     * Without the update, we would need to manually remove all existing resources before running the test again.
-     * It should not have an impact on the functionality, we just update the CRD.
-     * @param resourceDefinition CustomResourceDefinition that we want to create or update
-     */
-    public void createOrUpdateCustomResourceDefinition(CustomResourceDefinition resourceDefinition) {
-        client.apiextensions().v1().customResourceDefinitions().resource(resourceDefinition).createOr(NonDeletingOperation::update);
-    }
-
-    /**
-     * Delete custom resource definition.
-     *
-     * @param resourceDefinition the resource definition
-     */
-    public void deleteCustomResourceDefinition(CustomResourceDefinition resourceDefinition) {
-        client.apiextensions().v1().customResourceDefinitions().resource(resourceDefinition).delete();
-    }
-
-    /**
-     * Gets custom resource definition.
-     *
-     * @param name the name
-     * @return the custom resource definition
-     */
-    public CustomResourceDefinition getCustomResourceDefinition(String name) {
-        return client.apiextensions().v1().customResourceDefinitions().withName(name).get();
     }
 }

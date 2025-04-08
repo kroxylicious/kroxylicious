@@ -170,13 +170,4 @@ public class KubeClusterResource {
         }
         return kubeCluster;
     }
-
-    /**
-     * Return true if this kind of cluster is openshift.
-     *
-     * @return the boolean
-     */
-    public boolean isOpenshift() {
-        return kubeCluster.isOpenshift();
-    }
 }

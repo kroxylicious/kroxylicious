@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.openshift.api.model.operator.v1.IngressControllerList;
 import io.fabric8.openshift.client.OpenShiftClient;
+import io.skodjob.testframe.utils.KubeUtils;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
@@ -24,7 +25,6 @@ import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
-import static io.kroxylicious.systemtests.k8s.KubeClusterResource.getInstance;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
@@ -69,7 +69,7 @@ public class Vault {
             return;
         }
 
-        boolean openshiftCluster = getInstance().isOpenshift();
+        boolean openshiftCluster = KubeUtils.isOcp();
         LOGGER.info("Deploy HashiCorp Vault in {} namespace, openshift: {}", deploymentNamespace, openshiftCluster);
 
         NamespaceUtils.createNamespaceAndPrepare(deploymentNamespace);
@@ -112,7 +112,7 @@ public class Vault {
      * @return the vault url.
      */
     public URI getVaultUrl() {
-        if (getInstance().isOpenshift()) {
+        if (KubeUtils.isOcp()) {
             return URI.create("http://" + DeploymentUtils.getOpenshiftRouteServiceAddress(deploymentNamespace, VAULT_SERVICE_NAME));
         }
         else {
