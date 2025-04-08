@@ -108,6 +108,8 @@ public record Configuration(
             throw new IllegalConfigurationException("'filters' and 'filterDefinitions' can't both be set");
         }
 
+        validateNoDuplicatedClusterNames(virtualClusters);
+
         // Enforce post condition: filterDefinitions have a unique name
         if (filterDefinitions != null) {
             Map<String, List<NamedFilterDefinition>> groupdByName = filterDefinitions.stream().collect(Collectors.groupingBy(NamedFilterDefinition::name));
@@ -121,11 +123,8 @@ public record Configuration(
         Set<String> filterDefsByName = Optional.ofNullable(filterDefinitions).orElse(List.of()).stream().map(NamedFilterDefinition::name).collect(
                 Collectors.toSet());
         checkNamedFiltersAreDefined(filterDefsByName, defaultFilters, "defaultFilters");
-        if (virtualClusters != null) {
-            validateNoDuplicatedClusterNames(virtualClusters);
-            for (var virtualCluster : virtualClusters) {
-                checkNamedFiltersAreDefined(filterDefsByName, virtualCluster.filters(), "virtualClusters." + virtualCluster.name() + ".filters");
-            }
+        for (var virtualCluster : virtualClusters) {
+            checkNamedFiltersAreDefined(filterDefsByName, virtualCluster.filters(), "virtualClusters." + virtualCluster.name() + ".filters");
         }
 
         // Every filter defined in the filterDefinitions is used somewhere
@@ -134,20 +133,18 @@ public record Configuration(
             if (defaultFilters != null) {
                 defaultFilters.forEach(defined::remove);
             }
-            if (virtualClusters != null) {
-                virtualClusters.stream()
-                        .map(VirtualCluster::filters)
-                        .filter(Objects::nonNull)
-                        .flatMap(Collection::stream)
-                        .forEach(defined::remove);
-            }
+            virtualClusters.stream()
+                    .map(VirtualCluster::filters)
+                    .filter(Objects::nonNull)
+                    .flatMap(Collection::stream)
+                    .forEach(defined::remove);
             if (!defined.isEmpty()) {
                 throw new IllegalConfigurationException(
                         "'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': " + defined);
             }
         }
 
-        if (filters != null && virtualClusters != null && virtualClusters.stream()
+        if (filters != null && virtualClusters.stream()
                 .map(VirtualCluster::filters)
                 .anyMatch(Objects::nonNull)) {
             throw new IllegalConfigurationException(
