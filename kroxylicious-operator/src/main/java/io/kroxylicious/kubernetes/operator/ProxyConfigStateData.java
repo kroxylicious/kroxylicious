@@ -28,7 +28,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 /**
  * Encapsulates the reading and writing of the {@code data} section of the Proxy {@code ConfigMap}.
  */
-public class ProxyConfigData {
+public class ProxyConfigStateData {
 
     public static final String CLUSTER_KEY_PREFIX = "cluster-";
     static final ObjectMapper CONFIG_OBJECT_MAPPER = ConfigParser.createObjectMapper()
@@ -52,11 +52,11 @@ public class ProxyConfigData {
 
     private final Map<String, String> data;
 
-    public ProxyConfigData() {
+    public ProxyConfigStateData() {
         this(new LinkedHashMap<>());
     }
 
-    public ProxyConfigData(Map<String, String> data) {
+    public ProxyConfigStateData(Map<String, String> data) {
         this.data = data;
     }
 
@@ -70,7 +70,7 @@ public class ProxyConfigData {
         }
     }
 
-    public ProxyConfigData addStatusPatchForCluster(String clusterName, VirtualKafkaCluster patch) {
+    public ProxyConfigStateData addStatusPatchForCluster(String clusterName, VirtualKafkaCluster patch) {
         data.put(clusterKey(clusterName), toYaml(new VirtualKafkaClusterPatch(patch.getMetadata(), patch.getStatus())));
         return this;
     }

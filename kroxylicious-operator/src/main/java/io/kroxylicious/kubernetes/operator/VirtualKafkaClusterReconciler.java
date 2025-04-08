@@ -144,7 +144,7 @@ public final class VirtualKafkaClusterReconciler implements
                 uc = context
                         .getSecondaryResource(ConfigMap.class, PROXY_CONFIG_STATE_SOURCE_NAME)
                         .flatMap(cm -> Optional.ofNullable(cm.getData()))
-                        .map(ProxyConfigData::new)
+                        .map(ProxyConfigStateData::new)
                         .flatMap(data -> data.getStatusPatchForCluster(ResourcesUtil.name(cluster)))
                         .map(patch -> {
                             var rr = ResourceState.of(statusFactory.newTrueCondition(cluster, Condition.Type.ResolvedRefs));

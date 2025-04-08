@@ -25,7 +25,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.proxy.config.Configuration;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
-import static io.kroxylicious.kubernetes.operator.ProxyConfigData.CONFIG_OBJECT_MAPPER;
+import static io.kroxylicious.kubernetes.operator.ProxyConfigStateData.CONFIG_OBJECT_MAPPER;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
 /**
