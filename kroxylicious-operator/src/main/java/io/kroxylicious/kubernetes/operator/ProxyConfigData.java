@@ -9,20 +9,22 @@ package io.kroxylicious.kubernetes.operator;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
-import io.kroxylicious.kubernetes.api.common.Condition;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
+
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Encapsulates the reading and writing of the {@code data} section of the Proxy {@code ConfigMap}.
@@ -66,23 +68,33 @@ public class ProxyConfigData {
         return data.get(CONFIG_YAML_KEY);
     }
 
-    public ProxyConfigData addConditionsForCluster(String clusterName, List<Condition> conditions) {
-        data.put(clusterKey(clusterName), toYaml(conditions));
+    record VirtualKafkaClusterPatch(ObjectMeta metadata,
+                                    VirtualKafkaClusterStatus status) {
+        // Use a dedicated class for JSON serialization because if we use a VKC itself
+        // we get some extra fields which we don't really need
+        // (like kind, apigroup and one for io.fabric8.kubernetes.client.CustomResource#getCRDName())
+        public VirtualKafkaCluster toResource() {
+            return new VirtualKafkaClusterBuilder().withMetadata(metadata()).withStatus(status()).build();
+        }
+    }
+
+    public ProxyConfigData addStatusPatchForCluster(String clusterName, VirtualKafkaCluster patch) {
+        data.put(clusterKey(clusterName), toYaml(new VirtualKafkaClusterPatch(patch.getMetadata(), patch.getStatus())));
         return this;
     }
 
-    public boolean hasConditionsForCluster(String clusterName) {
+    public boolean hasStatusPatchForCluster(String clusterName) {
         return data.containsKey(clusterKey(clusterName));
     }
 
-    public @Nullable List<Condition> getConditionsForCluster(String clusterName) {
+    public Optional<VirtualKafkaCluster> getStatusPatchForCluster(String clusterName) {
         var str = data.get(clusterKey(clusterName));
         if (str == null) {
-            return null;
+            return Optional.empty();
         }
         try {
-            return CONFIG_OBJECT_MAPPER.readValue(str, new TypeReference<List<Condition>>() {
-            });
+            return Optional.of(CONFIG_OBJECT_MAPPER.readValue(str, VirtualKafkaClusterPatch.class))
+                    .map(VirtualKafkaClusterPatch::toResource);
         }
         catch (JsonProcessingException e) {
             throw new UncheckedIOException(e);

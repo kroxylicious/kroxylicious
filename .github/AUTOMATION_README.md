@@ -1,5 +1,10 @@
 # GitHub Automation
 
+## Password Safe
+
+The project uses a password safe as the system of record for project's secrets.  The [CODEOWNERS](./CODEOWNERS) know the
+whereabout of the password safe and how to access it.  Talk to one of them if you need access.
+
 ## Shared GitHub Personal Access Tokens
 
 In some of our actions we use Personal Access Tokens (PAT) to enable actions

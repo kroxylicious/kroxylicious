@@ -26,6 +26,11 @@ package io.kroxylicious.kubernetes.api.common;
 })
 public class Condition implements io.fabric8.kubernetes.api.builder.Editable<ConditionBuilder>, io.fabric8.kubernetes.api.model.KubernetesResource {
 
+    public static final String REASON_INTERPOLATED_REFS_NOT_FOUND = "InterpolatedReferencedResourcesNotFound";
+    public static final String REASON_REFS_NOT_FOUND = "ReferencedResourcesNotFound";
+    public static final String REASON_TRANSITIVE_REFS_NOT_FOUND = "TransitivelyReferencedResourcesNotFound";
+    public static final String REASON_INVALID = "Invalid";
+
     @Override
     public ConditionBuilder edit() {
         return new ConditionBuilder(this);

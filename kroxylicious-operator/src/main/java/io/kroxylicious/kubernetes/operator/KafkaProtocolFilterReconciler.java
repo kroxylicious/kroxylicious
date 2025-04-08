@@ -49,11 +49,11 @@ public class KafkaProtocolFilterReconciler implements
         Reconciler<KafkaProtocolFilter> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProtocolFilterReconciler.class);
-    private final Clock clock;
+    private final KafkaProtocolFilterStatusFactory statusFactory;
     private final SecureConfigInterpolator secureConfigInterpolator;
 
     KafkaProtocolFilterReconciler(Clock clock, SecureConfigInterpolator secureConfigInterpolator) {
-        this.clock = Objects.requireNonNull(clock);
+        this.statusFactory = new KafkaProtocolFilterStatusFactory(Objects.requireNonNull(clock));
         this.secureConfigInterpolator = Objects.requireNonNull(secureConfigInterpolator);
     }
 
@@ -131,22 +131,26 @@ public class KafkaProtocolFilterReconciler implements
         LOGGER.debug("Existing configmaps: {}", existingConfigMaps);
 
         var interpolationResult = secureConfigInterpolator.interpolate(filter.getSpec().getConfigTemplate());
-        var referencedSecrets = interpolationResult.volumes().stream().flatMap(volume -> Optional.ofNullable(volume.getSecret())
-                .map(SecretVolumeSource::getSecretName)
-                .stream())
+        var referencedSecrets = interpolationResult.volumes().stream()
+                .flatMap(volume -> Optional.ofNullable(volume.getSecret())
+                        .map(SecretVolumeSource::getSecretName)
+                        .stream())
                 .collect(Collectors.toCollection(TreeSet::new));
         LOGGER.debug("Referenced secrets: {}", referencedSecrets);
 
-        var referencedConfigMaps = interpolationResult.volumes().stream().flatMap(volume -> Optional.ofNullable(volume.getConfigMap())
-                .map(ConfigMapVolumeSource::getName)
-                .stream())
+        var referencedConfigMaps = interpolationResult.volumes().stream()
+                .flatMap(volume -> Optional.ofNullable(volume.getConfigMap())
+                        .map(ConfigMapVolumeSource::getName)
+                        .stream())
                 .collect(Collectors.toCollection(TreeSet::new));
         LOGGER.debug("Referenced configmaps: {}", referencedConfigMaps);
 
-        Condition condition;
+        KafkaProtocolFilter patch;
         if (existingSecrets.containsAll(referencedSecrets)
                 && existingConfigMaps.containsAll(referencedConfigMaps)) {
-            condition = ResourcesUtil.newResolvedRefsTrue(clock, filter);
+            patch = statusFactory.newTrueConditionStatusPatch(
+                    filter,
+                    Condition.Type.ResolvedRefs);
         }
         else {
             referencedSecrets.removeAll(existingSecrets);
@@ -159,19 +163,17 @@ public class KafkaProtocolFilterReconciler implements
                 message += " ConfigMaps [" + String.join(", ", referencedConfigMaps) + "]";
             }
             message += " not found";
-            condition = ResourcesUtil.newResolvedRefsFalse(clock,
+            patch = statusFactory.newFalseConditionStatusPatch(
                     filter,
-                    "MissingInterpolationReferences",
+                    Condition.Type.ResolvedRefs,
+                    Condition.REASON_INTERPOLATED_REFS_NOT_FOUND,
                     message);
         }
 
-        KafkaProtocolFilter newFilter = ResourcesUtil.patchWithCondition(filter, condition);
-        LOGGER.debug("Patching with status {}", newFilter.getStatus());
-        UpdateControl<KafkaProtocolFilter> uc = UpdateControl.patchStatus(newFilter);
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(filter), name(filter));
         }
-        return uc;
+        return UpdateControl.patchStatus(patch);
     }
 
     @Override
@@ -180,11 +182,10 @@ public class KafkaProtocolFilterReconciler implements
                                                                            Context<KafkaProtocolFilter> context,
                                                                            Exception e) {
         // ResolvedRefs to UNKNOWN
-        Condition condition = ResourcesUtil.resolvedRefsUnknown(clock, filter, e);
-        ErrorStatusUpdateControl<KafkaProtocolFilter> uc = ErrorStatusUpdateControl.patchStatus(
-                ResourcesUtil.patchWithCondition(filter, condition));
+        ErrorStatusUpdateControl<KafkaProtocolFilter> uc = ErrorStatusUpdateControl
+                .patchStatus(statusFactory.newUnknownConditionStatusPatch(filter, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(filter), name(filter), e.toString());
+            LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(filter), name(filter), e.toString());
         }
         return uc;
     }

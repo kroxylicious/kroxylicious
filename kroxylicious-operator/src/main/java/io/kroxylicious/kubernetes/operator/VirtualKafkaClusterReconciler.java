@@ -32,6 +32,7 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
+import io.kroxylicious.kubernetes.api.common.ProxyRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
@@ -65,22 +66,21 @@ public final class VirtualKafkaClusterReconciler implements
     public static final String TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND = "TransitivelyReferencedResourcesNotFound";
     public static final String REFERENCED_RESOURCES_NOT_FOUND = "ReferencedResourcesNotFound";
 
-    private final Clock clock;
+    private final VirtualKafkaClusterStatusFactory statusFactory;
 
     public VirtualKafkaClusterReconciler(Clock clock) {
-        this.clock = clock;
+        this.statusFactory = new VirtualKafkaClusterStatusFactory(clock);
     }
 
     @Override
     public UpdateControl<VirtualKafkaCluster> reconcile(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
         var existingProxies = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME).stream().collect(Collectors.toSet());
+        var existingProxyRefs = existingProxies.stream().map(ResourcesUtil::toLocalRef).toList();
         TreeSet<LocalRef<KafkaProxy>> missingProxies = Optional.ofNullable(cluster.getSpec())
                 .map(VirtualKafkaClusterSpec::getProxyRef)
                 .stream()
                 .collect(Collectors.toCollection(TreeSet::new));
-        missingProxies.removeAll(existingProxies.stream()
-                .map(ResourcesUtil::toLocalRef)
-                .toList());
+        missingProxies.removeAll(existingProxyRefs);
 
         var existingServices = context.getSecondaryResource(KafkaService.class, SERVICES_EVENT_SOURCE_NAME).stream().collect(Collectors.toSet());
         TreeSet<LocalRef<KafkaService>> missingServices = Optional.ofNullable(cluster.getSpec())
@@ -109,7 +109,7 @@ public final class VirtualKafkaClusterReconciler implements
                 .map(ResourcesUtil::toLocalRef)
                 .toList());
 
-        final List<Condition> conditions;
+        final UpdateControl<VirtualKafkaCluster> uc;
         if (missingProxies.isEmpty()
                 && missingServices.isEmpty()
                 && missingIngresses.isEmpty()
@@ -127,27 +127,39 @@ public final class VirtualKafkaClusterReconciler implements
                     .filter(kpf -> hasAnyResolvedRefsFalse(Optional.ofNullable(kpf.getStatus()).map(KafkaProtocolFilterStatus::getConditions).orElse(List.of())))
                     .map(ResourcesUtil::toLocalRef)
                     .collect(Collectors.toCollection(TreeSet::new));
+
+            TreeSet<ProxyRef> ingressProxyRefs = existingIngresses.stream().map(i -> i.getSpec().getProxyRef()).collect(Collectors.toCollection(TreeSet::new));
+            // if the ingress references a different proxy to the virtual cluster, we will not have loaded the proxy.
+            // TODO can we discriminate between unresolved this mismatch?
+            TreeSet<ProxyRef> mismatchedIngressProxyRef = ingressProxyRefs.stream().filter(i -> !existingProxyRefs.contains(i))
+                    .collect(Collectors.toCollection(TreeSet::new));
+
             if (unresolvedServices.isEmpty()
                     && unresolvedIngresses.isEmpty()
-                    && unresolvedFilters.isEmpty()) {
-                conditions = context
+                    && unresolvedFilters.isEmpty()
+                    && mismatchedIngressProxyRef.isEmpty()) {
+                uc = context
                         .getSecondaryResource(ConfigMap.class, PROXY_CONFIG_MAP_EVENT_SOURCE_NAME)
                         .flatMap(cm -> Optional.ofNullable(cm.getData()))
                         .map(ProxyConfigData::new)
-                        .flatMap(data -> Optional.ofNullable(data.getConditionsForCluster(ResourcesUtil.name(cluster))))
-                        .orElse(List.of()); // cm not found, or this cluster missing in the data.
+                        .flatMap(data -> data.getStatusPatchForCluster(ResourcesUtil.name(cluster)))
+                        .map(patch -> {
+                            var rr = ResourceState.of(statusFactory.newTrueCondition(cluster, Condition.Type.ResolvedRefs));
+                            var acc = ResourceState.fromList(patch.getStatus().getConditions());
+                            return statusFactory.clusterStatusPatch(cluster, rr.replacementFor(acc));
+                        })
+                        .map(UpdateControl::patchStatus)
+                        .orElse(UpdateControl.noUpdate());
+
             }
             else {
                 Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", cluster, unresolvedServices);
                 Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", cluster, unresolvedIngresses);
                 Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster, unresolvedFilters);
-                conditions = List.of(
-                        ResourcesUtil.newResolvedRefsFalse(clock,
-                                cluster,
-                                TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND,
-                                joiningMessages(serviceMsg, ingressMsg, filterMsg)),
-                        ResourcesUtil.newConditionBuilder(clock, cluster)
-                                .withType(Condition.Type.Accepted).build());
+                Stream<String> ingressProxyMessage = refsMessage("a spec.ingressRef had an inconsistent or missing proxyRef ", cluster, mismatchedIngressProxyRef);
+                uc = UpdateControl
+                        .patchStatus(statusFactory.newFalseConditionStatusPatch(cluster, Condition.Type.ResolvedRefs, Condition.REASON_TRANSITIVE_REFS_NOT_FOUND,
+                                joiningMessages(serviceMsg, ingressMsg, filterMsg, ingressProxyMessage)));
             }
         }
         else {
@@ -156,16 +168,10 @@ public final class VirtualKafkaClusterReconciler implements
             Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", cluster, missingIngresses);
             Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster, missingFilters);
 
-            conditions = List.of(
-                    ResourcesUtil.newResolvedRefsFalse(clock,
-                            cluster,
-                            REFERENCED_RESOURCES_NOT_FOUND,
-                            joiningMessages(proxyMsg, serviceMsg, ingressMsg, filterMsg)),
-                    ResourcesUtil.newConditionBuilder(clock, cluster)
-                            .withType(Condition.Type.Accepted).build());
+            uc = UpdateControl.patchStatus(statusFactory.newFalseConditionStatusPatch(cluster, Condition.Type.ResolvedRefs, Condition.REASON_REFS_NOT_FOUND,
+                    joiningMessages(proxyMsg, serviceMsg, ingressMsg, filterMsg)));
         }
 
-        UpdateControl<VirtualKafkaCluster> uc = UpdateControl.patchStatus(ResourcesUtil.patchWithCondition(cluster, conditions));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(cluster), name(cluster));
         }
@@ -267,11 +273,10 @@ public final class VirtualKafkaClusterReconciler implements
     @Override
     public ErrorStatusUpdateControl<VirtualKafkaCluster> updateErrorStatus(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context, Exception e) {
         // ResolvedRefs to UNKNOWN
-        List<Condition> conditions = List.of(
-                ResourcesUtil.newUnknownCondition(clock, cluster, Condition.Type.ResolvedRefs, e));
-        ErrorStatusUpdateControl<VirtualKafkaCluster> uc = ErrorStatusUpdateControl.patchStatus(ResourcesUtil.patchWithCondition(cluster, conditions));
+        ErrorStatusUpdateControl<VirtualKafkaCluster> uc = ErrorStatusUpdateControl
+                .patchStatus(statusFactory.newUnknownConditionStatusPatch(cluster, Condition.Type.ResolvedRefs, e));
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{} for error {}", namespace(cluster), name(cluster), e.toString());
+            LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(cluster), name(cluster), e.toString());
         }
         return uc;
     }

@@ -6,8 +6,6 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -17,10 +15,8 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.spi.LoggingEventBuilder;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.javaoperatorsdk.operator.AggregatedOperatorException;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ContextInitializer;
@@ -37,9 +33,7 @@ import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMap
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
-import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
@@ -50,9 +44,7 @@ import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.generation;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
@@ -88,8 +80,10 @@ public class KafkaProxyReconciler implements
 
     private final Clock clock;
     private final SecureConfigInterpolator secureConfigInterpolator;
+    private KafkaProxyStatusFactory statusFactory;
 
     public KafkaProxyReconciler(Clock clock, SecureConfigInterpolator secureConfigInterpolator) {
+        this.statusFactory = new KafkaProxyStatusFactory(Objects.requireNonNull(clock));
         this.clock = clock;
         this.secureConfigInterpolator = secureConfigInterpolator;
     }
@@ -100,7 +94,7 @@ public class KafkaProxyReconciler implements
                             Context<KafkaProxy> context) {
         ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
         ProxyModel model = proxyModelBuilder.build(proxy, context);
-        KafkaProxyContext.init(context, clock, secureConfigInterpolator, model);
+        KafkaProxyContext.init(context, new VirtualKafkaClusterStatusFactory(clock), secureConfigInterpolator, model);
     }
 
     /**
@@ -109,165 +103,26 @@ public class KafkaProxyReconciler implements
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
+        var uc = UpdateControl.patchStatus(statusFactory.newTrueConditionStatusPatch(primary, Condition.Type.Ready));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(primary), name(primary));
         }
-        return UpdateControl.patchStatus(
-                buildStatus(primary, null));
+        return uc;
     }
 
     /**
      * The unhappy path, where some dependent resource threw an exception
      */
     @Override
-    public ErrorStatusUpdateControl<KafkaProxy> updateErrorStatus(KafkaProxy primary,
+    public ErrorStatusUpdateControl<KafkaProxy> updateErrorStatus(KafkaProxy proxy,
                                                                   Context<KafkaProxy> context,
-                                                                  Exception exception) {
-        // Post-condition: status.conditions should be in a canonical order (to avoid non-terminating reconciliations)
-        // Post-condition: There is only one Ready condition
-        var control = ErrorStatusUpdateControl.patchStatus(buildStatus(primary, exception));
-        if (exception instanceof InvalidResourceException) {
-            control.withNoRetry();
+                                                                  Exception e) {
+        var uc = ErrorStatusUpdateControl.patchStatus(statusFactory.newUnknownConditionStatusPatch(proxy, Condition.Type.Ready, e));
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(proxy), name(proxy), e.toString());
         }
-        else {
-            control.rescheduleAfter(Duration.ofSeconds(10));
-        }
-        return control;
+        return uc;
 
-    }
-
-    private KafkaProxy buildStatus(KafkaProxy primary,
-                                   @Nullable Exception exception) {
-        if (exception instanceof AggregatedOperatorException aoe && aoe.getAggregatedExceptions().size() == 1) {
-            exception = aoe.getAggregatedExceptions().values().iterator().next();
-        }
-        var now = clock.instant();
-        // @formatter:off
-        return new KafkaProxyBuilder()
-                .withNewMetadata()
-                    .withName(ResourcesUtil.name(primary))
-                    .withNamespace(ResourcesUtil.namespace(primary))
-                    .withUid(ResourcesUtil.uid(primary))
-                .endMetadata()
-                .withNewStatus()
-                    .withObservedGeneration(generation(primary))
-                    .withConditions(effectiveReadyCondition(now, primary, exception))
-                .endStatus()
-            .build();
-        // @formatter:on
-    }
-
-    /**
-     * Determines whether the {@code Ready} condition has had a state transition,
-     * and returns an appropriate new {@code Ready} condition.
-     *
-     * @param now The current time
-     * @param primary The primary.
-     * @param exception An exception, or null if the reconciliation was successful.
-     * @return The {@code Ready} condition to use in {@code status.conditions}.
-     */
-    private static Condition effectiveReadyCondition(Instant now,
-                                                     KafkaProxy primary,
-                                                     @Nullable Exception exception) {
-        final var oldReady = primary.getStatus() == null || primary.getStatus().getConditions() == null
-                ? null
-                : primary.getStatus().getConditions().stream().filter(c -> Condition.Type.Ready.equals(c.getType())).findFirst().orElse(null);
-
-        if (isTransition(oldReady, exception)) {
-            // reduce verbosity by only logging if we're making a transition
-            if (exception != null) {
-                logException(primary, exception);
-            }
-            return newCondition(now, Condition.Type.Ready, primary, exception);
-        }
-        else {
-            oldReady.setObservedGeneration(generation(primary));
-            return oldReady;
-        }
-    }
-
-    static LoggingEventBuilder addResourceKeys(KafkaProxy primary, LoggingEventBuilder loggingEventBuilder) {
-        return loggingEventBuilder.addKeyValue("kind", primary.getKind())
-                .addKeyValue("group", primary.getGroup())
-                .addKeyValue("namespace", namespace(primary))
-                .addKeyValue("name", name(primary));
-    }
-
-    private static void logException(KafkaProxy primary, Exception exception) {
-        if (exception instanceof SchemaValidatedInvalidResourceException) {
-            addResourceKeys(primary, LOGGER.atError())
-                    .setCause(exception)
-                    .log("Operator observed an invalid resource which ought not to have been accepted by the API server. "
-                            + "Either the API Server is broken, the CRD is out-of-sync with the operator, or the operator has a bug.");
-        }
-        else if (exception instanceof InvalidResourceException) {
-            addResourceKeys(primary, LOGGER.atWarn())
-                    .log("Operator observed an invalid resource: {}", exception.toString());
-        }
-        else {
-            addResourceKeys(primary, LOGGER.atError())
-                    .setCause(exception)
-                    .log("Operator had unexpected error");
-        }
-    }
-
-    /**
-     * @param now The current time
-     * @param primary The primary.
-     * @param exception An exception, or null if the reconciliation was successful.
-     * @return The {@code Ready} condition to use in {@code status.conditions}
-     *         <strong>if the condition had has a state transition</strong>.
-     */
-    private static Condition newCondition(
-                                          Instant now,
-                                          Condition.Type conditionType,
-                                          KafkaProxy primary,
-                                          @Nullable Exception exception) {
-        return new ConditionBuilder()
-                .withLastTransitionTime(now)
-                .withMessage(conditionMessage(exception))
-                .withObservedGeneration(generation(primary))
-                .withReason(conditionReason(exception))
-                .withStatus(exception == null ? Condition.Status.TRUE : Condition.Status.FALSE)
-                .withType(conditionType)
-                .build();
-    }
-
-    private static boolean isTransition(@Nullable Condition oldReady, @Nullable Exception exception) {
-        if (oldReady == null) {
-            return true;
-        }
-        else if (isReadyEqualsTrue(oldReady)) {
-            return exception != null; // a transition iff there's now an error
-        }
-        else { // there was a previous error
-            if (exception == null) {
-                return true; // => a previous error has been fixed
-            }
-            else {
-                // => a transition iff the errors are different
-                return !Objects.equals(oldReady.getMessage(), conditionMessage(exception))
-                        || !Objects.equals(oldReady.getReason(), conditionReason(exception));
-            }
-        }
-    }
-
-    private static String conditionMessage(@Nullable Exception exception) {
-        return exception == null ? "" : exception.getMessage();
-    }
-
-    @NonNull
-    private static String conditionReason(@Nullable Exception exception) {
-        if (exception == null) {
-            return "";
-        }
-        else {
-            return exception.getClass().getSimpleName();
-        }
-    }
-
-    private static boolean isReadyEqualsTrue(Condition oldReady) {
-        return Condition.Status.TRUE.equals(oldReady.getStatus());
     }
 
     @Override
