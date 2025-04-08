@@ -30,7 +30,6 @@ import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.kroxylicious.KroxyliciousResource;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaNodePoolType;
 import io.kroxylicious.systemtests.resources.strimzi.KafkaType;
-import io.kroxylicious.systemtests.resources.strimzi.KafkaUserType;
 
 /**
  * The type Resource manager.
@@ -43,7 +42,6 @@ public class ResourceManager {
 
     private static final ResourceType<?>[] resourceTypes = new ResourceType[]{
             new KafkaType(),
-            new KafkaUserType(),
             new KafkaNodePoolType(),
             new ServiceType(),
             new ConfigMapType(),
