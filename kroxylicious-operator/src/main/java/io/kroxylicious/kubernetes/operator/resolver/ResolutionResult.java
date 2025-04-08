@@ -14,6 +14,9 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
+
+import io.fabric8.kubernetes.api.model.HasMetadata;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
@@ -36,18 +39,76 @@ public class ResolutionResult {
     private final Map<LocalRef<KafkaService>, KafkaService> kafkaServiceRefs;
     private final Set<ClusterResolutionResult> clusterResolutionResults;
 
-    public record ClusterResolutionResult(VirtualKafkaCluster cluster, Set<LocalRef<?>> unresolvedDependencySet) {
-        public ClusterResolutionResult {
-            Objects.requireNonNull(cluster);
-            Objects.requireNonNull(unresolvedDependencySet);
+    public Optional<ClusterResolutionResult> clusterResult(VirtualKafkaCluster cluster) {
+        return clusterResolutionResults.stream()
+                .filter(r -> r.cluster == cluster)
+                .findFirst();
+    }
+
+    enum DependencyType {
+        // from the virtual kafka cluster to another entity
+        DIRECT,
+        // from any other entity to another entity
+        TRANSITIVE
+    }
+
+    public record UnresolvedReferences(Set<UnresolvedReference> unresolved,
+                                       Set<KafkaProxyIngress> ingressesWithResolvedRefsFalse,
+                                       Set<KafkaProtocolFilter> filtersWithResolvedRefsFalse,
+                                       Set<KafkaService> kafkaServicesWithResolvedRefsFalse) {
+        public UnresolvedReferences {
+            Objects.requireNonNull(unresolved);
         }
 
-        public boolean isAnyDependencyUnresolved() {
-            return !unresolvedDependencySet.isEmpty();
+        public Stream<LocalRef<?>> getUnresolvedReferences(LocalRef<?> from, String kindTo) {
+            Objects.requireNonNull(from);
+            Objects.requireNonNull(kindTo);
+            return unresolved.stream().filter(r -> r.from.equals(from) && r.to.getKind().equals(kindTo)).map(UnresolvedReference::to);
+        }
+
+        public Stream<LocalRef<?>> getUnresolvedReferences(String fromKind, String toKind) {
+            Objects.requireNonNull(fromKind);
+            Objects.requireNonNull(toKind);
+            return unresolved.stream().filter(r -> r.from.getKind().equals(fromKind) && r.to.getKind().equals(toKind)).map(UnresolvedReference::to);
         }
 
         public boolean isFullyResolved() {
-            return !isAnyDependencyUnresolved();
+            return unresolved.isEmpty() && filtersWithResolvedRefsFalse.isEmpty() && ingressesWithResolvedRefsFalse.isEmpty()
+                    && kafkaServicesWithResolvedRefsFalse.isEmpty();
+        }
+
+        public boolean anyDirectDependenciesUnresolved() {
+            return unresolved.stream().anyMatch(u -> u.dependencyType == DependencyType.DIRECT);
+        }
+
+        public boolean anyResolvedRefsConditionsFalse() {
+            return !ingressesWithResolvedRefsFalse.isEmpty() || !filtersWithResolvedRefsFalse.isEmpty() || !kafkaServicesWithResolvedRefsFalse.isEmpty();
+        }
+
+        public Set<HasMetadata> resourcesWithResolvedRefsFalse() {
+            HashSet<HasMetadata> hasMetadata = new HashSet<>();
+            hasMetadata.addAll(filtersWithResolvedRefsFalse);
+            hasMetadata.addAll(kafkaServicesWithResolvedRefsFalse);
+            hasMetadata.addAll(ingressesWithResolvedRefsFalse);
+            return hasMetadata;
+        }
+    }
+
+    public record UnresolvedReference(LocalRef<?> from, LocalRef<?> to, DependencyType dependencyType) {
+        public UnresolvedReference {
+            Objects.requireNonNull(from);
+            Objects.requireNonNull(to);
+        }
+    }
+
+    public record ClusterResolutionResult(VirtualKafkaCluster cluster, UnresolvedReferences unresolvedReferences) {
+        public ClusterResolutionResult {
+            Objects.requireNonNull(cluster);
+            Objects.requireNonNull(unresolvedReferences);
+        }
+
+        public boolean isFullyResolved() {
+            return unresolvedReferences.isFullyResolved();
         }
 
     }

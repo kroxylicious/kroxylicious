@@ -36,7 +36,7 @@ public class ProxyModelBuilder {
     }
 
     public ProxyModel build(KafkaProxy primary, Context<KafkaProxy> context) {
-        ResolutionResult resolutionResult = resolver.deepResolve(context);
+        ResolutionResult resolutionResult = resolver.resolveProxyRefs(primary, context);
         Set<KafkaProxyIngress> ingresses = resolutionResult.ingresses();
         // to try and produce the most stable allocation of ports we can, we attempt to consider all clusters in the ingress allocation, even those
         // that we know are unacceptable due to unresolved dependencies.

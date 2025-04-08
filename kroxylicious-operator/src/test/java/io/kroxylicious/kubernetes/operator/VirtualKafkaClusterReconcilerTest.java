@@ -36,6 +36,7 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
+import io.kroxylicious.kubernetes.operator.resolver.DependencyResolverImpl;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -285,12 +286,12 @@ class VirtualKafkaClusterReconcilerTest {
                                             BiConsumer<VirtualKafkaCluster, ConditionListAssert> asserter) {
         // given
         Clock z = TEST_CLOCK;
-        var reconciler = new VirtualKafkaClusterReconciler(z);
+        var reconciler = new VirtualKafkaClusterReconciler(z, DependencyResolverImpl.create());
 
         Context<VirtualKafkaCluster> context = mock(Context.class);
-        when(context.getSecondaryResource(KafkaProxy.class, VirtualKafkaClusterReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(existingProxy);
-        when(context.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.PROXY_CONFIG_STATE_SOURCE_NAME)).thenReturn(existingProxyConfigMap);
-        when(context.getSecondaryResource(KafkaService.class, VirtualKafkaClusterReconciler.SERVICES_EVENT_SOURCE_NAME)).thenReturn(existingService);
+        when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(existingProxy.map(Set::of).orElse(Set.of()));
+        when(context.getSecondaryResource(ConfigMap.class)).thenReturn(existingProxyConfigMap);
+        when(context.getSecondaryResources(KafkaService.class)).thenReturn(existingService.map(Set::of).orElse(Set.of()));
         when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(existingIngresses);
         when(context.getSecondaryResources(KafkaProtocolFilter.class)).thenReturn(existingFilters);
 
@@ -311,7 +312,7 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void shouldSetResolvedRefsToUnknown() {
         // given
-        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK);
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolverImpl.create());
 
         Context<VirtualKafkaCluster> context = mock(Context.class);
 
