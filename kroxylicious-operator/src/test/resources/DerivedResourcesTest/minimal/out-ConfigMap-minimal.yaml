@@ -41,10 +41,13 @@ data:
             end: 2
   cluster-one: |
     ---
-    - observedGeneration: 4
-      type: "Accepted"
-      status: "True"
-      lastTransitionTime: "1970-01-01T00:00:00Z"
-    - observedGeneration: 4
-      type: "ResolvedRefs"
-      lastTransitionTime: "1970-01-01T00:00:00Z"
+    metadata:
+      name: "one"
+      namespace: "proxy-ns"
+    status:
+      conditions:
+      - observedGeneration: 4
+        type: "Accepted"
+        status: "True"
+        lastTransitionTime: "1970-01-01T00:00:00Z"
+      observedGeneration: 4
