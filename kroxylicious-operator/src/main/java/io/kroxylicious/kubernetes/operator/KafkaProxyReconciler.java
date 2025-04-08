@@ -53,23 +53,23 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
 @Workflow(dependents = {
         @Dependent(
                 name = KafkaProxyReconciler.CONFIG_STATE_DEP,
-                type = ProxyConfigStateConfigMap.class
+                type = ProxyConfigStateDependentResource.class
         ),
         @Dependent(
                 name = KafkaProxyReconciler.CONFIG_DEP,
-                reconcilePrecondition = ProxyConfigConfigMap.class,
+                reconcilePrecondition = ProxyConfigReconcilePrecondition.class,
                 dependsOn = { KafkaProxyReconciler.CONFIG_STATE_DEP },
-                type = ProxyConfigConfigMap.class
+                type = ProxyConfigDependentResource.class
         ),
         @Dependent(
                 name = KafkaProxyReconciler.DEPLOYMENT_DEP,
-                type = ProxyDeployment.class,
+                type = ProxyDeploymentDependentResource.class,
                 dependsOn = { KafkaProxyReconciler.CONFIG_DEP },
                 readyPostcondition = DeploymentReadyCondition.class
         ),
         @Dependent(
                 name = KafkaProxyReconciler.CLUSTERS_DEP,
-                type = ClusterService.class,
+                type = ClusterServiceDependentResource.class,
                 dependsOn = { KafkaProxyReconciler.DEPLOYMENT_DEP }
         )
 })

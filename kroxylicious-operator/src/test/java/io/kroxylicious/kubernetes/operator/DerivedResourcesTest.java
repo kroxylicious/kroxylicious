@@ -55,7 +55,7 @@ import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.kubernetes.operator.ProxyDeployment.KROXYLICIOUS_IMAGE_ENV_VAR;
+import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.KROXYLICIOUS_IMAGE_ENV_VAR;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -145,6 +145,7 @@ class DerivedResourcesTest {
     record SingletonDependentResourceDesiredFn<D extends KubernetesDependentResource<R, P>, P extends HasMetadata, R extends HasMetadata>(
                                                                                                                                           D dependentResource,
                                                                                                                                           String dependentResourceKind,
+                                                                                                                                          io.javaoperatorsdk.operator.processing.dependent.workflow.Condition<R, P> reconcilePrecondition,
                                                                                                                                           TriFunction<D, P, Context<P>, R> fn)
             implements DesiredFn<P, R> {
         @Override
@@ -155,9 +156,8 @@ class DerivedResourcesTest {
         @Override
         public Map<String, R> invokeDesired(P primary, Context<P> context) {
 
-            // FIX ME
-            if (dependentResource instanceof io.javaoperatorsdk.operator.processing.dependent.workflow.Condition c) {
-                if (!c.isMet(dependentResource, primary, context)) {
+            if (reconcilePrecondition != null) {
+                if (!reconcilePrecondition.isMet(dependentResource, primary, context)) {
                     return Map.of();
                 }
             }
@@ -195,12 +195,12 @@ class DerivedResourcesTest {
         // @ControllerConfiguration annotation, because the statefulness of Context<KafkaProxy> means that
         // later DependentResource can depend on Context state created by earlier DependentResources.
 
-        // KW could we drive from the annotations?
         var list = List.<DesiredFn<KafkaProxy, ?>> of(
-                new SingletonDependentResourceDesiredFn<>(new ProxyConfigStateConfigMap(), "ConfigMap", ProxyConfigStateConfigMap::desired),
-                new SingletonDependentResourceDesiredFn<>(new ProxyConfigConfigMap(), "ConfigMap", ProxyConfigConfigMap::desired),
-                new SingletonDependentResourceDesiredFn<>(new ProxyDeployment(), "Deployment", ProxyDeployment::desired),
-                new BulkDependentResourceDesiredFn<>(new ClusterService(), "Service", ClusterService::desiredResources));
+                new SingletonDependentResourceDesiredFn<>(new ProxyConfigStateDependentResource(), "ConfigMap", null, ProxyConfigStateDependentResource::desired),
+                new SingletonDependentResourceDesiredFn<>(new ProxyConfigDependentResource(), "ConfigMap", new ProxyConfigReconcilePrecondition(),
+                        ProxyConfigDependentResource::desired),
+                new SingletonDependentResourceDesiredFn<>(new ProxyDeploymentDependentResource(), "Deployment", null, ProxyDeploymentDependentResource::desired),
+                new BulkDependentResourceDesiredFn<>(new ClusterServiceDependentResource(), "Service", ClusterServiceDependentResource::desiredResources));
         return dependentResourcesShouldEqual(list);
     }
 

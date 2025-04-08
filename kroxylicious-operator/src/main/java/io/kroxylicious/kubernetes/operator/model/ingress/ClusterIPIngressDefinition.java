@@ -20,7 +20,7 @@ import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.operator.ProxyDeployment;
+import io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
@@ -58,7 +58,7 @@ record ClusterIPIngressDefinition(KafkaProxyIngress resource, VirtualKafkaCluste
                     .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(definition.primary)).endOwnerReference()
                     .endMetadata()
                     .withNewSpec()
-                    .withSelector(ProxyDeployment.podLabels(definition.primary));
+                    .withSelector(ProxyDeploymentDependentResource.podLabels(definition.primary));
             for (int i = firstIdentifyingPort; i <= lastIdentifyingPort; i++) {
                 serviceSpecBuilder = serviceSpecBuilder
                         .addNewPort()

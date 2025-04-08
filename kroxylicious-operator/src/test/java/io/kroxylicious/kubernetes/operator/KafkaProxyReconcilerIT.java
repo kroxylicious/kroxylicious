@@ -141,7 +141,7 @@ class KafkaProxyReconcilerIT {
     private void assertDeploymentBecomesReady(KafkaProxy proxy) {
         // wait longer for initial operator image download
         AWAIT.alias("Deployment as expected").untilAsserted(() -> {
-            var deployment = testActor.get(Deployment.class, ProxyDeployment.deploymentName(proxy));
+            var deployment = testActor.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy));
             assertThat(deployment)
                     .describedAs("All deployment replicas should become ready")
                     .returns(true, Readiness::isDeploymentReady);
@@ -159,19 +159,19 @@ class KafkaProxyReconcilerIT {
                             "Expect Service for cluster '" + clusterName + "' and ingress '" + ingressName + "' to still exist")
                     .extracting(svc -> svc.getSpec().getSelector())
                     .describedAs("Service's selector should select proxy pods")
-                    .isEqualTo(ProxyDeployment.podLabels(proxy));
+                    .isEqualTo(ProxyDeploymentDependentResource.podLabels(proxy));
         });
     }
 
     private void assertDeploymentMountsConfigConfigMap(KafkaProxy proxy) {
         AWAIT.alias("Deployment as expected").untilAsserted(() -> {
-            var deployment = testActor.get(Deployment.class, ProxyDeployment.deploymentName(proxy));
+            var deployment = testActor.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy));
             assertThat(deployment).isNotNull()
                     .extracting(dep -> dep.getSpec().getTemplate().getSpec().getVolumes(), InstanceOfAssertFactories.list(Volume.class))
                     .describedAs("Deployment template should mount the proxy config configmap")
                     .filteredOn(volume -> volume.getConfigMap() != null)
                     .map(Volume::getConfigMap)
-                    .anyMatch(cm -> cm.getName().equals(ProxyConfigConfigMap.configMapName(proxy)));
+                    .anyMatch(cm -> cm.getName().equals(ProxyConfigDependentResource.configMapName(proxy)));
         });
     }
 
@@ -194,16 +194,16 @@ class KafkaProxyReconcilerIT {
         testActor.delete(proxy);
 
         AWAIT.alias("ConfigMap was deleted").untilAsserted(() -> {
-            var configMap = testActor.get(ConfigMap.class, ProxyConfigConfigMap.configMapName(proxy));
+            var configMap = testActor.get(ConfigMap.class, ProxyConfigDependentResource.configMapName(proxy));
             assertThat(configMap).isNull();
         });
         AWAIT.alias("Deployment was deleted").untilAsserted(() -> {
-            var deployment = testActor.get(Deployment.class, ProxyDeployment.deploymentName(proxy));
+            var deployment = testActor.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy));
             assertThat(deployment).isNull();
         });
         AWAIT.alias("Services were deleted").untilAsserted(() -> {
             for (var cluster : createdResources.clusters) {
-                var service = testActor.get(Service.class, ClusterService.serviceName(cluster));
+                var service = testActor.get(Service.class, ClusterServiceDependentResource.serviceName(cluster));
                 assertThat(service).isNull();
             }
         });
@@ -257,7 +257,7 @@ class KafkaProxyReconcilerIT {
         testActor.delete(createdResources.cluster(CLUSTER_BAR));
 
         AWAIT.untilAsserted(() -> {
-            var configMap = testActor.get(ConfigMap.class, ProxyConfigConfigMap.configMapName(proxy));
+            var configMap = testActor.get(ConfigMap.class, ProxyConfigDependentResource.configMapName(proxy));
             assertThat(configMap)
                     .describedAs("Expect ConfigMap for cluster 'bar' to have been deleted")
                     .isNull();
@@ -311,12 +311,12 @@ class KafkaProxyReconcilerIT {
     }
 
     private AbstractStringAssert<?> assertThatProxyConfigFor(KafkaProxy proxy) {
-        var configMap = testActor.get(ConfigMap.class, ProxyConfigConfigMap.configMapName(proxy));
+        var configMap = testActor.get(ConfigMap.class, ProxyConfigDependentResource.configMapName(proxy));
         return assertThat(configMap)
                 .isNotNull()
                 .extracting(ConfigMap::getData, InstanceOfAssertFactories.map(String.class, String.class))
-                .containsKey(ProxyConfigConfigMap.CONFIG_YAML_KEY)
-                .extracting(map -> map.get(ProxyConfigConfigMap.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING);
+                .containsKey(ProxyConfigDependentResource.CONFIG_YAML_KEY)
+                .extracting(map -> map.get(ProxyConfigDependentResource.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING);
     }
 
     private static VirtualKafkaCluster virtualKafkaCluster(String clusterName, KafkaProxy proxy, KafkaService service,
