@@ -35,7 +35,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 public class ProxyConfigDependentResource extends CRUDKubernetesDependentResource<ConfigMap, KafkaProxy> {
 
     public static final String CONFIG_YAML_KEY = "proxy-config.yaml";
-    public static String REASON_INVALID = "Invalid";
+    public static final String REASON_INVALID = "Invalid";
 
     /**
      * The key of the {@code config.yaml} entry in the desired {@code Secret}.

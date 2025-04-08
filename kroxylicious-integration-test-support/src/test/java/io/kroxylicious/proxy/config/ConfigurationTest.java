@@ -617,10 +617,11 @@ class ConfigurationTest {
         List<NamedFilterDefinition> filterDefinitions = List.of(new NamedFilterDefinition("foo", "", ""));
         List<FilterDefinition> filters = List.of(new FilterDefinition("", ""));
         Optional<Map<String, Object>> development = Optional.empty();
+        var virtualCluster = List.of(VIRTUAL_CLUSTER);
         assertThatThrownBy(() -> new Configuration(null,
                 filterDefinitions,
                 null,
-                List.of(VIRTUAL_CLUSTER),
+                virtualCluster,
                 filters,
                 null,
                 false,
@@ -636,10 +637,11 @@ class ConfigurationTest {
                 new NamedFilterDefinition("foo", "", ""),
                 new NamedFilterDefinition("foo", "", ""));
         Optional<Map<String, Object>> development = Optional.empty();
+        var virtualCluster = List.of(VIRTUAL_CLUSTER);
         assertThatThrownBy(() -> new Configuration(null,
                 filterDefinitions,
                 null,
-                List.of(VIRTUAL_CLUSTER),
+                virtualCluster,
                 null,
                 null,
                 false,
@@ -653,9 +655,10 @@ class ConfigurationTest {
         Optional<Map<String, Object>> development = Optional.empty();
         List<NamedFilterDefinition> filterDefinitions = List.of();
         List<String> defaultFilters = List.of("missing");
+        var virtualCluster = List.of(VIRTUAL_CLUSTER);
         assertThatThrownBy(() -> new Configuration(null, filterDefinitions,
                 defaultFilters,
-                List.of(VIRTUAL_CLUSTER),
+                virtualCluster,
                 null, false,
                 development))
                 .isInstanceOf(IllegalConfigurationException.class)
