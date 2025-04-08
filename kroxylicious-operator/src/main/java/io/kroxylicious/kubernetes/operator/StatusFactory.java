@@ -26,7 +26,7 @@ public abstract class StatusFactory<R extends CustomResource<?, ?>> {
         var now = clock.instant();
         return new ConditionBuilder()
                 .withLastTransitionTime(now)
-                .withObservedGeneration(ResourcesUtil.getGeneration(observedGenerationSource));
+                .withObservedGeneration(ResourcesUtil.generation(observedGenerationSource));
     }
 
     Condition newTrueCondition(HasMetadata observedGenerationSource, Condition.Type type) {

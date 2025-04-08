@@ -103,26 +103,22 @@ public class ResourcesUtil {
         return resource.getMetadata().getNamespace();
     }
 
-    public static Long generation(@NonNull HasMetadata resource) {
-        return getGeneration(resource);
+    /**
+     * Extract generation from a MetaData object.
+     *
+     * @param resource the object from which to extract the metadata generation.
+     * @return the metadata generation of <code>0</code> of te metadata or the generation itself is null in alignment with @see <a href="https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/1623-standardize-conditions#kep-1623-standardize-conditions">KEP 1623</a>.
+     */
+    public static @NonNull Long generation(@NonNull HasMetadata resource) {
+        ObjectMeta metadata = resource.getMetadata();
+        if (metadata.getGeneration() == null) {
+            return 0L;
+        }
+        return metadata.getGeneration();
     }
 
     public static String uid(@NonNull HasMetadata resource) {
         return resource.getMetadata().getUid();
-    }
-
-    /**
-     * Extract generation from a MetaData object.
-     *
-     * @param observedGenerationSource the object from which to extract the metadata generation.
-     * @return the metadata generation of <code>0</code> of te metadata or the generation itself is null in alignment with @see <a href="https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/1623-standardize-conditions#kep-1623-standardize-conditions">KEP 1623</a>.
-     */
-    public static @NonNull Long getGeneration(HasMetadata observedGenerationSource) {
-        ObjectMeta metadata = observedGenerationSource.getMetadata();
-        if (metadata == null || metadata.getGeneration() == null) {
-            return 0L;
-        }
-        return metadata.getGeneration();
     }
 
     /**
