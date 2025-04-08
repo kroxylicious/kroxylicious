@@ -54,6 +54,8 @@ public class KroxyliciousResource<T extends HasMetadata> implements ResourceType
 
     @Override
     public boolean isReady(T resource) {
+        // Avoiding this warning message as we don't make use of the proposed resources:
+        // XXX is not a Readiable resource. It needs to be one of [Node, Deployment, ReplicaSet, StatefulSet, Pod, ReplicationController]
         return resource != null;
     }
 
