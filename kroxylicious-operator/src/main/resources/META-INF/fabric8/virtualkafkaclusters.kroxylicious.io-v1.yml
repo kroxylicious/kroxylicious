@@ -130,7 +130,6 @@ spec:
                           The value should be a CamelCase string. 
                           This field may not be empty.
                         type: string
-                        default: ""
                         nullable: false
                       status:
                         description: status of the condition, one of True, False, Unknown.

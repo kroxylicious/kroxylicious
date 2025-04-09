@@ -115,7 +115,6 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     @com.fasterxml.jackson.annotation.JsonProperty(value = "reason", defaultValue = "")
     @com.fasterxml.jackson.annotation.JsonPropertyDescription("reason contains a programmatic identifier indicating the reason for the condition's last transition. \nProducers of specific condition types may define expected values and meanings for this field, \nand whether the values are considered a guaranteed API. \nThe value should be a CamelCase string. \nThis field may not be empty.\n")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = Nulls.FAIL, value = "")
-    @Default("")
     @Required
     @NonNull
     private String reason;

@@ -34,7 +34,7 @@ public abstract class StatusFactory<R extends CustomResource<?, ?>> {
                 .withType(type)
                 .withStatus(Condition.Status.TRUE)
                 .withMessage("")
-                .withReason("")
+                .withReason(type.name())
                 .build();
     }
 
