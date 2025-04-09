@@ -155,11 +155,8 @@ class DerivedResourcesTest {
 
         @Override
         public Map<String, R> invokeDesired(P primary, Context<P> context) {
-
-            if (reconcilePrecondition != null) {
-                if (!reconcilePrecondition.isMet(dependentResource, primary, context)) {
-                    return Map.of();
-                }
+            if (reconcilePrecondition != null && !reconcilePrecondition.isMet(dependentResource, primary, context)) {
+                return Map.of();
             }
 
             R apply = fn.apply(dependentResource, primary, context);
