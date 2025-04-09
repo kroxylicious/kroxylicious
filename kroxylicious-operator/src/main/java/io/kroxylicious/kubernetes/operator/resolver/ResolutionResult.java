@@ -45,13 +45,6 @@ public class ResolutionResult {
                 .findFirst();
     }
 
-    enum DependencyType {
-        // from the virtual kafka cluster to another entity
-        DIRECT,
-        // from any other entity to another entity
-        TRANSITIVE
-    }
-
     public record UnresolvedReferences(Set<UnresolvedReference> unresolved,
                                        Set<KafkaProxyIngress> ingressesWithResolvedRefsFalse,
                                        Set<KafkaProtocolFilter> filtersWithResolvedRefsFalse,
@@ -77,8 +70,8 @@ public class ResolutionResult {
                     && kafkaServicesWithResolvedRefsFalse.isEmpty();
         }
 
-        public boolean anyDirectDependenciesUnresolved() {
-            return unresolved.stream().anyMatch(u -> u.dependencyType == DependencyType.DIRECT);
+        public boolean anyDependenciesNotFoundFor(LocalRef<?> fromResource) {
+            return unresolved.stream().anyMatch(u -> u.from().equals(fromResource));
         }
 
         public boolean anyResolvedRefsConditionsFalse() {
@@ -94,7 +87,7 @@ public class ResolutionResult {
         }
     }
 
-    public record UnresolvedReference(LocalRef<?> from, LocalRef<?> to, DependencyType dependencyType) {
+    public record UnresolvedReference(LocalRef<?> from, LocalRef<?> to) {
         public UnresolvedReference {
             Objects.requireNonNull(from);
             Objects.requireNonNull(to);

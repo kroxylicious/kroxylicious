@@ -120,7 +120,7 @@ public final class VirtualKafkaClusterReconciler implements
         LocalRef<VirtualKafkaCluster> clusterRef = toLocalRef(cluster);
         UnresolvedReferences unresolvedReferences = clusterResolutionResult.unresolvedReferences();
         var unresovedIngressProxies = unresolvedReferences.getUnresolvedReferences(KAFKA_PROXY_INGRESS_KIND, KAFKA_PROXY_KIND).collect(Collectors.toSet());
-        if (unresolvedReferences.anyDirectDependenciesUnresolved()) {
+        if (unresolvedReferences.anyDependenciesNotFoundFor(clusterRef)) {
             Stream<String> proxyMsg = refsMessage("spec.proxyRef references ", cluster,
                     unresolvedReferences.getUnresolvedReferences(clusterRef, KAFKA_PROXY_KIND));
             Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", cluster,

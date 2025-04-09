@@ -46,8 +46,6 @@ import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.UnresolvedR
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.DependencyType.DIRECT;
-import static io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.DependencyType.TRANSITIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.when;
@@ -647,7 +645,7 @@ class DependencyResolverTest {
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
         LocalRef<?> proxyRef = getProxyRef("another-proxy");
-        assertThat(onlyResult.unresolvedReferences().unresolved()).containsExactly(new UnresolvedReference(ResourcesUtil.toLocalRef(ingress), proxyRef, TRANSITIVE));
+        assertThat(onlyResult.unresolvedReferences().unresolved()).containsExactly(new UnresolvedReference(ResourcesUtil.toLocalRef(ingress), proxyRef));
     }
 
     @Test
@@ -722,7 +720,7 @@ class DependencyResolverTest {
     }
 
     private static @NonNull UnresolvedReference getUnresolvedDirectReference(VirtualKafkaCluster cluster, LocalRef<?> proxyRef) {
-        return new UnresolvedReference(ResourcesUtil.toLocalRef(cluster), proxyRef, DIRECT);
+        return new UnresolvedReference(ResourcesUtil.toLocalRef(cluster), proxyRef);
     }
 
     private void givenFiltersInContext(KafkaProtocolFilter... resources) {

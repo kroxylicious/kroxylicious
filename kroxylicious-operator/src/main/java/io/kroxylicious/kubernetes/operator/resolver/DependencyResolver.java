@@ -38,8 +38,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
-import static io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.DependencyType.DIRECT;
-import static io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.DependencyType.TRANSITIVE;
 
 /**
  * DependencyResolver resolves the dependencies of a KafkaProxy or VirtualKafkaCluster. We use numerous
@@ -147,7 +145,7 @@ public class DependencyResolver {
         return ingresses.values().stream().flatMap(ingress -> {
             ProxyRef proxyRef = ingress.getSpec().getProxyRef();
             if (!localRefs.contains(proxyRef)) {
-                return Stream.of(new UnresolvedReference(toLocalRef(ingress), proxyRef, TRANSITIVE));
+                return Stream.of(new UnresolvedReference(toLocalRef(ingress), proxyRef));
             }
             else {
                 return Stream.of();
@@ -160,7 +158,7 @@ public class DependencyResolver {
         Set<LocalRef<KafkaProxy>> localRefs = proxies.stream().map(ResourcesUtil::toLocalRef).collect(Collectors.toSet());
         ProxyRef proxyRef = spec.getProxyRef();
         if (!localRefs.contains(proxyRef)) {
-            return Optional.of(new UnresolvedReference(clusterRef, proxyRef, DIRECT));
+            return Optional.of(new UnresolvedReference(clusterRef, proxyRef));
         }
         else {
             return Optional.empty();
@@ -176,7 +174,7 @@ public class DependencyResolver {
         else {
             return filtersList.stream()
                     .filter(filterRef -> filters.values().stream().noneMatch(filterResource -> filterResourceMatchesRef(filterRef, filterResource)))
-                    .map(ref -> new UnresolvedReference(clusterRef, ref, DIRECT));
+                    .map(ref -> new UnresolvedReference(clusterRef, ref));
         }
     }
 
@@ -184,7 +182,7 @@ public class DependencyResolver {
                                                                           Map<LocalRef<KafkaService>, KafkaService> clusterRefs) {
         var serviceRef = spec.getTargetKafkaServiceRef();
         if (!clusterRefs.containsKey(serviceRef)) {
-            return Optional.of(new UnresolvedReference(clusterRef, serviceRef, DIRECT));
+            return Optional.of(new UnresolvedReference(clusterRef, serviceRef));
         }
         else {
             return Optional.empty();
@@ -194,7 +192,7 @@ public class DependencyResolver {
     private static Stream<UnresolvedReference> determineUnresolvedIngresses(LocalRef<?> clusterRef, VirtualKafkaClusterSpec spec,
                                                                             Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses) {
         return spec.getIngressRefs().stream()
-                .filter(ref -> !ingresses.containsKey(ref)).map(ingressRef -> new UnresolvedReference(clusterRef, ingressRef, DIRECT));
+                .filter(ref -> !ingresses.containsKey(ref)).map(ingressRef -> new UnresolvedReference(clusterRef, ingressRef));
     }
 
     private static boolean filterResourceMatchesRef(FilterRef filterRef, KafkaProtocolFilter filterResource) {
