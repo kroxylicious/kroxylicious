@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.api.common;
 
 import java.time.Instant;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -18,12 +19,26 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class ConditionTest {
 
+    private ObjectMapper objectMapper;
+
+    @BeforeEach
+    void setUp() {
+        objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
+    }
+
     @Test
     void serializedFormShouldUseIso8601() throws JsonProcessingException {
         // Given
-        Condition build = new ConditionBuilder().withLastTransitionTime(Instant.EPOCH).withObservedGeneration(345678L).build();
+        Condition build = new ConditionBuilder()
+                .withLastTransitionTime(Instant.EPOCH)
+                .withObservedGeneration(345678L)
+                .withReason("")
+                .withMessage("")
+                .withType(Condition.Type.Ready)
+                .build();
         // When
-        var conditionWithEpoch = new ObjectMapper().registerModule(new JavaTimeModule()).writeValueAsString(build);
+        var conditionWithEpoch = objectMapper.writeValueAsString(build);
+
         // Then
         assertThat(conditionWithEpoch).contains("\"lastTransitionTime\":\"1970-01-01T00:00:00Z\"");
     }
@@ -31,11 +46,18 @@ class ConditionTest {
     @Test
     void roundTrip() throws JsonProcessingException {
         // Given
-        ObjectMapper objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
-        Condition wroteCondition = new ConditionBuilder().withLastTransitionTime(Instant.now()).withObservedGeneration(1L).build();
-        // When
+        Condition wroteCondition = new ConditionBuilder()
+                .withLastTransitionTime(Instant.now())
+                .withObservedGeneration(1L)
+                .withReason("")
+                .withMessage("")
+                .withType(Condition.Type.Ready)
+                .build();
         var conditionString = objectMapper.writeValueAsString(wroteCondition);
+
+        // When
         var readCondition = objectMapper.readValue(conditionString, Condition.class);
+
         // Then
         assertThat(readCondition).isEqualTo(wroteCondition);
     }

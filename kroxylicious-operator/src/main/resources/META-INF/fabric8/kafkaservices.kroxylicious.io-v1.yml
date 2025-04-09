@@ -68,6 +68,8 @@ spec:
                           message is a human readable message indicating details about the transition. 
                           This may be an empty string.
                         type: string
+                        default: ""
+                        nullable: false
                       observedGeneration:
                         description: |
                           observedGeneration represents the .metadata.generation that the condition was set based upon. 
@@ -75,6 +77,7 @@ spec:
                           .status.conditions[x].observedGeneration is 9, the condition is out of date with 
                           respect to the current state of the instance.
                         type: integer
+                        nullable: false
                       reason:
                         description: |
                           reason contains a programmatic identifier indicating the reason for the condition's last transition. 
@@ -83,6 +86,8 @@ spec:
                           The value should be a CamelCase string. 
                           This field may not be empty.
                         type: string
+                        default: ""
+                        nullable: false
                       status:
                         description: status of the condition, one of True, False, Unknown.
                         type: string
@@ -93,3 +98,5 @@ spec:
                     required:
                       - lastTransitionTime
                       - observedGeneration
+                      - reason
+                      - message

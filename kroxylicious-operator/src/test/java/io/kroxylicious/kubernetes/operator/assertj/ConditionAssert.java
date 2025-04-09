@@ -59,7 +59,7 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
     }
 
     public ConditionAssert hasNoMessage() {
-        message().isNull();
+        message().isEmpty();
         return this;
     }
 
@@ -73,7 +73,7 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
     }
 
     public ConditionAssert hasNoReason() {
-        reason().isNull();
+        reason().isEmpty();
         return this;
     }
 

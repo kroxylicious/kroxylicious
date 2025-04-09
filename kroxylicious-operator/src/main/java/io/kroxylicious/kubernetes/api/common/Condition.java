@@ -10,6 +10,9 @@ import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.Nulls;
 
+import io.fabric8.generator.annotation.Default;
+import io.fabric8.generator.annotation.Required;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
@@ -66,17 +69,20 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
      * message is a human readable message indicating details about the transition.
      * This may be an empty string.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty("message")
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "message", defaultValue = "")
     @com.fasterxml.jackson.annotation.JsonPropertyDescription("message is a human readable message indicating details about the transition. \nThis may be an empty string.\n")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = Nulls.FAIL, value = "")
+    @Default("")
+    @NonNull
     private String message;
 
+    @NonNull
     public String getMessage() {
         return message;
     }
 
-    public void setMessage(String message) {
-        this.message = message;
+    public void setMessage(@NonNull String message) {
+        this.message = Objects.requireNonNull(message);
     }
 
     /**
@@ -106,17 +112,20 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
      * The value should be a CamelCase string.
      * This field may not be empty.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty("reason")
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "reason", defaultValue = "")
     @com.fasterxml.jackson.annotation.JsonPropertyDescription("reason contains a programmatic identifier indicating the reason for the condition's last transition. \nProducers of specific condition types may define expected values and meanings for this field, \nand whether the values are considered a guaranteed API. \nThe value should be a CamelCase string. \nThis field may not be empty.\n")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = Nulls.FAIL, value = "")
+    @Default("")
+    @Required
+    @NonNull
     private String reason;
 
     public String getReason() {
         return reason;
     }
 
-    public void setReason(String reason) {
-        this.reason = reason;
+    public void setReason(@NonNull String reason) {
+        this.reason = Objects.requireNonNull(reason);
     }
 
     @Override
@@ -171,9 +180,10 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     /**
      * type of condition in CamelCase or in foo.example.com/CamelCase.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty("type")
+    @com.fasterxml.jackson.annotation.JsonProperty(value = "type")
     @com.fasterxml.jackson.annotation.JsonPropertyDescription("type of condition in CamelCase or in foo.example.com/CamelCase.")
-    @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
+    @com.fasterxml.jackson.annotation.JsonSetter(nulls = Nulls.FAIL)
+    @NonNull
     private Type type;
 
     public Type getType() {
@@ -181,7 +191,7 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     }
 
     public void setType(Type type) {
-        this.type = type;
+        this.type = Objects.requireNonNull(type);
     }
 
     public enum Type {
