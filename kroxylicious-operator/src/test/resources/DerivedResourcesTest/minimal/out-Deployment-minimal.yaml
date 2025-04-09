@@ -72,5 +72,5 @@ spec:
               subPath: "proxy-config.yaml"
       volumes:
         - configMap:
-            name: "minimal"
+            name: "minimal-proxy-config"
           name: "config-volume"

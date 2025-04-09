@@ -8,6 +8,6 @@
 kind: KafkaProxy
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: simple
+  name: simple-config-state
   namespace: my-proxy
 spec: {}

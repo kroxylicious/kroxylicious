@@ -84,7 +84,7 @@ spec:
               readOnly: true
       volumes:
         - configMap:
-            name: "example"
+            name: "example-proxy-config"
           name: "config-volume"
         - name: "secrets-foo"
           secret:

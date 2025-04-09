@@ -48,11 +48,10 @@ public class ProxyConfigStateDependentResource
     @Override
     protected ConfigMap desired(KafkaProxy primary,
                                 Context<KafkaProxy> context) {
-        var statusFactory = KafkaProxyContext.proxyContext(context).virtualKafkaClusterStatusFactory();
+        KafkaProxyContext proxyContext = KafkaProxyContext.proxyContext(context);
+        var statusFactory = proxyContext.virtualKafkaClusterStatusFactory();
         var data = new ProxyConfigStateData();
-
-        var proxyModel = KafkaProxyContext.proxyContext(context).model();
-
+        var proxyModel = proxyContext.model();
         addResolvedRefsConditions(statusFactory, proxyModel, data);
         addAcceptedConditions(statusFactory, proxyModel, data);
 
