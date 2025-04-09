@@ -33,6 +33,7 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.UnresolvedReference;
+import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.UnresolvedReferences;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -63,7 +64,8 @@ public class DependencyResolver {
 
     /**
      * Resolves all dependencies of a KafkaProxy recursively (if there are dependencies
-     * of dependencies, we resolve them too).
+     * of dependencies, we resolve them too). Makes the resolved dependencies available and
+     * reports any problems during resolution.
      *
      * @param proxy proxy
      * @param context reconciliation context for a KafkaProxy
@@ -78,17 +80,19 @@ public class DependencyResolver {
 
     /**
      * Resolves all dependencies of a VirtualKafkaCluster recursively (if there are dependencies
-     * of dependencies, we resolve them too).
+     * of dependencies, we resolve them too) and report if there were any unresolved dependencies.
      *
      * @param cluster cluster being resolved
      * @param context reconciliation context for a VirtualKafkaCluster
-     * @return a resolution result containing all resolved resources, and a description of which resources could not be resolved
+     * @return unresolved references
      */
-    public ResolutionResult resolveClusterRefs(VirtualKafkaCluster cluster, Context<?> context) {
+    public UnresolvedReferences resolveClusterRefs(VirtualKafkaCluster cluster, Context<?> context) {
         Objects.requireNonNull(cluster);
         Objects.requireNonNull(context);
         Set<KafkaProxy> proxies = context.getSecondaryResources(KafkaProxy.class);
-        return resolve(Set.of(cluster), proxies, context);
+        return resolve(Set.of(cluster), proxies, context).clusterResult(cluster)
+                .orElseThrow(() -> new IllegalStateException("resolution result for cluster not found in result, should be impossible"))
+                .unresolvedReferences();
     }
 
     private @NonNull ResolutionResult resolve(Set<VirtualKafkaCluster> virtualKafkaClusters, Set<KafkaProxy> proxies, Context<?> context) {
@@ -132,7 +136,7 @@ public class DependencyResolver {
                 .filter(i -> hasAnyResolvedRefsFalse(Optional.ofNullable(i.getStatus()).map(KafkaServiceStatus::getConditions).orElse(List.of())))
                 .collect(Collectors.toSet());
         return new ClusterResolutionResult(cluster,
-                new ResolutionResult.UnresolvedReferences(unresolved, ingressesWithResolvedRefsFalse, filtersWithResolvedRefsFalse, kafkaServicesWithResolvedRefsFalse));
+                new UnresolvedReferences(unresolved, ingressesWithResolvedRefsFalse, filtersWithResolvedRefsFalse, kafkaServicesWithResolvedRefsFalse));
     }
 
     private static boolean hasAnyResolvedRefsFalse(List<Condition> conditions) {

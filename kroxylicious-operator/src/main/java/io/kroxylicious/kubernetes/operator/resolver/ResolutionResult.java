@@ -53,13 +53,13 @@ public class ResolutionResult {
             Objects.requireNonNull(unresolved);
         }
 
-        public Stream<LocalRef<?>> getUnresolvedReferences(LocalRef<?> from, String kindTo) {
+        public Stream<LocalRef<?>> findUnresolvedReferences(LocalRef<?> from, String kindTo) {
             Objects.requireNonNull(from);
             Objects.requireNonNull(kindTo);
             return unresolved.stream().filter(r -> r.from.equals(from) && r.to.getKind().equals(kindTo)).map(UnresolvedReference::to);
         }
 
-        public Stream<LocalRef<?>> getUnresolvedReferences(String fromKind, String toKind) {
+        public Stream<LocalRef<?>> findUnresolvedReferences(String fromKind, String toKind) {
             Objects.requireNonNull(fromKind);
             Objects.requireNonNull(toKind);
             return unresolved.stream().filter(r -> r.from.getKind().equals(fromKind) && r.to.getKind().equals(toKind)).map(UnresolvedReference::to);
@@ -79,7 +79,7 @@ public class ResolutionResult {
         }
 
         public Set<HasMetadata> resourcesWithResolvedRefsFalse() {
-            HashSet<HasMetadata> hasMetadata = new HashSet<>();
+            Set<HasMetadata> hasMetadata = new HashSet<>();
             hasMetadata.addAll(filtersWithResolvedRefsFalse);
             hasMetadata.addAll(kafkaServicesWithResolvedRefsFalse);
             hasMetadata.addAll(ingressesWithResolvedRefsFalse);
