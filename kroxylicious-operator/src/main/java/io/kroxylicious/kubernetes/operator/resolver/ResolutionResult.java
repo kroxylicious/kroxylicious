@@ -16,8 +16,6 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
-import io.fabric8.kubernetes.api.model.HasMetadata;
-
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -45,50 +43,52 @@ public class ResolutionResult {
                 .findFirst();
     }
 
-    public record UnresolvedReferences(Set<UnresolvedReference> unresolved,
-                                       Set<KafkaProxyIngress> ingressesWithResolvedRefsFalse,
-                                       Set<KafkaProtocolFilter> filtersWithResolvedRefsFalse,
-                                       Set<KafkaService> kafkaServicesWithResolvedRefsFalse) {
+    public record UnresolvedReferences(Set<DanglingReference> danglingReferences,
+                                       Set<LocalRef<?>> resourcesWithResolvedRefsFalse) {
         public UnresolvedReferences {
-            Objects.requireNonNull(unresolved);
+            Objects.requireNonNull(danglingReferences);
         }
 
-        public Stream<LocalRef<?>> findUnresolvedReferences(LocalRef<?> from, String kindTo) {
+        public Stream<LocalRef<?>> findDanglingReferences(LocalRef<?> from, String kindTo) {
             Objects.requireNonNull(from);
             Objects.requireNonNull(kindTo);
-            return unresolved.stream().filter(r -> r.from.equals(from) && r.to.getKind().equals(kindTo)).map(UnresolvedReference::to);
+            return danglingReferences.stream().filter(r -> r.from.equals(from) && r.to.getKind().equals(kindTo)).map(DanglingReference::to);
         }
 
-        public Stream<LocalRef<?>> findUnresolvedReferences(String fromKind, String toKind) {
+        public Stream<LocalRef<?>> findDanglingReferences(String fromKind, String toKind) {
             Objects.requireNonNull(fromKind);
             Objects.requireNonNull(toKind);
-            return unresolved.stream().filter(r -> r.from.getKind().equals(fromKind) && r.to.getKind().equals(toKind)).map(UnresolvedReference::to);
+            return danglingReferences.stream().filter(r -> r.from.getKind().equals(fromKind) && r.to.getKind().equals(toKind)).map(DanglingReference::to);
         }
 
         public boolean isFullyResolved() {
-            return unresolved.isEmpty() && filtersWithResolvedRefsFalse.isEmpty() && ingressesWithResolvedRefsFalse.isEmpty()
-                    && kafkaServicesWithResolvedRefsFalse.isEmpty();
+            return danglingReferences.isEmpty() && resourcesWithResolvedRefsFalse.isEmpty();
         }
 
         public boolean anyDependenciesNotFoundFor(LocalRef<?> fromResource) {
-            return unresolved.stream().anyMatch(u -> u.from().equals(fromResource));
+            return danglingReferences.stream().anyMatch(u -> u.from().equals(fromResource));
         }
 
         public boolean anyResolvedRefsConditionsFalse() {
-            return !ingressesWithResolvedRefsFalse.isEmpty() || !filtersWithResolvedRefsFalse.isEmpty() || !kafkaServicesWithResolvedRefsFalse.isEmpty();
+            return !resourcesWithResolvedRefsFalse.isEmpty();
         }
 
-        public Set<HasMetadata> resourcesWithResolvedRefsFalse() {
-            Set<HasMetadata> hasMetadata = new HashSet<>();
-            hasMetadata.addAll(filtersWithResolvedRefsFalse);
-            hasMetadata.addAll(kafkaServicesWithResolvedRefsFalse);
-            hasMetadata.addAll(ingressesWithResolvedRefsFalse);
-            return hasMetadata;
+        public Stream<LocalRef<?>> findResourcesWithResolvedRefsFalse() {
+            return resourcesWithResolvedRefsFalse.stream();
+        }
+
+        public Stream<LocalRef<?>> findResourcesWithResolvedRefsFalse(String kind) {
+            return findResourcesWithResolvedRefsFalse().filter(r -> r.getKind().equals(kind));
         }
     }
 
-    public record UnresolvedReference(LocalRef<?> from, LocalRef<?> to) {
-        public UnresolvedReference {
+    /**
+     * Describes the case where an entity A references an entity B but we can not find B.
+     * @param from
+     * @param to
+     */
+    public record DanglingReference(LocalRef<?> from, LocalRef<?> to) {
+        public DanglingReference {
             Objects.requireNonNull(from);
             Objects.requireNonNull(to);
         }

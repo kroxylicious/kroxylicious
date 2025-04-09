@@ -6,11 +6,9 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.Comparator;
-import java.util.Set;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
@@ -23,8 +21,6 @@ import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ingress.IngressConflictException;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
@@ -101,12 +97,12 @@ public class ProxyConfigStateDependentResource
                     VirtualKafkaCluster cluster = clusterResolutionResult.cluster();
                     VirtualKafkaCluster patch;
                     ResolutionResult.UnresolvedReferences unresolvedReferences = clusterResolutionResult.unresolvedReferences();
-                    if (!unresolvedReferences.unresolved().isEmpty()) {
-                        Comparator<ResolutionResult.UnresolvedReference> comparator = Comparator.<ResolutionResult.UnresolvedReference, LocalRef> comparing(
-                                ResolutionResult.UnresolvedReference::to);
+                    if (!unresolvedReferences.danglingReferences().isEmpty()) {
+                        Comparator<ResolutionResult.DanglingReference> comparator = Comparator.<ResolutionResult.DanglingReference, LocalRef> comparing(
+                                ResolutionResult.DanglingReference::to);
 
-                        LocalRef<?> firstUnresolvedDependency = unresolvedReferences.unresolved().stream()
-                                .sorted(comparator).map(ResolutionResult.UnresolvedReference::to).findFirst()
+                        LocalRef<?> firstUnresolvedDependency = unresolvedReferences.danglingReferences().stream()
+                                .sorted(comparator).map(ResolutionResult.DanglingReference::to).findFirst()
                                 .orElseThrow();
                         String message = String.format("Resource %s was not found.",
                                 ResourcesUtil.namespacedSlug(firstUnresolvedDependency, clusterResolutionResult.cluster()));
@@ -115,7 +111,8 @@ public class ProxyConfigStateDependentResource
                     }
                     else {
                         String message = String.format("Resource %s has ResolvedRefs=False.",
-                                ResourcesUtil.namespacedSlug(firstLocalRef(unresolvedReferences.resourcesWithResolvedRefsFalse()), clusterResolutionResult.cluster()));
+                                ResourcesUtil.namespacedSlug(unresolvedReferences.findResourcesWithResolvedRefsFalse().sorted().findFirst().orElseThrow(),
+                                        clusterResolutionResult.cluster()));
                         patch = statusFactory.newFalseConditionStatusPatch(cluster,
                                 Condition.Type.ResolvedRefs, Condition.REASON_INVALID, message);
                     }
@@ -123,10 +120,6 @@ public class ProxyConfigStateDependentResource
                             ResourcesUtil.name(cluster),
                             patch);
                 });
-    }
-
-    private static @NonNull LocalRef<?> firstLocalRef(Set<HasMetadata> kafkaProtocolFilters) {
-        return kafkaProtocolFilters.stream().map(ResourcesUtil::toLocalRef).sorted().findFirst().orElseThrow();
     }
 
 }

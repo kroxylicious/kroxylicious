@@ -18,6 +18,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
@@ -42,7 +43,7 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.ClusterResolutionResult;
-import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.UnresolvedReference;
+import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.DanglingReference;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.UnresolvedReferences;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -96,7 +97,7 @@ class DependencyResolverTest {
 
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isFalse();
-        assertThat(unresolvedReferences.unresolved()).containsExactlyInAnyOrder(getUnresolvedDirectReference(cluster, getProxyRef(PROXY_NAME)),
+        assertThat(unresolvedReferences.danglingReferences()).containsExactlyInAnyOrder(getUnresolvedDirectReference(cluster, getProxyRef(PROXY_NAME)),
                 getUnresolvedDirectReference(cluster, getKafkaServiceRef("cluster")),
                 getUnresolvedDirectReference(cluster, ingressRef("ingressRef")),
                 getUnresolvedDirectReference(cluster, filterRef("missing")));
@@ -116,7 +117,7 @@ class DependencyResolverTest {
         assertThat(resolutionResult.allClustersInNameOrder()).containsExactly(cluster);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isTrue();
-        assertThat(onlyResult.unresolvedReferences().unresolved()).isEmpty();
+        assertThat(onlyResult.unresolvedReferences().danglingReferences()).isEmpty();
     }
 
     @Test
@@ -132,7 +133,7 @@ class DependencyResolverTest {
 
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isTrue();
-        assertThat(unresolvedReferences.unresolved()).isEmpty();
+        assertThat(unresolvedReferences.danglingReferences()).isEmpty();
     }
 
     @Test
@@ -153,7 +154,9 @@ class DependencyResolverTest {
         assertThat(resolutionResult.filters()).containsExactly(filter);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
-        assertThat(onlyResult.unresolvedReferences().filtersWithResolvedRefsFalse()).containsExactly(filter);
+        assertThat(onlyResult.unresolvedReferences().findResourcesWithResolvedRefsFalse()).containsExactly(filterRef("filterName"));
+        assertThat(onlyResult.unresolvedReferences().findResourcesWithResolvedRefsFalse(HasMetadata.getKind(KafkaProtocolFilter.class)))
+                .containsExactly(filterRef("filterName"));
     }
 
     @Test
@@ -172,7 +175,8 @@ class DependencyResolverTest {
 
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isFalse();
-        assertThat(unresolvedReferences.filtersWithResolvedRefsFalse()).containsExactly(filter);
+        assertThat(unresolvedReferences.findResourcesWithResolvedRefsFalse()).containsExactly(filterRef("filterName"));
+        assertThat(unresolvedReferences.findResourcesWithResolvedRefsFalse(HasMetadata.getKind(KafkaProtocolFilter.class))).containsExactly(filterRef("filterName"));
     }
 
     @Test
@@ -192,7 +196,9 @@ class DependencyResolverTest {
         // then
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
-        assertThat(onlyResult.unresolvedReferences().kafkaServicesWithResolvedRefsFalse()).containsExactly(service);
+        assertThat(onlyResult.unresolvedReferences().findResourcesWithResolvedRefsFalse()).containsExactly(getKafkaServiceRef("cluster"));
+        assertThat(onlyResult.unresolvedReferences().findResourcesWithResolvedRefsFalse(HasMetadata.getKind(KafkaService.class)))
+                .containsExactly(getKafkaServiceRef("cluster"));
     }
 
     @Test
@@ -212,7 +218,8 @@ class DependencyResolverTest {
 
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isFalse();
-        assertThat(unresolvedReferences.kafkaServicesWithResolvedRefsFalse()).containsExactly(service);
+        assertThat(unresolvedReferences.findResourcesWithResolvedRefsFalse()).containsExactly(getKafkaServiceRef("cluster"));
+        assertThat(unresolvedReferences.findResourcesWithResolvedRefsFalse(HasMetadata.getKind(KafkaService.class))).containsExactly(getKafkaServiceRef("cluster"));
     }
 
     @Test
@@ -233,7 +240,9 @@ class DependencyResolverTest {
         // then
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
-        assertThat(onlyResult.unresolvedReferences().ingressesWithResolvedRefsFalse()).containsExactly(ingress);
+        assertThat(onlyResult.unresolvedReferences().findResourcesWithResolvedRefsFalse()).containsExactly(ingressRef("ingress"));
+        assertThat(onlyResult.unresolvedReferences().findResourcesWithResolvedRefsFalse(HasMetadata.getKind(KafkaProxyIngress.class)))
+                .containsExactly(ingressRef("ingress"));
     }
 
     @Test
@@ -254,7 +263,8 @@ class DependencyResolverTest {
 
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isFalse();
-        assertThat(unresolvedReferences.ingressesWithResolvedRefsFalse()).containsExactly(ingress);
+        assertThat(unresolvedReferences.findResourcesWithResolvedRefsFalse()).containsExactly(ingressRef("ingress"));
+        assertThat(unresolvedReferences.findResourcesWithResolvedRefsFalse(HasMetadata.getKind(KafkaProxyIngress.class))).containsExactly(ingressRef("ingress"));
     }
 
     @Test
@@ -272,7 +282,7 @@ class DependencyResolverTest {
         assertThat(resolutionResult.filters()).isEmpty();
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
-        assertThat(onlyResult.unresolvedReferences().unresolved()).containsExactly(getUnresolvedDirectReference(cluster, filterRef("another")));
+        assertThat(onlyResult.unresolvedReferences().danglingReferences()).containsExactly(getUnresolvedDirectReference(cluster, filterRef("another")));
     }
 
     @Test
@@ -288,7 +298,7 @@ class DependencyResolverTest {
 
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isFalse();
-        assertThat(unresolvedReferences.unresolved()).containsExactly(getUnresolvedDirectReference(cluster, filterRef("another")));
+        assertThat(unresolvedReferences.danglingReferences()).containsExactly(getUnresolvedDirectReference(cluster, filterRef("another")));
     }
 
     @Test
@@ -308,7 +318,7 @@ class DependencyResolverTest {
         assertThat(resolutionResult.filters()).containsExactly(filter);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isTrue();
-        assertThat(onlyResult.unresolvedReferences().unresolved()).isEmpty();
+        assertThat(onlyResult.unresolvedReferences().danglingReferences()).isEmpty();
     }
 
     @Test
@@ -326,7 +336,7 @@ class DependencyResolverTest {
 
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isTrue();
-        assertThat(unresolvedReferences.unresolved()).isEmpty();
+        assertThat(unresolvedReferences.danglingReferences()).isEmpty();
     }
 
     @Test
@@ -349,7 +359,7 @@ class DependencyResolverTest {
         assertThat(resolutionResult.filters()).containsExactlyInAnyOrder(filter, filter2);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isTrue();
-        assertThat(onlyResult.unresolvedReferences().unresolved()).isEmpty();
+        assertThat(onlyResult.unresolvedReferences().danglingReferences()).isEmpty();
     }
 
     @Test
@@ -369,7 +379,7 @@ class DependencyResolverTest {
 
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isTrue();
-        assertThat(unresolvedReferences.unresolved()).isEmpty();
+        assertThat(unresolvedReferences.danglingReferences()).isEmpty();
     }
 
     @Test
@@ -391,7 +401,7 @@ class DependencyResolverTest {
         assertThat(resolutionResult.filters()).containsExactlyInAnyOrder(filter);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
-        assertThat(onlyResult.unresolvedReferences().unresolved()).containsExactly(getUnresolvedDirectReference(cluster, filterRef("filterName2")));
+        assertThat(onlyResult.unresolvedReferences().danglingReferences()).containsExactly(getUnresolvedDirectReference(cluster, filterRef("filterName2")));
     }
 
     @Test
@@ -410,7 +420,7 @@ class DependencyResolverTest {
 
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isFalse();
-        assertThat(unresolvedReferences.unresolved()).containsExactly(getUnresolvedDirectReference(cluster, filterRef("filterName2")));
+        assertThat(unresolvedReferences.danglingReferences()).containsExactly(getUnresolvedDirectReference(cluster, filterRef("filterName2")));
     }
 
     @Test
@@ -427,7 +437,7 @@ class DependencyResolverTest {
         assertThat(resolutionResult.ingresses()).isEmpty();
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
-        assertThat(onlyResult.unresolvedReferences().unresolved()).containsExactly(getUnresolvedDirectReference(cluster, ingressRef("ingressMissing")));
+        assertThat(onlyResult.unresolvedReferences().danglingReferences()).containsExactly(getUnresolvedDirectReference(cluster, ingressRef("ingressMissing")));
     }
 
     @Test
@@ -443,7 +453,7 @@ class DependencyResolverTest {
 
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isFalse();
-        assertThat(unresolvedReferences.unresolved()).containsExactly(getUnresolvedDirectReference(cluster, ingressRef("ingressMissing")));
+        assertThat(unresolvedReferences.danglingReferences()).containsExactly(getUnresolvedDirectReference(cluster, ingressRef("ingressMissing")));
     }
 
     @Test
@@ -459,7 +469,7 @@ class DependencyResolverTest {
         assertThat(resolutionResult.ingresses()).isEmpty();
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
-        assertThat(onlyResult.unresolvedReferences().unresolved()).containsExactly(getUnresolvedDirectReference(cluster, getKafkaServiceRef("missing")));
+        assertThat(onlyResult.unresolvedReferences().danglingReferences()).containsExactly(getUnresolvedDirectReference(cluster, getKafkaServiceRef("missing")));
     }
 
     @Test
@@ -474,7 +484,7 @@ class DependencyResolverTest {
 
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isFalse();
-        assertThat(unresolvedReferences.unresolved()).containsExactly(getUnresolvedDirectReference(cluster, getKafkaServiceRef("missing")));
+        assertThat(unresolvedReferences.danglingReferences()).containsExactly(getUnresolvedDirectReference(cluster, getKafkaServiceRef("missing")));
     }
 
     @Test
@@ -493,7 +503,7 @@ class DependencyResolverTest {
         assertThat(resolutionResult.ingresses()).containsExactly(ingress);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isTrue();
-        assertThat(onlyResult.unresolvedReferences().unresolved()).isEmpty();
+        assertThat(onlyResult.unresolvedReferences().danglingReferences()).isEmpty();
     }
 
     @Test
@@ -511,7 +521,7 @@ class DependencyResolverTest {
 
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isTrue();
-        assertThat(unresolvedReferences.unresolved()).isEmpty();
+        assertThat(unresolvedReferences.danglingReferences()).isEmpty();
     }
 
     @Test
@@ -532,7 +542,7 @@ class DependencyResolverTest {
         assertThat(resolutionResult.ingresses()).containsExactlyInAnyOrder(ingress, ingress2);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isTrue();
-        assertThat(onlyResult.unresolvedReferences().unresolved()).isEmpty();
+        assertThat(onlyResult.unresolvedReferences().danglingReferences()).isEmpty();
     }
 
     @Test
@@ -552,7 +562,7 @@ class DependencyResolverTest {
 
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isTrue();
-        assertThat(unresolvedReferences.unresolved()).isEmpty();
+        assertThat(unresolvedReferences.danglingReferences()).isEmpty();
     }
 
     @Test
@@ -572,7 +582,7 @@ class DependencyResolverTest {
         assertThat(resolutionResult.ingresses()).containsExactlyInAnyOrder(ingress);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
-        assertThat(onlyResult.unresolvedReferences().unresolved()).containsExactly(getUnresolvedDirectReference(cluster, ingressRef("ingress2")));
+        assertThat(onlyResult.unresolvedReferences().danglingReferences()).containsExactly(getUnresolvedDirectReference(cluster, ingressRef("ingress2")));
     }
 
     @Test
@@ -591,7 +601,7 @@ class DependencyResolverTest {
 
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isFalse();
-        assertThat(unresolvedReferences.unresolved()).containsExactly(getUnresolvedDirectReference(cluster, ingressRef("ingress2")));
+        assertThat(unresolvedReferences.danglingReferences()).containsExactly(getUnresolvedDirectReference(cluster, ingressRef("ingress2")));
     }
 
     @Test
@@ -611,7 +621,7 @@ class DependencyResolverTest {
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isFalse();
         LocalRef<?> proxyRef = getProxyRef("another-proxy");
-        assertThat(unresolvedReferences.unresolved()).containsExactly(new UnresolvedReference(ResourcesUtil.toLocalRef(ingress), proxyRef));
+        assertThat(unresolvedReferences.danglingReferences()).containsExactly(new DanglingReference(ResourcesUtil.toLocalRef(ingress), proxyRef));
     }
 
     @Test
@@ -630,7 +640,7 @@ class DependencyResolverTest {
 
         // then
         assertThat(unresolvedReferences.isFullyResolved()).isFalse();
-        assertThat(unresolvedReferences.unresolved()).containsExactly(getUnresolvedDirectReference(cluster, getProxyRef("another-proxy")));
+        assertThat(unresolvedReferences.danglingReferences()).containsExactly(getUnresolvedDirectReference(cluster, getProxyRef("another-proxy")));
     }
 
     private @NonNull UnresolvedReferences resolveClusterRefs(VirtualKafkaCluster cluster) {
@@ -683,8 +693,8 @@ class DependencyResolverTest {
                 .build();
     }
 
-    private static @NonNull UnresolvedReference getUnresolvedDirectReference(VirtualKafkaCluster cluster, LocalRef<?> proxyRef) {
-        return new UnresolvedReference(ResourcesUtil.toLocalRef(cluster), proxyRef);
+    private static @NonNull DanglingReference getUnresolvedDirectReference(VirtualKafkaCluster cluster, LocalRef<?> proxyRef) {
+        return new DanglingReference(ResourcesUtil.toLocalRef(cluster), proxyRef);
     }
 
     private void givenFiltersInContext(KafkaProtocolFilter... resources) {
