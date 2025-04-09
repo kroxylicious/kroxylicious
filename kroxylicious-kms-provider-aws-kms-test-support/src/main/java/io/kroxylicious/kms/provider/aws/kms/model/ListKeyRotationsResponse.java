@@ -8,12 +8,14 @@ package io.kroxylicious.kms.provider.aws.kms.model;
 
 import java.util.Objects;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-public record ListKeyRotationsResponse(@JsonProperty("NextMarker") @NonNull String nextMarker) {
+@JsonIgnoreProperties(ignoreUnknown = true)
+public record ListKeyRotationsResponse(@JsonProperty("Truncated") @NonNull Boolean truncated) {
     public ListKeyRotationsResponse {
-        Objects.requireNonNull(nextMarker);
+        Objects.requireNonNull(truncated);
     }
 }
