@@ -14,7 +14,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
-import java.util.stream.Stream;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
@@ -31,85 +30,20 @@ import static java.util.Comparator.comparing;
  * Filters, KafkaProxyIngresses and KafkaServices that were successfully resolved. It also
  * describes which dependencies could not be resolved per VirtualKafkaCluster.
  */
-public class ResolutionResult {
+public class ProxyResolutionResult {
     private final Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters;
     private final Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> kafkaProxyIngresses;
     private final Map<LocalRef<KafkaService>, KafkaService> kafkaServiceRefs;
-    private final Set<ClusterResolutionResult> clusterResolutionResults;
+    private final Map<VirtualKafkaCluster, ClusterResolutionResult> clusterResolutionResults;
 
     public Optional<ClusterResolutionResult> clusterResult(VirtualKafkaCluster cluster) {
-        return clusterResolutionResults.stream()
-                .filter(r -> r.cluster == cluster)
-                .findFirst();
+        return Optional.ofNullable(clusterResolutionResults.get(cluster));
     }
 
-    public record UnresolvedReferences(Set<DanglingReference> danglingReferences,
-                                       Set<LocalRef<?>> resourcesWithResolvedRefsFalse) {
-        public UnresolvedReferences {
-            Objects.requireNonNull(danglingReferences);
-        }
-
-        public Stream<LocalRef<?>> findDanglingReferences(LocalRef<?> from, String kindTo) {
-            Objects.requireNonNull(from);
-            Objects.requireNonNull(kindTo);
-            return danglingReferences.stream().filter(r -> r.from.equals(from) && r.to.getKind().equals(kindTo)).map(DanglingReference::to);
-        }
-
-        public Stream<LocalRef<?>> findDanglingReferences(String fromKind, String toKind) {
-            Objects.requireNonNull(fromKind);
-            Objects.requireNonNull(toKind);
-            return danglingReferences.stream().filter(r -> r.from.getKind().equals(fromKind) && r.to.getKind().equals(toKind)).map(DanglingReference::to);
-        }
-
-        public boolean isFullyResolved() {
-            return danglingReferences.isEmpty() && resourcesWithResolvedRefsFalse.isEmpty();
-        }
-
-        public boolean anyDependenciesNotFoundFor(LocalRef<?> fromResource) {
-            return danglingReferences.stream().anyMatch(u -> u.from().equals(fromResource));
-        }
-
-        public boolean anyResolvedRefsConditionsFalse() {
-            return !resourcesWithResolvedRefsFalse.isEmpty();
-        }
-
-        public Stream<LocalRef<?>> findResourcesWithResolvedRefsFalse() {
-            return resourcesWithResolvedRefsFalse.stream();
-        }
-
-        public Stream<LocalRef<?>> findResourcesWithResolvedRefsFalse(String kind) {
-            return findResourcesWithResolvedRefsFalse().filter(r -> r.getKind().equals(kind));
-        }
-    }
-
-    /**
-     * Describes the case where an entity A references an entity B but we can not find B.
-     * @param from
-     * @param to
-     */
-    public record DanglingReference(LocalRef<?> from, LocalRef<?> to) {
-        public DanglingReference {
-            Objects.requireNonNull(from);
-            Objects.requireNonNull(to);
-        }
-    }
-
-    public record ClusterResolutionResult(VirtualKafkaCluster cluster, UnresolvedReferences unresolvedReferences) {
-        public ClusterResolutionResult {
-            Objects.requireNonNull(cluster);
-            Objects.requireNonNull(unresolvedReferences);
-        }
-
-        public boolean isFullyResolved() {
-            return unresolvedReferences.isFullyResolved();
-        }
-
-    }
-
-    ResolutionResult(Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters,
-                     Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> kafkaProxyIngresses,
-                     Map<LocalRef<KafkaService>, KafkaService> kafkaServiceRefs,
-                     Set<ClusterResolutionResult> clusterResolutionResults) {
+    ProxyResolutionResult(Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters,
+                          Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> kafkaProxyIngresses,
+                          Map<LocalRef<KafkaService>, KafkaService> kafkaServiceRefs,
+                          Map<VirtualKafkaCluster, ClusterResolutionResult> clusterResolutionResults) {
         Objects.requireNonNull(filters);
         Objects.requireNonNull(kafkaProxyIngresses);
         Objects.requireNonNull(kafkaServiceRefs);
@@ -137,7 +71,7 @@ public class ResolutionResult {
     }
 
     private List<VirtualKafkaCluster> clusterResults(Predicate<ClusterResolutionResult> include) {
-        return clusterResolutionResults.stream().filter(include).map(ClusterResolutionResult::cluster)
+        return clusterResolutionResults.entrySet().stream().filter(e -> include.test(e.getValue())).map(Map.Entry::getKey)
                 .sorted(comparing(ResourcesUtil::name)).toList();
     }
 
@@ -145,7 +79,7 @@ public class ResolutionResult {
      * Get all ClusterResolutionResult
      * @return all ClusterResolutionResult
      */
-    public Collection<ClusterResolutionResult> clusterResults() {
+    public Map<VirtualKafkaCluster, ClusterResolutionResult> clusterResults() {
         return clusterResolutionResults;
     }
 

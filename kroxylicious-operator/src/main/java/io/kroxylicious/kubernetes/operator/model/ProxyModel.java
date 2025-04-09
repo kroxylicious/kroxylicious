@@ -10,7 +10,7 @@ import java.util.List;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
-import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
+import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
 
 /**
  * This class aims to encapsulate the logical model of what we want to manifest (it is a work in progress).
@@ -20,7 +20,7 @@ import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
  * @param ingressModel the ingress model for this reconciliation
  * @param clustersWithValidIngresses virtual kafka clusters that are fully resolved and have valid ingresses
  */
-public record ProxyModel(ResolutionResult resolutionResult,
+public record ProxyModel(ProxyResolutionResult resolutionResult,
                          ProxyIngressModel ingressModel,
                          List<VirtualKafkaCluster> clustersWithValidIngresses) {
 

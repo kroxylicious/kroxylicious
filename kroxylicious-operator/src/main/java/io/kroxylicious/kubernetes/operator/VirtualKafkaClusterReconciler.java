@@ -37,8 +37,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
-import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.UnresolvedReferences;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -80,7 +80,7 @@ public final class VirtualKafkaClusterReconciler implements
 
     @Override
     public UpdateControl<VirtualKafkaCluster> reconcile(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
-        UnresolvedReferences resolutionResult = resolver.resolveClusterRefs(cluster, context);
+        ClusterResolutionResult resolutionResult = resolver.resolveClusterRefs(cluster, context);
         UpdateControl<VirtualKafkaCluster> updateControl;
         if (resolutionResult.isFullyResolved()) {
             updateControl = maybeCombineStatusWithClusterConfigMap(cluster, context);
@@ -112,31 +112,31 @@ public final class VirtualKafkaClusterReconciler implements
     }
 
     private @NonNull UpdateControl<VirtualKafkaCluster> createUnresolvedRefsStatus(VirtualKafkaCluster cluster,
-                                                                                   UnresolvedReferences unresolvedReferences) {
+                                                                                   ClusterResolutionResult clusterResolutionResult) {
         UpdateControl<VirtualKafkaCluster> updateControl;
         LocalRef<VirtualKafkaCluster> clusterRef = toLocalRef(cluster);
-        var unresovedIngressProxies = unresolvedReferences.findDanglingReferences(KAFKA_PROXY_INGRESS_KIND, KAFKA_PROXY_KIND).collect(Collectors.toSet());
-        if (unresolvedReferences.anyDependenciesNotFoundFor(clusterRef)) {
+        var unresovedIngressProxies = clusterResolutionResult.findDanglingReferences(KAFKA_PROXY_INGRESS_KIND, KAFKA_PROXY_KIND).collect(Collectors.toSet());
+        if (clusterResolutionResult.anyDependenciesNotFoundFor(clusterRef)) {
             Stream<String> proxyMsg = refsMessage("spec.proxyRef references ", cluster,
-                    unresolvedReferences.findDanglingReferences(clusterRef, KAFKA_PROXY_KIND));
+                    clusterResolutionResult.findDanglingReferences(clusterRef, KAFKA_PROXY_KIND));
             Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", cluster,
-                    unresolvedReferences.findDanglingReferences(clusterRef, KAFKA_SERVICE_KIND));
+                    clusterResolutionResult.findDanglingReferences(clusterRef, KAFKA_SERVICE_KIND));
             Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", cluster,
-                    unresolvedReferences.findDanglingReferences(clusterRef, KAFKA_PROXY_INGRESS_KIND));
+                    clusterResolutionResult.findDanglingReferences(clusterRef, KAFKA_PROXY_INGRESS_KIND));
             Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster,
-                    unresolvedReferences.findDanglingReferences(clusterRef, KAFKA_PROTOCOL_FILTER_KIND));
+                    clusterResolutionResult.findDanglingReferences(clusterRef, KAFKA_PROTOCOL_FILTER_KIND));
             updateControl = UpdateControl.patchStatus(statusFactory.newFalseConditionStatusPatch(cluster, Condition.Type.ResolvedRefs, Condition.REASON_REFS_NOT_FOUND,
                     joiningMessages(proxyMsg, serviceMsg, ingressMsg, filterMsg)));
         }
-        else if (unresolvedReferences.anyResolvedRefsConditionsFalse() || !unresovedIngressProxies.isEmpty()) {
+        else if (clusterResolutionResult.anyResolvedRefsConditionsFalse() || !unresovedIngressProxies.isEmpty()) {
             Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", cluster,
-                    unresolvedReferences.findResourcesWithResolvedRefsFalse(KAFKA_SERVICE_KIND));
+                    clusterResolutionResult.findResourcesWithResolvedRefsFalse(KAFKA_SERVICE_KIND));
             Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", cluster,
-                    unresolvedReferences.findResourcesWithResolvedRefsFalse(KAFKA_PROXY_INGRESS_KIND));
+                    clusterResolutionResult.findResourcesWithResolvedRefsFalse(KAFKA_PROXY_INGRESS_KIND));
             Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster,
-                    unresolvedReferences.findResourcesWithResolvedRefsFalse(KAFKA_PROTOCOL_FILTER_KIND));
+                    clusterResolutionResult.findResourcesWithResolvedRefsFalse(KAFKA_PROTOCOL_FILTER_KIND));
             Stream<String> ingressProxyMessage = refsMessage("a spec.ingressRef had an inconsistent or missing proxyRef ", cluster,
-                    unresolvedReferences.findDanglingReferences(KAFKA_PROXY_INGRESS_KIND, KAFKA_PROXY_KIND));
+                    clusterResolutionResult.findDanglingReferences(KAFKA_PROXY_INGRESS_KIND, KAFKA_PROXY_KIND));
             updateControl = UpdateControl
                     .patchStatus(statusFactory.newFalseConditionStatusPatch(cluster, Condition.Type.ResolvedRefs, Condition.REASON_TRANSITIVE_REFS_NOT_FOUND,
                             joiningMessages(serviceMsg, ingressMsg, filterMsg, ingressProxyMessage)));

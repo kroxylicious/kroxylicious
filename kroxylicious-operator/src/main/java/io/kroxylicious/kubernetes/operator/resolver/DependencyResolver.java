@@ -32,9 +32,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
-import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.ClusterResolutionResult;
-import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.DanglingReference;
-import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult.UnresolvedReferences;
+import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult.DanglingReference;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -54,7 +52,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
  */
 public class DependencyResolver {
 
-    private static final ResolutionResult EMPTY_RESOLUTION_RESULT = new ResolutionResult(Map.of(), Map.of(), Map.of(), Set.of());
+    private static final ProxyResolutionResult EMPTY_RESOLUTION_RESULT = new ProxyResolutionResult(Map.of(), Map.of(), Map.of(), Map.of());
 
     private DependencyResolver() {
     }
@@ -72,7 +70,7 @@ public class DependencyResolver {
      * @param context reconciliation context for a KafkaProxy
      * @return a resolution result containing all resolved resources, and a description of which resources could not be resolved
      */
-    public ResolutionResult resolveProxyRefs(KafkaProxy proxy, Context<?> context) {
+    public ProxyResolutionResult resolveProxyRefs(KafkaProxy proxy, Context<?> context) {
         Objects.requireNonNull(proxy);
         Objects.requireNonNull(context);
         Set<VirtualKafkaCluster> virtualKafkaClusters = context.getSecondaryResources(VirtualKafkaCluster.class);
@@ -87,16 +85,15 @@ public class DependencyResolver {
      * @param context reconciliation context for a VirtualKafkaCluster
      * @return unresolved references
      */
-    public UnresolvedReferences resolveClusterRefs(VirtualKafkaCluster cluster, Context<?> context) {
+    public ClusterResolutionResult resolveClusterRefs(VirtualKafkaCluster cluster, Context<?> context) {
         Objects.requireNonNull(cluster);
         Objects.requireNonNull(context);
         Set<KafkaProxy> proxies = context.getSecondaryResources(KafkaProxy.class);
         return resolve(Set.of(cluster), proxies, context).clusterResult(cluster)
-                .orElseThrow(() -> new IllegalStateException("resolution result for cluster not found in result, should be impossible"))
-                .unresolvedReferences();
+                .orElseThrow(() -> new IllegalStateException("resolution result for cluster not found in result, should be impossible"));
     }
 
-    private @NonNull ResolutionResult resolve(Set<VirtualKafkaCluster> virtualKafkaClusters, Set<KafkaProxy> proxies, Context<?> context) {
+    private @NonNull ProxyResolutionResult resolve(Set<VirtualKafkaCluster> virtualKafkaClusters, Set<KafkaProxy> proxies, Context<?> context) {
         if (virtualKafkaClusters.isEmpty()) {
             return EMPTY_RESOLUTION_RESULT;
         }
@@ -108,9 +105,8 @@ public class DependencyResolver {
         Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters = context.getSecondaryResources(KafkaProtocolFilter.class).stream()
                 .collect(ResourcesUtil.toByLocalRefMap());
         var resolutionResult = virtualKafkaClusters.stream()
-                .map(cluster -> determineUnresolvedDependencies(cluster, ingresses, clusterRefs, filters, proxies))
-                .collect(Collectors.toSet());
-        return new ResolutionResult(filters, ingresses, clusterRefs, resolutionResult);
+                .collect(Collectors.toMap(cluster -> cluster, cluster -> determineUnresolvedDependencies(cluster, ingresses, clusterRefs, filters, proxies)));
+        return new ProxyResolutionResult(filters, ingresses, clusterRefs, resolutionResult);
     }
 
     private ClusterResolutionResult determineUnresolvedDependencies(VirtualKafkaCluster cluster,
@@ -122,8 +118,7 @@ public class DependencyResolver {
         LocalRef<VirtualKafkaCluster> clusterRef = toLocalRef(cluster);
         Set<DanglingReference> danglingReferences = determineDanglingRefs(ingresses, services, filters,
                 proxies, clusterRef, spec);
-        return new ClusterResolutionResult(cluster,
-                new UnresolvedReferences(danglingReferences, determineResolvedRefsFalse(ingresses, services, filters)));
+        return new ClusterResolutionResult(danglingReferences, determineResolvedRefsFalse(ingresses, services, filters));
     }
 
     private static @NonNull Set<DanglingReference> determineDanglingRefs(Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses,
