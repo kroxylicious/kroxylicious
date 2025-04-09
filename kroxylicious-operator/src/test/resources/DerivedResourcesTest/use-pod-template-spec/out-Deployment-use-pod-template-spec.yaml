@@ -74,5 +74,5 @@ spec:
               subPath: "proxy-config.yaml"
       volumes:
         - configMap:
-            name: "use-pod-template-spec"
+            name: "use-pod-template-spec-proxy-config"
           name: "config-volume"

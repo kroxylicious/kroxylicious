@@ -33,6 +33,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
  */
 @KubernetesDependent
 public class ProxyConfigDependentResource extends CRUDKubernetesDependentResource<ConfigMap, KafkaProxy> {
+    public static final String PROXY_CONFIG_CONFIG_MAP_SUFFIX = "-proxy-config";
 
     public static final String CONFIG_YAML_KEY = "proxy-config.yaml";
     public static final String REASON_INVALID = "Invalid";
@@ -53,7 +54,7 @@ public class ProxyConfigDependentResource extends CRUDKubernetesDependentResourc
      * @return The {@code metadata.name} of the desired ConfigMap {@code Secret}.
      */
     static String configMapName(KafkaProxy primary) {
-        return ResourcesUtil.name(primary);
+        return ResourcesUtil.name(primary) + PROXY_CONFIG_CONFIG_MAP_SUFFIX;
     }
 
     public static List<Volume> secureVolumes(ManagedWorkflowAndDependentResourceContext managedDependentResourceContext) {

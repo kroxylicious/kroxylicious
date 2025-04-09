@@ -8,12 +8,12 @@
 kind: VirtualKafkaCluster
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: my-cluster
+  name: my-cluster-2
   namespace: my-proxy
 spec:
   proxyRef:
-    name: simple
+    name: simple-config-state
   targetKafkaServiceRef:
-    name: my-cluster
+    name: my-cluster-2
   ingressRefs:
-    - name: cluster-ip
+    - name: cluster-ip-2

@@ -26,7 +26,7 @@ import io.kroxylicious.proxy.config.ConfigParser;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * Encapsulates the reading and writing of the {@code data} section of the Proxy {@code ConfigMap}.
+ * Encapsulates the reading and writing of the {@code data} section of the Proxy Config State {@code ConfigMap}.
  */
 public class ProxyConfigStateData {
 

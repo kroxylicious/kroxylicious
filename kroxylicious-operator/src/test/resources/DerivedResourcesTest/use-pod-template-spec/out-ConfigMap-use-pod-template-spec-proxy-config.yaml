@@ -12,14 +12,14 @@ metadata:
     app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/instance: "minimal"
+    app.kubernetes.io/instance: "use-pod-template-spec"
     app.kubernetes.io/component: "proxy"
-  name: "minimal"
-  namespace: "proxy-ns"
+  name: "use-pod-template-spec-proxy-config"
+  namespace: proxy-ns
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "minimal"
+      name: "use-pod-template-spec"
 data:
   proxy-config.yaml: |-
     ---
