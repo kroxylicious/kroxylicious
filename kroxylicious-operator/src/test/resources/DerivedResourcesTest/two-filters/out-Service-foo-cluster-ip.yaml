@@ -8,6 +8,9 @@
 apiVersion: "v1"
 kind: "Service"
 metadata:
+  annotations:
+    io.kroxylicious/operator.ingress.ingress-name: "cluster-ip"
+    io.kroxylicious/operator.ingress.virtualcluster-name: "foo"
   labels:
     app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"

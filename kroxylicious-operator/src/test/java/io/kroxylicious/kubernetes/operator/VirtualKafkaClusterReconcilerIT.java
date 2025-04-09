@@ -11,6 +11,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.awaitility.core.ConditionFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -33,6 +34,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
@@ -258,6 +261,72 @@ class VirtualKafkaClusterReconcilerIT {
 
         // Then
         assertAllConditionsTrue(clusterBar);
+    }
+
+    @Test
+    void shouldReportIngressClusterIpBootstrap() {
+        // Given
+        testActor.create(kafkaProxy(PROXY_A));
+        testActor.create(kafkaService(SERVICE_H));
+        var cluster = cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null);
+        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
+
+        // When
+        VirtualKafkaCluster clusterBar = testActor.create(cluster);
+
+        // Then
+        AWAIT.alias("ClusterStatusBootstrap").untilAsserted(() -> {
+            var vkc = testActor.resources(VirtualKafkaCluster.class)
+                    .withName(ResourcesUtil.name(clusterBar)).get();
+            VirtualKafkaClusterStatus status = vkc.getStatus();
+            assertThat(status)
+                    .isNotNull()
+                    .extracting(VirtualKafkaClusterStatus::getIngresses, InstanceOfAssertFactories.list(Ingresses.class))
+                    .singleElement()
+                    .satisfies(i -> {
+                        assertThat(i.getName()).isEqualTo(INGRESS_D);
+                        assertThat(i.getBootstrap()).isEqualTo("bar-cluster-ingress-d.%s.svc.cluster.local".formatted(extension.getNamespace()));
+                    });
+        });
+    }
+
+    @Test
+    void shouldReportIngressClusterIpBootstrapWhenIngressInitiallyAbsent() {
+        // Given
+        testActor.create(kafkaProxy(PROXY_A));
+        testActor.create(kafkaService(SERVICE_H));
+        var cluster = cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null);
+
+        VirtualKafkaCluster clusterBar = testActor.create(cluster);
+
+        AWAIT.alias("ClusterStatusBootstrapNotPresent").untilAsserted(() -> {
+            var vkc = testActor.resources(VirtualKafkaCluster.class)
+                    .withName(ResourcesUtil.name(clusterBar)).get();
+            VirtualKafkaClusterStatus status = vkc.getStatus();
+            assertThat(status)
+                    .isNotNull()
+                    .extracting(VirtualKafkaClusterStatus::getIngresses, InstanceOfAssertFactories.list(Ingresses.class))
+                    .isEmpty();
+        });
+
+        // When
+        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
+
+        // Then
+        AWAIT.alias("ClusterStatusBootstrap").untilAsserted(() -> {
+            var vkc = testActor.resources(VirtualKafkaCluster.class)
+                    .withName(ResourcesUtil.name(clusterBar)).get();
+            VirtualKafkaClusterStatus status = vkc.getStatus();
+            assertThat(status)
+                    .isNotNull()
+                    .extracting(VirtualKafkaClusterStatus::getIngresses, InstanceOfAssertFactories.list(Ingresses.class))
+                    .singleElement()
+                    .satisfies(i -> {
+                        assertThat(i.getName()).isEqualTo(INGRESS_D);
+                        assertThat(i.getBootstrap()).isEqualTo("bar-cluster-ingress-d.%s.svc.cluster.local".formatted(extension.getNamespace()));
+                    });
+        });
+
     }
 
     private VirtualKafkaCluster cluster(String clusterName, String proxyName, String ingressName, String serviceName, @Nullable String filterName) {

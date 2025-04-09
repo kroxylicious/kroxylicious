@@ -33,11 +33,20 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static java.lang.Math.toIntExact;
 
-record ClusterIPIngressDefinition(KafkaProxyIngress resource, VirtualKafkaCluster cluster, KafkaProxy primary,
-                                  List<NodeIdRanges> nodeIdRanges)
+public record ClusterIPIngressDefinition(KafkaProxyIngress resource, VirtualKafkaCluster cluster, KafkaProxy primary,
+                                         List<NodeIdRanges> nodeIdRanges)
         implements IngressDefinition {
 
-    ClusterIPIngressDefinition {
+    /**
+     * Used to allow us to track back from the Kubernetes Service to the Virtual Cluster Resource.
+     */
+    public static final String VIRTUAL_CLUSTER_NAME_ANNOTATION = "io.kroxylicious/operator.ingress.virtualcluster-name";
+    /**
+     * Used to allow us to track back from the Kubernetes Service to the Virtual Cluster Resource.
+     */
+    public static final String INGRESS_NAME_ANNOTATION = "io.kroxylicious/operator.ingress.ingress-name";
+
+    public ClusterIPIngressDefinition {
         Objects.requireNonNull(resource);
         Objects.requireNonNull(cluster);
         Objects.requireNonNull(primary);
@@ -76,6 +85,8 @@ record ClusterIPIngressDefinition(KafkaProxyIngress resource, VirtualKafkaCluste
                     .withName(serviceName(definition.cluster, definition.resource))
                     .withNamespace(namespace(definition.cluster))
                     .addToLabels(standardLabels(definition.primary))
+                    .addToAnnotations(INGRESS_NAME_ANNOTATION, definition.resource().getMetadata().getName())
+                    .addToAnnotations(VIRTUAL_CLUSTER_NAME_ANNOTATION, definition.cluster().getMetadata().getName())
                     .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(definition.primary)).endOwnerReference()
                     .endMetadata()
                     .withNewSpec()
@@ -117,7 +128,7 @@ record ClusterIPIngressDefinition(KafkaProxyIngress resource, VirtualKafkaCluste
         }
     }
 
-    private static String serviceName(VirtualKafkaCluster cluster, KafkaProxyIngress resource) {
+    public static String serviceName(VirtualKafkaCluster cluster, KafkaProxyIngress resource) {
         Objects.requireNonNull(cluster);
         Objects.requireNonNull(resource);
         return name(cluster) + "-" + name(resource);
