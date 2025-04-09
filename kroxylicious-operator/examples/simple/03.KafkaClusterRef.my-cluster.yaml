@@ -8,7 +8,7 @@
 kind: KafkaService
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: my-cluster-2
+  name: my-cluster
   namespace: my-proxy
 spec:
   bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092

@@ -8,10 +8,10 @@
 kind: KafkaProxyIngress
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: cluster-ip-2
+  name: cluster-ip
   namespace: my-proxy
 spec:
   proxyRef:
-    name: simple-config-state
+    name: simple
   clusterIP:
     protocol: TCP
