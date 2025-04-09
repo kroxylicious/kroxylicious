@@ -53,12 +53,13 @@ import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class DependencyResolverImplTest {
+class DependencyResolverTest {
 
     public static final String PROXY_NAME = "proxy";
     public static final KafkaProxy PROXY = new KafkaProxyBuilder().withNewMetadata().withName(PROXY_NAME).endMetadata().build();
     @Mock(strictness = LENIENT)
     Context<KafkaProxy> mockProxyContext;
+    private final DependencyResolver dependencyResolver = DependencyResolver.create();
 
     @BeforeEach
     void setup() {
@@ -83,10 +84,6 @@ class DependencyResolverImplTest {
         assertThat(resolutionResult.fullyResolvedClustersInNameOrder()).isEmpty();
         assertThat(resolutionResult.filter(filterRef("c"))).isEmpty();
         assertThat(resolutionResult.filters()).isEmpty();
-    }
-
-    private @NonNull ResolutionResult resolveProxyRefs(KafkaProxy proxy) {
-        return DependencyResolverImpl.create().resolveProxyRefs(proxy, mockProxyContext);
     }
 
     @Test
@@ -346,10 +343,6 @@ class DependencyResolverImplTest {
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isTrue();
         assertThat(onlyResult.unresolvedReferences().unresolved()).isEmpty();
-    }
-
-    private @NonNull ResolutionResult resolveClusterRefs(VirtualKafkaCluster cluster) {
-        return DependencyResolverImpl.create().resolveClusterRefs(cluster, mockProxyContext);
     }
 
     @Test
@@ -676,6 +669,14 @@ class DependencyResolverImplTest {
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.isFullyResolved()).isFalse();
         assertThat(onlyResult.unresolvedReferences().unresolved()).containsExactly(getUnresolvedDirectReference(cluster, getProxyRef("another-proxy")));
+    }
+
+    private @NonNull ResolutionResult resolveClusterRefs(VirtualKafkaCluster cluster) {
+        return dependencyResolver.resolveClusterRefs(cluster, mockProxyContext);
+    }
+
+    private @NonNull ResolutionResult resolveProxyRefs(KafkaProxy proxy) {
+        return dependencyResolver.resolveProxyRefs(proxy, mockProxyContext);
     }
 
     private static KafkaServiceRef getKafkaServiceRef(String name) {

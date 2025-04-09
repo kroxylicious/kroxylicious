@@ -18,7 +18,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.model.ingress.IngressAllocator;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
-import io.kroxylicious.kubernetes.operator.resolver.DependencyResolverImpl;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 
 /**
@@ -48,7 +47,7 @@ public class ProxyModelBuilder {
     }
 
     public static ProxyModelBuilder contextBuilder() {
-        return new ProxyModelBuilder(DependencyResolverImpl.create());
+        return new ProxyModelBuilder(DependencyResolver.create());
     }
 
 }
