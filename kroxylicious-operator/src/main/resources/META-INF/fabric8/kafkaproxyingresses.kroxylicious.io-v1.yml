@@ -118,3 +118,4 @@ spec:
                       - observedGeneration
                       - reason
                       - message
+                      - type

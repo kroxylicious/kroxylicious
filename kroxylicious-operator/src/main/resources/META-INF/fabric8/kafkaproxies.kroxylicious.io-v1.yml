@@ -109,6 +109,7 @@ spec:
                       - observedGeneration
                       - reason
                       - message
+                      - type
                 clusters:
                   type: array
                   x-kubernetes-list-type: map
