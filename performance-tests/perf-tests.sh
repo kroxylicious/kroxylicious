@@ -114,7 +114,7 @@ deleteAsyncProfilerKroxy() {
 
 dumpBrokerLogs() {
   TESTNAME=$1
-  ${CONTAINER_ENGINE} logs kafka > "${LOGS_OUTPUT_DIRECTORY}/${TESTNAME}_broker.log"
+  ${CONTAINER_ENGINE} logs broker1 > "${LOGS_OUTPUT_DIRECTORY}/${TESTNAME}_broker.log"
 }
 
 startAsyncProfilerKroxy() {
