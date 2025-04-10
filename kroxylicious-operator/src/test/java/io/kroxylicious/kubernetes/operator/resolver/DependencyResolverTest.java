@@ -9,7 +9,7 @@ package io.kroxylicious.kubernetes.operator.resolver;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -77,7 +77,7 @@ class DependencyResolverTest {
 
         // then
         assertThat(resolutionResult.allClustersInNameOrder()).isEmpty();
-        assertThat(resolutionResult.clusterResults()).isEmpty();
+        assertThat(resolutionResult.clusterResolutionResults()).isEmpty();
         assertThat(resolutionResult.ingresses()).isEmpty();
         assertThat(resolutionResult.fullyResolvedClustersInNameOrder()).isEmpty();
         assertThat(resolutionResult.filter(filterRef("c"))).isEmpty();
@@ -667,11 +667,11 @@ class DependencyResolverTest {
     }
 
     private static ClusterResolutionResult assertSingleResult(ProxyResolutionResult resolutionResult, VirtualKafkaCluster cluster) {
-        Map<VirtualKafkaCluster, ClusterResolutionResult> result = resolutionResult.clusterResults();
+        Set<ClusterResolutionResult> result = resolutionResult.clusterResolutionResults();
         assertThat(result).hasSize(1);
-        Map.Entry<VirtualKafkaCluster, ClusterResolutionResult> onlyResult = result.entrySet().stream().findFirst().orElseThrow();
-        assertThat(onlyResult.getKey()).isEqualTo(cluster);
-        return onlyResult.getValue();
+        ClusterResolutionResult onlyResult = result.stream().findFirst().orElseThrow();
+        assertThat(onlyResult.cluster()).isEqualTo(cluster);
+        return onlyResult;
     }
 
     private static KafkaService kafkaService(String clusterRef) {

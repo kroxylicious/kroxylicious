@@ -34,16 +34,16 @@ public class ProxyResolutionResult {
     private final Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters;
     private final Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> kafkaProxyIngresses;
     private final Map<LocalRef<KafkaService>, KafkaService> kafkaServiceRefs;
-    private final Map<VirtualKafkaCluster, ClusterResolutionResult> clusterResolutionResults;
+    private final Set<ClusterResolutionResult> clusterResolutionResults;
 
     public Optional<ClusterResolutionResult> clusterResult(VirtualKafkaCluster cluster) {
-        return Optional.ofNullable(clusterResolutionResults.get(cluster));
+        return clusterResolutionResults.stream().filter(result -> result.cluster().equals(cluster)).findFirst();
     }
 
     ProxyResolutionResult(Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters,
                           Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> kafkaProxyIngresses,
                           Map<LocalRef<KafkaService>, KafkaService> kafkaServiceRefs,
-                          Map<VirtualKafkaCluster, ClusterResolutionResult> clusterResolutionResults) {
+                          Set<ClusterResolutionResult> clusterResolutionResults) {
         Objects.requireNonNull(filters);
         Objects.requireNonNull(kafkaProxyIngresses);
         Objects.requireNonNull(kafkaServiceRefs);
@@ -59,7 +59,7 @@ public class ProxyResolutionResult {
      * @return non-null list of VirtualKafkaClusters sorted by metadata.name
      */
     public List<VirtualKafkaCluster> fullyResolvedClustersInNameOrder() {
-        return clusterResults(ClusterResolutionResult::isFullyResolved);
+        return clustersSatisfying(ClusterResolutionResult::isFullyResolved);
     }
 
     /**
@@ -67,19 +67,19 @@ public class ProxyResolutionResult {
      * @return non-null list of VirtualKafkaClusters sorted by metadata.name
      */
     public List<VirtualKafkaCluster> allClustersInNameOrder() {
-        return clusterResults(result -> true);
+        return clustersSatisfying(result -> true);
     }
 
-    private List<VirtualKafkaCluster> clusterResults(Predicate<ClusterResolutionResult> include) {
-        return clusterResolutionResults.entrySet().stream().filter(e -> include.test(e.getValue())).map(Map.Entry::getKey)
-                .sorted(comparing(ResourcesUtil::name)).toList();
+    private List<VirtualKafkaCluster> clustersSatisfying(Predicate<ClusterResolutionResult> include) {
+        return clusterResolutionResults.stream().filter(include)
+                .sorted(comparing(r -> ResourcesUtil.name(r.cluster()))).map(ClusterResolutionResult::cluster).toList();
     }
 
     /**
      * Get all ClusterResolutionResult
      * @return all ClusterResolutionResult
      */
-    public Map<VirtualKafkaCluster, ClusterResolutionResult> clusterResults() {
+    public Set<ClusterResolutionResult> clusterResolutionResults() {
         return clusterResolutionResults;
     }
 

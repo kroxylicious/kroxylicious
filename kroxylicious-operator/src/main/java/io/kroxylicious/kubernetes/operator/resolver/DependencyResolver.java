@@ -58,7 +58,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
  */
 public class DependencyResolver {
 
-    private static final ProxyResolutionResult EMPTY_RESOLUTION_RESULT = new ProxyResolutionResult(Map.of(), Map.of(), Map.of(), Map.of());
+    private static final ProxyResolutionResult EMPTY_RESOLUTION_RESULT = new ProxyResolutionResult(Map.of(), Map.of(), Map.of(), Set.of());
 
     private DependencyResolver() {
     }
@@ -110,9 +110,9 @@ public class DependencyResolver {
                 .collect(ResourcesUtil.toByLocalRefMap());
         Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters = context.getSecondaryResources(KafkaProtocolFilter.class).stream()
                 .collect(ResourcesUtil.toByLocalRefMap());
-        var resolutionResult = virtualKafkaClusters.stream()
-                .collect(Collectors.toMap(cluster -> cluster, cluster -> discoverProblemsAndBuildResolutionResult(cluster, ingresses, clusterRefs, filters, proxies)));
-        return new ProxyResolutionResult(filters, ingresses, clusterRefs, resolutionResult);
+        var clusterResolutionResults = virtualKafkaClusters.stream()
+                .map(cluster -> discoverProblemsAndBuildResolutionResult(cluster, ingresses, clusterRefs, filters, proxies)).collect(Collectors.toSet());
+        return new ProxyResolutionResult(filters, ingresses, clusterRefs, clusterResolutionResults);
     }
 
     private ClusterResolutionResult discoverProblemsAndBuildResolutionResult(VirtualKafkaCluster cluster,
@@ -123,7 +123,7 @@ public class DependencyResolver {
         VirtualKafkaClusterSpec spec = cluster.getSpec();
         LocalRef<VirtualKafkaCluster> clusterRef = toLocalRef(cluster);
         Set<DanglingReference> danglingReferences = determineDanglingRefs(ingresses, services, filters, proxies, clusterRef, spec);
-        return new ClusterResolutionResult(danglingReferences, determineResolvedRefsFalse(ingresses, services, filters));
+        return new ClusterResolutionResult(cluster, danglingReferences, determineResolvedRefsFalse(ingresses, services, filters));
     }
 
     private static @NonNull Set<DanglingReference> determineDanglingRefs(Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses,

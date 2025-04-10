@@ -11,13 +11,15 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import io.kroxylicious.kubernetes.api.common.LocalRef;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
 /**
  * The result of a deep resolution of the dependencies of a single VirtualKafkaCluster. Describes
  * whether there were any resolution problems like dangling references, or referenced resources
  * that have a ResolvedRefs: False condition.
  */
-public record ClusterResolutionResult(Set<DanglingReference> danglingReferences,
+public record ClusterResolutionResult(VirtualKafkaCluster cluster,
+                                      Set<DanglingReference> danglingReferences,
                                       Set<LocalRef<?>> resourcesWithResolvedRefsFalse) {
     public ClusterResolutionResult {
         Objects.requireNonNull(danglingReferences);

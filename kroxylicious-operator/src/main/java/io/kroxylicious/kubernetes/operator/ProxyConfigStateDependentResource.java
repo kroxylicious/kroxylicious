@@ -91,12 +91,11 @@ public class ProxyConfigStateDependentResource
     }
 
     private static void addResolvedRefsConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigStateData data) {
-        proxyModel.resolutionResult().clusterResults().entrySet().stream()
-                .filter(resultEntry -> !resultEntry.getValue().isFullyResolved())
-                .forEach(resultEntry -> {
-                    VirtualKafkaCluster cluster = resultEntry.getKey();
+        proxyModel.resolutionResult().clusterResolutionResults().stream()
+                .filter(result -> !result.isFullyResolved())
+                .forEach(clusterResolutionResult -> {
+                    VirtualKafkaCluster cluster = clusterResolutionResult.cluster();
                     VirtualKafkaCluster patch;
-                    ClusterResolutionResult clusterResolutionResult = resultEntry.getValue();
                     if (!clusterResolutionResult.danglingReferences().isEmpty()) {
                         Comparator<ClusterResolutionResult.DanglingReference> comparator = Comparator.<ClusterResolutionResult.DanglingReference, LocalRef> comparing(
                                 ClusterResolutionResult.DanglingReference::to);
