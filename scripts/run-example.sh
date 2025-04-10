@@ -97,7 +97,7 @@ then
   ${KUBECTL} exec vault-0 -n vault -- vault secrets enable transit || true
   echo -e "${GREEN}HashiCorp Vault installed.${NOCOLOR}"
   pipename="${TMPDIR}/vault_url"
-  mkfifo ${pipename}
+  mkfifo "${pipename}"
   ${MINIKUBE} service vault -n vault --url 2>/dev/null > "${pipename}" &
   MINIKUBE_VAULT_PORT_FORWARD_PID=$!
   VAULT_UI_URL=$(head -1 "${pipename}")
