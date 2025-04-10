@@ -22,6 +22,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.common.IngressRef;
@@ -137,8 +138,7 @@ class DependencyResolverTest {
     @Test
     void resolveProxyRefsWithFilterHavingResolvedRefsFalseCondition() {
         // given
-        KafkaProtocolFilter filter = protocolFilter("filterName").edit().withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
-                .withStatus(Condition.Status.FALSE).withObservedGeneration(1L).withLastTransitionTime(Instant.EPOCH).endCondition().endStatus().build();
+        KafkaProtocolFilter filter = protocolFilter("filterName").edit().withNewStatus().addToConditions(resolvedRefsFalse()).endStatus().build();
         givenFiltersInContext(filter);
         givenClusterRefsInContext(kafkaService("cluster"));
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(), getProxyRef(PROXY_NAME));
@@ -160,8 +160,8 @@ class DependencyResolverTest {
     @Test
     void resolveClusterRefsWithFilterHavingResolvedRefsFalseCondition() {
         // given
-        KafkaProtocolFilter filter = protocolFilter("filterName").edit().withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
-                .withStatus(Condition.Status.FALSE).withObservedGeneration(1L).withLastTransitionTime(Instant.EPOCH).endCondition().endStatus().build();
+        KafkaProtocolFilter filter = protocolFilter("filterName").edit().withNewStatus().addToConditions(resolvedRefsFalse())
+                .endStatus().build();
         givenFiltersInContext(filter);
         givenClusterRefsInContext(kafkaService("cluster"));
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(), getProxyRef(PROXY_NAME));
@@ -177,13 +177,21 @@ class DependencyResolverTest {
         assertThat(clusterResolutionResult.findResourcesWithResolvedRefsFalse(HasMetadata.getKind(KafkaProtocolFilter.class))).containsExactly(filterRef("filterName"));
     }
 
+    private static @NonNull Condition resolvedRefsFalse() {
+        return new ConditionBuilder().withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.FALSE)
+                .withObservedGeneration(1L)
+                .withLastTransitionTime(Instant.EPOCH)
+                .withMessage("BadThings")
+                .withReason("BadThings").build();
+    }
+
     @Test
     void resolveProxyRefsWithServiceHavingResolvedRefsFalseCondition() {
         // given
         KafkaProtocolFilter filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
-        KafkaService service = kafkaService("cluster").edit().withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
-                .withStatus(Condition.Status.FALSE).withObservedGeneration(1L).withLastTransitionTime(Instant.EPOCH).endCondition().endStatus().build();
+        KafkaService service = kafkaService("cluster").edit().withNewStatus().addToConditions(resolvedRefsFalse()).endStatus().build();
         givenClusterRefsInContext(service);
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
@@ -204,8 +212,7 @@ class DependencyResolverTest {
         // given
         KafkaProtocolFilter filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
-        KafkaService service = kafkaService("cluster").edit().withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
-                .withStatus(Condition.Status.FALSE).withObservedGeneration(1L).withLastTransitionTime(Instant.EPOCH).endCondition().endStatus().build();
+        KafkaService service = kafkaService("cluster").edit().withNewStatus().addToConditions(resolvedRefsFalse()).endStatus().build();
         givenClusterRefsInContext(service);
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
@@ -226,8 +233,7 @@ class DependencyResolverTest {
         KafkaProtocolFilter filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
         givenClusterRefsInContext(kafkaService("cluster"));
-        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME).edit().withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
-                .withStatus(Condition.Status.FALSE).withObservedGeneration(1L).withLastTransitionTime(Instant.EPOCH).endCondition().endStatus().build();
+        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME).edit().withNewStatus().addToConditions(resolvedRefsFalse()).endStatus().build();
         givenIngressesInContext(ingress);
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(ingressRef("ingress")), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
@@ -249,8 +255,7 @@ class DependencyResolverTest {
         KafkaProtocolFilter filter = protocolFilter("filterName");
         givenFiltersInContext(filter);
         givenClusterRefsInContext(kafkaService("cluster"));
-        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME).edit().withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
-                .withStatus(Condition.Status.FALSE).withObservedGeneration(1L).withLastTransitionTime(Instant.EPOCH).endCondition().endStatus().build();
+        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME).edit().withNewStatus().addToConditions(resolvedRefsFalse()).endStatus().build();
         givenIngressesInContext(ingress);
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(ingressRef("ingress")), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);

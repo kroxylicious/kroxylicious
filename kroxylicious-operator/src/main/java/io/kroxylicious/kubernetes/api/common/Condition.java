@@ -201,7 +201,7 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
         }
     }
 
-    public static boolean isResolvedRefsFalse(@NonNull Condition condition) {
+    public static boolean isResolvedRefsFalse(Condition condition) {
         Objects.requireNonNull(condition);
         return Condition.Type.ResolvedRefs.equals(condition.getType())
                 && Condition.Status.FALSE.equals(condition.getStatus());
