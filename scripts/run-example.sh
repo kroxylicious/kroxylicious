@@ -87,11 +87,13 @@ then
   ${HELM} upgrade --install vault hashicorp/vault --namespace vault --values "${SAMPLE_DIR}/helm-vault-values.yaml" --wait
   ${KUBECTL} exec vault-0 -n vault -- vault secrets enable transit || true
   echo -e "${GREEN}HashiCorp Vault installed.${NOCOLOR}"
+  pipename="${TMPDIR}/vault_url"
+  mkfifo ${pipename}
+  ${MINIKUBE} service vault -n vault --url 2>/dev/null > "${pipename}" &
+  MINIKUBE_VAULT_PORT_FORWARD_PID=$!
+  VAULT_UI_URL=$(head -1 "${pipename}")
+  rm "${pipename}"
 
-  VAULT_UI_URL=$(head -1 <(${MINIKUBE} service vault -n vault --url 2>/dev/null &))
-  #  minikube_service_pid=$!
-  #  kill -3 ${minikube_service_pid}
-  #  VAULT_UI_URL=$( | head -1)
   ROOT_TOKEN=$(yq .server.dev.devRootToken "${SAMPLE_DIR}/helm-vault-values.yaml")
   echo -e "${YELLOW}Vault UI available at: ${VAULT_UI_URL} (token '${ROOT_TOKEN}').${NOCOLOR}"
 fi
