@@ -22,17 +22,26 @@ elif [[ ! -d "${1}"  ]]; then
   exit 1
 fi
 
+ON_SHUTDOWN=()
 SAMPLE_DIR=${1}
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NOCOLOR='\033[0m'
 
+onExit() {
+  for cmd in "${ON_SHUTDOWN[@]}"
+  do
+    eval "${cmd}"
+  done
+}
+
+trap onExit EXIT
 
 KUSTOMIZE_TMP=$(mktemp -d)
 function cleanTmpDir {
   rm -rf "${KUSTOMIZE_TMP}"
 }
-trap cleanTmpDir EXIT
+ON_SHUTDOWN+=(cleanTmpDir)
 
 if ! ${MINIKUBE} status 1>/dev/null 2>/dev/null; then
   set +e
@@ -93,6 +102,7 @@ then
   MINIKUBE_VAULT_PORT_FORWARD_PID=$!
   VAULT_UI_URL=$(head -1 "${pipename}")
   rm "${pipename}"
+  ON_SHUTDOWN+=("kill -3 ${MINIKUBE_VAULT_PORT_FORWARD_PID}")
 
   ROOT_TOKEN=$(yq .server.dev.devRootToken "${SAMPLE_DIR}/helm-vault-values.yaml")
   echo -e "${YELLOW}Vault UI available at: ${VAULT_UI_URL} (token '${ROOT_TOKEN}').${NOCOLOR}"
