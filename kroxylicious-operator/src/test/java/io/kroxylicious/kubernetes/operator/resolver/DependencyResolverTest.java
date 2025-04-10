@@ -155,8 +155,9 @@ class DependencyResolverTest {
 
     // we want to ensure that when we are reconciling a VirtualKafkaCluster than we do not consider the status of that
     // cluster. Ie if a previous reconciliation sets the cluster to ResolvedRefs: False, we do not want that status to
+    // be considered when calculating a fresh status.
     @Test
-    void resolveClusterWithResolvedRefsFalseCondition() {
+    void resolveClusterShouldIgnoreConditionsForTargetCluster() {
         // given
         givenClusterRefsInContext(kafkaService("cluster"));
         VirtualKafkaCluster cluster = virtualCluster(null, "cluster", List.of(), getProxyRef(PROXY_NAME))
