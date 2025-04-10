@@ -13,17 +13,17 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
-import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
+import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
 
 class Ingresses {
     private Ingresses() {
     }
 
-    public static Stream<IngressDefinition> ingressesFor(KafkaProxy primary, VirtualKafkaCluster cluster, ResolutionResult resolutionResult) {
+    public static Stream<IngressDefinition> ingressesFor(KafkaProxy primary, VirtualKafkaCluster cluster, ProxyResolutionResult resolutionResult) {
         return cluster.getSpec().getIngressRefs().stream()
                 .flatMap(
                         ingressRef -> {
-                            // skip unresolved ingresses, we are working with VirtualClusters that may have unresolved references
+                            // skip unresolved ingresses, we are working with VirtualClusters that may have dangling references
                             Optional<KafkaProxyIngress> ingress = resolutionResult.ingress(ingressRef);
                             return ingress.stream().map(kafkaProxyIngress -> toIngress(primary, cluster, kafkaProxyIngress));
                         });

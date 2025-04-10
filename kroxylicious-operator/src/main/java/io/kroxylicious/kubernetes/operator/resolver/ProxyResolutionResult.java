@@ -30,32 +30,20 @@ import static java.util.Comparator.comparing;
  * Filters, KafkaProxyIngresses and KafkaServices that were successfully resolved. It also
  * describes which dependencies could not be resolved per VirtualKafkaCluster.
  */
-public class ResolutionResult {
+public class ProxyResolutionResult {
     private final Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters;
     private final Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> kafkaProxyIngresses;
     private final Map<LocalRef<KafkaService>, KafkaService> kafkaServiceRefs;
     private final Set<ClusterResolutionResult> clusterResolutionResults;
 
-    public record ClusterResolutionResult(VirtualKafkaCluster cluster, Set<LocalRef<?>> unresolvedDependencySet) {
-        public ClusterResolutionResult {
-            Objects.requireNonNull(cluster);
-            Objects.requireNonNull(unresolvedDependencySet);
-        }
-
-        public boolean isAnyDependencyUnresolved() {
-            return !unresolvedDependencySet.isEmpty();
-        }
-
-        public boolean isFullyResolved() {
-            return !isAnyDependencyUnresolved();
-        }
-
+    public Optional<ClusterResolutionResult> clusterResult(VirtualKafkaCluster cluster) {
+        return clusterResolutionResults.stream().filter(result -> result.cluster().equals(cluster)).findFirst();
     }
 
-    ResolutionResult(Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters,
-                     Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> kafkaProxyIngresses,
-                     Map<LocalRef<KafkaService>, KafkaService> kafkaServiceRefs,
-                     Set<ClusterResolutionResult> clusterResolutionResults) {
+    ProxyResolutionResult(Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters,
+                          Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> kafkaProxyIngresses,
+                          Map<LocalRef<KafkaService>, KafkaService> kafkaServiceRefs,
+                          Set<ClusterResolutionResult> clusterResolutionResults) {
         Objects.requireNonNull(filters);
         Objects.requireNonNull(kafkaProxyIngresses);
         Objects.requireNonNull(kafkaServiceRefs);
@@ -71,27 +59,27 @@ public class ResolutionResult {
      * @return non-null list of VirtualKafkaClusters sorted by metadata.name
      */
     public List<VirtualKafkaCluster> fullyResolvedClustersInNameOrder() {
-        return clusterResults(ClusterResolutionResult::isFullyResolved);
+        return clustersSatisfying(ClusterResolutionResult::isFullyResolved);
     }
 
     /**
-     * Get all VirtualKafkaClusters, even if they have unresolved dependencies, sorted by the VirtualKafkaCluster's metadata.name
+     * Get all VirtualKafkaClusters, even if they have dangling dependencies, sorted by the VirtualKafkaCluster's metadata.name
      * @return non-null list of VirtualKafkaClusters sorted by metadata.name
      */
     public List<VirtualKafkaCluster> allClustersInNameOrder() {
-        return clusterResults(result -> true);
+        return clustersSatisfying(result -> true);
     }
 
-    private List<VirtualKafkaCluster> clusterResults(Predicate<ClusterResolutionResult> include) {
-        return clusterResolutionResults.stream().filter(include).map(ClusterResolutionResult::cluster)
-                .sorted(comparing(ResourcesUtil::name)).toList();
+    private List<VirtualKafkaCluster> clustersSatisfying(Predicate<ClusterResolutionResult> include) {
+        return clusterResolutionResults.stream().filter(include)
+                .sorted(comparing(r -> ResourcesUtil.name(r.cluster()))).map(ClusterResolutionResult::cluster).toList();
     }
 
     /**
      * Get all ClusterResolutionResult
      * @return all ClusterResolutionResult
      */
-    public Collection<ClusterResolutionResult> clusterResults() {
+    public Set<ClusterResolutionResult> clusterResolutionResults() {
         return clusterResolutionResults;
     }
 

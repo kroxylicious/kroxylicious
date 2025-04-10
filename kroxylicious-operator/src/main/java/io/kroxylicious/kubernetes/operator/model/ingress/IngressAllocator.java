@@ -12,7 +12,7 @@ import java.util.stream.Stream;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
+import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
 
 import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.PROXY_PORT_START;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
@@ -39,7 +39,7 @@ public class IngressAllocator {
      * @return non-null ProxyIngressModel
      */
     public static ProxyIngressModel allocateProxyIngressModel(KafkaProxy primary,
-                                                              ResolutionResult resolutionResult) {
+                                                              ProxyResolutionResult resolutionResult) {
         AtomicInteger exclusivePorts = new AtomicInteger(PROXY_PORT_START);
         // include broken clusters in the model, so that if they are healed the ports will stay the same
         Stream<VirtualKafkaCluster> virtualKafkaClusterStream = resolutionResult.allClustersInNameOrder().stream();
@@ -51,7 +51,7 @@ public class IngressAllocator {
     }
 
     private static List<ProxyIngressModel.IngressModel> allocateIngressModel(KafkaProxy primary, VirtualKafkaCluster it, AtomicInteger ports,
-                                                                             ResolutionResult resolutionResult) {
+                                                                             ProxyResolutionResult resolutionResult) {
         Stream<IngressDefinition> ingressStream = Ingresses.ingressesFor(primary, it, resolutionResult);
         return ingressStream.map(resource -> {
             int toAllocate = resource.numIdentifyingPortsRequired();

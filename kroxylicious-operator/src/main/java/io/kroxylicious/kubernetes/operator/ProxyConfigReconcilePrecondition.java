@@ -31,7 +31,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterSpec;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
-import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
+import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -116,7 +116,7 @@ public class ProxyConfigReconcilePrecondition implements Condition<ConfigMap, Ka
         return filterCrRef.getName() + "." + filterCrRef.getKind() + "." + filterCrRef.getGroup();
     }
 
-    private List<NamedFilterDefinition> filterDefinitions(Context<KafkaProxy> context, VirtualKafkaCluster cluster, ResolutionResult resolutionResult) {
+    private List<NamedFilterDefinition> filterDefinitions(Context<KafkaProxy> context, VirtualKafkaCluster cluster, ProxyResolutionResult resolutionResult) {
 
         return Optional.ofNullable(cluster.getSpec().getFilterRefs()).orElse(List.of()).stream().map(filterCrRef -> {
 

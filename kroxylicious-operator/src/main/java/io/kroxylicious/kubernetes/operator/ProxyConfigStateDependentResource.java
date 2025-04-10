@@ -20,7 +20,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ingress.IngressConflictException;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
-import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
+import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
@@ -91,25 +91,33 @@ public class ProxyConfigStateDependentResource
     }
 
     private static void addResolvedRefsConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigStateData data) {
-        proxyModel.resolutionResult().clusterResults().stream()
-                .filter(ResolutionResult.ClusterResolutionResult::isAnyDependencyUnresolved)
+        proxyModel.resolutionResult().clusterResolutionResults().stream()
+                .filter(result -> !result.isFullyResolved())
                 .forEach(clusterResolutionResult -> {
-
-                    Comparator<LocalRef<?>> comparator = Comparator.<LocalRef<?>, String> comparing(LocalRef::getGroup)
-                            .thenComparing(LocalRef::getKind)
-                            .thenComparing(LocalRef::getName);
-
-                    LocalRef<?> firstUnresolvedDependency = clusterResolutionResult.unresolvedDependencySet().stream()
-                            .sorted(comparator).findFirst()
-                            .orElseThrow();
-                    String message = String.format("Resource %s was not found.",
-                            ResourcesUtil.namespacedSlug(firstUnresolvedDependency, clusterResolutionResult.cluster()));
                     VirtualKafkaCluster cluster = clusterResolutionResult.cluster();
+                    VirtualKafkaCluster patch;
+                    if (!clusterResolutionResult.danglingReferences().isEmpty()) {
+                        Comparator<ClusterResolutionResult.DanglingReference> comparator = Comparator.<ClusterResolutionResult.DanglingReference, LocalRef> comparing(
+                                ClusterResolutionResult.DanglingReference::to);
 
+                        LocalRef<?> firstDanglingDependency = clusterResolutionResult.danglingReferences().stream()
+                                .sorted(comparator).map(ClusterResolutionResult.DanglingReference::to).findFirst()
+                                .orElseThrow();
+                        String message = String.format("Resource %s was not found.",
+                                ResourcesUtil.namespacedSlug(firstDanglingDependency, cluster));
+                        patch = statusFactory.newFalseConditionStatusPatch(cluster,
+                                Condition.Type.ResolvedRefs, Condition.REASON_INVALID, message);
+                    }
+                    else {
+                        String message = String.format("Resource %s has ResolvedRefs=False.",
+                                ResourcesUtil.namespacedSlug(clusterResolutionResult.findResourcesWithResolvedRefsFalse().sorted().findFirst().orElseThrow(),
+                                        cluster));
+                        patch = statusFactory.newFalseConditionStatusPatch(cluster,
+                                Condition.Type.ResolvedRefs, Condition.REASON_INVALID, message);
+                    }
                     data.addStatusPatchForCluster(
                             ResourcesUtil.name(cluster),
-                            statusFactory.newFalseConditionStatusPatch(cluster,
-                                    Condition.Type.ResolvedRefs, Condition.REASON_INVALID, message));
+                            patch);
                 });
     }
 

@@ -37,6 +37,7 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
+import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -64,7 +65,7 @@ class VirtualKafkaClusterReconcilerIT {
 
     @RegisterExtension
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
-            .withReconciler(new VirtualKafkaClusterReconciler(Clock.systemUTC()))
+            .withReconciler(new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create()))
             .withReconciler(new KafkaProxyReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
             .withKubernetesClient(rbacHandler.operatorClient())
             .withAdditionalCustomResourceDefinition(KafkaProxyIngress.class)

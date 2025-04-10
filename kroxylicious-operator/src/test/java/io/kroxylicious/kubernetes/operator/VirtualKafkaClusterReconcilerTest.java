@@ -36,6 +36,7 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
+import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -171,7 +172,7 @@ class VirtualKafkaClusterReconcilerTest {
                         assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND,
                                 "a spec.ingressRef had an inconsistent or missing proxyRef kafkaproxy.kroxylicious.io/not-my-proxy in namespace 'my-namespace'")),
-                Arguments.argumentSet("service has unresolved refs",
+                Arguments.argumentSet("service has ResolvedRefs=False condition",
                         CLUSTER_NO_FILTERS,
                         Optional.of(PROXY),
                         Optional.empty(),
@@ -198,7 +199,7 @@ class VirtualKafkaClusterReconcilerTest {
                         assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND,
                                 "spec.ingressRefs references kafkaproxyingress.kroxylicious.io/my-ingress in namespace 'my-namespace'")),
-                Arguments.argumentSet("ingress has unresolved refs",
+                Arguments.argumentSet("ingress has ResolvedRefs=False condition",
                         CLUSTER_NO_FILTERS,
                         Optional.of(PROXY),
                         Optional.empty(),
@@ -224,7 +225,7 @@ class VirtualKafkaClusterReconcilerTest {
                         assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND,
                                 "spec.filterRefs references kafkaprotocolfilter.filter.kroxylicious.io/my-filter in namespace 'my-namespace'")),
-                Arguments.argumentSet("filter has unresolved refs",
+                Arguments.argumentSet("filter has ResolvedRefs=False condition",
                         CLUSTER_ONE_FILTER,
                         Optional.of(PROXY),
                         Optional.empty(),
@@ -285,12 +286,12 @@ class VirtualKafkaClusterReconcilerTest {
                                             BiConsumer<VirtualKafkaCluster, ConditionListAssert> asserter) {
         // given
         Clock z = TEST_CLOCK;
-        var reconciler = new VirtualKafkaClusterReconciler(z);
+        var reconciler = new VirtualKafkaClusterReconciler(z, DependencyResolver.create());
 
         Context<VirtualKafkaCluster> context = mock(Context.class);
-        when(context.getSecondaryResource(KafkaProxy.class, VirtualKafkaClusterReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(existingProxy);
-        when(context.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.PROXY_CONFIG_STATE_SOURCE_NAME)).thenReturn(existingProxyConfigMap);
-        when(context.getSecondaryResource(KafkaService.class, VirtualKafkaClusterReconciler.SERVICES_EVENT_SOURCE_NAME)).thenReturn(existingService);
+        when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(existingProxy.map(Set::of).orElse(Set.of()));
+        when(context.getSecondaryResource(ConfigMap.class)).thenReturn(existingProxyConfigMap);
+        when(context.getSecondaryResources(KafkaService.class)).thenReturn(existingService.map(Set::of).orElse(Set.of()));
         when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(existingIngresses);
         when(context.getSecondaryResources(KafkaProtocolFilter.class)).thenReturn(existingFilters);
 
@@ -311,7 +312,7 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void shouldSetResolvedRefsToUnknown() {
         // given
-        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK);
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
 
         Context<VirtualKafkaCluster> context = mock(Context.class);
 
