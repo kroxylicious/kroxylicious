@@ -63,7 +63,7 @@ public class ProxyResolutionResult {
     }
 
     /**
-     * Get all VirtualKafkaClusters, even if they have unresolved dependencies, sorted by the VirtualKafkaCluster's metadata.name
+     * Get all VirtualKafkaClusters, even if they have dangling dependencies, sorted by the VirtualKafkaCluster's metadata.name
      * @return non-null list of VirtualKafkaClusters sorted by metadata.name
      */
     public List<VirtualKafkaCluster> allClustersInNameOrder() {

@@ -172,7 +172,7 @@ class VirtualKafkaClusterReconcilerTest {
                         assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND,
                                 "a spec.ingressRef had an inconsistent or missing proxyRef kafkaproxy.kroxylicious.io/not-my-proxy in namespace 'my-namespace'")),
-                Arguments.argumentSet("service has unresolved refs",
+                Arguments.argumentSet("service has ResolvedRefs=False condition",
                         CLUSTER_NO_FILTERS,
                         Optional.of(PROXY),
                         Optional.empty(),
@@ -199,7 +199,7 @@ class VirtualKafkaClusterReconcilerTest {
                         assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND,
                                 "spec.ingressRefs references kafkaproxyingress.kroxylicious.io/my-ingress in namespace 'my-namespace'")),
-                Arguments.argumentSet("ingress has unresolved refs",
+                Arguments.argumentSet("ingress has ResolvedRefs=False condition",
                         CLUSTER_NO_FILTERS,
                         Optional.of(PROXY),
                         Optional.empty(),
@@ -225,7 +225,7 @@ class VirtualKafkaClusterReconcilerTest {
                         assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND,
                                 "spec.filterRefs references kafkaprotocolfilter.filter.kroxylicious.io/my-filter in namespace 'my-namespace'")),
-                Arguments.argumentSet("filter has unresolved refs",
+                Arguments.argumentSet("filter has ResolvedRefs=False condition",
                         CLUSTER_ONE_FILTER,
                         Optional.of(PROXY),
                         Optional.empty(),

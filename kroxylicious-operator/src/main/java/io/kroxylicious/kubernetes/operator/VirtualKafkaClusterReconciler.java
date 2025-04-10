@@ -86,7 +86,7 @@ public final class VirtualKafkaClusterReconciler implements
             updateControl = maybeCombineStatusWithClusterConfigMap(cluster, context);
         }
         else {
-            updateControl = createUnresolvedRefsStatus(cluster, resolutionResult);
+            updateControl = handleResolutionProblems(cluster, resolutionResult);
         }
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(cluster), name(cluster));
@@ -111,8 +111,8 @@ public final class VirtualKafkaClusterReconciler implements
         return updateControl;
     }
 
-    private @NonNull UpdateControl<VirtualKafkaCluster> createUnresolvedRefsStatus(VirtualKafkaCluster cluster,
-                                                                                   ClusterResolutionResult clusterResolutionResult) {
+    private @NonNull UpdateControl<VirtualKafkaCluster> handleResolutionProblems(VirtualKafkaCluster cluster,
+                                                                                 ClusterResolutionResult clusterResolutionResult) {
         UpdateControl<VirtualKafkaCluster> updateControl;
         LocalRef<VirtualKafkaCluster> clusterRef = toLocalRef(cluster);
         var unresovedIngressProxies = clusterResolutionResult.findDanglingReferences(KAFKA_PROXY_INGRESS_KIND, KAFKA_PROXY_KIND).collect(Collectors.toSet());

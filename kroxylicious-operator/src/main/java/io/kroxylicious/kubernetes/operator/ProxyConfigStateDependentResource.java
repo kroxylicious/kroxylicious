@@ -96,22 +96,22 @@ public class ProxyConfigStateDependentResource
                 .forEach(resultEntry -> {
                     VirtualKafkaCluster cluster = resultEntry.getKey();
                     VirtualKafkaCluster patch;
-                    ClusterResolutionResult unresolvedReferences = resultEntry.getValue();
-                    if (!unresolvedReferences.danglingReferences().isEmpty()) {
+                    ClusterResolutionResult clusterResolutionResult = resultEntry.getValue();
+                    if (!clusterResolutionResult.danglingReferences().isEmpty()) {
                         Comparator<ClusterResolutionResult.DanglingReference> comparator = Comparator.<ClusterResolutionResult.DanglingReference, LocalRef> comparing(
                                 ClusterResolutionResult.DanglingReference::to);
 
-                        LocalRef<?> firstUnresolvedDependency = unresolvedReferences.danglingReferences().stream()
+                        LocalRef<?> firstDanglingDependency = clusterResolutionResult.danglingReferences().stream()
                                 .sorted(comparator).map(ClusterResolutionResult.DanglingReference::to).findFirst()
                                 .orElseThrow();
                         String message = String.format("Resource %s was not found.",
-                                ResourcesUtil.namespacedSlug(firstUnresolvedDependency, cluster));
+                                ResourcesUtil.namespacedSlug(firstDanglingDependency, cluster));
                         patch = statusFactory.newFalseConditionStatusPatch(cluster,
                                 Condition.Type.ResolvedRefs, Condition.REASON_INVALID, message);
                     }
                     else {
                         String message = String.format("Resource %s has ResolvedRefs=False.",
-                                ResourcesUtil.namespacedSlug(unresolvedReferences.findResourcesWithResolvedRefsFalse().sorted().findFirst().orElseThrow(),
+                                ResourcesUtil.namespacedSlug(clusterResolutionResult.findResourcesWithResolvedRefsFalse().sorted().findFirst().orElseThrow(),
                                         cluster));
                         patch = statusFactory.newFalseConditionStatusPatch(cluster,
                                 Condition.Type.ResolvedRefs, Condition.REASON_INVALID, message);

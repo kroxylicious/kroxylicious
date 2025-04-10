@@ -45,10 +45,16 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
  * manifest as a single proxy Deployment.
  * <p>
  * DependencyResolver is responsible for resolving all of these references into Custom Resources, returning
- * a result that contains the resolved Custom Resource instances, and a description of which references could not
- * be resolved or were resolved but have a status condition declaring that the resource has unresolved
- * references.
- * </p>
+ * a result that contains the resolved Custom Resource instances, and a description of any problems encountered.
+ * Examples of problems are:
+ * <ul>
+ * <li>
+ *     Dangling References - an entity refers to another entity that cannot be found
+ * </li>
+ * <li>
+ *     ResolvedRefs=False condition - an entity has a condition declaring that it's Ref's are not resolved
+ * </li>
+ * </ul>
  */
 public class DependencyResolver {
 
@@ -68,7 +74,7 @@ public class DependencyResolver {
      *
      * @param proxy proxy
      * @param context reconciliation context for a KafkaProxy
-     * @return a resolution result containing all resolved resources, and a description of which resources could not be resolved
+     * @return a resolution result containing all resolved resources, and a description of resolution problems, if any
      */
     public ProxyResolutionResult resolveProxyRefs(KafkaProxy proxy, Context<?> context) {
         Objects.requireNonNull(proxy);
@@ -79,11 +85,11 @@ public class DependencyResolver {
 
     /**
      * Resolves all dependencies of a VirtualKafkaCluster recursively (if there are dependencies
-     * of dependencies, we resolve them too) and report if there were any unresolved dependencies.
+     * of dependencies, we resolve them too) and reports any problems during resolution.
      *
      * @param cluster cluster being resolved
      * @param context reconciliation context for a VirtualKafkaCluster
-     * @return unresolved references
+     * @return cluster resolution result containing a description of resolution problems, if any
      */
     public ClusterResolutionResult resolveClusterRefs(VirtualKafkaCluster cluster, Context<?> context) {
         Objects.requireNonNull(cluster);
@@ -105,19 +111,18 @@ public class DependencyResolver {
         Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters = context.getSecondaryResources(KafkaProtocolFilter.class).stream()
                 .collect(ResourcesUtil.toByLocalRefMap());
         var resolutionResult = virtualKafkaClusters.stream()
-                .collect(Collectors.toMap(cluster -> cluster, cluster -> determineUnresolvedDependencies(cluster, ingresses, clusterRefs, filters, proxies)));
+                .collect(Collectors.toMap(cluster -> cluster, cluster -> discoverProblemsAndBuildResolutionResult(cluster, ingresses, clusterRefs, filters, proxies)));
         return new ProxyResolutionResult(filters, ingresses, clusterRefs, resolutionResult);
     }
 
-    private ClusterResolutionResult determineUnresolvedDependencies(VirtualKafkaCluster cluster,
-                                                                    Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses,
-                                                                    Map<LocalRef<KafkaService>, KafkaService> services,
-                                                                    Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters,
-                                                                    Set<KafkaProxy> proxies) {
+    private ClusterResolutionResult discoverProblemsAndBuildResolutionResult(VirtualKafkaCluster cluster,
+                                                                             Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses,
+                                                                             Map<LocalRef<KafkaService>, KafkaService> services,
+                                                                             Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters,
+                                                                             Set<KafkaProxy> proxies) {
         VirtualKafkaClusterSpec spec = cluster.getSpec();
         LocalRef<VirtualKafkaCluster> clusterRef = toLocalRef(cluster);
-        Set<DanglingReference> danglingReferences = determineDanglingRefs(ingresses, services, filters,
-                proxies, clusterRef, spec);
+        Set<DanglingReference> danglingReferences = determineDanglingRefs(ingresses, services, filters, proxies, clusterRef, spec);
         return new ClusterResolutionResult(danglingReferences, determineResolvedRefsFalse(ingresses, services, filters));
     }
 

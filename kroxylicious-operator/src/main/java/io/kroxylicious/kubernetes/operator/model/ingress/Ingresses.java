@@ -23,7 +23,7 @@ class Ingresses {
         return cluster.getSpec().getIngressRefs().stream()
                 .flatMap(
                         ingressRef -> {
-                            // skip unresolved ingresses, we are working with VirtualClusters that may have unresolved references
+                            // skip unresolved ingresses, we are working with VirtualClusters that may have dangling references
                             Optional<KafkaProxyIngress> ingress = resolutionResult.ingress(ingressRef);
                             return ingress.stream().map(kafkaProxyIngress -> toIngress(primary, cluster, kafkaProxyIngress));
                         });
