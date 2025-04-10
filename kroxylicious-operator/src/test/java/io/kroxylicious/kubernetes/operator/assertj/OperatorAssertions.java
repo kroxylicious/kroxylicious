@@ -6,12 +6,18 @@
 
 package io.kroxylicious.kubernetes.operator.assertj;
 
+import org.assertj.core.api.InstanceOfAssertFactory;
+
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters;
+import io.kroxylicious.proxy.config.Configuration;
 
 public class OperatorAssertions {
+    public static final InstanceOfAssertFactory<?, ? extends ProxyConfigAssert> CONFIGURATION = new InstanceOfAssertFactory<>(Configuration.class,
+            OperatorAssertions::assertThat);
+
     public static KafkaProxyStatusAssert assertThat(KafkaProxyStatus actual) {
         return KafkaProxyStatusAssert.assertThat(actual);
     }
@@ -26,5 +32,9 @@ public class OperatorAssertions {
 
     public static ConditionAssert assertThat(Condition actual) {
         return ConditionAssert.assertThat(actual);
+    }
+
+    public static ProxyConfigAssert assertThat(Configuration actual) {
+        return ProxyConfigAssert.assertThat(actual);
     }
 }

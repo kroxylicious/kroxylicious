@@ -23,8 +23,16 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.ContainerPort;
+import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
+import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServicePort;
+import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.readiness.Readiness;
@@ -40,8 +48,17 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
+import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
+import io.kroxylicious.kubernetes.operator.assertj.ProxyConfigAssert;
+import io.kroxylicious.proxy.config.ConfigParser;
+import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.service.HostPort;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP.Protocol.TCP;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
@@ -103,6 +120,100 @@ class KafkaProxyReconcilerIT {
         doCreate();
     }
 
+    @Test
+    void clusterIpIngressUsesDeclaredNodeIdsOfService() {
+        KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
+        KafkaProtocolFilter filter = testActor.create(filter(FILTER_NAME));
+        KafkaService barService = testActor.create(new KafkaServiceBuilder().withNewMetadata().withName(CLUSTER_BAR_REF).endMetadata()
+                .withNewSpec()
+                .withBootstrapServers(CLUSTER_BAR_BOOTSTRAP)
+                .withNodeIdRanges(createNodeIdRanges("brokers", 3L, 4L), createNodeIdRanges("more-brokers", 10L, 10L))
+                .endSpec().build());
+        KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy));
+        VirtualKafkaCluster clusterBar = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxy, barService, ingressBar, filter));
+
+        int expectedBootstrapPort = 9292;
+        AWAIT.alias("service configured with a port per node id from the KafkaService, plus a bootstrap port").untilAsserted(() -> {
+            String clusterName = name(clusterBar);
+            String ingressName = name(ingressBar);
+            String serviceName = clusterName + "-" + ingressName;
+            var service = testActor.get(Service.class, serviceName);
+            assertThat(service).isNotNull()
+                    .describedAs(
+                            "Expect Service for cluster '" + clusterName + "' and ingress '" + ingressName + "' to still exist")
+                    .extracting(svc -> svc.getSpec().getSelector())
+                    .describedAs("Service's selector should select proxy pods")
+                    .isEqualTo(ProxyDeploymentDependentResource.podLabels(proxy));
+            ServicePort bootstrapServicePort = clusterIpServicePort(CLUSTER_BAR, expectedBootstrapPort);
+            ServicePort node0ServicePort = clusterIpServicePort(CLUSTER_BAR, expectedBootstrapPort + 1);
+            ServicePort node1ServicePort = clusterIpServicePort(CLUSTER_BAR, expectedBootstrapPort + 2);
+            ServicePort node2ServicePort = clusterIpServicePort(CLUSTER_BAR, expectedBootstrapPort + 3);
+            assertThat(service.getSpec().getPorts()).containsExactly(bootstrapServicePort, node0ServicePort, node1ServicePort, node2ServicePort);
+        });
+
+        AWAIT.alias("deployment pod template configured to expose ports").untilAsserted(() -> {
+            var deployment = testActor.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy));
+            assertThat(deployment).isNotNull();
+            List<Container> containers = deployment.getSpec().getTemplate().getSpec().getContainers();
+            assertThat(containers).hasSize(1).singleElement().satisfies(container -> {
+                assertThat(container.getName()).isEqualTo("proxy");
+                ContainerPort metricsPort = new ContainerPortBuilder().withContainerPort(9190).withName("management").withProtocol("TCP").build();
+                ContainerPort bootstrapContainerPort = createBootstrapContainerPort(expectedBootstrapPort);
+                ContainerPort node0ContainerPort = createNodeContainerPort(expectedBootstrapPort + 1);
+                ContainerPort node1ContainerPort = createNodeContainerPort(expectedBootstrapPort + 2);
+                ContainerPort node2ContainerPort = createNodeContainerPort(expectedBootstrapPort + 3);
+                assertThat(container.getPorts())
+                        .containsExactlyInAnyOrder(
+                                metricsPort,
+                                bootstrapContainerPort,
+                                node0ContainerPort,
+                                node1ContainerPort,
+                                node2ContainerPort);
+            });
+        });
+
+        AWAIT.alias("proxy config - gateway configured with node id ranges from KafkaService").untilAsserted(() -> {
+            ProxyConfigAssert.ProxyConfigPortIdentifiesNodeGatewayAssert portIdentifiesNodeGatewayAssert = assertProxyConfigInConfigMap(proxy)
+                    .cluster(clusterBar.getMetadata().getName())
+                    .gateway("default")
+                    .portIdentifiesNode()
+                    .hasBootstrapAddress(new HostPort("localhost", expectedBootstrapPort))
+                    .hasNullNodeStartPort();
+            portIdentifiesNodeGatewayAssert
+                    .namedRange("brokers")
+                    .hasStart(3)
+                    .hasEnd(4);
+            portIdentifiesNodeGatewayAssert
+                    .namedRange("more-brokers")
+                    .hasStart(10)
+                    .hasEnd(10);
+        });
+    }
+
+    private static @NonNull ContainerPort createNodeContainerPort(int node1Port) {
+        return createContainerPort(node1Port, node1Port + "-node");
+    }
+
+    private static @NonNull ContainerPort createBootstrapContainerPort(int bootstrapPort) {
+        return createContainerPort(bootstrapPort, bootstrapPort + "-bootstrap");
+    }
+
+    private static @NonNull ServicePort clusterIpServicePort(String clusterName, int port) {
+        return createServicePort(clusterName + "-" + port, port);
+    }
+
+    private static ContainerPort createContainerPort(int port, String name) {
+        return new ContainerPortBuilder().withContainerPort(port).withName(name).withProtocol("TCP").build();
+    }
+
+    private static NodeIdRanges createNodeIdRanges(String brokers, long start, long end) {
+        return new NodeIdRangesBuilder().withName(brokers).withStart(start).withEnd(end).build();
+    }
+
+    private static ServicePort createServicePort(String name, int port) {
+        return new ServicePortBuilder().withName(name).withPort(port).withProtocol("TCP").withTargetPort(new IntOrString(port)).build();
+    }
+
     private record CreatedResources(KafkaProxy proxy, Set<VirtualKafkaCluster> clusters, Set<KafkaService> services, Set<KafkaProxyIngress> ingresses) {
         VirtualKafkaCluster cluster(String name) {
             return findOnlyResourceNamed(name, clusters).orElseThrow();
@@ -126,10 +237,43 @@ class KafkaProxyReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxy, barService, ingressBar, filter));
         Set<VirtualKafkaCluster> clusters = Set.of(clusterBar);
         assertProxyConfigContents(proxy, Set.of(CLUSTER_BAR_BOOTSTRAP, filter.getSpec().getType()), Set.of());
+        assertDefaultVirtualClusterGatewayConfigured(proxy, clusterBar);
         assertDeploymentMountsConfigConfigMap(proxy);
         assertDeploymentBecomesReady(proxy);
         assertServiceTargetsProxyInstances(proxy, clusterBar, ingressBar);
         return new CreatedResources(proxy, clusters, kafkaServices, Set.of(ingressBar));
+    }
+
+    private void assertDefaultVirtualClusterGatewayConfigured(KafkaProxy proxy, VirtualKafkaCluster clusterBar) {
+        AWAIT.alias("gateway configured as expected").untilAsserted(() -> {
+            assertProxyConfigInConfigMap(proxy).cluster(clusterBar.getMetadata().getName())
+                    .gateway("default")
+                    .portIdentifiesNode()
+                    .hasBootstrapAddress(new HostPort("localhost", 9292))
+                    .hasNullNodeStartPort()
+                    .namedRange("default")
+                    .hasStart(0)
+                    .hasEnd(2);
+        });
+    }
+
+    private ProxyConfigAssert assertProxyConfigInConfigMap(KafkaProxy proxy) {
+        var configMap = testActor.get(ConfigMap.class, ProxyConfigDependentResource.configMapName(proxy));
+        return assertThat(configMap)
+                .isNotNull()
+                .extracting(ConfigMap::getData, InstanceOfAssertFactories.map(String.class, String.class))
+                .containsKey(ProxyConfigDependentResource.CONFIG_YAML_KEY)
+                .extracting(map -> parse(map.get(ProxyConfigDependentResource.CONFIG_YAML_KEY)), OperatorAssertions.CONFIGURATION);
+    }
+
+    private static Configuration parse(String content) {
+        try {
+            // use base object mapper to avoid our plugin loading code, so that we don't try to load filter plugins etc.
+            return ConfigParser.createBaseObjectMapper().readValue(content, Configuration.class);
+        }
+        catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private KafkaProxyIngress clusterIpIngress(String ingressName, KafkaProxy proxy) {
@@ -160,6 +304,7 @@ class KafkaProxyReconcilerIT {
                     .extracting(svc -> svc.getSpec().getSelector())
                     .describedAs("Service's selector should select proxy pods")
                     .isEqualTo(ProxyDeploymentDependentResource.podLabels(proxy));
+            assertThat(service.getSpec().getPorts().stream().count()).describedAs("number of ports").isEqualTo(4);
         });
     }
 

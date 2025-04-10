@@ -12,3 +12,6 @@ metadata:
   namespace: my-proxy
 spec:
   bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+  nodeIdRanges:
+    - start: 0
+      end: 2
