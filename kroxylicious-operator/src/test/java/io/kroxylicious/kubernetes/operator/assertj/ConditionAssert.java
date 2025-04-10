@@ -59,7 +59,7 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
     }
 
     public ConditionAssert hasNoMessage() {
-        message().isNull();
+        message().isEmpty();
         return this;
     }
 
@@ -70,11 +70,6 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
 
     public AbstractStringAssert<?> reason() {
         return Assertions.assertThat(actual.getReason());
-    }
-
-    public ConditionAssert hasNoReason() {
-        reason().isNull();
-        return this;
     }
 
     public ConditionAssert hasReason(String expected) {
@@ -103,7 +98,7 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
     public ConditionAssert isAcceptedTrue() {
         hasType(Condition.Type.Accepted);
         hasStatus(Condition.Status.TRUE);
-        hasNoReason();
+        hasReason(Condition.Type.Accepted.name());
         hasNoMessage();
         return this;
     }
@@ -141,7 +136,7 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
     public ConditionAssert isResolvedRefsTrue() {
         hasType(Condition.Type.ResolvedRefs);
         hasStatus(Condition.Status.TRUE);
-        hasNoReason();
+        hasReason(Condition.Type.ResolvedRefs.name());
         hasNoMessage();
         return this;
     }
@@ -171,7 +166,7 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
     public ConditionAssert isReadyTrue() {
         hasType(Condition.Type.Ready);
         hasStatus(Condition.Status.TRUE);
-        hasNoReason();
+        hasReason(Condition.Type.Ready.name());
         hasNoMessage();
         return this;
     }

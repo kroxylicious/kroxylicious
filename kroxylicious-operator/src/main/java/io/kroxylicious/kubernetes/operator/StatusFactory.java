@@ -33,6 +33,8 @@ public abstract class StatusFactory<R extends CustomResource<?, ?>> {
         return newConditionBuilder(observedGenerationSource)
                 .withType(type)
                 .withStatus(Condition.Status.TRUE)
+                .withMessage("")
+                .withReason(type.name())
                 .build();
     }
 

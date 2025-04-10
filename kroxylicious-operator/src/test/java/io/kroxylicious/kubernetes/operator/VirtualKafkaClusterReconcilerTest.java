@@ -180,6 +180,8 @@ class VirtualKafkaClusterReconcilerTest {
                                 .withStatus(Condition.Status.FALSE)
                                 .withLastTransitionTime(Instant.now())
                                 .withObservedGeneration(1L)
+                                .withReason("NO_FILTERS")
+                                .withMessage("no filters found")
                                 .endCondition().endStatus().build()),
                         Set.of(INGRESS),
                         Set.of(),
@@ -205,6 +207,8 @@ class VirtualKafkaClusterReconcilerTest {
                                 .withStatus(Condition.Status.FALSE)
                                 .withLastTransitionTime(Instant.now())
                                 .withObservedGeneration(1L)
+                                .withReason("NO_FILTERS")
+                                .withMessage("no filters found")
                                 .endCondition().endStatus().build()),
                         Set.of(),
                         assertResolvedRefsFalse(
@@ -226,9 +230,15 @@ class VirtualKafkaClusterReconcilerTest {
                         Optional.empty(),
                         Optional.of(SERVICE),
                         Set.of(INGRESS),
-                        Set.of(new KafkaProtocolFilterBuilder(FILTER_MY_FILTER).withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
-                                .withStatus(Condition.Status.FALSE).withLastTransitionTime(Instant.now())
-                                .withObservedGeneration(1L).endCondition().endStatus().build()),
+                        Set.of(new KafkaProtocolFilterBuilder(FILTER_MY_FILTER).withNewStatus()
+                                .addNewCondition()
+                                .withType(Condition.Type.ResolvedRefs)
+                                .withStatus(Condition.Status.FALSE)
+                                .withLastTransitionTime(Instant.now())
+                                .withObservedGeneration(1L)
+                                .withReason("RESOLVE_FAILURE")
+                                .withMessage("failed to resolve")
+                                .endCondition().endStatus().build()),
                         assertResolvedRefsFalse(
                                 VirtualKafkaClusterReconciler.TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND,
                                 "spec.filterRefs references kafkaprotocolfilter.filter.kroxylicious.io/my-filter in namespace 'my-namespace'")));
@@ -238,7 +248,7 @@ class VirtualKafkaClusterReconcilerTest {
     private static BiConsumer<VirtualKafkaCluster, ConditionListAssert> assertResolvedRefsFalse(
                                                                                                 String referencedResourcesNotFound,
                                                                                                 String message) {
-        return (BiConsumer<VirtualKafkaCluster, ConditionListAssert>) (cluster, cl) -> cl.singleOfType(Condition.Type.ResolvedRefs)
+        return (cluster, cl) -> cl.singleOfType(Condition.Type.ResolvedRefs)
                 .hasObservedGenerationInSyncWithMetadataOf(cluster)
                 .hasLastTransitionTime(TEST_CLOCK.instant())
                 .isResolvedRefsFalse(

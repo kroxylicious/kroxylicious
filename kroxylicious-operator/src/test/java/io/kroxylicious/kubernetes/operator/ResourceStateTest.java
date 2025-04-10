@@ -38,6 +38,8 @@ class ResourceStateTest {
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
                 .withLastTransitionTime(Instant.EPOCH)
+                .withReason("RESOLVE_FAILURE")
+                .withMessage("failed to resolve")
                 .build();
 
         var c13 = new ConditionBuilder()
@@ -45,6 +47,8 @@ class ResourceStateTest {
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
                 .withLastTransitionTime(Instant.EPOCH)
+                .withReason("RESOLVE_FAILURE")
+                .withMessage("failed to resolve")
                 .build();
 
         var c13True = new ConditionBuilder()
@@ -52,6 +56,8 @@ class ResourceStateTest {
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.TRUE)
                 .withLastTransitionTime(Instant.EPOCH)
+                .withReason("")
+                .withMessage("")
                 .build();
 
         assertThat(ResourceState.newConditions(List.of(c12), ResourceState.fromList(List.of(c13)))).isEqualTo(List.of(c13));
@@ -64,6 +70,9 @@ class ResourceStateTest {
     public static Stream<Arguments> testComparator() {
         Instant now = Instant.now();
         Condition template = new ConditionBuilder().withStatus(Condition.Status.FALSE)
+                .withReason("REASON")
+                .withMessage("message for humans")
+                .withType(Condition.Type.Ready)
                 .withObservedGeneration(1L)
                 .withLastTransitionTime(now).build();
         Condition observedGenerationOne = template.edit().withObservedGeneration(1L).build();
@@ -114,12 +123,16 @@ class ResourceStateTest {
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
                 .withLastTransitionTime(originalTime)
+                .withReason("RESOLVE_FAILURE")
+                .withMessage("failed to resolve")
                 .build();
 
         Condition newCondition = new ConditionBuilder()
                 .withObservedGeneration(12L)
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
+                .withReason("RESOLVE_FAILURE")
+                .withMessage("failed to resolve")
                 .withLastTransitionTime(originalTime.plus(1, ChronoUnit.MINUTES))
                 .build();
 
@@ -137,6 +150,7 @@ class ResourceStateTest {
                 .withObservedGeneration(12L)
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
+                .withReason("ORIGINAL_REASON")
                 .withMessage("original message")
                 .withLastTransitionTime(originalTime)
                 .build();
@@ -145,6 +159,7 @@ class ResourceStateTest {
                 .withObservedGeneration(12L)
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
+                .withReason("ORIGINAL_REASON")
                 .withMessage("new message")
                 .withLastTransitionTime(originalTime.plus(1, ChronoUnit.MINUTES))
                 .build();
@@ -166,6 +181,8 @@ class ResourceStateTest {
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
                 .withLastTransitionTime(originalTime)
+                .withReason("RESOLVE_FAILURE")
+                .withMessage("failed to resolve")
                 .build();
 
         Condition newCondition = new ConditionBuilder()
@@ -173,6 +190,8 @@ class ResourceStateTest {
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.TRUE)
                 .withLastTransitionTime(originalTime.plus(1, ChronoUnit.MINUTES))
+                .withReason("")
+                .withMessage("")
                 .build();
 
         // when
@@ -191,6 +210,8 @@ class ResourceStateTest {
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
                 .withLastTransitionTime(originalTime)
+                .withReason("RESOLVE_FAILURE")
+                .withMessage("failed to resolve")
                 .build();
 
         Condition newCondition = new ConditionBuilder()
@@ -198,6 +219,8 @@ class ResourceStateTest {
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
                 .withLastTransitionTime(originalTime.plus(1, ChronoUnit.MINUTES))
+                .withReason("RESOLVE_FAILURE")
+                .withMessage("failed to resolve")
                 .build();
 
         // when
@@ -216,6 +239,8 @@ class ResourceStateTest {
                 .withObservedGeneration(12L)
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
+                .withReason("RESOLVE_FAILURE")
+                .withMessage("failed to resolve")
                 .withLastTransitionTime(originalTime)
                 .build();
 
@@ -223,6 +248,8 @@ class ResourceStateTest {
                 .withObservedGeneration(13L)
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.TRUE)
+                .withReason("")
+                .withMessage("")
                 .withLastTransitionTime(originalTime.plus(1, ChronoUnit.MINUTES))
                 .build();
 
