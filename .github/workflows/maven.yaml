@@ -14,7 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-name: Build Kroxylicious Proxy
+name: Build
 
 on:
   push:
