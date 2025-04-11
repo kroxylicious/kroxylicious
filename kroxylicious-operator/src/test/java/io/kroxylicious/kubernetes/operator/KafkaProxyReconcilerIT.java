@@ -455,6 +455,45 @@ class KafkaProxyReconcilerIT {
         assertServiceTargetsProxyInstances(proxyB, fooCluster, ingressFoo);
     }
 
+    // we want to ensure that if a dangling ref is created, for example if a KafkaIngress is deleted, and then
+    // that KafkaIngress is created, the proxy springs back into life.
+    @Test
+    void deleteAndRestoreADependency() {
+        // given
+        KafkaProxy proxyA = testActor.create(kafkaProxy(PROXY_A));
+
+        KafkaProxyIngress ingress = clusterIpIngress(CLUSTER_FOO_CLUSTERIP_INGRESS, proxyA);
+        KafkaProxyIngress ingressFoo = testActor.create(ingress.edit().build());
+
+        KafkaService fooService = testActor.create(kafkaService(CLUSTER_FOO_REF, CLUSTER_FOO_BOOTSTRAP));
+        KafkaProtocolFilter filter = testActor.create(filter(FILTER_NAME));
+
+        VirtualKafkaCluster fooCluster = testActor.create(virtualKafkaCluster(CLUSTER_FOO, proxyA, fooService, ingressFoo, filter));
+
+        assertProxyConfigContents(proxyA, Set.of(CLUSTER_FOO_BOOTSTRAP), Set.of());
+        assertServiceTargetsProxyInstances(proxyA, fooCluster, ingressFoo);
+
+        // when
+        testActor.delete(ingressFoo);
+
+        // then
+        assertDeploymentIsRemoved(proxyA);
+
+        // and when
+        // we need an ingress without uid/resourceVersion in its metadata, so we clone an unadulterated ingress
+        testActor.create(ingress.edit().build());
+
+        // and then
+        assertDeploymentBecomesReady(proxyA);
+    }
+
+    private void assertDeploymentIsRemoved(KafkaProxy proxy) {
+        // wait longer for initial operator image download
+        AWAIT.alias("Deployment is removed").untilAsserted(() -> {
+            assertThat(testActor.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy))).isNull();
+        });
+    }
+
     private AbstractStringAssert<?> assertThatProxyConfigFor(KafkaProxy proxy) {
         var configMap = testActor.get(ConfigMap.class, ProxyConfigDependentResource.configMapName(proxy));
         return assertThat(configMap)
