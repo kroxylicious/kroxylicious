@@ -10,7 +10,7 @@ set -euo pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/../common-perf.sh"
 
-CFG=${SCRIPT_DIR:-./06-transform-filter}/config.yaml
+CFG=${SCRIPT_DIR:-./06-no-filters-io-uring}/config.yaml
 ENDPOINT=kroxylicious:9092
 
 KROXYLICIOUS_CONFIG=${CFG} runDockerCompose up --detach --wait kroxylicious
