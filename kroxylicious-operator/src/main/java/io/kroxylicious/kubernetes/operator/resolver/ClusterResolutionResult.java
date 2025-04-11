@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator.resolver;
 
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.kroxylicious.kubernetes.api.common.LocalRef;
@@ -56,6 +57,11 @@ public record ClusterResolutionResult(VirtualKafkaCluster cluster,
 
     public Stream<LocalRef<?>> findResourcesWithResolvedRefsFalse(String kind) {
         return findResourcesWithResolvedRefsFalse().filter(r -> r.getKind().equals(kind));
+    }
+
+    ClusterResolutionResult addAllResourcesHavingResolvedRefsFalse(Set<LocalRef<?>> resolvedRefsFalse) {
+        return new ClusterResolutionResult(cluster, danglingReferences, Stream.concat(resourcesWithResolvedRefsFalse.stream(), resolvedRefsFalse.stream()).collect(
+                Collectors.toSet()));
     }
 
     /**

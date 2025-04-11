@@ -136,6 +136,42 @@ class DependencyResolverTest {
     }
 
     @Test
+    void resolveProxyRefsWithResolvedRefsFalseCondition() {
+        // given
+        givenClusterRefsInContext(kafkaService("cluster"));
+        VirtualKafkaCluster cluster = virtualCluster(null, "cluster", List.of(), getProxyRef(PROXY_NAME))
+                .edit().editStatus().addToConditions(resolvedRefsFalse()).endStatus().build();
+        givenVirtualKafkaClustersInContext(cluster);
+
+        // when
+        ProxyResolutionResult resolutionResult = resolveProxyRefs(PROXY);
+
+        // then
+        assertThat(resolutionResult.allClustersInNameOrder()).containsExactly(cluster);
+        ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
+        assertThat(onlyResult.isFullyResolved()).isFalse();
+        assertThat(onlyResult.findResourcesWithResolvedRefsFalse("VirtualKafkaCluster")).containsExactly(ResourcesUtil.toLocalRef(cluster));
+    }
+
+    // we want to ensure that when we are reconciling a VirtualKafkaCluster than we do not consider the status of that
+    // cluster. Ie if a previous reconciliation sets the cluster to ResolvedRefs: False, we do not want that status to
+    @Test
+    void resolveClusterWithResolvedRefsFalseCondition() {
+        // given
+        givenClusterRefsInContext(kafkaService("cluster"));
+        VirtualKafkaCluster cluster = virtualCluster(null, "cluster", List.of(), getProxyRef(PROXY_NAME))
+                .edit().editStatus().addToConditions(resolvedRefsFalse()).endStatus().build();
+        givenVirtualKafkaClustersInContext(cluster);
+        givenProxiesInContext(PROXY);
+
+        // when
+        ClusterResolutionResult clusterResolutionResult = resolveClusterRefs(cluster);
+
+        // then
+        assertThat(clusterResolutionResult.isFullyResolved()).isTrue();
+    }
+
+    @Test
     void resolveProxyRefsWithFilterHavingResolvedRefsFalseCondition() {
         // given
         KafkaProtocolFilter filter = protocolFilter("filterName").edit().withNewStatus().addToConditions(resolvedRefsFalse()).endStatus().build();
