@@ -2,7 +2,7 @@ name: Sonar Scan
 
 on:
   workflow_run:
-    workflows: [ "Build Kroxylicious Operator", "Build" ]
+    workflows: [ build_operator ]
     types: [completed]
 
 concurrency:
