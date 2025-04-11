@@ -14,7 +14,7 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License.
 #
-name: Build
+name: "Build Kroxylicious Proxy"
 
 on:
   push:
@@ -27,7 +27,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  build_proxy:
     runs-on: ubuntu-latest
 
     steps:
@@ -103,15 +103,6 @@ jobs:
           KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
           KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
         run: mvn -B verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} org.sonarsource.scanner.maven:sonar-maven-plugin:5.0.0.4389:sonar -Dsonar.projectKey=kroxylicious_kroxylicious  -pl '!:kroxylicious-operator'
-      - name: Save PR number to file
-        if: github.event_name == 'pull_request' && ${{ matrix.os }} == 'ubuntu-latest'
-        run: echo ${{ github.event.number }} > PR_NUMBER.txt
-      - name: Archive PR number
-        if: github.event_name == 'pull_request' && ${{ matrix.os }} == 'ubuntu-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: PR_NUMBER
-          path: PR_NUMBER.txt
       # Run shellcheck *again to fail the build if errors are introduced
       - name: shellcheck - errors
         uses: reviewdog/action-shellcheck@v1
