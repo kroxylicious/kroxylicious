@@ -34,8 +34,6 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult.DanglingReference;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
 
@@ -80,7 +78,43 @@ public class DependencyResolver {
         Objects.requireNonNull(proxy);
         Objects.requireNonNull(context);
         Set<VirtualKafkaCluster> virtualKafkaClusters = context.getSecondaryResources(VirtualKafkaCluster.class);
-        return resolve(virtualKafkaClusters, Set.of(proxy), context);
+        if (virtualKafkaClusters.isEmpty()) {
+            return EMPTY_RESOLUTION_RESULT;
+        }
+
+        CommonDependencies commonDependencies = getCommonDependenciesFrom(context);
+        var clusterResolutionResults = virtualKafkaClusters.stream()
+                .map(cluster -> discoverProblemsAndBuildResolutionResult(cluster, commonDependencies, Set.of(proxy)))
+                .map(DependencyResolver::checkClusterConditions)
+                .collect(Collectors.toSet());
+        return new ProxyResolutionResult(commonDependencies.filters(), commonDependencies.ingresses(), commonDependencies.kafkaServices(), clusterResolutionResults);
+    }
+
+    private static ClusterResolutionResult checkClusterConditions(ClusterResolutionResult result) {
+        boolean clusterHasResolvedRefsFalse = hasAnyResolvedRefsFalse(Optional.ofNullable(result.cluster().getStatus()).map(s -> s.getConditions()).orElse(List.of()));
+        Set<LocalRef<?>> resolvedRefsFalse = clusterHasResolvedRefsFalse ? Set.of(toLocalRef(result.cluster())) : Set.of();
+        return result.addAllResourcesHavingResolvedRefsFalse(resolvedRefsFalse);
+    }
+
+    private static CommonDependencies getCommonDependenciesFrom(Context<?> context) {
+        Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses = context.getSecondaryResources(KafkaProxyIngress.class).stream()
+                .collect(ResourcesUtil.toByLocalRefMap());
+        Map<LocalRef<KafkaService>, KafkaService> clusterRefs = context.getSecondaryResources(KafkaService.class).stream()
+                .collect(ResourcesUtil.toByLocalRefMap());
+        Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters = context.getSecondaryResources(KafkaProtocolFilter.class).stream()
+                .collect(ResourcesUtil.toByLocalRefMap());
+        return new CommonDependencies(ingresses, clusterRefs, filters);
+    }
+
+    // dependencies common to VirtualKafkaCluster and KafkaProxy reconciliation
+    private record CommonDependencies(Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses,
+                                      Map<LocalRef<KafkaService>, KafkaService> kafkaServices,
+                                      Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters) {
+        private CommonDependencies {
+            Objects.requireNonNull(ingresses);
+            Objects.requireNonNull(kafkaServices);
+            Objects.requireNonNull(filters);
+        }
     }
 
     /**
@@ -94,64 +128,44 @@ public class DependencyResolver {
     public ClusterResolutionResult resolveClusterRefs(VirtualKafkaCluster cluster, Context<?> context) {
         Objects.requireNonNull(cluster);
         Objects.requireNonNull(context);
+        CommonDependencies commonDependencies = getCommonDependenciesFrom(context);
         Set<KafkaProxy> proxies = context.getSecondaryResources(KafkaProxy.class);
-        return resolve(Set.of(cluster), proxies, context).clusterResult(cluster)
-                .orElseThrow(() -> new IllegalStateException("resolution result for cluster not found in result, should be impossible"));
-    }
-
-    private @NonNull ProxyResolutionResult resolve(Set<VirtualKafkaCluster> virtualKafkaClusters, Set<KafkaProxy> proxies, Context<?> context) {
-        if (virtualKafkaClusters.isEmpty()) {
-            return EMPTY_RESOLUTION_RESULT;
-        }
-
-        Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses = context.getSecondaryResources(KafkaProxyIngress.class).stream()
-                .collect(ResourcesUtil.toByLocalRefMap());
-        Map<LocalRef<KafkaService>, KafkaService> clusterRefs = context.getSecondaryResources(KafkaService.class).stream()
-                .collect(ResourcesUtil.toByLocalRefMap());
-        Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters = context.getSecondaryResources(KafkaProtocolFilter.class).stream()
-                .collect(ResourcesUtil.toByLocalRefMap());
-        var clusterResolutionResults = virtualKafkaClusters.stream()
-                .map(cluster -> discoverProblemsAndBuildResolutionResult(cluster, ingresses, clusterRefs, filters, proxies)).collect(Collectors.toSet());
-        return new ProxyResolutionResult(filters, ingresses, clusterRefs, clusterResolutionResults);
+        return discoverProblemsAndBuildResolutionResult(cluster, commonDependencies, proxies);
     }
 
     private ClusterResolutionResult discoverProblemsAndBuildResolutionResult(VirtualKafkaCluster cluster,
-                                                                             Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses,
-                                                                             Map<LocalRef<KafkaService>, KafkaService> services,
-                                                                             Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters,
+                                                                             CommonDependencies result,
                                                                              Set<KafkaProxy> proxies) {
-        VirtualKafkaClusterSpec spec = cluster.getSpec();
-        LocalRef<VirtualKafkaCluster> clusterRef = toLocalRef(cluster);
-        Set<DanglingReference> danglingReferences = determineDanglingRefs(ingresses, services, filters, proxies, clusterRef, spec);
-        return new ClusterResolutionResult(cluster, danglingReferences, determineResolvedRefsFalse(ingresses, services, filters));
+        Set<DanglingReference> danglingReferences = determineDanglingRefs(result, proxies, cluster);
+        Set<LocalRef<?>> resolvedRefsFalse = determineResolvedRefsFalse(result);
+        return new ClusterResolutionResult(cluster, danglingReferences, resolvedRefsFalse);
     }
 
-    private static @NonNull Set<DanglingReference> determineDanglingRefs(Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses,
-                                                                         Map<LocalRef<KafkaService>, KafkaService> services,
-                                                                         Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters, Set<KafkaProxy> proxies,
-                                                                         LocalRef<VirtualKafkaCluster> clusterRef, VirtualKafkaClusterSpec spec) {
-        var danglingIngressRefs = determineDanglingIngressRefs(clusterRef, spec, ingresses);
+    private static Set<DanglingReference> determineDanglingRefs(CommonDependencies dependencies, Set<KafkaProxy> proxies,
+                                                                VirtualKafkaCluster cluster) {
+        LocalRef<VirtualKafkaCluster> clusterRef = toLocalRef(cluster);
+        VirtualKafkaClusterSpec spec = cluster.getSpec();
+        var danglingIngressRefs = determineDanglingIngressRefs(clusterRef, spec, dependencies.ingresses());
         var danglingProxyRefs = determineDanglingKafkaProxyRefs(clusterRef, spec, proxies).stream();
-        var danglingIngressProxyRefs = determineIngressesWithDanglingProxyRefs(ingresses, proxies);
-        var danglingServiceRefs = determineDanglingKafkaServiceRefs(clusterRef, spec, services).stream();
-        var danglingFilterRefs = determineDanglingFilterRefs(clusterRef, spec, filters);
+        var danglingIngressProxyRefs = determineIngressesWithDanglingProxyRefs(dependencies.ingresses(), proxies);
+        var danglingServiceRefs = determineDanglingKafkaServiceRefs(clusterRef, spec, dependencies.kafkaServices()).stream();
+        var danglingFilterRefs = determineDanglingFilterRefs(clusterRef, spec, dependencies.filters());
         return Stream.of(danglingIngressRefs, danglingProxyRefs, danglingIngressProxyRefs, danglingServiceRefs, danglingFilterRefs)
                 .flatMap(Function.identity()).collect(Collectors.toSet());
     }
 
-    private static @NonNull Set<LocalRef<?>> determineResolvedRefsFalse(Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses,
-                                                                        Map<LocalRef<KafkaService>, KafkaService> services,
-                                                                        Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters) {
-        Stream<HasMetadata> ingressesWithResolvedRefsFalse = ingresses.values().stream()
+    private static Set<LocalRef<?>> determineResolvedRefsFalse(CommonDependencies dependencies) {
+        Stream<HasMetadata> ingressesWithResolvedRefsFalse = dependencies.ingresses().values().stream()
                 .filter(i -> hasAnyResolvedRefsFalse(Optional.ofNullable(i.getStatus()).map(KafkaProxyIngressStatus::getConditions).orElse(List.of())))
                 .map(HasMetadata.class::cast);
-        Stream<HasMetadata> filtersWithResolvedRefsFalse = filters.values().stream()
+        Stream<HasMetadata> filtersWithResolvedRefsFalse = dependencies.filters().values().stream()
                 .filter(i -> hasAnyResolvedRefsFalse(Optional.ofNullable(i.getStatus()).map(KafkaProtocolFilterStatus::getConditions).orElse(List.of())))
                 .map(HasMetadata.class::cast);
-        Stream<HasMetadata> kafkaServicesWithResolvedRefsFalse = services.values().stream()
+        Stream<HasMetadata> kafkaServicesWithResolvedRefsFalse = dependencies.kafkaServices().values().stream()
                 .filter(i -> hasAnyResolvedRefsFalse(Optional.ofNullable(i.getStatus()).map(KafkaServiceStatus::getConditions).orElse(List.of())))
                 .map(HasMetadata.class::cast);
-        Stream<LocalRef<?>> localRefStream = Stream.of(ingressesWithResolvedRefsFalse, filtersWithResolvedRefsFalse, kafkaServicesWithResolvedRefsFalse)
+        Stream<LocalRef<?>> localRefStream = Stream
+                .of(ingressesWithResolvedRefsFalse, filtersWithResolvedRefsFalse, kafkaServicesWithResolvedRefsFalse)
                 .flatMap(Function.identity())
                 .map(ResourcesUtil::toLocalRef);
         return localRefStream.collect(Collectors.toSet());
