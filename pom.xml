@@ -684,6 +684,7 @@
                             <usePhrasedTestCaseMethodName>true</usePhrasedTestCaseMethodName>
                         </statelessTestsetReporter>
                         <argLine>
+                            -Dio.netty.allocator.type=pooled
                             @{jacoco.argline}
                         </argLine>
                     </configuration>
