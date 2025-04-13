@@ -28,6 +28,8 @@ import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 
 public class ResourcesUtil {
 
@@ -268,4 +270,19 @@ public class ResourcesUtil {
         return ref.getKind().toLowerCase(Locale.ROOT) + groupString + "/" + name;
     }
 
+    /**
+     * Checks that the status observedGeneration is equal to the metadata generation. Indicating
+     * that the current {@code spec} of the resource has been reconciled.
+     * @param cluster cluster
+     * @return true if status observedGeneration is equal to the metadata generation
+     */
+    public static boolean isStatusFresh(VirtualKafkaCluster cluster) {
+        return isStatusFresh(cluster, c -> Optional.ofNullable(c.getStatus()).map(VirtualKafkaClusterStatus::getObservedGeneration).orElse(null));
+    }
+
+    private static <T extends HasMetadata> boolean isStatusFresh(T resource, Function<T, Long> observedGenerationFunc) {
+        Long observedGeneration = observedGenerationFunc.apply(resource);
+        Long generation = resource.getMetadata().getGeneration();
+        return Objects.equals(generation, observedGeneration);
+    }
 }

@@ -21,3 +21,5 @@ spec:
     - name: filter-two
   ingressRefs:
     - name: cluster-ip
+status:
+  observedGeneration: 12

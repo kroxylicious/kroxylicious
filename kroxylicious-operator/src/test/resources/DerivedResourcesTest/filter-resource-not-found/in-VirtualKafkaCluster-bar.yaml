@@ -21,3 +21,5 @@ spec:
     - name: missing # this does not exist
   ingressRefs:
     - name: cluster-ip-bar
+status:
+  observedGeneration: 4

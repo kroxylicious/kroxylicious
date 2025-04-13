@@ -18,3 +18,5 @@ spec:
     name: fooref
   ingressRefs:
     - name: cluster-ip-foo
+status:
+  observedGeneration: 7

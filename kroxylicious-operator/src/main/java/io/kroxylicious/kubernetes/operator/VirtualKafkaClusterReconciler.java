@@ -128,8 +128,8 @@ public final class VirtualKafkaClusterReconciler implements
                 .map(ProxyConfigStateData::new)
                 .flatMap(data -> data.getStatusPatchForCluster(name(cluster)))
                 .map(patch -> {
-                    var acc = ResourceState.fromList(patch.getStatus().getConditions());
-                    return statusFactory.clusterStatusPatch(cluster, resolvedRefsTrueResourceState.replacementFor(acc), ingresses);
+                    var patchResourceState = ResourceState.fromList(patch.getStatus().getConditions());
+                    return statusFactory.clusterStatusPatch(cluster, resolvedRefsTrueResourceState.replacementFor(patchResourceState), ingresses);
                 })
                 .map(UpdateControl::patchStatus)
                 .orElse(UpdateControl.patchStatus(statusFactory.clusterStatusPatch(cluster, resolvedRefsTrueResourceState, ingresses)));

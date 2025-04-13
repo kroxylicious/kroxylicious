@@ -10,9 +10,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collector;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
@@ -28,6 +32,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
@@ -125,7 +131,8 @@ class ResourcesUtilTest {
         Secret b = new SecretBuilder().withNewMetadata().withName("b").endMetadata().build();
         Secret c = new SecretBuilder().withNewMetadata().withName("b").endMetadata().build();
         Stream<Secret> stream = Stream.of(a, b, c);
-        assertThatThrownBy(() -> stream.collect(toByNameMap()))
+        Collector<Secret, ?, Map<String, Secret>> collector = toByNameMap();
+        assertThatThrownBy(() -> stream.collect(collector))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("Duplicate key b");
     }
@@ -197,6 +204,41 @@ class ResourcesUtilTest {
                 .withApiVersion("filter.kroxylicious.io/v1alpha1")
                 .withNewMetadata().withName("foo").endMetadata().build()))
                 .isEqualTo(new FilterRefBuilder().withName("foo").build());
+    }
+
+    public static Stream<Arguments> isStatusFresh() {
+        VirtualKafkaCluster observedGenerationEqualsMetadataGeneration = new VirtualKafkaClusterBuilder()
+                .withNewMetadata()
+                .withGeneration(1L)
+                .endMetadata()
+                .editStatus().withObservedGeneration(1L)
+                .endStatus().build();
+        VirtualKafkaCluster observedGenerationLessThanMetadataGeneration = new VirtualKafkaClusterBuilder()
+                .withNewMetadata()
+                .withGeneration(2L)
+                .endMetadata()
+                .editStatus().withObservedGeneration(1L)
+                .endStatus().build();
+        VirtualKafkaCluster observedGenerationNull = new VirtualKafkaClusterBuilder()
+                .withNewMetadata()
+                .withGeneration(2L)
+                .endMetadata()
+                .editStatus().withObservedGeneration(null)
+                .endStatus().build();
+        VirtualKafkaCluster statusNull = new VirtualKafkaClusterBuilder()
+                .withNewMetadata()
+                .withGeneration(2L)
+                .endMetadata().build();
+        return Stream.of(Arguments.argumentSet("observed generation equals metadata generation", observedGenerationEqualsMetadataGeneration, true),
+                Arguments.argumentSet("observed generation less than metadata generation", observedGenerationLessThanMetadataGeneration, false),
+                Arguments.argumentSet("observed generation null", observedGenerationNull, false),
+                Arguments.argumentSet("status null", statusNull, false));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void isStatusFresh(VirtualKafkaCluster cluster, boolean isReconciled) {
+        assertThat(ResourcesUtil.isStatusFresh(cluster)).isEqualTo(isReconciled);
     }
 
 }

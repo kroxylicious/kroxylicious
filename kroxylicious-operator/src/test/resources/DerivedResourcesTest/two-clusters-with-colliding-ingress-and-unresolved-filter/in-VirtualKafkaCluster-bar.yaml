@@ -18,3 +18,5 @@ spec:
     name: barref
   ingressRefs:
     - name: cluster-ip-bar
+status:
+  observedGeneration: 1
