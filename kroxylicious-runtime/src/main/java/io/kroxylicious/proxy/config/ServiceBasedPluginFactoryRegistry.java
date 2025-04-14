@@ -55,7 +55,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
             Class<?> providerType = provider.type();
             Plugin annotation = providerType.getAnnotation(Plugin.class);
             if (annotation == null) {
-                LOGGER.warn("Failed to find a @PluginConfigType on provider {} of service {}", providerType, pluginInterface);
+                LOGGER.warn("Failed to find a @Plugin on provider {} of service {}", providerType, pluginInterface);
             }
             else {
                 ProviderAndConfigType providerAndConfigType = new ProviderAndConfigType(provider, annotation.configType());
