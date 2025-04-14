@@ -8,8 +8,6 @@ package io.kroxylicious.kubernetes.operator.model.ingress;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Stateless Ingress model that:
  * <ol>
@@ -23,7 +21,6 @@ public interface IngressDefinition {
      * The raw resource that was translated into this definition
      * @return resource
      */
-    @NonNull
     KafkaProxyIngress resource();
 
     /**
@@ -35,7 +32,6 @@ public interface IngressDefinition {
      * @param lastIdentifyingPort the last identifying port (inclusive) allocated to this ingress instance
      * @return a non-null ingress instance
      */
-    @NonNull
     IngressInstance createInstance(int firstIdentifyingPort, int lastIdentifyingPort);
 
     /**

@@ -33,8 +33,6 @@ import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class ResourcesUtil {
 
     private ResourcesUtil() {
@@ -95,21 +93,21 @@ public class ResourcesUtil {
                 .sorted(Comparator.comparing(ResourcesUtil::name));
     }
 
-    public static String name(@NonNull HasMetadata resource) {
+    public static String name(HasMetadata resource) {
         return resource.getMetadata().getName();
     }
 
-    public static String namespace(@NonNull HasMetadata resource) {
+    public static String namespace(HasMetadata resource) {
         return resource.getMetadata().getNamespace();
     }
 
     /**
-     * Extract generation from a MetaData object.
+     * Extract generation from a resource's {@code metadata} object.
      *
      * @param resource the object from which to extract the metadata generation.
-     * @return the metadata generation of <code>0</code> of te metadata or the generation itself is null in alignment with @see <a href="https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/1623-standardize-conditions#kep-1623-standardize-conditions">KEP 1623</a>.
+     * @return the metadata generation of <code>0</code> if the metadata or the generation itself is null in alignment with @see <a href="https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/1623-standardize-conditions#kep-1623-standardize-conditions">KEP 1623</a>.
      */
-    public static @NonNull Long generation(@NonNull HasMetadata resource) {
+    public static long generation(HasMetadata resource) {
         ObjectMeta metadata = resource.getMetadata();
         if (metadata.getGeneration() == null) {
             return 0L;
@@ -117,7 +115,7 @@ public class ResourcesUtil {
         return metadata.getGeneration();
     }
 
-    public static String uid(@NonNull HasMetadata resource) {
+    public static String uid(HasMetadata resource) {
         return resource.getMetadata().getUid();
     }
 
@@ -130,7 +128,7 @@ public class ResourcesUtil {
      * @return an Optional containing the only element matching, empty if there is no matching element
      * @throws IllegalStateException if there are multiple elements matching
      */
-    public static <T extends HasMetadata> Optional<T> findOnlyResourceNamed(@NonNull String name, @NonNull Collection<T> collection) {
+    public static <T extends HasMetadata> Optional<T> findOnlyResourceNamed(String name, Collection<T> collection) {
         Objects.requireNonNull(collection);
         Objects.requireNonNull(name);
         List<T> list = collection.stream().filter(item -> name(item).equals(name)).toList();
@@ -146,7 +144,7 @@ public class ResourcesUtil {
      * @param <T> resource type
      * @return a Collector that collects a Map from element name to element
      */
-    public static <T extends HasMetadata> @NonNull Collector<T, ?, Map<String, T>> toByNameMap() {
+    public static <T extends HasMetadata> Collector<T, ?, Map<String, T>> toByNameMap() {
         return Collectors.toMap(ResourcesUtil::name, Function.identity());
     }
 
@@ -156,7 +154,7 @@ public class ResourcesUtil {
      * @param <T> resource type
      * @return a Collector that collects a Map from element name to element
      */
-    public static <T extends HasMetadata> @NonNull Collector<T, ?, Map<LocalRef<T>, T>> toByLocalRefMap() {
+    public static <T extends HasMetadata> Collector<T, ?, Map<LocalRef<T>, T>> toByLocalRefMap() {
         return Collectors.toMap(ResourcesUtil::toLocalRef, Function.identity());
     }
 
@@ -215,12 +213,10 @@ public class ResourcesUtil {
      * @param <O> The type of the reference owner
      * @param <R> The type of the referent
      */
-    @NonNull
     static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefAsResourceId(O owner, LocalRef<R> ref) {
         return Set.of(new ResourceID(ref.getName(), owner.getMetadata().getNamespace()));
     }
 
-    @NonNull
     static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefsAsResourceIds(O owner, Optional<List<? extends LocalRef<R>>> refs) {
         return refs.orElse(List.of()).stream()
                 .map(ref -> new ResourceID(ref.getName(), owner.getMetadata().getNamespace()))
@@ -238,7 +234,6 @@ public class ResourcesUtil {
      * @param <O> The type of the reference owner
      * @param <R> The type of the referent
      */
-    @NonNull
     static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers(EventSourceContext<?> context,
                                                                                         R referent,
                                                                                         Class<O> owner,
@@ -270,11 +265,11 @@ public class ResourcesUtil {
                 primary -> refAccessor.apply(primary).stream().anyMatch(ref -> ResourcesUtil.isReferent(ref, referent)));
     }
 
-    public static @NonNull String namespacedSlug(LocalRef<?> ref, HasMetadata resource) {
+    public static String namespacedSlug(LocalRef<?> ref, HasMetadata resource) {
         return slug(ref) + " in namespace '" + namespace(resource) + "'";
     }
 
-    private static @NonNull String slug(LocalRef<?> ref) {
+    private static String slug(LocalRef<?> ref) {
         String group = ref.getGroup();
         String name = ref.getName();
         String groupString = group.isEmpty() ? "" : "." + group;

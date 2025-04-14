@@ -26,13 +26,13 @@ public class VirtualKafkaClusterStatusFactory extends StatusFactory<VirtualKafka
         // @formatter:off
         return new VirtualKafkaClusterBuilder()
                 .withNewMetadata()
-                .withUid(ResourcesUtil.uid(observedIngress))
-                .withName(ResourcesUtil.name(observedIngress))
-                .withNamespace(ResourcesUtil.namespace(observedIngress))
+                    .withUid(ResourcesUtil.uid(observedIngress))
+                    .withName(ResourcesUtil.name(observedIngress))
+                    .withNamespace(ResourcesUtil.namespace(observedIngress))
                 .endMetadata()
                 .withNewStatus()
-                .withObservedGeneration(ResourcesUtil.generation(observedIngress))
-                .withConditions(ResourceState.newConditions(Optional.ofNullable(observedIngress.getStatus()).map(VirtualKafkaClusterStatus::getConditions).orElse(List.of()), condition))
+                    .withObservedGeneration(ResourcesUtil.generation(observedIngress))
+                    .withConditions(ResourceState.newConditions(Optional.ofNullable(observedIngress.getStatus()).map(VirtualKafkaClusterStatus::getConditions).orElse(List.of()), condition))
                 .endStatus()
                 .build();
         // @formatter:on

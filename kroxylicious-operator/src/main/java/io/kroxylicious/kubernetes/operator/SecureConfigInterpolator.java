@@ -21,7 +21,6 @@ import java.util.stream.Collectors;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -40,7 +39,7 @@ public class SecureConfigInterpolator {
             + ":(?<key>[a-zA-Z0-9_.-]+)"
             + "}");
 
-    private record InterpolatedValue(@Nullable Object interpolatedValue, @NonNull List<ContainerFileReference> containerFileReferences) {
+    private record InterpolatedValue(@Nullable Object interpolatedValue, List<ContainerFileReference> containerFileReferences) {
 
     }
 
@@ -79,7 +78,7 @@ public class SecureConfigInterpolator {
      * @param jsonValue The json value (could be any of array, object, string, etc)
      * @return The interpolated value
      */
-    private @NonNull InterpolatedValue interpolateValue(@Nullable final Object jsonValue) {
+    private InterpolatedValue interpolateValue(@Nullable final Object jsonValue) {
         if (jsonValue == null) {
             return NULL_INTERPOLATED_VALUE;
         }
@@ -103,7 +102,7 @@ public class SecureConfigInterpolator {
         }
     }
 
-    private @NonNull InterpolatedValue interpolateArray(List<?> array) {
+    private InterpolatedValue interpolateArray(List<?> array) {
         var values = new ArrayList<>(array.size());
         var containerFiles = new ArrayList<ContainerFileReference>(array.size());
         for (var value : array) {
@@ -114,7 +113,7 @@ public class SecureConfigInterpolator {
         return new InterpolatedValue(values, containerFiles);
     }
 
-    private @NonNull InterpolatedValue interpolateObject(Map<?, ?> object) {
+    private InterpolatedValue interpolateObject(Map<?, ?> object) {
         var newObject = new LinkedHashMap<>(1 + (int) (object.size() / 0.75f));
         List<ContainerFileReference> containerFileReferences = new ArrayList<>();
         for (var entry : object.entrySet()) {
@@ -126,7 +125,6 @@ public class SecureConfigInterpolator {
         return new InterpolatedValue(newObject, containerFileReferences);
     }
 
-    @NonNull
     private InterpolatedValue maybeInterpolateString(String text) {
         Matcher matcher = PATTERN.matcher(text);
         ArrayList<ContainerFileReference> containerFileReferences = new ArrayList<>();
@@ -164,8 +162,8 @@ public class SecureConfigInterpolator {
     }
 
     record InterpolationResult(@Nullable Object config,
-                               @NonNull Set<Volume> volumes,
-                               @NonNull Set<VolumeMount> mounts) {
+                               Set<Volume> volumes,
+                               Set<VolumeMount> mounts) {
 
         InterpolationResult {
             Objects.requireNonNull(volumes);
