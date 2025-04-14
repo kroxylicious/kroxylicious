@@ -40,8 +40,6 @@ import io.kroxylicious.proxy.service.HostPort;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.kubernetes.operator.model.ingress.ClusterIPIngressDefinition.INGRESS_NAME_ANNOTATION;
-import static io.kroxylicious.kubernetes.operator.model.ingress.ClusterIPIngressDefinition.VIRTUAL_CLUSTER_NAME_ANNOTATION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
@@ -153,14 +151,24 @@ class ClusterIPIngressDefinitionTest {
                 assertThat(metadata.getNamespace()).isEqualTo(NAMESPACE);
                 assertThat(metadata.getName()).isEqualTo(CLUSTER_NAME + "-" + INGRESS_NAME);
                 assertThat(metadata.getLabels()).containsExactlyEntriesOf(orderedServiceLabels);
-                assertThat(metadata.getAnnotations())
-                        .containsExactlyInAnyOrderEntriesOf(Map.of(INGRESS_NAME_ANNOTATION, INGRESS_NAME, VIRTUAL_CLUSTER_NAME_ANNOTATION, CLUSTER_NAME));
-                assertThat(metadata.getOwnerReferences()).hasSize(1).singleElement().satisfies(ownerRef -> {
-                    assertThat(ownerRef.getKind()).isEqualTo("KafkaProxy");
-                    assertThat(ownerRef.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
-                    assertThat(ownerRef.getName()).isEqualTo(PROXY_NAME);
-                    assertThat(ownerRef.getUid()).isEqualTo(PROXY_UID);
-                });
+                assertThat(metadata.getOwnerReferences())
+                        .satisfiesExactlyInAnyOrder(
+                                ownerRef -> {
+                                    assertThat(ownerRef.getKind()).isEqualTo("KafkaProxy");
+                                    assertThat(ownerRef.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
+                                    assertThat(ownerRef.getName()).isEqualTo(PROXY_NAME);
+                                    assertThat(ownerRef.getUid()).isEqualTo(PROXY_UID);
+                                },
+                                ownerRef -> {
+                                    assertThat(ownerRef.getKind()).isEqualTo("VirtualKafkaCluster");
+                                    assertThat(ownerRef.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
+                                    assertThat(ownerRef.getName()).isEqualTo(CLUSTER_NAME);
+                                },
+                                ownerRef -> {
+                                    assertThat(ownerRef.getKind()).isEqualTo("KafkaProxyIngress");
+                                    assertThat(ownerRef.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
+                                    assertThat(ownerRef.getName()).isEqualTo(INGRESS_NAME);
+                                });
             });
         });
     }

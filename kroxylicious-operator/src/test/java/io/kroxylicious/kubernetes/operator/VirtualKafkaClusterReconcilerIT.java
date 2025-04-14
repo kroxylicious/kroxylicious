@@ -285,7 +285,7 @@ class VirtualKafkaClusterReconcilerIT {
                     .singleElement()
                     .satisfies(i -> {
                         assertThat(i.getName()).isEqualTo(INGRESS_D);
-                        assertThat(i.getBootstrap()).isEqualTo("bar-cluster-ingress-d.%s.svc.cluster.local".formatted(extension.getNamespace()));
+                        assertThat(i.getBootstrap()).isEqualTo("bar-cluster-ingress-d.%s.svc.cluster.local:9292".formatted(extension.getNamespace()));
                     });
         });
     }
@@ -316,14 +316,14 @@ class VirtualKafkaClusterReconcilerIT {
         AWAIT.alias("ClusterStatusBootstrap").untilAsserted(() -> {
             var vkc = testActor.resources(VirtualKafkaCluster.class)
                     .withName(ResourcesUtil.name(clusterBar)).get();
-            VirtualKafkaClusterStatus status = vkc.getStatus();
+            var status = vkc.getStatus();
             assertThat(status)
                     .isNotNull()
                     .extracting(VirtualKafkaClusterStatus::getIngresses, InstanceOfAssertFactories.list(Ingresses.class))
                     .singleElement()
                     .satisfies(i -> {
                         assertThat(i.getName()).isEqualTo(INGRESS_D);
-                        assertThat(i.getBootstrap()).isEqualTo("bar-cluster-ingress-d.%s.svc.cluster.local".formatted(extension.getNamespace()));
+                        assertThat(i.getBootstrap()).isEqualTo("bar-cluster-ingress-d.%s.svc.cluster.local:9292".formatted(extension.getNamespace()));
                     });
         });
 

@@ -18,8 +18,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServicePort;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
@@ -32,6 +33,7 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -40,7 +42,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.IngressesBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
-import io.kroxylicious.kubernetes.operator.model.ingress.ClusterIPIngressDefinition;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 
@@ -70,6 +71,7 @@ public final class VirtualKafkaClusterReconciler implements
     static final String REFERENCED_RESOURCES_NOT_FOUND = "ReferencedResourcesNotFound";
     private static final String KAFKA_PROXY_INGRESS_KIND = getKind(KafkaProxyIngress.class);
     private static final String KAFKA_PROXY_KIND = getKind(KafkaProxy.class);
+    private static final String VIRTUAL_KAFKA_CLUSTER_KIND = getKind(VirtualKafkaCluster.class);
     private static final String KAFKA_SERVICE_KIND = getKind(KafkaService.class);
     private static final String KAFKA_PROTOCOL_FILTER_KIND = getKind(KafkaProtocolFilter.class);
     private final VirtualKafkaClusterStatusFactory statusFactory;
@@ -101,19 +103,22 @@ public final class VirtualKafkaClusterReconciler implements
 
         var existingKubernetesServices = context.getSecondaryResources(Service.class)
                 .stream()
-                .filter(s -> Optional.ofNullable(s.getMetadata()).map(ObjectMeta::getAnnotations).filter(x -> x.containsKey(
-                        ClusterIPIngressDefinition.INGRESS_NAME_ANNOTATION)).isPresent()) // TODO fix me
-                .collect(Collectors.toMap(x -> x.getMetadata().getAnnotations().get(ClusterIPIngressDefinition.INGRESS_NAME_ANNOTATION),
-                        Function.identity()));
+                .collect(Collectors.toMap(ref -> {
+                    var kubeServiceIngressOwner = Optional.ofNullable(ref)
+                            .flatMap(service -> extractOwnerRefFromKubernetesService(service, KAFKA_PROXY_INGRESS_KIND))
+                            .orElseThrow();
+
+                    return new IngressRefBuilder().withName(kubeServiceIngressOwner.getName()).build();
+                }, Function.identity()));
 
         var ingresses = cluster.getSpec().getIngressRefs()
                 .stream()
-                .filter(ingressRef -> existingKubernetesServices.containsKey(ingressRef.getName()))
+                .filter(existingKubernetesServices::containsKey)
                 .map(ingressRef -> {
-                    var kubenetesService = existingKubernetesServices.get(ingressRef.getName());
+                    var kubenetesService = existingKubernetesServices.get(ingressRef);
                     var builder = new IngressesBuilder();
                     builder.withName(ingressRef.getName());
-                    builder.withBootstrap(kubenetesService.getMetadata().getName() + "." + kubenetesService.getMetadata().getNamespace() + ".svc.cluster.local");
+                    builder.withBootstrap(getBootstrap(kubenetesService));
                     return builder.build();
                 }).toList();
 
@@ -130,6 +135,23 @@ public final class VirtualKafkaClusterReconciler implements
                 .map(UpdateControl::patchStatus)
                 .orElse(UpdateControl.noUpdate());
         return updateControl;
+    }
+
+    private String getBootstrap(Service kubenetesService) {
+        var metadata = kubenetesService.getMetadata();
+        var bootstrapPort = kubenetesService.getSpec().getPorts().stream()
+                .map(ServicePort::getPort)
+                .findFirst()
+                .orElseThrow();
+        return metadata.getName() + "." + metadata.getNamespace() + ".svc.cluster.local:" + bootstrapPort;
+    }
+
+    private Optional<OwnerReference> extractOwnerRefFromKubernetesService(Service service, String ownerKind) {
+        return service.getMetadata()
+                .getOwnerReferences()
+                .stream()
+                .filter(or -> ownerKind.equals(or.getKind()))
+                .findFirst();
     }
 
     private UpdateControl<VirtualKafkaCluster> handleResolutionProblems(VirtualKafkaCluster cluster,
@@ -261,9 +283,9 @@ public final class VirtualKafkaClusterReconciler implements
                             .flatMap(ir -> ResourcesUtil.localRefAsResourceId(cluster, new AnyLocalRefBuilder().withName(name + "-" + ir.getName()).build()).stream())
                             .collect(Collectors.toSet());
                 })
-                .withSecondaryToPrimaryMapper(kubenetesService -> Optional.ofNullable(kubenetesService.getMetadata().getAnnotations())
-                        .map(annotations -> annotations.get(ClusterIPIngressDefinition.VIRTUAL_CLUSTER_NAME_ANNOTATION))
-                        .map(name -> new ResourceID(name, kubenetesService.getMetadata().getNamespace()))
+                .withSecondaryToPrimaryMapper(kubenetesService -> Optional.of(kubenetesService)
+                        .flatMap(service -> extractOwnerRefFromKubernetesService(service, VIRTUAL_KAFKA_CLUSTER_KIND))
+                        .map(ownerRef -> new ResourceID(ownerRef.getName(), kubenetesService.getMetadata().getNamespace()))
                         .map(Set::of).orElse(Set.of()))
                 .build();
 

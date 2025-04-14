@@ -24,6 +24,7 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
@@ -41,7 +42,6 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
-import io.kroxylicious.kubernetes.operator.model.ingress.ClusterIPIngressDefinition;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -62,34 +62,34 @@ class VirtualKafkaClusterReconcilerTest {
     // @formatter:off
     public static final VirtualKafkaCluster CLUSTER_NO_FILTERS = new VirtualKafkaClusterBuilder()
             .withNewMetadata()
-            .withName("foo")
-            .withNamespace(NAMESPACE)
-            .withGeneration(42L)
+                .withName("foo")
+                .withNamespace(NAMESPACE)
+                .withGeneration(42L)
             .endMetadata()
             .withNewSpec()
-            .withNewProxyRef()
-            .withName(PROXY_NAME)
-            .endProxyRef()
-            .addNewIngressRef()
-            .withName("my-ingress")
-            .endIngressRef()
-            .withNewTargetKafkaServiceRef()
-            .withName("my-kafka")
-            .endTargetKafkaServiceRef()
+                .withNewProxyRef()
+                    .withName(PROXY_NAME)
+                .endProxyRef()
+                .addNewIngressRef()
+                    .withName("my-ingress")
+                .endIngressRef()
+                .withNewTargetKafkaServiceRef()
+                    .withName("my-kafka")
+                .endTargetKafkaServiceRef()
             .endSpec()
             .build();
     public static final VirtualKafkaCluster CLUSTER_ONE_FILTER = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
             .editSpec()
-            .addNewFilterRef()
-            .withName("my-filter")
-            .endFilterRef()
+                .addNewFilterRef()
+                    .withName("my-filter")
+                .endFilterRef()
             .endSpec()
             .build();
 
     public static final KafkaProxy PROXY = new KafkaProxyBuilder()
             .withNewMetadata()
-            .withName(PROXY_NAME)
-            .withGeneration(101L)
+                .withName(PROXY_NAME)
+                .withGeneration(101L)
             .endMetadata()
             .withNewSpec()
             .endSpec()
@@ -97,8 +97,8 @@ class VirtualKafkaClusterReconcilerTest {
 
     public static final KafkaService SERVICE = new KafkaServiceBuilder()
             .withNewMetadata()
-            .withName("my-kafka")
-            .withGeneration(201L)
+                .withName("my-kafka")
+              .withGeneration(201L)
             .endMetadata()
             .withNewSpec()
             .endSpec()
@@ -106,29 +106,32 @@ class VirtualKafkaClusterReconcilerTest {
 
     public static final KafkaProxyIngress INGRESS = new KafkaProxyIngressBuilder()
             .withNewMetadata()
-            .withName("my-ingress")
-            .withGeneration(301L)
+                .withName("my-ingress")
+             .withGeneration(301L)
             .endMetadata()
             .withNewSpec()
-            .withNewProxyRef().withName(PROXY_NAME).endProxyRef()
+             .withNewProxyRef().withName(PROXY_NAME).endProxyRef()
             .endSpec()
             .build();
 
     public static final KafkaProtocolFilter FILTER_MY_FILTER = new KafkaProtocolFilterBuilder()
             .withNewMetadata()
-            .withName("my-filter")
-            .withGeneration(401L)
+                .withName("my-filter")
+                .withGeneration(401L)
             .endMetadata()
             .withNewSpec()
             .endSpec()
             .build();
     public static final Service KUBERNETES_INGRESS_SERVICES = new ServiceBuilder().
             withNewMetadata()
-            .withName(serviceName(CLUSTER_NO_FILTERS, INGRESS))
-            .withNamespace(NAMESPACE)
-            .addToAnnotations(ClusterIPIngressDefinition.VIRTUAL_CLUSTER_NAME_ANNOTATION, CLUSTER_NO_FILTERS.getMetadata().getName())
-            .addToAnnotations(ClusterIPIngressDefinition.INGRESS_NAME_ANNOTATION, INGRESS.getMetadata().getName())
+                .withName(serviceName(CLUSTER_NO_FILTERS, INGRESS))
+                .withNamespace(NAMESPACE)
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(CLUSTER_NO_FILTERS)).endOwnerReference()
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(INGRESS)).endOwnerReference()
             .endMetadata()
+            .withNewSpec()
+                .addToPorts(new ServicePortBuilder().withName("port").withPort(9082).build())
+            .endSpec()
             .build();
     // @formatter:on
 
@@ -375,9 +378,9 @@ class VirtualKafkaClusterReconcilerTest {
                 .satisfies(r -> assertThat(r.getStatus())
                         .extracting(VirtualKafkaClusterStatus::getIngresses, InstanceOfAssertFactories.list(Ingresses.class))
                         .singleElement()
-                        .satisfies(ngress -> {
-                            assertThat(ngress.getName()).isEqualTo(INGRESS.getMetadata().getName());
-                            assertThat(ngress.getBootstrap()).isEqualTo("foo-my-ingress.my-namespace.svc.cluster.local");
+                        .satisfies(ingress -> {
+                            assertThat(ingress.getName()).isEqualTo(INGRESS.getMetadata().getName());
+                            assertThat(ingress.getBootstrap()).isEqualTo("foo-my-ingress.my-namespace.svc.cluster.local:9082");
                         }));
 
     }
