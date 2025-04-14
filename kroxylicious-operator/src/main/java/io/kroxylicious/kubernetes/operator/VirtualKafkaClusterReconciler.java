@@ -40,8 +40,6 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static io.fabric8.kubernetes.api.model.HasMetadata.getKind;
 import static io.kroxylicious.kubernetes.operator.ProxyConfigStateDependentResource.CONFIG_STATE_CONFIG_MAP_SUFFIX;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
@@ -94,7 +92,7 @@ public final class VirtualKafkaClusterReconciler implements
         return updateControl;
     }
 
-    private @NonNull UpdateControl<VirtualKafkaCluster> maybeCombineStatusWithClusterConfigMap(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
+    private UpdateControl<VirtualKafkaCluster> maybeCombineStatusWithClusterConfigMap(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
         UpdateControl<VirtualKafkaCluster> updateControl;
         updateControl = context
                 .getSecondaryResource(ConfigMap.class)
@@ -111,8 +109,8 @@ public final class VirtualKafkaClusterReconciler implements
         return updateControl;
     }
 
-    private @NonNull UpdateControl<VirtualKafkaCluster> handleResolutionProblems(VirtualKafkaCluster cluster,
-                                                                                 ClusterResolutionResult clusterResolutionResult) {
+    private UpdateControl<VirtualKafkaCluster> handleResolutionProblems(VirtualKafkaCluster cluster,
+                                                                        ClusterResolutionResult clusterResolutionResult) {
         UpdateControl<VirtualKafkaCluster> updateControl;
         LocalRef<VirtualKafkaCluster> clusterRef = toLocalRef(cluster);
         var unresovedIngressProxies = clusterResolutionResult.findDanglingReferences(KAFKA_PROXY_INGRESS_KIND, KAFKA_PROXY_KIND).collect(Collectors.toSet());
@@ -149,13 +147,12 @@ public final class VirtualKafkaClusterReconciler implements
         return updateControl;
     }
 
-    @NonNull
+    @SafeVarargs
     private static String joiningMessages(
                                           Stream<String>... serviceMsg) {
         return Stream.of(serviceMsg).flatMap(Function.identity()).collect(Collectors.joining("; "));
     }
 
-    @NonNull
     private static Stream<String> refsMessage(
                                               String prefix,
                                               VirtualKafkaCluster cluster,

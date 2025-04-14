@@ -23,8 +23,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.proxy.config.ConfigParser;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Encapsulates the reading and writing of the {@code data} section of the Proxy Config State {@code ConfigMap}.
  */
@@ -45,7 +43,6 @@ public class ProxyConfigStateData {
         }
     }
 
-    @NonNull
     private static String clusterKey(String clusterName) {
         return CLUSTER_KEY_PREFIX + clusterName;
     }

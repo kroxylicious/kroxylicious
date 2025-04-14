@@ -32,7 +32,6 @@ import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -53,7 +52,7 @@ public class OperatorMain {
     }
 
     @VisibleForTesting
-    OperatorMain(@Nullable KubernetesClient kubeClient, @NonNull HttpServer managementServer) {
+    OperatorMain(@Nullable KubernetesClient kubeClient, HttpServer managementServer) {
         configurePrometheusMetrics(managementServer);
         // o.withMetrics is invoked multiple times so can cause issues with enabling metrics.
         operator = new Operator(o -> {
@@ -152,7 +151,6 @@ public class OperatorMain {
         return HttpServer.create(getBindAddress(), 0);
     }
 
-    @NonNull
     @VisibleForTesting
     static InetSocketAddress getBindAddress() {
         final Map<String, String> envVars = System.getenv();
