@@ -28,6 +28,8 @@ import io.kroxylicious.kms.provider.aws.kms.model.DeleteAliasRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.DescribeKeyResponse;
 import io.kroxylicious.kms.provider.aws.kms.model.ErrorResponse;
+import io.kroxylicious.kms.provider.aws.kms.model.ListKeyRotationsRequest;
+import io.kroxylicious.kms.provider.aws.kms.model.ListKeyRotationsResponse;
 import io.kroxylicious.kms.provider.aws.kms.model.RotateKeyRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionResponse;
@@ -53,12 +55,15 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
     private static final String TRENT_SERVICE_ROTATE_KEY = "TrentService.RotateKeyOnDemand";
     private static final String TRENT_SERVICE_DELETE_ALIAS = "TrentService.DeleteAlias";
     private static final String TRENT_SERVICE_SCHEDULE_KEY_DELETION = "TrentService.ScheduleKeyDeletion";
+    private static final String TRENT_SERVICE_LIST_KEY_ROTATIONS = "TrentService.ListKeyRotations";
 
     private static final TypeReference<CreateKeyResponse> CREATE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     private static final TypeReference<DescribeKeyResponse> DESCRIBE_KEY_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     private static final TypeReference<ScheduleKeyDeletionResponse> SCHEDULE_KEY_DELETION_RESPONSE_TYPE_REF = new TypeReference<>() {
+    };
+    private static final TypeReference<ListKeyRotationsResponse> LIST_KEY_ROTATIONS_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
     private static final TypeReference<ErrorResponse> ERROR_RESPONSE_TYPE_REF = new TypeReference<>() {
     };
@@ -142,9 +147,21 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
         @Override
         public void rotateKek(String alias) {
             var key = read(alias);
+            // The LocalStack (4.3.0) implementation of RotateOnDemand doesn't preserve key history
+            // https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,RotateKeyOnDemand,-ScheduleKeyDeletion
+            // https://github.com/localstack/localstack/pull/12342
+
+            // We are using ListKeyRotationsRequest as a probe to discover AWS's capabilities.
+            // If we get 501 status code we will know that we are on LocalStack as it does not implement it
+            // (see https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,ListKeyRotations,-ListKeys)
+            final ListKeyRotationsRequest listKeyRotationKey = new ListKeyRotationsRequest(key.keyMetadata().keyId());
+            var listKeyRotationRequest = createRequest(listKeyRotationKey, TRENT_SERVICE_LIST_KEY_ROTATIONS);
+
             final RotateKeyRequest rotateKey = new RotateKeyRequest(key.keyMetadata().keyId());
             var rotateKeyRequest = createRequest(rotateKey, TRENT_SERVICE_ROTATE_KEY);
+
             try {
+                sendRequest(alias, listKeyRotationRequest, LIST_KEY_ROTATIONS_RESPONSE_TYPE_REF);
                 sendRequestExpectingNoResponse(rotateKeyRequest);
             }
             catch (AwsNotImplementException e) {
@@ -153,9 +170,6 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
         }
 
         private void pseudoRotate(String alias) {
-            // RotateKeyOnDemand is not implemented in localstack.
-            // https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,RotateKeyOnDemand,-ScheduleKeyDeletion
-            // https://github.com/localstack/localstack/issues/10723
 
             // mimic rotate by creating a new key and repoint the alias at it, leaving the original key in place.
             final CreateKeyRequest request = new CreateKeyRequest("[rotated] key for alias: " + alias);
