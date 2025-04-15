@@ -50,7 +50,7 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
     }
 
     public ConditionAssert hasType(Condition.Type expected) {
-        type().isEqualTo(expected);
+        type().describedAs(actual.toString()).isEqualTo(expected);
         return this;
     }
 
@@ -64,7 +64,7 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
     }
 
     public ConditionAssert hasMessage(String expected) {
-        message().isEqualTo(expected);
+        message().describedAs(actual.toString()).isEqualTo(expected);
         return this;
     }
 
@@ -73,7 +73,7 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
     }
 
     public ConditionAssert hasReason(String expected) {
-        reason().isEqualTo(expected);
+        reason().describedAs(actual.toString()).isEqualTo(expected);
         return this;
     }
 
@@ -82,7 +82,7 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
     }
 
     public ConditionAssert hasStatus(Condition.Status expected) {
-        status().isEqualTo(expected);
+        status().describedAs(actual.toString()).isEqualTo(expected);
         return this;
     }
 
