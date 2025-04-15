@@ -24,7 +24,7 @@ You can find them {github}/tree/main/kroxylicious-sample[here] for a hands-on in
 == API docs
 
 Custom filters are built by implementing interfaces supplied by the
-{github}/tree/main/api/kroxylicious-api[kroxylicious-api^] module
+{github}/tree/main/kroxylicious-api[kroxylicious-api^] module
 (https://mvnrepository.com/artifact/io.kroxylicious/kroxylicious-api[io.kroxylicious:kroxylicious-api] on
 maven central). You can view the javadoc {api-javadoc}/io/kroxylicious/proxy/filter/package-summary.html[here^].
 
