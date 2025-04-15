@@ -380,7 +380,7 @@ class VirtualKafkaClusterReconcilerTest {
                         .singleElement()
                         .satisfies(ingress -> {
                             assertThat(ingress.getName()).isEqualTo(INGRESS.getMetadata().getName());
-                            assertThat(ingress.getBootstrap()).isEqualTo("foo-my-ingress.my-namespace.svc.cluster.local:9082");
+                            assertThat(ingress.getBootstrapServer()).isEqualTo("foo-my-ingress.my-namespace.svc.cluster.local:9082");
                         }));
 
     }

@@ -118,7 +118,7 @@ public final class VirtualKafkaClusterReconciler implements
                     var kubenetesService = existingKubernetesServices.get(ingressRef);
                     var builder = new IngressesBuilder();
                     builder.withName(ingressRef.getName());
-                    builder.withBootstrap(getBootstrap(kubenetesService));
+                    builder.withBootstrapServer(getBootstrapServer(kubenetesService));
                     return builder.build();
                 }).toList();
 
@@ -137,7 +137,7 @@ public final class VirtualKafkaClusterReconciler implements
         return updateControl;
     }
 
-    private String getBootstrap(Service kubenetesService) {
+    private String getBootstrapServer(Service kubenetesService) {
         var metadata = kubenetesService.getMetadata();
         var bootstrapPort = kubenetesService.getSpec().getPorts().stream()
                 .map(ServicePort::getPort)

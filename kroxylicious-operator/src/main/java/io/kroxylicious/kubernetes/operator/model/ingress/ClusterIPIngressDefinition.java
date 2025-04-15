@@ -34,7 +34,9 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static java.lang.Math.toIntExact;
 
-public record ClusterIPIngressDefinition(KafkaProxyIngress resource, VirtualKafkaCluster cluster, KafkaProxy primary,
+public record ClusterIPIngressDefinition(KafkaProxyIngress resource,
+                                         VirtualKafkaCluster cluster,
+                                         KafkaProxy primary,
                                          List<NodeIdRanges> nodeIdRanges)
         implements IngressDefinition {
 

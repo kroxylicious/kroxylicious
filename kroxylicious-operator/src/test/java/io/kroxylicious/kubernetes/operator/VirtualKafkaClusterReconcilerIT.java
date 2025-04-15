@@ -269,25 +269,14 @@ class VirtualKafkaClusterReconcilerIT {
         testActor.create(kafkaProxy(PROXY_A));
         testActor.create(kafkaService(SERVICE_H));
         var cluster = cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null);
-        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
+        var ingress = clusterIpIngress(INGRESS_D, PROXY_A);
+        testActor.create(ingress);
 
         // When
         VirtualKafkaCluster clusterBar = testActor.create(cluster);
 
         // Then
-        AWAIT.alias("ClusterStatusBootstrap").untilAsserted(() -> {
-            var vkc = testActor.resources(VirtualKafkaCluster.class)
-                    .withName(ResourcesUtil.name(clusterBar)).get();
-            VirtualKafkaClusterStatus status = vkc.getStatus();
-            assertThat(status)
-                    .isNotNull()
-                    .extracting(VirtualKafkaClusterStatus::getIngresses, InstanceOfAssertFactories.list(Ingresses.class))
-                    .singleElement()
-                    .satisfies(i -> {
-                        assertThat(i.getName()).isEqualTo(INGRESS_D);
-                        assertThat(i.getBootstrap()).isEqualTo("bar-cluster-ingress-d.%s.svc.cluster.local:9292".formatted(extension.getNamespace()));
-                    });
-        });
+        assertBootstrapServerPopulated(clusterBar, ingress, "bar-cluster-ingress-d.%s.svc.cluster.local:9292");
     }
 
     @Test
@@ -296,6 +285,7 @@ class VirtualKafkaClusterReconcilerIT {
         testActor.create(kafkaProxy(PROXY_A));
         testActor.create(kafkaService(SERVICE_H));
         var cluster = cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null);
+        var ingress = clusterIpIngress(INGRESS_D, PROXY_A);
 
         VirtualKafkaCluster clusterBar = testActor.create(cluster);
 
@@ -310,23 +300,10 @@ class VirtualKafkaClusterReconcilerIT {
         });
 
         // When
-        testActor.create(clusterIpIngress(INGRESS_D, PROXY_A));
+        testActor.create(ingress);
 
         // Then
-        AWAIT.alias("ClusterStatusBootstrap").untilAsserted(() -> {
-            var vkc = testActor.resources(VirtualKafkaCluster.class)
-                    .withName(ResourcesUtil.name(clusterBar)).get();
-            var status = vkc.getStatus();
-            assertThat(status)
-                    .isNotNull()
-                    .extracting(VirtualKafkaClusterStatus::getIngresses, InstanceOfAssertFactories.list(Ingresses.class))
-                    .singleElement()
-                    .satisfies(i -> {
-                        assertThat(i.getName()).isEqualTo(INGRESS_D);
-                        assertThat(i.getBootstrap()).isEqualTo("bar-cluster-ingress-d.%s.svc.cluster.local:9292".formatted(extension.getNamespace()));
-                    });
-        });
-
+        assertBootstrapServerPopulated(clusterBar, ingress, "bar-cluster-ingress-d.%s.svc.cluster.local:9292");
     }
 
     private VirtualKafkaCluster cluster(String clusterName, String proxyName, String ingressName, String serviceName, @Nullable String filterName) {
@@ -405,6 +382,22 @@ class VirtualKafkaClusterReconcilerIT {
                     .hasStatus(Condition.Status.FALSE)
                     .hasObservedGenerationInSyncWithMetadataOf(vkc)
                     .hasReason(expectedReason);
+        });
+    }
+
+    private void assertBootstrapServerPopulated(VirtualKafkaCluster clusterBar, KafkaProxyIngress ingress, String expectedBootstrapServer) {
+        AWAIT.alias("ClusterStatusBootstrap").untilAsserted(() -> {
+            var vkc = testActor.resources(VirtualKafkaCluster.class)
+                    .withName(ResourcesUtil.name(clusterBar)).get();
+            var status = vkc.getStatus();
+            assertThat(status)
+                    .isNotNull()
+                    .extracting(VirtualKafkaClusterStatus::getIngresses, InstanceOfAssertFactories.list(Ingresses.class))
+                    .singleElement()
+                    .satisfies(i -> {
+                        assertThat(i.getName()).isEqualTo(ResourcesUtil.name(ingress));
+                        assertThat(i.getBootstrapServer()).isEqualTo(expectedBootstrapServer.formatted(extension.getNamespace()));
+                    });
         });
     }
 

@@ -145,22 +145,19 @@ spec:
                       - message
                       - type
                 ingresses:
-                  type: array
                   description: -|
-                    Ingresses is a list of ingresses that are associated with the virtual cluster. It reports
-                    the name of each ingress associated with the virtual cluster and the boostrap that
-                    a Kafka client will use to connect to the virtual cluster.
+                    Lists the ingresses that have been associated with the virtual cluster.
+                  type: array
                   default: []
                   items:
                     type: object
                     required: [ "name" ]
                     properties:
                       name:
-                        description: Name is the name of the ingress.
+                        description: The name of the ingress.
                         type: string
-                      bootstrap:
+                      bootstrapServer:
                         description: -|
-                          Bootstrap that a Kafka client would use to connect to the virtual cluster. The boostrap
-                          field will be absent if the address is not yet available. This may mean that work by
-                          another operator to assign the address is still pending.
+                          The address (host and port) that a Kafka client would use make its initial connection to the
+                          virtual cluster. This property will be absent if the address is not yet available.
                         type: string
