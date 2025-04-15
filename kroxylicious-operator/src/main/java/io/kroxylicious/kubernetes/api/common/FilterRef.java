@@ -12,6 +12,8 @@ import io.fabric8.kubernetes.api.model.KubernetesResource;
 
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * A reference, used in a kubernetes resource, to a KafkaProxy resource in the same namespace.
  */
@@ -41,12 +43,14 @@ public class FilterRef
     }
 
     @JsonIgnore
+    @NonNull
     @Override
     public String getGroup() {
         return "filter.kroxylicious.io";
     }
 
     @JsonIgnore
+    @NonNull
     @Override
     public String getKind() {
         return "KafkaProtocolFilter";

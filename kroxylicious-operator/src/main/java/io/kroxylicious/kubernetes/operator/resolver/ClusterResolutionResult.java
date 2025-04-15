@@ -29,13 +29,13 @@ public record ClusterResolutionResult(VirtualKafkaCluster cluster,
     public Stream<LocalRef<?>> findDanglingReferences(LocalRef<?> from, String kindTo) {
         Objects.requireNonNull(from);
         Objects.requireNonNull(kindTo);
-        return danglingReferences.stream().filter(r -> r.from().equals(from) && r.to.getKind().equals(kindTo)).map(DanglingReference::to);
+        return danglingReferences.stream().filter(r -> r.from().equals(from) && kindTo.equals(r.to.getKind())).map(DanglingReference::to);
     }
 
     public Stream<LocalRef<?>> findDanglingReferences(String fromKind, String toKind) {
         Objects.requireNonNull(fromKind);
         Objects.requireNonNull(toKind);
-        return danglingReferences.stream().filter(r -> r.from().getKind().equals(fromKind) && r.to().getKind().equals(toKind))
+        return danglingReferences.stream().filter(r -> fromKind.equals(r.from().getKind()) && toKind.equals(r.to().getKind()))
                 .map(DanglingReference::to);
     }
 
@@ -56,7 +56,7 @@ public record ClusterResolutionResult(VirtualKafkaCluster cluster,
     }
 
     public Stream<LocalRef<?>> findResourcesWithResolvedRefsFalse(String kind) {
-        return findResourcesWithResolvedRefsFalse().filter(r -> r.getKind().equals(kind));
+        return findResourcesWithResolvedRefsFalse().filter(r -> kind.equals(r.getKind()));
     }
 
     ClusterResolutionResult addAllResourcesHavingResolvedRefsFalse(Set<LocalRef<?>> resolvedRefsFalse) {

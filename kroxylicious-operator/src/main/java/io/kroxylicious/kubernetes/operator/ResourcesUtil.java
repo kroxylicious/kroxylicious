@@ -7,7 +7,6 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -24,14 +23,11 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
-import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
 public class ResourcesUtil {
 
@@ -85,12 +81,6 @@ public class ResourcesUtil {
                 .withName(name(owner))
                 .withUid(uid(owner))
                 .build();
-    }
-
-    public static Stream<VirtualKafkaCluster> clustersInNameOrder(Context<KafkaProxy> context) {
-        return context.getSecondaryResources(VirtualKafkaCluster.class)
-                .stream()
-                .sorted(Comparator.comparing(ResourcesUtil::name));
     }
 
     public static String name(HasMetadata resource) {
@@ -158,6 +148,7 @@ public class ResourcesUtil {
         return Collectors.toMap(ResourcesUtil::toLocalRef, Function.identity());
     }
 
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     public static <T extends HasMetadata> LocalRef<T> toLocalRef(T ref) {
         return (LocalRef) new AnyLocalRefBuilder()
                 .withKind(ref.getKind())
@@ -217,8 +208,9 @@ public class ResourcesUtil {
         return Set.of(new ResourceID(ref.getName(), owner.getMetadata().getNamespace()));
     }
 
-    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefsAsResourceIds(O owner, Optional<List<? extends LocalRef<R>>> refs) {
-        return refs.orElse(List.of()).stream()
+    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefsAsResourceIds(O owner,
+                                                                                                 List<? extends LocalRef<R>> refs) {
+        return refs.stream()
                 .map(ref -> new ResourceID(ref.getName(), owner.getMetadata().getNamespace()))
                 .collect(Collectors.toSet());
     }
