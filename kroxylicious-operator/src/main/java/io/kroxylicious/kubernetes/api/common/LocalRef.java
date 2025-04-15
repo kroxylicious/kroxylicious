@@ -9,6 +9,8 @@ package io.kroxylicious.kubernetes.api.common;
 import java.util.Comparator;
 import java.util.Objects;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Abstraction for references in one kubernetes resource to some kubernetes resource in the same namespace.
  * Two LocalRefs are equal iff they have the same group, kind and name (they don't need to have the same class)
@@ -16,14 +18,17 @@ import java.util.Objects;
  */
 public abstract class LocalRef<T> implements Comparable<LocalRef<T>> {
 
-    public static final Comparator<LocalRef<?>> COMPARATOR = Comparator.<LocalRef<?>, String> comparing(LocalRef::getKind)
-            .thenComparing(LocalRef::getGroup)
-            .thenComparing(LocalRef::getName);
+    public static final Comparator<LocalRef<?>> COMPARATOR = Comparator.<LocalRef<?>, String> comparing(LocalRef::getKind, Comparator.nullsLast(String::compareTo))
+            .thenComparing(LocalRef::getGroup, Comparator.nullsLast(String::compareTo))
+            .thenComparing(LocalRef::getName, Comparator.nullsLast(String::compareTo));
 
+    @Nullable
     public abstract String getGroup();
 
+    @Nullable
     public abstract String getKind();
 
+    @Nullable
     public abstract String getName();
 
     @Override
