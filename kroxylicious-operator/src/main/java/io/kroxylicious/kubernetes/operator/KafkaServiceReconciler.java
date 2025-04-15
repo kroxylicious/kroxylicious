@@ -72,8 +72,8 @@ public final class KafkaServiceReconciler implements
                 KafkaService.class)
                 .withName(SECRETS_EVENT_SOURCE_NAME)
                 .withPrimaryToSecondaryMapper((KafkaService cluster) -> ResourcesUtil.localRefAsResourceId(cluster, cluster.getSpec().getTls().getCertificateRef()))
-                .withSecondaryToPrimaryMapper(proxy -> ResourcesUtil.findReferrers(context,
-                        proxy,
+                .withSecondaryToPrimaryMapper(secret -> ResourcesUtil.findReferrers(context,
+                        secret,
                         KafkaService.class,
                         service -> service.getSpec().getTls().getCertificateRef()))
                 .build();
@@ -83,8 +83,8 @@ public final class KafkaServiceReconciler implements
                 .withName(CONFIG_MAPS_EVENT_SOURCE_NAME)
                 .withPrimaryToSecondaryMapper(
                         (KafkaService cluster) -> ResourcesUtil.localRefAsResourceId(cluster, asRef(cluster.getSpec().getTls().getTrustAnchorRef())))
-                .withSecondaryToPrimaryMapper(proxy -> ResourcesUtil.findReferrers(context,
-                        proxy,
+                .withSecondaryToPrimaryMapper(configMap -> ResourcesUtil.findReferrers(context,
+                        configMap,
                         KafkaService.class,
                         service -> asRef(service.getSpec().getTls().getTrustAnchorRef())))
                 .build();

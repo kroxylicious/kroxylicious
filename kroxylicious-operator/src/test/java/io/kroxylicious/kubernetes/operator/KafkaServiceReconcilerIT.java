@@ -18,10 +18,18 @@ import org.junit.jupiter.api.extension.RegisterExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
+import io.kroxylicious.kubernetes.operator.assertj.KafkaServiceStatusAssert;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -30,8 +38,11 @@ import static org.awaitility.Awaitility.await;
 class KafkaServiceReconcilerIT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceReconcilerIT.class);
-    private static final String UPDATED_BOOTSTRAP = "bar.bootstrap:9090";
+    public static final String FOO_BOOTSTRAP_9090 = "foo.bootstrap:9090";
+    private static final String BAR_BOOTSTRAP_9090 = "bar.bootstrap:9090";
     public static final String SERVICE_A = "service-a";
+    public static final String SECRET_X = "secret-x";
+    public static final String CONFIG_MAP_T = "configmap-t";
 
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
@@ -56,37 +67,163 @@ class KafkaServiceReconcilerIT {
     }
 
     @Test
-    void shouldResolveKafkaService() {
+    void shouldImmediatelyResolveWhenNoReferents() {
         // Given
-        final KafkaService kafkaService = testActor.create(kafkaService(SERVICE_A));
-        final KafkaService updated = kafkaService.edit().editSpec().withBootstrapServers(UPDATED_BOOTSTRAP).endSpec().build();
+        KafkaService resource = kafkaService(SERVICE_A, null, null);
 
         // When
-        testActor.replace(updated);
+        testActor.create(resource);
 
         // Then
-        AWAIT.untilAsserted(() -> {
-            final KafkaService mycoolkafkaservice = testActor.get(KafkaService.class, SERVICE_A);
-            Assertions.assertThat(mycoolkafkaservice.getSpec().getBootstrapServers()).isEqualTo(UPDATED_BOOTSTRAP);
-            assertThat(mycoolkafkaservice.getStatus())
-                    .isNotNull()
-                    .conditionList()
-                    .singleElement()
-                    .isResolvedRefsTrue();
-        });
+        assertResolvedRefsTrue(resource, FOO_BOOTSTRAP_9090);
     }
 
     @Test
     void shouldResolveUpdateToKafkaService() {
         // Given
+        var kafkaService = testActor.create(new KafkaServiceBuilder().withNewMetadata().withName(SERVICE_A).endMetadata().build());
 
         // When
-        testActor.create(new KafkaServiceBuilder().withNewMetadata().withName(SERVICE_A).endMetadata().build());
+        final KafkaService updated = kafkaService.edit().editSpec().withBootstrapServers(BAR_BOOTSTRAP_9090).endSpec().build();
+        testActor.replace(updated);
 
         // Then
+        assertResolvedRefsTrue(updated, BAR_BOOTSTRAP_9090);
+    }
+
+    @Test
+    void shouldEventuallyResolveOnceCertSecretCreated() {
+        // Given
+        KafkaService resource = kafkaService(SERVICE_A, SECRET_X, null);
+
+        // When
+        final KafkaService kafkaService = testActor.create(resource);
+
+        // Then
+        assertResolvedRefsFalse(kafkaService, Condition.REASON_REFS_NOT_FOUND, "spec.tls.certificateRef: referenced resource not found");
+
+        // And When
+        testActor.create(tlsCertificateSecret(SECRET_X));
+
+        // Then
+        assertResolvedRefsTrue(kafkaService, FOO_BOOTSTRAP_9090);
+
+    }
+
+    @Test
+    void shouldUpdateStatusOnceTlsCertificateSecretDeleted() {
+        // Given
+        var tlsCertSecret = testActor.create(tlsCertificateSecret(SECRET_X));
+        KafkaService resource = testActor.create(kafkaService(SERVICE_A, SECRET_X, null));
+        assertResolvedRefsTrue(resource, FOO_BOOTSTRAP_9090);
+
+        // When
+        testActor.delete(tlsCertSecret);
+
+        // Then
+        assertResolvedRefsFalse(resource, Condition.REASON_REFS_NOT_FOUND, "spec.tls.certificateRef: referenced resource not found");
+    }
+
+    @Test
+    void shouldEventuallyResolveOnceTrustAnchorCreated() {
+        // Given
+        KafkaService resource = kafkaService(SERVICE_A, null, CONFIG_MAP_T);
+
+        // When
+        final KafkaService kafkaService = testActor.create(resource);
+
+        // Then
+        assertResolvedRefsFalse(kafkaService, Condition.REASON_REFS_NOT_FOUND, "spec.tls.trustAnchorRef: referenced resource not found");
+
+        // And When
+        testActor.create(trustAnchorConfigMap(CONFIG_MAP_T));
+
+        // Then
+        assertResolvedRefsTrue(kafkaService, FOO_BOOTSTRAP_9090);
+
+    }
+
+    @Test
+    void shouldUpdateStatusOnceTrustAnchorDeleted() {
+        // Given
+        var trustedCaCerts = testActor.create(trustAnchorConfigMap(CONFIG_MAP_T));
+        KafkaService resource = testActor.create(kafkaService(SERVICE_A, null, CONFIG_MAP_T));
+        assertResolvedRefsTrue(resource, FOO_BOOTSTRAP_9090);
+
+        // When
+        testActor.delete(trustedCaCerts);
+
+        // Then
+        assertResolvedRefsFalse(resource, Condition.REASON_REFS_NOT_FOUND, "spec.tls.trustAnchorRef: referenced resource not found");
+    }
+
+    private ConfigMap trustAnchorConfigMap(String name) {
+        // @formatter:off
+        return new ConfigMapBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                .endMetadata()
+                .addToData("ca-bundle.pem", "whatever")
+                .build();
+        // @formatter:on
+    }
+
+    private static Secret tlsCertificateSecret(String name) {
+        // @formatter:off
+        return new SecretBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                .endMetadata()
+                .withType("kubernetes.io/tls")
+                .addToData("tls.key", "whatever")
+                .addToData("tls.crt", "whatever")
+                .build();
+        // @formatter:on
+    }
+
+    private static KafkaService kafkaService(String name, @Nullable String certSecretName, @Nullable String trustResourceName) {
+        // @formatter:off
+        KafkaService result = new KafkaServiceBuilder()
+                .withNewMetadata()
+                    .withName(name)
+                .endMetadata()
+                .editOrNewSpec()
+                    .withBootstrapServers(FOO_BOOTSTRAP_9090)
+                .endSpec()
+            .build();
+        if (certSecretName != null) {
+            result = new KafkaServiceBuilder(result)
+                    .editSpec()
+                        .editOrNewTls()
+                            .withNewCertificateRef()
+                                .withName(certSecretName)
+                            .endCertificateRef()
+                        .endTls()
+                    .endSpec()
+                .build();
+        }
+        if (trustResourceName != null) {
+            result = new KafkaServiceBuilder(result)
+                    .editSpec()
+                        .editOrNewTls()
+                            .withNewTrustAnchorRef()
+                                .withName(trustResourceName)
+                                .withKey("ca-bundle.pem")
+                            .endTrustAnchorRef()
+                        .endTls()
+                    .endSpec()
+                .build();
+        }
+        return result;
+        // @formatter:on
+    }
+
+    private void assertResolvedRefsTrue(KafkaService cr, String expectedBootstrap) {
         AWAIT.untilAsserted(() -> {
-            final KafkaService mycoolkafkaservice = testActor.get(KafkaService.class, SERVICE_A);
-            assertThat(mycoolkafkaservice.getStatus())
+            final KafkaService kafkaService = testActor.get(KafkaService.class, ResourcesUtil.name(cr));
+            Assertions.assertThat(kafkaService).isNotNull();
+            Assertions.assertThat(kafkaService.getSpec().getBootstrapServers()).isEqualTo(expectedBootstrap);
+            assertThat(kafkaService.getStatus())
                     .isNotNull()
                     .conditionList()
                     .singleElement()
@@ -94,16 +231,19 @@ class KafkaServiceReconcilerIT {
         });
     }
 
-    private static KafkaService kafkaService(String name) {
-        // @formatter:off
-        return new KafkaServiceBuilder()
-                .withNewMetadata()
-                    .withName(name)
-                .endMetadata()
-                .editOrNewSpec()
-                    .withBootstrapServers("foo.bootstrap:9090")
-                .endSpec()
-                .build();
-        // @formatter:on
+    private void assertResolvedRefsFalse(KafkaService cr,
+                                         String reason,
+                                         String message) {
+        AWAIT.alias("FilterStatusResolvedRefs").untilAsserted(() -> {
+            var kafkaService = testActor.resources(KafkaService.class)
+                    .withName(ResourcesUtil.name(cr)).get();
+            Assertions.assertThat(kafkaService.getStatus()).isNotNull();
+            KafkaServiceStatusAssert
+                    .assertThat(kafkaService.getStatus())
+                    .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
+                    .singleCondition()
+                    .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
+                    .isResolvedRefsFalse(reason, message);
+        });
     }
 }
