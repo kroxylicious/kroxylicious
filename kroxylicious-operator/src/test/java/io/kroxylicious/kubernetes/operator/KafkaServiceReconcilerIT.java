@@ -56,7 +56,7 @@ class KafkaServiceReconcilerIT {
     }
 
     @Test
-    void shouldAcceptKafkaService() {
+    void shouldResolveKafkaService() {
         // Given
         final KafkaService kafkaService = testActor.create(kafkaService(SERVICE_A));
         final KafkaService updated = kafkaService.edit().editSpec().withBootstrapServers(UPDATED_BOOTSTRAP).endSpec().build();
@@ -72,12 +72,12 @@ class KafkaServiceReconcilerIT {
                     .isNotNull()
                     .conditionList()
                     .singleElement()
-                    .isAcceptedTrue();
+                    .isResolvedRefsTrue();
         });
     }
 
     @Test
-    void shouldAcceptUpdateToKafkaService() {
+    void shouldResolveUpdateToKafkaService() {
         // Given
 
         // When
@@ -90,7 +90,7 @@ class KafkaServiceReconcilerIT {
                     .isNotNull()
                     .conditionList()
                     .singleElement()
-                    .isAcceptedTrue();
+                    .isResolvedRefsTrue();
         });
     }
 

@@ -82,7 +82,7 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
     }
 
     public ConditionAssert hasStatus(Condition.Status expected) {
-        status().isEqualTo(expected);
+        status().describedAs(actual.toString()).isEqualTo(expected);
         return this;
     }
 
