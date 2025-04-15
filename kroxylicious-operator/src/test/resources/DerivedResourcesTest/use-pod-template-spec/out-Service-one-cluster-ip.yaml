@@ -20,6 +20,12 @@ metadata:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
       name: "use-pod-template-spec"
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "VirtualKafkaCluster"
+      name: "one"
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxyIngress"
+      name: "cluster-ip"
 spec:
   ports:
     - name: "one-9292"

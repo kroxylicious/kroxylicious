@@ -20,6 +20,12 @@ metadata:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
       name: "twocluster"
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "VirtualKafkaCluster"
+      name: "bar"
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxyIngress"
+      name: "cluster-ip-bar"
 spec:
   ports:
     - name: "bar-9292"

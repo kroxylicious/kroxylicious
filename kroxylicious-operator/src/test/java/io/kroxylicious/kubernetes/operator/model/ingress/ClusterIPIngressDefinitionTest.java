@@ -151,12 +151,24 @@ class ClusterIPIngressDefinitionTest {
                 assertThat(metadata.getNamespace()).isEqualTo(NAMESPACE);
                 assertThat(metadata.getName()).isEqualTo(CLUSTER_NAME + "-" + INGRESS_NAME);
                 assertThat(metadata.getLabels()).containsExactlyEntriesOf(orderedServiceLabels);
-                assertThat(metadata.getOwnerReferences()).hasSize(1).singleElement().satisfies(ownerRef -> {
-                    assertThat(ownerRef.getKind()).isEqualTo("KafkaProxy");
-                    assertThat(ownerRef.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
-                    assertThat(ownerRef.getName()).isEqualTo(PROXY_NAME);
-                    assertThat(ownerRef.getUid()).isEqualTo(PROXY_UID);
-                });
+                assertThat(metadata.getOwnerReferences())
+                        .satisfiesExactlyInAnyOrder(
+                                ownerRef -> {
+                                    assertThat(ownerRef.getKind()).isEqualTo("KafkaProxy");
+                                    assertThat(ownerRef.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
+                                    assertThat(ownerRef.getName()).isEqualTo(PROXY_NAME);
+                                    assertThat(ownerRef.getUid()).isEqualTo(PROXY_UID);
+                                },
+                                ownerRef -> {
+                                    assertThat(ownerRef.getKind()).isEqualTo("VirtualKafkaCluster");
+                                    assertThat(ownerRef.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
+                                    assertThat(ownerRef.getName()).isEqualTo(CLUSTER_NAME);
+                                },
+                                ownerRef -> {
+                                    assertThat(ownerRef.getKind()).isEqualTo("KafkaProxyIngress");
+                                    assertThat(ownerRef.getApiVersion()).isEqualTo("kroxylicious.io/v1alpha1");
+                                    assertThat(ownerRef.getName()).isEqualTo(INGRESS_NAME);
+                                });
             });
         });
     }
