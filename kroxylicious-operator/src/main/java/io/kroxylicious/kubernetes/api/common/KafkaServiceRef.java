@@ -12,6 +12,8 @@ import io.fabric8.kubernetes.api.model.KubernetesResource;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * A reference, used in a kubernetes resource, to a KafkaService resource in the same namespace.
  */
@@ -41,12 +43,14 @@ public class KafkaServiceRef
     }
 
     @JsonIgnore
+    @NonNull
     @Override
     public String getGroup() {
         return "kroxylicious.io";
     }
 
     @JsonIgnore
+    @NonNull
     @Override
     public String getKind() {
         return "KafkaService";

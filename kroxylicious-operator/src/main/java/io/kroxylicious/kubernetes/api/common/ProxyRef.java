@@ -8,6 +8,8 @@ package io.kroxylicious.kubernetes.api.common;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import io.fabric8.kubernetes.api.model.KubernetesResource;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -41,12 +43,14 @@ public class ProxyRef
     }
 
     @JsonIgnore
+    @NonNull
     @Override
     public String getGroup() {
         return "kroxylicious.io";
     }
 
     @JsonIgnore
+    @NonNull
     @Override
     public String getKind() {
         return "KafkaProxy";
