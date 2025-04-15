@@ -20,6 +20,8 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
 import io.kroxylicious.kms.service.TestKekManager;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
@@ -29,25 +31,25 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class AwsKmsTestKmsFacadeTest {
+class AwsKmsTestKmsFacadeTest {
     private static WireMockServer server;
     private AwsKmsTestKmsFacadeWireMock facade;
     private TestKekManager manager;
 
     @BeforeAll
-    public static void initMockServer() {
+    static void initMockServer() {
         server = new WireMockServer(wireMockConfig().dynamicPort());
         server.start();
     }
 
     @AfterAll
-    public static void shutdownMockServer() {
+    static void shutdownMockServer() {
         server.shutdown();
     }
 
     @BeforeEach
-    public void beforeEach() {
-        var KeyId = "1234abcd-12ab-34cd-56ef-1234567890ab";
+    void beforeEach() {
+        var keyId = "1234abcd-12ab-34cd-56ef-1234567890ab";
 
         var response = """
                 {
@@ -71,7 +73,7 @@ public class AwsKmsTestKmsFacadeTest {
         server.stubFor(
                 post(urlEqualTo("/"))
                         .withHeader("X-Amz-Target", equalTo("TrentService.RotateKeyOnDemand"))
-                        .withRequestBody(matchingJsonPath("$.KeyId", equalTo(KeyId)))
+                        .withRequestBody(matchingJsonPath("$.KeyId", equalTo(keyId)))
                         .willReturn(aResponse().withBody(rotateResponse)));
 
         facade = new AwsKmsTestKmsFacadeWireMock(URI.create(server.baseUrl()), Optional.of("us-west-2"), Optional.of("test-access-key"), Optional.of("test-secret-key"));
@@ -179,5 +181,54 @@ public class AwsKmsTestKmsFacadeTest {
     void classAndConfig() {
         assertThat(facade.getKmsServiceClass()).isEqualTo(AwsKmsService.class);
         assertThat(facade.getKmsServiceConfig()).isInstanceOf(Config.class);
+    }
+
+    /**
+     * AwsKmsTestKmsFacade class for WireMock
+     */
+    static class AwsKmsTestKmsFacadeWireMock extends AbstractAwsKmsTestKmsFacade {
+
+        private final URI uri;
+        private final Optional<String> region;
+        private final Optional<String> accessKey;
+        private final Optional<String> secretKey;
+
+        AwsKmsTestKmsFacadeWireMock(URI uri, Optional<String> region, Optional<String> accessKey, Optional<String> secretKey) {
+            this.uri = uri;
+            this.region = region;
+            this.accessKey = accessKey;
+            this.secretKey = secretKey;
+        }
+
+        @Override
+        protected void startKms() {
+            // We don't require the implementation for this method since we are using WireMock
+        }
+
+        @Override
+        protected void stopKms() {
+            // We don't require the implementation for this method since we are using WireMock
+        }
+
+        @Override
+        @NonNull
+        protected URI getAwsUrl() {
+            return uri;
+        }
+
+        @Override
+        protected String getRegion() {
+            return region.orElseThrow();
+        }
+
+        @Override
+        protected String getSecretKey() {
+            return accessKey.orElseThrow();
+        }
+
+        @Override
+        protected String getAccessKey() {
+            return secretKey.orElseThrow();
+        }
     }
 }

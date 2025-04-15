@@ -147,7 +147,7 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
         @Override
         public void rotateKek(String alias) {
             var key = read(alias);
-            // The LocalStack's new implementation of RotateOnDemand doesn't preserve key history
+            // The LocalStack (4.3.0) implementation of RotateOnDemand doesn't preserve key history
             // https://docs.localstack.cloud/references/coverage/coverage_kms/#:~:text=Show%20Tests-,RotateKeyOnDemand,-ScheduleKeyDeletion
             // https://github.com/localstack/localstack/pull/12342
 
