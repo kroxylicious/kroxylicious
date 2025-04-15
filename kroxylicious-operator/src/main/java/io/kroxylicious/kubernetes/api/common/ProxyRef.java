@@ -8,11 +8,11 @@ package io.kroxylicious.kubernetes.api.common;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import io.fabric8.kubernetes.api.model.KubernetesResource;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * A reference, used in a kubernetes resource, to a KafkaProxy resource in the same namespace.
