@@ -144,3 +144,20 @@ spec:
                       - reason
                       - message
                       - type
+                ingresses:
+                  description: -|
+                    Lists the ingresses that have been associated with the virtual cluster.
+                  type: array
+                  default: []
+                  items:
+                    type: object
+                    required: [ "name" ]
+                    properties:
+                      name:
+                        description: The name of the ingress.
+                        type: string
+                      bootstrapServer:
+                        description: -|
+                          The address (host and port) that a Kafka client would use make its initial connection to the
+                          virtual cluster. This property will be absent if the address is not yet available.
+                        type: string

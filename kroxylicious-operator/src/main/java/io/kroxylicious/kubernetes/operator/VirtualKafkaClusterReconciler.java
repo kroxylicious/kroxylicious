@@ -18,6 +18,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.OwnerReference;
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServicePort;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
@@ -30,12 +33,14 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.IngressesBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
@@ -56,18 +61,19 @@ public final class VirtualKafkaClusterReconciler implements
         Reconciler<VirtualKafkaCluster> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualKafkaClusterReconciler.class);
-    public static final String PROXY_EVENT_SOURCE_NAME = "proxy";
-    public static final String PROXY_CONFIG_STATE_SOURCE_NAME = "proxy-config-state";
-    public static final String SERVICES_EVENT_SOURCE_NAME = "services";
-    public static final String INGRESSES_EVENT_SOURCE_NAME = "ingresses";
-    public static final String FILTERS_EVENT_SOURCE_NAME = "filters";
-    public static final String TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND = "TransitivelyReferencedResourcesNotFound";
-    public static final String REFERENCED_RESOURCES_NOT_FOUND = "ReferencedResourcesNotFound";
+    static final String PROXY_EVENT_SOURCE_NAME = "proxy";
+    static final String PROXY_CONFIG_STATE_SOURCE_NAME = "proxy-config-state";
+    static final String SERVICES_EVENT_SOURCE_NAME = "services";
+    static final String INGRESSES_EVENT_SOURCE_NAME = "ingresses";
+    static final String FILTERS_EVENT_SOURCE_NAME = "filters";
+    static final String KUBERNETES_SERVICES_EVENT_SOURCE_NAME = "kubernetesServices";
+    static final String TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND = "TransitivelyReferencedResourcesNotFound";
+    static final String REFERENCED_RESOURCES_NOT_FOUND = "ReferencedResourcesNotFound";
     private static final String KAFKA_PROXY_INGRESS_KIND = getKind(KafkaProxyIngress.class);
     private static final String KAFKA_PROXY_KIND = getKind(KafkaProxy.class);
+    private static final String VIRTUAL_KAFKA_CLUSTER_KIND = getKind(VirtualKafkaCluster.class);
     private static final String KAFKA_SERVICE_KIND = getKind(KafkaService.class);
     private static final String KAFKA_PROTOCOL_FILTER_KIND = getKind(KafkaProtocolFilter.class);
-
     private final VirtualKafkaClusterStatusFactory statusFactory;
     private final DependencyResolver resolver;
 
@@ -94,6 +100,28 @@ public final class VirtualKafkaClusterReconciler implements
 
     private UpdateControl<VirtualKafkaCluster> maybeCombineStatusWithClusterConfigMap(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
         UpdateControl<VirtualKafkaCluster> updateControl;
+
+        var existingKubernetesServices = context.getSecondaryResources(Service.class)
+                .stream()
+                .collect(Collectors.toMap(ref -> {
+                    var kubeServiceIngressOwner = Optional.ofNullable(ref)
+                            .flatMap(service -> extractOwnerRefFromKubernetesService(service, KAFKA_PROXY_INGRESS_KIND))
+                            .orElseThrow();
+
+                    return new IngressRefBuilder().withName(kubeServiceIngressOwner.getName()).build();
+                }, Function.identity()));
+
+        var ingresses = cluster.getSpec().getIngressRefs()
+                .stream()
+                .filter(existingKubernetesServices::containsKey)
+                .map(ingressRef -> {
+                    var kubenetesService = existingKubernetesServices.get(ingressRef);
+                    var builder = new IngressesBuilder();
+                    builder.withName(ingressRef.getName());
+                    builder.withBootstrapServer(getBootstrapServer(kubenetesService));
+                    return builder.build();
+                }).toList();
+
         updateControl = context
                 .getSecondaryResource(ConfigMap.class)
                 .flatMap(cm -> Optional.ofNullable(cm.getData()))
@@ -102,18 +130,35 @@ public final class VirtualKafkaClusterReconciler implements
                 .map(patch -> {
                     var rr = ResourceState.of(statusFactory.newTrueCondition(cluster, Condition.Type.ResolvedRefs));
                     var acc = ResourceState.fromList(patch.getStatus().getConditions());
-                    return statusFactory.clusterStatusPatch(cluster, rr.replacementFor(acc));
+                    return statusFactory.clusterStatusPatch(cluster, rr.replacementFor(acc), ingresses);
                 })
                 .map(UpdateControl::patchStatus)
                 .orElse(UpdateControl.noUpdate());
         return updateControl;
     }
 
+    private String getBootstrapServer(Service kubenetesService) {
+        var metadata = kubenetesService.getMetadata();
+        var bootstrapPort = kubenetesService.getSpec().getPorts().stream()
+                .map(ServicePort::getPort)
+                .findFirst()
+                .orElseThrow();
+        return metadata.getName() + "." + metadata.getNamespace() + ".svc.cluster.local:" + bootstrapPort;
+    }
+
+    private Optional<OwnerReference> extractOwnerRefFromKubernetesService(Service service, String ownerKind) {
+        return service.getMetadata()
+                .getOwnerReferences()
+                .stream()
+                .filter(or -> ownerKind.equals(or.getKind()))
+                .findFirst();
+    }
+
     private UpdateControl<VirtualKafkaCluster> handleResolutionProblems(VirtualKafkaCluster cluster,
                                                                         ClusterResolutionResult clusterResolutionResult) {
         UpdateControl<VirtualKafkaCluster> updateControl;
         LocalRef<VirtualKafkaCluster> clusterRef = toLocalRef(cluster);
-        var unresovedIngressProxies = clusterResolutionResult.findDanglingReferences(KAFKA_PROXY_INGRESS_KIND, KAFKA_PROXY_KIND).collect(Collectors.toSet());
+        var unresolvedIngressProxies = clusterResolutionResult.findDanglingReferences(KAFKA_PROXY_INGRESS_KIND, KAFKA_PROXY_KIND).collect(Collectors.toSet());
         if (clusterResolutionResult.anyDependenciesNotFoundFor(clusterRef)) {
             Stream<String> proxyMsg = refsMessage("spec.proxyRef references ", cluster,
                     clusterResolutionResult.findDanglingReferences(clusterRef, KAFKA_PROXY_KIND));
@@ -126,7 +171,7 @@ public final class VirtualKafkaClusterReconciler implements
             updateControl = UpdateControl.patchStatus(statusFactory.newFalseConditionStatusPatch(cluster, Condition.Type.ResolvedRefs, Condition.REASON_REFS_NOT_FOUND,
                     joiningMessages(proxyMsg, serviceMsg, ingressMsg, filterMsg)));
         }
-        else if (clusterResolutionResult.anyResolvedRefsConditionsFalse() || !unresovedIngressProxies.isEmpty()) {
+        else if (clusterResolutionResult.anyResolvedRefsConditionsFalse() || !unresolvedIngressProxies.isEmpty()) {
             Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", cluster,
                     clusterResolutionResult.findResourcesWithResolvedRefsFalse(KAFKA_SERVICE_KIND));
             Stream<String> ingressMsg = refsMessage("spec.ingressRefs references ", cluster,
@@ -208,7 +253,7 @@ public final class VirtualKafkaClusterReconciler implements
                 VirtualKafkaCluster.class)
                 .withName(INGRESSES_EVENT_SOURCE_NAME)
                 .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefsAsResourceIds(cluster,
-                        Optional.ofNullable(cluster.getSpec()).map(VirtualKafkaClusterSpec::getIngressRefs)))
+                        Optional.ofNullable(cluster.getSpec()).map(VirtualKafkaClusterSpec::getIngressRefs).orElse(List.of())))
                 .withSecondaryToPrimaryMapper(ingress -> ResourcesUtil.findReferrersMulti(context,
                         ingress,
                         VirtualKafkaCluster.class,
@@ -220,11 +265,28 @@ public final class VirtualKafkaClusterReconciler implements
                 VirtualKafkaCluster.class)
                 .withName(FILTERS_EVENT_SOURCE_NAME)
                 .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefsAsResourceIds(cluster,
-                        Optional.ofNullable(cluster.getSpec()).map(VirtualKafkaClusterSpec::getFilterRefs)))
+                        Optional.ofNullable(cluster.getSpec()).map(VirtualKafkaClusterSpec::getFilterRefs).orElse(List.of())))
                 .withSecondaryToPrimaryMapper(filter -> ResourcesUtil.findReferrersMulti(context,
                         filter,
                         VirtualKafkaCluster.class,
                         cluster -> cluster.getSpec().getFilterRefs()))
+                .build();
+
+        InformerEventSourceConfiguration<Service> clusterToKubeService = InformerEventSourceConfiguration.from(
+                Service.class,
+                VirtualKafkaCluster.class)
+                .withName(KUBERNETES_SERVICES_EVENT_SOURCE_NAME)
+                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> {
+                    var name = cluster.getMetadata().getName();
+                    return cluster.getSpec().getIngressRefs()
+                            .stream()
+                            .flatMap(ir -> ResourcesUtil.localRefAsResourceId(cluster, new AnyLocalRefBuilder().withName(name + "-" + ir.getName()).build()).stream())
+                            .collect(Collectors.toSet());
+                })
+                .withSecondaryToPrimaryMapper(kubenetesService -> Optional.of(kubenetesService)
+                        .flatMap(service -> extractOwnerRefFromKubernetesService(service, VIRTUAL_KAFKA_CLUSTER_KIND))
+                        .map(ownerRef -> new ResourceID(ownerRef.getName(), kubenetesService.getMetadata().getNamespace()))
+                        .map(Set::of).orElse(Set.of()))
                 .build();
 
         return List.of(
@@ -232,7 +294,8 @@ public final class VirtualKafkaClusterReconciler implements
                 new InformerEventSource<>(clusterToProxyConfigState, context),
                 new InformerEventSource<>(clusterToIngresses, context),
                 new InformerEventSource<>(clusterToService, context),
-                new InformerEventSource<>(clusterToFilters, context));
+                new InformerEventSource<>(clusterToFilters, context),
+                new InformerEventSource<>(clusterToKubeService, context));
     }
 
     @Override
