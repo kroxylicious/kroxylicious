@@ -7,14 +7,10 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.Volume;
-import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
@@ -50,22 +46,6 @@ public class ProxyConfigDependentResource extends CRUDKubernetesDependentResourc
         return ResourcesUtil.name(primary) + PROXY_CONFIG_CONFIG_MAP_SUFFIX;
     }
 
-    public static List<Volume> secureVolumes(Context<KafkaProxy> context) {
-        Set<Volume> volumes = KafkaProxyContext.proxyContext(context).configuration().map(ConfigurationFragment::volumes).orElse(Set.of());
-        if (volumes.stream().map(Volume::getName).distinct().count() != volumes.size()) {
-            throw new IllegalStateException("Two volumes with different definitions share the same name");
-        }
-        return volumes.stream().toList();
-    }
-
-    public static List<VolumeMount> secureVolumeMounts(Context<KafkaProxy> context) {
-        Set<VolumeMount> mounts = KafkaProxyContext.proxyContext(context).configuration().map(ConfigurationFragment::mounts).orElse(Set.of());
-        if (mounts.stream().map(VolumeMount::getMountPath).distinct().count() != mounts.size()) {
-            throw new IllegalStateException("Two volume mounts with different definitions share the same mount path");
-        }
-        return mounts.stream().toList();
-    }
-
     @Override
     protected ConfigMap desired(KafkaProxy primary,
                                 Context<KafkaProxy> context) {
@@ -73,7 +53,6 @@ public class ProxyConfigDependentResource extends CRUDKubernetesDependentResourc
         // this is the case if the dependant resource is to be removed.
         var data = KafkaProxyContext.proxyContext(context)
                 .configuration()
-                .map(ConfigurationFragment::fragment)
                 .map(c -> Map.of(CONFIG_YAML_KEY, toYaml(c)))
                 .orElse(Map.of());
 
