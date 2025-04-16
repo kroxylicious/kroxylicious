@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.javaoperatorsdk.operator.OperatorException;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ContextInitializer;
@@ -122,6 +123,10 @@ public class KafkaProxyReconciler implements
     public ErrorStatusUpdateControl<KafkaProxy> updateErrorStatus(KafkaProxy proxy,
                                                                   Context<KafkaProxy> context,
                                                                   Exception e) {
+        if (e instanceof StaleReferentStatusException || e instanceof OperatorException && e.getCause() instanceof StaleReferentStatusException) {
+            LOGGER.debug("Completed reconciliation of {}/{} with stale referent", namespace(proxy), name(proxy), e);
+            return ErrorStatusUpdateControl.noStatusUpdate();
+        }
         var uc = ErrorStatusUpdateControl.patchStatus(statusFactory.newUnknownConditionStatusPatch(proxy, Condition.Type.Ready, e));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{} with error {}", namespace(proxy), name(proxy), e.toString());
@@ -241,6 +246,11 @@ public class KafkaProxyReconciler implements
     @VisibleForTesting
     static SecondaryToPrimaryMapper<VirtualKafkaCluster> clusterToProxyMapper(EventSourceContext<KafkaProxy> context) {
         return cluster -> {
+            // we do not want to trigger reconciliation of any proxy if the cluster has not been reconciled
+            if (!ResourcesUtil.isStatusFresh(cluster)) {
+                LOGGER.debug("Ignoring event from cluster with stale status: {}", ResourcesUtil.toLocalRef(cluster));
+                return Set.of();
+            }
             // we need to reconcile all proxies when a virtual kafka cluster changes in case the proxyRef is updated, we need to update
             // the previously referenced proxy too.
             Set<ResourceID> proxyIds = ResourcesUtil.filteredResourceIdsInSameNamespace(context, cluster, KafkaProxy.class, proxy -> true);

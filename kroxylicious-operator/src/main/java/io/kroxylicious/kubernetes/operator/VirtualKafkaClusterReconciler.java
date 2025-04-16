@@ -121,19 +121,18 @@ public final class VirtualKafkaClusterReconciler implements
                     builder.withBootstrapServer(getBootstrapServer(kubenetesService));
                     return builder.build();
                 }).toList();
-
+        ResourceState resolvedRefsTrueResourceState = ResourceState.of(statusFactory.newTrueCondition(cluster, Condition.Type.ResolvedRefs));
         updateControl = context
                 .getSecondaryResource(ConfigMap.class)
                 .flatMap(cm -> Optional.ofNullable(cm.getData()))
                 .map(ProxyConfigStateData::new)
                 .flatMap(data -> data.getStatusPatchForCluster(name(cluster)))
                 .map(patch -> {
-                    var rr = ResourceState.of(statusFactory.newTrueCondition(cluster, Condition.Type.ResolvedRefs));
-                    var acc = ResourceState.fromList(patch.getStatus().getConditions());
-                    return statusFactory.clusterStatusPatch(cluster, rr.replacementFor(acc), ingresses);
+                    var patchResourceState = ResourceState.fromList(patch.getStatus().getConditions());
+                    return statusFactory.clusterStatusPatch(cluster, resolvedRefsTrueResourceState.replacementFor(patchResourceState), ingresses);
                 })
                 .map(UpdateControl::patchStatus)
-                .orElse(UpdateControl.noUpdate());
+                .orElse(UpdateControl.patchStatus(statusFactory.clusterStatusPatch(cluster, resolvedRefsTrueResourceState, ingresses)));
         return updateControl;
     }
 

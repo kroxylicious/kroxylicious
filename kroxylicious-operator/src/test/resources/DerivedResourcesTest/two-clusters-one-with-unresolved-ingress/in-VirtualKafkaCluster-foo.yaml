@@ -18,3 +18,5 @@ spec:
     name: fooref
   ingressRefs:
     - name: MISSING
+status:
+  observedGeneration: 4

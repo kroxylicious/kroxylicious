@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.assertj.core.api.AbstractStringAssert;
@@ -38,16 +39,19 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRef;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatusBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
@@ -62,6 +66,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP.Protocol.TCP;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.generation;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -84,11 +89,11 @@ class KafkaProxyReconcilerIT {
     private static final String CLUSTER_BAR_BOOTSTRAP = "my-cluster-kafka-bootstrap.bar.svc.cluster.local:9092";
     private static final String NEW_BOOTSTRAP = "new-bootstrap:9092";
 
-    private final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
+    private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
     // the initial operator image pull can take a long time and interfere with the tests
     @BeforeAll
-    public static void preloadOperandImage() {
+    static void preloadOperandImage() {
         OperatorTestUtils.preloadOperandImage();
     }
 
@@ -108,6 +113,12 @@ class KafkaProxyReconcilerIT {
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
     private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(extension);
+
+    private static Boolean expectConditionStatusForType(KafkaProxy kafkaProxy, Condition.Type type, Condition.Status expectedStatus) {
+        List<Condition> conditions = Optional.ofNullable(kafkaProxy.getStatus()).map(KafkaProxyStatus::getConditions)
+                .orElse(List.of());
+        return conditions.stream().anyMatch(condition -> condition.getType() == type && condition.getStatus() == expectedStatus);
+    }
 
     @AfterEach
     void stopOperator() throws Exception {
@@ -131,6 +142,8 @@ class KafkaProxyReconcilerIT {
                 .endSpec().build());
         KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy));
         VirtualKafkaCluster clusterBar = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxy, barService, ingressBar, filter));
+        updateClusterStatusObservedGeneration(clusterBar);
+        clusterBar.setStatus(new VirtualKafkaClusterStatusBuilder().withObservedGeneration(generation(clusterBar)).build());
 
         int expectedBootstrapPort = 9292;
         AWAIT.alias("service configured with a port per node id from the KafkaService, plus a bootstrap port").untilAsserted(() -> {
@@ -235,6 +248,7 @@ class KafkaProxyReconcilerIT {
         KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy));
         Set<KafkaService> kafkaServices = Set.of(barService);
         VirtualKafkaCluster clusterBar = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxy, barService, ingressBar, filter));
+        clusterBar = updateClusterStatusObservedGeneration(clusterBar);
         Set<VirtualKafkaCluster> clusters = Set.of(clusterBar);
         assertProxyConfigContents(proxy, Set.of(CLUSTER_BAR_BOOTSTRAP, filter.getSpec().getType()), Set.of());
         assertDefaultVirtualClusterGatewayConfigured(proxy, clusterBar);
@@ -242,6 +256,12 @@ class KafkaProxyReconcilerIT {
         assertDeploymentBecomesReady(proxy);
         assertServiceTargetsProxyInstances(proxy, clusterBar, ingressBar);
         return new CreatedResources(proxy, clusters, kafkaServices, Set.of(ingressBar));
+    }
+
+    // the KafkaProxyReconciler only operates on Clusters that have been reconciled, ie metadata.status == status.observedGeneration
+    private VirtualKafkaCluster updateClusterStatusObservedGeneration(VirtualKafkaCluster clusterBar) {
+        clusterBar.setStatus(new VirtualKafkaClusterStatusBuilder().withObservedGeneration(generation(clusterBar)).build());
+        return testActor.patchStatus(clusterBar);
     }
 
     private void assertDefaultVirtualClusterGatewayConfigured(KafkaProxy proxy, VirtualKafkaCluster clusterBar) {
@@ -384,7 +404,8 @@ class KafkaProxyReconcilerIT {
         var cluster = createdResources.cluster(CLUSTER_BAR).edit().editSpec().withTargetKafkaServiceRef(newClusterRef).endSpec().build();
 
         // when
-        testActor.replace(cluster);
+        cluster = testActor.replace(cluster);
+        updateClusterStatusObservedGeneration(cluster);
 
         // then
         assertDeploymentBecomesReady(proxy);
@@ -427,7 +448,9 @@ class KafkaProxyReconcilerIT {
         KafkaProtocolFilter filter = testActor.create(filter(FILTER_NAME));
 
         VirtualKafkaCluster fooCluster = testActor.create(virtualKafkaCluster(CLUSTER_FOO, proxyA, fooService, ingressFoo, filter));
+        updateClusterStatusObservedGeneration(fooCluster);
         VirtualKafkaCluster barCluster = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxyB, barService, ingressBar, filter));
+        updateClusterStatusObservedGeneration(barCluster);
 
         assertProxyConfigContents(proxyA, Set.of(CLUSTER_FOO_BOOTSTRAP), Set.of());
         assertProxyConfigContents(proxyB, Set.of(CLUSTER_BAR_BOOTSTRAP), Set.of());
@@ -440,11 +463,13 @@ class KafkaProxyReconcilerIT {
         var updatedFooCluster = new VirtualKafkaClusterBuilder(testActor.get(VirtualKafkaCluster.class, CLUSTER_FOO)).editSpec().editProxyRef().withName(name(proxyB))
                 .endProxyRef().endSpec()
                 .build();
-        testActor.replace(updatedFooCluster);
+        updatedFooCluster = testActor.replace(updatedFooCluster);
+        updateClusterStatusObservedGeneration(updatedFooCluster);
         var updatedBarCluster = new VirtualKafkaClusterBuilder(testActor.get(VirtualKafkaCluster.class, CLUSTER_BAR)).editSpec().editProxyRef().withName(name(proxyA))
                 .endProxyRef().endSpec()
                 .build();
-        testActor.replace(updatedBarCluster);
+        updatedBarCluster = testActor.replace(updatedBarCluster);
+        updateClusterStatusObservedGeneration(updatedBarCluster);
 
         // then
         assertDeploymentBecomesReady(proxyA);
@@ -469,6 +494,7 @@ class KafkaProxyReconcilerIT {
         KafkaProtocolFilter filter = testActor.create(filter(FILTER_NAME));
 
         VirtualKafkaCluster fooCluster = testActor.create(virtualKafkaCluster(CLUSTER_FOO, proxyA, fooService, ingressFoo, filter));
+        fooCluster = updateClusterStatusObservedGeneration(fooCluster);
 
         assertProxyConfigContents(proxyA, Set.of(CLUSTER_FOO_BOOTSTRAP), Set.of());
         assertServiceTargetsProxyInstances(proxyA, fooCluster, ingressFoo);

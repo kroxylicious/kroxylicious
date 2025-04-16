@@ -29,6 +29,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
@@ -91,9 +92,12 @@ public class DependencyResolver {
     }
 
     private static ClusterResolutionResult checkClusterConditions(ClusterResolutionResult result) {
-        boolean clusterHasResolvedRefsFalse = hasAnyResolvedRefsFalse(Optional.ofNullable(result.cluster().getStatus()).map(s -> s.getConditions()).orElse(List.of()));
-        Set<LocalRef<?>> resolvedRefsFalse = clusterHasResolvedRefsFalse ? Set.of(toLocalRef(result.cluster())) : Set.of();
-        return result.addAllResourcesHavingResolvedRefsFalse(resolvedRefsFalse);
+        VirtualKafkaCluster cluster = result.cluster();
+        boolean clusterHasResolvedRefsFalse = hasAnyResolvedRefsFalse(
+                Optional.ofNullable(cluster.getStatus()).map(VirtualKafkaClusterStatus::getConditions).orElse(List.of()));
+        Set<LocalRef<?>> resolvedRefsFalse = clusterHasResolvedRefsFalse ? Set.of(toLocalRef(cluster)) : Set.of();
+        Set<LocalRef<?>> referentsWithStaleStatus = determineReferentsWithStaleStatus(cluster);
+        return result.addAllResourcesHavingResolvedRefsFalse(resolvedRefsFalse).addReferentsWithStaleStatus(referentsWithStaleStatus);
     }
 
     private static CommonDependencies getCommonDependenciesFrom(Context<?> context) {
@@ -138,7 +142,16 @@ public class DependencyResolver {
                                                                              Set<KafkaProxy> proxies) {
         Set<DanglingReference> danglingReferences = determineDanglingRefs(result, proxies, cluster);
         Set<LocalRef<?>> resolvedRefsFalse = determineResolvedRefsFalse(result);
-        return new ClusterResolutionResult(cluster, danglingReferences, resolvedRefsFalse);
+        return new ClusterResolutionResult(cluster, danglingReferences, resolvedRefsFalse, Set.of());
+    }
+
+    private static Set<LocalRef<?>> determineReferentsWithStaleStatus(VirtualKafkaCluster cluster) {
+        if (ResourcesUtil.isStatusFresh(cluster)) {
+            return Set.of();
+        }
+        else {
+            return Set.of(toLocalRef(cluster));
+        }
     }
 
     private static Set<DanglingReference> determineDanglingRefs(CommonDependencies dependencies, Set<KafkaProxy> proxies,

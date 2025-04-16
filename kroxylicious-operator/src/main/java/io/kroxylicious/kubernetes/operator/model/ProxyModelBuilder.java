@@ -8,13 +8,14 @@ package io.kroxylicious.kubernetes.operator.model;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
 import io.kroxylicious.kubernetes.operator.model.ingress.IngressAllocator;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
@@ -36,10 +37,12 @@ public class ProxyModelBuilder {
 
     public ProxyModel build(KafkaProxy primary, Context<KafkaProxy> context) {
         ProxyResolutionResult resolutionResult = resolver.resolveProxyRefs(primary, context);
-        Set<KafkaProxyIngress> ingresses = resolutionResult.ingresses();
+        if (!resolutionResult.allReferentsHaveFreshStatus()) {
+            String resources = resolutionResult.allReferentsWithStaleStatus().map(it -> ResourcesUtil.namespacedSlug(it, primary)).collect(Collectors.joining(","));
+            throw new StaleReferentStatusException("Some referent resources have not been reconciled yet: [" + resources + "]. This should be a transient state.");
+        }
         // to try and produce the most stable allocation of ports we can, we attempt to consider all clusters in the ingress allocation, even those
         // that we know are unacceptable due to unresolved dependencies.
-        List<VirtualKafkaCluster> allClusters = resolutionResult.allClustersInNameOrder();
         ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, resolutionResult);
         List<VirtualKafkaCluster> clustersWithValidIngresses = resolutionResult.fullyResolvedClustersInNameOrder().stream()
                 .filter(cluster -> ingressModel.clusterIngressModel(cluster).map(i -> i.ingressExceptions().isEmpty()).orElse(false)).toList();

@@ -23,6 +23,7 @@ import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.javaoperatorsdk.operator.OperatorException;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkflowAndDependentResourceContext;
@@ -67,12 +68,12 @@ class KafkaProxyReconcilerTest {
     private AutoCloseable closeable;
 
     @BeforeEach
-    public void openMocks() {
+    void openMocks() {
         closeable = MockitoAnnotations.openMocks(this);
     }
 
     @AfterEach
-    public void releaseMocks() throws Exception {
+    void releaseMocks() throws Exception {
         closeable.close();
     }
 
@@ -265,6 +266,72 @@ class KafkaProxyReconcilerTest {
     }
 
     @Test
+    void staleReferentStatusExceptionResultsInNoStatusUpdate() {
+        // Given
+        long generation = 42L;
+        // @formatter:off
+        Instant originalInstant = TEST_CLOCK.instant();
+        var primary = new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withGeneration(generation)
+                    .withName("my-proxy")
+                .endMetadata()
+                .withNewStatus()
+                    .addNewCondition()
+                        .withType(Condition.Type.Ready)
+                        .withStatus(Condition.Status.UNKNOWN)
+                        .withObservedGeneration(generation)
+                        .withMessage("Resource was terrible")
+                        .withReason(InvalidResourceException.class.getSimpleName())
+                        .withLastTransitionTime(originalInstant)
+                    .endCondition()
+                .endStatus()
+                .build();
+        // @formatter:on
+        Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
+
+        // When
+        var updateControl = newKafkaProxyReconciler(reconciliationTime)
+                .updateErrorStatus(primary, context, new StaleReferentStatusException("stale virtualcluster status"));
+
+        // Then
+        assertThat(updateControl.getResource()).isEmpty();
+    }
+
+    @Test
+    void staleReferentStatusExceptionCausingOperatorExceptionResultsInNoStatusUpdate() {
+        // Given
+        long generation = 42L;
+        // @formatter:off
+        Instant originalInstant = TEST_CLOCK.instant();
+        var primary = new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withGeneration(generation)
+                    .withName("my-proxy")
+                .endMetadata()
+                .withNewStatus()
+                    .addNewCondition()
+                        .withType(Condition.Type.Ready)
+                        .withStatus(Condition.Status.UNKNOWN)
+                        .withObservedGeneration(generation)
+                        .withMessage("Resource was terrible")
+                        .withReason(InvalidResourceException.class.getSimpleName())
+                        .withLastTransitionTime(originalInstant)
+                    .endCondition()
+                .endStatus()
+                .build();
+        // @formatter:on
+        Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
+
+        // When
+        var updateControl = newKafkaProxyReconciler(reconciliationTime)
+                .updateErrorStatus(primary, context, new OperatorException(new StaleReferentStatusException("stale virtualcluster status")));
+
+        // Then
+        assertThat(updateControl.getResource()).isEmpty();
+    }
+
+    @Test
     void transitionToReadyTrueShouldChangeTransitionTime() {
         // Given
         long generation = 42L;
@@ -365,8 +432,8 @@ class KafkaProxyReconcilerTest {
         when(mockOperation.list()).thenReturn(mockList);
         when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
         KafkaProxy proxy = buildProxy("proxy");
-        VirtualKafkaCluster cluster = baseVirtualKafkaClusterBuilder(proxy, "cluster").build();
-        VirtualKafkaCluster clusterForAnotherProxy = baseVirtualKafkaClusterBuilder(buildProxy("anotherproxy"), "anothercluster").build();
+        VirtualKafkaCluster cluster = baseVirtualKafkaClusterBuilder(proxy, "cluster", 1L, 1L).build();
+        VirtualKafkaCluster clusterForAnotherProxy = baseVirtualKafkaClusterBuilder(buildProxy("anotherproxy"), "anothercluster", 1L, 1L).build();
         when(mockList.getItems()).thenReturn(List.of(cluster, clusterForAnotherProxy));
         PrimaryToSecondaryMapper<KafkaProxy> mapper = KafkaProxyReconciler.proxyToClusterMapper(eventSourceContext);
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
@@ -406,7 +473,7 @@ class KafkaProxyReconcilerTest {
         KubernetesResourceList<VirtualKafkaCluster> mockList = mock();
         when(mockOperation.list()).thenReturn(mockList);
         when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
-        VirtualKafkaCluster clusterForAnotherProxy = baseVirtualKafkaClusterBuilder(buildProxy("anotherProxy"), "cluster").build();
+        VirtualKafkaCluster clusterForAnotherProxy = baseVirtualKafkaClusterBuilder(buildProxy("anotherProxy"), "cluster", 1L, 1L).build();
         when(mockList.getItems()).thenReturn(List.of(clusterForAnotherProxy));
         PrimaryToSecondaryMapper<KafkaProxy> mapper = KafkaProxyReconciler.proxyToClusterMapper(eventSourceContext);
         KafkaProxy proxy = buildProxy("proxy");
@@ -416,6 +483,7 @@ class KafkaProxyReconcilerTest {
 
     @Test
     void clusterToProxyMapper() {
+        // given
         EventSourceContext<KafkaProxy> eventSourceContext = mock();
         KubernetesClient client = mock();
         when(eventSourceContext.getClient()).thenReturn(client);
@@ -427,9 +495,36 @@ class KafkaProxyReconcilerTest {
         KafkaProxy proxy = buildProxy("proxy");
         when(mockList.getItems()).thenReturn(List.of(proxy));
         SecondaryToPrimaryMapper<VirtualKafkaCluster> mapper = KafkaProxyReconciler.clusterToProxyMapper(eventSourceContext);
-        VirtualKafkaCluster cluster = baseVirtualKafkaClusterBuilder(proxy, "cluster").build();
+
+        // when
+        VirtualKafkaCluster cluster = baseVirtualKafkaClusterBuilder(proxy, "cluster", 1L, 1L).build();
         Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(cluster);
+
+        // then
         assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(proxy));
+    }
+
+    @Test
+    void clusterToProxyMapperIgnoresClusterWithStaleStatus() {
+        // given
+        EventSourceContext<KafkaProxy> eventSourceContext = mock();
+        KubernetesClient client = mock();
+        when(eventSourceContext.getClient()).thenReturn(client);
+        MixedOperation<KafkaProxy, KubernetesResourceList<KafkaProxy>, Resource<KafkaProxy>> mockOperation = mock();
+        when(client.resources(KafkaProxy.class)).thenReturn(mockOperation);
+        KubernetesResourceList<KafkaProxy> mockList = mock();
+        when(mockOperation.list()).thenReturn(mockList);
+        when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
+        KafkaProxy proxy = buildProxy("proxy");
+        when(mockList.getItems()).thenReturn(List.of(proxy));
+        SecondaryToPrimaryMapper<VirtualKafkaCluster> mapper = KafkaProxyReconciler.clusterToProxyMapper(eventSourceContext);
+
+        // when
+        VirtualKafkaCluster cluster = baseVirtualKafkaClusterBuilder(proxy, "cluster", 2L, 1L).build();
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(cluster);
+
+        // then
+        assertThat(primaryResourceIDs).isEmpty();
     }
 
     @Test
@@ -486,7 +581,7 @@ class KafkaProxyReconcilerTest {
         String proxyNamespace = "test";
         String filterName = "filter";
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName(proxyName).withNamespace(proxyNamespace).endMetadata().build();
-        VirtualKafkaCluster clusterForAnotherProxy = baseVirtualKafkaClusterBuilder(proxy, "cluster").editOrNewSpec()
+        VirtualKafkaCluster clusterForAnotherProxy = baseVirtualKafkaClusterBuilder(proxy, "cluster", 1L, 1L).editOrNewSpec()
                 .addNewFilterRef().withName(filterName).endFilterRef().endSpec().build();
         when(mockList.getItems()).thenReturn(List.of(clusterForAnotherProxy));
         PrimaryToSecondaryMapper<KafkaProxy> mapper = KafkaProxyReconciler.proxyToFilters(eventSourceContext);
@@ -502,7 +597,7 @@ class KafkaProxyReconcilerTest {
         when(eventSourceContext.getClient()).thenReturn(client);
         KubernetesResourceList<VirtualKafkaCluster> mockList = mockVirtualKafkaClusterListOperation(client);
         KafkaProxy proxy = buildProxy("proxy");
-        VirtualKafkaCluster clusterWithoutFilters = baseVirtualKafkaClusterBuilder(proxy, "cluster")
+        VirtualKafkaCluster clusterWithoutFilters = baseVirtualKafkaClusterBuilder(proxy, "cluster", 1L, 1L)
                 .editOrNewSpec()
                 .withFilterRefs((List<FilterRef>) null)
                 .endSpec()
@@ -704,7 +799,7 @@ class KafkaProxyReconcilerTest {
     }
 
     private VirtualKafkaCluster buildVirtualKafkaCluster(KafkaProxy kafkaProxy, String name, KafkaService clusterRef) {
-        return baseVirtualKafkaClusterBuilder(kafkaProxy, name)
+        return baseVirtualKafkaClusterBuilder(kafkaProxy, name, 1L, 1L)
                 .editOrNewSpec()
                 .withNewTargetKafkaServiceRef()
                 .withName(name(clusterRef))
@@ -713,15 +808,18 @@ class KafkaProxyReconcilerTest {
                 .build();
     }
 
-    private VirtualKafkaClusterBuilder baseVirtualKafkaClusterBuilder(KafkaProxy kafkaProxy, String name) {
+    private VirtualKafkaClusterBuilder baseVirtualKafkaClusterBuilder(KafkaProxy kafkaProxy, String name, long generation, long observedGeneration) {
         return new VirtualKafkaClusterBuilder()
                 .withNewMetadata()
                 .withName(name)
+                .withGeneration(generation)
                 .endMetadata()
                 .withNewSpec()
                 .withNewProxyRef()
                 .withName(name(kafkaProxy))
-                .endProxyRef().endSpec();
+                .endProxyRef().endSpec()
+                .editStatus().withObservedGeneration(observedGeneration)
+                .endStatus();
     }
 
     private KubernetesResourceList<KafkaProxy> mockKafkaProxyListOperation(KubernetesClient client) {

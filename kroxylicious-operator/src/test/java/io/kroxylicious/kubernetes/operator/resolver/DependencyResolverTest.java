@@ -153,6 +153,29 @@ class DependencyResolverTest {
         assertThat(onlyResult.findResourcesWithResolvedRefsFalse("VirtualKafkaCluster")).containsExactly(ResourcesUtil.toLocalRef(cluster));
     }
 
+    @Test
+    void resolveProxyRefsWitStaleVirtualKafkaClusterStatus() {
+        // given
+        givenClusterRefsInContext(kafkaService("cluster"));
+        long oldGeneration = 1L;
+        long generation = 2L;
+        VirtualKafkaCluster cluster = virtualCluster(null, "cluster", List.of(), getProxyRef(PROXY_NAME))
+                .edit().editMetadata().withGeneration(generation).endMetadata()
+                .editStatus().withObservedGeneration(oldGeneration).endStatus()
+                .build();
+        givenVirtualKafkaClustersInContext(cluster);
+
+        // when
+        ProxyResolutionResult resolutionResult = resolveProxyRefs(PROXY);
+
+        // then
+        assertThat(resolutionResult.allClustersInNameOrder()).containsExactly(cluster);
+        ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
+        assertThat(onlyResult.isFullyResolved()).isTrue();
+        assertThat(onlyResult.allReferentsHaveFreshStatus()).isFalse();
+        assertThat(onlyResult.findReferentsWithStaleStatus()).containsExactly(ResourcesUtil.toLocalRef(cluster));
+    }
+
     // we want to ensure that when we are reconciling a VirtualKafkaCluster than we do not consider the status of that
     // cluster. Ie if a previous reconciliation sets the cluster to ResolvedRefs: False, we do not want that status to
     // be considered when calculating a fresh status.
