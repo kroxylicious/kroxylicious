@@ -142,7 +142,20 @@ public class DependencyResolver {
                                                                              Set<KafkaProxy> proxies) {
         Set<DanglingReference> danglingReferences = determineDanglingRefs(result, proxies, cluster);
         Set<LocalRef<?>> resolvedRefsFalse = determineResolvedRefsFalse(result);
-        return new ClusterResolutionResult(cluster, danglingReferences, resolvedRefsFalse, Set.of());
+        Set<LocalRef<?>> referentsWithStaleStatus = determineReferentsWithStaleStatus(result);
+        return new ClusterResolutionResult(cluster, danglingReferences, resolvedRefsFalse, referentsWithStaleStatus);
+    }
+
+    private static Set<LocalRef<?>> determineReferentsWithStaleStatus(CommonDependencies cluster) {
+        Stream<LocalRef<?>> ingressesWithStaleStatus = cluster.ingresses().entrySet().stream().filter(e -> !ResourcesUtil.isStatusFresh(e.getValue()))
+                .map(Map.Entry::getKey);
+        Stream<LocalRef<?>> servicesWithStaleStatus = cluster.kafkaServices().entrySet().stream().filter(e -> !ResourcesUtil.isStatusFresh(e.getValue()))
+                .map(Map.Entry::getKey);
+        Stream<LocalRef<?>> filtersWithStaleStatus = cluster.filters().entrySet().stream().filter(e -> !ResourcesUtil.isStatusFresh(e.getValue()))
+                .map(Map.Entry::getKey);
+        return Stream.of(ingressesWithStaleStatus, servicesWithStaleStatus, filtersWithStaleStatus)
+                .flatMap(Function.identity())
+                .collect(Collectors.toSet());
     }
 
     private static Set<LocalRef<?>> determineReferentsWithStaleStatus(VirtualKafkaCluster cluster) {

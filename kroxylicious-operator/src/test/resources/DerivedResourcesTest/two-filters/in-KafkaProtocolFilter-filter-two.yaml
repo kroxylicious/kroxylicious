@@ -16,3 +16,5 @@ spec:
   configTemplate:
     filterTwoConfig: 42
     password: ${secret:my-secret:filter-two}
+status:
+  observedGeneration: 8

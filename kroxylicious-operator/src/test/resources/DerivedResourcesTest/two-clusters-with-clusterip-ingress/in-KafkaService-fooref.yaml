@@ -13,3 +13,5 @@ metadata:
   generation: 5
 spec:
   bootstrapServers: second-kafka.kafka2.svc.cluster.local:9092
+status:
+  observedGeneration: 5

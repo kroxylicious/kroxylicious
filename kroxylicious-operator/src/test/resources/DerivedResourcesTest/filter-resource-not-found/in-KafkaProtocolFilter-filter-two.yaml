@@ -15,3 +15,5 @@ spec:
   type: com.example.what.Ever
   configTemplate:
     filterTwoConfig: 42
+status:
+  observedGeneration: 4

@@ -16,3 +16,6 @@ spec:
     name: twocluster
   clusterIP:
     protocol: TCP
+
+status:
+  observedGeneration: 3

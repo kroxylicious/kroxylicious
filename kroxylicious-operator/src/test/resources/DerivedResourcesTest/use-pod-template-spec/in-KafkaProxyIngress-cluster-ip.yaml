@@ -16,3 +16,5 @@ spec:
     name: use-pod-template-spec
   clusterIP:
     protocol: TCP
+status:
+  observedGeneration: 100

@@ -16,3 +16,5 @@ spec:
     name: minimal
   clusterIP:
     protocol: TCP
+status:
+  observedGeneration: 2
