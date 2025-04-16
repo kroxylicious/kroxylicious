@@ -312,16 +312,21 @@ public class KafkaProxyReconciler implements
 
     @VisibleForTesting
     static SecondaryToPrimaryMapper<KafkaService> kafkaServiceRefToProxyMapper(EventSourceContext<KafkaProxy> context) {
-        return kafkaServiceRef -> {
+        return kafkaService -> {
+            // we do not want to trigger reconciliation of any proxy if the ingress has not been reconciled
+            if (!ResourcesUtil.isStatusFresh(kafkaService)) {
+                LOGGER.debug("Ignoring event from KafkaService with stale status: {}", ResourcesUtil.toLocalRef(kafkaService));
+                return Set.of();
+            }
             // find all virtual clusters that reference this kafkaServiceRef
 
-            Set<? extends LocalRef<KafkaProxy>> proxyRefs = ResourcesUtil.resourcesInSameNamespace(context, kafkaServiceRef, VirtualKafkaCluster.class)
-                    .filter(vkc -> vkc.getSpec().getTargetKafkaServiceRef().equals(ResourcesUtil.toLocalRef(kafkaServiceRef)))
+            Set<? extends LocalRef<KafkaProxy>> proxyRefs = ResourcesUtil.resourcesInSameNamespace(context, kafkaService, VirtualKafkaCluster.class)
+                    .filter(vkc -> vkc.getSpec().getTargetKafkaServiceRef().equals(ResourcesUtil.toLocalRef(kafkaService)))
                     .map(VirtualKafkaCluster::getSpec)
                     .map(VirtualKafkaClusterSpec::getProxyRef)
                     .collect(Collectors.toSet());
 
-            Set<ResourceID> proxyIds = ResourcesUtil.filteredResourceIdsInSameNamespace(context, kafkaServiceRef, KafkaProxy.class,
+            Set<ResourceID> proxyIds = ResourcesUtil.filteredResourceIdsInSameNamespace(context, kafkaService, KafkaProxy.class,
                     proxy -> proxyRefs.contains(toLocalRef(proxy)));
             LOGGER.debug("Event source KafkaService SecondaryToPrimaryMapper got {}", proxyIds);
             return proxyIds;
@@ -404,6 +409,11 @@ public class KafkaProxyReconciler implements
     @VisibleForTesting
     static SecondaryToPrimaryMapper<KafkaProxyIngress> ingressToProxyMapper(EventSourceContext<KafkaProxy> context) {
         return ingress -> {
+            // we do not want to trigger reconciliation of any proxy if the ingress has not been reconciled
+            if (!ResourcesUtil.isStatusFresh(ingress)) {
+                LOGGER.debug("Ignoring event from ingress with stale status: {}", ResourcesUtil.toLocalRef(ingress));
+                return Set.of();
+            }
             // we need to reconcile all proxies when a kafka proxy ingress changes in case the proxyRef is updated, we need to update
             // the previously referenced proxy too.
             Set<ResourceID> proxyIds = ResourcesUtil.filteredResourceIdsInSameNamespace(context, ingress, KafkaProxy.class, proxy -> true);
@@ -425,6 +435,11 @@ public class KafkaProxyReconciler implements
     @VisibleForTesting
     static SecondaryToPrimaryMapper<KafkaProtocolFilter> filterToProxy(EventSourceContext<KafkaProxy> context) {
         return (KafkaProtocolFilter filter) -> {
+            // we do not want to trigger reconciliation of any proxy if the filter has not been reconciled
+            if (!ResourcesUtil.isStatusFresh(filter)) {
+                LOGGER.debug("Ignoring event from filter with stale status: {}", ResourcesUtil.toLocalRef(filter));
+                return Set.of();
+            }
             // filters don't point to a proxy, but must be in the same namespace as the proxy/proxies which reference the,
             // so when a filter changes we reconcile all the proxies in the same namespace
             Set<ResourceID> proxiesInFilterNamespace = ResourcesUtil.filteredResourceIdsInSameNamespace(context, filter, KafkaProxy.class, proxy -> true);

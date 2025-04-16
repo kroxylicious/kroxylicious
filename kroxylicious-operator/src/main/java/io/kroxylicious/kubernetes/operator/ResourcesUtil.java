@@ -28,8 +28,14 @@ import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 
 public class ResourcesUtil {
 
@@ -278,6 +284,36 @@ public class ResourcesUtil {
      */
     public static boolean isStatusFresh(VirtualKafkaCluster cluster) {
         return isStatusFresh(cluster, c -> Optional.ofNullable(c.getStatus()).map(VirtualKafkaClusterStatus::getObservedGeneration).orElse(null));
+    }
+
+    /**
+     * Checks that the status observedGeneration is equal to the metadata generation. Indicating
+     * that the current {@code spec} of the resource has been reconciled.
+     * @param ingress ingress
+     * @return true if status observedGeneration is equal to the metadata generation
+     */
+    public static boolean isStatusFresh(KafkaProxyIngress ingress) {
+        return isStatusFresh(ingress, i -> Optional.ofNullable(i.getStatus()).map(KafkaProxyIngressStatus::getObservedGeneration).orElse(null));
+    }
+
+    /**
+     * Checks that the status observedGeneration is equal to the metadata generation. Indicating
+     * that the current {@code spec} of the resource has been reconciled.
+     * @param service service
+     * @return true if status observedGeneration is equal to the metadata generation
+     */
+    public static boolean isStatusFresh(KafkaService service) {
+        return isStatusFresh(service, i -> Optional.ofNullable(i.getStatus()).map(KafkaServiceStatus::getObservedGeneration).orElse(null));
+    }
+
+    /**
+     * Checks that the status observedGeneration is equal to the metadata generation. Indicating
+     * that the current {@code spec} of the resource has been reconciled.
+     * @param filter filter
+     * @return true if status observedGeneration is equal to the metadata generation
+     */
+    public static boolean isStatusFresh(KafkaProtocolFilter filter) {
+        return isStatusFresh(filter, i -> Optional.ofNullable(i.getStatus()).map(KafkaProtocolFilterStatus::getObservedGeneration).orElse(null));
     }
 
     private static <T extends HasMetadata> boolean isStatusFresh(T resource, Function<T, Long> observedGenerationFunc) {

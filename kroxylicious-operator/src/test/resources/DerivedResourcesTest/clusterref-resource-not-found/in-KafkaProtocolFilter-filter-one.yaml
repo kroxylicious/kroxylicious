@@ -15,3 +15,5 @@ spec:
   type: org.example.some.java.Class
   configTemplate:
     filterOneConfig: true
+status:
+  observedGeneration: 4

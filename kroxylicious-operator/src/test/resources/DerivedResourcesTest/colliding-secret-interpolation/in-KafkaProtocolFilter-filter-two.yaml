@@ -22,3 +22,5 @@ spec:
     interpolation6: ${configmap:foo:secret2}
     interpolation7: ${configmap:bar:secret1}
     interpolation8: ${configmap:bar:secret1} # the same as interpolation3
+status:
+  observedGeneration: 17
