@@ -170,8 +170,6 @@ public class KafkaProxyReconciler implements
                 .flatMap(fd -> fd.mounts().stream())
                 .collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(VolumeMount::getMountPath).reversed())));
 
-        // TODO add the volume & mounts for each KafkaService's spec.tls
-
         return new ConfigurationFragment<>(
                 new Configuration(
                         new ManagementConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())),

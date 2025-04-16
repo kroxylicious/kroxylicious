@@ -19,3 +19,9 @@ spec:
     trustAnchorRef:
       name: upstream-ca
       key: cas.pem
+    cipherSuites:
+      allowed:
+      - foobar
+    protocols:
+      denied:
+      - TLS1.2

@@ -44,6 +44,12 @@ data:
           trust:
             storeFile: "/opt/kroxylicious/target-cluster/trusted-certs/upstream-ca/cas.pem"
             storeType: "PEM"
+          cipherSuites:
+            allowed:
+            - "foobar"
+          protocols:
+            denied:
+            - "TLS1.2"
       gateways:
       - name: "default"
         portIdentifiesNode:
