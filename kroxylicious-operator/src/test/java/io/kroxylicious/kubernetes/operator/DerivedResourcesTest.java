@@ -50,8 +50,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
-import io.kroxylicious.kubernetes.operator.model.ProxyModel;
-import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -68,6 +66,8 @@ class DerivedResourcesTest {
             .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
             .enable(YAMLGenerator.Feature.LITERAL_BLOCK_STYLE)
             .registerModule(new JavaTimeModule());
+
+    public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
 
     public static KafkaProxy kafkaProxyFromFile(Path path) {
         // TODO should validate against the CRD schema, because the DependentResource
@@ -237,19 +237,11 @@ class DerivedResourcesTest {
 
             Context<KafkaProxy> context;
             try {
-                context = buildContext(testDir, virtualKafkaClusters, kafkaServiceRefs, ingresses);
+                context = buildContext(testDir, kafkaProxy, virtualKafkaClusters, kafkaServiceRefs, ingresses);
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
             }
-
-            ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
-            ProxyModel model = proxyModelBuilder.build(kafkaProxy, context);
-            KafkaProxyContext.init(
-                    context,
-                    new VirtualKafkaClusterStatusFactory(Clock.fixed(Instant.EPOCH, ZoneId.of("Z"))),
-                    SecureConfigInterpolator.DEFAULT_INTERPOLATOR,
-                    model);
 
             List<DynamicTest> tests = new ArrayList<>();
 
@@ -315,6 +307,7 @@ class DerivedResourcesTest {
 
     @NonNull
     private static Context<KafkaProxy> buildContext(Path testDir,
+                                                    KafkaProxy kafkaProxy,
                                                     List<VirtualKafkaCluster> virtualKafkaClusters,
                                                     List<KafkaService> kafkaServiceRefs,
                                                     List<KafkaProxyIngress> ingresses)
@@ -342,6 +335,9 @@ class DerivedResourcesTest {
         doReturn(Set.copyOf(virtualKafkaClusters)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
         doReturn(Set.copyOf(kafkaServiceRefs)).when(context).getSecondaryResources(KafkaService.class);
         doReturn(Set.copyOf(ingresses)).when(context).getSecondaryResources(KafkaProxyIngress.class);
+
+        new KafkaProxyReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR)
+                .initContext(kafkaProxy, context);
 
         return context;
     }

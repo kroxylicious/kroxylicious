@@ -67,7 +67,8 @@ public class ProxyDeploymentDependentResource
     @Override
     protected Deployment desired(KafkaProxy primary,
                                  Context<KafkaProxy> context) {
-        var model = KafkaProxyContext.proxyContext(context).model();
+        KafkaProxyContext kafkaProxyContext = KafkaProxyContext.proxyContext(context);
+        var model = kafkaProxyContext.model();
         // @formatter:off
         return new DeploymentBuilder()
                 .editOrNewMetadata()
@@ -82,7 +83,7 @@ public class ProxyDeploymentDependentResource
                     .editOrNewSelector()
                         .withMatchLabels(deploymentSelector(primary))
                     .endSelector()
-                    .withTemplate(podTemplate(primary, context, model.ingressModel(), model.clustersWithValidIngresses()))
+                    .withTemplate(podTemplate(primary, kafkaProxyContext, model.ingressModel(), model.clustersWithValidIngresses()))
                 .endSpec()
                 .build();
         // @formatter:on
@@ -104,29 +105,33 @@ public class ProxyDeploymentDependentResource
     }
 
     private PodTemplateSpec podTemplate(KafkaProxy primary,
-                                        Context<KafkaProxy> context, ProxyIngressModel ingressModel, List<VirtualKafkaCluster> virtualKafkaClusters) {
+                                        KafkaProxyContext kafkaProxyContext,
+                                        ProxyIngressModel ingressModel,
+                                        List<VirtualKafkaCluster> virtualKafkaClusters) {
         // @formatter:off
         return new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
                     .addToLabels(podLabels(primary))
                 .endMetadata()
                 .editOrNewSpec()
-                    .withContainers(proxyContainer( context, ingressModel, virtualKafkaClusters))
+                    .withContainers(proxyContainer(kafkaProxyContext, ingressModel, virtualKafkaClusters))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
                         .withNewConfigMap()
                             .withName(ProxyConfigDependentResource.configMapName(primary))
                         .endConfigMap()
                     .endVolume()
-                    .addAllToVolumes(ProxyConfigDependentResource.secureVolumes(context.managedWorkflowAndDependentResourceContext()))
+                    .addAllToVolumes(kafkaProxyContext.volumes())
                 .endSpec()
                 .build();
         // @formatter:on
     }
 
-    private Container proxyContainer(Context<KafkaProxy> context, ProxyIngressModel ingressModel, List<VirtualKafkaCluster> virtualKafkaClusters) {
+    private Container proxyContainer(KafkaProxyContext kafkaProxyContext,
+                                     ProxyIngressModel ingressModel,
+                                     List<VirtualKafkaCluster> virtualKafkaClusters) {
         // @formatter:off
-        var containerBuilder = new ContainerBuilder()
+         var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
                 .withNewLivenessProbe()
                     .withNewHttpGet()
@@ -146,7 +151,7 @@ public class ProxyDeploymentDependentResource
                     .withMountPath(ProxyDeploymentDependentResource.CONFIG_PATH_IN_CONTAINER)
                     .withSubPath(ProxyConfigDependentResource.CONFIG_YAML_KEY)
                 .endVolumeMount()
-                .addAllToVolumeMounts(ProxyConfigDependentResource.secureVolumeMounts(context.managedWorkflowAndDependentResourceContext()))
+                .addAllToVolumeMounts(kafkaProxyContext.mounts())
                 // management port
                 .addNewPort()
                     .withContainerPort(MANAGEMENT_PORT)
@@ -154,7 +159,7 @@ public class ProxyDeploymentDependentResource
                 .endPort();
         // broker ports
         virtualKafkaClusters.forEach(virtualKafkaCluster -> {
-            if (!KafkaProxyContext.proxyContext(context).isBroken(virtualKafkaCluster)) {
+            if (!kafkaProxyContext.isBroken(virtualKafkaCluster)) {
                 ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(virtualKafkaCluster).orElseThrow();
                 for (ProxyIngressModel.IngressModel ingress : virtualClusterIngressModel.ingressModels()) {
                     ingress.proxyContainerPorts().forEach(containerBuilder::addToPorts);
