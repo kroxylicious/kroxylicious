@@ -41,8 +41,6 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 
 public class ResourcesUtil {
 
-    public static final String DEPENDANT_CHECKSUM_ANNOTATION = "kroxylicious.io/dependant-checksum";
-
     private ResourcesUtil() {
     }
 

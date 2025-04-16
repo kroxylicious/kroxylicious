@@ -134,7 +134,7 @@ class KafkaProxyIngressReconcilerTest {
                 .satisfies(uc -> Assertions.assertThat(update.getResource())
                         .isPresent()
                         .satisfies(kpi -> OperatorAssertions.assertThat(kpi.get())
-                                .hasAnnotationSatisfying(ResourcesUtil.DEPENDANT_CHECKSUM_ANNOTATION,
+                                .hasAnnotationSatisfying(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
                                         actualValue -> Assertions.assertThat(actualValue)
                                                 .isNotBlank()
                                                 .satisfies(str -> Assertions.assertThat(Long.parseLong(str)).isNotZero()))));
@@ -158,7 +158,7 @@ class KafkaProxyIngressReconcilerTest {
                 .satisfies(uc -> Assertions.assertThat(update.getResource())
                         .isPresent()
                         .satisfies(kpi -> OperatorAssertions.assertThat(kpi.get())
-                                .hasAnnotationSatisfying(ResourcesUtil.DEPENDANT_CHECKSUM_ANNOTATION,
+                                .hasAnnotationSatisfying(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
                                         actualValue -> Assertions.assertThat(actualValue)
                                                 .isNotBlank()
                                                 .satisfies(str -> Assertions.assertThat(Long.parseLong(str)).isEqualTo(4074241081L)))));
@@ -177,7 +177,7 @@ class KafkaProxyIngressReconcilerTest {
         var initial = reconciler.reconcile(INGRESS, context);
 
         Assertions.assertThat(initial.getResource()).isPresent();
-        String initialChecksum = initial.getResource().get().getMetadata().getAnnotations().get(ResourcesUtil.DEPENDANT_CHECKSUM_ANNOTATION);
+        String initialChecksum = initial.getResource().get().getMetadata().getAnnotations().get(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION);
 
         // when
         var update = reconciler.reconcile(INGRESS, context);
@@ -188,7 +188,7 @@ class KafkaProxyIngressReconcilerTest {
                 .satisfies(uc -> {
                     Assertions.assertThat(update.getResource()).isPresent();
                     Assertions.assertThat(update.getResource().get()).satisfies(kpi -> OperatorAssertions.assertThat(kpi)
-                            .hasAnnotationSatisfying(ResourcesUtil.DEPENDANT_CHECKSUM_ANNOTATION,
+                            .hasAnnotationSatisfying(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
                                     actualValue -> Assertions.assertThat(actualValue)
                                             .isNotBlank()
                                             .isNotEqualTo(initialChecksum)));

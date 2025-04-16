@@ -31,7 +31,7 @@ public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngr
                     .withUid(ResourcesUtil.uid(observedIngress))
                     .withName(ResourcesUtil.name(observedIngress))
                     .withNamespace(ResourcesUtil.namespace(observedIngress))
-                    .addToAnnotations(ResourcesUtil.DEPENDANT_CHECKSUM_ANNOTATION, checksum)
+                    .addToAnnotations(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, checksum)
                 .endMetadata()
                 .withNewStatus()
                     .withObservedGeneration(ResourcesUtil.generation(observedIngress))
