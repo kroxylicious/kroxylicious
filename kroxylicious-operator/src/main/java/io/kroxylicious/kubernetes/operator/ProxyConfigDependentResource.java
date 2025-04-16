@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
@@ -17,12 +16,10 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
-import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkflowAndDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.proxy.config.Configuration;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ProxyConfigStateData.CONFIG_OBJECT_MAPPER;
@@ -42,10 +39,6 @@ public class ProxyConfigDependentResource extends CRUDKubernetesDependentResourc
      * The key of the {@code config.yaml} entry in the desired {@code Secret}.
      */
 
-    public static final String SECURE_VOLUME_KEY = "secure-volumes";
-    public static final String SECURE_VOLUME_MOUNT_KEY = "secure-volume-mounts";
-    public static final String CONFIGURATION_DATA_KEY = "configuration";
-
     public ProxyConfigDependentResource() {
         super(ConfigMap.class);
     }
@@ -57,16 +50,16 @@ public class ProxyConfigDependentResource extends CRUDKubernetesDependentResourc
         return ResourcesUtil.name(primary) + PROXY_CONFIG_CONFIG_MAP_SUFFIX;
     }
 
-    public static List<Volume> secureVolumes(ManagedWorkflowAndDependentResourceContext managedDependentResourceContext) {
-        Set<Volume> volumes = managedDependentResourceContext.get(ProxyConfigDependentResource.SECURE_VOLUME_KEY, Set.class).orElse(Set.of());
+    public static List<Volume> secureVolumes(Context<KafkaProxy> context) {
+        Set<Volume> volumes = KafkaProxyContext.proxyContext(context).configuration().map(ConfigurationFragment::volumes).orElse(Set.of());
         if (volumes.stream().map(Volume::getName).distinct().count() != volumes.size()) {
             throw new IllegalStateException("Two volumes with different definitions share the same name");
         }
         return volumes.stream().toList();
     }
 
-    public static List<VolumeMount> secureVolumeMounts(ManagedWorkflowAndDependentResourceContext managedDependentResourceContext) {
-        Set<VolumeMount> mounts = managedDependentResourceContext.get(ProxyConfigDependentResource.SECURE_VOLUME_MOUNT_KEY, Set.class).orElse(Set.of());
+    public static List<VolumeMount> secureVolumeMounts(Context<KafkaProxy> context) {
+        Set<VolumeMount> mounts = KafkaProxyContext.proxyContext(context).configuration().map(ConfigurationFragment::mounts).orElse(Set.of());
         if (mounts.stream().map(VolumeMount::getMountPath).distinct().count() != mounts.size()) {
             throw new IllegalStateException("Two volume mounts with different definitions share the same mount path");
         }
@@ -78,8 +71,11 @@ public class ProxyConfigDependentResource extends CRUDKubernetesDependentResourc
                                 Context<KafkaProxy> context) {
         // the configuration object won't be present if isMet has returned false
         // this is the case if the dependant resource is to be removed.
-        Optional<Configuration> configuration = context.managedWorkflowAndDependentResourceContext().get(CONFIGURATION_DATA_KEY, Configuration.class);
-        var data = configuration.map(c -> Map.of(CONFIG_YAML_KEY, toYaml(c))).orElse(Map.of());
+        var data = KafkaProxyContext.proxyContext(context)
+                .configuration()
+                .map(ConfigurationFragment::fragment)
+                .map(c -> Map.of(CONFIG_YAML_KEY, toYaml(c)))
+                .orElse(Map.of());
 
         // @formatter:off
         return new ConfigMapBuilder()

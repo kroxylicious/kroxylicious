@@ -118,7 +118,7 @@ public class ProxyDeploymentDependentResource
                             .withName(ProxyConfigDependentResource.configMapName(primary))
                         .endConfigMap()
                     .endVolume()
-                    .addAllToVolumes(ProxyConfigDependentResource.secureVolumes(context.managedWorkflowAndDependentResourceContext()))
+                    .addAllToVolumes(ProxyConfigDependentResource.secureVolumes(context))
                 .endSpec()
                 .build();
         // @formatter:on
@@ -146,7 +146,7 @@ public class ProxyDeploymentDependentResource
                     .withMountPath(ProxyDeploymentDependentResource.CONFIG_PATH_IN_CONTAINER)
                     .withSubPath(ProxyConfigDependentResource.CONFIG_YAML_KEY)
                 .endVolumeMount()
-                .addAllToVolumeMounts(ProxyConfigDependentResource.secureVolumeMounts(context.managedWorkflowAndDependentResourceContext()))
+                .addAllToVolumeMounts(ProxyConfigDependentResource.secureVolumeMounts(context))
                 // management port
                 .addNewPort()
                     .withContainerPort(MANAGEMENT_PORT)

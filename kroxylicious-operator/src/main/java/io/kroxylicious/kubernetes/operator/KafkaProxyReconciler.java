@@ -6,10 +6,17 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -17,6 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.javaoperatorsdk.operator.OperatorException;
+import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ContextInitializer;
@@ -33,6 +42,7 @@ import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMap
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -40,8 +50,19 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterSpec;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
+import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
+import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
+import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.config.IllegalConfigurationException;
+import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.config.VirtualCluster;
+import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
+import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
+import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
@@ -100,7 +121,128 @@ public class KafkaProxyReconciler implements
                             Context<KafkaProxy> context) {
         ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
         ProxyModel model = proxyModelBuilder.build(proxy, context);
-        KafkaProxyContext.init(context, new VirtualKafkaClusterStatusFactory(clock), secureConfigInterpolator, model);
+        ConfigurationFragment<Configuration> fragment;
+        try {
+            fragment = generateProxyConfig(model);
+        }
+        catch (IllegalConfigurationException ice) {
+            fragment = null;
+        }
+
+        KafkaProxyContext.init(context,
+                new VirtualKafkaClusterStatusFactory(clock),
+                model,
+                fragment);
+    }
+
+    private ConfigurationFragment<Configuration> generateProxyConfig(ProxyModel model) {
+
+        var allFilterDefinitions = buildFilterDefinitions(model);
+        Map<String, ConfigurationFragment<NamedFilterDefinition>> namedDefinitions = allFilterDefinitions.stream()
+                .collect(Collectors.toMap(
+                        cf -> cf.fragment().name(),
+                        Function.identity()));
+
+        var virtualClusters = buildVirtualClusters(namedDefinitions.keySet(), model);
+
+        List<NamedFilterDefinition> referencedFilters = virtualClusters.stream().flatMap(c -> Optional.ofNullable(c.filters()).stream().flatMap(Collection::stream))
+                .distinct()
+                .map(filterName -> namedDefinitions.get(filterName).fragment()).toList();
+
+        var allVolumes = allFilterDefinitions.stream()
+                .flatMap(fd -> fd.volumes().stream())
+                .collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(Volume::getName).reversed())));
+
+        var allMounts = allFilterDefinitions.stream()
+                .flatMap(fd -> fd.mounts().stream())
+                .collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(VolumeMount::getName).reversed())));
+
+        // TODO add the volume & mounts for each KafkaService's spec.tls
+
+        return new ConfigurationFragment<>(
+                new Configuration(
+                        new ManagementConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())),
+                        referencedFilters,
+                        null, // no defaultFilters <= each of the virtualClusters specifies its own
+                        virtualClusters,
+                        List.of(),
+                        false,
+                        // micrometer
+                        Optional.empty()),
+                allVolumes,
+                allMounts);
+    }
+
+    private static List<VirtualCluster> buildVirtualClusters(Set<String> successfullyBuiltFilterNames, ProxyModel model) {
+        return model.clustersWithValidIngresses().stream()
+                .filter(cluster -> Optional.ofNullable(cluster.getSpec().getFilterRefs()).stream().flatMap(Collection::stream).allMatch(
+                        filters -> successfullyBuiltFilterNames.contains(filterDefinitionName(filters))))
+                .map(cluster -> getVirtualCluster(cluster, model.resolutionResult().kafkaServiceRef(cluster).orElseThrow(), model.ingressModel()))
+                .toList();
+    }
+
+    private List<ConfigurationFragment<NamedFilterDefinition>> buildFilterDefinitions(ProxyModel model) {
+        List<ConfigurationFragment<NamedFilterDefinition>> filterDefinitions = new ArrayList<>();
+        Set<NamedFilterDefinition> uniqueValues = new HashSet<>();
+        for (VirtualKafkaCluster cluster : model.clustersWithValidIngresses()) {
+            for (ConfigurationFragment<NamedFilterDefinition> namedFilterDefinitionAndFiles : filterDefinitions(cluster, model.resolutionResult())) {
+                if (uniqueValues.add(namedFilterDefinitionAndFiles.fragment())) {
+                    filterDefinitions.add(namedFilterDefinitionAndFiles);
+                }
+            }
+        }
+        filterDefinitions.sort(Comparator.comparing(cf -> cf.fragment().name()));
+        return filterDefinitions;
+    }
+
+    private static List<String> filterNamesForCluster(VirtualKafkaCluster cluster) {
+        return Optional.ofNullable(cluster.getSpec().getFilterRefs())
+                .orElse(List.of())
+                .stream()
+                .map(KafkaProxyReconciler::filterDefinitionName)
+                .toList();
+    }
+
+    private static String filterDefinitionName(FilterRef filterCrRef) {
+        return filterCrRef.getName() + "." + filterCrRef.getKind() + "." + filterCrRef.getGroup();
+    }
+
+    private List<ConfigurationFragment<NamedFilterDefinition>> filterDefinitions(VirtualKafkaCluster cluster,
+                                                                                 ProxyResolutionResult resolutionResult) {
+
+        return Optional.ofNullable(cluster.getSpec().getFilterRefs()).orElse(List.of()).stream().map(filterCrRef -> {
+
+            String filterDefinitionName = filterDefinitionName(filterCrRef);
+
+            var filterCr = resolutionResult.filter(filterCrRef).orElseThrow();
+            var spec = filterCr.getSpec();
+            String type = spec.getType();
+            SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(spec);
+            return new ConfigurationFragment<>(new NamedFilterDefinition(filterDefinitionName, type, interpolationResult.config()),
+                    interpolationResult.volumes(),
+                    interpolationResult.mounts());
+
+        }).toList();
+    }
+
+    private SecureConfigInterpolator.InterpolationResult interpolateConfig(KafkaProtocolFilterSpec spec) {
+        Object configTemplate = Objects.requireNonNull(spec.getConfigTemplate(), "ConfigTemplate is required in the KafkaProtocolFilterSpec");
+        return secureConfigInterpolator.interpolate(configTemplate);
+    }
+
+    private static VirtualCluster getVirtualCluster(VirtualKafkaCluster cluster,
+                                                    KafkaService kafkaServiceRef,
+                                                    ProxyIngressModel ingressModel) {
+
+        ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(cluster).orElseThrow();
+        String bootstrap = kafkaServiceRef.getSpec().getBootstrapServers();
+        return new VirtualCluster(
+                ResourcesUtil.name(cluster), new TargetCluster(bootstrap, Optional.empty()),
+                null,
+                Optional.empty(),
+                virtualClusterIngressModel.gateways(),
+                false, false,
+                filterNamesForCluster(cluster));
     }
 
     /**

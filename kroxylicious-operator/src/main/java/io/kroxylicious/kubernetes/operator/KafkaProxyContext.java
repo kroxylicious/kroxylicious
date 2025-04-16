@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -13,24 +14,27 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
+import io.kroxylicious.proxy.config.Configuration;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public record KafkaProxyContext(VirtualKafkaClusterStatusFactory virtualKafkaClusterStatusFactory,
-                                SecureConfigInterpolator secureConfigInterpolator,
-                                ProxyModel model) {
+                                ProxyModel model,
+                                Optional<ConfigurationFragment<Configuration>> configuration) {
 
     private static final String KEY_CTX = KafkaProxyContext.class.getName();
 
     static void init(Context<KafkaProxy> context,
                      VirtualKafkaClusterStatusFactory virtualKafkaClusterStatusFactory,
-                     SecureConfigInterpolator secureConfigInterpolator,
-                     ProxyModel model) {
+                     ProxyModel model,
+                     @Nullable ConfigurationFragment<Configuration> configuration) {
         var rc = context.managedWorkflowAndDependentResourceContext();
 
         rc.put(KEY_CTX,
                 new KafkaProxyContext(
                         virtualKafkaClusterStatusFactory,
-                        secureConfigInterpolator,
-                        model));
+                        model,
+                        Optional.ofNullable(configuration)));
     }
 
     static KafkaProxyContext proxyContext(Context<KafkaProxy> context) {
