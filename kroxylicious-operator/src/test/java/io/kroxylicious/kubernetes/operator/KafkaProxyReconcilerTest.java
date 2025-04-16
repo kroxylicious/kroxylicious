@@ -13,6 +13,8 @@ import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
 
+import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedWorkflowAndDependentResourceContext;
+
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -91,7 +93,8 @@ class KafkaProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = newKafkaProxyReconciler(TEST_CLOCK).reconcile(primary, context);
+        var updateControl = newKafkaProxyReconciler(TEST_CLOCK, primary, context)
+                .reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -119,7 +122,7 @@ class KafkaProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = newKafkaProxyReconciler(TEST_CLOCK)
+        var updateControl = newKafkaProxyReconciler(TEST_CLOCK, proxy, context)
                 .updateErrorStatus(proxy, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
@@ -164,7 +167,7 @@ class KafkaProxyReconcilerTest {
 
         // When
 
-        var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(primary, context);
+        var updateControl = newKafkaProxyReconciler(reconciliationTime, primary, context).reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -204,7 +207,7 @@ class KafkaProxyReconcilerTest {
         Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
 
         // When
-        var updateControl = newKafkaProxyReconciler(reconciliationTime)
+        var updateControl = newKafkaProxyReconciler(reconciliationTime, primary, context)
                 .updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
@@ -247,7 +250,7 @@ class KafkaProxyReconcilerTest {
         Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
 
         // When
-        var updateControl = newKafkaProxyReconciler(reconciliationTime)
+        var updateControl = newKafkaProxyReconciler(reconciliationTime, primary, context)
                 .updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
 
         // Then
@@ -356,7 +359,8 @@ class KafkaProxyReconcilerTest {
         Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
 
         // When
-        var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(proxy, context);
+        var updateControl = newKafkaProxyReconciler(reconciliationTime, proxy, context)
+                .reconcile(proxy, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -402,7 +406,7 @@ class KafkaProxyReconcilerTest {
                 .withName("my-proxy").endProxyRef().endSpec().build())).when(context).getSecondaryResources(VirtualKafkaCluster.class);
 
         // When
-        var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(primary, context);
+        var updateControl = newKafkaProxyReconciler(reconciliationTime, primary, context).reconcile(primary, context);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -417,8 +421,13 @@ class KafkaProxyReconcilerTest {
     }
 
     @NonNull
-    private static KafkaProxyReconciler newKafkaProxyReconciler(Clock reconciliationTime) {
-        return new KafkaProxyReconciler(reconciliationTime, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
+    private static KafkaProxyReconciler newKafkaProxyReconciler(Clock reconciliationTime,
+                                                                KafkaProxy proxy,
+                                                                Context<KafkaProxy> context) {
+        when(context.managedWorkflowAndDependentResourceContext()).thenReturn(new DefaultManagedWorkflowAndDependentResourceContext<>(null, proxy, context));
+        KafkaProxyReconciler kafkaProxyReconciler = new KafkaProxyReconciler(reconciliationTime, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
+        kafkaProxyReconciler.initContext(proxy, context);
+        return kafkaProxyReconciler;
     }
 
     @Test

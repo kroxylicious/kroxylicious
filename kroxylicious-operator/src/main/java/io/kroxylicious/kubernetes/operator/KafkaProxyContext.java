@@ -13,6 +13,7 @@ import java.util.stream.Collectors;
 
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
+import io.javaoperatorsdk.operator.OperatorException;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -26,17 +27,33 @@ public record KafkaProxyContext(VirtualKafkaClusterStatusFactory virtualKafkaClu
                                 ProxyModel model,
                                 Optional<Configuration> configuration,
                                 List<Volume> volumes,
-                                List<VolumeMount> mounts) {
+                                List<VolumeMount> mounts,
+                                @Nullable RuntimeException error) {
 
     private static final String KEY_CTX = KafkaProxyContext.class.getName();
+
+    static void initError(Context<KafkaProxy> context,
+                          VirtualKafkaClusterStatusFactory virtualKafkaClusterStatusFactory,
+                          ProxyModel model,
+                          RuntimeException error) {
+        var rc = context.managedWorkflowAndDependentResourceContext();
+        rc.put(KEY_CTX,
+                new KafkaProxyContext(
+                        virtualKafkaClusterStatusFactory,
+                        model,
+                        Optional.empty(),
+                        List.of(),
+                        List.of(),
+                        error));
+    }
 
     static void init(Context<KafkaProxy> context,
                      VirtualKafkaClusterStatusFactory virtualKafkaClusterStatusFactory,
                      ProxyModel model,
-                     @Nullable ConfigurationFragment<Configuration> configuration) {
+                     ConfigurationFragment<Configuration> configuration) {
         var rc = context.managedWorkflowAndDependentResourceContext();
 
-        var fragmentOpt = Optional.ofNullable(configuration);
+        var fragmentOpt = Optional.of(configuration);
         Set<Volume> volumes = fragmentOpt.map(ConfigurationFragment::volumes).orElse(Set.of());
         if (volumes.stream().map(Volume::getName).distinct().count() != volumes.size()) {
             throw new IllegalStateException("Two volumes with different definitions share the same name");
@@ -51,7 +68,8 @@ public record KafkaProxyContext(VirtualKafkaClusterStatusFactory virtualKafkaClu
                         model,
                         fragmentOpt.map(ConfigurationFragment::fragment),
                         volumes.stream().toList(),
-                        mounts.stream().toList()));
+                        mounts.stream().toList(),
+                        null));
     }
 
     static KafkaProxyContext proxyContext(Context<KafkaProxy> context) {
@@ -66,4 +84,9 @@ public record KafkaProxyContext(VirtualKafkaClusterStatusFactory virtualKafkaClu
 
     }
 
+    public void rethrowInitException() {
+        if (error != null) {
+            throw new OperatorException(error);
+        }
+    }
 }

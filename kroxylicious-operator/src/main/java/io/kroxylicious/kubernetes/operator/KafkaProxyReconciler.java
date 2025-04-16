@@ -121,18 +121,19 @@ public class KafkaProxyReconciler implements
                             Context<KafkaProxy> context) {
         ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
         ProxyModel model = proxyModelBuilder.build(proxy, context);
-        ConfigurationFragment<Configuration> fragment;
         try {
-            fragment = generateProxyConfig(model);
+            var fragment = generateProxyConfig(model);
+            KafkaProxyContext.init(context,
+                    new VirtualKafkaClusterStatusFactory(clock),
+                    model,
+                    fragment);
         }
         catch (IllegalConfigurationException ice) {
-            fragment = null;
+            KafkaProxyContext.initError(context,
+                    new VirtualKafkaClusterStatusFactory(clock),
+                    model,
+                    ice);
         }
-
-        KafkaProxyContext.init(context,
-                new VirtualKafkaClusterStatusFactory(clock),
-                model,
-                fragment);
     }
 
     private ConfigurationFragment<Configuration> generateProxyConfig(ProxyModel model) {
@@ -251,6 +252,10 @@ public class KafkaProxyReconciler implements
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
+        // Any exceptions from the following will propagate to #updateErrorStatus()
+        //KafkaProxyContext.proxyContext(context).rethrowInitException();
+        context.managedWorkflowAndDependentResourceContext().reconcileManagedWorkflow().throwAggregateExceptionIfErrorsPresent();
+
         var uc = UpdateControl.patchStatus(statusFactory.newTrueConditionStatusPatch(primary, Condition.Type.Ready));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(primary), name(primary));
