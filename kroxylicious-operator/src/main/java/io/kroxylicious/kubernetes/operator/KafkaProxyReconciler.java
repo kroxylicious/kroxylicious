@@ -72,10 +72,14 @@ import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.KeyProvider;
 import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
@@ -260,69 +264,83 @@ public class KafkaProxyReconciler implements
 
     private static ConfigurationFragment<TargetCluster> buildTargetCluster(KafkaService kafkaServiceRef) {
         String bootstrap = kafkaServiceRef.getSpec().getBootstrapServers();
-
-        var tls = buildTargetClusterTls(kafkaServiceRef);
-        TargetCluster targetCluster = new TargetCluster(bootstrap, tls.map(ConfigurationFragment::fragment));
-        return new ConfigurationFragment<>(
-                targetCluster,
-                tls.map(ConfigurationFragment::volumes).orElse(Set.of()),
-                tls.map(ConfigurationFragment::mounts).orElse(Set.of()));
+        var tlsFragment = buildTargetClusterTls(kafkaServiceRef);
+        return tlsFragment.map(tls -> new TargetCluster(bootstrap, tls));
     }
 
-    private static Optional<ConfigurationFragment<Tls>> buildTargetClusterTls(KafkaService kafkaServiceRef) {
-        return Optional.ofNullable(kafkaServiceRef.getSpec()).map(KafkaServiceSpec::getTls).map(serviceTls -> {
-            Path volumeMountPath = Path.of("/opt/kroxylicious/target-cluster/client-certs");
-            Optional<AnyLocalRef> tlsCertRef = Optional.ofNullable(serviceTls.getCertificateRef())
-                    .filter(KafkaProxyReconciler::isSecret);
+    private static ConfigurationFragment<Optional<Tls>> buildTargetClusterTls(KafkaService kafkaServiceRef) {
+        return Optional.ofNullable(kafkaServiceRef.getSpec())
+                .map(KafkaServiceSpec::getTls)
+                .map(serviceTls -> {
+                    AnyLocalRef certificateRef = serviceTls.getCertificateRef();
+                    var keyProvider = buildKeyProvider(certificateRef);
+                    var trustProviderFragment = buildTrustProvider(serviceTls.getTrustAnchorRef());
 
-            var tlsCertVolume = tlsCertRef
-                    .map(ref -> new VolumeBuilder()
-                            .withName(ResourcesUtil.volumeName("", "secrets", ref.getName()))
-                            .withNewSecret()
-                            .withSecretName(ref.getName())
-                            .endSecret()
-                            .build());
-            var tlsCertMount = tlsCertRef
-                    .map(ref -> new VolumeMountBuilder()
-                            .withName(ResourcesUtil.volumeName("", "secrets", ref.getName()))
-                            .withMountPath(volumeMountPath.resolve(ref.getName()).toString())
-                            .withReadOnly(true)
-                            .build());
-            var tlsKeyPath = tlsCertRef
-                    .map(ref -> volumeMountPath.resolve(ref.getName()).resolve("tls.key"));
-            var tlsCertPath = tlsCertRef
-                    .map(ref -> volumeMountPath.resolve(ref.getName()).resolve("tls.crt"));
+                    var cipherSuites = Optional.ofNullable(serviceTls.getCipherSuites())
+                            .map(cs -> new AllowDeny<>(cs.getAllowed(), new HashSet<>(cs.getDenied())))
+                            .orElse(null);
+                    var protocols = Optional.ofNullable(serviceTls.getProtocols())
+                            .map(proto -> new AllowDeny<>(proto.getAllowed(), new HashSet<>(proto.getDenied())))
+                            .orElse(null);
 
-            Path trustedCertsPath = Path.of("/opt/kroxylicious/target-cluster/trusted-certs");
-            var trustAnchorRef = Optional.ofNullable(serviceTls.getTrustAnchorRef())
-                    .filter(KafkaProxyReconciler::isConfigMap);
-            var trustAnchorVolume = trustAnchorRef.map(ref -> new VolumeBuilder()
-                    .withName(ResourcesUtil.volumeName("", "configmaps", ref.getName()))
-                    .withNewConfigMap()
-                    .withName(ref.getName())
-                    .endConfigMap()
-                    .build());
-            var trustAnchorMount = trustAnchorRef.map(ref -> new VolumeMountBuilder()
-                    .withName(ResourcesUtil.volumeName("", "configmaps", ref.getName()))
-                    .withMountPath(trustedCertsPath.resolve(ref.getName()).toString())
+                    return ConfigurationFragment.combine(
+                            keyProvider,
+                            trustProviderFragment,
+                            (keyProviderOpt, trustProvider) -> Optional.of(
+                                    new Tls(keyProviderOpt.orElse(null),
+                                            trustProvider,
+                                            cipherSuites,
+                                            protocols)));
+                }).orElse(ConfigurationFragment.empty());
+    }
+
+    private static ConfigurationFragment<Optional<KeyProvider>> buildKeyProvider(AnyLocalRef certificateRef) {
+        Path volumeMountPath = Path.of("/opt/kroxylicious/target-cluster/client-certs");
+        Optional<AnyLocalRef> tlsCertRef = Optional.ofNullable(certificateRef)
+                .filter(KafkaProxyReconciler::isSecret);
+
+        return tlsCertRef.map(ref -> {
+            var vol = new VolumeBuilder()
+                    .withName(ResourcesUtil.volumeName("", "secrets", ref.getName()))
+                    .withNewSecret()
+                    .withSecretName(ref.getName())
+                    .endSecret()
+                    .build();
+            var mount = new VolumeMountBuilder()
+                    .withName(ResourcesUtil.volumeName("", "secrets", ref.getName()))
+                    .withMountPath(volumeMountPath.resolve(ref.getName()).toString())
                     .withReadOnly(true)
-                    .build());
-            var trustAnchorPath = trustAnchorRef.map(ref -> trustedCertsPath.resolve(ref.getName()).resolve(ref.getKey()));
+                    .build();
 
-            var cipherSuites = Optional.ofNullable(serviceTls.getCipherSuites())
-                    .map(cs -> new AllowDeny<>(cs.getAllowed(), new HashSet<>(cs.getDenied())))
-                    .orElse(null);
-            var protocols = Optional.ofNullable(serviceTls.getProtocols())
-                    .map(proto -> new AllowDeny<>(proto.getAllowed(), new HashSet<>(proto.getDenied())))
-                    .orElse(null);
-            return new ConfigurationFragment<>(new Tls(
-                    tlsKeyPath.isPresent() ? new KeyPair(tlsKeyPath.get().toString(), tlsCertPath.get().toString(), null) : null,
-                    trustAnchorPath.isPresent() ? new TrustStore(trustAnchorPath.get().toString(), null, "PEM") : PlatformTrustProvider.INSTANCE,
-                    cipherSuites,
-                    protocols),
-                    Stream.concat(tlsCertVolume.stream(), trustAnchorVolume.stream()).collect(Collectors.toSet()),
-                    Stream.concat(tlsCertMount.stream(), trustAnchorMount.stream()).collect(Collectors.toSet()));
-        });
+            var keyPath = volumeMountPath.resolve(ref.getName()).resolve("tls.key");
+            var crtPath = volumeMountPath.resolve(ref.getName()).resolve("tls.crt");
+            return new ConfigurationFragment<>(
+                    Optional.<KeyProvider> of(new KeyPair(keyPath.toString(), crtPath.toString(), null)),
+                    Set.of(vol),
+                    Set.of(mount));
+        }).orElse(ConfigurationFragment.empty());
+    }
+
+    private static ConfigurationFragment<TrustProvider> buildTrustProvider(@Nullable TrustAnchorRef trustAnchorRef1) {
+        Path trustedCertsPath = Path.of("/opt/kroxylicious/target-cluster/trusted-certs");
+        var trustAnchorRef = Optional.ofNullable(trustAnchorRef1)
+                .filter(KafkaProxyReconciler::isConfigMap);
+        var trustAnchorVolume = trustAnchorRef.map(ref -> new VolumeBuilder()
+                .withName(ResourcesUtil.volumeName("", "configmaps", ref.getName()))
+                .withNewConfigMap()
+                .withName(ref.getName())
+                .endConfigMap()
+                .build());
+        var trustAnchorMount = trustAnchorRef.map(ref -> new VolumeMountBuilder()
+                .withName(ResourcesUtil.volumeName("", "configmaps", ref.getName()))
+                .withMountPath(trustedCertsPath.resolve(ref.getName()).toString())
+                .withReadOnly(true)
+                .build());
+        var trustAnchorPath = trustAnchorRef.map(ref -> trustedCertsPath.resolve(ref.getName()).resolve(ref.getKey()));
+        TrustProvider trustProvider = trustAnchorPath.isPresent() ? new TrustStore(trustAnchorPath.get().toString(), null, "PEM") : PlatformTrustProvider.INSTANCE;
+        return new ConfigurationFragment<>(trustProvider,
+                trustAnchorVolume.map(Set::of).orElse(Set.of()),
+                trustAnchorMount.map(Set::of).orElse(Set.of()));
     }
 
     private static boolean isSecret(AnyLocalRef ref) {

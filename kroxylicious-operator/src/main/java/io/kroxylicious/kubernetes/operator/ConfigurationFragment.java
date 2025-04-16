@@ -6,21 +6,58 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.Optional;
 import java.util.Set;
+import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 
 /**
- * A piece of proxy configuration which references files on the proxy container filesystem
- * @param fragment The piece of proxy configuration
- * @param volumes The volumes the configuration depends on
- * @param mounts The mount the configuration depends on
- * @param <F> The type of fragment
+ * A piece of proxy configuration which references files on the proxy container filesystem.
+ * @param fragment The piece of proxy configuration.
+ * @param volumes The volumes the configuration depends on.
+ * @param mounts The mount the configuration depends on.
+ * @param <F> The type of fragment.
  */
 public record ConfigurationFragment<F>(F fragment, Set<Volume> volumes, Set<VolumeMount> mounts) {
-    public <T> ConfigurationFragment<T> map(Function<F, T> mapper) {
+
+    /**
+     * @return An empty optional fragment.
+     * @param <F> The fragment type.
+     */
+    static <F> ConfigurationFragment<Optional<F>> empty() {
+        return new ConfigurationFragment<>(Optional.empty(), Set.of(), Set.of());
+    }
+
+    /**
+     * Combine two fragments into a new fragment by applying the given function and taking the union of their volumes and mounts.
+     * @param x The first fragment to combine.
+     * @param y The first fragment to combine.
+     * @param fn The combining function.
+     * @return The new fragment.
+     * @param <X> The type of the first fragment.
+     * @param <Y> The type of the second fragment.
+     * @param <F> The type of the result fragment.
+     */
+    public static <X, Y, F> ConfigurationFragment<F> combine(ConfigurationFragment<X> x, ConfigurationFragment<Y> y, BiFunction<X, Y, F> fn) {
+        var t = fn.apply(x.fragment(), y.fragment());
+        return new ConfigurationFragment<>(t,
+                Stream.concat(x.volumes.stream(), y.volumes.stream()).collect(Collectors.toSet()),
+                Stream.concat(x.mounts.stream(), y.mounts.stream()).collect(Collectors.toSet()));
+    }
+
+    /**
+     * Apply the given mapping function to the fragment, returning a new instance with the same volumes and mounts.
+     * @param mapper The mapping function.
+     * @return A new fragment.
+     * @param <G> The type of the new fragment.
+     */
+    public <G> ConfigurationFragment<G> map(Function<F, G> mapper) {
         return new ConfigurationFragment<>(mapper.apply(fragment), volumes, mounts);
     }
+
 }
