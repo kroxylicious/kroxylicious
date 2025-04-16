@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.Set;
+import java.util.function.Function;
 
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
@@ -18,4 +19,8 @@ import io.fabric8.kubernetes.api.model.VolumeMount;
  * @param mounts The mount the configuration depends on
  * @param <F> The type of fragment
  */
-public record ConfigurationFragment<F>(F fragment, Set<Volume> volumes, Set<VolumeMount> mounts) {}
+public record ConfigurationFragment<F>(F fragment, Set<Volume> volumes, Set<VolumeMount> mounts) {
+    public <T> ConfigurationFragment<T> map(Function<F, T> mapper) {
+        return new ConfigurationFragment<>(mapper.apply(fragment), volumes, mounts);
+    }
+}

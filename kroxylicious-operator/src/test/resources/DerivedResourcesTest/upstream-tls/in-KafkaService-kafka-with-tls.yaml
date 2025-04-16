@@ -1,0 +1,21 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: KafkaService
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: kafka-with-tls
+  namespace: proxy-ns
+  generation: 3
+spec:
+  bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+  tls:
+    certificateRef:
+      name: upstream-tls-cert
+    trustAnchorRef:
+      name: upstream-ca
+      key: cas.pem

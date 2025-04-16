@@ -82,6 +82,14 @@ public class ResourcesUtil {
         return string;
     }
 
+    static String volumeName(String group, String plural, String resourceName) {
+        String volumeNamePrefix = group.isEmpty() ? plural : group + "." + plural;
+        String volumeName = volumeNamePrefix + "-" + resourceName;
+        ResourcesUtil.requireIsDnsLabel(volumeName, true,
+                "volume name would not be a DNS label: " + volumeName);
+        return volumeName;
+    }
+
     public static <O extends HasMetadata> OwnerReference newOwnerReferenceTo(O owner) {
         return new OwnerReferenceBuilder()
                 .withKind(owner.getKind())
