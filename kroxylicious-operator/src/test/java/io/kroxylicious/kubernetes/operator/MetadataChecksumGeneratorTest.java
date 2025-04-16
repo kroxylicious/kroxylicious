@@ -13,16 +13,15 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 
 class MetadataChecksumGeneratorTest {
-
+    // @formatter:off
     private static final KafkaProxy PROXY = new KafkaProxyBuilder()
             .withNewMetadata()
-            .withName("my-proxy")
-            .withUid("my-proxy-uuid")
-            .withGeneration(1L)
+                .withName("my-proxy")
+                .withUid("my-proxy-uuid")
+                .withGeneration(1L)
             .endMetadata()
-            .withNewSpec()
-            .endSpec()
             .build();
+    // @formatter:on
 
     @Test
     void shouldCalculateChecksum() {

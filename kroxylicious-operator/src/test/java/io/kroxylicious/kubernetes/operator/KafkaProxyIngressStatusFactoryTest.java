@@ -26,18 +26,20 @@ class KafkaProxyIngressStatusFactoryTest {
     public static final String CHECKSUM = "123456789";
     private KafkaProxyIngressStatusFactory kafkaProxyIngressStatusFactory;
 
+    // @formatter:off
     public static final KafkaProxyIngress INGRESS = new KafkaProxyIngressBuilder()
             .withNewMetadata()
-            .withName("foo")
-            .withGeneration(42L)
-            .withUid(UUID.randomUUID().toString())
+                .withName("foo")
+                .withGeneration(42L)
+                .withUid(UUID.randomUUID().toString())
             .endMetadata()
             .withNewSpec()
-            .withNewProxyRef()
-            .withName("my-proxy")
-            .endProxyRef()
+                .withNewProxyRef()
+                    .withName("my-proxy")
+                .endProxyRef()
             .endSpec()
             .build();
+    // @formatter:on
 
     @BeforeEach
     void setUp() {
