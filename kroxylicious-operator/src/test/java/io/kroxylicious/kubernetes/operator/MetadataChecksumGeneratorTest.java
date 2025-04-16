@@ -6,10 +6,11 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
+
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 
 class MetadataChecksumGeneratorTest {
 
