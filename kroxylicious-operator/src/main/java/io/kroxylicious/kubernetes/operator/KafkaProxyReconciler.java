@@ -16,7 +16,6 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ContextInitializer;
@@ -134,13 +133,13 @@ public class KafkaProxyReconciler implements
     @Override
     public List<EventSource<?, KafkaProxy>> prepareEventSources(EventSourceContext<KafkaProxy> context) {
         return List.of(
-                eventSourceForFilter(context),
-                buildVirtualKafkaClusterInformer(context),
-                buildKafkaServiceInformer(context),
-                buildKafkaProxyIngressInformer(context));
+                buildFilterEventSource(context),
+                buildVirtualKafkaClusterEventSource(context),
+                buildKafkaServiceEventSource(context),
+                buildKafkaProxyIngressEventSource(context));
     }
 
-    private static InformerEventSource<?, KafkaProxy> buildVirtualKafkaClusterInformer(EventSourceContext<KafkaProxy> context) {
+    private static InformerEventSource<VirtualKafkaCluster, KafkaProxy> buildVirtualKafkaClusterEventSource(EventSourceContext<KafkaProxy> context) {
         InformerEventSourceConfiguration<VirtualKafkaCluster> configuration = InformerEventSourceConfiguration.from(VirtualKafkaCluster.class, KafkaProxy.class)
                 .withSecondaryToPrimaryMapper(clusterToProxyMapper(context))
                 .withPrimaryToSecondaryMapper(proxyToClusterMapper(context))
@@ -148,7 +147,7 @@ public class KafkaProxyReconciler implements
         return new InformerEventSource<>(configuration, context);
     }
 
-    private static InformerEventSource<?, KafkaProxy> buildKafkaProxyIngressInformer(EventSourceContext<KafkaProxy> context) {
+    private static InformerEventSource<KafkaProxyIngress, KafkaProxy> buildKafkaProxyIngressEventSource(EventSourceContext<KafkaProxy> context) {
         InformerEventSourceConfiguration<KafkaProxyIngress> configuration = InformerEventSourceConfiguration.from(KafkaProxyIngress.class, KafkaProxy.class)
                 .withSecondaryToPrimaryMapper(ingressToProxyMapper(context))
                 .withPrimaryToSecondaryMapper(proxyToIngressMapper(context))
@@ -156,7 +155,7 @@ public class KafkaProxyReconciler implements
         return new InformerEventSource<>(configuration, context);
     }
 
-    private static InformerEventSource<?, KafkaProxy> buildKafkaServiceInformer(EventSourceContext<KafkaProxy> context) {
+    private static InformerEventSource<KafkaService, KafkaProxy> buildKafkaServiceEventSource(EventSourceContext<KafkaProxy> context) {
         InformerEventSourceConfiguration<KafkaService> configuration = InformerEventSourceConfiguration.from(KafkaService.class, KafkaProxy.class)
                 .withSecondaryToPrimaryMapper(kafkaServiceRefToProxyMapper(context))
                 .withPrimaryToSecondaryMapper(proxyToKafkaServiceMapper(context))
@@ -187,7 +186,7 @@ public class KafkaProxyReconciler implements
      * @return mapper
      */
     @VisibleForTesting
-    static PrimaryToSecondaryMapper<HasMetadata> proxyToKafkaServiceMapper(EventSourceContext<KafkaProxy> context) {
+    static PrimaryToSecondaryMapper<KafkaProxy> proxyToKafkaServiceMapper(EventSourceContext<KafkaProxy> context) {
         return primary -> {
             // Load all the virtual clusters for the KafkaProxy, then extract all the referenced KafkaService resource ids.
             Set<? extends LocalRef<KafkaService>> clusterRefs = ResourcesUtil.resourcesInSameNamespace(context, primary, VirtualKafkaCluster.class)
@@ -206,7 +205,7 @@ public class KafkaProxyReconciler implements
         };
     }
 
-    private static InformerEventSource<KafkaProtocolFilter, KafkaProxy> eventSourceForFilter(EventSourceContext<KafkaProxy> context) {
+    private static InformerEventSource<KafkaProtocolFilter, KafkaProxy> buildFilterEventSource(EventSourceContext<KafkaProxy> context) {
 
         var configuration = InformerEventSourceConfiguration.from(KafkaProtocolFilter.class, KafkaProxy.class)
                 .withSecondaryToPrimaryMapper(filterToProxy(context))
@@ -230,10 +229,10 @@ public class KafkaProxyReconciler implements
     }
 
     @VisibleForTesting
-    static PrimaryToSecondaryMapper<HasMetadata> proxyToClusterMapper(EventSourceContext<KafkaProxy> context) {
-        return primary -> {
-            Set<ResourceID> virtualClustersInProxyNamespace = ResourcesUtil.filteredResourceIdsInSameNamespace(context, primary, VirtualKafkaCluster.class,
-                    clusterReferences(primary));
+    static PrimaryToSecondaryMapper<KafkaProxy> proxyToClusterMapper(EventSourceContext<KafkaProxy> context) {
+        return proxy -> {
+            Set<ResourceID> virtualClustersInProxyNamespace = ResourcesUtil.filteredResourceIdsInSameNamespace(context, proxy, VirtualKafkaCluster.class,
+                    clusterReferences(proxy));
             LOGGER.debug("Event source VirtualKafkaCluster PrimaryToSecondaryMapper got {}", virtualClustersInProxyNamespace);
             return virtualClustersInProxyNamespace;
         };
@@ -282,12 +281,12 @@ public class KafkaProxyReconciler implements
         };
     }
 
-    private static Predicate<VirtualKafkaCluster> clusterReferences(HasMetadata primary) {
-        return cluster -> cluster.getSpec().getProxyRef().getName().equals(name(primary));
+    private static Predicate<VirtualKafkaCluster> clusterReferences(KafkaProxy proxy) {
+        return cluster -> cluster.getSpec().getProxyRef().getName().equals(name(proxy));
     }
 
-    private static Predicate<KafkaProxyIngress> ingressReferences(HasMetadata primary) {
-        return ingress -> ingress.getSpec().getProxyRef().getName().equals(name(primary));
+    private static Predicate<KafkaProxyIngress> ingressReferences(KafkaProxy proxy) {
+        return ingress -> ingress.getSpec().getProxyRef().getName().equals(name(proxy));
     }
 }
 // @formatter:off

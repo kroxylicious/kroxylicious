@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -369,7 +368,7 @@ class KafkaProxyReconcilerTest {
         VirtualKafkaCluster cluster = baseVirtualKafkaClusterBuilder(proxy, "cluster").build();
         VirtualKafkaCluster clusterForAnotherProxy = baseVirtualKafkaClusterBuilder(buildProxy("anotherproxy"), "anothercluster").build();
         when(mockList.getItems()).thenReturn(List.of(cluster, clusterForAnotherProxy));
-        PrimaryToSecondaryMapper<HasMetadata> mapper = KafkaProxyReconciler.proxyToClusterMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<KafkaProxy> mapper = KafkaProxyReconciler.proxyToClusterMapper(eventSourceContext);
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
         assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(cluster));
     }
@@ -409,7 +408,7 @@ class KafkaProxyReconcilerTest {
         when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
         VirtualKafkaCluster clusterForAnotherProxy = baseVirtualKafkaClusterBuilder(buildProxy("anotherProxy"), "cluster").build();
         when(mockList.getItems()).thenReturn(List.of(clusterForAnotherProxy));
-        PrimaryToSecondaryMapper<HasMetadata> mapper = KafkaProxyReconciler.proxyToClusterMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<KafkaProxy> mapper = KafkaProxyReconciler.proxyToClusterMapper(eventSourceContext);
         KafkaProxy proxy = buildProxy("proxy");
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
         assertThat(secondaryResourceIDs).isEmpty();
@@ -535,7 +534,7 @@ class KafkaProxyReconcilerTest {
 
         when(clusterListMock.getItems()).thenReturn(List.of(cluster));
 
-        PrimaryToSecondaryMapper<HasMetadata> mapper = KafkaProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<KafkaProxy> mapper = KafkaProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
         assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(kafkaServiceRef));
     }
@@ -563,7 +562,7 @@ class KafkaProxyReconcilerTest {
 
         when(clusterListMock.getItems()).thenReturn(List.of(clusterProxy1, clusterProxy2));
 
-        PrimaryToSecondaryMapper<HasMetadata> mapper = KafkaProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<KafkaProxy> mapper = KafkaProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
 
         assertThat(mapper.toSecondaryResourceIDs(proxy1)).containsExactly(ResourceID.fromResource(kafkaServiceRefProxy1));
         assertThat(mapper.toSecondaryResourceIDs(proxy2)).containsExactly(ResourceID.fromResource(kafkaServiceRefProxy2));
@@ -595,7 +594,7 @@ class KafkaProxyReconcilerTest {
 
         when(clusterListMock.getItems()).thenReturn(List.of(clusterProxy1, clusterProxy2a, clusterProxy2b));
 
-        PrimaryToSecondaryMapper<HasMetadata> mapper = KafkaProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<KafkaProxy> mapper = KafkaProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
 
         assertThat(mapper.toSecondaryResourceIDs(proxy1))
                 .containsExactly(ResourceID.fromResource(kafkaServiceRefProxy1));
@@ -619,7 +618,7 @@ class KafkaProxyReconcilerTest {
 
         when(clusterListMock.getItems()).thenReturn(List.of(cluster));
 
-        PrimaryToSecondaryMapper<HasMetadata> mapper = KafkaProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
+        PrimaryToSecondaryMapper<KafkaProxy> mapper = KafkaProxyReconciler.proxyToKafkaServiceMapper(eventSourceContext);
         Set<ResourceID> secondaryResourceIDs = mapper.toSecondaryResourceIDs(proxy);
         assertThat(secondaryResourceIDs).isEmpty();
     }
