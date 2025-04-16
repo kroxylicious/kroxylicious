@@ -131,8 +131,7 @@ public final class KafkaServiceReconciler implements
                                              Context<KafkaService> context,
                                              TrustAnchorRef trustAnchorRef) {
         String path = "spec.tls.trustAnchorRef";
-        if ("ConfigMap".equals(Optional.ofNullable(trustAnchorRef.getKind()).orElse("ConfigMap"))
-                && Optional.ofNullable(trustAnchorRef.getGroup()).orElse("").isEmpty()) {
+        if (ResourcesUtil.isConfigMap(trustAnchorRef)) {
             Optional<ConfigMap> configMapOpt = context.getSecondaryResource(ConfigMap.class, CONFIG_MAPS_EVENT_SOURCE_NAME);
             if (configMapOpt.isEmpty()) {
                 return statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
@@ -173,8 +172,7 @@ public final class KafkaServiceReconciler implements
                                       Context<KafkaService> context,
                                       AnyLocalRef certRef) {
         String path = "spec.tls.certificateRef";
-        if ("Secret".equals(Optional.ofNullable(certRef.getKind()).orElse("Secret"))
-                && Optional.ofNullable(certRef.getGroup()).orElse("").isEmpty()) {
+        if (ResourcesUtil.isSecret(certRef)) {
             Optional<Secret> secretOpt = context.getSecondaryResource(Secret.class, SECRETS_EVENT_SOURCE_NAME);
             if (secretOpt.isEmpty()) {
                 return statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
