@@ -34,6 +34,8 @@ import static org.mockito.Mockito.when;
 class KafkaProxyIngressReconcilerTest {
 
     private static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
+    private static final String PROXY_UUID = "proxy-uuid";
+    private static final long PROXY_GENERATION = 101L;
 
     // @formatter:off
     private static final KafkaProxyIngress INGRESS = new KafkaProxyIngressBuilder()
@@ -48,9 +50,6 @@ class KafkaProxyIngressReconcilerTest {
                 .endProxyRef()
             .endSpec()
             .build();
-
-    private static final String PROXY_UUID = "proxy-uuid";
-    private static final long PROXY_GENERATION = 101L;
 
     private static final KafkaProxy PROXY = new KafkaProxyBuilder()
             .withNewMetadata()
@@ -98,8 +97,7 @@ class KafkaProxyIngressReconcilerTest {
     @Test
     void shouldSetResolvedRefsToTrueWhenProxyFound() throws Exception {
         // given
-        Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-        var reconciler = new KafkaProxyIngressReconciler(z);
+        var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
 
         Context<KafkaProxyIngress> context = mock(Context.class);
         when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.of(PROXY));
@@ -123,8 +121,7 @@ class KafkaProxyIngressReconcilerTest {
     @Test
     void shouldAddChecksumForValidProxyRef() throws Exception {
         // given
-        Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-        var reconciler = new KafkaProxyIngressReconciler(z);
+        var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
 
         when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.of(PROXY));
 
@@ -148,8 +145,7 @@ class KafkaProxyIngressReconcilerTest {
     @Test
     void shouldAddExpectedChecksum() throws Exception {
         // given
-        Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-        var reconciler = new KafkaProxyIngressReconciler(z);
+        var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
 
         when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.of(PROXY));
 
@@ -172,8 +168,7 @@ class KafkaProxyIngressReconcilerTest {
     @Test
     void shouldIncludeProxyGenerationInChecksum() throws Exception {
         // given
-        Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-        var reconciler = new KafkaProxyIngressReconciler(z);
+        var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
 
         KafkaProxy updatedProxy = new KafkaProxyBuilder(PROXY).withNewMetadataLike(PROXY.getMetadata()).withGeneration(PROXY_GENERATION + 1).endMetadata().build();
 
@@ -203,8 +198,7 @@ class KafkaProxyIngressReconcilerTest {
     @Test
     void shouldSetResolvedRefsToUnknown() {
         // given
-        Clock z = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-        var reconciler = new KafkaProxyIngressReconciler(z);
+        var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
 
         // when
         var update = reconciler.updateErrorStatus(INGRESS, context, new RuntimeException("Boom!"));
