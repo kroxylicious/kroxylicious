@@ -57,9 +57,15 @@ public class KafkaProtocolFilterStatusFactory extends StatusFactory<KafkaProtoco
 
     @Override
     KafkaProtocolFilter newTrueConditionStatusPatch(KafkaProtocolFilter observedProxy,
-                                                    Condition.Type type) {
+                                                    Condition.Type type, String checksum) {
         Condition trueCondition = newTrueCondition(observedProxy, type);
         return filterStatusPatch(observedProxy, trueCondition);
+    }
+
+    @Override
+    KafkaProtocolFilter newTrueConditionStatusPatch(KafkaProtocolFilter observedProxy,
+                                                    Condition.Type type) {
+        return newTrueConditionStatusPatch(observedProxy, type, "");
     }
 
 }

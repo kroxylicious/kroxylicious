@@ -287,7 +287,7 @@ class VirtualKafkaClusterReconcilerTest {
                 .endMetadata()
                 .withData(new ProxyConfigStateData().addStatusPatchForCluster(
                     ResourcesUtil.name(clusterOneFilter),
-                    STATUS_FACTORY.newTrueConditionStatusPatch(clusterOneFilter, Condition.Type.ResolvedRefs)).build())
+                    STATUS_FACTORY.newTrueConditionStatusPatch(clusterOneFilter, Condition.Type.ResolvedRefs, "")).build())
                 .build();
         // @formatter:on
     }

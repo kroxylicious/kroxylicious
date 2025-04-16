@@ -16,18 +16,22 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
 
 public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngress> {
+
     public KafkaProxyIngressStatusFactory(Clock clock) {
         super(clock);
     }
 
     private KafkaProxyIngress ingressStatusPatch(KafkaProxyIngress observedIngress,
-                                                 Condition condition) {
+                                                 Condition condition,
+                                                 String checksum) {
+
         // @formatter:off
         return new KafkaProxyIngressBuilder()
                 .withNewMetadata()
                     .withUid(ResourcesUtil.uid(observedIngress))
                     .withName(ResourcesUtil.name(observedIngress))
                     .withNamespace(ResourcesUtil.namespace(observedIngress))
+                    .addToAnnotations(ResourcesUtil.DEPENDANT_CHECKSUM_ANNOTATION, checksum)
                 .endMetadata()
                 .withNewStatus()
                     .withObservedGeneration(ResourcesUtil.generation(observedIngress))
@@ -42,7 +46,7 @@ public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngr
                                                      Condition.Type type,
                                                      Exception e) {
         Condition unknownCondition = newUnknownCondition(observedFilter, type, e);
-        return ingressStatusPatch(observedFilter, unknownCondition);
+        return ingressStatusPatch(observedFilter, unknownCondition, "");
     }
 
     @Override
@@ -51,13 +55,19 @@ public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngr
                                                    String reason,
                                                    String message) {
         Condition falseCondition = newFalseCondition(observedProxy, type, reason, message);
-        return ingressStatusPatch(observedProxy, falseCondition);
+        return ingressStatusPatch(observedProxy, falseCondition, "");
+    }
+
+    @Override
+    KafkaProxyIngress newTrueConditionStatusPatch(KafkaProxyIngress observedProxy,
+                                                  Condition.Type type, String checksum) {
+        Condition trueCondition = newTrueCondition(observedProxy, type);
+        return ingressStatusPatch(observedProxy, trueCondition, checksum);
     }
 
     @Override
     KafkaProxyIngress newTrueConditionStatusPatch(KafkaProxyIngress observedProxy,
                                                   Condition.Type type) {
-        Condition trueCondition = newTrueCondition(observedProxy, type);
-        return ingressStatusPatch(observedProxy, trueCondition);
+        return newTrueConditionStatusPatch(observedProxy, type, "");
     }
 }

@@ -54,8 +54,13 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
     }
 
     KafkaService newTrueConditionStatusPatch(KafkaService observedProxy,
-                                             Condition.Type type) {
+                                             Condition.Type type, String checksum) {
         Condition trueCondition = newTrueCondition(observedProxy, type);
         return serviceStatusPatch(observedProxy, trueCondition);
+    }
+
+    KafkaService newTrueConditionStatusPatch(KafkaService observedProxy,
+                                             Condition.Type type) {
+        return newTrueConditionStatusPatch(observedProxy, type, "");
     }
 }

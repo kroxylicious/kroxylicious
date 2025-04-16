@@ -72,9 +72,10 @@ public class KafkaProxyIngressReconciler implements
 
         KafkaProxyIngress patch;
         if (proxyOpt.isPresent()) {
+            String checksum = MetadataChecksumGenerator.checksumFor(proxyOpt.get());
             patch = statusFactory.newTrueConditionStatusPatch(
                     ingress,
-                    Condition.Type.ResolvedRefs);
+                    Condition.Type.ResolvedRefs, checksum);
         }
         else {
             patch = statusFactory.newFalseConditionStatusPatch(
