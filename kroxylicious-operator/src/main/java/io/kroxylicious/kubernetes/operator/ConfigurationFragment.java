@@ -23,7 +23,7 @@ import io.fabric8.kubernetes.api.model.VolumeMount;
  * @param mounts The mount the configuration depends on.
  * @param <F> The type of fragment.
  */
-public record ConfigurationFragment<F>(F fragment, Set<Volume> volumes, Set<VolumeMount> mounts) {
+record ConfigurationFragment<F>(F fragment, Set<Volume> volumes, Set<VolumeMount> mounts) {
 
     /**
      * @return An empty optional fragment.

@@ -17,3 +17,5 @@ spec:
     filterOneConfig: true
     cert: ${secret:upstream-tls-cert:tls.crt}
     key: ${secret:upstream-tls-cert:tls.key}
+status:
+  observedGeneration: 12

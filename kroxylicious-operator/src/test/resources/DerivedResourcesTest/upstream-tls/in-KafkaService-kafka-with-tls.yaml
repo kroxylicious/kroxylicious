@@ -25,3 +25,5 @@ spec:
     protocols:
       denied:
       - TLS1.2
+status:
+  observedGeneration: 3
