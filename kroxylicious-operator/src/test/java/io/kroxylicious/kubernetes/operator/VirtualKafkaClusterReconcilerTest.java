@@ -14,6 +14,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -21,6 +22,9 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
@@ -32,6 +36,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
@@ -40,6 +46,7 @@ import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.kubernetes.operator.model.ingress.ClusterIPIngressDefinition.serviceName;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -50,36 +57,39 @@ class VirtualKafkaClusterReconcilerTest {
     private static final VirtualKafkaClusterStatusFactory STATUS_FACTORY = new VirtualKafkaClusterStatusFactory(TEST_CLOCK);
 
     public static final String PROXY_NAME = "my-proxy";
+    public static final String NAMESPACE = "my-namespace";
+
+    // @formatter:off
     public static final VirtualKafkaCluster CLUSTER_NO_FILTERS = new VirtualKafkaClusterBuilder()
             .withNewMetadata()
-            .withName("foo")
-            .withNamespace("my-namespace")
-            .withGeneration(42L)
+                .withName("foo")
+                .withNamespace(NAMESPACE)
+                .withGeneration(42L)
             .endMetadata()
             .withNewSpec()
-            .withNewProxyRef()
-            .withName(PROXY_NAME)
-            .endProxyRef()
-            .addNewIngressRef()
-            .withName("my-ingress")
-            .endIngressRef()
-            .withNewTargetKafkaServiceRef()
-            .withName("my-kafka")
-            .endTargetKafkaServiceRef()
+                .withNewProxyRef()
+                    .withName(PROXY_NAME)
+                .endProxyRef()
+                .addNewIngressRef()
+                    .withName("my-ingress")
+                .endIngressRef()
+                .withNewTargetKafkaServiceRef()
+                    .withName("my-kafka")
+                .endTargetKafkaServiceRef()
             .endSpec()
             .build();
     public static final VirtualKafkaCluster CLUSTER_ONE_FILTER = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
             .editSpec()
-            .addNewFilterRef()
-            .withName("my-filter")
-            .endFilterRef()
+                .addNewFilterRef()
+                    .withName("my-filter")
+                .endFilterRef()
             .endSpec()
             .build();
 
     public static final KafkaProxy PROXY = new KafkaProxyBuilder()
             .withNewMetadata()
-            .withName(PROXY_NAME)
-            .withGeneration(101L)
+                .withName(PROXY_NAME)
+                .withGeneration(101L)
             .endMetadata()
             .withNewSpec()
             .endSpec()
@@ -87,8 +97,8 @@ class VirtualKafkaClusterReconcilerTest {
 
     public static final KafkaService SERVICE = new KafkaServiceBuilder()
             .withNewMetadata()
-            .withName("my-kafka")
-            .withGeneration(201L)
+                .withName("my-kafka")
+              .withGeneration(201L)
             .endMetadata()
             .withNewSpec()
             .endSpec()
@@ -96,20 +106,31 @@ class VirtualKafkaClusterReconcilerTest {
 
     public static final KafkaProxyIngress INGRESS = new KafkaProxyIngressBuilder()
             .withNewMetadata()
-            .withName("my-ingress")
-            .withGeneration(301L)
+                .withName("my-ingress")
+             .withGeneration(301L)
             .endMetadata()
             .withNewSpec()
-            .withNewProxyRef().withName(PROXY_NAME).endProxyRef()
+             .withNewProxyRef().withName(PROXY_NAME).endProxyRef()
             .endSpec()
             .build();
 
     public static final KafkaProtocolFilter FILTER_MY_FILTER = new KafkaProtocolFilterBuilder()
             .withNewMetadata()
-            .withName("my-filter")
-            .withGeneration(401L)
+                .withName("my-filter")
+                .withGeneration(401L)
             .endMetadata()
             .withNewSpec()
+            .endSpec()
+            .build();
+    public static final Service KUBERNETES_INGRESS_SERVICES = new ServiceBuilder().
+            withNewMetadata()
+                .withName(serviceName(CLUSTER_NO_FILTERS, INGRESS))
+                .withNamespace(NAMESPACE)
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(CLUSTER_NO_FILTERS)).endOwnerReference()
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(INGRESS)).endOwnerReference()
+            .endMetadata()
+            .withNewSpec()
+                .addToPorts(new ServicePortBuilder().withName("port").withPort(9082).build())
             .endSpec()
             .build();
     // @formatter:on
@@ -329,5 +350,66 @@ class VirtualKafkaClusterReconcilerTest {
                 .isResolvedRefsUnknown("java.lang.RuntimeException", "Boom!")
                 .hasLastTransitionTime(TEST_CLOCK.instant());
 
+    }
+
+    @Test
+    void shouldSetBootstrapForClusterIPIngress() {
+        // given
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
+
+        Context<VirtualKafkaCluster> context = mock(Context.class);
+
+        when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
+        when(context.getSecondaryResource(ConfigMap.class)).thenReturn(Optional.of(buildProxyConfigMapWithPatch(CLUSTER_NO_FILTERS)));
+        when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
+        when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS));
+        when(context.getSecondaryResources(KafkaProtocolFilter.class)).thenReturn(Set.of());
+        when(context.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
+
+        // when
+        var update = reconciler.reconcile(CLUSTER_NO_FILTERS, context);
+
+        // then
+        assertThat(update).isNotNull();
+        assertThat(update.isPatchStatus()).isTrue();
+        assertThat(update.getResource())
+                .isPresent()
+                .get()
+                .satisfies(r -> assertThat(r.getStatus())
+                        .extracting(VirtualKafkaClusterStatus::getIngresses, InstanceOfAssertFactories.list(Ingresses.class))
+                        .singleElement()
+                        .satisfies(ingress -> {
+                            assertThat(ingress.getName()).isEqualTo(INGRESS.getMetadata().getName());
+                            assertThat(ingress.getBootstrapServer()).isEqualTo("foo-my-ingress.my-namespace.svc.cluster.local:9082");
+                        }));
+
+    }
+
+    @Test
+    void shouldOmitIngressIfKubernetesServiceNotPresent() {
+        // given
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
+
+        Context<VirtualKafkaCluster> context = mock(Context.class);
+
+        when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
+        when(context.getSecondaryResource(ConfigMap.class)).thenReturn(Optional.of(buildProxyConfigMapWithPatch(CLUSTER_NO_FILTERS)));
+        when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
+        when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS));
+        when(context.getSecondaryResources(KafkaProtocolFilter.class)).thenReturn(Set.of());
+        when(context.getSecondaryResources(Service.class)).thenReturn(Set.of());
+
+        // when
+        var update = reconciler.reconcile(CLUSTER_NO_FILTERS, context);
+
+        // then
+        assertThat(update).isNotNull();
+        assertThat(update.isPatchStatus()).isTrue();
+        assertThat(update.getResource())
+                .isPresent()
+                .get()
+                .satisfies(r -> assertThat(r.getStatus())
+                        .extracting(VirtualKafkaClusterStatus::getIngresses, InstanceOfAssertFactories.list(Ingresses.class))
+                        .isEmpty());
     }
 }

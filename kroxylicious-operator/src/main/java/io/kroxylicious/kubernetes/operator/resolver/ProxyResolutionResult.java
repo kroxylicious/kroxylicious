@@ -14,6 +14,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
+import java.util.stream.Stream;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
@@ -134,4 +135,13 @@ public class ProxyResolutionResult {
                 .findFirst();
     }
 
+    public boolean allReferentsHaveFreshStatus() {
+        return clusterResolutionResults.stream().allMatch(ClusterResolutionResult::allReferentsHaveFreshStatus);
+    }
+
+    // using wildcards intentionally
+    @SuppressWarnings("java:S1452")
+    public Stream<LocalRef<?>> allReferentsWithStaleStatus() {
+        return clusterResolutionResults.stream().flatMap(ClusterResolutionResult::findReferentsWithStaleStatus);
+    }
 }

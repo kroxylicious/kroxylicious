@@ -41,9 +41,12 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
 /**
- * Reconciles a {@link KafkaProtocolFilter} by checking whether the {@link Secret}s
- * and {@link ConfigMap}s refered to in interpolated expressions actually exist, setting a
- * {@link Condition.Type#ResolvedRefs} {@link Condition} accordingly.
+ * <p>Reconciles a {@link KafkaProtocolFilter} by checking whether the {@link Secret}s
+ * and {@link ConfigMap}s referred to in interpolated expressions actually exist, setting a
+ * {@link Condition.Type#ResolvedRefs} {@link Condition} accordingly.</p>
+ *
+ * <p>Because a filter CR is not uniquely associated with a {@code KafkaProxy} it's not possible
+ * to set an {@code Accepted} condition on CR instances.</p>
  */
 public class KafkaProtocolFilterReconciler implements
         Reconciler<KafkaProtocolFilter> {

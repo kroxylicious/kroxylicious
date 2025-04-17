@@ -16,3 +16,5 @@ spec:
   configTemplate:
     filterOneConfig: true
     password: ${secret:my-secret:filter-one}
+status:
+  observedGeneration: 12

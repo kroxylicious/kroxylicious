@@ -7,7 +7,6 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -24,16 +23,19 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
-import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 
 public class ResourcesUtil {
 
@@ -89,27 +91,21 @@ public class ResourcesUtil {
                 .build();
     }
 
-    public static Stream<VirtualKafkaCluster> clustersInNameOrder(Context<KafkaProxy> context) {
-        return context.getSecondaryResources(VirtualKafkaCluster.class)
-                .stream()
-                .sorted(Comparator.comparing(ResourcesUtil::name));
-    }
-
-    public static String name(@NonNull HasMetadata resource) {
+    public static String name(HasMetadata resource) {
         return resource.getMetadata().getName();
     }
 
-    public static String namespace(@NonNull HasMetadata resource) {
+    public static String namespace(HasMetadata resource) {
         return resource.getMetadata().getNamespace();
     }
 
     /**
-     * Extract generation from a MetaData object.
+     * Extract generation from a resource's {@code metadata} object.
      *
      * @param resource the object from which to extract the metadata generation.
-     * @return the metadata generation of <code>0</code> of te metadata or the generation itself is null in alignment with @see <a href="https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/1623-standardize-conditions#kep-1623-standardize-conditions">KEP 1623</a>.
+     * @return the metadata generation of <code>0</code> if the metadata or the generation itself is null in alignment with @see <a href="https://github.com/kubernetes/enhancements/tree/master/keps/sig-api-machinery/1623-standardize-conditions#kep-1623-standardize-conditions">KEP 1623</a>.
      */
-    public static @NonNull Long generation(@NonNull HasMetadata resource) {
+    public static long generation(HasMetadata resource) {
         ObjectMeta metadata = resource.getMetadata();
         if (metadata.getGeneration() == null) {
             return 0L;
@@ -117,7 +113,7 @@ public class ResourcesUtil {
         return metadata.getGeneration();
     }
 
-    public static String uid(@NonNull HasMetadata resource) {
+    public static String uid(HasMetadata resource) {
         return resource.getMetadata().getUid();
     }
 
@@ -130,7 +126,7 @@ public class ResourcesUtil {
      * @return an Optional containing the only element matching, empty if there is no matching element
      * @throws IllegalStateException if there are multiple elements matching
      */
-    public static <T extends HasMetadata> Optional<T> findOnlyResourceNamed(@NonNull String name, @NonNull Collection<T> collection) {
+    public static <T extends HasMetadata> Optional<T> findOnlyResourceNamed(String name, Collection<T> collection) {
         Objects.requireNonNull(collection);
         Objects.requireNonNull(name);
         List<T> list = collection.stream().filter(item -> name(item).equals(name)).toList();
@@ -146,7 +142,7 @@ public class ResourcesUtil {
      * @param <T> resource type
      * @return a Collector that collects a Map from element name to element
      */
-    public static <T extends HasMetadata> @NonNull Collector<T, ?, Map<String, T>> toByNameMap() {
+    public static <T extends HasMetadata> Collector<T, ?, Map<String, T>> toByNameMap() {
         return Collectors.toMap(ResourcesUtil::name, Function.identity());
     }
 
@@ -156,10 +152,11 @@ public class ResourcesUtil {
      * @param <T> resource type
      * @return a Collector that collects a Map from element name to element
      */
-    public static <T extends HasMetadata> @NonNull Collector<T, ?, Map<LocalRef<T>, T>> toByLocalRefMap() {
+    public static <T extends HasMetadata> Collector<T, ?, Map<LocalRef<T>, T>> toByLocalRefMap() {
         return Collectors.toMap(ResourcesUtil::toLocalRef, Function.identity());
     }
 
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     public static <T extends HasMetadata> LocalRef<T> toLocalRef(T ref) {
         return (LocalRef) new AnyLocalRefBuilder()
                 .withKind(ref.getKind())
@@ -215,14 +212,13 @@ public class ResourcesUtil {
      * @param <O> The type of the reference owner
      * @param <R> The type of the referent
      */
-    @NonNull
     static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefAsResourceId(O owner, LocalRef<R> ref) {
         return Set.of(new ResourceID(ref.getName(), owner.getMetadata().getNamespace()));
     }
 
-    @NonNull
-    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefsAsResourceIds(O owner, Optional<List<? extends LocalRef<R>>> refs) {
-        return refs.orElse(List.of()).stream()
+    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> localRefsAsResourceIds(O owner,
+                                                                                                 List<? extends LocalRef<R>> refs) {
+        return refs.stream()
                 .map(ref -> new ResourceID(ref.getName(), owner.getMetadata().getNamespace()))
                 .collect(Collectors.toSet());
     }
@@ -238,7 +234,6 @@ public class ResourcesUtil {
      * @param <O> The type of the reference owner
      * @param <R> The type of the referent
      */
-    @NonNull
     static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers(EventSourceContext<?> context,
                                                                                         R referent,
                                                                                         Class<O> owner,
@@ -270,15 +265,60 @@ public class ResourcesUtil {
                 primary -> refAccessor.apply(primary).stream().anyMatch(ref -> ResourcesUtil.isReferent(ref, referent)));
     }
 
-    public static @NonNull String namespacedSlug(LocalRef<?> ref, HasMetadata resource) {
+    public static String namespacedSlug(LocalRef<?> ref, HasMetadata resource) {
         return slug(ref) + " in namespace '" + namespace(resource) + "'";
     }
 
-    private static @NonNull String slug(LocalRef<?> ref) {
+    private static String slug(LocalRef<?> ref) {
         String group = ref.getGroup();
         String name = ref.getName();
         String groupString = group.isEmpty() ? "" : "." + group;
         return ref.getKind().toLowerCase(Locale.ROOT) + groupString + "/" + name;
     }
 
+    /**
+     * Checks that the status observedGeneration is equal to the metadata generation. Indicating
+     * that the current {@code spec} of the resource has been reconciled.
+     * @param cluster cluster
+     * @return true if status observedGeneration is equal to the metadata generation
+     */
+    public static boolean isStatusFresh(VirtualKafkaCluster cluster) {
+        return isStatusFresh(cluster, c -> Optional.ofNullable(c.getStatus()).map(VirtualKafkaClusterStatus::getObservedGeneration).orElse(null));
+    }
+
+    /**
+     * Checks that the status observedGeneration is equal to the metadata generation. Indicating
+     * that the current {@code spec} of the resource has been reconciled.
+     * @param ingress ingress
+     * @return true if status observedGeneration is equal to the metadata generation
+     */
+    public static boolean isStatusFresh(KafkaProxyIngress ingress) {
+        return isStatusFresh(ingress, i -> Optional.ofNullable(i.getStatus()).map(KafkaProxyIngressStatus::getObservedGeneration).orElse(null));
+    }
+
+    /**
+     * Checks that the status observedGeneration is equal to the metadata generation. Indicating
+     * that the current {@code spec} of the resource has been reconciled.
+     * @param service service
+     * @return true if status observedGeneration is equal to the metadata generation
+     */
+    public static boolean isStatusFresh(KafkaService service) {
+        return isStatusFresh(service, i -> Optional.ofNullable(i.getStatus()).map(KafkaServiceStatus::getObservedGeneration).orElse(null));
+    }
+
+    /**
+     * Checks that the status observedGeneration is equal to the metadata generation. Indicating
+     * that the current {@code spec} of the resource has been reconciled.
+     * @param filter filter
+     * @return true if status observedGeneration is equal to the metadata generation
+     */
+    public static boolean isStatusFresh(KafkaProtocolFilter filter) {
+        return isStatusFresh(filter, i -> Optional.ofNullable(i.getStatus()).map(KafkaProtocolFilterStatus::getObservedGeneration).orElse(null));
+    }
+
+    private static <T extends HasMetadata> boolean isStatusFresh(T resource, Function<T, Long> observedGenerationFunc) {
+        Long observedGeneration = observedGenerationFunc.apply(resource);
+        Long generation = resource.getMetadata().getGeneration();
+        return Objects.equals(generation, observedGeneration);
+    }
 }

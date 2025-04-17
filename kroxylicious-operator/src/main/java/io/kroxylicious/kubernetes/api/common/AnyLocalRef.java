@@ -9,6 +9,8 @@ package io.kroxylicious.kubernetes.api.common;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResource;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * A reference, used in a kubernetes resource, to some kubernetes resource in the same namespace.
  * This is used for references where the kind and group are not known statically.
@@ -44,6 +46,7 @@ public class AnyLocalRef
     private String group;
 
     @Override
+    @Nullable
     public String getGroup() {
         return group;
     }
@@ -58,6 +61,7 @@ public class AnyLocalRef
     private String kind;
 
     @Override
+    @Nullable
     public String getKind() {
         return kind;
     }

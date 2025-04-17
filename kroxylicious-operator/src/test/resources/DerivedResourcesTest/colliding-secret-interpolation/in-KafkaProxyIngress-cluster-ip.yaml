@@ -16,3 +16,5 @@ spec:
     name: example
   clusterIP:
     protocol: TCP
+status:
+  observedGeneration: 14

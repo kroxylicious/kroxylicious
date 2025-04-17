@@ -541,6 +541,7 @@
                                 <header>${rootdir}/etc/license.txt</header>
                                 <excludes>
                                     <exclude>.*</exclude>
+                                    <exclude>DCO.txt</exclude>
                                     <exclude>LICENSE.txt</exclude>
                                     <exclude>**/.dontdelete</exclude>
                                     <exclude>docs/**</exclude>

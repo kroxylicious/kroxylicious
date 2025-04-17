@@ -60,12 +60,6 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
         }
         out.readerIndex(ri);
         out.writerIndex(wi);
-
-        if (decodeResponse &&
-                !hasResponse) {
-            log().warn("{}: Not honouring decode of acks=0 PRODUCE response, because there will be none. " +
-                    "This is a bug in your filter.", ctx);
-        }
     }
 
 }

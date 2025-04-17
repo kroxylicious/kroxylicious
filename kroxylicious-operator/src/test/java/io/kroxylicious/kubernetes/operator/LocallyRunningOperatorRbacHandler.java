@@ -214,6 +214,11 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
                 return testActorClient.resource(resource).inNamespace(operatorExtension.getNamespace()).update();
             }
 
+            @NonNull
+            public <T extends HasMetadata> T patchStatus(@NonNull T resource) {
+                return testActorClient.resource(resource).inNamespace(operatorExtension.getNamespace()).patchStatus();
+            }
+
             @Override
             public <T extends HasMetadata> boolean delete(@NonNull T resource) {
                 var res = testActorClient.resource(resource).inNamespace(operatorExtension.getNamespace()).delete();
@@ -244,6 +249,9 @@ public class LocallyRunningOperatorRbacHandler implements BeforeEachCallback, Af
 
         @NonNull
         <T extends HasMetadata> T replace(@NonNull T resource);
+
+        @NonNull
+        <T extends HasMetadata> T patchStatus(@NonNull T resource);
 
         <T extends HasMetadata> boolean delete(@NonNull T resource);
 

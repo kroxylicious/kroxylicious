@@ -18,3 +18,5 @@ spec:
     interpolation2: ${secret:foo:secret2}
     interpolation3: ${secret:bar:secret1}
     interpolation4: ${secret:bar:secret1} # the same as interpolation3
+status:
+  observedGeneration: 4

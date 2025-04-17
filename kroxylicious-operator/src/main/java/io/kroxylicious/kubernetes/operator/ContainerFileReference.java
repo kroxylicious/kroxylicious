@@ -12,7 +12,6 @@ import java.util.Objects;
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -21,7 +20,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public record ContainerFileReference(
                                      @Nullable Volume volume,
                                      @Nullable VolumeMount mount,
-                                     @NonNull Path containerPath) {
+                                     Path containerPath) {
 
     /**
      * A {@code volume} and {@code mount} must either both be non-null, or both be null.
@@ -42,7 +41,14 @@ public record ContainerFileReference(
                 throw new IllegalArgumentException("container path cannot contain a '..' path component");
             }
         }
+        checkVolumeAndMount(volume, mount, containerPath);
+    }
+
+    private static void checkVolumeAndMount(@Nullable Volume volume,
+                                            @Nullable VolumeMount mount,
+                                            Path containerPath) {
         if (volume != null) {
+
             if (mount == null) {
                 throw new IllegalArgumentException("volume and mount must both be non-null, or must both be null");
             }
