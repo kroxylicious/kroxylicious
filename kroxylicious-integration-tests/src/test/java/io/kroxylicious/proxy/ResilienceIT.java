@@ -7,15 +7,21 @@ package io.kroxylicious.proxy;
 
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.clients.admin.DescribeClusterOptions;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.errors.TimeoutException;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.slf4j.Logger;
@@ -23,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.api.TerminationStyle;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
@@ -53,6 +60,41 @@ class ResilienceIT extends BaseIT {
     @Test
     void kafkaConsumerShouldTolerateKroxyliciousRestarting(Topic randomTopic) throws Exception {
         testConsumerCanSurviveKroxyliciousRestart(proxy(cluster), randomTopic);
+    }
+
+    @Test
+    void shouldTolerateUpstreamGoingOffline(KafkaCluster myCluster) {
+        var describeClusterOptions = new DescribeClusterOptions().timeoutMs(2_000);
+
+        try (var tester = kroxyliciousTester(proxy(myCluster));
+                var admin = tester.admin()) {
+
+            var beforeStopTopic = admin.createTopics(List.of(new NewTopic("beforeStop", Optional.empty(), Optional.empty()))).all();
+            assertThat(beforeStopTopic).succeedsWithin(Duration.ofSeconds(10));
+
+            myCluster.stopNodes(u -> true, TerminationStyle.GRACEFUL);
+            LOGGER.debug("Stopped cluster");
+
+            assertThat(admin.describeCluster(describeClusterOptions).clusterId())
+                    .failsWithin(Duration.ofSeconds(5))
+                    .withThrowableThat()
+                    .withCauseInstanceOf(TimeoutException.class)
+                    .havingCause()
+                    .withMessageStartingWith("Timed out waiting for a node assignment.");
+
+            LOGGER.debug("Restarting cluster");
+            myCluster.startNodes(u -> true);
+            LOGGER.debug("Restarted cluster");
+
+            var afterRestartTopic = admin.createTopics(List.of(new NewTopic("afterRestart", Optional.empty(), Optional.empty()))).all();
+            assertThat(afterRestartTopic).succeedsWithin(Duration.ofSeconds(10));
+
+            var topics = admin.listTopics().names();
+            assertThat(topics)
+                    .succeedsWithin(Duration.ofSeconds(10))
+                    .asInstanceOf(InstanceOfAssertFactories.set(String.class))
+                    .containsAll(List.of("beforeStop", "afterRestart"));
+        }
     }
 
     private static void testConsumerCanSurviveKroxyliciousRestart(ConfigurationBuilder builder, Topic randomTopic)
