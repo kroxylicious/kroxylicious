@@ -58,10 +58,21 @@ spec:
           ports:
             - containerPort: 9190
               name: "management"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          terminationMessagePolicy: "FallbackToLogsOnError"
           volumeMounts:
             - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"
               subPath: "proxy-config.yaml"
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: "RuntimeDefault"
       volumes:
         - configMap:
             name: "twocluster-proxy-config"
