@@ -66,6 +66,11 @@ spec:
               name: "9294-node"
             - containerPort: 9295
               name: "9295-node"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
           volumeMounts:
             - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"
@@ -82,6 +87,10 @@ spec:
             - mountPath: "/opt/kroxylicious/secure/configmap/bar"
               name: "configmaps-bar"
               readOnly: true
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: "RuntimeDefault"
       volumes:
         - configMap:
             name: "example-proxy-config"
