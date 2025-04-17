@@ -137,31 +137,8 @@ class KafkaProxyIngressReconcilerTest {
                                 .hasAnnotationSatisfying(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
                                         actualValue -> Assertions.assertThat(actualValue)
                                                 .isNotBlank()
-                                                .satisfies(str -> Assertions.assertThat(Long.parseLong(str)).isNotZero()))));
+                                                .isBase64())));
 
-    }
-
-    @SuppressWarnings("OptionalGetWithoutIsPresent")
-    @Test
-    void shouldAddExpectedChecksum() throws Exception {
-        // given
-        var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
-
-        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.of(PROXY));
-
-        // when
-        var update = reconciler.reconcile(INGRESS, context);
-
-        // then
-        assertThat(update)
-                .isNotNull()
-                .satisfies(uc -> Assertions.assertThat(update.getResource())
-                        .isPresent()
-                        .satisfies(kpi -> OperatorAssertions.assertThat(kpi.get())
-                                .hasAnnotationSatisfying(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
-                                        actualValue -> Assertions.assertThat(actualValue)
-                                                .isNotBlank()
-                                                .satisfies(str -> Assertions.assertThat(Long.parseLong(str)).isEqualTo(4074241081L)))));
     }
 
     @SuppressWarnings({ "unchecked" })
