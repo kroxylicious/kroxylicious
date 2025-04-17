@@ -71,6 +71,8 @@ spec:
             capabilities:
               drop:
                 - "ALL"
+            readOnlyRootFilesystem: true
+          terminationMessagePolicy: "FallbackToLogsOnError"
           volumeMounts:
             - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"
