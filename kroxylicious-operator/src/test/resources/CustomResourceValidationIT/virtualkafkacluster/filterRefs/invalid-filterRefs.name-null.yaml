@@ -18,7 +18,8 @@ resource:
       name: service
     filterRefs:
       - name: null
-    ingressRefs:
-      - name: cluster-ip
+    ingresses:
+      - ingressRef:
+          name: cluster-ip
 expectFailureMessageToContain: |
   spec.filterRefs[0].name: Required value

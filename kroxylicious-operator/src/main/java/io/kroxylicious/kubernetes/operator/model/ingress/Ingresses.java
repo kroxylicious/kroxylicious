@@ -26,7 +26,8 @@ class Ingresses {
     }
 
     public static Stream<IngressDefinition> ingressesFor(KafkaProxy primary, VirtualKafkaCluster cluster, ProxyResolutionResult resolutionResult) {
-        return cluster.getSpec().getIngressRefs().stream()
+        return cluster.getSpec().getIngresses().stream()
+                .map(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses::getIngressRef)
                 .flatMap(
                         ingressRef -> {
                             // skip unresolved ingresses, we are working with VirtualClusters that may have dangling references

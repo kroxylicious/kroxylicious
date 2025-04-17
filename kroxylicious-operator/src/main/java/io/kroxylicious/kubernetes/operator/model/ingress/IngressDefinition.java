@@ -25,7 +25,7 @@ public interface IngressDefinition {
 
     /**
      * Create an instance of the Ingress with identifying ports allocated to it. Identifying meaning that
-     * the port on the container is expected to unambigiously identify which node the client is connecting to.
+     * the port on the container is expected to unambiguously identify which node the client is connecting to.
      * I.e. using a port-per-broker strategy at the proxy.
      *
      * @param firstIdentifyingPort the first identifying port allocated to this ingress instance

@@ -20,7 +20,8 @@ spec:
   filterRefs:
     - name: filter-one
     - name: filter-two
-  ingressRefs:
-    - name: cluster-ip-foo
+  ingresses:
+    - ingressRef:
+        name: cluster-ip-foo
 status:
   observedGeneration: 1

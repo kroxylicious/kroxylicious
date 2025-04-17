@@ -16,7 +16,8 @@ spec:
     name: twocluster
   targetKafkaServiceRef:
     name: fooref
-  ingressRefs:
-    - name: MISSING
+  ingresses:
+    - ingressRef:
+        name: MISSING
 status:
   observedGeneration: 4

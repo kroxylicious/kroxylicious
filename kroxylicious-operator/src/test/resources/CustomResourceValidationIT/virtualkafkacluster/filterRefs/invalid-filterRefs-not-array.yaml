@@ -17,7 +17,8 @@ resource:
     targetKafkaServiceRef:
       name: service
     filterRefs: {}
-    ingressRefs:
-      - name: cluster-ip
+    ingresses:
+      - ingressRef:
+          name: cluster-ip
 expectFailureMessageToContain: |
   spec.filterRefs: Invalid value: "object"

@@ -18,6 +18,9 @@ resource:
       name: serviceName
     filterRefs:
       - name: filter-one
-    ingressRefs: []
+    ingresses:
+      - ingressRef:
+          name: foo
+        tls: {}
 expectFailureMessageToContain: |
-  spec.ingressRefs: Invalid value: 0
+  spec.ingresses[0].tls.certificateRef: Required value

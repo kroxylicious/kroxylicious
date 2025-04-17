@@ -35,9 +35,11 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
                     .withNewProxyRef()
                         .withName(proxyName)
                     .endProxyRef()
-                    .addNewIngressRef()
+                .addNewIngress()
+                    .withNewIngressRef()
                         .withName(ingressName)
                     .endIngressRef()
+                .endIngress()
                 .endSpec();
         // @formatter:on
     }
