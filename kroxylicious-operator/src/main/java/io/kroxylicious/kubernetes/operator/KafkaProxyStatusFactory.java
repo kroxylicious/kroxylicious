@@ -62,6 +62,7 @@ public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
         return kafkaProxyStatusPatch(observedProxy, trueCondition);
     }
 
+    @SuppressWarnings("removal")
     @Override
     KafkaProxy newTrueConditionStatusPatch(KafkaProxy observedProxy,
                                            Condition.Type type) {

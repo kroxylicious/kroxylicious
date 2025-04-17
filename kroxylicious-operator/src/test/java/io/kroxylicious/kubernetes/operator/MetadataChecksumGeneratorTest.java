@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.util.Base64;
 import java.util.UUID;
 
 import org.assertj.core.api.Assertions;
@@ -28,7 +27,6 @@ class MetadataChecksumGeneratorTest {
     @Test
     void shouldBase64EncodeChecksum() {
         // Given
-        Base64.Decoder jdkDecoder = Base64.getDecoder();
 
         // When
         String checksum = MetadataChecksumGenerator.checksumFor(PROXY);

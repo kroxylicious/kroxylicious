@@ -93,13 +93,11 @@ class KafkaProxyIngressReconcilerTest {
 
     }
 
-    @SuppressWarnings("unchecked")
     @Test
     void shouldSetResolvedRefsToTrueWhenProxyFound() throws Exception {
         // given
         var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
 
-        Context<KafkaProxyIngress> context = mock(Context.class);
         when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.of(PROXY));
 
         // when

@@ -64,6 +64,7 @@ public class VirtualKafkaClusterStatusFactory extends StatusFactory<VirtualKafka
         return clusterStatusPatch(observedProxy, ResourceState.of(trueCondition), List.of());
     }
 
+    @SuppressWarnings("removal")
     @Override
     VirtualKafkaCluster newTrueConditionStatusPatch(VirtualKafkaCluster observedProxy,
                                                     Condition.Type type) {
