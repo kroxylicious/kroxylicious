@@ -447,7 +447,7 @@ The workflow will push the container image to `${REGISTRY_DESTINATION}` so ensur
 ## DCO Signoff
 
 The project requires that all commits are signed-off, indicating that _you_ certify the changes with the [Developer
-Certificate of Origin (DCO)](./DCO).
+Certificate of Origin (DCO)](./DCO.txt).
 
 This can be done using `git commit -s` for each commit
 in your pull request. Alternatively, to signoff a bunch of commits you can use `git rebase --signoff _your-branch_`.
