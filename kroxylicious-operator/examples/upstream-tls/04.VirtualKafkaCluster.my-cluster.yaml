@@ -15,5 +15,6 @@ spec:
     name: simple
   targetKafkaServiceRef:
     name: my-cluster
-  ingressRefs:
-    - name: cluster-ip
+  ingresses:
+    - ingressRef:
+        name: cluster-ip

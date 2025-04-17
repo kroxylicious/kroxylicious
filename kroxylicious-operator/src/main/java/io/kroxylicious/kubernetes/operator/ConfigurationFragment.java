@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
@@ -23,7 +24,7 @@ import io.fabric8.kubernetes.api.model.VolumeMount;
  * @param mounts The mount the configuration depends on.
  * @param <F> The type of fragment.
  */
-record ConfigurationFragment<F>(F fragment, Set<Volume> volumes, Set<VolumeMount> mounts) {
+public record ConfigurationFragment<F>(F fragment, Set<Volume> volumes, Set<VolumeMount> mounts) {
 
     /**
      * @return An empty optional fragment.
@@ -58,6 +59,20 @@ record ConfigurationFragment<F>(F fragment, Set<Volume> volumes, Set<VolumeMount
      */
     public <G> ConfigurationFragment<G> map(Function<F, G> mapper) {
         return new ConfigurationFragment<>(mapper.apply(fragment), volumes, mounts);
+    }
+
+    public <G> ConfigurationFragment<G> flatMap(Function<F, ConfigurationFragment<G>> mapper) {
+        ConfigurationFragment<G> apply = mapper.apply(fragment);
+        return new ConfigurationFragment<>(apply.fragment(),
+                Stream.concat(volumes.stream(), apply.volumes.stream()).collect(Collectors.toSet()),
+                Stream.concat(mounts.stream(), apply.mounts.stream()).collect(Collectors.toSet()));
+    }
+
+    public static <F> ConfigurationFragment<List<F>> reduce(List<ConfigurationFragment<F>> fragments) {
+        var list = fragments.stream().map(ConfigurationFragment::fragment).toList();
+        return new ConfigurationFragment<>(list,
+                fragments.stream().flatMap(cfs -> cfs.volumes().stream()).collect(Collectors.toSet()),
+                fragments.stream().flatMap(cfs -> cfs.mounts().stream()).collect(Collectors.toSet()));
     }
 
 }

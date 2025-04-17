@@ -30,6 +30,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
@@ -253,8 +254,10 @@ public class DependencyResolver {
 
     private static Stream<DanglingReference> determineDanglingIngressRefs(LocalRef<?> clusterRef, VirtualKafkaClusterSpec spec,
                                                                           Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses) {
-        return spec.getIngressRefs().stream()
-                .filter(ref -> !ingresses.containsKey(ref)).map(ingressRef -> new DanglingReference(clusterRef, ingressRef));
+        return spec.getIngresses().stream()
+                .map(Ingresses::getIngressRef)
+                .filter(ref -> !ingresses.containsKey(ref))
+                .map(ingressRef -> new DanglingReference(clusterRef, ingressRef));
     }
 
     private static boolean filterResourceMatchesRef(FilterRef filterRef, KafkaProtocolFilter filterResource) {

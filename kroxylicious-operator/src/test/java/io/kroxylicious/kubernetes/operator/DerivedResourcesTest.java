@@ -83,12 +83,12 @@ class DerivedResourcesTest {
     private static <T extends HasMetadata> List<T> resourcesFromFiles(Set<Path> paths, Class<T> valueType) {
         // TODO should validate against the CRD schema, because the DependentResource
         // should never see an invalid resource in production
-        List<T> resources = paths.stream().map(path -> {
+        List<T> resources = paths.stream().map(Path::toFile).map(file -> {
             try {
-                return YAML_MAPPER.readValue(path.toFile(), valueType);
+                return YAML_MAPPER.readValue(file, valueType);
             }
             catch (IOException e) {
-                throw new UncheckedIOException(e);
+                throw new UncheckedIOException("Error reading " + file, e);
             }
         }).sorted(Comparator.comparing(ResourcesUtil::name)).toList();
         long uniqueResources = resources.stream().map(s -> namespace(s) + ":" + name(s)).distinct().count();
@@ -97,23 +97,6 @@ class DerivedResourcesTest {
                 .overridingErrorMessage("unexpected number of unique resources from files: %s", paths)
                 .isEqualTo(paths.size());
         return resources;
-    }
-
-    public static List<KafkaProxyIngress> kafkaProxyIngressesFromFiles(Set<Path> paths) {
-        // TODO should validate against the CRD schema, because the DependentResource
-        // should never see an invalid resource in production
-        List<KafkaProxyIngress> ingresses = paths.stream().map(path -> {
-            try {
-                return YAML_MAPPER.readValue(path.toFile(), KafkaProxyIngress.class);
-            }
-            catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        }).sorted(Comparator.comparing(ResourcesUtil::name)).toList();
-        long uniqueResources = ingresses.stream().map(ingress -> namespace(ingress) + ":" + name(ingress)).distinct().count();
-        // sanity check that the identifiers are unique
-        assertThat(uniqueResources).isEqualTo(paths.size());
-        return ingresses;
     }
 
     @FunctionalInterface
@@ -226,11 +209,11 @@ class DerivedResourcesTest {
             String inFileName = "in-KafkaProxy.yaml";
             Path input = testDir.resolve(inFileName);
             KafkaProxy kafkaProxy = kafkaProxyFromFile(input);
+            assertMinimalMetadata(kafkaProxy.getMetadata(), inFileName);
             List<VirtualKafkaCluster> virtualKafkaClusters = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-VirtualKafkaCluster-*"),
                     VirtualKafkaCluster.class);
             List<KafkaService> kafkaServiceRefs = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-KafkaService-*"), KafkaService.class);
-            assertMinimalMetadata(kafkaProxy.getMetadata(), inFileName);
-            List<KafkaProxyIngress> ingresses = kafkaProxyIngressesFromFiles(TestFiles.childFilesMatching(testDir, "in-KafkaProxyIngress-*"));
+            List<KafkaProxyIngress> ingresses = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-KafkaProxyIngress-*"), KafkaProxyIngress.class);
 
             unusedFiles.remove(input);
             unusedFiles.removeAll(TestFiles.childFilesMatching(testDir, "in-*"));

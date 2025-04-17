@@ -18,7 +18,8 @@ resource:
       name: service
     filterRefs:
       - name: []
-    ingressRefs:
-      - name: cluster-ip
+    ingresses:
+      - ingressRef:
+          name: cluster-ip
 expectFailureMessageToContain: |
   spec.filterRefs[0].name: Invalid value: "array"

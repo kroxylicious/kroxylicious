@@ -8,7 +8,6 @@ package io.kroxylicious.kubernetes.operator.model.ingress;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -23,10 +22,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
-import io.kroxylicious.proxy.config.NamedRange;
-import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
-import io.kroxylicious.proxy.config.VirtualClusterGateway;
-import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
@@ -34,7 +29,8 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static java.lang.Math.toIntExact;
 
-public record ClusterIPIngressDefinition(KafkaProxyIngress resource,
+public record ClusterIPIngressDefinition(
+                                         KafkaProxyIngress resource,
                                          VirtualKafkaCluster cluster,
                                          KafkaProxy primary,
                                          List<NodeIdRanges> nodeIdRanges)
@@ -50,26 +46,11 @@ public record ClusterIPIngressDefinition(KafkaProxyIngress resource,
         }
     }
 
-    private record ClusterIPIngressInstance(ClusterIPIngressDefinition definition, int firstIdentifyingPort, int lastIdentifyingPort)
+    public record ClusterIPIngressInstance(ClusterIPIngressDefinition definition, int firstIdentifyingPort, int lastIdentifyingPort)
             implements IngressInstance {
-        ClusterIPIngressInstance {
+        public ClusterIPIngressInstance {
             Objects.requireNonNull(definition);
             sanityCheckPortRange(definition, firstIdentifyingPort, lastIdentifyingPort);
-        }
-
-        @Override
-        public VirtualClusterGateway gatewayConfig() {
-            List<NamedRange> portRanges = IntStream.range(0, definition.nodeIdRanges.size()).mapToObj(i -> {
-                NodeIdRanges range = definition.nodeIdRanges.get(i);
-                String name = Optional.ofNullable(range.getName()).orElse("range-" + i);
-                return new NamedRange(name, toIntExact(range.getStart()), toIntExact(range.getEnd()));
-            }).toList();
-            return new VirtualClusterGateway("default",
-                    new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", firstIdentifyingPort),
-                            qualifiedServiceHost(), null,
-                            portRanges),
-                    null,
-                    Optional.empty());
         }
 
         @Override
@@ -116,10 +97,6 @@ public record ClusterIPIngressDefinition(KafkaProxyIngress resource,
                     });
             return Stream.concat(bootstrapPort, ingressNodePorts);
         }
-
-        String qualifiedServiceHost() {
-            return name(definition.cluster) + "-" + name(definition.resource) + "." + namespace(definition.cluster) + ".svc.cluster.local";
-        }
     }
 
     @VisibleForTesting
@@ -130,7 +107,7 @@ public record ClusterIPIngressDefinition(KafkaProxyIngress resource,
     }
 
     @Override
-    public IngressInstance createInstance(int firstIdentifyingPort, int lastIdentifyingPort) {
+    public ClusterIPIngressInstance createInstance(int firstIdentifyingPort, int lastIdentifyingPort) {
         return new ClusterIPIngressInstance(this, firstIdentifyingPort, lastIdentifyingPort);
     }
 
