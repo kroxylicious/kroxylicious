@@ -155,7 +155,9 @@ public class ProxyDeploymentDependentResource
                     .withNewCapabilities()
                         .addToDrop("ALL")
                     .endCapabilities()
+                    .withReadOnlyRootFilesystem(true)
                 .endSecurityContext()
+                .withTerminationMessagePolicy("FallbackToLogsOnError")
                 .withArgs("--config", ProxyDeploymentDependentResource.CONFIG_PATH_IN_CONTAINER)
                 // volume mount
                 .addNewVolumeMount()
