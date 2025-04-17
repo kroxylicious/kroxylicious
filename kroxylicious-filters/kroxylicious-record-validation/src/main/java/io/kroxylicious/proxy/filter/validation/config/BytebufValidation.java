@@ -18,6 +18,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public class BytebufValidation {
     private final SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig;
     private final SchemaValidationConfig schemaValidationConfig;
+    private final KarapaceSchemaValidationConfig karapaceSchemaValidationConfig;
     private final boolean allowNulls;
     private final boolean allowEmpty;
 
@@ -25,16 +26,19 @@ public class BytebufValidation {
      * Create a new BytebufValidation
      * @param syntacticallyCorrectJsonConfig optional configuration, if non-null indicates ByteBuffer should contain syntactically correct JSON
      * @param schemaValidationConfig optional configuration, if non-null, indicates ByteBuffer to validate the data using the schema configuration
+     * @param karapaceSchemaValidationConfig optional configuration, if non-null, indicates ByteBuffer to validate the data using Karapace schema configuration
      * @param allowNulls whether a null byte-buffer should be considered valid
      * @param allowEmpty whether an empty byte-buffer should be considered valid
      */
     @JsonCreator
     public BytebufValidation(@JsonProperty("syntacticallyCorrectJson") SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig,
                              @JsonProperty("schemaValidationConfig") SchemaValidationConfig schemaValidationConfig,
+                             @JsonProperty("karapaceSchemaValidationConfig") KarapaceSchemaValidationConfig karapaceSchemaValidationConfig,
                              @JsonProperty(value = "allowNulls", defaultValue = "true") Boolean allowNulls,
                              @JsonProperty(value = "allowEmpty", defaultValue = "false") Boolean allowEmpty) {
         this.syntacticallyCorrectJsonConfig = syntacticallyCorrectJsonConfig;
         this.schemaValidationConfig = schemaValidationConfig;
+        this.karapaceSchemaValidationConfig = karapaceSchemaValidationConfig;
         this.allowNulls = allowNulls == null || allowNulls;
         this.allowEmpty = allowEmpty != null && allowEmpty;
     }
@@ -53,6 +57,14 @@ public class BytebufValidation {
      */
     public Optional<SchemaValidationConfig> getSchemaValidationConfig() {
         return Optional.ofNullable(schemaValidationConfig);
+    }
+
+    /**
+     * Get Karapace schema validation config
+     * @return optional containing Karapace schema validation config if non-null, empty otherwise
+     */
+    public Optional<KarapaceSchemaValidationConfig> getKarapaceSchemaValidationConfig() {
+        return Optional.ofNullable(karapaceSchemaValidationConfig);
     }
 
     /**
@@ -81,12 +93,13 @@ public class BytebufValidation {
         }
         BytebufValidation that = (BytebufValidation) o;
         return allowNulls == that.allowNulls && allowEmpty == that.allowEmpty && Objects.equals(syntacticallyCorrectJsonConfig,
-                that.syntacticallyCorrectJsonConfig) && Objects.equals(schemaValidationConfig, that.schemaValidationConfig);
+                that.syntacticallyCorrectJsonConfig) && Objects.equals(schemaValidationConfig, that.schemaValidationConfig)
+                && Objects.equals(karapaceSchemaValidationConfig, that.karapaceSchemaValidationConfig);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(syntacticallyCorrectJsonConfig, schemaValidationConfig, allowNulls, allowEmpty);
+        return Objects.hash(syntacticallyCorrectJsonConfig, schemaValidationConfig, karapaceSchemaValidationConfig, allowNulls, allowEmpty);
     }
 
     @Override
@@ -94,6 +107,7 @@ public class BytebufValidation {
         return "BytebufValidation{" +
                 "syntacticallyCorrectJsonConfig=" + syntacticallyCorrectJsonConfig +
                 ", schemaValidationConfig=" + schemaValidationConfig +
+                ", karapaceSchemaValidationConfig=" + karapaceSchemaValidationConfig +
                 ", allowNulls=" + allowNulls +
                 ", allowEmpty=" + allowEmpty +
                 '}';

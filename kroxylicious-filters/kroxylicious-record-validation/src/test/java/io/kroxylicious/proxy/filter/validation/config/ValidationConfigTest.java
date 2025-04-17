@@ -38,10 +38,10 @@ class ValidationConfigTest {
                 """);
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, true, false));
-        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, true, false), null);
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, null, true, false));
+        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, true, false), null);
         ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo),
-                new RecordValidationRule(null, new BytebufValidation(null, null, true, false)));
+                new RecordValidationRule(null, new BytebufValidation(null, null, null, true, false)));
         assertEquals(expected, deserialised);
     }
 
@@ -69,9 +69,9 @@ class ValidationConfigTest {
                 """);
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), null, false, true));
-        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, false, true), null);
-        ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, false, true)));
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), null, null, false, true));
+        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);
+        ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, null, false, true)));
         assertEquals(expected, deserialised);
     }
 
@@ -92,10 +92,10 @@ class ValidationConfigTest {
                 """);
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, true, false));
-        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, true, false), null);
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, null, true, false));
+        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, true, false), null);
         ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo),
-                new RecordValidationRule(null, new BytebufValidation(null, null, true, false)));
+                new RecordValidationRule(null, new BytebufValidation(null, null, null, true, false)));
         assertEquals(expected, deserialised);
     }
 
@@ -126,10 +126,45 @@ class ValidationConfigTest {
                 """);
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L), false,
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), new SchemaValidationConfig(URI.create("http://localhost:8080").toURL(), 1L), null, false,
                         true));
-        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, false, true), null);
-        ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, false, true)));
+        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);
+        ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, null, false, true)));
+        assertEquals(expected, deserialised);
+    }
+
+    @Test
+    void testDecodeKarapaceSchemaValidation() throws JsonProcessingException, MalformedURLException {
+        ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+        ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue("""
+                defaultRule:
+                  valueRule:
+                    allowNulls: false
+                    allowEmpty: true
+                rules:
+                - topicNames:
+                  - one
+                  valueRule:
+                    syntacticallyCorrectJson:
+                        validateObjectKeysUnique: true
+                    karapaceSchemaValidationConfig:
+                        karapaceRegistryUrl: http://localhost:8081
+                        schemaId: 1
+                    allowNulls: false
+                    allowEmpty: true
+                - topicNames:
+                  - two
+                  keyRule:
+                    allowNulls: false
+                    allowEmpty: true
+                """);
+
+        TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), null, new KarapaceSchemaValidationConfig(URI.create("http://localhost:8081").toURL(), 1),
+                        false,
+                        true));
+        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);
+        ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, null, false, true)));
         assertEquals(expected, deserialised);
     }
 
@@ -157,9 +192,9 @@ class ValidationConfigTest {
                 """);
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), null, false, true));
-        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, false, true), null);
-        ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, false, true)));
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), null, null, false, true));
+        TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);
+        ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo), new RecordValidationRule(null, new BytebufValidation(null, null, null, false, true)));
         assertEquals(expected, deserialised);
     }
 }

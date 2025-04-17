@@ -61,6 +61,14 @@ public class BytebufValidators {
     }
 
     /**
+     * get validator that validates if a non-null/non-empty buffer contains data that matches a schema registered in the Karapace Schema Registry
+     * @return validator
+     */
+    public static BytebufValidator karapaceSchemaValidator(Map<String, Object> config, int schemaId) {
+        return new KarapaceSchemaBytebufValidator(config, schemaId);
+    }
+
+    /**
      * A chain of {@link BytebufValidators}.  Validators are executed in the order
      *  * they are defined.  Validation stops after the first validation failure.
      * @param elements list of validators

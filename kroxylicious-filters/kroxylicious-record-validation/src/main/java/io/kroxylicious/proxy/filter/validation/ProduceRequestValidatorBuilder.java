@@ -62,6 +62,9 @@ class ProduceRequestValidatorBuilder {
         valueRule.getSchemaValidationConfig().ifPresent(
                 config -> validators.add(BytebufValidators.jsonSchemaValidator(Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString()),
                         config.apicurioGlobalId())));
+        valueRule.getKarapaceSchemaValidationConfig().ifPresent(
+                config -> validators.add(BytebufValidators.karapaceSchemaValidator(Map.of("karapace.registry.url", config.karapaceRegistryUrl().toString()),
+                        config.schemaId())));
 
         return BytebufValidators.chainOf(validators);
     }
