@@ -1,0 +1,21 @@
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+[id='assembly-configuring-kafkaservices-{context}']
+= Configuring the proxied Kafka service
+
+[role="_abstract"]
+A proxied Kafka cluster is configured in a `KafkaService` resource.
+This Kafka cluster may or may not be running in the same Kubernetes cluster as the proxy: Network connectivity is all that's required.
+
+include::../modules/configuring/con-configuring-kafkaservice-by-bootstrap.adoc[leveloffset=+1]
+
+include::../modules/configuring/con-configuring-kafkaservice-trust.adoc[leveloffset=+1]
+
+include::../modules/configuring/con-configuring-kafkaservice-auth.adoc[leveloffset=+1]
+
+include::../modules/configuring/con-configuring-kafkaservice-protocol.adoc[leveloffset=+1]
+
+include::../modules/configuring/con-configuring-kafkaservice-cipher.adoc[leveloffset=+1]
+

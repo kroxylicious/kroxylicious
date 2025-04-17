@@ -1,0 +1,23 @@
+[id='con-configuring-kafkaservice-bootstrap-{context}']
+= Configuring the proxied Kafka cluster
+
+.Example `KafkaService` configured for connections to `kafka.example.com` port 9092
+[source,yaml]
+----
+kind: KafkaService
+metadata:
+  # ...
+spec:
+  bootstrapServers: kafka.example.com:9092 # <1>
+  nodeIdRanges: # <2>
+    - name: brokers # <3>
+      start: 0 # <4>
+      end: 5 # <5>
+  # ...
+----
+<1> The `bootstrapServers` property is a comma-separated list of addresses in `<host>:<port>` syntax. It is recommended to specify multiple brokers if possible, to enable clients to connect even when a broker is not running.
+<2> `nodeIdRanges` declares the ids of all the broker nodes in the Kafka cluster
+<3> `name` is optional, but specifying it can make errors easier to diagnose.
+<4> The start of the id range, inclusive.
+<5> The end of the id range, inclusive.
+

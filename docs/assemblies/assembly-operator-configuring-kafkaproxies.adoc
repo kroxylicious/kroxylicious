@@ -1,0 +1,10 @@
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+[id='assembly-configuring-kafkaproxies-{context}']
+= Configuring proxies
+
+[role="_abstract"]
+A `KafkaProxy` resource represents an instance of the Kroxylicious Proxy.
+Conceptually it is the root of a tree of resources made up of `KafkaProxyIngresses`, `VirtualKafkaClusters`,  `KafkaServices` and `KafkaProtocolFilters` which together describe a complete working proxy.

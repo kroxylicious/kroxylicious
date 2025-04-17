@@ -1,0 +1,6 @@
+
+[discrete]
+= About this guide
+
+This guide covers using the *Kubernetes operator* for Kroxylicious, including configuration, security and operation.
+Other guides should be consulted if you want run the proxy on platforms other than Kubernetes or to develop plugins for Kroxylicious.

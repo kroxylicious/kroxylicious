@@ -1,0 +1,10 @@
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+[id='assembly-configuring-kafkaprotocolfilters-{context}']
+= Configuring filters
+
+[role="_abstract"]
+A `KafkaProtocolFilter` resource represents a Kroxylicious Proxy filter.
+It is not uniquely associated with a `VirtualKafkaCluster` or `KafkaProxy` instance; it can be used in a number of `VirtualKafkaClusters`.

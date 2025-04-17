@@ -1,0 +1,8 @@
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+[id='con-installing-{context}']
+= Installing the operator
+
+*TO DO*

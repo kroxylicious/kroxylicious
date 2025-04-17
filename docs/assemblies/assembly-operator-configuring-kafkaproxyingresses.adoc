@@ -1,0 +1,11 @@
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+[id='assembly-configuring-kafkaproxyingresses-{context}']
+= Configuring ingresses
+
+[role="_abstract"]
+A `KafkaProxyIngress` resource expresses the networking configuration for how Kafka clients will connect to a `VirtualKafkaClister`.
+
+It is uniquely associated with a single `KafkaProxy` instance, but it is not uniquely associated with a `VirtualKafkaCluster`; it can be used by multiple `VirtualKafkaClusters`.

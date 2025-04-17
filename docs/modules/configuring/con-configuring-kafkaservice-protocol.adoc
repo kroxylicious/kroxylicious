@@ -1,0 +1,29 @@
+[id='con-configuring-kafkaservice-protocol-{context}']
+= Controlling the TLS version used
+
+Older versions of TLS (and SSL before it) are now considered insecure.
+
+IMPORTANT: It is considered good practice to disable insecure versions of the protocol. You can only do this is the proxied Kafka cluster you want to connect to supports the version that you want to use.
+
+.Example `KafkaService` configured so that the proxy will negotiate only a TLS v1.3 connection to `kafka.example.com`.
+[source,yaml]
+----
+kind: KafkaService
+metadata:
+  # ...
+spec:
+  bootstrapServers: kafka.example.com:9092
+  tls:
+    # ...
+    protocols: # <1>
+      allowed: # <2>
+        - TLSv1.3
+        - TLSv1.2
+----
+<1> The `protocols` object configures the TLS procotol versions
+<2> `allowed` lists the versions of TLS which are permitted.
+
+The `protocols` object also supports `denied` if you prefer to exclude the unpermitted versions, rather than including the permitted versions.
+
+The names of the TLS procotol versions supported depend on the JVM in the proxy container image.
+See {tlsProtocolNames}.

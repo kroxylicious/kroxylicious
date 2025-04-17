@@ -3,4 +3,5 @@
 = About this guide
 
 This guide covers using the proxy, including configuration, security and operation.
+There is a separate guide for the Kroxylicious operator, if you want to run the proxy on Kubernetes.
 Other guides should be consulted if you want to developing plugins for Kroxylicious.

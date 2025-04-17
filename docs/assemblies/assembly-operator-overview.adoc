@@ -1,0 +1,17 @@
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+[id='assembly-overview-{context}']
+= Kroxylicious Operator overview
+
+[role="_abstract"]
+Kroxylicious Proxy is an Apache Kafka protocol-aware ("Layer 7") proxy designed to enhance Kafka-based systems.
+
+The Kroxylicious Operator is an _operator_ for Kubernetes which simplifies deploying and operating the Kroxylicious Proxy.
+
+[role="_additional-resources"]
+.Additional resources
+
+* {KubernetesSite}
+* {OperatorPattern}
