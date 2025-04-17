@@ -23,7 +23,7 @@ import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.ass
 
 class KafkaProxyIngressStatusFactoryTest {
     private static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
-    public static final String CHECKSUM = "123456789";
+    public static final String CHECKSUM = "AAAAAPLX/Dk";
     private KafkaProxyIngressStatusFactory kafkaProxyIngressStatusFactory;
 
     // @formatter:off
@@ -47,7 +47,7 @@ class KafkaProxyIngressStatusFactoryTest {
     }
 
     @Test
-    void shouldAddDependantsChecksumAnnotation() {
+    void shouldAddReferentsChecksumAnnotation() {
         // Given
 
         // When
@@ -55,6 +55,6 @@ class KafkaProxyIngressStatusFactoryTest {
 
         // Then
         assertThat(kafkaProxyIngress)
-                .hasAnnotationSatisfying("kroxylicious.io/dependant-checksum", checksum -> Assertions.assertThat(checksum).isEqualTo(CHECKSUM));
+                .hasAnnotationSatisfying("kroxylicious.io/referent-checksum", checksum -> Assertions.assertThat(checksum).isEqualTo(CHECKSUM));
     }
 }

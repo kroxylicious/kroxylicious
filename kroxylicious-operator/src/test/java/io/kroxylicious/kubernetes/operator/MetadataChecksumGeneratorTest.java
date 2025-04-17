@@ -36,8 +36,7 @@ class MetadataChecksumGeneratorTest {
         // Then
         Assertions.assertThat(checksum)
                 .isBase64()
-                .satisfies(string ->
-                        Assertions.assertThatThrownBy(() -> Assertions.assertThat(string).asLong()));
+                .satisfies(string -> Assertions.assertThatThrownBy(() -> Assertions.assertThat(string).asLong()));
         // A raw long is a valid base64 string, this assertion ensures we haven't just returned a long
     }
 
