@@ -1,0 +1,17 @@
+---
+id: deploy_strimzi_operator
+notional: true
+---
+id: deploy_strimzi_operator_from_strimzi_io
+satisfies: deploy_strimzi_operator
+prereqs:
+  - ref: have_a_kubectl
+procedure:
+  - exec: kubectl create namespace kafka
+  - exec: kubectl create -n kafka -f https://strimzi.io/install/latest?namespace=kafka
+  - exec:
+      command: kubectl wait -n kafka deployment/strimzi-cluster-operator --for=condition=Available=True --timeout=300s
+      timeout: 305s
+tearDown:
+  - exec: kubectl delete -n kafka -f https://strimzi.io/install/latest?namespace=kafka
+  - exec: kubectl delete namespace kafka
