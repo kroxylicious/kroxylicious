@@ -1,0 +1,29 @@
+id: example_proc
+notional: false
+satisfies: another_proc
+title:
+  adoc: Deploying a minimal proxy instance
+abstract:
+  adoc: 'This procedure shows how to deploy a basic Kroxylicious proxy, without any filters,
+                  accessible using plain TCP networking to clients in the same Kubernetes cluster.'
+intro:
+  adoc: |-
+    Blah blah
+prereqs:
+  - adoc: Access to a Kubernetes cluster using `kubectl`
+    ref: have_a_kubectl
+procedure:
+  - step:
+      - adoc: Install the examples
+      - exec: kubectl apply -f examples/simple/
+      - adoc: That ought to do it
+  - step:
+      - adoc: Drink some coffee
+verification:
+  - step:
+      - adoc: Check it worked
+      - exec: true
+additionalResources:
+  adoc: |
+    * additional resource 1
+    * additional resource 2

@@ -1,0 +1,79 @@
+---
+id: notional_proc
+notional: true
+---
+id: satisfier_a
+satisfies: notional_proc
+prereqs:
+  - ref: prereq_x
+  - ref: prereq_z
+procedure:
+  - step:
+      - exec: true
+---
+id: satisfier_b
+satisfies: notional_proc
+prereqs:
+  - ref: prereq_y
+  - ref: prereq_z
+procedure:
+  - step:
+      - exec: true
+
+---
+id: prereq_x
+procedure:
+  - step:
+      - exec: true
+---
+id: prereq_y
+procedure:
+  - step:
+      - exec: true
+---
+id: prereq_z
+procedure:
+  - step:
+      - exec: true
+---
+id: failing_procedure
+procedure:
+  - step:
+      - exec: false
+---
+id: failing_verification
+procedure:
+  - step:
+      - exec: true
+verification:
+  - step:
+      - exec: false
+---
+id: failing_teardown
+procedure:
+  - step:
+      - exec: true
+tearDown:
+  - step:
+      - exec: false
+---
+id: prereq_failing_procedure
+prereqs:
+  - ref: failing_procedure
+procedure:
+  - step:
+      - exec: true
+---
+id: prereq_failing_verification
+prereqs:
+  - ref: failing_verification
+procedure:
+  - step:
+      - exec: true
+---
+id: prereq_failing_teardown
+prereqs:
+  - ref: failing_teardown
+procedure:
+  - step:
+      - exec: true

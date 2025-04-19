@@ -494,6 +494,7 @@
         <module>kroxylicious-kubernetes-api</module>
         <module>kroxylicious-operator-test-support</module>
         <module>kroxylicious-operator</module>
+        <module>doxylicious</module>
     </modules>
 
 

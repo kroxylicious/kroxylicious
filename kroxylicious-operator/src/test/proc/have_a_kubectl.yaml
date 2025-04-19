@@ -1,0 +1,9 @@
+---
+id: have_a_kubectl
+notional: true
+verification:
+  - exec: which kubectl
+  - exec:
+      command: kubectl cluster-info
+      standardOutput:
+        contains: control plane is running

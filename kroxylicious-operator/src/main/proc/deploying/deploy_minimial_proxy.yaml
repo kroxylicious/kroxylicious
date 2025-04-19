@@ -1,0 +1,135 @@
+---
+id: deploy_minimal_proxy
+title:
+  adoc: Deploying a minimal proxy instance
+abstract:
+  adoc: |
+    This procedure shows how to deploy a basic Kroxylicious proxy, without any filters, 
+    accessible using plain TCP networking to clients in the same Kubernetes cluster.
+intro:
+  adoc: |
+    This example assumes you're running Kafka in Kubernetes using Strimzi.
+    Specifically, it makes the assumption that you have a Strimzi-managed Kafka cluster 
+    running in the `kafka` namespace, and that the hostname `my-cluster-cluster-ip.my-proxy.svc.cluster.local:9292`
+    can be used as a bootstrap server for both the `KafkaService` and the Kafka clients that 
+    will be used to verify the proxy is working.
+prereqs:
+  - adoc: Access to a Kubernetes cluster using `kubectl`
+    ref: have_a_kubectl
+  - adoc: A backend Kafka cluster to be proxied
+    ref: have_a_target_kafka_cluster
+  - adoc: The Kroxylicious operator must be deployed
+    ref: deploy_kroxy_operator
+procedure:
+  - step:
+      - adoc: Install the `simple` example.
+      - exec: kubectl apply -f examples/simple/
+  - step:
+      - adoc: Wait for the proxy to become `Ready`.
+      - exec:
+          command: kubectl wait -n my-proxy kafkaproxy/simple --for=condition=Ready=True --timeout=300s
+          timeout: 305s
+verification:
+  - step:
+      - adoc: Create a namespace to run the clients in
+      - exec: kubectl create namespace kafka-client
+  - step:
+      - adoc: Run a producer to send some records through the proxy to the Kafka cluster
+      - exec: |
+          kubectl -n kafka-client run java-kafka-producer -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0 
+          --rm=true --restart=Never 
+          -- 
+          bin/kafka-verifiable-producer.sh 
+          --bootstrap-server=my-cluster-cluster-ip.my-proxy.svc.cluster.local:9292 
+          --topic=test-topic 
+          --max-messages=10
+#      - exec: |
+#          kubectl -n kafka-client run java-kafka-producer
+#          -ti
+#          --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0
+#          --rm=true
+#          --restart=Never
+#          --
+#          bin/kafka-console-producer.sh
+#          --bootstrap-server my-cluster-cluster-ip.my-proxy.svc.cluster.local:9292
+#          --topic test-topic
+  - step:
+      - adoc: Run a consumer to retrieve the records you sent
+      - exec: |
+          kubectl -n kafka-client run java-kafka-consumer -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0 
+          --rm=true --restart=Never -- 
+          bin/kafka-verifiable-consumer.sh 
+          --bootstrap-server=my-cluster-cluster-ip.my-proxy.svc.cluster.local:9292
+          --group-id=from-proxy
+          --topic=test-topic 
+          --reset-policy=earliest 
+          --max-messages=10
+#      - exec: |
+#          kubectl -n kafka-client run java-kafka-consumer
+#          -ti
+#          --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0
+#          --rm=true
+#          --restart=Never
+#          --
+#          bin/kafka-console-consumer.sh
+#          --bootstrap-server my-cluster-cluster-ip.my-proxy.svc.cluster.local:9292
+#          --topic test-topic
+#          --from-beginning
+  - step:
+      - adoc: |
+          Optionally, you can run a consumer against the backend Kafka cluster, to prove the records went to 
+          the cluster.
+          +
+          In this command notice that value of `--bootstrap-server` is the bootstrap server for the Kafka cluster, 
+          not the proxy, and that the `--group-id` is different from one used in the previous step.
+      - exec: |
+          kubectl -n kafka-client run java-kafka-consumer -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0 
+          --rm=true --restart=Never 
+          -- 
+          bin/kafka-verifiable-consumer.sh 
+          --bootstrap-server=my-cluster-kafka-bootstrap.kafka.svc:9092
+          --group-id=from-cluster
+          --topic=test-topic 
+          --reset-policy=earliest 
+          --max-messages=10
+  - step:
+      - adoc: Clean up the resources you used you verification.
+      - adoc: Delete the Kafka topic you used.
+      - exec: |
+          kubectl -n kafka-client run java-kafka-admin -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0 
+          --rm=true --restart=Never 
+          --
+          bin/kafka-topics.sh 
+          --bootstrap-server=my-cluster-kafka-bootstrap.kafka.svc:9092 
+          --topic test-topic 
+          --delete
+      - adoc: Delete the Kafka consumer group you used to consume through the proxy.
+      - exec: |
+          kubectl -n kafka-client run java-kafka-admin -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0 
+          --rm=true --restart=Never 
+          -- 
+          bin/kafka-consumer-groups.sh 
+          --bootstrap-server=my-cluster-kafka-bootstrap.kafka.svc:9092 
+          --group=from-proxy 
+          --delete
+      - adoc: Delete the Kafka consumer group you used to consume directly from the Kafka cluster.
+      - exec: |
+          kubectl -n kafka-client run java-kafka-admin -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0 
+          --rm=true --restart=Never 
+          -- 
+          bin/kafka-consumer-groups.sh 
+          --bootstrap-server=my-cluster-kafka-bootstrap.kafka.svc:9092 
+          --group=from-cluster 
+          --delete
+      - adoc: Finally, delete the Kubernetes namespace you created the client pods in.
+      - exec: kubectl delete namespace kafka-client
+#tearDown:
+#  - exec: |
+#      kubectl -n kafka-client run java-kafka-admin -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0
+#      --rm=true --restart=Never
+#      --
+#      bin/kafka-topics.sh
+#      --bootstrap-server=my-cluster-kafka-bootstrap.kafka.svc:9092
+#      --topic test-topic
+#      --delete
+#  - exec: kubectl delete --ignore-not-found=true -f examples/simple/

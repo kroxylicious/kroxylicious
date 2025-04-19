@@ -1,0 +1,31 @@
+---
+id: deploy_kroxy_operator
+notional: true
+verification:
+  - exec:
+      command: kubectl api-resources --api-group=kroxylicious.io
+      standardOutput:
+        containsAll:
+          - kafkaproxies
+          - kafkaproxyingresses
+          - virtualkafkaclusters
+          - kafkaservices
+          # - kafkaprotocolfilters
+---
+id: deploy_kroxy_operator_from_manifests
+satisfies: deploy_kroxy_operator
+title:
+  adoc: Deploying the Kroxylicious operator from manifests
+prereqs:
+  - ref: have_a_kubectl
+    adoc: Access to the Kubernetes cluster using `kubectl`.
+procedure:
+  - step:
+    - adoc: Apply the `CustomResourceDefinition` resources
+    - exec: kubectl apply -f src/main/resources/META-INF/fabric8
+  - step:
+      - adoc: Apply the remaining resources
+      - exec: kubectl apply -f install
+tearDown:
+  - exec: kubectl delete -f install
+  - exec: kubectl delete -f src/main/resources/META-INF/fabric8
