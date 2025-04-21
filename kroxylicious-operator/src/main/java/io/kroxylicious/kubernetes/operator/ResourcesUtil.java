@@ -336,6 +336,7 @@ public class ResourcesUtil {
         return isStatusFresh(filter, i -> Optional.ofNullable(i.getStatus()).map(KafkaProtocolFilterStatus::getObservedGeneration).orElse(null));
     }
 
+    @SuppressWarnings("java:S4276") // ToLongFunction is not appropriate, since observedGeneration may be null
     private static <T extends HasMetadata> boolean isStatusFresh(T resource, Function<T, Long> observedGenerationFunc) {
         Long observedGeneration = observedGenerationFunc.apply(resource);
         Long generation = resource.getMetadata().getGeneration();

@@ -126,12 +126,6 @@ class KafkaProxyReconcilerIT {
             .build();
     private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(extension);
 
-    private static Boolean expectConditionStatusForType(KafkaProxy kafkaProxy, Condition.Type type, Condition.Status expectedStatus) {
-        List<Condition> conditions = Optional.ofNullable(kafkaProxy.getStatus()).map(KafkaProxyStatus::getConditions)
-                .orElse(List.of());
-        return conditions.stream().anyMatch(condition -> condition.getType() == type && condition.getStatus() == expectedStatus);
-    }
-
     @AfterEach
     void stopOperator() throws Exception {
         extension.getOperator().stop();

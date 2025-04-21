@@ -60,7 +60,7 @@ public class MountedResourceConfigProvider implements SecureConfigProvider {
                     itemPath);
         }
         catch (IllegalArgumentException e) {
-            throw new InterpolationException("Cannot construct mounted volume for ${%s:%s:%s}".formatted(
+            throw new InterpolationException("Cannot construct mounted volume for ${%s:%s:%s}: %s".formatted(
                     providerName,
                     resourceName,
                     key,

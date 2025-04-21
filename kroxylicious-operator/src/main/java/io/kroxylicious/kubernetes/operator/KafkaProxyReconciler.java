@@ -358,7 +358,9 @@ public class KafkaProxyReconciler implements
                                                                   Context<KafkaProxy> context,
                                                                   Exception e) {
         if (e instanceof StaleReferentStatusException || e instanceof OperatorException && e.getCause() instanceof StaleReferentStatusException) {
-            LOGGER.debug("Completed reconciliation of {}/{} with stale referent", namespace(proxy), name(proxy), e);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Completed reconciliation of {}/{} with stale referent", namespace(proxy), name(proxy), e);
+            }
             return ErrorStatusUpdateControl.noStatusUpdate();
         }
         var uc = ErrorStatusUpdateControl.patchStatus(statusFactory.newUnknownConditionStatusPatch(proxy, Condition.Type.Ready, e));
