@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1928](https://github.com/kroxylicious/kroxylicious/pull/2085) Bump info.picocli:picocli from 4.7.6 to 4.7.7
 * [#1437](https://github.com/kroxylicious/kroxylicious/issues/1437) Remove "zero-ack produce requests" warning
 * [#1900](https://github.com/kroxylicious/kroxylicious/issues/1900) Enforce business rule that a proxy must have at least one virtual cluster
 * [#1855](https://github.com/kroxylicious/kroxylicious/issues/1855) Upgrade to Apache Kafka 4.0
