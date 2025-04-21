@@ -8,13 +8,16 @@ package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
@@ -103,20 +106,31 @@ public class Kroxylicious {
     }
 
     /**
-     * Gets bootstrap.
+     * Gets bootstrap on the first ingress defined on the virtual cluster.
      *
-     * @param serviceNamePrefix the service name prefix
-     * @return the bootstrap
+     * @param clusterName the virtual cluster name
+     * @return the bootstrap server of the cluster
      */
-    public String getBootstrap(String serviceNamePrefix) {
-        String serviceName = kubeClient().getServiceNameByPrefix(deploymentNamespace, serviceNamePrefix);
-        String clusterIP = kubeClient().getService(deploymentNamespace, serviceName).getSpec().getClusterIP();
-        if (clusterIP == null || clusterIP.isEmpty()) {
-            throw new KubeClusterException("Unable to get the clusterIP of Kroxylicious");
-        }
-        String bootstrap = clusterIP + ":9292";
-        LOGGER.debug("Kroxylicious bootstrap: {}", bootstrap);
-        return bootstrap;
+    public String getBootstrap(String clusterName) {
+        var bootstrapServer = await("poll for bootstrap").atMost(Duration.ofSeconds(30))
+                .pollInterval(Duration.ofSeconds(1))
+                .until(() -> {
+                    var virtualKafkaCluster = kubeClient().getClient()
+                            .resources(VirtualKafkaCluster.class)
+                            .inNamespace(deploymentNamespace)
+                            .withName(clusterName)
+                            .get();
+
+                    var first = Optional.ofNullable(virtualKafkaCluster)
+                            .map(VirtualKafkaCluster::getStatus)
+                            .map(VirtualKafkaClusterStatus::getIngresses)
+                            .stream()
+                            .flatMap(List::stream)
+                            .findFirst();
+                    return first.map(Ingresses::getBootstrapServer);
+                }, Optional::isPresent).orElseThrow();
+        LOGGER.debug("Cluster {} bootstrap server: {}", clusterName, bootstrapServer);
+        return bootstrapServer;
     }
 
     /**
