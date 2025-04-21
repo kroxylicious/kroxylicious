@@ -1,0 +1,12 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: upstream-ca
+data:
+  cas.pem: "whatever"

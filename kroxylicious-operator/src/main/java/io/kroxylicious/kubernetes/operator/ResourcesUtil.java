@@ -26,6 +26,7 @@ import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
+import io.kroxylicious.kubernetes.api.common.AnyLocalRef;
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -34,6 +35,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.TrustAnchorRef;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 
@@ -80,6 +82,24 @@ public class ResourcesUtil {
             throw new IllegalArgumentException(message);
         }
         return string;
+    }
+
+    static String volumeName(String group, String plural, String resourceName) {
+        String volumeNamePrefix = group.isEmpty() ? plural : group + "." + plural;
+        String volumeName = volumeNamePrefix + "-" + resourceName;
+        ResourcesUtil.requireIsDnsLabel(volumeName, true,
+                "volume name would not be a DNS label: " + volumeName);
+        return volumeName;
+    }
+
+    static boolean isSecret(AnyLocalRef ref) {
+        return (ref.getKind() == null || ref.getKind().isEmpty() || "Secret".equals(ref.getKind()))
+                && (ref.getGroup() == null || ref.getGroup().isEmpty());
+    }
+
+    static boolean isConfigMap(TrustAnchorRef ref) {
+        return (ref.getKind() == null || ref.getKind().isEmpty() || "ConfigMap".equals(ref.getKind()))
+                && (ref.getGroup() == null || ref.getGroup().isEmpty());
     }
 
     public static <O extends HasMetadata> OwnerReference newOwnerReferenceTo(O owner) {
@@ -316,6 +336,7 @@ public class ResourcesUtil {
         return isStatusFresh(filter, i -> Optional.ofNullable(i.getStatus()).map(KafkaProtocolFilterStatus::getObservedGeneration).orElse(null));
     }
 
+    @SuppressWarnings("java:S4276") // ToLongFunction is not appropriate, since observedGeneration may be null
     private static <T extends HasMetadata> boolean isStatusFresh(T resource, Function<T, Long> observedGenerationFunc) {
         Long observedGeneration = observedGenerationFunc.apply(resource);
         Long generation = resource.getMetadata().getGeneration();
