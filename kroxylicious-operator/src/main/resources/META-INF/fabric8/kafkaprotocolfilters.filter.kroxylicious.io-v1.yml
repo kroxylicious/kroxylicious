@@ -17,13 +17,13 @@ spec:
   group: filter.kroxylicious.io
   scope: Namespaced
   names:
-    categories:
-      - kroxylicious-plugins
     plural: kafkaprotocolfilters
     singular: kafkaprotocolfilter
     kind: KafkaProtocolFilter
     shortNames:
       - kpf
+    categories:
+      - kroxylicious
   # list of versions supported by this CustomResourceDefinition
   versions:
     - name: v1alpha1
@@ -31,6 +31,12 @@ spec:
       storage: true
       subresources:
         status: {}
+      additionalPrinterColumns:
+        - jsonPath: ".status.conditions[?(@.type==\"ResolvedRefs\")].status"
+          type: string
+          name: ResolvedRefs
+          description: Whether the other resources referenced by this protocol filter can be found
+          priority: 0
       schema:
         openAPIV3Schema:
           type: object
