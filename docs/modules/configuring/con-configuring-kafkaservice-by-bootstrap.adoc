@@ -3,7 +3,7 @@
 
 This example configures a `KafkaService` to connect to `kafka.example.com` on port 9092.
 
-.Example `KafkaService` configuration
+.Example `KafkaService` configuration.
 [source,yaml]
 ----
 kind: KafkaService

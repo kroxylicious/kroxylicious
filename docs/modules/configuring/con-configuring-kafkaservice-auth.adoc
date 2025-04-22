@@ -7,7 +7,7 @@ The TLS client certificate you provide must have been issued by a Certificate Au
 
 This example configures a `KafkaService` to use a TLS client certificate stored in a `Secret` named `tls-cert-for-kafka.example.com`.
 
-.Example `KafkaService` configuration with TLS client authentication
+.Example `KafkaService` configuration with TLS client authentication.
 [source,yaml]
 ----
 kind: KafkaService

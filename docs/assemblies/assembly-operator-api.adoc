@@ -24,7 +24,10 @@ Specifies filter mechanisms for use with a virtual cluster.
 `ConfigMap`::
 `KafkaService` and `KafkaProtocolFilter` resources may reference a `ConfigMap` to provide non-sensitive configuration such as trusted CA certificates.
 
-The operator also _produces_ the core Kubernetes resources needed to deploy the Kroxylicious proxy, such as:
+.Example input resources, and the references between them.
+image::../_assets/operator-input-resource-topology.svg["Diagram showing the input resources, KafkaProxy, VirtualKafkaCluster, etc, as boxes, connected by arrows representing the references between the resources."]
+
+Based on the input resources just described, the operator generates the core Kubernetes resources needed to deploy the Kroxylicious proxy, such as:
 
 `ConfigMap`:: Provides the proxy configuration file mounted into the proxy container.
 `Deployment`:: Manages the proxy `Pod` and container.
@@ -35,7 +38,7 @@ You can make use of Kubernete's Role-Based Access Control (RBAC) to divide respo
 
 For example, you might grant networking engineers the ability to configure `KafkaProxy` and `KafkaProxyIngress`, while giving application developers the ability to configure `VirtualKafkaCluster`, `KafkaService`, and `KafkaProtocolFilter` resources.
 
-
-*TODO diagram*
+.The generated Kubernetes resources, and the relationships between them
+image::../_assets/operator-output-resource-topology.svg["Diagram showing the output resources, Deployment, Pod, ConfigMap, Service, with arrows showing the Deployment managing the Pod, the Pod mounting the ConfigMap, and the Service selecting the Pod."]
 
 include::../modules/con-api-compatability-operator.adoc[leveloffset=+1]

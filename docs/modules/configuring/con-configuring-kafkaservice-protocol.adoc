@@ -12,7 +12,7 @@ IMPORTANT: It is good practice to disable insecure protocol versions.
 
 This example configures a `KafkaService` to allow only TLS v1.3 when connecting to `kafka.example.com`.
 
-.Example `KafkaService` with restricted TLS protocol versions
+.Example `KafkaService` with restricted TLS protocol versions.
 [source,yaml]
 ----
 kind: KafkaService
