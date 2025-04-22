@@ -57,4 +57,18 @@ class KafkaProxyIngressStatusFactoryTest {
         assertThat(kafkaProxyIngress)
                 .hasAnnotationSatisfying("kroxylicious.io/referent-checksum", checksum -> Assertions.assertThat(checksum).isEqualTo(CHECKSUM));
     }
+
+    @Test
+    void shouldNotAddBlankReferentsChecksumAnnotation() {
+        // Given
+
+        // When
+        KafkaProxyIngress kafkaProxyIngress = kafkaProxyIngressStatusFactory.newTrueConditionStatusPatch(INGRESS, Condition.Type.ResolvedRefs,
+                StatusFactory.NO_CHECKSUM_SPECIFIED);
+
+        // Then
+        assertThat(kafkaProxyIngress)
+                .assertHasAnnotations()
+                .doesNotContainKey("kroxylicious.io/referent-checksum");
+    }
 }

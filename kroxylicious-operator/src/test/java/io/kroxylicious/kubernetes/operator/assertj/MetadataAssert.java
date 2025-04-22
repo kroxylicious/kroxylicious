@@ -31,7 +31,7 @@ public class MetadataAssert<T extends HasMetadata> extends AbstractObjectAssert<
                 .hasEntrySatisfying(annotationName, expectedValueConsumer);
     }
 
-    private MapAssert<String, String> assertHasAnnotations() {
+    public MapAssert<String, String> assertHasAnnotations() {
         return assertHasObjectMeta()
                 .extracting(ObjectMeta::getAnnotations)
                 .asInstanceOf(InstanceOfAssertFactories.map(String.class, String.class));
