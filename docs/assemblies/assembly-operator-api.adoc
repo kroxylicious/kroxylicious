@@ -5,16 +5,16 @@
 [id='assembly-operator-api-{context}']
 = API concepts
 
-== API resources used by the proxy
+== API resources used by the Kroxylicious Proxy
 
 The operator _consumes_ custom resources and core Kubernetes resources.
 
 `KafkaProxy`::
-an instance of the proxy itself.
+Defines an instance of the proxy.
 `KafkaProxyIngress`::
 Configures how the proxy is exposed on the network to Kafka clients.
 `VirtualKafkaCluster`::
-a logical Kafka cluster.
+Represents a logical Kafka cluster.
 `KafkaService`::
 Specifies a _backend_ Kafka cluster for the proxy to connect to.
 `KafkaProtocolFilter`::
