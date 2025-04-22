@@ -16,6 +16,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 public class MetadataChecksumGenerator {
 
     public static final String REFERENT_CHECKSUM_ANNOTATION = "kroxylicious.io/referent-checksum";
+    public static final String NO_CHECKSUM_SPECIFIED = "";
 
     private MetadataChecksumGenerator() {
     }

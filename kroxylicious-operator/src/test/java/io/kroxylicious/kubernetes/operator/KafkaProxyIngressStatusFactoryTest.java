@@ -64,7 +64,7 @@ class KafkaProxyIngressStatusFactoryTest {
 
         // When
         KafkaProxyIngress kafkaProxyIngress = kafkaProxyIngressStatusFactory.newTrueConditionStatusPatch(INGRESS, Condition.Type.ResolvedRefs,
-                StatusFactory.NO_CHECKSUM_SPECIFIED);
+                MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
 
         // Then
         assertThat(kafkaProxyIngress)

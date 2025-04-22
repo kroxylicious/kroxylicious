@@ -52,7 +52,7 @@ public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngr
                                                      Condition.Type type,
                                                      Exception e) {
         Condition unknownCondition = newUnknownCondition(observedFilter, type, e);
-        return ingressStatusPatch(observedFilter, unknownCondition, "");
+        return ingressStatusPatch(observedFilter, unknownCondition, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
     }
 
     @Override
@@ -61,7 +61,7 @@ public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngr
                                                    String reason,
                                                    String message) {
         Condition falseCondition = newFalseCondition(observedProxy, type, reason, message);
-        return ingressStatusPatch(observedProxy, falseCondition, "");
+        return ingressStatusPatch(observedProxy, falseCondition, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
     }
 
     @Override
