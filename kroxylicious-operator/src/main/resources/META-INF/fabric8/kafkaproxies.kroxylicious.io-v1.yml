@@ -32,10 +32,10 @@ spec:
       subresources:
         status: { }
       additionalPrinterColumns:
-        - jsonPath: ".status.conditions[?(@.type==\"Ready\")].status"
-          type: string
-          name: Ready
+        - name: Ready
           description: Whether the other resources referenced by this proxy can be found
+          jsonPath: ".status.conditions[?(@.type==\"Ready\")].status"
+          type: string
           priority: 0
       schema:
         openAPIV3Schema:

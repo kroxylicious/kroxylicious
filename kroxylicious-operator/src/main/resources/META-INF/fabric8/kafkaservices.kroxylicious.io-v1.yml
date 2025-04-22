@@ -33,9 +33,9 @@ spec:
         status: { }
       additionalPrinterColumns:
         - jsonPath: ".status.conditions[?(@.type==\"ResolvedRefs\")].status"
+          description: Whether the other resources referenced by this service can be found
           type: string
           name: ResolvedRefs
-          description: Whether the other resources referenced by this service can be found
           priority: 0
       schema:
         openAPIV3Schema:
