@@ -7,7 +7,7 @@
 
 == API resources used by the Kroxylicious Proxy
 
-The operator _consumes_ custom resources and core Kubernetes resources.
+The operator takes these custom resources and core Kubernetes resources as inputs:
 
 `KafkaProxy`::
 Defines an instance of the proxy.
