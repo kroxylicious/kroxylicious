@@ -33,7 +33,7 @@ spec:
         status: {}
       additionalPrinterColumns:
         - name: ResolvedRefs
-          description: Whether the other resources referenced by this protocol filter can be found
+          description: Whether the other resources referenced by this protocol filter can be found.
           jsonPath: ".status.conditions[?(@.type==\"ResolvedRefs\")].status"
           type: string
           priority: 0

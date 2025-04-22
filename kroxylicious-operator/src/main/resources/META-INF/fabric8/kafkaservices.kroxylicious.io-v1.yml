@@ -33,7 +33,7 @@ spec:
         status: { }
       additionalPrinterColumns:
         - jsonPath: ".status.conditions[?(@.type==\"ResolvedRefs\")].status"
-          description: Whether the other resources referenced by this service can be found
+          description: Whether the other resources referenced by this service can be found.
           type: string
           name: ResolvedRefs
           priority: 0
@@ -53,7 +53,7 @@ spec:
                   minLength: 1
                   pattern: ^(([^:]+:[0-9]{1,5}),)*([^:]+:[0-9]{1,5})$
                 tls:
-                  description: Configuration for TLS connections made to the Kafka cluster
+                  description: Configuration for TLS connections made to the Kafka cluster.
                   type: object
                   properties:
                     certificateRef:

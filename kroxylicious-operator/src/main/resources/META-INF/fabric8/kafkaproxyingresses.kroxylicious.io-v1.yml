@@ -38,7 +38,7 @@ spec:
           type: string
           priority: 0
         - name: ResolvedRefs
-          description: Whether the other resources referenced by this proxy ingress can be found
+          description: Whether the other resources referenced by this proxy ingress can be found.
           jsonPath: ".status.conditions[?(@.type==\"ResolvedRefs\")].status"
           type: string
           priority: 0

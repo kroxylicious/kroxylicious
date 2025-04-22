@@ -33,7 +33,7 @@ spec:
         status: { }
       additionalPrinterColumns:
         - name: Ready
-          description: Whether the other resources referenced by this proxy can be found
+          description: Whether the other resources referenced by this proxy can be found.
           jsonPath: ".status.conditions[?(@.type==\"Ready\")].status"
           type: string
           priority: 0
