@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.kubernetes.operator;
 
+import java.nio.file.Path;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -19,12 +20,15 @@ import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Volume;
+import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
+import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.javaoperatorsdk.operator.OperatorException;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -41,14 +45,17 @@ import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMap
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
+import io.kroxylicious.kubernetes.api.common.AnyLocalRef;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.TrustAnchorRef;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterSpec;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
@@ -63,7 +70,16 @@ import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
+import io.kroxylicious.proxy.config.tls.AllowDeny;
+import io.kroxylicious.proxy.config.tls.KeyPair;
+import io.kroxylicious.proxy.config.tls.KeyProvider;
+import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
+import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustProvider;
+import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
@@ -104,6 +120,7 @@ public class KafkaProxyReconciler implements
     public static final String CONFIG_DEP = "config";
     public static final String DEPLOYMENT_DEP = "deployment";
     public static final String CLUSTERS_DEP = "clusters";
+    public static final Path TARGET_CLUSTER_MOUNTS_BASE_DIR = Path.of("/opt/kroxylicious/target-cluster");
 
     private final Clock clock;
     private final SecureConfigInterpolator secureConfigInterpolator;
@@ -145,26 +162,25 @@ public class KafkaProxyReconciler implements
 
         var virtualClusters = buildVirtualClusters(namedDefinitions.keySet(), model);
 
-        List<NamedFilterDefinition> referencedFilters = virtualClusters.stream().flatMap(c -> Optional.ofNullable(c.filters()).stream().flatMap(Collection::stream))
+        List<NamedFilterDefinition> referencedFilters = virtualClusters.stream()
+                .flatMap(vcFragment -> Optional.ofNullable(vcFragment.fragment().filters()).stream().flatMap(Collection::stream))
                 .distinct()
                 .map(filterName -> namedDefinitions.get(filterName).fragment()).toList();
 
-        var allVolumes = allFilterDefinitions.stream()
+        var allVolumes = Stream.concat(allFilterDefinitions.stream(), virtualClusters.stream())
                 .flatMap(fd -> fd.volumes().stream())
                 .collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(Volume::getName).reversed())));
 
-        var allMounts = allFilterDefinitions.stream()
+        var allMounts = Stream.concat(allFilterDefinitions.stream(), virtualClusters.stream())
                 .flatMap(fd -> fd.mounts().stream())
-                .collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(VolumeMount::getName).reversed())));
-
-        // TODO add the volume & mounts for each KafkaService's spec.tls
+                .collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(VolumeMount::getMountPath).reversed())));
 
         return new ConfigurationFragment<>(
                 new Configuration(
                         new ManagementConfiguration(null, null, new EndpointsConfiguration(new PrometheusMetricsConfig())),
                         referencedFilters,
                         null, // no defaultFilters <= each of the virtualClusters specifies its own
-                        virtualClusters,
+                        virtualClusters.stream().map(ConfigurationFragment::fragment).toList(),
                         List.of(),
                         false,
                         // micrometer
@@ -173,11 +189,11 @@ public class KafkaProxyReconciler implements
                 allMounts);
     }
 
-    private static List<VirtualCluster> buildVirtualClusters(Set<String> successfullyBuiltFilterNames, ProxyModel model) {
+    private static List<ConfigurationFragment<VirtualCluster>> buildVirtualClusters(Set<String> successfullyBuiltFilterNames, ProxyModel model) {
         return model.clustersWithValidIngresses().stream()
                 .filter(cluster -> Optional.ofNullable(cluster.getSpec().getFilterRefs()).stream().flatMap(Collection::stream).allMatch(
                         filters -> successfullyBuiltFilterNames.contains(filterDefinitionName(filters))))
-                .map(cluster -> getVirtualCluster(cluster, model.resolutionResult().kafkaServiceRef(cluster).orElseThrow(), model.ingressModel()))
+                .map(cluster -> buildVirtualCluster(cluster, model.resolutionResult().kafkaServiceRef(cluster).orElseThrow(), model.ingressModel()))
                 .toList();
     }
 
@@ -230,19 +246,95 @@ public class KafkaProxyReconciler implements
         return secureConfigInterpolator.interpolate(configTemplate);
     }
 
-    private static VirtualCluster getVirtualCluster(VirtualKafkaCluster cluster,
-                                                    KafkaService kafkaServiceRef,
-                                                    ProxyIngressModel ingressModel) {
+    private static ConfigurationFragment<VirtualCluster> buildVirtualCluster(VirtualKafkaCluster cluster,
+                                                                             KafkaService kafkaServiceRef,
+                                                                             ProxyIngressModel ingressModel) {
 
         ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(cluster).orElseThrow();
-        String bootstrap = kafkaServiceRef.getSpec().getBootstrapServers();
-        return new VirtualCluster(
-                ResourcesUtil.name(cluster), new TargetCluster(bootstrap, Optional.empty()),
+
+        return buildTargetCluster(kafkaServiceRef).map(targetCluster -> new VirtualCluster(
+                ResourcesUtil.name(cluster),
+                targetCluster,
                 null,
                 Optional.empty(),
                 virtualClusterIngressModel.gateways(),
-                false, false,
-                filterNamesForCluster(cluster));
+                false,
+                false,
+                filterNamesForCluster(cluster)));
+    }
+
+    private static ConfigurationFragment<TargetCluster> buildTargetCluster(KafkaService kafkaServiceRef) {
+        return buildTargetClusterTls(kafkaServiceRef)
+                .map(tls -> new TargetCluster(kafkaServiceRef.getSpec().getBootstrapServers(), tls));
+    }
+
+    private static ConfigurationFragment<Optional<Tls>> buildTargetClusterTls(KafkaService kafkaServiceRef) {
+        return Optional.ofNullable(kafkaServiceRef.getSpec())
+                .map(KafkaServiceSpec::getTls)
+                .map(serviceTls -> ConfigurationFragment.combine(
+                        buildKeyProvider(serviceTls.getCertificateRef()),
+                        buildTrustProvider(serviceTls.getTrustAnchorRef()),
+                        (keyProviderOpt, trustProvider) -> Optional.of(
+                                new Tls(keyProviderOpt.orElse(null),
+                                        trustProvider,
+                                        Optional.ofNullable(serviceTls.getCipherSuites())
+                                                .map(cipherSuites -> new AllowDeny<>(cipherSuites.getAllowed(), new HashSet<>(cipherSuites.getDenied())))
+                                                .orElse(null),
+                                        Optional.ofNullable(serviceTls.getProtocols())
+                                                .map(protocols -> new AllowDeny<>(protocols.getAllowed(), new HashSet<>(protocols.getDenied())))
+                                                .orElse(null)))))
+                .orElse(ConfigurationFragment.empty());
+    }
+
+    private static ConfigurationFragment<Optional<KeyProvider>> buildKeyProvider(@Nullable AnyLocalRef certificateRef) {
+        return Optional.ofNullable(certificateRef)
+                .filter(ResourcesUtil::isSecret)
+                .map(ref -> {
+                    var volume = new VolumeBuilder()
+                            .withName(ResourcesUtil.volumeName("", "secrets", ref.getName()))
+                            .withNewSecret()
+                            .withSecretName(ref.getName())
+                            .endSecret()
+                            .build();
+                    Path mountPath = TARGET_CLUSTER_MOUNTS_BASE_DIR.resolve("client-certs").resolve(ref.getName());
+                    var mount = new VolumeMountBuilder()
+                            .withName(ResourcesUtil.volumeName("", "secrets", ref.getName()))
+                            .withMountPath(mountPath.toString())
+                            .withReadOnly(true)
+                            .build();
+                    var keyPath = mountPath.resolve("tls.key");
+                    var crtPath = mountPath.resolve("tls.crt");
+                    return new ConfigurationFragment<>(
+                            Optional.<KeyProvider> of(new KeyPair(keyPath.toString(), crtPath.toString(), null)),
+                            Set.of(volume),
+                            Set.of(mount));
+                }).orElse(ConfigurationFragment.empty());
+    }
+
+    private static ConfigurationFragment<TrustProvider> buildTrustProvider(@Nullable TrustAnchorRef trustAnchorRef) {
+        return Optional.ofNullable(trustAnchorRef)
+                .filter(ResourcesUtil::isConfigMap)
+                .map(ref -> {
+                    var volume = new VolumeBuilder()
+                            .withName(ResourcesUtil.volumeName("", "configmaps", ref.getName()))
+                            .withNewConfigMap()
+                            .withName(ref.getName())
+                            .endConfigMap()
+                            .build();
+                    Path mountPath = TARGET_CLUSTER_MOUNTS_BASE_DIR.resolve("trusted-certs").resolve(ref.getName());
+                    var mount = new VolumeMountBuilder()
+                            .withName(ResourcesUtil.volumeName("", "configmaps", ref.getName()))
+                            .withMountPath(mountPath.toString())
+                            .withReadOnly(true)
+                            .build();
+                    TrustProvider trustProvider = new TrustStore(
+                            mountPath.resolve(ref.getKey()).toString(),
+                            null,
+                            "PEM");
+                    return new ConfigurationFragment<>(trustProvider,
+                            Set.of(volume),
+                            Set.of(mount));
+                }).orElse(new ConfigurationFragment<>(PlatformTrustProvider.INSTANCE, Set.of(), Set.of()));
     }
 
     /**
@@ -266,7 +358,9 @@ public class KafkaProxyReconciler implements
                                                                   Context<KafkaProxy> context,
                                                                   Exception e) {
         if (e instanceof StaleReferentStatusException || e instanceof OperatorException && e.getCause() instanceof StaleReferentStatusException) {
-            LOGGER.debug("Completed reconciliation of {}/{} with stale referent", namespace(proxy), name(proxy), e);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("Completed reconciliation of {}/{} with stale referent", namespace(proxy), name(proxy), e);
+            }
             return ErrorStatusUpdateControl.noStatusUpdate();
         }
         var uc = ErrorStatusUpdateControl.patchStatus(statusFactory.newUnknownConditionStatusPatch(proxy, Condition.Type.Ready, e));

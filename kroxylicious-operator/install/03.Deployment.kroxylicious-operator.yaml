@@ -25,10 +25,20 @@ spec:
         app: kroxylicious
     spec:
       serviceAccountName: kroxylicious-operator
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: operator
           image: quay.io/kroxylicious/operator:latest
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+          terminationMessagePolicy: FallbackToLogsOnError
           args: [ ]
           resources:
             limits:

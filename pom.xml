@@ -38,7 +38,7 @@
 
         <disruptor.version>4.0.0</disruptor.version>
         <freemarker.version>2.3.34</freemarker.version>
-        <guava.version>33.4.6-jre</guava.version>
+        <guava.version>33.4.8-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
         <jackson.version>2.18.1</jackson.version>
         <junit.version>5.12.2</junit.version>
@@ -46,7 +46,7 @@
         <kroxy.extension.version>0.11.0</kroxy.extension.version>
         <log4j.version>2.24.3</log4j.version>
         <caffeine.version>3.2.0</caffeine.version>
-        <picocli.version>4.7.6</picocli.version>
+        <picocli.version>4.7.7</picocli.version>
         <netty.version>4.1.119.Final</netty.version>
         <netty.io_uring.version>0.0.26.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
@@ -72,12 +72,12 @@
         <enforcer.api.version>3.5.0</enforcer.api.version>
         <maven.core.version>3.9.9</maven.core.version>
         <awaitility.version>4.3.0</awaitility.version>
-        <commons.io.version>2.18.0</commons.io.version>
+        <commons.io.version>2.19.0</commons.io.version>
         <testcontainers.version>1.20.5</testcontainers.version>
         <bouncycastle.version>1.80</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.0.8</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.12.1</wiremock.version>
-        <docker-java.version>3.4.2</docker-java.version>
+        <docker-java.version>3.5.0</docker-java.version>
         <test-frame.version>0.11.0</test-frame.version>
         <junit-pioneer.version>2.3.0</junit-pioneer.version>
         <skip-validate-yaml-snippets>true</skip-validate-yaml-snippets>

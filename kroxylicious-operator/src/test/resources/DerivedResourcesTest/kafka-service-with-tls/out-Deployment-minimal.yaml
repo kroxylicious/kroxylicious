@@ -13,14 +13,14 @@ metadata:
     app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/instance: "twocluster"
+    app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"
-  name: "twocluster"
+  name: "minimal"
   namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "twocluster"
+      name: "minimal"
 spec:
   replicas: 1
   selector:
@@ -29,7 +29,7 @@ spec:
       app.kubernetes.io/part-of: "kafka"
       app.kubernetes.io/managed-by: "kroxylicious-operator"
       app.kubernetes.io/name: "kroxylicious-proxy"
-      app.kubernetes.io/instance: "twocluster"
+      app.kubernetes.io/instance: "minimal"
       app.kubernetes.io/component: "proxy"
   template:
     metadata:
@@ -38,7 +38,7 @@ spec:
         app.kubernetes.io/part-of: "kafka"
         app.kubernetes.io/managed-by: "kroxylicious-operator"
         app.kubernetes.io/name: "kroxylicious-proxy"
-        app.kubernetes.io/instance: "twocluster"
+        app.kubernetes.io/instance: "minimal"
         app.kubernetes.io/component: "proxy"
     spec:
       containers:
@@ -58,6 +58,14 @@ spec:
           ports:
             - containerPort: 9190
               name: "management"
+            - containerPort: 9292
+              name: "9292-bootstrap"
+            - containerPort: 9293
+              name: "9293-node"
+            - containerPort: 9294
+              name: "9294-node"
+            - containerPort: 9295
+              name: "9295-node"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -69,11 +77,26 @@ spec:
             - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"
               subPath: "proxy-config.yaml"
+            - mountPath: "/opt/kroxylicious/target-cluster/trusted-certs/upstream-ca"
+              name: "configmaps-upstream-ca"
+              readOnly: true
+            - mountPath: "/opt/kroxylicious/target-cluster/client-certs/upstream-tls-cert"
+              name: "secrets-upstream-tls-cert"
+              readOnly: true
+            - mountPath: "/opt/kroxylicious/secure/secret/upstream-tls-cert"
+              name: "secrets-upstream-tls-cert"
+              readOnly: true
       securityContext:
         runAsNonRoot: true
         seccompProfile:
           type: "RuntimeDefault"
       volumes:
         - configMap:
-            name: "twocluster-proxy-config"
+            name: "minimal-proxy-config"
           name: "config-volume"
+        - name: "secrets-upstream-tls-cert"
+          secret:
+            secretName: "upstream-tls-cert"
+        - configMap:
+            name: "upstream-ca"
+          name: "configmaps-upstream-ca"
