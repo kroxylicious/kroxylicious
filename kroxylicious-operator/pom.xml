@@ -168,6 +168,11 @@
             <artifactId>kroxylicious-runtime</artifactId>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
+            <scope>compile</scope>
+        </dependency>
 
         <dependency>
             <groupId>io.micrometer</groupId>

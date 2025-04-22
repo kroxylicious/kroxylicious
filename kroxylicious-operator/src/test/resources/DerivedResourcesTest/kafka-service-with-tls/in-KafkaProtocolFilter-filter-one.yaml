@@ -1,0 +1,21 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: KafkaProtocolFilter
+apiVersion: filter.kroxylicious.io/v1alpha1
+metadata:
+  name: filter-one
+  namespace: proxy-ns
+  generation: 12
+spec:
+  type: org.example.some.java.Class
+  configTemplate:
+    filterOneConfig: true
+    cert: ${secret:upstream-tls-cert:tls.crt}
+    key: ${secret:upstream-tls-cert:tls.key}
+status:
+  observedGeneration: 12

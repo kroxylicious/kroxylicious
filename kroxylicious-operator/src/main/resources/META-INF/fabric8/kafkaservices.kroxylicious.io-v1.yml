@@ -107,8 +107,6 @@ spec:
                         Either `allowed` or `denied` can be given.
                         The supported protocols are those supported by the proxy JVM.
                       type: object
-                      minProperties: 1
-                      maxProperties: 1
                       properties:
                         allowed:
                           description: |
@@ -131,8 +129,6 @@ spec:
                         Either `allowed` or `denied` can be given.
                         The supported cipher suites are those supported by the proxy JVM.
                       type: object
-                      minProperties: 1
-                      maxProperties: 1
                       properties:
                         allowed:
                           description: |
