@@ -7,4 +7,4 @@
 
 [role="_abstract"]
 A `KafkaProtocolFilter` resource represents a Kroxylicious Proxy filter.
-It is not uniquely associated with a `VirtualKafkaCluster` or `KafkaProxy` instance; it can be used in a number of `VirtualKafkaClusters`.
+It is not uniquely associated with a `VirtualKafkaCluster` or `KafkaProxy` instance; it can be used in a number of `VirtualKafkaCluster` instances.

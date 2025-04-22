@@ -7,4 +7,4 @@
 
 [role="_abstract"]
 A `KafkaProxy` resource represents an instance of the Kroxylicious Proxy.
-Conceptually it is the root of a tree of resources made up of `KafkaProxyIngresses`, `VirtualKafkaClusters`,  `KafkaServices` and `KafkaProtocolFilters` which together describe a complete working proxy.
+Conceptually, it is the top-level resource that links together `KafkaProxyIngress`, `VirtualKafkaCluster`, `KafkaService`, and `KafkaProtocolFilter` resources to form a complete working proxy.

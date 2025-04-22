@@ -1,11 +1,11 @@
 [id='con-configuring-kafkaservice-cipher-{context}']
-= Controlling the TLS ciphers used
+= Controlling TLS cipher suites
 
 Some cipher suites, which are enabled by default for interoperability purposes, are no longer consider secure.
 
-IMPORTANT: It is considered good practice to disable insecure cipher suites. You can only do this is the proxied Kafka cluster you want to connect to supports the cipher suites that you want to use.
+IMPORTANT: It is good practice to disable insecure cipher suites. Only do this if the proxied Kafka cluster supports the cipher suites you want to allow.
 
-The cipher suites that are enabled by default can depend on the JVM used in the proxy image and the TLS protocol version which is negotiated.
+The cipher suites enabled by default depend on the JVM used in the proxy image and the TLS protocol version that is negotiated.
 
 .Example `KafkaService` configured so that the proxy will negotiate TLS connection using only the listed ciphers.
 [source,yaml]
@@ -25,7 +25,7 @@ spec:
 <1> The `cipherSuites` object configures the cipher suites.
 <2> `allowed` lists the cipher suites which are permitted.
 
-The `cipherSuites` object also supports `denied` if you prefer to exclude the unpermitted cipher suites, rather than include the permitted cipher suites.
+The `cipherSuites` property also supports `denied`, if you prefer to list the cipher suites to exclude instead.
 
 The names of the cipher suites supported depend on the JVM in the proxy container image.
 See {cipherSuiteNames}.

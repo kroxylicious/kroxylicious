@@ -7,7 +7,7 @@
 
 [role="_abstract"]
 A proxied Kafka cluster is configured in a `KafkaService` resource.
-This Kafka cluster may or may not be running in the same Kubernetes cluster as the proxy: Network connectivity is all that's required.
+The Kafka cluster may or may not be running in the same Kubernetes cluster as the proxy: Network connectivity is all that's required.
 
 include::../modules/configuring/con-configuring-kafkaservice-by-bootstrap.adoc[leveloffset=+1]
 

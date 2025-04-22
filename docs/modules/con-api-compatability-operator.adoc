@@ -6,8 +6,8 @@
 = Compatibility
 
 [id='con-api-compatibility-api{context}']
-== Custom Resource APIs
+== Custom resource APIs
 
-The custom resource definitions are packaged and deployed alongside the operator. Currently, there's only a single version  of the custom resource APIs: `v1alpha1`.
+Kroxylicious custom resource definitions are packaged and deployed alongside the operator. Currently, there's only a single version  of the custom resource APIs: `v1alpha1`.
 
 Future updates to the operator may introduce new versions of the custom resource APIs. At that time the operator will be backwards compatible with older versions of those APIs and an upgrade procedure will be used to upgrade existing custom resources to the new API version.

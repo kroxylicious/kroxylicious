@@ -12,28 +12,29 @@ The operator _consumes_ custom resources and core Kubernetes resources.
 `KafkaProxy`::
 an instance of the proxy itself.
 `KafkaProxyIngress`::
-how the proxy is exposed over the nextwork to Kafka clients.
+Configures how the proxy is exposed on the network to Kafka clients.
 `VirtualKafkaCluster`::
 a logical Kafka cluster.
 `KafkaService`::
-expresses a "backend" Kafka cluster to be proxied.
+Specifies a _backend_ Kafka cluster for the proxy to connect to.
 `KafkaProtocolFilter`::
-expresses a protocol filter
+Specifies filter mechanisms for use with the proxy.
 `Secret`::
-`KafkaServices` and `KafkaProtocolFilters` may reference `Secrets` which are used to hold security-sensitive information like TLS client certificates, or passwords.
+`KafkaService` and `KafkaProtocolFilter` resources may reference a `Secret` to provide security-sensitive data such as TLS client certificates or passwords.
 `ConfigMap`::
-`KafkaServices` and `KafkaProtocolFilters` may reference `ConfigMaps` which are used to non-security-sensitive information like trusted CA certificates.
+`KafkaService` and `KafkaProtocolFilter` resources may reference a `ConfigMap` to provide non-sensitive configuration such as trusted CA certificates.
 
 The operator also _produces_ the core Kubernetes resources needed to deploy the Kroxylicious proxy, such as:
 
-`ConfigMap`:: used to contain the proxy configuration file to be mounted into the proxy container
-`Deployment`:: manages the proxy `Pod` and containers.
-`Service`:: used to expose the proxy over the network to other workloads in the same Kubernetes cluster.
+`ConfigMap`:: Provides the proxy configuration file mounted into the proxy container.
+`Deployment`:: Manages the proxy `Pod` and containers.
+`Service`:: Exposes the proxy over the network to other workloads in the same Kubernetes cluster.
 
-The API is decomposed into multiple custom resources in a similar way to the Kubernetes "Gateway API", and for similar reasons.
+The API is decomposed into multiple custom resources in a similar way to the Kubernetes Gateway API, and for similar reasons.
 You can make use of Kubernete's Role-Based Access Control (RBAC) to divide responsibility for different aspects of the overall proxy functionality to different roles (people) in your organization.
 
-For example, you might grant networking engineers the ability to configure `KafkaProxy` and `KafkaProxyIngress` while giving application developers the ability to configure `VirtualKafkaClusters`, `KafkaServices` and `KafkaProtocolFilters`.
+For example, you might grant networking engineers the ability to configure `KafkaProxy` and `KafkaProxyIngress`, while giving application developers the ability to configure `VirtualKafkaCluster`, `KafkaService`, and `KafkaProtocolFilter` resources.
+
 
 *TODO diagram*
 

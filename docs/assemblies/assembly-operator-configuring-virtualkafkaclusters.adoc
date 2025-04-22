@@ -6,9 +6,9 @@
 = Configuring virtual clusters
 
 [role="_abstract"]
-A `VirtualKafkaCluster` resource represents a logical cluster which will be made accessible to Kafka clients over the network.
+A `VirtualKafkaCluster` resource defines a logical Kafka cluster that is accessible to clients over the network.
 
-It references:
+The virtual cluster references the following:
 
 a `KafkaProxy` resource:: the proxy to which it belongs
 one or more `KafkaProxyIngress` resources:: each is a proxy ingress through which clients may connect
