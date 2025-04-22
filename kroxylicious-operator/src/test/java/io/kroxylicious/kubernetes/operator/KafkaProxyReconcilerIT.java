@@ -10,8 +10,9 @@ import java.time.Clock;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 import org.assertj.core.api.AbstractStringAssert;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -27,10 +28,12 @@ import org.slf4j.LoggerFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
@@ -39,7 +42,6 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
-import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRef;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -47,7 +49,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatusBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatusBuilder;
@@ -93,6 +94,11 @@ class KafkaProxyReconcilerIT {
     private static final String NEW_BOOTSTRAP = "new-bootstrap:9092";
 
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
+    public static final String UPSTREAM_TLS_CERTIFICATE_SECRET_NAME = "upstream-tls-certificate";
+    public static final String CA_BUNDLE_CONFIG_MAP_NAME = "ca-bundle";
+    public static final String TRUSTED_CAS_PEM = "trusted-cas.pem";
+    public static final String PROTOCOL_TLS_V1_3 = "TLSv1.3";
+    public static final String TLS_CIPHER_SUITE_AES256GCM_SHA384 = "TLS_AES_256_GCM_SHA384";
 
     // the initial operator image pull can take a long time and interfere with the tests
     @BeforeAll
@@ -117,12 +123,6 @@ class KafkaProxyReconcilerIT {
             .build();
     private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(extension);
 
-    private static Boolean expectConditionStatusForType(KafkaProxy kafkaProxy, Condition.Type type, Condition.Status expectedStatus) {
-        List<Condition> conditions = Optional.ofNullable(kafkaProxy.getStatus()).map(KafkaProxyStatus::getConditions)
-                .orElse(List.of());
-        return conditions.stream().anyMatch(condition -> condition.getType() == type && condition.getStatus() == expectedStatus);
-    }
-
     @AfterEach
     void stopOperator() throws Exception {
         extension.getOperator().stop();
@@ -132,6 +132,40 @@ class KafkaProxyReconcilerIT {
     @Test
     void testCreate() {
         doCreate();
+    }
+
+    @Test
+    void testCreateWithKafkaServiceTls() {
+        // given
+        testActor.create(new SecretBuilder()
+                .withNewMetadata()
+                .withName(UPSTREAM_TLS_CERTIFICATE_SECRET_NAME)
+                .endMetadata()
+                .withType("kubernetes.io/tls")
+                .addToData("tls.crt", "whatever")
+                .addToData("tls.key", "whatever")
+                .build());
+        testActor.create(new ConfigMapBuilder()
+                .withNewMetadata()
+                .withName(CA_BUNDLE_CONFIG_MAP_NAME)
+                .endMetadata()
+                .addToData(TRUSTED_CAS_PEM, "whatever")
+                .build());
+        KafkaService kafkaService = kafkaServiceWithTls(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
+
+        // when
+        var created = doCreate(kafkaService);
+
+        // then
+        assertProxyConfigContents(created.proxy(), Set
+                .of(
+                        UPSTREAM_TLS_CERTIFICATE_SECRET_NAME,
+                        TRUSTED_CAS_PEM,
+                        PROTOCOL_TLS_V1_3,
+                        TLS_CIPHER_SUITE_AES256GCM_SHA384),
+                Set.of());
+        assertDeploymentMountsConfigMap(created.proxy(), CA_BUNDLE_CONFIG_MAP_NAME);
+        assertDeploymentMountsSecret(created.proxy(), UPSTREAM_TLS_CERTIFICATE_SECRET_NAME);
     }
 
     @Test
@@ -247,10 +281,15 @@ class KafkaProxyReconcilerIT {
     }
 
     CreatedResources doCreate() {
+        KafkaService kafkaService = kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
+        return doCreate(kafkaService);
+    }
+
+    CreatedResources doCreate(KafkaService kafkaService) {
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
         KafkaProtocolFilter filter = testActor.create(filter(FILTER_NAME));
         filter = updateStatusObservedGeneration(filter);
-        KafkaService barService = testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP));
+        KafkaService barService = testActor.create(kafkaService);
         barService = updateStatusObservedGeneration(barService);
         KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy));
         ingressBar = updateStatusObservedGeneration(ingressBar);
@@ -331,14 +370,30 @@ class KafkaProxyReconcilerIT {
     }
 
     private void assertDeploymentMountsConfigConfigMap(KafkaProxy proxy) {
+        assertDeploymentMountsConfigMap(proxy, ProxyConfigDependentResource.configMapName(proxy));
+    }
+
+    private void assertDeploymentMountsConfigMap(KafkaProxy proxy, String configMapName) {
+        assertDeploymentMounts(proxy,
+                Volume::getConfigMap,
+                cm -> cm.getName().equals(configMapName));
+    }
+
+    private void assertDeploymentMountsSecret(KafkaProxy proxy, String secretName) {
+        assertDeploymentMounts(proxy,
+                Volume::getSecret,
+                secretVoumeSource -> secretVoumeSource.getSecretName().equals(secretName));
+    }
+
+    private <T> void assertDeploymentMounts(KafkaProxy proxy, Function<Volume, T> volumeSourceExtractor, Predicate<T> volumeSourcePredicate) {
         AWAIT.alias("Deployment as expected").untilAsserted(() -> {
             var deployment = testActor.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy));
             assertThat(deployment).isNotNull()
                     .extracting(dep -> dep.getSpec().getTemplate().getSpec().getVolumes(), InstanceOfAssertFactories.list(Volume.class))
                     .describedAs("Deployment template should mount the proxy config configmap")
-                    .filteredOn(volume -> volume.getConfigMap() != null)
-                    .map(Volume::getConfigMap)
-                    .anyMatch(cm -> cm.getName().equals(ProxyConfigDependentResource.configMapName(proxy)));
+                    .filteredOn(volume -> volumeSourceExtractor.apply(volume) != null)
+                    .map(volumeSourceExtractor)
+                    .anyMatch(volumeSourcePredicate::test);
         });
     }
 
@@ -564,6 +619,30 @@ class KafkaProxyReconcilerIT {
                 .addNewIngressRef().withName(name(ingress)).endIngressRef()
                 .withFilterRefs().addNewFilterRef().withName(name(filter)).endFilterRef()
                 .endSpec().build();
+    }
+
+    private static KafkaService kafkaServiceWithTls(String serviceName, String clusterBootstrap) {
+        // @formatter:off
+        return new KafkaServiceBuilder(kafkaService(serviceName, clusterBootstrap))
+                .editSpec()
+                    .withNewTls()
+                        .withNewCertificateRef()
+                            .withName(UPSTREAM_TLS_CERTIFICATE_SECRET_NAME)
+                        .endCertificateRef()
+                        .withNewTrustAnchorRef()
+                            .withName(CA_BUNDLE_CONFIG_MAP_NAME)
+                            .withKey(TRUSTED_CAS_PEM)
+                        .endTrustAnchorRef()
+                        .withNewProtocols()
+                            .withAllowed(PROTOCOL_TLS_V1_3)
+                        .endProtocols()
+                        .withNewCipherSuites()
+                            .withAllowed(TLS_CIPHER_SUITE_AES256GCM_SHA384)
+                        .endCipherSuites()
+                    .endTls()
+                .endSpec()
+                .build();
+        // @formatter:on
     }
 
     private static KafkaService kafkaService(String serviceName, String clusterBootstrap) {

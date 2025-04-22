@@ -24,13 +24,15 @@ public class MountedResourceConfigProvider implements SecureConfigProvider {
     static final MountedResourceConfigProvider CONFIGMAP_PROVIDER = new MountedResourceConfigProvider("", "configmaps",
             (vb, resourceName) -> vb.withNewConfigMap().withName(resourceName).endConfigMap());
 
-    private final String volumeNamePrefix;
+    private final String group;
+    private final String plural;
     private final BiFunction<VolumeBuilder, String, VolumeBuilder> volumeBuilder;
 
     MountedResourceConfigProvider(String group,
                                   String plural,
                                   BiFunction<VolumeBuilder, String, VolumeBuilder> volumeBuilder) {
-        this.volumeNamePrefix = group.isEmpty() ? plural : group + "." + plural;
+        this.group = group;
+        this.plural = plural;
         this.volumeBuilder = volumeBuilder;
     }
 
@@ -41,9 +43,7 @@ public class MountedResourceConfigProvider implements SecureConfigProvider {
                                                 String key,
                                                 Path mountPathBase) {
         try {
-            String volumeName = volumeNamePrefix + "-" + resourceName;
-            ResourcesUtil.requireIsDnsLabel(volumeName, true,
-                    "volume name would not be a DNS label: " + volumeName);
+            String volumeName = ResourcesUtil.volumeName(group, plural, resourceName);
             Path mountPath = mountPathBase.resolve(providerName).resolve(resourceName);
             Path itemPath = mountPath.resolve(key);
             Volume volume = volumeBuilder.apply(new VolumeBuilder(), resourceName)
@@ -60,7 +60,7 @@ public class MountedResourceConfigProvider implements SecureConfigProvider {
                     itemPath);
         }
         catch (IllegalArgumentException e) {
-            throw new InterpolationException("Cannot construct mounted volume for ${%s:%s:%s}".formatted(
+            throw new InterpolationException("Cannot construct mounted volume for ${%s:%s:%s}: %s".formatted(
                     providerName,
                     resourceName,
                     key,
