@@ -14,6 +14,7 @@ import java.util.zip.CRC32;
 import javax.annotation.concurrent.NotThreadSafe;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 
 @NotThreadSafe
 public class MetadataChecksumGenerator {
@@ -33,20 +34,28 @@ public class MetadataChecksumGenerator {
 
         for (HasMetadata metadataSource : metadataSources) {
             var objectMeta = metadataSource.getMetadata();
-            checksum.appendString(objectMeta.getUid());
-            Long generation = objectMeta.getGeneration();
-            if (generation != null) {
-                checksum.appendLong(generation);
-            }
-            else {
-                // Some resources do not have a generation. For example, ConfigMap and Secret are self-contained
-                // resources where the state is the resource. They do not have a status subresource or a need for
-                // a generation field. Instead, we can include the resource version, which is modified with every
-                // write to the resource.
-                checksum.appendString(objectMeta.getResourceVersion());
-            }
+            checksum.appendMetadata(objectMeta);
         }
         return checksum.encode();
+    }
+
+    public void appendMetadata(ObjectMeta objectMeta) {
+        appendString(objectMeta.getUid());
+        Long generation = objectMeta.getGeneration();
+        if (generation != null) {
+            appendLong(generation);
+        }
+        else {
+            // Some resources do not have a generation. For example, ConfigMap and Secret are self-contained
+            // resources where the state is the resource. They do not have a status subresource or a need for
+            // a generation field. Instead, we can include the resource version, which is modified with every
+            // write to the resource.
+            appendString(objectMeta.getResourceVersion());
+        }
+    }
+
+    public void appendMetadata(HasMetadata metadataSource) {
+        appendMetadata(metadataSource.getMetadata());
     }
 
     public void appendString(String value) {
@@ -62,6 +71,4 @@ public class MetadataChecksumGenerator {
         byteBuffer.putLong(0, checksum.getValue());
         return Base64.getEncoder().withoutPadding().encodeToString(byteBuffer.array());
     }
-
-
 }
