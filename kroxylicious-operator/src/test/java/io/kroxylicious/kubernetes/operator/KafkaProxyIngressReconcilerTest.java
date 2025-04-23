@@ -83,6 +83,7 @@ class KafkaProxyIngressReconcilerTest {
         // then
         assertThat(update).isNotNull();
         assertThat(update.isPatchStatus()).isTrue();
+        assertThat(update.isPatchResource()).isFalse();
         assertThat(update.getResource()).isPresent();
         assertThat(update.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
@@ -106,6 +107,7 @@ class KafkaProxyIngressReconcilerTest {
         // then
         assertThat(update).isNotNull();
         assertThat(update.isPatchStatus()).isTrue();
+        assertThat(update.isPatchResource()).isTrue();
         assertThat(update.getResource()).isPresent();
         KafkaProxyIngressStatusAssert.assertThat(update.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
@@ -186,6 +188,28 @@ class KafkaProxyIngressReconcilerTest {
                 .singleCondition()
                 .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
                 .isResolvedRefsUnknown("java.lang.RuntimeException", "Boom!")
+                .hasLastTransitionTime(TEST_CLOCK.instant());
+
+    }
+
+    @Test
+    void shouldNotPatchResourceWhenResolvedRefsFalse() throws Exception {
+        // given
+        var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
+        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.empty());
+
+        // when
+        var update = reconciler.reconcile(INGRESS, context);
+
+        // then
+        assertThat(update).isNotNull();
+        assertThat(update.isPatchResource()).isFalse();
+        assertThat(update.isPatchStatus()).isTrue();
+        assertThat(update.getResource()).isPresent();
+        assertThat(update.getResource().get().getStatus())
+                .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
+                .singleCondition()
+                .hasObservedGenerationInSyncWithMetadataOf(INGRESS)
                 .hasLastTransitionTime(TEST_CLOCK.instant());
 
     }
