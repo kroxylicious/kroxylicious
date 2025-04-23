@@ -18,10 +18,19 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
+import io.fabric8.kubernetes.client.KubernetesClient;
+import io.fabric8.kubernetes.client.dsl.MixedOperation;
+import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
+import io.fabric8.kubernetes.client.dsl.Resource;
+import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
+import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
@@ -43,6 +52,9 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResource
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ResourcesUtilTest {
 
@@ -113,6 +125,49 @@ class ResourcesUtilTest {
         assertThatThrownBy(() -> {
             findOnlyResourceNamed(RESOURCE_NAME, withMultipleSameName);
         }).isInstanceOf(IllegalStateException.class).hasMessage("collection contained more than one resource named " + RESOURCE_NAME);
+    }
+
+    @Test
+    void filtersResourceIdsInSameNamespace() {
+        // Given
+        ConfigMap cm = new ConfigMapBuilder().withNewMetadata().withNamespace("ns").withName("foo").endMetadata().build();
+        EventSourceContext<?> eventSourceContext = prepareMockContextToProduceList(List.of(cm), ConfigMap.class);
+        HasMetadata primary = new SecretBuilder().withNewMetadata().withNamespace("ns").withName("primary").endMetadata().build();
+
+        // When
+        var resources = ResourcesUtil.filteredResourceIdsInSameNamespace(eventSourceContext, primary, ConfigMap.class, p -> true);
+
+        // Then
+        assertThat(resources).containsExactly(ResourceID.fromResource(cm));
+    }
+
+    @Test
+    void findReferrers() {
+        // Given
+        ConfigMap cm = new ConfigMapBuilder().withNewMetadata().withNamespace("ns").withName("foo").addToAnnotations("ref", "primary").endMetadata().build();
+        EventSourceContext<?> eventSourceContext = prepareMockContextToProduceList(List.of(cm), ConfigMap.class);
+        HasMetadata primary = new SecretBuilder().withNewMetadata().withNamespace("ns").withName("primary").endMetadata().build();
+
+        // When
+        var resources = ResourcesUtil.findReferrers(eventSourceContext, primary, ConfigMap.class,
+                configMap -> Optional.of(new AnyLocalRefBuilder().withName(configMap.getMetadata().getAnnotations().get("ref")).build()));
+
+        // Then
+        assertThat(resources).containsExactly(ResourceID.fromResource(cm));
+    }
+
+    @Test
+    void findReferrersSupportsResourcesWithoutReferences() {
+        // Given
+        ConfigMap cm = new ConfigMapBuilder().withNewMetadata().withNamespace("ns").withName("foo").addToAnnotations("ref", "primary").endMetadata().build();
+        EventSourceContext<?> eventSourceContext = prepareMockContextToProduceList(List.of(cm), ConfigMap.class);
+        HasMetadata primary = new SecretBuilder().withNewMetadata().withNamespace("ns").withName("primary").endMetadata().build();
+
+        // When
+        var resources = ResourcesUtil.findReferrers(eventSourceContext, primary, ConfigMap.class, configMap -> Optional.empty());
+
+        // Then
+        assertThat(resources).isEmpty();
     }
 
     @Test
@@ -350,4 +405,20 @@ class ResourcesUtilTest {
         assertThat(ResourcesUtil.isStatusFresh(service)).isEqualTo(isReconciled);
     }
 
+    private <T extends HasMetadata> EventSourceContext<?> prepareMockContextToProduceList(List<T> build, Class<T> clazz) {
+        KubernetesResourceList<T> mock = mock();
+        when(mock.getItems()).thenReturn(build);
+
+        NonNamespaceOperation<T, KubernetesResourceList<T>, Resource<T>> nonNamespaceOperation = mock();
+        when(nonNamespaceOperation.list()).thenReturn(mock);
+
+        MixedOperation<T, KubernetesResourceList<T>, Resource<T>> resourceMixedOperation = mock();
+        when(resourceMixedOperation.inNamespace(anyString())).thenReturn(nonNamespaceOperation);
+
+        KubernetesClient client = mock();
+        when(client.resources(clazz)).thenReturn(resourceMixedOperation);
+        EventSourceContext<?> eventSourceContext = mock();
+        when(eventSourceContext.getClient()).thenReturn(client);
+        return eventSourceContext;
+    }
 }
