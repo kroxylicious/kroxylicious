@@ -47,12 +47,13 @@ spec:
 
 == Interpolation references
 
-Let's consider an example an interpolation reference `${secret:vault:token}`.
+Let's look at the example interpolation reference `${secret:vault:token}` in more detail.
+
 It starts with `${` and ends with `}`. Between these, it is broken into three parts, separated by colons (`:`):
 
 * `secret` is a _provider_. Supported providers are `secret` and `configmap` (note the use of lower case).
 * `vault` is a _path_. The interpretation of the path depends on the provider.
-* `token` is a _key_. The interpretion of the key also depends on the provider.
+* `token` is a _key_. The interpretation of the key also depends on the provider.
 
 For both `secret` and `configmap` providers:
 
