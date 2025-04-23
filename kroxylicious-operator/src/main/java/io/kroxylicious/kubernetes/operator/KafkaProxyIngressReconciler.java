@@ -63,8 +63,8 @@ public class KafkaProxyIngressReconciler implements
 
     @Override
     public UpdateControl<KafkaProxyIngress> reconcile(
-            KafkaProxyIngress ingress,
-            Context<KafkaProxyIngress> context)
+                                                      KafkaProxyIngress ingress,
+                                                      Context<KafkaProxyIngress> context)
             throws Exception {
 
         var proxyOpt = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME);
