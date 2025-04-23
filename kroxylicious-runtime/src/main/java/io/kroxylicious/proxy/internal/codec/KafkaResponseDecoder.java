@@ -28,10 +28,12 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaResponseDecoder.class);
 
     private final CorrelationManager correlationManager;
+    private final String clusterName;
 
-    public KafkaResponseDecoder(CorrelationManager correlationManager, int socketRequestMaxSizeBytes) {
+    public KafkaResponseDecoder(CorrelationManager correlationManager, int socketRequestMaxSizeBytes, String clusterName) {
         super(socketRequestMaxSizeBytes);
         this.correlationManager = correlationManager;
+        this.clusterName = clusterName;
     }
 
     @Override
@@ -70,7 +72,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
             log().trace("{}: Body: {}", ctx, body);
             Filter recipient = correlation.recipient();
-            Metrics.payloadSizeBytesDownstreamSummary(apiKey, apiVersion).record(length);
+            Metrics.payloadSizeBytesDownstreamSummary(apiKey, apiVersion, clusterName).record(length);
             if (recipient == null) {
                 frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
             }
