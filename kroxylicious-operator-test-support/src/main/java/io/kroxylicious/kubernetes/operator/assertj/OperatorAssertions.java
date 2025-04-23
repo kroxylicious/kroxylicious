@@ -9,6 +9,7 @@ package io.kroxylicious.kubernetes.operator.assertj;
 import org.assertj.core.api.InstanceOfAssertFactory;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
@@ -47,5 +48,9 @@ public class OperatorAssertions {
 
     public static <T extends HasMetadata> MetadataAssert<T> assertThat(T actual) {
         return MetadataAssert.assertThat(actual);
+    }
+
+    public static ObjectMetaAssert assertThat(ObjectMeta actual) {
+        return ObjectMetaAssert.assertThat(actual);
     }
 }
