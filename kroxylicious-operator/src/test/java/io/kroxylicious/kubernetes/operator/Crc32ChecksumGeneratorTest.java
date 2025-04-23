@@ -230,7 +230,7 @@ class Crc32ChecksumGeneratorTest {
         // When
         metadataChecksumGenerator
                 .appendMetadata(new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata())
-                        .withAnnotations(Map.of(Crc32ChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, "checksumB")).endMetadata().build().getMetadata());
+                        .withAnnotations(Map.of(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, "checksumB")).endMetadata().build().getMetadata());
 
         // Then
         assertThat(metadataChecksumGenerator.encode())

@@ -14,7 +14,7 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
-import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngress> {
 
@@ -35,7 +35,7 @@ public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngr
         if (!checksum.isBlank()) {
             // In practice this condition means that the existing annotation will be left alone.
             metadataBuilder
-                    .addToAnnotations(Crc32ChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, checksum);
+                    .addToAnnotations(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, checksum);
         }
         return metadataBuilder
                 .endMetadata()
@@ -52,7 +52,7 @@ public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngr
                                                      Condition.Type type,
                                                      Exception e) {
         Condition unknownCondition = newUnknownCondition(observedFilter, type, e);
-        return ingressStatusPatch(observedFilter, unknownCondition, Crc32ChecksumGenerator.NO_CHECKSUM_SPECIFIED);
+        return ingressStatusPatch(observedFilter, unknownCondition, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
     }
 
     @Override
@@ -61,7 +61,7 @@ public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngr
                                                    String reason,
                                                    String message) {
         Condition falseCondition = newFalseCondition(observedProxy, type, reason, message);
-        return ingressStatusPatch(observedProxy, falseCondition, Crc32ChecksumGenerator.NO_CHECKSUM_SPECIFIED);
+        return ingressStatusPatch(observedProxy, falseCondition, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
     }
 
     @Override

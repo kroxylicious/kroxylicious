@@ -57,7 +57,7 @@ class ProxyDeploymentDependentResourceTest {
                 .withNewSpec().withPodTemplate(podTemplate).endSpec().build();
 
         kafkaProxyIngress = new KafkaProxyIngressBuilder().withNewMetadata().withUid(PROXY_INGRESS_UID).withName("Ingress").withGeneration(PROXY_INGRESS_GENERATION)
-                .withAnnotations(Map.of(Crc32ChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, PROXY_INGRESS_CHECKSUM)).endMetadata().build();
+                .withAnnotations(Map.of(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, PROXY_INGRESS_CHECKSUM)).endMetadata().build();
         var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext<>(null, null, kubernetesContext);
         resourceContext.put(Crc32ChecksumGenerator.CHECKSUM_CONTEXT_KEY, metadataChecksumGenerator);
         when(kubernetesContext.managedWorkflowAndDependentResourceContext()).thenReturn(resourceContext);

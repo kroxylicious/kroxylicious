@@ -14,7 +14,7 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
-import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
 
@@ -67,6 +67,6 @@ public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
     @Override
     KafkaProxy newTrueConditionStatusPatch(KafkaProxy observedProxy,
                                            Condition.Type type) {
-        return newTrueConditionStatusPatch(observedProxy, type, Crc32ChecksumGenerator.NO_CHECKSUM_SPECIFIED);
+        return newTrueConditionStatusPatch(observedProxy, type, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
     }
 }

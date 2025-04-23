@@ -129,7 +129,7 @@ public class ProxyDeploymentDependentResource
                 .editOrNewMetadata()
                 .addToLabels(podLabels(primary));
         if (!checksum.isBlank()) {
-            metadataBuilder.addToAnnotations(Crc32ChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, checksum);
+            metadataBuilder.addToAnnotations(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, checksum);
         }
 
         // @formatter:off
