@@ -20,6 +20,7 @@ import io.fabric8.kubernetes.api.model.ObjectMeta;
 @NotThreadSafe
 public class Crc32ChecksumGenerator implements MetadataChecksumGenerator {
 
+    private static final Base64.Encoder BASE_64_ENCODER = Base64.getEncoder().withoutPadding();
     private final CRC32 checksum;
     private final ByteBuffer byteBuffer;
 
@@ -61,6 +62,6 @@ public class Crc32ChecksumGenerator implements MetadataChecksumGenerator {
             return NO_CHECKSUM_SPECIFIED;
         }
         byteBuffer.putLong(0, value);
-        return Base64.getEncoder().withoutPadding().encodeToString(byteBuffer.array());
+        return BASE_64_ENCODER.encodeToString(byteBuffer.array());
     }
 }
