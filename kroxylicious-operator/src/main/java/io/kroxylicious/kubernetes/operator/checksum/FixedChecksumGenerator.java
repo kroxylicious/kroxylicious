@@ -24,22 +24,22 @@ public class FixedChecksumGenerator implements MetadataChecksumGenerator {
 
     @Override
     public void appendMetadata(ObjectMeta objectMeta) {
-
+        // no-op as we already know the final result
     }
 
     @Override
     public void appendMetadata(HasMetadata proxyIngress) {
-
+        // no-op as we already know the final result
     }
 
     @Override
     public void appendString(String value) {
-
+        // no-op as we already know the final result
     }
 
     @Override
     public void appendLong(Long value) {
-
+        // no-op as we already know the final result
     }
 
     @Override
