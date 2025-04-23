@@ -15,6 +15,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
+import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 
 public class VirtualKafkaClusterStatusFactory extends StatusFactory<VirtualKafkaCluster> {
 
@@ -68,6 +69,6 @@ public class VirtualKafkaClusterStatusFactory extends StatusFactory<VirtualKafka
     @Override
     VirtualKafkaCluster newTrueConditionStatusPatch(VirtualKafkaCluster observedProxy,
                                                     Condition.Type type) {
-        return newTrueConditionStatusPatch(observedProxy, type, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
+        return newTrueConditionStatusPatch(observedProxy, type, Crc32ChecksumGenerator.NO_CHECKSUM_SPECIFIED);
     }
 }

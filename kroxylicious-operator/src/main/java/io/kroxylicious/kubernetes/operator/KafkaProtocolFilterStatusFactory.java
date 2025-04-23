@@ -14,6 +14,7 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
+import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 
 public class KafkaProtocolFilterStatusFactory extends StatusFactory<KafkaProtocolFilter> {
 
@@ -72,7 +73,7 @@ public class KafkaProtocolFilterStatusFactory extends StatusFactory<KafkaProtoco
     @Override
     KafkaProtocolFilter newTrueConditionStatusPatch(KafkaProtocolFilter observedProxy,
                                                     Condition.Type type) {
-        return newTrueConditionStatusPatch(observedProxy, type, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
+        return newTrueConditionStatusPatch(observedProxy, type, Crc32ChecksumGenerator.NO_CHECKSUM_SPECIFIED);
     }
 
 }

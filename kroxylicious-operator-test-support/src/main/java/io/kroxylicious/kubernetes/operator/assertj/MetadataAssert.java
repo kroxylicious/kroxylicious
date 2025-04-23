@@ -28,7 +28,7 @@ public class MetadataAssert<T extends HasMetadata> extends AbstractObjectAssert<
     }
 
     public MapAssert<String, String> assertHasAnnotations() {
-        return assertHasObjectMeta().assertHasAnnotations();
+        return assertHasObjectMeta().assertAnnotations();
     }
 
     private ObjectMetaAssert assertHasObjectMeta() {

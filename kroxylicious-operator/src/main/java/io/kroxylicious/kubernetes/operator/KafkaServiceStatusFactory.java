@@ -14,6 +14,7 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
+import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 
 public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
 
@@ -62,6 +63,6 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
     @SuppressWarnings("removal")
     KafkaService newTrueConditionStatusPatch(KafkaService observedProxy,
                                              Condition.Type type) {
-        return newTrueConditionStatusPatch(observedProxy, type, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
+        return newTrueConditionStatusPatch(observedProxy, type, Crc32ChecksumGenerator.NO_CHECKSUM_SPECIFIED);
     }
 }

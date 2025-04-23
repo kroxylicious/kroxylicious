@@ -21,6 +21,7 @@ import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
+import io.fabric8.kubernetes.api.model.PodTemplateSpecFluent;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -28,8 +29,11 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernete
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -69,6 +73,8 @@ public class ProxyDeploymentDependentResource
                                  Context<KafkaProxy> context) {
         KafkaProxyContext kafkaProxyContext = KafkaProxyContext.proxyContext(context);
         var model = kafkaProxyContext.model();
+        String checksum = checksumFor(primary, context);
+
         // @formatter:off
         return new DeploymentBuilder()
                 .editOrNewMetadata()
@@ -76,17 +82,27 @@ public class ProxyDeploymentDependentResource
                     .withNamespace(namespace(primary))
                     .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
                     .addToLabels(APP_KROXY)
-                    .addToLabels(standardLabels(primary))
-                .endMetadata()
-                .editOrNewSpec()
+                    .addToLabels(standardLabels(primary)).endMetadata().editOrNewSpec()
                     .withReplicas(1)
                     .editOrNewSelector()
                         .withMatchLabels(deploymentSelector(primary))
                     .endSelector()
-                    .withTemplate(podTemplate(primary, kafkaProxyContext, model.ingressModel(), model.clustersWithValidIngresses()))
+                    .withTemplate(podTemplate(primary, kafkaProxyContext, model.ingressModel(), model.clustersWithValidIngresses(), checksum))
                 .endSpec()
                 .build();
         // @formatter:on
+    }
+
+    @VisibleForTesting
+    String checksumFor(KafkaProxy primary, Context<KafkaProxy> context) {
+        Optional<KafkaProxyIngress> kafkaProxyIngress = context.getSecondaryResource(KafkaProxyIngress.class);
+        MetadataChecksumGenerator checksumGenerator = context.managedWorkflowAndDependentResourceContext()
+                .get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)
+                .orElse(new Crc32ChecksumGenerator());
+
+        kafkaProxyIngress.ifPresent(checksumGenerator::appendMetadata);
+
+        return checksumGenerator.encode();
     }
 
     private static Map<String, String> deploymentSelector(KafkaProxy primary) {
@@ -107,11 +123,17 @@ public class ProxyDeploymentDependentResource
     private PodTemplateSpec podTemplate(KafkaProxy primary,
                                         KafkaProxyContext kafkaProxyContext,
                                         ProxyIngressModel ingressModel,
-                                        List<VirtualKafkaCluster> virtualKafkaClusters) {
-        // @formatter:off
-        return new PodTemplateSpecBuilder()
+                                        List<VirtualKafkaCluster> virtualKafkaClusters,
+                                        String checksum) {
+        PodTemplateSpecFluent<PodTemplateSpecBuilder>.MetadataNested<PodTemplateSpecBuilder> metadataBuilder = new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
-                    .addToLabels(podLabels(primary))
+                .addToLabels(podLabels(primary));
+        if (!checksum.isBlank()) {
+            metadataBuilder.addToAnnotations(Crc32ChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, checksum);
+        }
+
+        // @formatter:off
+        return metadataBuilder
                 .endMetadata()
                 .editOrNewSpec()
                     .withNewSecurityContext()

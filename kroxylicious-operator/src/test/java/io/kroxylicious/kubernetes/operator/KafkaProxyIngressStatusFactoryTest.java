@@ -18,6 +18,7 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 
 import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
 
@@ -64,7 +65,7 @@ class KafkaProxyIngressStatusFactoryTest {
 
         // When
         KafkaProxyIngress kafkaProxyIngress = kafkaProxyIngressStatusFactory.newTrueConditionStatusPatch(INGRESS, Condition.Type.ResolvedRefs,
-                MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
+                Crc32ChecksumGenerator.NO_CHECKSUM_SPECIFIED);
 
         // Then
         assertThat(kafkaProxyIngress)
