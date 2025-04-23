@@ -66,7 +66,8 @@ public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngr
 
     @Override
     KafkaProxyIngress newTrueConditionStatusPatch(KafkaProxyIngress observedProxy,
-                                                  Condition.Type type, String checksum) {
+                                                  Condition.Type type,
+                                                  String checksum) {
         Condition trueCondition = newTrueCondition(observedProxy, type);
         return ingressStatusPatch(observedProxy, trueCondition, checksum);
     }

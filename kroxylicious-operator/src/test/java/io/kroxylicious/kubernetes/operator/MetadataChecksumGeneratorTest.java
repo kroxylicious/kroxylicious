@@ -14,6 +14,8 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 class MetadataChecksumGeneratorTest {
     private static final KafkaProxy PROXY = new KafkaProxyBuilder()
             .withNewMetadata()
@@ -32,9 +34,9 @@ class MetadataChecksumGeneratorTest {
         String checksum = MetadataChecksumGenerator.checksumFor(PROXY);
 
         // Then
-        Assertions.assertThat(checksum)
+        assertThat(checksum)
                 .isBase64()
-                .satisfies(string -> Assertions.assertThatThrownBy(() -> Assertions.assertThat(string).asLong()));
+                .satisfies(string -> Assertions.assertThatThrownBy(() -> assertThat(string).asLong()));
         // A raw long is a valid base64 string, this assertion ensures we haven't just returned a long
     }
 
@@ -46,7 +48,7 @@ class MetadataChecksumGeneratorTest {
         String checksum = MetadataChecksumGenerator.checksumFor(PROXY);
 
         // Then
-        Assertions.assertThat(checksum)
+        assertThat(checksum)
                 .isNotBlank()
                 .isEqualTo("AAAAAHM+5SM");
     }
@@ -61,7 +63,7 @@ class MetadataChecksumGeneratorTest {
                 .checksumFor(new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata()).withUid("updated-uid").endMetadata().build());
 
         // Then
-        Assertions.assertThat(checksum)
+        assertThat(checksum)
                 .isNotBlank()
                 .isNotEqualTo(proxyChecksum);
     }
@@ -76,7 +78,7 @@ class MetadataChecksumGeneratorTest {
                 .checksumFor(new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata()).withGeneration(15L).endMetadata().build());
 
         // Then
-        Assertions.assertThat(checksum)
+        assertThat(checksum)
                 .isNotBlank()
                 .isNotEqualTo(proxyChecksum);
     }
@@ -96,7 +98,7 @@ class MetadataChecksumGeneratorTest {
         String checksum = MetadataChecksumGenerator.checksumFor(PROXY, anotherProxy);
 
         // Then
-        Assertions.assertThat(checksum)
+        assertThat(checksum)
                 .isNotBlank()
                 .isNotEqualTo(proxyChecksum);
     }
