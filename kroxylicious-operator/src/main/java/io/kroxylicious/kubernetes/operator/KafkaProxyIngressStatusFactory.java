@@ -13,7 +13,6 @@ import java.util.Optional;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressFluent;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
 
 public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngress> {
@@ -27,7 +26,7 @@ public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngr
                                                  String checksum) {
 
         // @formatter:off
-        KafkaProxyIngressFluent<KafkaProxyIngressBuilder>.MetadataNested<KafkaProxyIngressBuilder> metadataBuilder = new KafkaProxyIngressBuilder()
+        var metadataBuilder = new KafkaProxyIngressBuilder()
                 .withNewMetadata()
                     .withUid(ResourcesUtil.uid(observedIngress))
                     .withName(ResourcesUtil.name(observedIngress))
