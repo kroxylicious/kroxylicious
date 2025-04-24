@@ -14,6 +14,12 @@ spec:
   selector:
     app: kroxylicious
   ports:
+  - name: metrics
+    protocol: TCP
+    port: 30090
+    targetPort: 9190
+    nodePort: 30090
+
   - name: port-30192
     protocol: TCP
     port: 30192
@@ -37,3 +43,4 @@ spec:
     port: 30195
     targetPort: 30195
     nodePort: 30195
+
