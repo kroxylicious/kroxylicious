@@ -147,7 +147,7 @@
                          CRDs being in this exact location.
                          See https://github.com/operator-framework/java-operator-sdk/issues/2561
                     -->
-                    <source>../kroxylicious-kubernetes-api/src/main/resources/fabric8</source>
+                    <source>src/main/resources/META-INF/fabric8</source>
                     <extraAnnotations>true</extraAnnotations>
                     <existingJavaTypes>
                         <!-- From the kubernetes API -->

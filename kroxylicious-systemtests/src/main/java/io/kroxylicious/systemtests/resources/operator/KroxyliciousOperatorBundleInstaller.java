@@ -51,6 +51,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     private static final String SEPARATOR = String.join("", Collections.nCopies(76, "="));
 
     private static final KubeClusterResource cluster = KubeClusterResource.getInstance();
+
     private static List<File> operatorFiles;
 
     private final ExtensionContext extensionContext;
@@ -155,10 +156,9 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
      * Temporary method to fulfill the Crds installation until new JOSDK 5.0.0 release landed https://github.com/operator-framework/java-operator-sdk/releases
      */
     private void applyCrds() throws FileNotFoundException {
-        String path = Constants.PATH_TO_OPERATOR + "/src/main/resources/META-INF/fabric8/";
-        File[] files = new File(path).listFiles();
+        File[] files = new File(Constants.PATH_TO_CRDS).listFiles();
         if (files == null) {
-            throw new FileNotFoundException(path + " is empty");
+            throw new FileNotFoundException(Constants.PATH_TO_CRDS + " is empty");
         }
         List<File> crdFiles = Arrays.stream(files).sorted()
                 .filter(File::isFile)
