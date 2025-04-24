@@ -478,7 +478,8 @@ public class KafkaProxyFrontendHandler
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger"));
         }
         addFiltersToPipeline(filters, pipeline, inboundChannel);
-        pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager, virtualClusterModel.socketFrameMaxSizeBytes()));
+        pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager, virtualClusterModel.socketFrameMaxSizeBytes(),
+                virtualClusterModel.getClusterName()));
         pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager));
         if (logNetwork) {
             pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger"));
