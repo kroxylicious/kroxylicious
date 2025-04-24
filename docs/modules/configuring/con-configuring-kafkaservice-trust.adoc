@@ -1,9 +1,8 @@
 [id='con-configuring-kafkaservice-trust-{context}']
 = Trusting the proxied cluster's TLS certificates
 
-By default, when connecting to the proxied cluster using TLS, the proxy will use the platform's default trust store.
-This usually works if the proxied cluster's TLS certificates were issued by a well-known public Certificate Authority (CA).
-It will not work if the proxied cluster's TLS certificates were issued by a private Certificate Authority.
+By default, the proxy uses the platform's default trust store when connecting to the proxied cluster over TLS.  
+This works if the cluster's TLS certificates are signed by a well-known public Certificate Authority (CA), but fails if they’re signed by a private CA instead.
 
 IMPORTANT: It is good practice to configure trust explicitly, even when proxied cluster's TLS certificates are signed by a public CA.
 

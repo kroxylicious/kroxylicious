@@ -57,5 +57,5 @@ It starts with `${` and ends with `}`. Between these, it is broken into three pa
 
 For both `secret` and `configmap` providers:
 
-* the path is interpreted as the name of a `Secret` or `ConfigMap` resource in the same namespace as the `KafkaProtocolFilter` resource.
-* the key is interpreted as a key in the `data` property of the `Secret` or `ConfigMap` resource.
+* The path is interpreted as the name of a `Secret` or `ConfigMap` resource in the same namespace as the `KafkaProtocolFilter` resource.
+* The key is interpreted as a key in the `data` property of the `Secret` or `ConfigMap` resource.

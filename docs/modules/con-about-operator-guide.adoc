@@ -3,4 +3,4 @@
 = About this guide
 
 This guide covers using the *Kroxylicious Operator* to configure, deploy, secure, and operate the Kroxylicious proxy on Kubernetes.
-Other guides should be consulted if you want run the proxy on platforms other than Kubernetes or to develop plugins for Kroxylicious.
+Refer to other Kroxylicious guides for information on running the proxy outside Kubernetes or for advanced topics such as plugin development.
