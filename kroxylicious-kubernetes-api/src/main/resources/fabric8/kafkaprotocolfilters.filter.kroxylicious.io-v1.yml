@@ -11,17 +11,17 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   # name must match the spec fields below, and be in the form: <plural>.<group>
-  name: kafkaproxyingresses.kroxylicious.io
+  name: kafkaprotocolfilters.filter.kroxylicious.io
 spec:
   # group name to use for REST API: /apis/<group>/<version>
-  group: kroxylicious.io
+  group: filter.kroxylicious.io
   scope: Namespaced
   names:
-    plural: kafkaproxyingresses
-    singular: kafkaproxyingress
-    kind: KafkaProxyIngress
+    plural: kafkaprotocolfilters
+    singular: kafkaprotocolfilter
+    kind: KafkaProtocolFilter
     shortNames:
-      - kpi
+      - kpf
     categories:
       - kroxylicious
   # list of versions supported by this CustomResourceDefinition
@@ -30,15 +30,10 @@ spec:
       served: true
       storage: true
       subresources:
-        status: { }
+        status: {}
       additionalPrinterColumns:
-        - name: Proxy
-          description: The name of the proxy that this virtual cluster is part of.
-          jsonPath: ".spec.proxyRef.name"
-          type: string
-          priority: 0
         - name: ResolvedRefs
-          description: Whether the other resources referenced by this proxy ingress can be found.
+          description: Whether the other resources referenced by this protocol filter can be found.
           jsonPath: ".status.conditions[?(@.type==\"ResolvedRefs\")].status"
           type: string
           priority: 0
@@ -48,32 +43,24 @@ spec:
           properties:
             metadata:
               type: object
+              properties:
+                name:
+                  type: string
+                  maxLength: 63
+                  pattern: "[a-z0-9]([a-z0-9-]*[a-z0-9])?"
             spec:
               type: object
-              required: ["proxyRef", "clusterIP"]
+              required:
+                - type
+                - configTemplate
               properties:
-                proxyRef:
-                  # Mapped to Java type io.kroxylicious.kubernetes.api.common.ProxyRef
+                type:
+                  description: The Java class name of the filter implementation.
+                  type: string
+                configTemplate:
+                  description: The filter's configuration, subject to config provider interpolation.
                   type: object
-                  description: "Specifies the KafkaProxy this ingress belongs to"
-                  required: [ "name" ]
-                  properties:
-                    name:
-                      description: Name is the name of the referent.
-                      maxLength: 253
-                      minLength: 1
-                      type: string
-                clusterIP:
-                  type: object
-                  description: |-
-                    clusterIP specifies that this ingress is for access within the same Kubernetes cluster using 
-                    ClusterIP Kubernetes Services.
-                  required: [ "protocol" ]
-                  properties:
-                    protocol:
-                      description: "Protocol specifies the network protocol this ingress expects to receive."
-                      type: string
-                      enum: ["TCP"]
+                  x-kubernetes-preserve-unknown-fields: true
             status:
               type: object
               properties:
@@ -82,7 +69,7 @@ spec:
                     The metadata.generation that was observed during the last reconciliation by the operator.
                   type: integer
                 conditions:
-                  # Mapped to Java type io.kroxylicious.kubernetes.api.common.Condition
+                  # Mapped to Java type io.kroxylicious.kubernetes.api. io.kroxylicious.kubernetes.api.common.common.Condition
                   type: array
                   items:
                     type: object
