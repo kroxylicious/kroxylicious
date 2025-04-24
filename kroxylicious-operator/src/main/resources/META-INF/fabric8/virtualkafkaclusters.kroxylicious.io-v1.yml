@@ -22,6 +22,8 @@ spec:
     kind: VirtualKafkaCluster
     shortNames:
       - vkc
+    categories:
+      - kroxylicious
   # list of versions supported by this CustomResourceDefinition
   versions:
     - name: v1alpha1
@@ -29,6 +31,27 @@ spec:
       storage: true
       subresources:
         status: { }
+      additionalPrinterColumns:
+        - name: Proxy
+          description: The name of the proxy that this virtual cluster is part of.
+          jsonPath: ".spec.proxyRef.name"
+          type: string
+          priority: 0
+        - name: KafkaService
+          description: The name of the kafka service that this virtual cluster exposes.
+          jsonPath: ".spec.targetKafkaServiceRef.name"
+          type: string
+          priority: 0
+        - name: ResolvedRefs
+          description: Whether the other resources referenced by this virtual cluster can be found.
+          jsonPath: ".status.conditions[?(@.type==\"ResolvedRefs\")].status"
+          type: string
+          priority: 0
+        - name: Accepted
+          description: Whether the virtual cluster has been accepted by the proxy.
+          jsonPath: ".status.conditions[?(@.type==\"Accepted\")].status"
+          type: string
+          priority: 0
       schema:
         openAPIV3Schema:
           type: object

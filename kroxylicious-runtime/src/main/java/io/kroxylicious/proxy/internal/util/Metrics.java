@@ -52,19 +52,20 @@ public class Metrics {
         return counter(counterName, tags);
     }
 
-    public static DistributionSummary payloadSizeBytesUpstreamSummary(ApiKeys apiKey, short apiVersion) {
-        return payloadSizeBytesSummary(apiKey, apiVersion, UPSTREAM);
+    public static DistributionSummary payloadSizeBytesUpstreamSummary(ApiKeys apiKey, short apiVersion, String virtualCluster) {
+        return payloadSizeBytesSummary(apiKey, apiVersion, UPSTREAM, virtualCluster);
     }
 
-    public static DistributionSummary payloadSizeBytesDownstreamSummary(ApiKeys apiKey, short apiVersion) {
-        return payloadSizeBytesSummary(apiKey, apiVersion, DOWNSTREAM);
+    public static DistributionSummary payloadSizeBytesDownstreamSummary(ApiKeys apiKey, short apiVersion, String virtualCluster) {
+        return payloadSizeBytesSummary(apiKey, apiVersion, DOWNSTREAM, virtualCluster);
     }
 
-    private static DistributionSummary payloadSizeBytesSummary(ApiKeys apiKey, short apiVersion, String flowing) {
+    private static DistributionSummary payloadSizeBytesSummary(ApiKeys apiKey, short apiVersion, String flowing, String virtualCluster) {
         List<Tag> tags = tags(
                 "ApiKey", apiKey.name(),
                 "ApiVersion", String.valueOf(apiVersion),
-                FLOWING_TAG, flowing);
+                FLOWING_TAG, flowing,
+                VIRTUAL_CLUSTER_TAG, virtualCluster);
         return summary(KROXYLICIOUS_PAYLOAD_SIZE_BYTES, tags);
     }
 

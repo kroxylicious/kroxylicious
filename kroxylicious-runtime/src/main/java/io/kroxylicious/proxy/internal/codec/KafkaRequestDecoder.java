@@ -37,15 +37,17 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
     private final DecodePredicate decodePredicate;
 
     private final ApiVersionsServiceImpl apiVersionsService;
-    private final Counter inbodundMessageCounter;
+    private final Counter inboundMessageCounter;
     private final Counter decodedMessagesCounter;
+    private final String clusterName;
 
     public KafkaRequestDecoder(DecodePredicate decodePredicate, int socketFrameMaxSize, ApiVersionsServiceImpl apiVersionsService, String clusterName) {
         super(socketFrameMaxSize);
         this.decodePredicate = decodePredicate;
         this.apiVersionsService = apiVersionsService;
+        this.clusterName = clusterName;
         List<Tag> tags = Metrics.tags(Metrics.FLOWING_TAG, Metrics.DOWNSTREAM, Metrics.VIRTUAL_CLUSTER_TAG, clusterName);
-        inbodundMessageCounter = Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, tags);
+        inboundMessageCounter = Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, tags);
         decodedMessagesCounter = Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, tags);
     }
 
@@ -73,7 +75,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         LOGGER.debug("{}: {} downstream correlation id: {}", ctx, apiKey, correlationId);
         RequestHeaderData header = null;
         final ByteBufAccessorImpl accessor;
-        inbodundMessageCounter.increment();
+        inboundMessageCounter.increment();
         var decodeRequest = decodePredicate.shouldDecodeRequest(apiKey, apiVersion);
         LOGGER.debug("Decode {}/v{} request? {}, Predicate {} ", apiKey, apiVersion, decodeRequest, decodePredicate);
         boolean decodeResponse = decodePredicate.shouldDecodeResponse(apiKey, apiVersion);
@@ -81,7 +83,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
         if (decodeRequest) {
             decodedMessagesCounter.increment();
-            Metrics.payloadSizeBytesUpstreamSummary(apiKey, apiVersion).record(length);
+            Metrics.payloadSizeBytesUpstreamSummary(apiKey, apiVersion, clusterName).record(length);
             if (log().isTraceEnabled()) { // avoid boxing
                 log().trace("{}: headerVersion {}", ctx, headerVersion);
             }
