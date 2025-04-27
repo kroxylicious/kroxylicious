@@ -257,11 +257,11 @@ public class ResourcesUtil {
     static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers(EventSourceContext<?> context,
                                                                                         R referent,
                                                                                         Class<O> owner,
-                                                                                        Function<O, LocalRef<R>> refAccessor) {
+                                                                                        Function<O, Optional<LocalRef<R>>> refAccessor) {
         return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
                 referent,
                 owner,
-                primary -> ResourcesUtil.isReferent(refAccessor.apply(primary), referent));
+                primary -> refAccessor.apply(primary).map(lr -> ResourcesUtil.isReferent(lr, referent)).orElse(false));
     }
 
     /**

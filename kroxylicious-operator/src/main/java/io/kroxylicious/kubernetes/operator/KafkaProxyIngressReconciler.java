@@ -9,6 +9,7 @@ package io.kroxylicious.kubernetes.operator;
 import java.time.Clock;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +56,7 @@ public class KafkaProxyIngressReconciler implements
                 .withSecondaryToPrimaryMapper(proxy -> ResourcesUtil.findReferrers(context,
                         proxy,
                         KafkaProxyIngress.class,
-                        ingress -> ingress.getSpec().getProxyRef()))
+                        ingress -> Optional.of(ingress.getSpec().getProxyRef())))
                 .build();
         return List.of(new InformerEventSource<>(configuration, context));
     }
