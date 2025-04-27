@@ -24,10 +24,10 @@ abstract class AbstractStatusAssert<A, S extends AbstractStatusAssert<A, S>> ext
     private final Function<A, List<Condition>> conditionsAccessor;
 
     AbstractStatusAssert(
-            A actual,
-            Class<S> selfType,
-            Function<A, Long> observedGenerationAccessor,
-            Function<A, List<Condition>> conditionsAccessor) {
+                         A actual,
+                         Class<S> selfType,
+                         Function<A, Long> observedGenerationAccessor,
+                         Function<A, List<Condition>> conditionsAccessor) {
         super(actual, selfType);
         this.observedGenerationAccessor = observedGenerationAccessor;
         this.conditionsAccessor = conditionsAccessor;
