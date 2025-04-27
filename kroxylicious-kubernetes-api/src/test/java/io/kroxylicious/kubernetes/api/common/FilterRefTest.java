@@ -42,5 +42,17 @@ class FilterRefTest {
         assertThat(refFoo).isLessThan(anyFoo);
         assertThat(anyFoo).isGreaterThan(refFoo);
     }
+    
+    @Test
+    void shouldReturnBuilder() {
+        // Given
+        FilterRefBuilder originalBuilder = new FilterRefBuilder();
+        var fooRef = originalBuilder.withName("foo").build();
 
+        // When
+        FilterRefBuilder actualBuilder = fooRef.edit();
+
+        // Then
+        assertThat(actualBuilder).isNotNull().isNotSameAs(originalBuilder);
+    }
 }

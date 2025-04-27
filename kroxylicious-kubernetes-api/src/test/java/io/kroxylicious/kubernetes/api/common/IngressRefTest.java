@@ -42,4 +42,17 @@ class IngressRefTest {
         assertThat(anyFoo).isGreaterThan(refFoo);
     }
 
+    @Test
+    void shouldReturnBuilder() {
+        // Given
+        IngressRefBuilder originalBuilder = new IngressRefBuilder();
+        var fooRef = originalBuilder.withName("foo").build();
+
+        // When
+        IngressRefBuilder actualBuilder = fooRef.edit();
+
+        // Then
+        assertThat(actualBuilder).isNotNull().isNotSameAs(originalBuilder);
+    }
+
 }

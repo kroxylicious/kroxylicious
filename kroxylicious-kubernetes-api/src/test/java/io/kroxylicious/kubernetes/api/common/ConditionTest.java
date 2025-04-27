@@ -62,4 +62,23 @@ class ConditionTest {
         assertThat(readCondition).isEqualTo(wroteCondition);
     }
 
+    @Test
+    void shouldReturnBuilder() {
+        // Given
+        ConditionBuilder originalBuilder = new ConditionBuilder();
+        var condition = originalBuilder
+                .withLastTransitionTime(Instant.EPOCH)
+                .withObservedGeneration(345678L)
+                .withReason("")
+                .withMessage("")
+                .withType(Condition.Type.Ready)
+                .build();
+
+        // When
+        ConditionBuilder actualBuilder = condition.edit();
+
+        // Then
+        assertThat(actualBuilder).isNotNull().isNotSameAs(originalBuilder);
+    }
+
 }

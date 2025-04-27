@@ -42,4 +42,18 @@ class ProxyRefTest {
         assertThat(anyFoo).isGreaterThan(refFoo);
     }
 
+    @Test
+    void shouldReturnBuilder() {
+        // Given
+        ProxyRefBuilder originalBuilder = new ProxyRefBuilder();
+        var fooRef = originalBuilder.withName("foo").build();
+
+        // When
+        ProxyRefBuilder actualBuilder = fooRef.edit();
+
+        // Then
+        assertThat(actualBuilder).isNotNull().isNotSameAs(originalBuilder);
+    }
+
+
 }

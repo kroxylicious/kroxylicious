@@ -42,4 +42,17 @@ class KafkaServiceRefTest {
         assertThat(anyFoo).isGreaterThan(refFoo);
     }
 
+    @Test
+    void shouldReturnBuilder() {
+        // Given
+        KafkaServiceRefBuilder originalBuilder = new KafkaServiceRefBuilder();
+        var fooRef = originalBuilder.withName("foo").build();
+
+        // When
+        KafkaServiceRefBuilder actualBuilder = fooRef.edit();
+
+        // Then
+        assertThat(actualBuilder).isNotNull().isNotSameAs(originalBuilder);
+    }
+
 }
