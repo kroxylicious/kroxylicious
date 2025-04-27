@@ -155,7 +155,7 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-operator</artifactId>
+            <artifactId>kroxylicious-kubernetes-api</artifactId>
             <version>${project.version}</version>
             <scope>compile</scope>
         </dependency>
