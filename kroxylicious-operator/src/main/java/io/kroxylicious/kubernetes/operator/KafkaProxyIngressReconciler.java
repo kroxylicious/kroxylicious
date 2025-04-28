@@ -70,24 +70,26 @@ public class KafkaProxyIngressReconciler implements
         var proxyOpt = context.getSecondaryResource(KafkaProxy.class, PROXY_EVENT_SOURCE_NAME);
         LOGGER.debug("spec.proxyRef.name resolves to: {}", proxyOpt);
 
-        KafkaProxyIngress patch;
+        UpdateControl<KafkaProxyIngress> updateControl;
         if (proxyOpt.isPresent()) {
-            patch = statusFactory.newTrueConditionStatusPatch(
-                    ingress,
-                    Condition.Type.ResolvedRefs);
+            String checksum = MetadataChecksumGenerator.checksumFor(proxyOpt.get());
+            updateControl = UpdateControl.patchResourceAndStatus(
+                    statusFactory.newTrueConditionStatusPatch(
+                            ingress,
+                            Condition.Type.ResolvedRefs,
+                            checksum));
         }
         else {
-            patch = statusFactory.newFalseConditionStatusPatch(
+            updateControl = UpdateControl.patchStatus(statusFactory.newFalseConditionStatusPatch(
                     ingress,
                     Condition.Type.ResolvedRefs,
                     Condition.REASON_REFS_NOT_FOUND,
-                    "KafkaProxy spec.proxyRef.name not found");
+                    "KafkaProxy spec.proxyRef.name not found"));
         }
-
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(ingress), name(ingress));
         }
-        return UpdateControl.patchStatus(patch);
+        return updateControl;
     }
 
     @Override
