@@ -157,6 +157,99 @@ class ResourcesUtilTest {
     }
 
     @Test
+    void findReferrersMultiShouldMapEmptyRefsToEmptySet() {
+        // Given
+        ConfigMap cm = new ConfigMapBuilder().withNewMetadata().withNamespace("ns").withName("foo").addToAnnotations("ref", "primary").endMetadata().build();
+        EventSourceContext<?> eventSourceContext = prepareMockContextToProduceList(List.of(cm), ConfigMap.class);
+        HasMetadata primary = new SecretBuilder().withNewMetadata().withNamespace("ns").withName("primary").endMetadata().build();
+
+        // When
+        var resources = ResourcesUtil.findReferrersMulti(eventSourceContext, primary, ConfigMap.class,
+                configMap -> Set.of());
+
+        // Then
+        assertThat(resources).isEmpty();
+    }
+
+    @Test
+    void findReferrersMultiShouldMapSingleRefToResourceInContext() {
+        // Given
+        ConfigMap cm = new ConfigMapBuilder().withNewMetadata().withNamespace("ns").withName("foo").addToAnnotations("ref", "primary").endMetadata().build();
+        EventSourceContext<?> eventSourceContext = prepareMockContextToProduceList(List.of(cm), ConfigMap.class);
+        HasMetadata primary = new SecretBuilder().withNewMetadata().withNamespace("ns").withName("primary").endMetadata().build();
+
+        // When
+        var resources = ResourcesUtil.findReferrersMulti(eventSourceContext, primary, ConfigMap.class,
+                configMap -> Set.of(new AnyLocalRefBuilder().withName(configMap.getMetadata().getAnnotations().get("ref")).build()));
+
+        // Then
+        assertThat(resources).containsExactly(ResourceID.fromResource(cm));
+    }
+
+    @Test
+    void findReferrersMultiShouldMapMultipleRefsToCorrespondingResourcesInContext() {
+        // Given
+        ConfigMap cm = new ConfigMapBuilder().withNewMetadata().withNamespace("ns").withName("foo").addToAnnotations("ref", "primary").endMetadata().build();
+        ConfigMap cm2 = new ConfigMapBuilder().withNewMetadata().withNamespace("ns").withName("bar").addToAnnotations("ref", "primary").endMetadata().build();
+        EventSourceContext<?> eventSourceContext = prepareMockContextToProduceList(List.of(cm, cm2), ConfigMap.class);
+        HasMetadata primary = new SecretBuilder().withNewMetadata().withNamespace("ns").withName("primary").endMetadata().build();
+
+        // When
+        var resources = ResourcesUtil.findReferrersMulti(eventSourceContext, primary, ConfigMap.class,
+                configMap -> Set.of(new AnyLocalRefBuilder().withName(configMap.getMetadata().getAnnotations().get("ref")).build()));
+
+        // Then
+        assertThat(resources).containsExactlyInAnyOrder(ResourceID.fromResource(cm), ResourceID.fromResource(cm2));
+    }
+
+    @Test
+    void findReferrersMultiShouldExcludeResourcesThatDontReferencePrimary() {
+        // Given
+        ConfigMap cm = new ConfigMapBuilder().withNewMetadata().withNamespace("ns").withName("foo").addToAnnotations("ref", "primary").endMetadata().build();
+        ConfigMap cm2 = new ConfigMapBuilder().withNewMetadata().withNamespace("ns").withName("bar").addToAnnotations("ref", "not-primary").endMetadata().build();
+        EventSourceContext<?> eventSourceContext = prepareMockContextToProduceList(List.of(cm, cm2), ConfigMap.class);
+        HasMetadata primary = new SecretBuilder().withNewMetadata().withNamespace("ns").withName("primary").endMetadata().build();
+
+        // When
+        var resources = ResourcesUtil.findReferrersMulti(eventSourceContext, primary, ConfigMap.class,
+                configMap -> Set.of(new AnyLocalRefBuilder().withName(configMap.getMetadata().getAnnotations().get("ref")).build()));
+
+        // Then
+        assertThat(resources).containsExactlyInAnyOrder(ResourceID.fromResource(cm));
+    }
+
+    @Test
+    void findReferrersMultiShouldHandleAllSecondariesDontReferencePrimary() {
+        // Given
+        ConfigMap cm = new ConfigMapBuilder().withNewMetadata().withNamespace("ns").withName("foo").addToAnnotations("ref", "not-primary").endMetadata().build();
+        ConfigMap cm2 = new ConfigMapBuilder().withNewMetadata().withNamespace("ns").withName("bar").addToAnnotations("ref", "not-primary").endMetadata().build();
+        EventSourceContext<?> eventSourceContext = prepareMockContextToProduceList(List.of(cm, cm2), ConfigMap.class);
+        HasMetadata primary = new SecretBuilder().withNewMetadata().withNamespace("ns").withName("primary").endMetadata().build();
+
+        // When
+        var resources = ResourcesUtil.findReferrersMulti(eventSourceContext, primary, ConfigMap.class,
+                configMap -> Set.of(new AnyLocalRefBuilder().withName(configMap.getMetadata().getAnnotations().get("ref")).build()));
+
+        // Then
+        assertThat(resources).isEmpty();
+    }
+
+    @Test
+    void findReferrersMultiShouldTolerateNullReferencesCollection() {
+        // Given
+        ConfigMap cm = new ConfigMapBuilder().withNewMetadata().withNamespace("ns").withName("foo").addToAnnotations("ref", "not-primary").endMetadata().build();
+        EventSourceContext<?> eventSourceContext = prepareMockContextToProduceList(List.of(cm), ConfigMap.class);
+        HasMetadata primary = new SecretBuilder().withNewMetadata().withNamespace("ns").withName("primary").endMetadata().build();
+
+        // When
+        var resources = ResourcesUtil.findReferrersMulti(eventSourceContext, primary, ConfigMap.class,
+                configMap -> null);
+
+        // Then
+        assertThat(resources).isEmpty();
+    }
+
+    @Test
     void findReferrersSupportsResourcesWithoutReferences() {
         // Given
         ConfigMap cm = new ConfigMapBuilder().withNewMetadata().withNamespace("ns").withName("foo").addToAnnotations("ref", "primary").endMetadata().build();
