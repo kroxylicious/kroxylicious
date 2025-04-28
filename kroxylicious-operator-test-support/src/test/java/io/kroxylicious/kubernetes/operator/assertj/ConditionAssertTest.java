@@ -464,19 +464,11 @@ class ConditionAssertTest {
     @Test
     void shouldFailResolvedRefsTrueForResolvedRefsWithWrongReason() {
         // Given
-        var resolvedRefsTrueCondition = new ConditionBuilder()
-                .withLastTransitionTime(BASE_TIME)
-                .withObservedGeneration(BASE_GENERATION)
-                .withType(Condition.Type.ResolvedRefs)
-                .withStatus(Condition.Status.TRUE)
-                .withMessage("")
-                .withReason("ResolvedRefThings")
-                .build();
-
         // When
         // Then
         Assertions.assertThatThrownBy(
-                () -> ConditionAssert.assertThat(resolvedRefsTrueCondition).isResolvedRefsUnknown(passedRefsCondition.getReason(), passedRefsCondition.getMessage()));
+                () -> ConditionAssert.assertThat(resolvedRefsTrueCondition).isResolvedRefsUnknown(passedRefsCondition.getReason(),
+                        resolvedRefsTrueCondition.getMessage()));
     }
 
     @Test
@@ -498,5 +490,77 @@ class ConditionAssertTest {
         // Then
         Assertions.assertThatThrownBy(
                 () -> ConditionAssert.assertThat(failedRefsCondition).isResolvedRefsUnknown(passedRefsCondition.getReason(), passedRefsCondition.getMessage()));
+    }
+
+    @Test
+    void shouldPassIsReadyUnknownForReadyUnknownCondition() {
+        // Given
+        var readyCondition = new ConditionBuilder()
+                .withLastTransitionTime(BASE_TIME)
+                .withObservedGeneration(BASE_GENERATION)
+                .withType(Condition.Type.Ready)
+                .withStatus(Condition.Status.UNKNOWN)
+                .withMessage("blah")
+                .withReason("ResolvedRefs")
+                .build();
+
+        // When
+
+        // Then
+        ConditionAssert.assertThat(readyCondition).isReadyUnknown(readyCondition.getReason(), readyCondition.getMessage());
+    }
+
+    @Test
+    void shouldPassIsReadyFalseForReadyFalseCondition() {
+        // Given
+        var readyCondition = new ConditionBuilder()
+                .withLastTransitionTime(BASE_TIME)
+                .withObservedGeneration(BASE_GENERATION)
+                .withType(Condition.Type.Ready)
+                .withStatus(Condition.Status.FALSE)
+                .withMessage("blah")
+                .withReason("ResolvedRefs")
+                .build();
+
+        // When
+
+        // Then
+        ConditionAssert.assertThat(readyCondition).isReadyFalse(readyCondition.getReason(), readyCondition.getMessage());
+    }
+
+    @Test
+    void shouldPassIsReadyTrueForReadyTrueCondition() {
+        // Given
+        var readyCondition = new ConditionBuilder()
+                .withLastTransitionTime(BASE_TIME)
+                .withObservedGeneration(BASE_GENERATION)
+                .withType(Condition.Type.Ready)
+                .withStatus(Condition.Status.TRUE)
+                .withMessage("")
+                .withReason("Ready")
+                .build();
+
+        // When
+
+        // Then
+        ConditionAssert.assertThat(readyCondition).isReadyTrue();
+    }
+
+    @Test
+    void shouldPassIsAcceptedUnknownForAcceptedUnknownCondition() {
+        // Given
+        var acceptedCondition = new ConditionBuilder()
+                .withLastTransitionTime(BASE_TIME)
+                .withObservedGeneration(BASE_GENERATION)
+                .withType(Condition.Type.Accepted)
+                .withStatus(Condition.Status.UNKNOWN)
+                .withMessage("")
+                .withReason("Ready")
+                .build();
+
+        // When
+
+        // Then
+        ConditionAssert.assertThat(acceptedCondition).isAcceptedUnknown(acceptedCondition.getReason(), acceptedCondition.getMessage());
     }
 }
