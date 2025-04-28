@@ -1,0 +1,31 @@
+[id='con-configuring-kafkaservice-auth-{context}']
+= Configuring TLS client authentication with the `KafkaService` resource
+
+You can use the `KafkaService` resource to configure the proxy to present a TLS client certificate to the proxied Kafka cluster, if the cluster implements mutual TLS authentication (mTLS).
+
+The TLS client certificate you provide must have been issued by a Certificate Authority (CA) that's trusted by the proxied cluster.
+
+This example configures a `KafkaService` to use a TLS client certificate stored in a `Secret` named `tls-cert-for-kafka.example.com`.
+
+.Example `KafkaService` configuration with TLS client authentication.
+[source,yaml]
+----
+kind: KafkaService
+metadata:
+  # ...
+spec:
+  bootstrapServers: kafka.example.com:9092
+  tls:
+    trustAnchorRef:
+      kind: ConfigMap
+      name: trusted-cas
+      key: trusted-cas.pem
+    certificateRef: # <1>
+      kind: Secret # <2>
+      name: tls-cert-for-kafka.example.com # <3>
+    # ...
+----
+<1> The `certificateRef` property identifies the TLS client certificate to use.
+<2> The `kind` is optional and defaults to `Secret`. The `Secret` should have `type: kubernetes.io/tls`.
+<3> The `name` is the name of the resource of the given `kind`. This resource must exist in the same namespace as the `KafkaService`
+

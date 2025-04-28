@@ -2,5 +2,5 @@
 [discrete]
 = About this guide
 
-This guide covers using the proxy, including configuration, security and operation.
-Other guides should be consulted if you want to developing plugins for Kroxylicious.
+This guide covers installing, configuring, securing, and operating the Kroxylicious Proxy in a non-Kubernetes environment.
+Refer to other Kroxylicious guides for information on running the proxy on Kubernetes using the Kroxylicious Operator, or for advanced topics such as plugin development.

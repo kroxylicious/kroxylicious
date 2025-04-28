@@ -1,0 +1,61 @@
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+[id='assembly-configuring-kafkaprotocolfilters-{context}']
+= Configuring filters
+
+[role="_abstract"]
+A `KafkaProtocolFilter` resource represents a Kroxylicious Proxy filter.
+It is not uniquely associated with a `VirtualKafkaCluster` or `KafkaProxy` instance; it can be used in a number of `VirtualKafkaCluster` instances in the same namespace.
+
+A `KafkaProtocolFilter` is similar to one of the items in a proxy configuration's `filterDefinitions`:
+
+* The resource's `metadata.name` corresponds directly to the `name` of a `filterDefinitions` item.
+* The resource's `spec.type` corresponds directly to the `type` of a `filterDefinitions` item.
+* The resource's `spec.configTemplate` corresponds to the `config` of a `filterDefinitions` item, but is subject to interpolation by the operator.
+
+== Templates and interpolation
+
+The interpolation of `spec.configTemplate` is used so that any security-sensitive properties (like passwords or keys) can be specified in Kubernetes `Secret` resources rather than directly in the `KafkaProtocolFilter` resource.
+Likewise, things like trusted CA certificates can be defined in `ConfigMap` resources.
+
+The operator determines which `Secret` and `ConfigMap` resources are referenced by a `KafkaProtocolFilter` resource and declares them as `volumes` in the proxy `Pod`, mounted into the proxy container.
+
+.Example `KafkaProtocolFilter` configuring an instances of the `RecordEncryptionFilter` using a Vault KMS running in the same Kubernetes cluster.
+[source,yaml]
+----
+kind: KafkaProtocolFilter
+metadata:
+  # ...
+spec:
+  type: RecordEncryption # <1>
+  configTemplate: # <2>
+    kms: VaultKmsService
+    kmsConfig:
+      vaultTransitEngineUrl: http://vault.vault.svc.cluster.local:8200/v1/transit
+      vaultToken:
+        password: ${secret:vault:token} # <3>
+    selector: TemplateKekSelector
+    selectorConfig:
+      template: "$(topicName)" # <4>
+----
+<1> The `type` property is Java class name of the proxy filter. If the unqualified name is ambiguous it must be qualified by the filter package name.
+<2> The `KafkaProtocolFilter` requires a `configTemplate`, which supports _interpolation references_.
+<3> In this example, the `password` is specified using an _interpolation reference_, enclosed by `${` and `}`, rather than being defined literally in the resource. This will be interpreted by the operator.
+<4>  In this example, the selector `template` is interpreted by the proxy. Note that it uses different delimiters, `$(` and `)`, than the _interpolation reference_.
+
+== Interpolation references
+
+Let's look at the example interpolation reference `${secret:vault:token}` in more detail.
+
+It starts with `${` and ends with `}`. Between these, it is broken into three parts, separated by colons (`:`):
+
+* `secret` is a _provider_. Supported providers are `secret` and `configmap` (note the use of lower case).
+* `vault` is a _path_. The interpretation of the path depends on the provider.
+* `token` is a _key_. The interpretation of the key also depends on the provider.
+
+For both `secret` and `configmap` providers:
+
+* The path is interpreted as the name of a `Secret` or `ConfigMap` resource in the same namespace as the `KafkaProtocolFilter` resource.
+* The key is interpreted as a key in the `data` property of the `Secret` or `ConfigMap` resource.

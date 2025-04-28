@@ -1,0 +1,37 @@
+:experimental:
+include::_assets/attributes.adoc[]
+
+:context: operator
+:guide: operator
+
+[id="using-book-{context}"]
+= Kroxylicious Operator for Kubernetes
+
+include::modules/con-about-{guide}-guide.adoc[leveloffset=+2]
+
+include::assemblies/assembly-operator-overview.adoc[leveloffset=+1]
+
+include::assemblies/assembly-operator-api.adoc[leveloffset=+1]
+
+// installing
+include::assemblies/assembly-operator-installing.adoc[leveloffset=+1]
+
+// configuring proxies
+include::assemblies/assembly-operator-configuring-kafkaproxies.adoc[leveloffset=+1]
+
+// configuring ingresses
+include::assemblies/assembly-operator-configuring-kafkaproxyingresses.adoc[leveloffset=+1]
+
+// configuring clusters
+include::assemblies/assembly-operator-configuring-virtualkafkaclusters.adoc[leveloffset=+1]
+
+// configuring clusters
+include::assemblies/assembly-operator-configuring-kafkaservices.adoc[leveloffset=+1]
+
+// configuring filters
+include::assemblies/assembly-operator-configuring-kafkaprotocolfilters.adoc[leveloffset=+1]
+
+// TODO monitoring
+
+//trademark notices
+include::_assets/trademarks.adoc[leveloffset=+1]
