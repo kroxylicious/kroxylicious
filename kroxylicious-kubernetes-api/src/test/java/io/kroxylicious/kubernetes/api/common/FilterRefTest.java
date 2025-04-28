@@ -42,7 +42,7 @@ class FilterRefTest {
         assertThat(refFoo).isLessThan(anyFoo);
         assertThat(anyFoo).isGreaterThan(refFoo);
     }
-    
+
     @Test
     void shouldReturnBuilder() {
         // Given

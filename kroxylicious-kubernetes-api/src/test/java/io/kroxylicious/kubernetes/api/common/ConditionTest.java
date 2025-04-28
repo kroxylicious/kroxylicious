@@ -20,24 +20,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ConditionTest {
 
     private ObjectMapper objectMapper;
+    private Condition readyCondition;
 
     @BeforeEach
     void setUp() {
         objectMapper = new ObjectMapper().registerModule(new JavaTimeModule());
-    }
-
-    @Test
-    void serializedFormShouldUseIso8601() throws JsonProcessingException {
-        // Given
-        Condition build = new ConditionBuilder()
+        readyCondition = new ConditionBuilder()
                 .withLastTransitionTime(Instant.EPOCH)
                 .withObservedGeneration(345678L)
                 .withReason("")
                 .withMessage("")
                 .withType(Condition.Type.Ready)
                 .build();
+    }
+
+    @Test
+    void serializedFormShouldUseIso8601() throws JsonProcessingException {
+        // Given
         // When
-        var conditionWithEpoch = objectMapper.writeValueAsString(build);
+        var conditionWithEpoch = objectMapper.writeValueAsString(readyCondition);
 
         // Then
         assertThat(conditionWithEpoch).contains("\"lastTransitionTime\":\"1970-01-01T00:00:00Z\"");
@@ -46,20 +47,13 @@ class ConditionTest {
     @Test
     void roundTrip() throws JsonProcessingException {
         // Given
-        Condition wroteCondition = new ConditionBuilder()
-                .withLastTransitionTime(Instant.now())
-                .withObservedGeneration(1L)
-                .withReason("")
-                .withMessage("")
-                .withType(Condition.Type.Ready)
-                .build();
-        var conditionString = objectMapper.writeValueAsString(wroteCondition);
+        var conditionString = objectMapper.writeValueAsString(readyCondition);
 
         // When
         var readCondition = objectMapper.readValue(conditionString, Condition.class);
 
         // Then
-        assertThat(readCondition).isEqualTo(wroteCondition);
+        assertThat(readCondition).isEqualTo(readyCondition);
     }
 
     @Test
@@ -81,4 +75,52 @@ class ConditionTest {
         assertThat(actualBuilder).isNotNull().isNotSameAs(originalBuilder);
     }
 
+    @Test
+    void shouldReturnTrueForResolveRefsFalse() {
+        // Given
+        Condition resolvedFalseCondition = new ConditionBuilder()
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.FALSE)
+                .withMessage("its no werkin")
+                .withReason("BROKEN")
+                .withObservedGeneration(345678L)
+                .withLastTransitionTime(Instant.now())
+                .build();
+
+        // When
+        boolean actual = Condition.isResolvedRefsFalse(resolvedFalseCondition);
+
+        // Then
+        assertThat(actual).isTrue();
+    }
+
+    @Test
+    void shouldReturnFalseForResolveRefsTrue() {
+        // Given
+        Condition resolvedFalseCondition = new ConditionBuilder()
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(Condition.Status.TRUE)
+                .withMessage("its ALIVE")
+                .withObservedGeneration(345678L)
+                .withReason("FOUND_IT")
+                .withLastTransitionTime(Instant.now())
+                .build();
+
+        // When
+        boolean actual = Condition.isResolvedRefsFalse(resolvedFalseCondition);
+
+        // Then
+        assertThat(actual).isFalse();
+    }
+
+    @Test
+    void shouldReturnFalseForReadyCondition() {
+        // Given
+
+        // When
+        boolean actual = Condition.isResolvedRefsFalse(readyCondition);
+
+        // Then
+        assertThat(actual).isFalse();
+    }
 }

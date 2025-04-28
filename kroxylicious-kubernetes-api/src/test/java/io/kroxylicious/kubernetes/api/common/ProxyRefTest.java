@@ -55,5 +55,4 @@ class ProxyRefTest {
         assertThat(actualBuilder).isNotNull().isNotSameAs(originalBuilder);
     }
 
-
 }
