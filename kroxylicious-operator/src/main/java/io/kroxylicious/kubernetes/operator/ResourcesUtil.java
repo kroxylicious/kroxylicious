@@ -29,8 +29,8 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
-import io.kroxylicious.kubernetes.api.common.AnyLocalRef;
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
+import io.kroxylicious.kubernetes.api.common.CertificateRef;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -100,7 +100,7 @@ public class ResourcesUtil {
         return volumeName;
     }
 
-    static boolean isSecret(AnyLocalRef ref) {
+    static boolean isSecret(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "Secret".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
     }
@@ -371,7 +371,7 @@ public class ResourcesUtil {
     public static <T extends CustomResource<?, ?>> T checkCertRef(T resource,
                                                                   Context<T> context,
                                                                   String secretEventSourceName,
-                                                                  AnyLocalRef certRef,
+                                                                  CertificateRef certRef,
                                                                   String path,
                                                                   StatusFactory<T> statusFactory) {
         if (isSecret(certRef)) {
