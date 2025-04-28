@@ -57,8 +57,15 @@ public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
 
     @Override
     KafkaProxy newTrueConditionStatusPatch(KafkaProxy observedProxy,
-                                           Condition.Type type) {
+                                           Condition.Type type, String checksum) {
         Condition trueCondition = newTrueCondition(observedProxy, type);
         return kafkaProxyStatusPatch(observedProxy, trueCondition);
+    }
+
+    @SuppressWarnings("removal")
+    @Override
+    KafkaProxy newTrueConditionStatusPatch(KafkaProxy observedProxy,
+                                           Condition.Type type) {
+        return newTrueConditionStatusPatch(observedProxy, type, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
     }
 }

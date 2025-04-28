@@ -219,7 +219,7 @@ public final class VirtualKafkaClusterReconciler implements
                 .withSecondaryToPrimaryMapper(proxy -> ResourcesUtil.findReferrers(context,
                         proxy,
                         VirtualKafkaCluster.class,
-                        cluster -> cluster.getSpec().getProxyRef()))
+                        cluster -> Optional.of(cluster.getSpec().getProxyRef())))
                 .build();
 
         InformerEventSourceConfiguration<ConfigMap> clusterToProxyConfigState = InformerEventSourceConfiguration.from(
@@ -230,9 +230,9 @@ public final class VirtualKafkaClusterReconciler implements
                 .withSecondaryToPrimaryMapper(configMap -> ResourcesUtil.findReferrers(context,
                         configMap,
                         VirtualKafkaCluster.class,
-                        cluster -> new AnyLocalRefBuilder().withGroup("").withKind("ConfigMap")
+                        cluster -> Optional.of(new AnyLocalRefBuilder().withGroup("").withKind("ConfigMap")
                                 .withName(cluster.getSpec().getProxyRef().getName() + CONFIG_STATE_CONFIG_MAP_SUFFIX)
-                                .build()))
+                                .build())))
                 .build();
 
         InformerEventSourceConfiguration<KafkaService> clusterToService = InformerEventSourceConfiguration.from(
@@ -244,7 +244,7 @@ public final class VirtualKafkaClusterReconciler implements
                 .withSecondaryToPrimaryMapper(service -> ResourcesUtil.findReferrers(context,
                         service,
                         VirtualKafkaCluster.class,
-                        cluster -> cluster.getSpec().getTargetKafkaServiceRef()))
+                        cluster -> Optional.of(cluster.getSpec().getTargetKafkaServiceRef())))
                 .build();
 
         InformerEventSourceConfiguration<KafkaProxyIngress> clusterToIngresses = InformerEventSourceConfiguration.from(
