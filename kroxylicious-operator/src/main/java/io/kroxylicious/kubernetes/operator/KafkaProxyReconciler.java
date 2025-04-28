@@ -46,7 +46,7 @@ import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMap
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
-import io.kroxylicious.kubernetes.api.common.AnyLocalRef;
+import io.kroxylicious.kubernetes.api.common.CertificateRef;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
@@ -165,7 +165,6 @@ public class KafkaProxyReconciler implements
                 new VirtualKafkaClusterStatusFactory(clock),
                 model,
                 fragment);
-
     }
 
     private ConfigurationFragment<Configuration> generateProxyConfig(ProxyModel model) {
@@ -189,7 +188,6 @@ public class KafkaProxyReconciler implements
 
         var allMounts = Stream.concat(allFilterDefinitions.stream(), virtualClusters.stream())
                 .flatMap(fd -> fd.mounts().stream())
-
                 .collect(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(VolumeMount::getMountPath).reversed())));
 
         return new ConfigurationFragment<>(
@@ -345,7 +343,7 @@ public class KafkaProxyReconciler implements
                 .orElse(ConfigurationFragment.empty());
     }
 
-    public static ConfigurationFragment<Optional<KeyProvider>> buildKeyProvider(@Nullable AnyLocalRef certificateRef, Path parent) {
+    private static ConfigurationFragment<Optional<KeyProvider>> buildKeyProvider(@Nullable CertificateRef certificateRef, Path parent) {
         return Optional.ofNullable(certificateRef)
                 .filter(ResourcesUtil::isSecret)
                 .map(ref -> {
