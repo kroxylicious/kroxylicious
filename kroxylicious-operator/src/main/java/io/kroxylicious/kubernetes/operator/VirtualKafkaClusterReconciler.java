@@ -48,6 +48,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses.Protocol;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.IngressesBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
@@ -156,7 +157,7 @@ public final class VirtualKafkaClusterReconciler implements
 
     private VirtualKafkaCluster maybeCombineStatusWithClusterConfigMap(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
 
-        var ingresses = getFilteredIngresses(cluster, context);
+        var ingresses = buildIngressStatus(cluster, context);
 
         ResourceState resolvedRefsTrueResourceState = ResourceState.of(statusFactory.newTrueCondition(cluster, Condition.Type.ResolvedRefs));
         return context
@@ -172,27 +173,33 @@ public final class VirtualKafkaClusterReconciler implements
 
     }
 
-    private List<io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses> getFilteredIngresses(VirtualKafkaCluster cluster,
-                                                                                                                   Context<VirtualKafkaCluster> context) {
+    private List<io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses> buildIngressStatus(VirtualKafkaCluster cluster,
+                                                                                                                 Context<VirtualKafkaCluster> context) {
         var existingKubernetesServices = context.getSecondaryResources(Service.class)
                 .stream()
                 .collect(Collectors.toMap(ref -> {
                     var kubeServiceIngressOwner = Optional.ofNullable(ref)
                             .flatMap(service -> extractOwnerRefFromKubernetesService(service, KAFKA_PROXY_INGRESS_KIND))
                             .orElseThrow();
-
                     return new IngressRefBuilder().withName(kubeServiceIngressOwner.getName()).build();
                 }, Function.identity()));
 
-        return cluster.getSpec().getIngresses()
+        var ingressServiceMap = cluster.getSpec().getIngresses()
                 .stream()
-                .map(Ingresses::getIngressRef)
-                .filter(existingKubernetesServices::containsKey)
-                .map(ingressRef -> {
-                    var kubenetesService = existingKubernetesServices.get(ingressRef);
-                    var builder = new IngressesBuilder();
-                    builder.withName(ingressRef.getName());
-                    builder.withBootstrapServer(getBootstrapServer(kubenetesService));
+                .collect(Collectors.toMap(Function.identity(),
+                        ingress -> Optional.ofNullable(existingKubernetesServices.get(ingress.getIngressRef()))));
+
+        return ingressServiceMap.entrySet()
+                .stream()
+                .filter(entry -> entry.getValue().isPresent())
+                .map(entry -> {
+                    var ingress = entry.getKey();
+                    var kubernetesService = entry.getValue().get();
+                    var serverCert = Optional.ofNullable(ingress.getTls()).map(Tls::getCertificateRef);
+                    var builder = new IngressesBuilder()
+                            .withName(ingress.getIngressRef().getName())
+                            .withBootstrapServer(getBootstrapServer(kubernetesService))
+                            .withProtocol(serverCert.isEmpty() ? Protocol.TCP : Protocol.TLS);
                     return builder.build();
                 }).toList();
     }
