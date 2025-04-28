@@ -8,10 +8,14 @@ package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.KafkaStatus;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
@@ -20,6 +24,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingress
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.resources.strimzi.KafkaType;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaClusterRefTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyIngressTemplates;
@@ -80,6 +86,41 @@ public class Kroxylicious {
                 KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefDeployment(deploymentNamespace, clusterName),
                 KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterDeployment(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
                         clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP));
+    }
+
+    /**
+     * Deploy port identifies node with tls and no filters.
+     *
+     * @param clusterName the cluster name
+     */
+    public void deployPortIdentifiesNodeWithTlsAndNoFilters(String clusterName) {
+        createCertificateConfigMap(deploymentNamespace);
+        resourceManager.createResourceFromBuilder(
+                KroxyliciousKafkaProxyTemplates.defaultKafkaProxyDeployment(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
+                KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressDeployment(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
+                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
+                KroxyliciousKafkaClusterRefTemplates.kafkaClusterRefDeploymentWithTls(deploymentNamespace, clusterName),
+                KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterDeployment(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
+                        clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP));
+    }
+
+    private void createCertificateConfigMap(String namespace) {
+        KafkaType type = new KafkaType();
+        // wait for listeners to contain data
+        await().atMost(Duration.ofSeconds(60))
+                .pollInterval(Duration.ofMillis(200))
+                .until(
+                () -> ! type.getClient().inNamespace(Constants.KAFKA_DEFAULT_NAMESPACE).list().getItems().stream()
+                                        .map(Kafka::getStatus).map(KafkaStatus::getListeners)
+                                                .filter(Objects::nonNull).toList().isEmpty()
+        );
+
+        var cert = type.getClient().inNamespace(Constants.KAFKA_DEFAULT_NAMESPACE).list().getItems().stream()
+                .map(kafka -> kafka.getStatus().getListeners().stream().filter(listenerStatus -> listenerStatus.getName().contains("tls")))
+                .toList().get(0).map(listenerStatus -> listenerStatus.getCertificates().get(0)).toList();
+
+        resourceManager.createResourceFromBuilder(KroxyliciousConfigMapTemplates.getClusterCaConfigMap(namespace, Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT,
+                cert.get(0)));
     }
 
     /**
