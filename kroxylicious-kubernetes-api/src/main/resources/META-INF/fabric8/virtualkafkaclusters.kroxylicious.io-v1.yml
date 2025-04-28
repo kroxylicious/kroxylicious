@@ -118,7 +118,7 @@ spec:
                     The metadata.generation that was observed during the last reconciliation by the operator.
                   type: integer
                 conditions:
-                  # Mapped to Java type io.kroxylicious.kubernetes.api. io.kroxylicious.kubernetes.api.common.common.Condition
+                  # Mapped to Java type io.kroxylicious.kubernetes.api.common.Condition
                   type: array
                   items:
                     type: object
