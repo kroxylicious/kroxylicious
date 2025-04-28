@@ -220,3 +220,8 @@ spec:
                           The address (host and port) that a Kafka client would use make its initial connection to the
                           virtual cluster. This property will be absent if the address is not yet available.
                         type: string
+                      protocol:
+                        description: "Protocol specifies the network protocol this ingress expects to receive."
+                        type: string
+                        enum: [ "TCP", "TLS" ]
+

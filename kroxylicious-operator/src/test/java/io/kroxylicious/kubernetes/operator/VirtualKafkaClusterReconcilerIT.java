@@ -38,6 +38,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses.Protocol;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatusBuilder;
@@ -280,7 +281,7 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(cluster);
 
         // Then
-        assertBootstrapServerPopulated(clusterBar, ingress, "bar-cluster-ingress-d.%s.svc.cluster.local:9292");
+        assertClusterIngressStatusPopulated(clusterBar, ingress, "bar-cluster-ingress-d.%s.svc.cluster.local:9292", Protocol.TCP);
     }
 
     @Test
@@ -307,7 +308,7 @@ class VirtualKafkaClusterReconcilerIT {
         updateStatusObservedGeneration(testActor.create(ingress));
 
         // Then
-        assertBootstrapServerPopulated(clusterBar, ingress, "bar-cluster-ingress-d.%s.svc.cluster.local:9292");
+        assertClusterIngressStatusPopulated(clusterBar, ingress, "bar-cluster-ingress-d.%s.svc.cluster.local:9292", Protocol.TCP);
     }
 
     private VirtualKafkaCluster cluster(String clusterName, String proxyName, String ingressName, String serviceName, @Nullable String filterName) {
@@ -390,8 +391,8 @@ class VirtualKafkaClusterReconcilerIT {
         });
     }
 
-    private void assertBootstrapServerPopulated(VirtualKafkaCluster clusterBar, KafkaProxyIngress ingress, String expectedBootstrapServer) {
-        AWAIT.alias("ClusterStatusBootstrap").untilAsserted(() -> {
+    private void assertClusterIngressStatusPopulated(VirtualKafkaCluster clusterBar, KafkaProxyIngress ingress, String expectedBootstrapServer, Protocol protocol) {
+        AWAIT.alias("ClusterIngressStatus").untilAsserted(() -> {
             var vkc = testActor.resources(VirtualKafkaCluster.class)
                     .withName(ResourcesUtil.name(clusterBar)).get();
             var status = vkc.getStatus();
@@ -402,6 +403,7 @@ class VirtualKafkaClusterReconcilerIT {
                     .satisfies(i -> {
                         assertThat(i.getName()).isEqualTo(ResourcesUtil.name(ingress));
                         assertThat(i.getBootstrapServer()).isEqualTo(expectedBootstrapServer.formatted(extension.getNamespace()));
+                        assertThat(i.getProtocol()).isEqualTo(protocol);
                     });
         });
     }

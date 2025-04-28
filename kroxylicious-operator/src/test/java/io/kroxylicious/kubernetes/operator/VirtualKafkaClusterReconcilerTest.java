@@ -53,6 +53,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses.Protocol;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
@@ -567,7 +568,7 @@ class VirtualKafkaClusterReconcilerTest {
     }
 
     @Test
-    void shouldSetBootstrapForClusterIPIngress() {
+    void shouldSetIngressStatusForClusterIPIngress() {
         // given
         var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
 
@@ -595,6 +596,7 @@ class VirtualKafkaClusterReconcilerTest {
                         .satisfies(ingress -> {
                             assertThat(ingress.getName()).isEqualTo(INGRESS.getMetadata().getName());
                             assertThat(ingress.getBootstrapServer()).isEqualTo("foo-my-ingress.my-namespace.svc.cluster.local:9082");
+                            assertThat(ingress.getProtocol()).isEqualTo(Protocol.TCP);
                         }));
 
     }

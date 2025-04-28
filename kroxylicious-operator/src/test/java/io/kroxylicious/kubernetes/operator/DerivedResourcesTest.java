@@ -69,15 +69,8 @@ class DerivedResourcesTest {
 
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
 
-    public static KafkaProxy kafkaProxyFromFile(Path path) {
-        // TODO should validate against the CRD schema, because the DependentResource
-        // should never see an invalid resource in production
-        try {
-            return YAML_MAPPER.readValue(path.toFile(), KafkaProxy.class);
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+    private static <T extends HasMetadata> T resourceFromFile(Path path, Class<T> valueType) {
+        return resourcesFromFiles(Set.of(path), valueType).stream().findFirst().orElseThrow();
     }
 
     private static <T extends HasMetadata> List<T> resourcesFromFiles(Set<Path> paths, Class<T> valueType) {
@@ -208,7 +201,7 @@ class DerivedResourcesTest {
             var unusedFiles = TestFiles.childFilesMatching(testDir, "*");
             String inFileName = "in-KafkaProxy.yaml";
             Path input = testDir.resolve(inFileName);
-            KafkaProxy kafkaProxy = kafkaProxyFromFile(input);
+            KafkaProxy kafkaProxy = resourceFromFile(input, KafkaProxy.class);
             assertMinimalMetadata(kafkaProxy.getMetadata(), inFileName);
             List<VirtualKafkaCluster> virtualKafkaClusters = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-VirtualKafkaCluster-*"),
                     VirtualKafkaCluster.class);
