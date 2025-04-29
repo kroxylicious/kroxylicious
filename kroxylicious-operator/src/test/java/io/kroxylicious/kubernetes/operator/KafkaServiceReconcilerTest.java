@@ -32,7 +32,6 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
-import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
@@ -57,8 +56,6 @@ class KafkaServiceReconcilerTest {
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
 
     public static final long OBSERVED_GENERATION = 1345L;
-    KubernetesClient kubeClient;
-    KubernetesMockServer mockServer;
 
     // @formatter:off
     public static final KafkaService SERVICE = new KafkaServiceBuilder()
@@ -326,7 +323,7 @@ class KafkaServiceReconcilerTest {
                             .singleElement()
                             .isResolvedRefsFalse(
                                     Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
-                                    "spec.tls.certificateRef supports referents: secrets")));
+                                    "spec.tls.certificateRef: supports referents: secrets")));
         }
 
         // unsupported client cert in Secret, no trust

@@ -17,7 +17,8 @@ resource:
       name: barref
     filterRefs:
       - name: filter-one
-    ingressRefs:
-      - name: cluster-ip
+    ingresses:
+      - ingressRef:
+          name: cluster-ip
 expectFailureMessageToContain: |
   spec.proxyRef: Invalid value: "array"

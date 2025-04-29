@@ -23,11 +23,15 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.client.CustomResource;
+import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
-import io.kroxylicious.kubernetes.api.common.AnyLocalRef;
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
+import io.kroxylicious.kubernetes.api.common.CertificateRef;
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
@@ -38,6 +42,10 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.TrustAnchorRef;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 
 public class ResourcesUtil {
 
@@ -92,7 +100,7 @@ public class ResourcesUtil {
         return volumeName;
     }
 
-    static boolean isSecret(AnyLocalRef ref) {
+    static boolean isSecret(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "Secret".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
     }
@@ -341,5 +349,51 @@ public class ResourcesUtil {
         Long observedGeneration = observedGenerationFunc.apply(resource);
         Long generation = resource.getMetadata().getGeneration();
         return Objects.equals(generation, observedGeneration);
+    }
+
+    /**
+     * Checks the validity of the given {@link CertificateRef} which appears in the {@code resource}.
+     * Specifically, this checks if the reference refers to a Kubernetes Secret, if the Secret is
+     * of the right type and if the Secret actually exists. If any of those conditions are false, a
+     * condition is added to the resource and the modified resource returned. If the reference is
+     * valid, null is returned.
+     *
+     * @param resource resource
+     * @param context context
+     * @param secretEventSourceName event source name used to resolve the secret
+     * @param certRef certificate reference
+     * @param path path to the certificate reference within the resource
+     * @param statusFactory used to generate the condition.
+     * @return modified resource if the certificate references is invalid, or null otherwise.
+     * @param <T> custom resource type
+     */
+    @Nullable
+    public static <T extends CustomResource<?, ?>> T checkCertRef(T resource,
+                                                                  Context<T> context,
+                                                                  String secretEventSourceName,
+                                                                  CertificateRef certRef,
+                                                                  String path,
+                                                                  StatusFactory<T> statusFactory) {
+        if (isSecret(certRef)) {
+            Optional<Secret> secretOpt = context.getSecondaryResource(Secret.class, secretEventSourceName);
+            if (secretOpt.isEmpty()) {
+                return statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                        Condition.REASON_REFS_NOT_FOUND,
+                        path + ": referenced resource not found");
+            }
+            else {
+                if (!"kubernetes.io/tls".equals(secretOpt.get().getType())) {
+                    return statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                            Condition.REASON_INVALID_REFERENCED_RESOURCE,
+                            path + ": referenced secret should have 'type: kubernetes.io/tls'");
+                }
+            }
+        }
+        else {
+            return statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
+                    path + ": supports referents: secrets");
+        }
+        return null;
     }
 }

@@ -73,7 +73,7 @@ spec:
                     protocol:
                       description: "Protocol specifies the network protocol this ingress expects to receive."
                       type: string
-                      enum: ["TCP"]
+                      enum: ["TCP", "TLS"]
             status:
               type: object
               properties:

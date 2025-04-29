@@ -18,7 +18,6 @@
         <version>0.12.0-SNAPSHOT</version>
     </parent>
 
-    <groupId>io.kroxylicious</groupId>
     <artifactId>kroxylicious-kubernetes-api</artifactId>
     <version>0.12.0-SNAPSHOT</version>
     <name>CRD API</name>
@@ -165,12 +164,15 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TargetKafkaServiceRef>
                             io.kroxylicious.kubernetes.api.common.KafkaServiceRef
                         </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TargetKafkaServiceRef>
-                        <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefs>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.IngressRef>
                             io.kroxylicious.kubernetes.api.common.IngressRef
-                        </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefs>
+                        </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.IngressRef>
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.CertificateRef>
-                            io.kroxylicious.kubernetes.api.common.AnyLocalRef
+                            io.kroxylicious.kubernetes.api.common.CertificateRef
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.CertificateRef>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.tls.CertificateRef>
+                            io.kroxylicious.kubernetes.api.common.CertificateRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.tls.CertificateRef>
                         <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.FilterRefs>
                             io.kroxylicious.kubernetes.api.common.FilterRef
                         </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.FilterRefs>
@@ -199,8 +201,7 @@
                     <packageOverrides>
                         <!-- the default package name ($apiGroup.$apiVersion) doesn't work for us -->
                         <io.kroxylicious.v1alpha1>io.kroxylicious.kubernetes.api.v1alpha1</io.kroxylicious.v1alpha1>
-                        <io.kroxylicious.filter.v1alpha1>io.kroxylicious.kubernetes.filter.api.v1alpha1
-                        </io.kroxylicious.filter.v1alpha1>
+                        <io.kroxylicious.filter.v1alpha1>io.kroxylicious.kubernetes.filter.api.v1alpha1</io.kroxylicious.filter.v1alpha1>
                     </packageOverrides>
                 </configuration>
             </plugin>

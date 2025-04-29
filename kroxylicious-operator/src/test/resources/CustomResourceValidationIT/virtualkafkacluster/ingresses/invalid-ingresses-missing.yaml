@@ -19,4 +19,4 @@ resource:
     filterRefs:
       - name: filter-one
 expectFailureMessageToContain: |
-  spec.ingressRefs: Required value
+  spec.ingresses: Required value

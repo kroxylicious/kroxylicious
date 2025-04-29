@@ -18,12 +18,7 @@ resource:
       name: serviceName
     filterRefs:
       - name: filter-one
-    ingressRefs:
-      - name: "0aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
-               50aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
-               100aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
-               150aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
-               200aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\
-               aaaa"
+    ingresses:
+      - ingressRef: {}
 expectFailureMessageToContain: |
-  spec.ingressRefs[0].name: Too long
+  spec.ingresses[0].ingressRef.name: Required value

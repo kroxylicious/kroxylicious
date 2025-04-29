@@ -25,7 +25,6 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
-import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -37,7 +36,9 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatusBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses.Protocol;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatusBuilder;
@@ -121,7 +122,7 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
 
         // Then
-        assertClusterResolvedRefsFalse(clusterBar, VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND);
+        assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_REFS_NOT_FOUND);
 
         // And When
         testActor.create(kafkaProxy(PROXY_A));
@@ -140,7 +141,7 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, null));
 
         // Then
-        assertClusterResolvedRefsFalse(clusterBar, VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND);
+        assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_REFS_NOT_FOUND);
 
         // And When
         updateStatusObservedGeneration(testActor.create(kafkaService(SERVICE_H)));
@@ -160,7 +161,7 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(resource);
 
         // Then
-        assertClusterResolvedRefsFalse(clusterBar, VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND);
+        assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_REFS_NOT_FOUND);
 
         // And When
         updateStatusObservedGeneration(testActor.create(clusterIpIngress(INGRESS_D, PROXY_A)));
@@ -180,7 +181,7 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(cluster(CLUSTER_BAR, PROXY_A, INGRESS_D, SERVICE_H, FILTER_K));
 
         // Then
-        assertClusterResolvedRefsFalse(clusterBar, VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND);
+        assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_REFS_NOT_FOUND);
 
         // And When
         updateStatusObservedGeneration(testActor.create(filter(FILTER_K)));
@@ -203,7 +204,7 @@ class VirtualKafkaClusterReconcilerIT {
         testActor.delete((HasMetadata) proxy);
 
         // Then
-        assertClusterResolvedRefsFalse(clusterBar, VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND);
+        assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_REFS_NOT_FOUND);
     }
 
     @Test
@@ -220,7 +221,7 @@ class VirtualKafkaClusterReconcilerIT {
         testActor.delete(filter);
 
         // Then
-        assertClusterResolvedRefsFalse(clusterBar, VirtualKafkaClusterReconciler.REFERENCED_RESOURCES_NOT_FOUND);
+        assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_REFS_NOT_FOUND);
     }
 
     @Test
@@ -236,7 +237,7 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(resource);
 
         // Then
-        assertClusterResolvedRefsFalse(clusterBar, VirtualKafkaClusterReconciler.TRANSITIVELY_REFERENCED_RESOURCES_NOT_FOUND);
+        assertClusterResolvedRefsFalse(clusterBar, Condition.REASON_TRANSITIVE_REFS_NOT_FOUND);
 
         // And when
         updateStatusObservedGeneration(testActor.replace(clusterIpIngress(INGRESS_D, PROXY_A)));
@@ -280,7 +281,7 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(cluster);
 
         // Then
-        assertBootstrapServerPopulated(clusterBar, ingress, "bar-cluster-ingress-d.%s.svc.cluster.local:9292");
+        assertClusterIngressStatusPopulated(clusterBar, ingress, "bar-cluster-ingress-d.%s.svc.cluster.local:9292", Protocol.TCP);
     }
 
     @Test
@@ -307,7 +308,7 @@ class VirtualKafkaClusterReconcilerIT {
         updateStatusObservedGeneration(testActor.create(ingress));
 
         // Then
-        assertBootstrapServerPopulated(clusterBar, ingress, "bar-cluster-ingress-d.%s.svc.cluster.local:9292");
+        assertClusterIngressStatusPopulated(clusterBar, ingress, "bar-cluster-ingress-d.%s.svc.cluster.local:9292", Protocol.TCP);
     }
 
     private VirtualKafkaCluster cluster(String clusterName, String proxyName, String ingressName, String serviceName, @Nullable String filterName) {
@@ -315,6 +316,7 @@ class VirtualKafkaClusterReconcilerIT {
     }
 
     private VirtualKafkaCluster cluster(String clusterName, String proxyName, List<String> ingressNamees, String serviceName, @Nullable String filterName) {
+        var ingresses = ingressNamees.stream().map(name -> new IngressesBuilder().withNewIngressRef().withName(name).endIngressRef().build()).toList();
         // @formatter:off
         var specBuilder = new VirtualKafkaClusterBuilder()
                 .withNewMetadata()
@@ -324,7 +326,7 @@ class VirtualKafkaClusterReconcilerIT {
                 .withNewProxyRef()
                     .withName(proxyName)
                 .endProxyRef()
-                .addAllToIngressRefs(ingressNamees.stream().map(name -> new IngressRefBuilder().withName(name).build()).toList())
+                .addAllToIngresses(ingresses)
                 .withNewTargetKafkaServiceRef()
                     .withName(serviceName)
                 .endTargetKafkaServiceRef();
@@ -389,8 +391,8 @@ class VirtualKafkaClusterReconcilerIT {
         });
     }
 
-    private void assertBootstrapServerPopulated(VirtualKafkaCluster clusterBar, KafkaProxyIngress ingress, String expectedBootstrapServer) {
-        AWAIT.alias("ClusterStatusBootstrap").untilAsserted(() -> {
+    private void assertClusterIngressStatusPopulated(VirtualKafkaCluster clusterBar, KafkaProxyIngress ingress, String expectedBootstrapServer, Protocol protocol) {
+        AWAIT.alias("ClusterIngressStatus").untilAsserted(() -> {
             var vkc = testActor.resources(VirtualKafkaCluster.class)
                     .withName(ResourcesUtil.name(clusterBar)).get();
             var status = vkc.getStatus();
@@ -401,6 +403,7 @@ class VirtualKafkaClusterReconcilerIT {
                     .satisfies(i -> {
                         assertThat(i.getName()).isEqualTo(ResourcesUtil.name(ingress));
                         assertThat(i.getBootstrapServer()).isEqualTo(expectedBootstrapServer.formatted(extension.getNamespace()));
+                        assertThat(i.getProtocol()).isEqualTo(protocol);
                     });
         });
     }

@@ -60,7 +60,7 @@ spec:
               type: object
             spec:
               type: object
-              required: ["proxyRef", "targetKafkaServiceRef", "ingressRefs"]
+              required: ["proxyRef", "targetKafkaServiceRef", "ingresses"]
               properties:
                 proxyRef:
                   type: object
@@ -84,21 +84,57 @@ spec:
                       maxLength: 253
                       minLength: 1
                       type: string
-                ingressRefs:
+                ingresses:
                   type: array
                   minItems: 1
                   description: -|
-                    IngressRefs specifies an array of references to KafkaProxyIngresses. It must contain at
-                    least one element.
+                    The ingresses of this virtual kafka cluster.
+                    It must contain at least one element.
                   items:
                     type: object
-                    required: [ "name" ]
+                    required: [ "ingressRef" ]
                     properties:
-                      name:
-                        description: Name is the name of the referent
-                        maxLength: 253
-                        minLength: 1
-                        type: string
+                      ingressRef:
+                        description: A reference to a KafkaProxyIngresses.
+                        type: object
+                        required: [ "name" ]
+                        properties:
+                          name:
+                            description: -|
+                                The name of the KafkaProxyIngresses.
+                            maxLength: 253
+                            minLength: 1
+                            type: string
+                      tls:
+                        description: |
+                          TLS is the TLS configuration for the Ingress. This object is required if the spec.clusterIP.protocol
+                          property of the KafkaProxyIngresses is "TLS". It is invalid to set this field if the spec.clusterIP.protocol
+                          property of the KafkaProxyIngresses is "TCP".
+                        required: [ "certificateRef" ]
+                        type: object
+                        properties:
+                          certificateRef:
+                            description: |
+                              A reference to a resource holding the TLS server certificate. 
+
+                              When the resource is of `kind: Secret` it is expected to have `type: kubernetes.io/tls` with 
+                              keys `tls.key` and `tls.crt`. See https://kubernetes.io/docs/concepts/configuration/secret/#tls-secrets.
+                            type: object
+                            required: [ "name" ]
+                            properties:
+                              kind:
+                                description: The API kind of the resource containing the TLS server certificate.
+                                type: string
+                                default: Secret
+                              group:
+                                description: The API group of the resource containing the TLS server certificate.
+                                type: string
+                                default: ""
+                              name:
+                                description: The name of the resource containing the TLS server certificate.
+                                type: string
+                                minLength: 1
+                                maxLength: 253
                 filterRefs:
                   description: The filters to be used for this cluster. Each filter is a separate resource.
                   type: array
@@ -184,3 +220,8 @@ spec:
                           The address (host and port) that a Kafka client would use make its initial connection to the
                           virtual cluster. This property will be absent if the address is not yet available.
                         type: string
+                      protocol:
+                        description: "Protocol specifies the network protocol this ingress expects to receive."
+                        type: string
+                        enum: [ "TCP", "TLS" ]
+

@@ -33,6 +33,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
+import io.kroxylicious.kubernetes.operator.KafkaProxyReconciler;
+import io.kroxylicious.kubernetes.operator.model.ingress.ClusterIPIngressDefinition.ClusterIPIngressInstance;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
@@ -50,10 +52,31 @@ class ClusterIPIngressDefinitionTest {
     public static final String CLUSTER_NAME = "my-cluster";
     public static final String PROXY_NAME = "my-proxy";
     public static final String NAMESPACE = "my-namespace";
-    private static final KafkaProxyIngress INGRESS = new KafkaProxyIngressBuilder().withNewMetadata().withName(INGRESS_NAME).withNamespace(NAMESPACE).endMetadata()
+
+    // @formatter:off
+    private static final KafkaProxyIngress INGRESS = new KafkaProxyIngressBuilder()
+            .withNewMetadata()
+                .withName(INGRESS_NAME)
+                .withNamespace(NAMESPACE)
+            .endMetadata()
             .build();
-    private static final VirtualKafkaCluster VIRTUAL_KAFKA_CLUSTER = new VirtualKafkaClusterBuilder().withNewMetadata().withName(CLUSTER_NAME).withNamespace(
-            NAMESPACE).endMetadata().build();
+    // @formatter:on
+
+    // @formatter:off
+    private static final VirtualKafkaCluster VIRTUAL_KAFKA_CLUSTER = new VirtualKafkaClusterBuilder()
+            .withNewMetadata()
+                .withName(CLUSTER_NAME)
+                .withNamespace(NAMESPACE)
+            .endMetadata()
+            .withNewSpec()
+                .addNewIngress()
+                    .withNewIngressRef()
+                        .withName(INGRESS_NAME)
+                    .endIngressRef()
+                .endIngress()
+            .endSpec()
+            .build();
+    // @formatter:on
     public static final String PROXY_UID = "my-proxy-uid";
     public static final KafkaProxy PROXY = new KafkaProxyBuilder().withNewMetadata().withName(PROXY_NAME).withUid(PROXY_UID).withNamespace(NAMESPACE).endMetadata()
             .build();
@@ -110,11 +133,11 @@ class ClusterIPIngressDefinitionTest {
         ClusterIPIngressDefinition definition = new ClusterIPIngressDefinition(INGRESS, VIRTUAL_KAFKA_CLUSTER, PROXY,
                 List.of(createNodeIdRange(rangeName, rangeStart, rangeEnd)));
         // 3 ports for the nodeId range + 1 for bootstrap
-        IngressInstance instance = definition.createInstance(1, 4);
+        ClusterIPIngressInstance instance = definition.createInstance(1, 4);
         assertThat(instance).isNotNull();
 
         // when
-        VirtualClusterGateway gateway = instance.gatewayConfig();
+        VirtualClusterGateway gateway = KafkaProxyReconciler.buildVirtualClusterGateway(instance).fragment();
 
         // then
         assertThat(gateway).isNotNull();
@@ -263,11 +286,11 @@ class ClusterIPIngressDefinitionTest {
         ClusterIPIngressDefinition definition = new ClusterIPIngressDefinition(INGRESS, VIRTUAL_KAFKA_CLUSTER, PROXY,
                 List.of(createNodeIdRange(null, rangeStart, rangeEnd), createNodeIdRange(null, rangeStart2, rangeEnd2)));
         // 5 ports for the nodeId ranges + 1 for bootstrap
-        IngressInstance instance = definition.createInstance(2, 7);
+        ClusterIPIngressInstance instance = definition.createInstance(2, 7);
         assertThat(instance).isNotNull();
 
         // when
-        VirtualClusterGateway gateway = instance.gatewayConfig();
+        VirtualClusterGateway gateway = KafkaProxyReconciler.buildVirtualClusterGateway(instance).fragment();
 
         // then
         assertThat(gateway).isNotNull();
@@ -298,11 +321,11 @@ class ClusterIPIngressDefinitionTest {
         ClusterIPIngressDefinition definition = new ClusterIPIngressDefinition(INGRESS, VIRTUAL_KAFKA_CLUSTER, PROXY,
                 List.of(createNodeIdRange(rangeName, rangeStart, rangeEnd), createNodeIdRange(rangeName2, rangeStart2, rangeEnd2)));
         // 5 ports for the nodeId ranges + 1 for bootstrap
-        IngressInstance instance = definition.createInstance(2, 7);
+        ClusterIPIngressInstance instance = (ClusterIPIngressInstance) definition.createInstance(2, 7);
         assertThat(instance).isNotNull();
 
         // when
-        VirtualClusterGateway gateway = instance.gatewayConfig();
+        VirtualClusterGateway gateway = KafkaProxyReconciler.buildVirtualClusterGateway(instance).fragment();
 
         // then
         assertThat(gateway).isNotNull();
