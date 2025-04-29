@@ -27,6 +27,7 @@ import org.awaitility.core.TimeoutEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Namespace;
 import io.fabric8.kubernetes.api.model.Node;
 import io.fabric8.kubernetes.api.model.NodeAddress;
@@ -38,6 +39,7 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePort;
+import io.fabric8.kubernetes.client.dsl.ListVisitFromServerGetDeleteRecreateWaitApplicable;
 import io.fabric8.openshift.api.model.Route;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.skodjob.testframe.utils.TestFrameUtils;
@@ -290,9 +292,17 @@ public class DeploymentUtils {
             }
             else {
                 try {
-                    kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath()))
-                            .inNamespace(namespaceName)
-                            .create();
+                    ListVisitFromServerGetDeleteRecreateWaitApplicable<HasMetadata> resource = kubeClient().getClient()
+                            .load(new FileInputStream(operatorFile.getAbsolutePath()))
+                            .inNamespace(namespaceName);
+                    List<HasMetadata> existing = resource.get();
+                    if (existing == null || existing.isEmpty()) {
+                        resource.create();
+                    }
+                    else {
+                        resource.serverSideApply();
+                    }
+
                 }
                 catch (FileNotFoundException e) {
                     throw new UncheckedIOException(e);

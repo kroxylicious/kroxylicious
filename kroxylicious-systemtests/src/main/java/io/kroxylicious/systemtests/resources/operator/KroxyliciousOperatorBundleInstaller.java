@@ -150,7 +150,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .endSpec()
                 .build();
 
-        KubeResourceManager.get().createResourceWithWait(operatorDeployment);
+        KubeResourceManager.get().createOrUpdateResourceWithWait(operatorDeployment);
     }
 
     /**
@@ -167,7 +167,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .toList();
         for (File crdFile : crdFiles) {
             CustomResourceDefinition customResourceDefinition = TestFrameUtils.configFromYaml(crdFile, CustomResourceDefinition.class);
-            KubeResourceManager.get().createResourceWithWait(customResourceDefinition);
+            KubeResourceManager.get().createOrUpdateResourceWithWait(customResourceDefinition);
         }
     }
 

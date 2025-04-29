@@ -11,21 +11,19 @@ import java.util.List;
 import org.awaitility.Awaitility;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.skodjob.testframe.resources.KubeResourceManager;
-import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.k8s.KubeClient;
-import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
-import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,7 +43,6 @@ class OperatorChangeDetectionST extends AbstractST {
     @Test
     void shouldRolloutPodsWhenKafkaProxyIngressChanges(String namespace) {
         // Given
-        Kroxylicious kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortIdentifiesNodeWithNoFilters(kafkaClusterName);
 
         KubeClient kubeClient = kubeClient(namespace);
@@ -66,9 +63,14 @@ class OperatorChangeDetectionST extends AbstractST {
         Awaitility.await().untilAsserted(() -> {
             List<Pod> currentProxyPods = kubeClient.listPods(namespace, "app.kubernetes.io/name", "kroxylicious-proxy");
             assertThat(currentProxyPods).singleElement().isNotEqualTo(originalPod);
-            OperatorAssertions.assertThat(currentProxyPods.getFirst())
-                    .hasAnnotationSatisfying("kroxylicious.io/referent-checksum", value  -> assertThat(value).isNotBlank());
+            OperatorAssertions.assertThat(currentProxyPods.get(0))
+                    .hasAnnotationSatisfying("kroxylicious.io/referent-checksum", value -> assertThat(value).isNotBlank());
         });
+    }
+
+    @BeforeEach
+    void setUp(String namespace) {
+        kroxylicious = new Kroxylicious(namespace);
     }
 
     @AfterAll
@@ -81,19 +83,19 @@ class OperatorChangeDetectionST extends AbstractST {
      */
     @BeforeAll
     void setupBefore() {
-         List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, kafkaClusterName);
-         if (!kafkaPods.isEmpty()) {
-         LOGGER.atInfo().setMessage("Skipping kafka deployment. It is already deployed!").log();
-         }
-         else {
-         LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
-
-         KafkaBuilder kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, kafkaClusterName, 3);
-
-         resourceManager.createResourceFromBuilderWithWait(
-         KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka.build(), 3),
-         kafka);
-         }
+ //        List<Pod> kafkaPods = kubeClient().listPodsByPrefixInName(Constants.KAFKA_DEFAULT_NAMESPACE, kafkaClusterName);
+ //        if (!kafkaPods.isEmpty()) {
+//            LOGGER.atInfo().setMessage("Skipping kafka deployment. It is already deployed!").log();
+//        }
+ //        else {
+//            LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
+//
+//            KafkaBuilder kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, kafkaClusterName, 3);
+//
+//            resourceManager.createResourceFromBuilderWithWait(
+//                    KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka.build(), 3),
+//                    kafka);
+//        }
 
         kroxyliciousOperator = new KroxyliciousOperator(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE);
         kroxyliciousOperator.deploy();
