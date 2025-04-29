@@ -110,10 +110,9 @@ public class Kroxylicious {
         await().atMost(Duration.ofSeconds(60))
                 .pollInterval(Duration.ofMillis(200))
                 .until(
-                () -> ! type.getClient().inNamespace(Constants.KAFKA_DEFAULT_NAMESPACE).list().getItems().stream()
-                                        .map(Kafka::getStatus).map(KafkaStatus::getListeners)
-                                                .filter(Objects::nonNull).toList().isEmpty()
-        );
+                        () -> !type.getClient().inNamespace(Constants.KAFKA_DEFAULT_NAMESPACE).list().getItems().stream()
+                                .map(Kafka::getStatus).map(KafkaStatus::getListeners)
+                                .filter(Objects::nonNull).toList().isEmpty());
 
         var cert = type.getClient().inNamespace(Constants.KAFKA_DEFAULT_NAMESPACE).list().getItems().stream()
                 .map(kafka -> kafka.getStatus().getListeners().stream().filter(listenerStatus -> listenerStatus.getName().contains("tls")))
