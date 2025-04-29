@@ -21,6 +21,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 
+@SuppressWarnings("UnusedReturnValue")
 public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condition> {
     protected ConditionAssert(
                               Condition o) {

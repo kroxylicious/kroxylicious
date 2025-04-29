@@ -53,7 +53,7 @@ spec:
               required: ["proxyRef", "clusterIP"]
               properties:
                 proxyRef:
-                  # Mapped to Java type io.kroxylicious.kubernetes.api.common.ProxyRef
+                  # Mapped to Java type io.kroxylicious.kubernetes.api. io.kroxylicious.kubernetes.api.common.common.ProxyRef
                   type: object
                   description: "Specifies the KafkaProxy this ingress belongs to"
                   required: [ "name" ]

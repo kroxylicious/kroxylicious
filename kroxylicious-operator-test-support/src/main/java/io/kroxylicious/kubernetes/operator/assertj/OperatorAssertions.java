@@ -17,6 +17,11 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Clusters;
 import io.kroxylicious.proxy.config.Configuration;
 
 public class OperatorAssertions {
+
+    // Static factory should not be instantiated.
+    private OperatorAssertions() {
+    }
+
     public static final InstanceOfAssertFactory<?, ? extends ProxyConfigAssert> CONFIGURATION = new InstanceOfAssertFactory<>(Configuration.class,
             OperatorAssertions::assertThat);
 

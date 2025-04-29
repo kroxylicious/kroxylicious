@@ -19,15 +19,15 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 
-public abstract class AbstractStatusAssert<A, S extends AbstractStatusAssert<A, S>> extends AbstractObjectAssert<S, A> {
+abstract class AbstractStatusAssert<A, S extends AbstractStatusAssert<A, S>> extends AbstractObjectAssert<S, A> {
     private final Function<A, Long> observedGenerationAccessor;
     private final Function<A, List<Condition>> conditionsAccessor;
 
-    public AbstractStatusAssert(
-                                A actual,
-                                Class<S> selfType,
-                                Function<A, Long> observedGenerationAccessor,
-                                Function<A, List<Condition>> conditionsAccessor) {
+    AbstractStatusAssert(
+                         A actual,
+                         Class<S> selfType,
+                         Function<A, Long> observedGenerationAccessor,
+                         Function<A, List<Condition>> conditionsAccessor) {
         super(actual, selfType);
         this.observedGenerationAccessor = observedGenerationAccessor;
         this.conditionsAccessor = conditionsAccessor;
@@ -38,11 +38,13 @@ public abstract class AbstractStatusAssert<A, S extends AbstractStatusAssert<A, 
         return Assertions.assertThat(observedGenerationAccessor.apply(actual));
     }
 
+    @SuppressWarnings("unchecked")
     public S hasObservedGeneration(Long observedGeneration) {
         observedGeneration().isEqualTo(observedGeneration);
         return (S) this;
     }
 
+    @SuppressWarnings("unchecked")
     public S hasObservedGenerationInSyncWithMetadataOf(HasMetadata thing) {
         hasObservedGeneration(thing.getMetadata().getGeneration());
         return (S) this;

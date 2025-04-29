@@ -488,6 +488,8 @@
         <module>kroxylicious-runtime</module>
         <module>kroxylicious-filters</module>
         <module>kroxylicious-sample</module>
+        <module>kroxylicious-kubernetes-api</module>
+        <module>kroxylicious-operator-test-support</module>
         <module>kroxylicious-operator</module>
     </modules>
 

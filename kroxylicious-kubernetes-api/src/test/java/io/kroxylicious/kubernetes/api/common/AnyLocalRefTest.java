@@ -28,4 +28,16 @@ class AnyLocalRefTest {
         assertThat(secretRefFoo).isNotEqualTo(cmRefFoo);
     }
 
+    @Test
+    void shouldReturnBuilder() {
+        // Given
+        AnyLocalRefBuilder originalBuilder = new AnyLocalRefBuilder();
+        var fooRef = originalBuilder.withName("foo").withKind("ConfigMap").withGroup("").build();
+
+        // When
+        AnyLocalRefBuilder actualBuilder = fooRef.edit();
+
+        // Then
+        assertThat(actualBuilder).isNotNull().isNotSameAs(originalBuilder);
+    }
 }
