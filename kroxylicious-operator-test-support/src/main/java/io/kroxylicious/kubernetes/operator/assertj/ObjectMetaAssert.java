@@ -30,10 +30,21 @@ public class ObjectMetaAssert extends AbstractObjectAssert<ObjectMetaAssert, Obj
     }
 
     public MapAssert<String, String> hasAnnotations() {
+        return getAnnotationsAssert().isNotEmpty();
+    }
+
+    public void hasNoAnnotations() {
+        getAnnotationsAssert().isEmpty();
+    }
+
+    private MapAssert<String, String> getAnnotationsAssert() {
         return assertThat(actual)
                 .isNotNull()
                 .extracting(ObjectMeta::getAnnotations)
                 .asInstanceOf(InstanceOfAssertFactories.map(String.class, String.class));
     }
 
+    public MapAssert<String, String> doesNotHaveAnnotation(String annotationName) {
+        return getAnnotationsAssert().doesNotContainKey(annotationName);
+    }
 }
