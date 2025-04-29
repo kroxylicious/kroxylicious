@@ -9,7 +9,7 @@ include::_assets/attributes.adoc[]
 
 include::modules/con-about-{guide}-guide.adoc[leveloffset=+1]
 
-include::assemblies/assembly-overview.adoc[leveloffset=+1]
+include::assemblies/assembly-proxy-overview.adoc[leveloffset=+1]
 
 include::modules/con-api-compatability-{guide}.adoc[leveloffset=+2]
 

@@ -59,8 +59,15 @@ public class VirtualKafkaClusterStatusFactory extends StatusFactory<VirtualKafka
 
     @Override
     VirtualKafkaCluster newTrueConditionStatusPatch(VirtualKafkaCluster observedProxy,
-                                                    Condition.Type type) {
+                                                    Condition.Type type, String checksum) {
         Condition trueCondition = newTrueCondition(observedProxy, type);
         return clusterStatusPatch(observedProxy, ResourceState.of(trueCondition), List.of());
+    }
+
+    @SuppressWarnings("removal")
+    @Override
+    VirtualKafkaCluster newTrueConditionStatusPatch(VirtualKafkaCluster observedProxy,
+                                                    Condition.Type type) {
+        return newTrueConditionStatusPatch(observedProxy, type, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
     }
 }

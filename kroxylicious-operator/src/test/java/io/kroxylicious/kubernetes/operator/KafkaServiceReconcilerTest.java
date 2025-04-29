@@ -43,7 +43,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
-import io.kroxylicious.kubernetes.operator.assertj.KafkaServiceStatusAssert;
+import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -152,7 +152,7 @@ class KafkaServiceReconcilerTest {
         // then
         assertThat(update).isNotNull();
         assertThat(update.getResource()).isPresent();
-        KafkaServiceStatusAssert.assertThat(update.getResource().get().getStatus())
+        OperatorAssertions.assertThat(update.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
                 .singleCondition()
                 .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
@@ -384,7 +384,7 @@ class KafkaServiceReconcilerTest {
         // Then
         assertThat(updateControl).isNotNull();
         assertThat(updateControl.getResource()).isPresent();
-        var c = KafkaServiceStatusAssert.assertThat(updateControl.getResource().get().getStatus())
+        var c = OperatorAssertions.assertThat(updateControl.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
                 .conditionList();
         asserter.accept(c);

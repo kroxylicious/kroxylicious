@@ -145,8 +145,8 @@ public final class Constants {
     /**
      * Basic paths to examples
      */
-    public static final String PATH_TO_OPERATOR = System.getProperty("user.dir") + "/../kroxylicious-operator";
-    public static final String PATH_TO_OPERATOR_INSTALL_FILES = PATH_TO_OPERATOR + "/install";
+    public static final String PATH_TO_CRDS = System.getProperty("user.dir") + "/../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8/";
+    public static final String PATH_TO_OPERATOR_INSTALL_FILES = System.getProperty("user.dir") + "/../kroxylicious-operator" + "/install";
 
     /**
      * Auxiliary variables for storing data across our tests

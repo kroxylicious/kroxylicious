@@ -70,5 +70,15 @@ public abstract class StatusFactory<R extends CustomResource<?, ?>> {
                                             String message);
 
     abstract R newTrueConditionStatusPatch(R observedProxy,
+                                           Condition.Type type,
+                                           String checksum);
+
+    /**
+     * Deprecated in favour of {@link StatusFactory#newTrueConditionStatusPatch(CustomResource, Condition.Type, String)}
+     *
+     * @deprecated
+     */
+    @Deprecated(forRemoval = true)
+    abstract R newTrueConditionStatusPatch(R observedProxy,
                                            Condition.Type type);
 }

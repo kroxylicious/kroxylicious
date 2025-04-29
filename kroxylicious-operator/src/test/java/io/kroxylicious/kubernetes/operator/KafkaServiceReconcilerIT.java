@@ -27,7 +27,7 @@ import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
-import io.kroxylicious.kubernetes.operator.assertj.KafkaServiceStatusAssert;
+import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -238,7 +238,7 @@ class KafkaServiceReconcilerIT {
             var kafkaService = testActor.resources(KafkaService.class)
                     .withName(ResourcesUtil.name(cr)).get();
             Assertions.assertThat(kafkaService.getStatus()).isNotNull();
-            KafkaServiceStatusAssert
+            OperatorAssertions
                     .assertThat(kafkaService.getStatus())
                     .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
                     .singleCondition()

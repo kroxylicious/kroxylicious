@@ -1,0 +1,17 @@
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+[id='assembly-configuring-virtualkafkaclusters-{context}']
+= Configuring virtual clusters
+
+[role="_abstract"]
+A `VirtualKafkaCluster` resource defines a logical Kafka cluster that is accessible to clients over the network.
+
+The virtual cluster references the following:
+
+* A `KafkaProxy` resource that the proxy is associated with.
+* One or more `KafkaProxyIngress` resources that expose the virtual cluster to Kafka clients.
+* A `KafkaService` resource that defined the backend Kafka cluster.
+* Zero or more `KafkaProtocolFilter` resources that apply filters to the Kafka protocol traffic passing between clients and the backend Kafka cluster.
+

@@ -1,6 +1,6 @@
 // Module included in the following:
 //
-// assembly-overview.adoc
+// assembly-proxy-overview.adoc
 
 [id='con-api-compatibility{context}']
 = Compatibility
