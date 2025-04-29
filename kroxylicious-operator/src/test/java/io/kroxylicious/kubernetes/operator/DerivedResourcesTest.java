@@ -17,7 +17,6 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -78,7 +77,9 @@ class DerivedResourcesTest {
         // should never see an invalid resource in production
         List<T> resources = paths.stream().map(Path::toFile).map(file -> {
             try {
-                return YAML_MAPPER.readValue(file, valueType);
+                T resource = YAML_MAPPER.readValue(file, valueType);
+                assertMinimalMetadata(resource.getMetadata(), file.toPath().toString());
+                return resource;
             }
             catch (IOException e) {
                 throw new UncheckedIOException("Error reading " + file, e);
@@ -199,10 +200,8 @@ class DerivedResourcesTest {
             throws IOException {
         try {
             var unusedFiles = TestFiles.childFilesMatching(testDir, "*");
-            String inFileName = "in-KafkaProxy.yaml";
-            Path input = testDir.resolve(inFileName);
+            Path input = testDir.resolve("in-KafkaProxy.yaml");
             KafkaProxy kafkaProxy = resourceFromFile(input, KafkaProxy.class);
-            assertMinimalMetadata(kafkaProxy.getMetadata(), inFileName);
             List<VirtualKafkaCluster> virtualKafkaClusters = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-VirtualKafkaCluster-*"),
                     VirtualKafkaCluster.class);
             List<KafkaService> kafkaServiceRefs = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-KafkaService-*"), KafkaService.class);
@@ -298,15 +297,9 @@ class DerivedResourcesTest {
         var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext(null, null, context);
         doReturn(resourceContext).when(context).managedWorkflowAndDependentResourceContext();
 
-        Set<KafkaProtocolFilter> filterInstances = new HashSet<>();
-        String fileName = "in-" + HasMetadata.getKind(KafkaProtocolFilter.class) + "-*.yaml";
-        try (var dirStream = Files.newDirectoryStream(testDir, fileName)) {
-            for (Path p : dirStream) {
-                KafkaProtocolFilter resource = YAML_MAPPER.readValue(p.toFile(), KafkaProtocolFilter.class);
-                assertMinimalMetadata(resource.getMetadata(), fileName);
-                filterInstances.add(resource);
-            }
-        }
+        Set<KafkaProtocolFilter> filterInstances = Set.copyOf(resourcesFromFiles(TestFiles.childFilesMatching(testDir,
+                "in-" + HasMetadata.getKind(KafkaProtocolFilter.class) + "-*.yaml"), KafkaProtocolFilter.class));
+
         doReturn(filterInstances).when(context).getSecondaryResources(KafkaProtocolFilter.class);
         doReturn(Set.copyOf(virtualKafkaClusters)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
         doReturn(Set.copyOf(kafkaServiceRefs)).when(context).getSecondaryResources(KafkaService.class);
