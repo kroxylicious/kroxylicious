@@ -9,9 +9,12 @@ package io.kroxylicious.proxy.filter.oauthbearer;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -43,9 +46,14 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
 
     private final OAuthBearerValidatorCallbackHandler oauthHandler;
 
+    @VisibleForTesting
+    static final String ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG = "org.apache.kafka.sasl.oauthbearer.allowed.urls";
+
     static {
         OAuthBearerSaslServerProvider.initialize();
     }
+
+    private final Deque<Runnable> oauthSystemPropertyCleanupTasks = new ConcurrentLinkedDeque<>();
 
     @SuppressWarnings("unused")
     public OauthBearerValidation() {
@@ -61,6 +69,7 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
     @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
     public SharedOauthBearerValidationContext initialize(FilterFactoryContext context, Config config) throws PluginConfigurationException {
         Plugins.requireConfig(this, config);
+        setAllowedSaslOauthbearerSysPropIfNecessary(config.jwksEndpointUrl().toString());
         Config configWithDefaults = initConfigWithDefaults(config);
         oauthHandler.configure(
                 createSaslConfigMap(configWithDefaults),
@@ -75,6 +84,27 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
         return new SharedOauthBearerValidationContext(configWithDefaults, backoffStrategy, rateLimiter, oauthHandler);
     }
 
+    private void setAllowedSaslOauthbearerSysPropIfNecessary(String jwkUrl) {
+        var current = Optional.ofNullable(System.getProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG));
+        if (current.isEmpty()) {
+            this.oauthSystemPropertyCleanupTasks.push(() -> System.clearProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG));
+        }
+
+        var value = new StringBuilder();
+        current.ifPresent(value::append);
+        if (!value.toString().contains(jwkUrl)) {
+            String appendage = "," + jwkUrl;
+            value.append(appendage);
+            System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, value.toString());
+            this.oauthSystemPropertyCleanupTasks.push(() -> {
+                var now = System.getProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG);
+                if (now != null) {
+                    System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, now.replace(appendage, ""));
+                }
+            });
+        }
+    }
+
     @NonNull
     @Override
     public OauthBearerValidationFilter createFilter(FilterFactoryContext context, SharedOauthBearerValidationContext sharedContext) {
@@ -84,6 +114,10 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
     @Override
     public void close(SharedOauthBearerValidationContext sharedContext) {
         oauthHandler.close();
+        while (!oauthSystemPropertyCleanupTasks.isEmpty()) {
+            oauthSystemPropertyCleanupTasks.pop().run();
+        }
+
     }
 
     public record Config(
