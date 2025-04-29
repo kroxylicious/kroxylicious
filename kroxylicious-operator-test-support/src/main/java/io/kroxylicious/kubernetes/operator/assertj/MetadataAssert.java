@@ -27,12 +27,12 @@ public class MetadataAssert<T extends HasMetadata> extends AbstractObjectAssert<
         return assertHasObjectMeta().hasAnnotationSatisfying(annotationName, expectedValueConsumer);
     }
 
-    public MapAssert<String, String> assertHasAnnotations() {
-        return assertHasObjectMeta().assertAnnotations();
+    public MapAssert<String, String> hasAnnotations() {
+        return assertHasObjectMeta().hasAnnotations().isNotEmpty();
     }
 
-    private ObjectMetaAssert assertHasObjectMeta() {
+    public ObjectMetaAssert assertHasObjectMeta() {
         assertThat(actual).isNotNull();
-        return ObjectMetaAssert.assertThat(actual.getMetadata());
+        return ObjectMetaAssert.assertThat(actual.getMetadata()).isNotNull();
     }
 }

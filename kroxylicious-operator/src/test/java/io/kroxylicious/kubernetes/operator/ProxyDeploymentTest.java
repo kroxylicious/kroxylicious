@@ -125,7 +125,7 @@ class ProxyDeploymentTest {
 
         // Then
         OperatorAssertions.assertThat(actual.getSpec().getTemplate().getMetadata())
-                .assertAnnotations()
+                .hasAnnotations()
                 .doesNotContainKey(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION);
 
     }

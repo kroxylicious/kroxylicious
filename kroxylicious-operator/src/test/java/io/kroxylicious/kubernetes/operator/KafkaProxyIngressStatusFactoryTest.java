@@ -69,7 +69,7 @@ class KafkaProxyIngressStatusFactoryTest {
 
         // Then
         assertThat(kafkaProxyIngress)
-                .assertHasAnnotations()
+                .hasAnnotations()
                 .doesNotContainKey("kroxylicious.io/referent-checksum");
     }
 }
