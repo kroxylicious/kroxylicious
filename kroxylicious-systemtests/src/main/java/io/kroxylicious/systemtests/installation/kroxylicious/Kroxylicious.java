@@ -8,7 +8,6 @@ package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 
 import org.slf4j.Logger;
@@ -16,6 +15,7 @@ import org.slf4j.LoggerFactory;
 
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaStatus;
+import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
@@ -106,17 +106,27 @@ public class Kroxylicious {
 
     private void createCertificateConfigMap(String namespace) {
         KafkaType type = new KafkaType();
+
         // wait for listeners to contain data
-        await().atMost(Duration.ofSeconds(60))
+        var tlsListenerStatus = await().atMost(Duration.ofSeconds(60))
                 .pollInterval(Duration.ofMillis(200))
                 .until(
-                        () -> !type.getClient().inNamespace(Constants.KAFKA_DEFAULT_NAMESPACE).list().getItems().stream()
-                                .map(Kafka::getStatus).map(KafkaStatus::getListeners)
-                                .filter(Objects::nonNull).toList().isEmpty());
+                        () -> type.getClient().inNamespace(Constants.KAFKA_DEFAULT_NAMESPACE)
+                                .list()
+                                .getItems()
+                                .stream()
+                                .findFirst()
+                                .map(Kafka::getStatus)
+                                .map(KafkaStatus::getListeners)
+                                .stream()
+                                .flatMap(List::stream)
+                                .filter(listenerStatus -> listenerStatus.getName().contains("tls"))
+                                .findFirst(),
+                        Optional::isPresent);
 
-        var cert = type.getClient().inNamespace(Constants.KAFKA_DEFAULT_NAMESPACE).list().getItems().stream()
-                .map(kafka -> kafka.getStatus().getListeners().stream().filter(listenerStatus -> listenerStatus.getName().contains("tls")))
-                .toList().get(0).map(listenerStatus -> listenerStatus.getCertificates().get(0)).toList();
+        var cert = tlsListenerStatus.stream()
+                .map(ListenerStatus::getCertificates)
+                .findFirst().orElseThrow();
 
         resourceManager.createResourceFromBuilder(KroxyliciousConfigMapTemplates.getClusterCaConfigMap(namespace, Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT,
                 cert.get(0)));
