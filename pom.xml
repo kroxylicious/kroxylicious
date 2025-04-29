@@ -339,12 +339,6 @@
 
             <dependency>
                 <groupId>io.fabric8</groupId>
-                <artifactId>certmanager-client</artifactId>
-                <version>${kubernetes-client.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>io.fabric8</groupId>
                 <artifactId>openshift-client</artifactId>
                 <version>${kubernetes-client.version}</version>
             </dependency>
