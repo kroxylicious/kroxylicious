@@ -30,13 +30,13 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.skodjob.testframe.enums.InstallType;
 import io.skodjob.testframe.installation.InstallationMethod;
 import io.skodjob.testframe.resources.KubeResourceManager;
-import io.skodjob.testframe.utils.ImageUtils;
 import io.skodjob.testframe.utils.TestFrameUtils;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
+import io.kroxylicious.systemtests.utils.TestUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -138,7 +138,8 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .endMetadata()
                 .editSpec()
                 .editFirstContainer()
-                .withImage(ImageUtils.changeRegistryOrgAndTag(deploymentImage, Environment.KROXY_REGISTRY, Environment.KROXY_ORG, Environment.KROXY_TAG))
+                .withImage(TestUtils.changeRegistryOrgImageAndTag(deploymentImage, Environment.KROXY_REGISTRY,
+                        Environment.KROXY_ORG, Environment.KROXY_OPERATOR_IMAGE, Environment.KROXY_VERSION))
                 .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                 .endContainer()
                 .withImagePullSecrets(new LocalObjectReferenceBuilder()
