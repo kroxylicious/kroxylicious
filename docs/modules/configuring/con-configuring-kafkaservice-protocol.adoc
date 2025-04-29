@@ -1,5 +1,9 @@
+// file included in the following:
+//
+// kroxylicious-operator/assemblies/assembly-operator-secure-proxy-broker-connection.adoc
+
 [id='con-configuring-kafkaservice-protocol-{context}']
-= Controlling TLS versions
+= The proxy-to-cluster TLS version
 
 Some older versions of TLS (and SSL before it) are now considered insecure.
 They remain enabled by default in order to maximise interoperability between TLS clients and servers which only support older versions.

@@ -1,5 +1,9 @@
-[id='con-configuring-kafkaservice-auth-{context}']
-= Configuring TLS client authentication with the `KafkaService` resource
+// file included in the following:
+//
+// kroxylicious-operator/assemblies/assembly-operator-secure-proxy-broker-connection.adoc
+
+[id='con-tls-auth-to-kafka-cluster-{context}']
+= TLS authentication to a Kafka cluster
 
 You can use the `KafkaService` resource to configure the proxy to present a TLS client certificate to the proxied Kafka cluster, if the cluster implements mutual TLS authentication (mTLS).
 

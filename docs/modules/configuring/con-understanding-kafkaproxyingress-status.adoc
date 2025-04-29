@@ -1,0 +1,31 @@
+[id='con-understanding-kafkaproxyingress-status-{context}']
+= `KafkaProxyIngress` status
+
+== `ResolvedRefs` conditions
+
+When you create a `KafkaProxyIngress`, the operator will check whether a `KafkaProxy` corresponding to the `spec.proxyRef` exists.
+The operator will update the `status.conditions` with a `ResolvedRefs` condition accordingly.
+
+.Example `KafkaProxyIngress` status when the `KafkaProxy` named using `spec.proxyRef` exists.
+[source,yaml]
+----
+kind: KafkaProxyIngress
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: cluster-ip
+  namespace: my-proxy
+  generation: 12
+spec:
+  # ...
+status:
+  observedGeneration: 12 # <1>
+  conditions:
+    - type: ResolvedRefs # <2>
+      status: True # <3>
+      observedGeneration: 12
+----
+<1> Because the status's `observedGeneration` matches the `metadata.generation` we know that this status is up-to-date with respect to the `spec`.
+<2> The `ResolvedRefs` condition type is used for problems to do with the referenced resources.
+<3> In this case the `ResolvedRefs` condition has status `True`, meaning all the referenced resources exist.
+
+A `ResolveRefs` condition with `status: False` means the named `KafkaProxy` does not exist. In this case the condition will have a `reason` and `message` properties providing more detail about the problem.

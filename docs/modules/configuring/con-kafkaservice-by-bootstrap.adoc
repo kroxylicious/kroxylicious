@@ -1,7 +1,14 @@
-[id='con-configuring-kafkaservice-bootstrap-{context}']
-= Configuring the proxied Kafka cluster
+// file included in the following:
+//
+// kroxylicious-operator/assemblies/assembly-operator-deploy-a-proxy.adoc
 
-This example configures a `KafkaService` to connect to `kafka.example.com` on port 9092.
+[id='con-configuring-kafkaservice-bootstrap-{context}']
+= The proxied Kafka cluster
+
+A proxied Kafka cluster is configured in a `KafkaService` resource.
+The Kafka cluster may or may not be running in the same Kubernetes cluster as the proxy: Network connectivity is all that's required.
+
+This example shows a `KafkaService` declaring a Kafka cluster that can be connected to at `kafka.example.com` on port 9092.
 
 .Example `KafkaService` configuration.
 [source,yaml]
