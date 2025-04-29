@@ -32,7 +32,6 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.fabric8.kubernetes.client.server.mock.EnableKubernetesMockClient;
-import io.fabric8.kubernetes.client.server.mock.KubernetesMockServer;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
@@ -43,7 +42,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
-import io.kroxylicious.kubernetes.operator.assertj.KafkaServiceStatusAssert;
+import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -57,8 +56,6 @@ class KafkaServiceReconcilerTest {
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
 
     public static final long OBSERVED_GENERATION = 1345L;
-    KubernetesClient kubeClient;
-    KubernetesMockServer mockServer;
 
     // @formatter:off
     public static final KafkaService SERVICE = new KafkaServiceBuilder()
@@ -152,7 +149,7 @@ class KafkaServiceReconcilerTest {
         // then
         assertThat(update).isNotNull();
         assertThat(update.getResource()).isPresent();
-        KafkaServiceStatusAssert.assertThat(update.getResource().get().getStatus())
+        OperatorAssertions.assertThat(update.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
                 .singleCondition()
                 .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
@@ -326,7 +323,7 @@ class KafkaServiceReconcilerTest {
                             .singleElement()
                             .isResolvedRefsFalse(
                                     Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
-                                    "spec.tls.certificateRef supports referents: secrets")));
+                                    "spec.tls.certificateRef: supports referents: secrets")));
         }
 
         // unsupported client cert in Secret, no trust
@@ -384,7 +381,7 @@ class KafkaServiceReconcilerTest {
         // Then
         assertThat(updateControl).isNotNull();
         assertThat(updateControl.getResource()).isPresent();
-        var c = KafkaServiceStatusAssert.assertThat(updateControl.getResource().get().getStatus())
+        var c = OperatorAssertions.assertThat(updateControl.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(kafkaService)
                 .conditionList();
         asserter.accept(c);

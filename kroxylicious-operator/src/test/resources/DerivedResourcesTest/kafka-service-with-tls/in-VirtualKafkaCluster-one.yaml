@@ -16,8 +16,9 @@ spec:
     name: minimal
   targetKafkaServiceRef:
     name: kafka-with-tls
-  ingressRefs:
-    - name: cluster-ip
+  ingresses:
+    - ingressRef:
+        name: cluster-ip
   filterRefs:
     - name: filter-one
 status:

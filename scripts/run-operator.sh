@@ -62,7 +62,7 @@ for crd in $(kubectl get crds -oname | grep kroxylicious.io | awk -F / '{ print 
 done
 
 info "installing crds"
-kubectl apply -f src/main/resources/META-INF/fabric8
+kubectl apply -f ../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8
 info "installing kroxylicious-operator"
 cp install/* ${TMP_INSTALL_DIR}
 ${SED} -i "s|quay.io/kroxylicious/operator:latest|quay.io/kroxylicious/operator:${IMAGE_TAG}|g" ${TMP_INSTALL_DIR}/03.Deployment.kroxylicious-operator.yaml

@@ -19,7 +19,8 @@ resource:
       kind: []
     filterRefs:
       - name: filter-one
-    ingressRefs:
-      - name: cluster-ip
+    ingresses:
+      - ingressRef:
+          name: cluster-ip
 expectFailureMessageToContain: |
   spec.targetKafkaServiceRef.kind: Invalid value: "array"

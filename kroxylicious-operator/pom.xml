@@ -57,10 +57,28 @@
     </dependencyManagement>
 
     <dependencies>
+
+        <!-- project dependencies - runtime and compile -->
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kubernetes-api</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- project dependencies - test -->
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-operator-test-support</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- third party dependencies - runtime and compile -->
         <dependency>
             <groupId>io.javaoperatorsdk</groupId>
             <artifactId>operator-framework-core</artifactId>
         </dependency>
+
         <dependency>
             <groupId>io.javaoperatorsdk</groupId>
             <artifactId>micrometer-support</artifactId>
@@ -87,40 +105,13 @@
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
-            <artifactId>kubernetes-model-common</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-model-core</artifactId>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-model-apps</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.fabric8</groupId>
-            <artifactId>generator-annotations</artifactId>
-        </dependency>
 
-        <!-- extraAnnotations requires these additional dependencies -->
-        <dependency>
-            <groupId>io.sundr</groupId>
-            <artifactId>builder-annotations</artifactId>
-            <version>${sundrio.version}</version>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>${lombok.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <scope>compile</scope>
-        </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
@@ -168,12 +159,15 @@
             <artifactId>kroxylicious-runtime</artifactId>
             <scope>compile</scope>
         </dependency>
+
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
             <scope>compile</scope>
         </dependency>
 
+
+        <!-- third party dependencies - runtime and compile -->
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-core</artifactId>
@@ -195,6 +189,19 @@
         </dependency>
 
         <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <scope>compile</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- third party dependencies - test -->
+        <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <scope>test</scope>
@@ -213,16 +220,6 @@
             <groupId>io.javaoperatorsdk</groupId>
             <artifactId>operator-framework-junit-5</artifactId>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.dataformat</groupId>
-            <artifactId>jackson-dataformat-yaml</artifactId>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.awaitility</groupId>
@@ -295,103 +292,6 @@
                         </goals>
                     </execution>
                 </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-dependency-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>analyze</id>
-                        <goals>
-                            <goal>analyze-only</goal>
-                        </goals>
-                        <configuration>
-                            <ignoredUnusedDeclaredDependencies>
-                                <!-- generated CRD classes do actually use these, but the dependency plugin doesn't see that -->
-                                <ignoredUnusedDeclaredDependency>io.sundr:builder-annotations</ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>org.projectlombok:lombok</ignoredUnusedDeclaredDependency>
-                                <ignoredUnusedDeclaredDependency>io.fabric8:generator-annotations</ignoredUnusedDeclaredDependency>
-                            </ignoredUnusedDeclaredDependencies>
-                            <ignoredNonTestScopedDependencies>
-                                <ignoredNonTestScopedDependency>com.fasterxml.jackson.core:jackson-core</ignoredNonTestScopedDependency>
-                                <ignoredNonTestScopedDependency>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml</ignoredNonTestScopedDependency>
-                            </ignoredNonTestScopedDependencies>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <!-- Our CRDs are the source of truth for the Kube API; Java code is derived -->
-                <groupId>io.fabric8</groupId>
-                <artifactId>java-generator-maven-plugin</artifactId>
-                <version>${fabric8-client.version}</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>generate</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <!-- The LocallyRunOperatorExtension used in the tests depends on the
-                         CRDs being in this exact location.
-                         See https://github.com/operator-framework/java-operator-sdk/issues/2561
-                    -->
-                    <source>src/main/resources/META-INF/fabric8</source>
-                    <extraAnnotations>true</extraAnnotations>
-                    <existingJavaTypes>
-                        <!-- From the kubernetes API -->
-                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.PodTemplate>
-                            io.fabric8.kubernetes.api.model.PodTemplateSpec
-                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.PodTemplate>
-
-                        <!-- Common types used across our own CRDs -->
-                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ProxyRef>
-                            io.kroxylicious.kubernetes.api.common.ProxyRef
-                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ProxyRef>
-                        <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ProxyRef>
-                            io.kroxylicious.kubernetes.api.common.ProxyRef
-                        </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ProxyRef>
-                        <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TargetKafkaServiceRef>
-                            io.kroxylicious.kubernetes.api.common.KafkaServiceRef
-                        </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TargetKafkaServiceRef>
-                        <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefs>
-                            io.kroxylicious.kubernetes.api.common.IngressRef
-                        </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressRefs>
-                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.CertificateRef>
-                            io.kroxylicious.kubernetes.api.common.AnyLocalRef
-                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.CertificateRef>
-                        <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.FilterRefs>
-                            io.kroxylicious.kubernetes.api.common.FilterRef
-                        </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.FilterRefs>
-                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions>
-                            io.kroxylicious.kubernetes.api.common.Condition
-                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.Conditions>
-                        <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Conditions>
-                            io.kroxylicious.kubernetes.api.common.Condition
-                        </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Conditions>
-                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions>
-                            io.kroxylicious.kubernetes.api.common.Condition
-                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxystatus.clusters.Conditions>
-                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressstatus.Conditions>
-                            io.kroxylicious.kubernetes.api.common.Condition
-                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressstatus.Conditions>
-                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Conditions>
-                            io.kroxylicious.kubernetes.api.common.Condition
-                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicestatus.Conditions>
-                        <io.kroxylicious.kubernetes.filter.api.v1alpha1.kafkaprotocolfilterstatus.Conditions>
-                            io.kroxylicious.kubernetes.api.common.Condition
-                        </io.kroxylicious.kubernetes.filter.api.v1alpha1.kafkaprotocolfilterstatus.Conditions>
-                        <io.kroxylicious.kubernetes.filter.api.v1alpha1.kafkaprotocolfilterspec.ConfigTemplate>
-                            java.lang.Object
-                        </io.kroxylicious.kubernetes.filter.api.v1alpha1.kafkaprotocolfilterspec.ConfigTemplate>
-                    </existingJavaTypes>
-                    <packageOverrides>
-                        <!-- the default package name ($apiGroup.$apiVersion) doesn't work for us -->
-                        <io.kroxylicious.v1alpha1>io.kroxylicious.kubernetes.api.v1alpha1</io.kroxylicious.v1alpha1>
-                        <io.kroxylicious.filter.v1alpha1>io.kroxylicious.kubernetes.filter.api.v1alpha1</io.kroxylicious.filter.v1alpha1>
-                    </packageOverrides>
-                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>

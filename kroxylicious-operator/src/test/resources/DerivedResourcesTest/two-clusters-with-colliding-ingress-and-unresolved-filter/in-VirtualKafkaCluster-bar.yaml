@@ -16,7 +16,8 @@ spec:
     name: twocluster
   targetKafkaServiceRef:
     name: barref
-  ingressRefs:
-    - name: cluster-ip-bar
+  ingresses:
+    - ingressRef:
+        name: cluster-ip-bar
 status:
   observedGeneration: 1

@@ -17,7 +17,6 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -69,26 +68,21 @@ class DerivedResourcesTest {
 
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
 
-    public static KafkaProxy kafkaProxyFromFile(Path path) {
-        // TODO should validate against the CRD schema, because the DependentResource
-        // should never see an invalid resource in production
-        try {
-            return YAML_MAPPER.readValue(path.toFile(), KafkaProxy.class);
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+    private static <T extends HasMetadata> T resourceFromFile(Path path, Class<T> valueType) {
+        return resourcesFromFiles(Set.of(path), valueType).stream().findFirst().orElseThrow();
     }
 
     private static <T extends HasMetadata> List<T> resourcesFromFiles(Set<Path> paths, Class<T> valueType) {
         // TODO should validate against the CRD schema, because the DependentResource
         // should never see an invalid resource in production
-        List<T> resources = paths.stream().map(path -> {
+        List<T> resources = paths.stream().map(Path::toFile).map(file -> {
             try {
-                return YAML_MAPPER.readValue(path.toFile(), valueType);
+                T resource = YAML_MAPPER.readValue(file, valueType);
+                assertMinimalMetadata(resource.getMetadata(), file.toPath().toString());
+                return resource;
             }
             catch (IOException e) {
-                throw new UncheckedIOException(e);
+                throw new UncheckedIOException("Error reading " + file, e);
             }
         }).sorted(Comparator.comparing(ResourcesUtil::name)).toList();
         long uniqueResources = resources.stream().map(s -> namespace(s) + ":" + name(s)).distinct().count();
@@ -97,23 +91,6 @@ class DerivedResourcesTest {
                 .overridingErrorMessage("unexpected number of unique resources from files: %s", paths)
                 .isEqualTo(paths.size());
         return resources;
-    }
-
-    public static List<KafkaProxyIngress> kafkaProxyIngressesFromFiles(Set<Path> paths) {
-        // TODO should validate against the CRD schema, because the DependentResource
-        // should never see an invalid resource in production
-        List<KafkaProxyIngress> ingresses = paths.stream().map(path -> {
-            try {
-                return YAML_MAPPER.readValue(path.toFile(), KafkaProxyIngress.class);
-            }
-            catch (IOException e) {
-                throw new UncheckedIOException(e);
-            }
-        }).sorted(Comparator.comparing(ResourcesUtil::name)).toList();
-        long uniqueResources = ingresses.stream().map(ingress -> namespace(ingress) + ":" + name(ingress)).distinct().count();
-        // sanity check that the identifiers are unique
-        assertThat(uniqueResources).isEqualTo(paths.size());
-        return ingresses;
     }
 
     @FunctionalInterface
@@ -223,14 +200,12 @@ class DerivedResourcesTest {
             throws IOException {
         try {
             var unusedFiles = TestFiles.childFilesMatching(testDir, "*");
-            String inFileName = "in-KafkaProxy.yaml";
-            Path input = testDir.resolve(inFileName);
-            KafkaProxy kafkaProxy = kafkaProxyFromFile(input);
+            Path input = testDir.resolve("in-KafkaProxy.yaml");
+            KafkaProxy kafkaProxy = resourceFromFile(input, KafkaProxy.class);
             List<VirtualKafkaCluster> virtualKafkaClusters = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-VirtualKafkaCluster-*"),
                     VirtualKafkaCluster.class);
             List<KafkaService> kafkaServiceRefs = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-KafkaService-*"), KafkaService.class);
-            assertMinimalMetadata(kafkaProxy.getMetadata(), inFileName);
-            List<KafkaProxyIngress> ingresses = kafkaProxyIngressesFromFiles(TestFiles.childFilesMatching(testDir, "in-KafkaProxyIngress-*"));
+            List<KafkaProxyIngress> ingresses = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-KafkaProxyIngress-*"), KafkaProxyIngress.class);
 
             unusedFiles.remove(input);
             unusedFiles.removeAll(TestFiles.childFilesMatching(testDir, "in-*"));
@@ -322,15 +297,9 @@ class DerivedResourcesTest {
         var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext(null, null, context);
         doReturn(resourceContext).when(context).managedWorkflowAndDependentResourceContext();
 
-        Set<KafkaProtocolFilter> filterInstances = new HashSet<>();
-        String fileName = "in-" + HasMetadata.getKind(KafkaProtocolFilter.class) + "-*.yaml";
-        try (var dirStream = Files.newDirectoryStream(testDir, fileName)) {
-            for (Path p : dirStream) {
-                KafkaProtocolFilter resource = YAML_MAPPER.readValue(p.toFile(), KafkaProtocolFilter.class);
-                assertMinimalMetadata(resource.getMetadata(), fileName);
-                filterInstances.add(resource);
-            }
-        }
+        Set<KafkaProtocolFilter> filterInstances = Set.copyOf(resourcesFromFiles(TestFiles.childFilesMatching(testDir,
+                "in-" + HasMetadata.getKind(KafkaProtocolFilter.class) + "-*.yaml"), KafkaProtocolFilter.class));
+
         doReturn(filterInstances).when(context).getSecondaryResources(KafkaProtocolFilter.class);
         doReturn(Set.copyOf(virtualKafkaClusters)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
         doReturn(Set.copyOf(kafkaServiceRefs)).when(context).getSecondaryResources(KafkaService.class);

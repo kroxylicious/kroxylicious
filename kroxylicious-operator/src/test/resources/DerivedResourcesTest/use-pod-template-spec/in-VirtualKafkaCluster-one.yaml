@@ -16,7 +16,8 @@ spec:
     name: use-pod-template-spec
   targetKafkaServiceRef:
     name: myref
-  ingressRefs:
-    - name: cluster-ip
+  ingresses:
+    - ingressRef:
+        name: cluster-ip
 status:
   observedGeneration: 5

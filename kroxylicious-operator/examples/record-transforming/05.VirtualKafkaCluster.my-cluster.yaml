@@ -17,5 +17,6 @@ spec:
     name: my-cluster
   filterRefs:
     - name: transforming
-  ingressRefs:
-    - name: cluster-ip
+  ingresses:
+    - ingressRef:
+        name: cluster-ip

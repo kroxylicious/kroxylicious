@@ -145,7 +145,8 @@ public final class KafkaServiceReconciler implements
                     .map(KafkaServiceSpec::getTls)
                     .map(Tls::getCertificateRef);
             if (certRefOpt.isPresent()) {
-                updatedService = checkCertRef(service, context, certRefOpt.get());
+                String path = "spec.tls.certificateRef";
+                updatedService = ResourcesUtil.checkCertRef(service, context, SECRETS_EVENT_SOURCE_NAME, certRefOpt.get(), path, statusFactory);
             }
         }
 
@@ -198,34 +199,6 @@ public final class KafkaServiceReconciler implements
             return statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
                     Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
                     "spec.tls.trustAnchorRef supports referents: configmaps");
-        }
-        return null;
-    }
-
-    @Nullable
-    private KafkaService checkCertRef(KafkaService service,
-                                      Context<KafkaService> context,
-                                      AnyLocalRef certRef) {
-        String path = "spec.tls.certificateRef";
-        if (ResourcesUtil.isSecret(certRef)) {
-            Optional<Secret> secretOpt = context.getSecondaryResource(Secret.class, SECRETS_EVENT_SOURCE_NAME);
-            if (secretOpt.isEmpty()) {
-                return statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
-                        Condition.REASON_REFS_NOT_FOUND,
-                        path + ": referenced resource not found");
-            }
-            else {
-                if (!"kubernetes.io/tls".equals(secretOpt.get().getType())) {
-                    return statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
-                            Condition.REASON_INVALID_REFERENCED_RESOURCE,
-                            path + ": referenced secret should have 'type: kubernetes.io/tls'");
-                }
-            }
-        }
-        else {
-            return statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
-                    Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
-                    path + " supports referents: secrets");
         }
         return null;
     }
