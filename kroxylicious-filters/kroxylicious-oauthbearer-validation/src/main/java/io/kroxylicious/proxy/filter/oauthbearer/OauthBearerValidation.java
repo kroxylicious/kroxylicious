@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.filter.oauthbearer;
 
 import java.net.URI;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Deque;
 import java.util.HashMap;
@@ -85,23 +86,35 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
     }
 
     private void setAllowedSaslOauthbearerSysPropIfNecessary(String jwkUrl) {
-        var current = Optional.ofNullable(System.getProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG));
-        if (current.isEmpty()) {
-            this.oauthSystemPropertyCleanupTasks.push(() -> System.clearProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG));
-        }
-
-        var value = new StringBuilder();
-        current.ifPresent(value::append);
-        if (!value.toString().contains(jwkUrl)) {
-            String appendage = "," + jwkUrl;
-            value.append(appendage);
-            System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, value.toString());
+        var allowedUrls = parseAllowedSaslOauthBearerProperty();
+        if (!allowedUrls.contains(jwkUrl)) {
+            allowedUrls.add(jwkUrl);
+            setOrClearAllowedSaslOauthBearerProperty(allowedUrls);
             this.oauthSystemPropertyCleanupTasks.push(() -> {
-                var now = System.getProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG);
-                if (now != null) {
-                    System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, now.replace(appendage, ""));
-                }
+                var now = parseAllowedSaslOauthBearerProperty();
+                now.remove(jwkUrl);
+                setOrClearAllowedSaslOauthBearerProperty(now);
             });
+        }
+    }
+
+    @NonNull
+    private List<String> parseAllowedSaslOauthBearerProperty() {
+        String property = System.getProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG);
+        var allowedList = Optional.ofNullable(property)
+                .map(p -> Arrays.stream(p.split(","))
+                        .map(String::trim)
+                        .toList())
+                .orElse(List.of());
+        return new ArrayList<>(allowedList);
+    }
+
+    private void setOrClearAllowedSaslOauthBearerProperty(List<String> allowedUrls) {
+        if (allowedUrls.isEmpty()) {
+            System.clearProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG);
+        }
+        else {
+            System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, String.join(",", allowedUrls));
         }
     }
 
