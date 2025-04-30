@@ -19,6 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
@@ -306,10 +307,7 @@ public final class VirtualKafkaClusterReconciler implements
                 .withName(SERVICES_EVENT_SOURCE_NAME)
                 .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefAsResourceId(cluster,
                         cluster.getSpec().getTargetKafkaServiceRef()))
-                .withSecondaryToPrimaryMapper(service -> ResourcesUtil.findReferrers(context,
-                        service,
-                        VirtualKafkaCluster.class,
-                        cluster -> Optional.of(cluster.getSpec().getTargetKafkaServiceRef())))
+                .withSecondaryToPrimaryMapper(kafkaServiceSecondaryToPrimaryMapper(context))
                 .build();
 
         InformerEventSourceConfiguration<KafkaProxyIngress> clusterToIngresses = InformerEventSourceConfiguration.from(
@@ -321,10 +319,7 @@ public final class VirtualKafkaClusterReconciler implements
                                 .map(VirtualKafkaClusterSpec::getIngresses)
                                 .stream().flatMap(List::stream)
                                 .map(Ingresses::getIngressRef).toList()))
-                .withSecondaryToPrimaryMapper(ingress -> ResourcesUtil.findReferrersMulti(context,
-                        ingress,
-                        VirtualKafkaCluster.class,
-                        cluster -> cluster.getSpec().getIngresses().stream().map(Ingresses::getIngressRef).toList()))
+                .withSecondaryToPrimaryMapper(ingressSecondaryToPrimaryMapper(context))
                 .build();
 
         InformerEventSourceConfiguration<KafkaProtocolFilter> clusterToFilters = InformerEventSourceConfiguration.from(
@@ -333,10 +328,7 @@ public final class VirtualKafkaClusterReconciler implements
                 .withName(FILTERS_EVENT_SOURCE_NAME)
                 .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> ResourcesUtil.localRefsAsResourceIds(cluster,
                         Optional.ofNullable(cluster.getSpec()).map(VirtualKafkaClusterSpec::getFilterRefs).orElse(List.of())))
-                .withSecondaryToPrimaryMapper(filter -> ResourcesUtil.findReferrersMulti(context,
-                        filter,
-                        VirtualKafkaCluster.class,
-                        cluster -> cluster.getSpec().getFilterRefs()))
+                .withSecondaryToPrimaryMapper(filterSecondaryToPrimaryMapper(context))
                 .build();
 
         InformerEventSourceConfiguration<Service> clusterToKubeService = InformerEventSourceConfiguration.from(
@@ -392,6 +384,54 @@ public final class VirtualKafkaClusterReconciler implements
                 cluster -> cluster.getSpec().getIngresses().stream()
                         .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
                         .map(Tls::getCertificateRef).toList());
+    }
+
+    @VisibleForTesting
+    static SecondaryToPrimaryMapper<KafkaProtocolFilter> filterSecondaryToPrimaryMapper(EventSourceContext<VirtualKafkaCluster> context) {
+        return filter -> {
+            if (!ResourcesUtil.isStatusFresh(filter)) {
+                logIgnoredEvent(filter);
+                return Set.of();
+            }
+            return ResourcesUtil.findReferrersMulti(context,
+                    filter,
+                    VirtualKafkaCluster.class,
+                    cluster -> cluster.getSpec().getFilterRefs());
+        };
+    }
+
+    @VisibleForTesting
+    static SecondaryToPrimaryMapper<KafkaProxyIngress> ingressSecondaryToPrimaryMapper(EventSourceContext<VirtualKafkaCluster> context) {
+        return ingress -> {
+            if (!ResourcesUtil.isStatusFresh(ingress)) {
+                logIgnoredEvent(ingress);
+                return Set.of();
+            }
+            return ResourcesUtil.findReferrersMulti(context,
+                    ingress,
+                    VirtualKafkaCluster.class,
+                    cluster -> cluster.getSpec().getIngresses().stream().map(Ingresses::getIngressRef).toList());
+        };
+    }
+
+    @VisibleForTesting
+    static SecondaryToPrimaryMapper<KafkaService> kafkaServiceSecondaryToPrimaryMapper(EventSourceContext<VirtualKafkaCluster> context) {
+        return service -> {
+            if (!ResourcesUtil.isStatusFresh(service)) {
+                logIgnoredEvent(service);
+                return Set.of();
+            }
+            return ResourcesUtil.findReferrers(context,
+                    service,
+                    VirtualKafkaCluster.class,
+                    cluster -> Optional.of(cluster.getSpec().getTargetKafkaServiceRef()));
+        };
+    }
+
+    private static void logIgnoredEvent(HasMetadata hasMetadata) {
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Ignoring event from {} with stale status: {}", HasMetadata.getKind(hasMetadata.getClass()), ResourcesUtil.toLocalRef(hasMetadata));
+        }
     }
 
     @Override
