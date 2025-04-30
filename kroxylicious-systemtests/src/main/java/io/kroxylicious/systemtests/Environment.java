@@ -34,7 +34,7 @@ public class Environment {
      * Env. variables names
      */
     private static final String KAFKA_VERSION_ENV = "KAFKA_VERSION";
-    private static final String KROXY_OPERATOR_IMAGE_ENV = "KROXYLICIOUS_OPERATOR_IMAGE";
+    private static final String KROXY_OPERATOR_IMAGE_ENV = "KROXYLICIOUS_OPERATOR_IMAGE_NAME";
     private static final String KROXY_IMAGE_ENV = "KROXYLICIOUS_IMAGE_NAME";
     private static final String KROXY_ORG_ENV = "KROXYLICIOUS_ORG";
     private static final String KROXY_REGISTRY_ENV = "KROXYLICIOUS_REGISTRY";
