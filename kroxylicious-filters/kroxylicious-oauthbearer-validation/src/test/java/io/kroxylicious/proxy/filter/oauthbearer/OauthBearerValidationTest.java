@@ -160,14 +160,14 @@ class OauthBearerValidationTest {
 
     static Stream<Arguments> closeShouldRestoreOauthAllowList() {
         return Stream.of(
-                Arguments.argumentSet("clears system property after close",
+                Arguments.argumentSet("close clears system property",
                         (Consumer<String>) unused -> System.clearProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG),
                         (BiConsumer<String, String>) (initial, propValue) -> assertThat(propValue).isNull()),
-                Arguments.argumentSet("preserves existing system property value",
-                        (Consumer<String>) initial -> System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, initial),
+                Arguments.argumentSet("close preserves an existing system property that exactly matches config value",
+                        (Consumer<String>) configValue -> System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, configValue),
                         (BiConsumer<String, String>) (initial, propValue) -> assertThat(propValue).isEqualTo(initial)),
-                Arguments.argumentSet("other endpoint values preserved",
-                        (Consumer<String>) unused -> System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, "https://another.invalid"),
+                Arguments.argumentSet("close preserves an existing system property that did not matches config value",
+                        (Consumer<String>) configValue -> System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, "https://another.invalid"),
                         (BiConsumer<String, String>) (initial, propValue) -> assertThat(propValue).isEqualTo("https://another.invalid")));
     }
 
