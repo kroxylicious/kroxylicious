@@ -68,7 +68,6 @@ import io.kroxylicious.kubernetes.operator.model.ingress.ClusterIPIngressDefinit
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
 import io.kroxylicious.proxy.config.Configuration;
-import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
@@ -153,14 +152,11 @@ public class KafkaProxyReconciler implements
                             Context<KafkaProxy> context) {
         ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
         ProxyModel model = proxyModelBuilder.build(proxy, context);
-        ConfigurationFragment<Configuration> fragment;
-        try {
+        boolean hasClusters = !model.clustersWithValidIngresses().isEmpty();
+        ConfigurationFragment<Configuration> fragment = null;
+        if (hasClusters) {
             fragment = generateProxyConfig(model);
         }
-        catch (IllegalConfigurationException ice) {
-            fragment = null;
-        }
-
         KafkaProxyContext.init(context,
                 new VirtualKafkaClusterStatusFactory(clock),
                 model,
