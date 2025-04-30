@@ -131,21 +131,25 @@ public class TestUtils {
             String registry = setImagePropertiesIfNeeded(m.group("registry"), newRegistry);
             String org = setImagePropertiesIfNeeded(m.group("org"), newOrg);
             String tag = setImagePropertiesIfNeeded(m.group("tag"), newTag);
-            String image = setImagePropertiesIfNeeded(m.group("image"), newImage);;
+            String image = setImagePropertiesIfNeeded(m.group("image"), newImage);
+            ;
             String newImageRepo = registry + "/" + org + "/" + image + ":" + tag;
             LOGGER.info("Updating container image to {}", newImageRepo);
             return newImageRepo;
-        } else {
+        }
+        else {
             m = IMAGE_PATTERN.matcher(imageRepo);
             if (m.find()) {
                 String registry = newRegistry != null ? newRegistry + "/" : "";
                 String org = setImagePropertiesIfNeeded(m.group("org"), newOrg);
                 String tag = setImagePropertiesIfNeeded(m.group("tag"), newTag);
-                String image = setImagePropertiesIfNeeded(m.group("image"), newImage);;
+                String image = setImagePropertiesIfNeeded(m.group("image"), newImage);
+                ;
                 String newImageRepo = registry + org + "/" + image + ":" + tag;
                 LOGGER.info("Updating container image to {}", newImageRepo);
                 return newImageRepo;
-            } else {
+            }
+            else {
                 return imageRepo;
             }
         }
