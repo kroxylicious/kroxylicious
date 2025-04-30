@@ -132,7 +132,7 @@ public class TestUtils {
             String org = setImagePropertiesIfNeeded(m.group("org"), newOrg);
             String tag = setImagePropertiesIfNeeded(m.group("tag"), newTag);
             String image = setImagePropertiesIfNeeded(m.group("image"), newImage);
-            ;
+
             String newImageRepo = registry + "/" + org + "/" + image + ":" + tag;
             LOGGER.info("Updating container image to {}", newImageRepo);
             return newImageRepo;
@@ -144,7 +144,7 @@ public class TestUtils {
                 String org = setImagePropertiesIfNeeded(m.group("org"), newOrg);
                 String tag = setImagePropertiesIfNeeded(m.group("tag"), newTag);
                 String image = setImagePropertiesIfNeeded(m.group("image"), newImage);
-                ;
+
                 String newImageRepo = registry + org + "/" + image + ":" + tag;
                 LOGGER.info("Updating container image to {}", newImageRepo);
                 return newImageRepo;
