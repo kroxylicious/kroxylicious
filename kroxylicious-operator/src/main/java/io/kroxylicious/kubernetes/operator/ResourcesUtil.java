@@ -19,6 +19,7 @@ import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.OwnerReference;
@@ -33,13 +34,13 @@ import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.TrustAnchorRef;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 
@@ -103,7 +104,7 @@ public class ResourcesUtil {
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
     }
 
-    static boolean isConfigMap(TrustAnchorRef ref) {
+    static boolean isConfigMap(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "ConfigMap".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
     }
@@ -400,6 +401,72 @@ public class ResourcesUtil {
             return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
                     path + ": supports referents: secrets"), List.of());
+        }
+    }
+
+    /**
+     * Checks the validity of the given {@link TrustAnchorRef} which appears in the {@code resource}.
+     * Specifically, this checks if the reference refers to a Kubernetes ConfigMap, and if the ConfigMap
+     * actually exists. It validates that the ConfigMap has a data item with key value {@code key} with
+     * a value that is the key name of a second data item, containing the trust material.  The key
+     * name of the trust material must end with .pem, .p12 or .jks.  This is used to determine the
+     * trust store's type. If any of those conditions are false, a condition is added to the resource
+     * and the modified resource returned. If the reference is valid, null is returned.
+     *
+     * @param resource resource
+     * @param context context
+     * @param eventSourceName event source name used to resolve the secret
+     * @param trustAnchorRef certificate reference
+     * @param path path to the certificate reference within the resource
+     * @param statusFactory used to generate the condition.
+     * @return modified resource if the certificate references is invalid, or null otherwise.
+     *
+     * @param <T> custom resource type
+     */
+    public static <T extends CustomResource<?, ?>> ResourceCheckResult<T> checkTrustAnchorRef(T resource,
+                                                                                              Context<T> context,
+                                                                                              String eventSourceName,
+                                                                                              TrustAnchorRef trustAnchorRef,
+                                                                                              String path,
+                                                                                              StatusFactory<T> statusFactory) {
+        if (isConfigMap(trustAnchorRef.getRef())) {
+            Optional<ConfigMap> configMapOpt = context.getSecondaryResource(ConfigMap.class, eventSourceName);
+            if (configMapOpt.isEmpty()) {
+                return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                        Condition.REASON_REFS_NOT_FOUND,
+                        path + ": referenced resource not found"), List.of());
+            }
+            else {
+                String key = trustAnchorRef.getKey();
+                if (key == null) {
+                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                            Condition.REASON_INVALID,
+                            path + " must specify 'key'"), List.of());
+                }
+                if (!key.endsWith(".pem")
+                        && !key.endsWith(".p12")
+                        && !key.endsWith(".jks")) {
+                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                            Condition.REASON_INVALID,
+                            path + ".key should end with .pem, .p12 or .jks"), List.of());
+                }
+                else {
+                    ConfigMap configMap = configMapOpt.get();
+                    if (!configMap.getData().containsKey(trustAnchorRef.getKey())) {
+                        return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                                Condition.REASON_INVALID_REFERENCED_RESOURCE,
+                                path + ": referenced resource does not contain key " + trustAnchorRef.getKey()), List.of());
+                    }
+                    else {
+                        return new ResourceCheckResult<>(null, List.of(configMap));
+                    }
+                }
+            }
+        }
+        else {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
+                    path + " supports referents: configmaps"), List.of());
         }
     }
 }

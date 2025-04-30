@@ -69,7 +69,9 @@ class KafkaServiceReconcilerTest {
                         .withName("my-secret")
                     .endCertificateRef()
                     .withNewTrustAnchorRef()
-                        .withName("my-configmap")
+                        .withNewRef()
+                            .withName("my-configmap")
+                        .endRef()
                     .endTrustAnchorRef()
                 .endTls()
             .endSpec()
@@ -147,7 +149,7 @@ class KafkaServiceReconcilerTest {
 
         var reconciler = new KafkaServiceReconciler(TEST_CLOCK);
 
-        Context<KafkaService> context = mock(Context.class);
+        Context<KafkaService> context = mock();
 
         // when
         var update = reconciler.updateErrorStatus(kafkaService, context, new RuntimeException("Boom!"));
@@ -168,7 +170,7 @@ class KafkaServiceReconcilerTest {
         List<Arguments> result = new ArrayList<>();
         // no client cert, no trust
         {
-            Context<KafkaService> context = mock(Context.class);
+            Context<KafkaService> context = mock();
             mockGetSecret(context, Optional.empty());
             mockGetConfigMap(context, Optional.empty());
             result.add(Arguments.argumentSet("no tls",
@@ -184,7 +186,7 @@ class KafkaServiceReconcilerTest {
 
         // no client cert, dangling trust bundle
         {
-            Context<KafkaService> context = mock(Context.class);
+            Context<KafkaService> context = mock();
             mockGetSecret(context, Optional.empty());
             mockGetConfigMap(context, Optional.empty());
             result.add(Arguments.argumentSet("dangling trust bundle",
@@ -199,13 +201,17 @@ class KafkaServiceReconcilerTest {
 
         // no client cert, unsupported trust bundle kind
         {
-            Context<KafkaService> context = mock(Context.class);
+            Context<KafkaService> context = mock();
             mockGetSecret(context, Optional.empty());
             mockGetConfigMap(context, Optional.of(UNSUPPORTED_CONFIG_MAP));
             result.add(Arguments.argumentSet("unsupported trustAnchorRef kind",
                     new KafkaServiceBuilder(SERVICE).editSpec().editTls()
                             .withCertificateRef(null)
-                            .editTrustAnchorRef().withKind("Unsupported").endTrustAnchorRef()
+                            .editTrustAnchorRef()
+                            .editRef()
+                            .withKind("Unsupported")
+                            .endRef()
+                            .endTrustAnchorRef()
                             .endTls().endSpec().build(),
                     context,
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
@@ -217,7 +223,7 @@ class KafkaServiceReconcilerTest {
 
         // no client cert, trust bundle ref missing key
         {
-            Context<KafkaService> context = mock(Context.class);
+            Context<KafkaService> context = mock();
             mockGetSecret(context, Optional.empty());
             mockGetConfigMap(context, Optional.of(UNSUPPORTED_CONFIG_MAP));
             result.add(Arguments.argumentSet("trust bundle ref missing key",
@@ -234,7 +240,7 @@ class KafkaServiceReconcilerTest {
 
         // no client cert, unsupported trust bundle content
         {
-            Context<KafkaService> context = mock(Context.class);
+            Context<KafkaService> context = mock();
             mockGetSecret(context, Optional.empty());
             mockGetConfigMap(context, Optional.of(UNSUPPORTED_CONFIG_MAP));
             result.add(Arguments.argumentSet("unsupported trust bundle contents",
@@ -252,7 +258,7 @@ class KafkaServiceReconcilerTest {
 
         // no client cert, pem trust bundle
         {
-            Context<KafkaService> context = mock(Context.class);
+            Context<KafkaService> context = mock();
             mockGetSecret(context, Optional.empty());
             mockGetConfigMap(context, Optional.of(PEM_CONFIG_MAP));
             result.add(Arguments.argumentSet("pem trust bundle",
@@ -267,7 +273,7 @@ class KafkaServiceReconcilerTest {
         }
         // no client cert, p12 trust bundle
         {
-            Context<KafkaService> context = mock(Context.class);
+            Context<KafkaService> context = mock();
             mockGetSecret(context, Optional.empty());
             mockGetConfigMap(context, Optional.of(P12_CONFIG_MAP));
             result.add(Arguments.argumentSet("p12 trust bundle",
@@ -282,7 +288,7 @@ class KafkaServiceReconcilerTest {
         }
         // no client cert, jks trust bundle
         {
-            Context<KafkaService> context = mock(Context.class);
+            Context<KafkaService> context = mock();
             mockGetSecret(context, Optional.empty());
             mockGetConfigMap(context, Optional.of(JKS_CONFIG_MAP));
             result.add(Arguments.argumentSet("jks trust bundle",
@@ -301,7 +307,7 @@ class KafkaServiceReconcilerTest {
 
         // dangling client cert, no trust
         {
-            Context<KafkaService> context = mock(Context.class);
+            Context<KafkaService> context = mock();
             mockGetSecret(context, Optional.empty());
             mockGetConfigMap(context, Optional.empty());
             result.add(Arguments.argumentSet("dangling client cert",
@@ -316,7 +322,7 @@ class KafkaServiceReconcilerTest {
 
         // unsupported client cert kind, no trust
         {
-            Context<KafkaService> context = mock(Context.class);
+            Context<KafkaService> context = mock();
             mockGetSecret(context, Optional.empty());
             mockGetConfigMap(context, Optional.empty());
             result.add(Arguments.argumentSet("unsupported client cert kind",
@@ -334,7 +340,7 @@ class KafkaServiceReconcilerTest {
 
         // unsupported client cert in Secret, no trust
         {
-            Context<KafkaService> context = mock(Context.class);
+            Context<KafkaService> context = mock();
             mockGetSecret(context, Optional.of(UNSUPPORTED_SECRET));
             mockGetConfigMap(context, Optional.empty());
             result.add(Arguments.argumentSet("unsupported client cert Secret content",
@@ -351,7 +357,7 @@ class KafkaServiceReconcilerTest {
 
         // tls client cert, no trust
         {
-            Context<KafkaService> context = mock(Context.class);
+            Context<KafkaService> context = mock();
             mockGetSecret(context, Optional.of(TLS_SECRET));
             mockGetConfigMap(context, Optional.empty());
             result.add(Arguments.argumentSet("tls client cert",
@@ -365,16 +371,18 @@ class KafkaServiceReconcilerTest {
         return result;
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private static void mockGetConfigMap(
-                                         Context<KafkaService> noClientCertAndNoTrust,
+                                         Context<KafkaService> context,
                                          Optional<ConfigMap> empty) {
-        when(noClientCertAndNoTrust.getSecondaryResource(ConfigMap.class, KafkaServiceReconciler.CONFIG_MAPS_EVENT_SOURCE_NAME)).thenReturn(empty);
+        when(context.getSecondaryResource(ConfigMap.class, KafkaServiceReconciler.CONFIG_MAPS_EVENT_SOURCE_NAME)).thenReturn(empty);
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private static void mockGetSecret(
-                                      Context<KafkaService> noClientCertAndNoTrust,
+                                      Context<KafkaService> context,
                                       Optional<Secret> optional) {
-        when(noClientCertAndNoTrust.getSecondaryResource(Secret.class, KafkaServiceReconciler.SECRETS_EVENT_SOURCE_NAME)).thenReturn(optional);
+        when(context.getSecondaryResource(Secret.class, KafkaServiceReconciler.SECRETS_EVENT_SOURCE_NAME)).thenReturn(optional);
     }
 
     @ParameterizedTest
