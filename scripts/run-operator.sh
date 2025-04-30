@@ -11,30 +11,15 @@ cd .. || exit
 
 . "scripts/common.sh"
 
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
-function info {
-  printf "${GREEN}run-operator.sh: ${1}${NC}\n"
-}
-function error {
-  printf "${RED}run-operator.sh: ${1}${NC}\n"
-}
-
 if ! minikube status
 then
   info "starting minikube"
   minikube start
 fi
 
-GIT_HASH="$(git rev-parse HEAD)"
 TMP_INSTALL_DIR="$(mktemp -d)"
 trap 'rm -rf -- "$TMP_INSTALL_DIR"' EXIT
 
-info "building operator image in minikube for commit ${GIT_HASH}"
-IMAGE_TAG="dev-git-${GIT_HASH}"
-KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION:-$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)}
-minikube image build . -f Dockerfile.operator -t quay.io/kroxylicious/operator:${IMAGE_TAG} --build-opt=build-arg=KROXYLICIOUS_VERSION="${KROXYLICIOUS_VERSION}"
 
 cd kroxylicious-operator || exit
 info "installing kafka (no-op if already installed)"

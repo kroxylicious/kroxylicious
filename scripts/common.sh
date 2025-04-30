@@ -59,3 +59,10 @@ export SED
 extractRegistryServer () {
   echo $1 | ${SED} -e 's#\([^:]*:\)\?\(//\)\?\([^/]*\).*#\3#'
 }
+
+function info {
+  printf "${GREEN}run-operator.sh: ${1}${NO_COLOUR}\n"
+}
+function error {
+  printf "${RED}run-operator.sh: ${1}${NO_COLOUR}\n"
+}
