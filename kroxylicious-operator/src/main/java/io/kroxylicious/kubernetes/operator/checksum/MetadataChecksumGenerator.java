@@ -27,7 +27,7 @@ public interface MetadataChecksumGenerator {
 
     void appendMetadata(ObjectMeta objectMeta);
 
-    void appendMetadata(HasMetadata proxyIngress);
+    void appendMetadata(HasMetadata entity);
 
     void appendString(String value);
 

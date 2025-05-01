@@ -40,8 +40,8 @@ public class Crc32ChecksumGenerator implements MetadataChecksumGenerator {
     }
 
     @Override
-    public void appendMetadata(HasMetadata metadataSource) {
-        appendMetadata(metadataSource.getMetadata());
+    public void appendMetadata(HasMetadata entity) {
+        appendMetadata(entity.getMetadata());
     }
 
     @Override

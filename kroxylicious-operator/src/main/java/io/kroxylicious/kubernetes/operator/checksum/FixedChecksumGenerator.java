@@ -28,7 +28,7 @@ public class FixedChecksumGenerator implements MetadataChecksumGenerator {
     }
 
     @Override
-    public void appendMetadata(HasMetadata proxyIngress) {
+    public void appendMetadata(HasMetadata entity) {
         // no-op as we already know the final result
     }
 
