@@ -239,11 +239,11 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
 
             // clear all resources related to the extension context
             try {
-                    for (File operatorFile : getFilteredOperatorFiles(Predicate.not(deploymentFiles))) {
-                        LOGGER.info("Deleting Kroxylicious Operator element: {}", operatorFile.getName());
-                        kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).inAnyNamespace().delete();
-                    }
-                    KubeResourceManager.get().deleteResources(true);
+                for (File operatorFile : getFilteredOperatorFiles(Predicate.not(deploymentFiles))) {
+                    LOGGER.info("Deleting Kroxylicious Operator element: {}", operatorFile.getName());
+                    kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).inAnyNamespace().delete();
+                }
+                KubeResourceManager.get().deleteResources(true);
             }
             catch (Exception e) {
                 LOGGER.error("An error occurred when deleting the resources", e);
