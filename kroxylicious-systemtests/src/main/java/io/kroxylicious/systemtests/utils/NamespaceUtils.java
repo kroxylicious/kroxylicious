@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -36,12 +37,17 @@ public class NamespaceUtils {
      * @param namespace the namespace
      */
     public static void deleteNamespaceWithWait(String namespace) {
-        LOGGER.info("Deleting namespace: {}", namespace);
-        kubeClient().deleteNamespace(namespace);
-        await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
-                .until(() -> kubeClient().getNamespace(namespace) == null);
+        if (!Environment.SKIP_TEARDOWN) {
+            LOGGER.info("Deleting namespace: {}", namespace);
+            kubeClient().deleteNamespace(namespace);
+            await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
+                    .until(() -> kubeClient().getNamespace(namespace) == null);
 
-        LOGGER.info("Namespace: {} deleted", namespace);
+            LOGGER.info("Namespace: {} deleted", namespace);
+        }
+        else {
+            LOGGER.info("Skipped deletion of {} as {} was true", namespace, Environment.SKIP_TEARDOWN_ENV);
+        }
     }
 
     /**

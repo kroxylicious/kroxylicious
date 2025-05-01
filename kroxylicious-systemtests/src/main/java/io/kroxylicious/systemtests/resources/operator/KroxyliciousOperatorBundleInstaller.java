@@ -231,7 +231,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     @Override
     public synchronized void delete() {
         LOGGER.info(SEPARATOR);
-        if (IS_EMPTY.test(this)) {
+        if (IS_EMPTY.test(this) || Environment.SKIP_TEARDOWN) {
             LOGGER.info("Skip un-installation of the Kroxylicious Operator");
         }
         else {
@@ -239,13 +239,11 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
 
             // clear all resources related to the extension context
             try {
-                if (!Environment.SKIP_TEARDOWN) {
                     for (File operatorFile : getFilteredOperatorFiles(Predicate.not(deploymentFiles))) {
                         LOGGER.info("Deleting Kroxylicious Operator element: {}", operatorFile.getName());
                         kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).inAnyNamespace().delete();
                     }
                     KubeResourceManager.get().deleteResources(true);
-                }
             }
             catch (Exception e) {
                 LOGGER.error("An error occurred when deleting the resources", e);
