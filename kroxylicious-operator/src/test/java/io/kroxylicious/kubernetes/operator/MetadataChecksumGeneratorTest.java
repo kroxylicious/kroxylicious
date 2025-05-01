@@ -11,6 +11,9 @@ import java.util.UUID;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
+
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 
@@ -83,6 +86,40 @@ class MetadataChecksumGeneratorTest {
                 .isNotEqualTo(proxyChecksum);
     }
 
+    // some kubernetes objects like secret and configmap where the state cannot vary from the user's desired intent do not have a generation
+    @Test
+    void shouldIncludeResourceVersionInChecksumWhenGenerationIsNull() {
+        // Given
+        Secret secret = new SecretBuilder().withNewMetadata().withUid("uid").withResourceVersion("6432").endMetadata().build();
+        String secretChecksum = MetadataChecksumGenerator.checksumFor(secret);
+
+        // When
+        String checksumWithDifferentResourceVersion = MetadataChecksumGenerator
+                .checksumFor(new SecretBuilder(secret).editMetadata().withResourceVersion("6455").endMetadata().build());
+
+        // Then
+        assertThat(checksumWithDifferentResourceVersion)
+                .isNotBlank()
+                .isNotEqualTo(secretChecksum);
+    }
+
+    // if resource version changes and generation doesn't, for resources that have both properties, the checksum should not change
+    @Test
+    void shouldPreferGenerationInChecksumWhenGeneration() {
+        // Given
+        Secret secret = new SecretBuilder().withNewMetadata().withUid("uid").withResourceVersion("6432").withGeneration(1L).endMetadata().build();
+        String secretChecksum = MetadataChecksumGenerator.checksumFor(secret);
+
+        // When
+        String checksumWithDifferentResourceVersion = MetadataChecksumGenerator
+                .checksumFor(new SecretBuilder(secret).editMetadata().withResourceVersion("6478").withGeneration(1L).endMetadata().build());
+
+        // Then
+        assertThat(checksumWithDifferentResourceVersion)
+                .isNotBlank()
+                .isEqualTo(secretChecksum);
+    }
+
     @Test
     void shouldIncludeMultipleReferentsInChecksum() {
         // Given
@@ -101,5 +138,9 @@ class MetadataChecksumGeneratorTest {
         assertThat(checksum)
                 .isNotBlank()
                 .isNotEqualTo(proxyChecksum);
+
+        // Check it is deterministic
+        assertThat(MetadataChecksumGenerator.checksumFor(PROXY, anotherProxy)).isEqualTo(checksum);
+        assertThat(MetadataChecksumGenerator.checksumFor(PROXY)).isEqualTo(proxyChecksum);
     }
 }

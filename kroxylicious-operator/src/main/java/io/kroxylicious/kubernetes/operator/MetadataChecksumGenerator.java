@@ -26,9 +26,18 @@ public class MetadataChecksumGenerator {
         ByteBuffer byteBuffer = ByteBuffer.wrap(new byte[Long.BYTES]);
         for (HasMetadata metadataSource : metadataSources) {
             var objectMeta = metadataSource.getMetadata();
-            byteBuffer.putLong(0, objectMeta.getGeneration());
             checksum.update(objectMeta.getUid().getBytes(StandardCharsets.UTF_8));
-            checksum.update(byteBuffer);
+            if (objectMeta.getGeneration() != null) {
+                byteBuffer.putLong(0, objectMeta.getGeneration());
+                checksum.update(byteBuffer);
+            }
+            else {
+                // Some resources do not have a generation. For example, ConfigMap and Secret are self-contained
+                // resources where the state is the resource. They do not have a status subresource or a need for
+                // a generation field. Instead, we can include the resource version, which is modified with every
+                // write to the resource.
+                checksum.update(objectMeta.getResourceVersion().getBytes(StandardCharsets.UTF_8));
+            }
         }
         byteBuffer.putLong(0, checksum.getValue());
         return Base64.getEncoder().withoutPadding().encodeToString(byteBuffer.array());
