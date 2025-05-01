@@ -116,14 +116,19 @@ public class FilterHandler extends ChannelDuplexHandler {
             }
         }
         else {
-            if (!(msg instanceof OpaqueResponseFrame)) {
+            if (msg instanceof OpaqueResponseFrame orf) {
+                readFuture = readFuture.whenComplete((a, b) -> {
+                    if (ctx.channel().isOpen()) {
+                        ctx.fireChannelRead(msg);
+                    }
+                    else {
+                        orf.buf().release();
+                    }
+                });
+            }
+            else {
                 throw new IllegalStateException("Unexpected message reading from upstream:  " + msg);
             }
-            readFuture = readFuture.whenComplete((a, b) -> {
-                if (ctx.channel().isOpen()) {
-                    ctx.fireChannelRead(msg);
-                }
-            });
         }
     }
 
@@ -149,16 +154,21 @@ public class FilterHandler extends ChannelDuplexHandler {
             }
         }
         else {
-            if (!(msg instanceof OpaqueRequestFrame) && msg != Unpooled.EMPTY_BUFFER) {
+            if (msg instanceof OpaqueRequestFrame || msg == Unpooled.EMPTY_BUFFER) {
+                writeFuture.whenComplete((unused, throwable) -> {
+                    if (ctx.channel().isOpen()) {
+                        ctx.write(msg, promise);
+                    }
+                    else if (msg instanceof OpaqueRequestFrame orf) {
+                        orf.buf().release();
+                    }
+                });
+            }
+            else {
                 // Unpooled.EMPTY_BUFFER is used by KafkaProxyFrontendHandler#closeOnFlush
                 // but, otherwise we don't expect any other kind of message
                 throw new IllegalStateException("Unexpected message writing to upstream: " + msg);
             }
-            writeFuture.whenComplete((unused, throwable) -> {
-                if (ctx.channel().isOpen()) {
-                    ctx.write(msg, promise);
-                }
-            });
         }
     }
 
