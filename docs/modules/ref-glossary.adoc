@@ -1,10 +1,10 @@
 = Glossary
 
-API:: Application programmer interface.
+API:: Application Programmer Interface.
 CA:: Certificate Authority. An organization that issues certificates.
-CR:: Custom resource. An instance resource of a CRD. In other words, a resource of a kind that is not built into Kubernetes.
-CRD:: Custom resource definition. A Kubernetes API for defining Kubernetes API extensions.
+CR:: Custom Resource. An instance resource of a CRD. In other words, a resource of a kind that is not built into Kubernetes.
+CRD:: Custom Resource Definition. A Kubernetes API for defining Kubernetes API extensions.
 KMS:: Key Management System. A dedicated system for controlling access to cryptographic material, and providing operations which use that material.
 mTLS:: Mutual Transport Layer Security. A configuration of TLS where the client presents a certificate to a server, which the server authenticates.
-TLS:: The Transport Layer Security. A secure transport protocol where a server presents a certificate to a client, which the client authenticates. TCP was previously known as the Secure Sockets Layer (SSL).
+TLS:: The Transport Layer Security. A secure transport protocol where a server presents a certificate to a client, which the client authenticates. TLS was previously known as the Secure Sockets Layer (SSL).
 TCP:: The Transmission Control Protocol.
