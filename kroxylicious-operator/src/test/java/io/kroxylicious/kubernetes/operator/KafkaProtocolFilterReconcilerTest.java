@@ -11,6 +11,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -31,6 +32,7 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.KafkaProtocolFilterStatusAssert;
 
+import static io.kroxylicious.kubernetes.operator.MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -44,6 +46,7 @@ class KafkaProtocolFilterReconcilerTest {
             .withNewMetadata()
                 .withName("foo")
                 .withGeneration(42L)
+                .withUid("foo-uid")
             .endMetadata()
             .withNewSpec()
                 .withType("org.example.MyFilter")
@@ -54,10 +57,77 @@ class KafkaProtocolFilterReconcilerTest {
             .endSpec()
             .build();
 
+    public static final KafkaProtocolFilter FILTER_MULTIPLE = new KafkaProtocolFilterBuilder()
+            .withNewMetadata()
+                .withName("foo")
+                .withGeneration(42L)
+                .withUid("foo-uid")
+            .endMetadata()
+            .withNewSpec()
+                .withType("org.example.MyFilter")
+                .withConfigTemplate(Map.of(
+                        "normalProp", "normalValue",
+                        "securePropA", "${secret:my-secret:key}",
+                        "securePropB", "${secret:my-secret2:key}",
+                        "securePropC", "${configmap:my-configmap:key}",
+                        "securePropD", "${configmap:my-configmap2:key}"))
+            .endSpec()
+            .build();
+
+    public static final KafkaProtocolFilter FILTER_SECRET_ONLY = new KafkaProtocolFilterBuilder()
+            .withNewMetadata()
+            .withName("foo")
+            .withGeneration(42L)
+            .withUid("foo-uid")
+            .endMetadata()
+            .withNewSpec()
+            .withType("org.example.MyFilter")
+            .withConfigTemplate(Map.of(
+                    "normalProp", "normalValue",
+                    "securePropA", "${secret:my-secret:key}"))
+            .endSpec()
+            .build();
+
+    public static final KafkaProtocolFilter FILTER_CONFIGMAP_ONLY = new KafkaProtocolFilterBuilder()
+            .withNewMetadata()
+            .withName("foo")
+            .withGeneration(42L)
+            .withUid("foo-uid")
+            .endMetadata()
+            .withNewSpec()
+            .withType("org.example.MyFilter")
+            .withConfigTemplate(Map.of(
+                    "normalProp", "normalValue",
+                    "securePropB", "${configmap:my-configmap:key}"))
+            .endSpec()
+            .build();
+
+    public static final KafkaProtocolFilter FILTER_NO_REFERENTS = new KafkaProtocolFilterBuilder()
+            .withNewMetadata()
+            .withName("foo")
+            .withGeneration(42L)
+            .withUid("foo-uid")
+            .endMetadata()
+            .withNewSpec()
+            .withType("org.example.MyFilter")
+            .withConfigTemplate(Map.of("normalProp", "normalValue"))
+            .endSpec()
+            .build();
+
     public static final Secret SECRET = new SecretBuilder()
             .withNewMetadata()
                 .withName("my-secret")
-                .withGeneration(42L)
+                .withResourceVersion("1024")
+                .withUid("my-secret-uid")
+            .endMetadata()
+            .addToData("key", "value")
+            .build();
+
+    public static final Secret SECRET2 = new SecretBuilder()
+            .withNewMetadata()
+                .withName("my-secret2")
+                .withResourceVersion("1048")
+                .withUid("my-secret-uid2")
             .endMetadata()
             .addToData("key", "value")
             .build();
@@ -65,7 +135,17 @@ class KafkaProtocolFilterReconcilerTest {
     public static final ConfigMap CONFIG_MAP = new ConfigMapBuilder()
             .withNewMetadata()
                 .withName("my-configmap")
-                .withGeneration(42L)
+                .withResourceVersion("1064")
+                .withUid("my-configmap-uid")
+            .endMetadata()
+            .addToData("key", "value")
+            .build();
+
+    public static final ConfigMap CONFIG_MAP2 = new ConfigMapBuilder()
+            .withNewMetadata()
+                .withName("my-configmap2")
+                .withResourceVersion("1074")
+                .withUid("my-configmap-uid2")
             .endMetadata()
             .addToData("key", "value")
             .build();
@@ -130,7 +210,7 @@ class KafkaProtocolFilterReconcilerTest {
 
         // then
         assertThat(update).isNotNull();
-        assertThat(update.isPatchStatus()).isTrue();
+        assertThat(update.isPatchResourceAndStatus()).isTrue();
         assertThat(update.getResource()).isPresent();
         var x = KafkaProtocolFilterStatusAssert.assertThat(update.getResource().get().getStatus())
                 .hasObservedGenerationInSyncWithMetadataOf(FILTER)
@@ -138,6 +218,52 @@ class KafkaProtocolFilterReconcilerTest {
 
         asserter.accept(x);
 
+    }
+
+    // todo when we have a Checksum component, rather than a static method, we should instead use a mock to check what was passed to the checksummer
+    // we aren't really interested in the checksum string, rather that we deterministically pass the right resources in the right order to the checksummer
+    public static Stream<Arguments> shouldSetReferentsChecksumAnnotation() {
+        return Stream.of(Arguments.argumentSet("single secret, single configmap", Set.of(SECRET), Set.of(CONFIG_MAP), FILTER, "AAAAAPpoNcw"),
+                Arguments.argumentSet("multiple secrets, multiple configmaps", Set.of(SECRET, SECRET2), Set.of(CONFIG_MAP, CONFIG_MAP2), FILTER_MULTIPLE, "AAAAAHlcgl4"),
+                Arguments.argumentSet("configmap only", Set.of(), Set.of(CONFIG_MAP), FILTER_CONFIGMAP_ONLY, "AAAAAAkyYyY"),
+                Arguments.argumentSet("secret only", Set.of(SECRET), Set.of(), FILTER_SECRET_ONLY, "AAAAAAfh3oQ"));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void shouldSetReferentsChecksumAnnotation(Set<Secret> secretsInContext, Set<ConfigMap> configMapsInContext, KafkaProtocolFilter filter, String expectedChecksum) {
+        // given
+        Context<KafkaProtocolFilter> bothExist = mock(Context.class);
+        when(bothExist.getSecondaryResourcesAsStream(Secret.class)).thenReturn(secretsInContext.stream());
+        when(bothExist.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(configMapsInContext.stream());
+        var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
+
+        // when
+        var update = reconciler.reconcile(filter, bothExist);
+
+        // then
+        assertThat(update).isNotNull();
+        assertThat(update.isPatchResourceAndStatus()).isTrue();
+        assertThat(update.getResource()).isPresent();
+        assertThat(update.getResource().get().getMetadata().getAnnotations()).containsEntry(REFERENT_CHECKSUM_ANNOTATION, expectedChecksum);
+    }
+
+    @Test
+    void shouldNotSetReferentsChecksumAnnotationWhenNoReferents() {
+        // given
+        Context<KafkaProtocolFilter> bothExist = mock(Context.class);
+        when(bothExist.getSecondaryResources(Secret.class)).thenReturn(Set.of());
+        when(bothExist.getSecondaryResources(ConfigMap.class)).thenReturn(Set.of(CONFIG_MAP));
+        var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
+
+        // when
+        var update = reconciler.reconcile(FILTER_NO_REFERENTS, bothExist);
+
+        // then
+        assertThat(update).isNotNull();
+        assertThat(update.isPatchResourceAndStatus()).isTrue();
+        assertThat(update.getResource()).isPresent();
+        assertThat(update.getResource().get().getMetadata().getAnnotations()).doesNotContainKey(REFERENT_CHECKSUM_ANNOTATION);
     }
 
     @Test
