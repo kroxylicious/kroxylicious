@@ -138,8 +138,8 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .endMetadata()
                 .editSpec()
                 .editFirstContainer()
-                .withImage(TestUtils.changeRegistryOrgImageAndTag(deploymentImage, Environment.KROXY_REGISTRY,
-                        Environment.KROXY_ORG, Environment.KROXY_OPERATOR_IMAGE, Environment.KROXY_VERSION))
+                .withImage(TestUtils.changeRegistryOrgImageAndTag(deploymentImage, Environment.KROXYLICIOUS_REGISTRY,
+                        Environment.KROXYLICIOUS_ORG, Environment.KROXYLICIOUS_OPERATOR_IMAGE, Environment.KROXYLICIOUS_VERSION))
                 .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                 .endContainer()
                 .withImagePullSecrets(new LocalObjectReferenceBuilder()

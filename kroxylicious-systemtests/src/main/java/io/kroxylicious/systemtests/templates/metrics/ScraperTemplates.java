@@ -26,9 +26,9 @@ public class ScraperTemplates {
 
         label.put(Constants.SCRAPER_LABEL_KEY, Constants.SCRAPER_LABEL_VALUE);
         label.put(Constants.DEPLOYMENT_TYPE, Constants.SCRAPER_NAME);
-        String kroxyRepoUrl = Environment.KROXY_REGISTRY + "/" + Environment.KROXY_ORG + "/" + Environment.KROXY_IMAGE
-                + (Environment.KROXY_IMAGE.endsWith(":") ? "" : ":");
-        String scraperImage = kroxyRepoUrl + Environment.KROXY_VERSION;
+        String kroxyRepoUrl = Environment.KROXYLICIOUS_REGISTRY + "/" + Environment.KROXYLICIOUS_ORG + "/" + Environment.KROXYLICIOUS_IMAGE
+                + (Environment.KROXYLICIOUS_IMAGE.endsWith(":") ? "" : ":");
+        String scraperImage = kroxyRepoUrl + Environment.KROXYLICIOUS_VERSION;
 
         return new DeploymentBuilder()
                 .withNewMetadata()
