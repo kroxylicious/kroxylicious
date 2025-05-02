@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator;
 import java.nio.file.Path;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashSet;
@@ -51,6 +52,8 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
+import io.kroxylicious.kubernetes.api.common.tls.CipherSuites;
+import io.kroxylicious.kubernetes.api.common.tls.Protocols;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
@@ -59,6 +62,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.tls.Options;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterSpec;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
@@ -81,7 +85,9 @@ import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.KeyPair;
 import io.kroxylicious.proxy.config.tls.KeyProvider;
 import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
+import io.kroxylicious.proxy.config.tls.ServerOptions;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.service.HostPort;
@@ -314,12 +320,12 @@ public class KafkaProxyReconciler implements
     private static ConfigurationFragment<Optional<Tls>> buildTlsFragment(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls ingressTls) {
         return ConfigurationFragment.combine(
                 buildKeyProvider(ingressTls.getCertificateRef(), SERVER_CERTS_BASE_DIR),
-                buildTrustProvider(ingressTls.getTrustAnchorRef(), SERVER_TRUSTED_CERTS_BASE_DIR),
+                buildTrustProvider(ingressTls.getTrustAnchorRef(), ingressTls.getOptions(), SERVER_TRUSTED_CERTS_BASE_DIR),
                 (keyProviderOpt, trustProvider) -> Optional.of(
                         new Tls(keyProviderOpt.orElse(null),
                                 trustProvider,
-                                null,
-                                null)));
+                                buildCipherSuites(ingressTls.getCipherSuites()).orElse(null),
+                                buildProtocols(ingressTls.getProtocols()).orElse(null))));
     }
 
     private static String qualifiedServiceHost(ClusterIPIngressDefinition definition) {
@@ -336,16 +342,12 @@ public class KafkaProxyReconciler implements
                 .map(KafkaServiceSpec::getTls)
                 .map(serviceTls -> ConfigurationFragment.combine(
                         buildKeyProvider(serviceTls.getCertificateRef(), CLIENT_CERTS_BASE_DIR),
-                        buildTrustProvider(serviceTls.getTrustAnchorRef(), CLIENT_TRUSTED_CERTS_BASE_DIR),
+                        buildTrustProvider(serviceTls.getTrustAnchorRef(), null, CLIENT_TRUSTED_CERTS_BASE_DIR),
                         (keyProviderOpt, trustProvider) -> Optional.of(
                                 new Tls(keyProviderOpt.orElse(null),
                                         trustProvider,
-                                        Optional.ofNullable(serviceTls.getCipherSuites())
-                                                .map(cipherSuites -> new AllowDeny<>(cipherSuites.getAllowed(), new HashSet<>(cipherSuites.getDenied())))
-                                                .orElse(null),
-                                        Optional.ofNullable(serviceTls.getProtocols())
-                                                .map(protocols -> new AllowDeny<>(protocols.getAllowed(), new HashSet<>(protocols.getDenied())))
-                                                .orElse(null)))))
+                                        buildCipherSuites(serviceTls.getCipherSuites()).orElse(null),
+                                        buildProtocols(serviceTls.getProtocols()).orElse(null)))))
                 .orElse(ConfigurationFragment.empty());
     }
 
@@ -374,7 +376,7 @@ public class KafkaProxyReconciler implements
                 }).orElse(ConfigurationFragment.empty());
     }
 
-    private static ConfigurationFragment<TrustProvider> buildTrustProvider(@Nullable TrustAnchorRef trustAnchorRef, Path parent) {
+    private static ConfigurationFragment<TrustProvider> buildTrustProvider(@Nullable TrustAnchorRef trustAnchorRef, @Nullable Options options, Path parent) {
         return Optional.ofNullable(trustAnchorRef)
                 .filter(tar -> ResourcesUtil.isConfigMap(tar.getRef()))
                 .map(tar -> {
@@ -386,6 +388,8 @@ public class KafkaProxyReconciler implements
                             .endConfigMap()
                             .build();
                     Path mountPath = parent.resolve(ref.getName());
+                    var serverOptions = buildTlsSeverOptions(options);
+
                     var mount = new VolumeMountBuilder()
                             .withName(ResourcesUtil.volumeName("", "configmaps", ref.getName()))
                             .withMountPath(mountPath.toString())
@@ -394,7 +398,8 @@ public class KafkaProxyReconciler implements
                     TrustProvider trustProvider = new TrustStore(
                             mountPath.resolve(tar.getKey()).toString(),
                             null,
-                            "PEM");
+                            "PEM",
+                            serverOptions.orElse(null));
                     return new ConfigurationFragment<>(trustProvider,
                             Set.of(volume),
                             Set.of(mount));
@@ -442,6 +447,30 @@ public class KafkaProxyReconciler implements
                 buildVirtualKafkaClusterEventSource(context),
                 buildKafkaServiceEventSource(context),
                 buildKafkaProxyIngressEventSource(context));
+    }
+
+    private static Optional<AllowDeny<String>> buildProtocols(@Nullable Protocols protocols) {
+        return Optional.ofNullable(protocols)
+                .map(p -> new AllowDeny<>(p.getAllowed(), new HashSet<>(p.getDenied())));
+    }
+
+    private static Optional<AllowDeny<String>> buildCipherSuites(@Nullable CipherSuites cipherSuites) {
+        return Optional.ofNullable(cipherSuites)
+                .map(c -> new AllowDeny<>(c.getAllowed(), new HashSet<>(c.getDenied())));
+    }
+
+    private static Optional<ServerOptions> buildTlsSeverOptions(@Nullable Options options) {
+        var knownNames = Arrays.stream(TlsClientAuth.values())
+                .map(TlsClientAuth::name)
+                .collect(Collectors.toSet());
+
+        return Optional.ofNullable(options)
+                .map(Options::getClientAuth)
+                .map(Options.ClientAuth::getValue)
+                .filter(knownNames::contains)
+                .map(TlsClientAuth::valueOf)
+                .filter(Predicate.not(TlsClientAuth.NONE::equals))
+                .map(ServerOptions::new);
     }
 
     private static InformerEventSource<VirtualKafkaCluster, KafkaProxy> buildVirtualKafkaClusterEventSource(EventSourceContext<KafkaProxy> context) {

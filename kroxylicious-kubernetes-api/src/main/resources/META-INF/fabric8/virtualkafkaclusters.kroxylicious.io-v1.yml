@@ -160,6 +160,62 @@ spec:
                                   The name of the key identifying the certificate bundle within the resource. 
                                   Supported formats for the bundle are: PEM, PKCS#12 and JKS.
                                 type: string
+                          protocols:
+                            description: |
+                              The allowed or denied TLS protocols.
+                              Either `allowed` or `denied` can be given.
+                              The supported protocols are those supported by the proxy JVM.
+                            type: object
+                            properties:
+                              allowed:
+                                description: |
+                                  The allowed TLS protocols, ordered by preference.
+                                  If not specified this defaults to the TLS protocols of the proxy JVM's default SSL context.
+                                type: array
+                                items:
+                                  type: string
+                              denied:
+                                description: |
+                                  The denied TLS protocols.
+                                  If not specified this defaults to the empty list.
+                                type: array
+                                items:
+                                  type: string
+                                default: []
+                          cipherSuites:
+                            description: |
+                              The allowed or denied cipher suites.
+                              Either `allowed` or `denied` can be given.
+                              The supported cipher suites are those supported by the proxy JVM.
+                            type: object
+                            properties:
+                              allowed:
+                                description: |
+                                  The allowed cipher suites.
+                                  If not specified a default list of ciphers, which depends on the runtime and enabled protocols, will be used.
+                                type: array
+                                items:
+                                  type: string
+                              denied:
+                                description: |
+                                  The denied cipher suites.
+                                  If not specified this will default to the empty list.
+                                type: array
+                                items:
+                                  type: string
+                                default: []
+                          options:
+                            description: |
+                              Options that control TLS server negotiation
+                            type: object
+                            properties:
+                              clientAuth:
+                                description: |
+                                  Controls the TLS client authentication options applied by the server.
+                                  If unspecified, no TLS client authentication options are applied.
+                                type: string
+                                enum: ["REQUIRED", "REQUESTED", "NONE"]
+                                default: "NONE"
                 filterRefs:
                   description: The filters to be used for this cluster. Each filter is a separate resource.
                   type: array
