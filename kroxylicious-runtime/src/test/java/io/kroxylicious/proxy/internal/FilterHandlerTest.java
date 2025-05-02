@@ -79,6 +79,15 @@ class FilterHandlerTest extends FilterHarness {
         assertEquals(frame, propagated, "Expect it to be the frame that was sent");
     }
 
+    // Note: Unpooled.EMPTY_BUFFER is used by KafkaProxyFrontendHandler#closeOnFlush
+    @Test
+    void canForwardEmptyBuffers() {
+        buildChannel();
+        channel.writeOutbound(Unpooled.EMPTY_BUFFER);
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isSameAs(Unpooled.EMPTY_BUFFER);
+    }
+
     @Test
     void testShortCircuitResponse() {
         ApiVersionsResponseData responseData = new ApiVersionsResponseData();
