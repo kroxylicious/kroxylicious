@@ -34,8 +34,14 @@ public class Environment {
      * Env. variables names
      */
     private static final String KAFKA_VERSION_ENV = "KAFKA_VERSION";
-    private static final String KROXY_VERSION_ENV = "KROXYLICIOUS_VERSION";
-    private static final String KROXY_IMAGE_REPO_ENV = "KROXYLICIOUS_IMAGE_REPO";
+    private static final String KROXYLICIOUS_OPERATOR_IMAGE_ENV = "KROXYLICIOUS_OPERATOR_IMAGE_NAME";
+    private static final String KROXYLICIOUS_IMAGE_ENV = "KROXYLICIOUS_IMAGE_NAME";
+    private static final String KROXYLICIOUS_ORG_ENV = "KROXYLICIOUS_ORG";
+    private static final String KROXYLICIOUS_OPERATOR_ORG_ENV = "KROXYLICIOUS_OPERATOR_ORG";
+    private static final String KROXYLICIOUS_REGISTRY_ENV = "KROXYLICIOUS_REGISTRY";
+    private static final String KROXYLICIOUS_OPERATOR_REGISTRY_ENV = "KROXYLICIOUS_OPERATOR_REGISTRY";
+    private static final String KROXYLICIOUS_VERSION_ENV = "KROXYLICIOUS_VERSION";
+    private static final String KROXYLICIOUS_OPERATOR_VERSION_ENV = "KROXYLICIOUS_OPERATOR_VERSION";
     private static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN";
     private static final String CONTAINER_CONFIG_PATH_ENV = "CONTAINER_CONFIG_PATH";
     private static final String SKIP_STRIMZI_INSTALL_ENV = "SKIP_STRIMZI_INSTALL";
@@ -49,9 +55,6 @@ public class Environment {
     private static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID_ENV = "AWS_KROXYLICIOUS_ACCESS_KEY_ID";
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_ENV = "AWS_KROXYLICIOUS_SECRET_ACCESS_KEY";
     private static final String AWS_REGION_ENV = "AWS_REGION";
-    private static final String KROXY_ORG_ENV = "DOCKER_ORG";
-    private static final String KROXY_REGISTRY_ENV = "DOCKER_REGISTRY";
-    private static final String KROXY_TAG_ENV = "DOCKER_TAG";
 
     /**
      * The kafka version default value
@@ -65,10 +68,10 @@ public class Environment {
     /**
      * The kroxy version default value
      */
-    private static final String KROXY_VERSION_DEFAULT;
+    private static final String KROXYLICIOUS_VERSION_DEFAULT;
 
     static {
-        KROXY_VERSION_DEFAULT = determineKroxyliciousVersion();
+        KROXYLICIOUS_VERSION_DEFAULT = determineKroxyliciousVersion();
     }
 
     /**
@@ -83,15 +86,19 @@ public class Environment {
     /**
      * The url where kroxylicious image lives to be downloaded.
      */
-    private static final String KROXY_IMAGE_REPO_DEFAULT = "quay.io/kroxylicious/kroxylicious";
+    private static final String KROXYLICIOUS_IMAGE_REPO_DEFAULT = "quay.io/kroxylicious/kroxylicious";
+    private static final String KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT = "quay.io/kroxylicious/operator";
 
     /**
      * The default value for skipping the teardown locally.
      */
     private static final boolean SKIP_TEARDOWN_DEFAULT = false;
-    public static final String KROXY_ORG_DEFAULT = KROXY_IMAGE_REPO_DEFAULT.split("/")[1];
-    public static final String KROXY_TAG_DEFAULT = "latest";
-    public static final String KROXY_REGISTRY_DEFAULT = KROXY_IMAGE_REPO_DEFAULT.split("/")[0];
+    public static final String KROXYLICIOUS_IMAGE_DEFAULT = KROXYLICIOUS_IMAGE_REPO_DEFAULT.split("/")[2];
+    public static final String KROXYLICIOUS_OPERATOR_IMAGE_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/")[2];
+    public static final String KROXYLICIOUS_ORG_DEFAULT = KROXYLICIOUS_IMAGE_REPO_DEFAULT.split("/")[1];
+    public static final String KROXYLICIOUS_OPERATOR_ORG_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/")[1];
+    public static final String KROXYLICIOUS_REGISTRY_DEFAULT = KROXYLICIOUS_IMAGE_REPO_DEFAULT.split("/")[0];
+    public static final String KROXYLICIOUS_OPERATOR_REGISTRY_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/")[0];
     private static final String CONTAINER_CONFIG_PATH_DEFAULT = System.getProperty("user.home") + "/.docker/config.json";
     private static final boolean SKIP_STRIMZI_INSTALL_DEFAULT = false;
     private static final String KAFKA_CLIENT_DEFAULT = "strimzi_test_client";
@@ -109,14 +116,11 @@ public class Environment {
     public static final String KAFKA_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KAFKA_VERSION_ENV, KAFKA_VERSION_DEFAULT);
 
     /**
-     * KROXY_VERSION env variable assignment
+     * KROXYLICIOUS_VERSION env variable assignment
      */
-    public static final String KROXY_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_VERSION_ENV, KROXY_VERSION_DEFAULT);
+    public static final String KROXYLICIOUS_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_VERSION_ENV, KROXYLICIOUS_VERSION_DEFAULT);
+    public static final String KROXYLICIOUS_OPERATOR_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_VERSION_ENV, KROXYLICIOUS_VERSION_DEFAULT);
 
-    /**
-     * KROXY_IMAGE_REPO env variable assignment
-     */
-    public static final String KROXY_IMAGE_REPO = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_IMAGE_REPO_ENV, KROXY_IMAGE_REPO_DEFAULT);
     /**
      * SKIP_TEARDOWN env variable assignment.
      */
@@ -148,9 +152,13 @@ public class Environment {
 
     public static final String AWS_REGION = ENVIRONMENT_VARIABLES.getOrDefault(AWS_REGION_ENV, AWS_REGION_DEFAULT);
 
-    public static final String KROXY_ORG = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_ORG_ENV, KROXY_ORG_DEFAULT);
-    public static final String KROXY_TAG = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_TAG_ENV, KROXY_TAG_DEFAULT);
-    public static final String KROXY_REGISTRY = ENVIRONMENT_VARIABLES.getOrDefault(KROXY_REGISTRY_ENV, KROXY_REGISTRY_DEFAULT);
+    public static final String KROXYLICIOUS_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_IMAGE_ENV, KROXYLICIOUS_IMAGE_DEFAULT);
+    public static final String KROXYLICIOUS_OPERATOR_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_IMAGE_ENV, KROXYLICIOUS_OPERATOR_IMAGE_DEFAULT);
+    public static final String KROXYLICIOUS_ORG = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_ORG_ENV, KROXYLICIOUS_ORG_DEFAULT);
+    public static final String KROXYLICIOUS_OPERATOR_ORG = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_ORG_ENV, KROXYLICIOUS_OPERATOR_ORG_DEFAULT);
+    public static final String KROXYLICIOUS_REGISTRY = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_REGISTRY_ENV, KROXYLICIOUS_REGISTRY_DEFAULT);
+    public static final String KROXYLICIOUS_OPERATOR_REGISTRY = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_REGISTRY_ENV,
+            KROXYLICIOUS_OPERATOR_REGISTRY_DEFAULT);
 
     private static String readMetadataProperty(String property) {
         var p = new Properties();
