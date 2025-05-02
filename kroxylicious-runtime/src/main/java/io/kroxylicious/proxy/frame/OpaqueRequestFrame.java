@@ -9,17 +9,22 @@ import org.apache.kafka.common.protocol.ApiKeys;
 
 import io.netty.buffer.ByteBuf;
 
+/**
+ * Used to represent Kafka requests that the proxy does not need to decode.
+ */
 public class OpaqueRequestFrame extends OpaqueFrame implements RequestFrame {
 
     private final boolean decodeResponse;
-    private boolean hasResponse;
+    private final boolean hasResponse;
 
     /**
+     * Creates an opaque request.
+     *
      * @param buf The message buffer (excluding the frame size)
-     * @param correlationId
-     * @param decodeResponse
-     * @param length
-     * @param hasResponse
+     * @param correlationId correlation id
+     * @param decodeResponse whether the response will be decoded
+     * @param length length of the request
+     * @param hasResponse true if the request expects a response
      */
     public OpaqueRequestFrame(ByteBuf buf,
                               int correlationId,

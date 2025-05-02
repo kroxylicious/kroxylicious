@@ -122,7 +122,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                         ctx.fireChannelRead(msg);
                     }
                     else {
-                        orf.buf().release();
+                        orf.releaseBuffer();
                     }
                 });
             }
@@ -160,7 +160,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                         ctx.write(msg, promise);
                     }
                     else if (msg instanceof OpaqueRequestFrame orf) {
-                        orf.buf().release();
+                        orf.releaseBuffer();
                     }
                 });
             }
