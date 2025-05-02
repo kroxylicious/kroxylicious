@@ -94,8 +94,10 @@ class OauthBearerValidationIT {
     private static OauthServerContainer oauthServer;
 
     @BeforeAll
-    public static void beforeAll() {
-        // required to permit Kafka to interact with our endpoint.
+    static void beforeAll() {
+        // Kafka 4.0 requires that the org.apache.kafka.sasl.oauthbearer.allowed.urls sys property is set in order to use Oauth Bearer.
+        // The Kafka Broker and Proxy requires that JWKS_ENDPOINT_URL is in the allow list.
+        // The Kafka Client requires that TOKEN_ENDPOINT_URL is in the allow list.
         System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, JWKS_ENDPOINT_URL + "," + TOKEN_ENDPOINT_URL);
 
         oauthServer = new OauthServerContainer(OauthBearerValidationIT.DOCKER_IMAGE_NAME);
@@ -107,14 +109,14 @@ class OauthBearerValidationIT {
     }
 
     @AfterAll
-    public static void afterAll() {
+    static void afterAll() {
         if (oauthServer != null) {
             oauthServer.close();
         }
     }
 
     @AfterEach
-    public void afterEach() throws Exception {
+    void afterEach() throws Exception {
         workaroundKafka17134();
     }
 

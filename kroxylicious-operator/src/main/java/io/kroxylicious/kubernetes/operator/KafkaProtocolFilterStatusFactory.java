@@ -22,13 +22,19 @@ public class KafkaProtocolFilterStatusFactory extends StatusFactory<KafkaProtoco
     }
 
     private KafkaProtocolFilter filterStatusPatch(KafkaProtocolFilter observedProxy,
-                                                  Condition condition) {
+                                                  Condition condition, String checksum) {
         // @formatter:off
-        return new KafkaProtocolFilterBuilder()
+        var metadataBuilder = new KafkaProtocolFilterBuilder()
                 .withNewMetadata()
                     .withUid(ResourcesUtil.uid(observedProxy))
                     .withName(ResourcesUtil.name(observedProxy))
-                    .withNamespace(ResourcesUtil.namespace(observedProxy))
+                    .withNamespace(ResourcesUtil.namespace(observedProxy));
+        if (!checksum.isBlank()) {
+            // In practice this condition means that the existing annotation will be left alone.
+            metadataBuilder
+                    .addToAnnotations(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, checksum);
+        }
+        return metadataBuilder
                 .endMetadata()
                 .withNewStatus()
                     .withObservedGeneration(ResourcesUtil.generation(observedProxy))
@@ -43,7 +49,7 @@ public class KafkaProtocolFilterStatusFactory extends StatusFactory<KafkaProtoco
                                                        Condition.Type type,
                                                        Exception e) {
         Condition unknownCondition = newUnknownCondition(observedFilter, type, e);
-        return filterStatusPatch(observedFilter, unknownCondition);
+        return filterStatusPatch(observedFilter, unknownCondition, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
     }
 
     @Override
@@ -52,14 +58,14 @@ public class KafkaProtocolFilterStatusFactory extends StatusFactory<KafkaProtoco
                                                      String reason,
                                                      String message) {
         Condition falseCondition = newFalseCondition(observedProxy, type, reason, message);
-        return filterStatusPatch(observedProxy, falseCondition);
+        return filterStatusPatch(observedProxy, falseCondition, MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
     }
 
     @Override
     KafkaProtocolFilter newTrueConditionStatusPatch(KafkaProtocolFilter observedProxy,
                                                     Condition.Type type, String checksum) {
         Condition trueCondition = newTrueCondition(observedProxy, type);
-        return filterStatusPatch(observedProxy, trueCondition);
+        return filterStatusPatch(observedProxy, trueCondition, checksum);
     }
 
     @SuppressWarnings("removal")
