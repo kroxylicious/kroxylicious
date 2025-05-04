@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kubernetes.operator.checksum;
 
+import java.util.Map;
+
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 
@@ -25,7 +27,14 @@ public interface MetadataChecksumGenerator {
         return checksum.encode();
     }
 
-    void appendMetadata(ObjectMeta objectMeta);
+    default void appendMetadata(ObjectMeta objectMeta) {
+        appendString(objectMeta.getUid());
+        appendVersionSpecifier(objectMeta);
+        Map<String, String> annotations = objectMeta.getAnnotations();
+        if (annotations != null && annotations.containsKey(REFERENT_CHECKSUM_ANNOTATION)) {
+            appendString(annotations.get(REFERENT_CHECKSUM_ANNOTATION));
+        }
+    }
 
     void appendMetadata(HasMetadata entity);
 
@@ -34,4 +43,19 @@ public interface MetadataChecksumGenerator {
     void appendLong(Long value);
 
     String encode();
+
+    default void appendVersionSpecifier(ObjectMeta objectMeta) {
+        Long generation = objectMeta.getGeneration();
+        if (generation != null) {
+            appendLong(generation);
+        }
+        else {
+            // Some resources do not have a generation. For example, ConfigMap and Secret are self-contained
+            // resources where the state is the resource. They do not have a status subresource or a need for
+            // a generation field. Instead, we can include the resource version, which is modified with every
+            // write to the resource.
+            appendString(objectMeta.getResourceVersion());
+        }
+    }
+
 }

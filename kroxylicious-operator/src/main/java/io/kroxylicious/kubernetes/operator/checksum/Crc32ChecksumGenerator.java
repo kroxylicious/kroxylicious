@@ -32,7 +32,7 @@ public class Crc32ChecksumGenerator implements MetadataChecksumGenerator {
     @Override
     public void appendMetadata(ObjectMeta objectMeta) {
         appendString(objectMeta.getUid());
-        appendLong(objectMeta.getGeneration());
+        appendVersionSpecifier(objectMeta);
         Map<String, String> annotations = objectMeta.getAnnotations();
         if (annotations != null && annotations.containsKey(REFERENT_CHECKSUM_ANNOTATION)) {
             appendString(annotations.get(REFERENT_CHECKSUM_ANNOTATION));
