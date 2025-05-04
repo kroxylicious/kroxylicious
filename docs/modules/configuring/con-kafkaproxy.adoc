@@ -20,5 +20,5 @@ metadata:
   name: simple
 spec: {} # <1>
 ----
-<1> For this example, we don't need to customize the proxy, so its `spec` is the empty object.
+<1>  An empty `spec` creates a proxy with default configuration. 
 

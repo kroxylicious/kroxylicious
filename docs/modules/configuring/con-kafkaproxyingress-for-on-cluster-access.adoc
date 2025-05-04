@@ -3,7 +3,7 @@
 // kroxylicious-operator/assemblies/assembly-operator-deploy-a-proxy.adoc
 
 [id='con-configuring-kafkaproxyingress-on-cluster-access-{context}']
-= The networking for on-cluster access
+= Networking configuration for on-cluster access
 
 A `KafkaProxyIngress` resource defines the networking configuration that allows Kafka clients to connect to a `VirtualKafkaCluster`.
 
@@ -27,5 +27,5 @@ spec:
 ----
 <1> The `proxyRef` names the `KafkaProxy` resource that this ingress is part of. It must be in the same namespace as the `KafkaProxyIngress`.
 <2> This ingress uses `clusterIP` networking, which uses Kubernetes `Service` resources with `type: ClusterIP` to configure Kubernetes DNS names for the virtual cluster.
-<3> In this example, the ingress will accept plain TCP connections. The alternative here would be to use `TLS` for encrypted client-proxy communication.
+<3> The protocol is set to accept plain TCP connections. Use `TLS` for encrypted client-proxy communication.
 
