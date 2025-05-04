@@ -3,7 +3,7 @@
 // kroxylicious-operator/assemblies/assembly-operator-deploy-a-proxy.adoc
 
 [id='con-configuring-virtualkafkacluster-{context}']
-= A virtual cluster for on-cluster access without TLS
+= Virtual cluster configuration for in-cluster access without TLS
 
 A `VirtualKafkaCluster` resource defines a logical Kafka cluster that is accessible to clients over the network.
 
@@ -17,7 +17,7 @@ The virtual cluster references the following:
 This example shows a `VirtualKafkaCluster`, exposing it to Kafka clients running on the same Kubernetes cluster.
 It uses plain TCP (as opposed to TLS) as the transport protocol.
 
-.Example `VirtualKafkaCluster` configuration.
+.Example `VirtualKafkaCluster` configuration
 [source,yaml]
 ----
 kind: VirtualKafkaCluster
@@ -38,7 +38,7 @@ spec:
   It must be in the same namespace as the `VirtualKafkaCluster`.
 <2> The virtual cluster names the `KafkaService` to be proxied.
   It must be in the same namespace as the `VirtualKafkaCluster`.
-<3> The virtual cluster can be exposed by one or more ingresses.
+<3> Ingresses to expose the virtual cluster.
   Each ingress names a `KafkaProxyIngress` which must be in the same namespace as the `VirtualKafkaCluster`.
 
 // Let's look at what the referenced `KafkaProxyIngress` would look like.
