@@ -8,9 +8,9 @@
 A `KafkaProxy` resource represents an instance of the Kroxylicious Proxy.
 Conceptually, it is the top-level resource that links together `KafkaProxyIngress`, `VirtualKafkaCluster`, `KafkaService`, and `KafkaProtocolFilter` resources to form a complete working proxy.
 
-This example shows the `KafkaProxy` referenced by `KafkaProxyIngress` and `VirtualKafkaCluster` resources.
+`KafkaProxy` resources are referenced by `KafkaProxyIngress` and `VirtualKafkaCluster` resources to define how the proxy is exposed and what it proxies.
 
-.Example `KafkaProxy` configuration.
+.Example `KafkaProxy` configuration
 [source,yaml]
 ----
 kind: KafkaProxy
