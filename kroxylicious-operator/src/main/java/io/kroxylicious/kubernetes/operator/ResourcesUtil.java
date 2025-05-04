@@ -43,8 +43,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.TrustAnchorR
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 
 public class ResourcesUtil {
@@ -373,33 +371,35 @@ public class ResourcesUtil {
      * @return modified resource if the certificate references is invalid, or null otherwise.
      * @param <T> custom resource type
      */
-    @Nullable
-    public static <T extends CustomResource<?, ?>> T checkCertRef(T resource,
-                                                                  Context<T> context,
-                                                                  String secretEventSourceName,
-                                                                  CertificateRef certRef,
-                                                                  String path,
-                                                                  StatusFactory<T> statusFactory) {
+    public static <T extends CustomResource<?, ?>> ResourceCheckResult<T> checkCertRef(T resource,
+                                                                                       CertificateRef certRef,
+                                                                                       String path,
+                                                                                       StatusFactory<T> statusFactory,
+                                                                                       Context<T> context,
+                                                                                       String secretEventSourceName) {
         if (isSecret(certRef)) {
             Optional<Secret> secretOpt = context.getSecondaryResource(Secret.class, secretEventSourceName);
             if (secretOpt.isEmpty()) {
-                return statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                         Condition.REASON_REFS_NOT_FOUND,
-                        path + ": referenced resource not found");
+                        path + ": referenced resource not found"), List.of());
             }
             else {
-                if (!"kubernetes.io/tls".equals(secretOpt.get().getType())) {
-                    return statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                Secret secret = secretOpt.get();
+                if (!"kubernetes.io/tls".equals(secret.getType())) {
+                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                             Condition.REASON_INVALID_REFERENCED_RESOURCE,
-                            path + ": referenced secret should have 'type: kubernetes.io/tls'");
+                            path + ": referenced secret should have 'type: kubernetes.io/tls'"), List.of());
+                }
+                else {
+                    return new ResourceCheckResult<>(null, List.of(secret));
                 }
             }
         }
         else {
-            return statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
-                    path + ": supports referents: secrets");
+                    path + ": supports referents: secrets"), List.of());
         }
-        return null;
     }
 }

@@ -42,7 +42,6 @@ import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
-import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
 
 /**
  * <p>Reconciles a {@link KafkaProtocolFilter} by checking whether the {@link Secret}s
@@ -153,8 +152,7 @@ public class KafkaProtocolFilterReconciler implements
                 && existingConfigMapsByName.keySet().containsAll(referencedConfigMaps)) {
             Stream<HasMetadata> referents = Stream.concat(referencedSecrets.stream().map(existingSecretsByName::get),
                     referencedConfigMaps.stream().map(existingConfigMapsByName::get));
-            HasMetadata[] referentsArray = referents.toArray(HasMetadata[]::new);
-            String checksum = referentsArray.length == 0 ? NO_CHECKSUM_SPECIFIED : MetadataChecksumGenerator.checksumFor(referentsArray);
+            String checksum = MetadataChecksumGenerator.checksumFor(referents.toList());
             patch = statusFactory.newTrueConditionStatusPatch(
                     filter,
                     Condition.Type.ResolvedRefs,
