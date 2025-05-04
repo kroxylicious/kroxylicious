@@ -6,7 +6,7 @@
 = Securing filters
 
 [role="_abstract"]
-Make filters more secure by keeping security-sensitive values in external resource such as Kubernetes `Secret` resources, and making use of the security features provided by filters.
+Secure filters by using the security features provided by each filter and storing sensitive values in external resources such as a Kubernetes `Secret`.
 
 include::../modules/configuring/con-kafkaprotocolfilter-secrets.adoc[leveloffset=+1]
 

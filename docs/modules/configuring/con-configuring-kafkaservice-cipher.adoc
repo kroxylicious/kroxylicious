@@ -3,7 +3,7 @@
 // kroxylicious-operator/assemblies/assembly-operator-secure-proxy-broker-connection.adoc
 
 [id='con-configuring-kafkaservice-cipher-{context}']
-= The proxy-to-cluster cipher suite
+= TLS cipher suite configuration for proxy-to-cluster connections
 
 A cipher suite is a set of cryptographic algorithms that together provide the security guarantees offered by TLS.
 During TLS negotiation a server and client agree on a common cipher suite that they both support.

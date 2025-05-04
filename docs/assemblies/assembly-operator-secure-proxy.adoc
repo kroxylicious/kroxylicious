@@ -8,11 +8,11 @@ ifdef::context[:parent-context: {context}]
 = Securing a proxy
 
 [role="_abstract"]
-Make a proxy more secure by using TLS and keeping security-sensitive properties in external resources.
+Secure proxies by using TLS and storing sensitive values in external resources.
 
 == Prerequisites
 
-* An existing proxy instance
+* A running Kroxylicious proxy instance
 
 include::assembly-operator-secure-client-proxy-connection.adoc[leveloffset=+1]
 
