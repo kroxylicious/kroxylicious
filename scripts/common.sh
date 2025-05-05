@@ -61,11 +61,11 @@ extractRegistryServer () {
 }
 
 function info {
-  printf "${GREEN}run-operator.sh: ${1}${NO_COLOUR}\n"
+  printf "${GREEN}$(basename "$0"): ${1}${NO_COLOUR}\n"
 }
 
 function error {
-  printf "${RED}run-operator.sh: ${1}${NO_COLOUR}\n"
+  printf "${RED}$(basename "$0"): ${2}${NO_COLOUR}\n"
 }
 
 function buildPullSpec {
