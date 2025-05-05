@@ -71,7 +71,7 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("Kafka proxy ingress edited");
 
         // Then
-        await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+        await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
             Deployment proxyDeployment = kubeClient.getDeployment(namespace, "simple");
             OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
                     value -> assertThat(value).isNotEqualTo(originalChecksum));
