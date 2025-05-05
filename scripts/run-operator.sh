@@ -4,7 +4,9 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
+
 set -euo pipefail
+
 # simple script to build and run the operator
 cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" || exit
 cd .. || exit
@@ -21,15 +23,17 @@ TMP_INSTALL_DIR="$(mktemp -d)"
 trap 'rm -rf -- "$TMP_INSTALL_DIR"' EXIT
 
 
-if [[ -z ${IMAGE_TAG:-''} ]]; then
+if [[ -z ${IMAGE_TAG:="dev-git-$(git rev-parse HEAD)"} ]]; then
   error "No value specified for IMAGE_TAG"
   exit 1
 fi
 
+OPERATOR_PULL_SPEC=$(buildPullSpec "operator")
+
 cd kroxylicious-operator || exit
 info "installing kafka (no-op if already installed)"
-kubectl create namespace kafka
-kubectl create -n kafka -f 'https://strimzi.io/install/latest?namespace=kafka'
+kubectl create namespace kafka --save-config --dry-run=client -o yaml | kubectl apply -f -
+kubectl apply -n kafka -f 'https://strimzi.io/install/latest?namespace=kafka'
 kubectl wait -n kafka deployment/strimzi-cluster-operator --for=condition=Available=True --timeout=300s
 kubectl apply -n kafka -f https://strimzi.io/examples/latest/kafka/kafka-single-node.yaml
 kubectl wait -n kafka kafka/my-cluster --for=condition=Ready --timeout=300s
@@ -55,7 +59,7 @@ info "installing crds"
 kubectl apply -f ../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8
 info "installing kroxylicious-operator"
 cp install/* ${TMP_INSTALL_DIR}
-${SED} -i "s|quay.io/kroxylicious/operator:latest|quay.io/kroxylicious/operator:${IMAGE_TAG}|g" ${TMP_INSTALL_DIR}/03.Deployment.kroxylicious-operator.yaml
+${SED} -i "s|quay.io/kroxylicious/operator:latest|${OPERATOR_PULL_SPEC}|g" ${TMP_INSTALL_DIR}/03.Deployment.kroxylicious-operator.yaml
 kubectl apply -f ${TMP_INSTALL_DIR}
 info "installing simple proxy"
 kubectl apply -f examples/simple/

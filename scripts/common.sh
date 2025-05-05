@@ -63,6 +63,14 @@ extractRegistryServer () {
 function info {
   printf "${GREEN}run-operator.sh: ${1}${NO_COLOUR}\n"
 }
+
 function error {
   printf "${RED}run-operator.sh: ${1}${NO_COLOUR}\n"
+}
+
+function buildPullSpec {
+  IMAGE_REGISTRY=${IMAGE_REGISTRY:-"quay.io"}
+  IMAGE_REGISTRY_ORG=${IMAGE_REGISTRY_ORG:-${QUAY_ORG}}
+  IMAGE_NAME=${IMAGE_NAME:-${1}}
+  echo "${IMAGE_REGISTRY}/${IMAGE_REGISTRY_ORG}/${IMAGE_NAME}:${IMAGE_TAG}"
 }
