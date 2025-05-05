@@ -36,6 +36,7 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
+import io.kroxylicious.systemtests.utils.NamespaceUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -224,7 +225,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         LOGGER.info("Install Kroxylicious Operator via Yaml bundle in namespace {}", namespaceInstallTo);
 
         setTestClassNameAndTestMethodName();
-
+        NamespaceUtils.addNamespaceToSet(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE, testClassName);
         prepareEnvForOperator(namespaceInstallTo);
     }
 

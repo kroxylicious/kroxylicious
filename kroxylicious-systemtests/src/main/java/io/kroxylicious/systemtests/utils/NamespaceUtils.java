@@ -119,6 +119,7 @@ public class NamespaceUtils {
      * @param testClass the test class
      * @return the namespaces for test class
      */
+    @SuppressWarnings("unchecked")
     public static Set<String> getOrCreateNamespacesForTestClass(String testClass) {
         return getStore(testClass).getOrComputeIfAbsent(TRACKED_NAMESPACES_KEY, s -> ConcurrentHashMap.newKeySet(), Set.class);
     }
