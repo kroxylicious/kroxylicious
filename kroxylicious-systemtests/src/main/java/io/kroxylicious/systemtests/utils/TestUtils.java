@@ -16,10 +16,6 @@ import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
-import java.util.regex.Pattern;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -30,10 +26,7 @@ import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
  * The type Test utils.
  */
 public class TestUtils {
-    private static final Logger LOGGER = LoggerFactory.getLogger(TestUtils.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final Pattern IMAGE_PATTERN_FULL_PATH = Pattern.compile("^(?<registry>[^/]*)/(?<org>[^/]*)/(?<image>[^:]*):(?<tag>.*)$");
-    private static final Pattern IMAGE_PATTERN = Pattern.compile("^(?<org>[^/]*)/(?<image>[^:]*):(?<tag>.*)$");
 
     private TestUtils() {
     }
