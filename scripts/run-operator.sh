@@ -41,7 +41,7 @@ info "installing kafka (no-op if already installed)"
 kubectl create namespace kafka
 kubectl create -n kafka -f 'https://strimzi.io/install/latest?namespace=kafka'
 kubectl wait -n kafka deployment/strimzi-cluster-operator --for=condition=Available=True --timeout=300s
-kubectl apply -n kafka -f https://strimzi.io/examples/latest/kafka/kraft/kafka-single-node.yaml
+kubectl apply -n kafka -f https://strimzi.io/examples/latest/kafka/kafka-single-node.yaml
 kubectl wait -n kafka kafka/my-cluster --for=condition=Ready --timeout=300s
 
 info "deleting example"

@@ -47,7 +47,7 @@
         <log4j.version>2.24.3</log4j.version>
         <caffeine.version>3.2.0</caffeine.version>
         <picocli.version>4.7.7</picocli.version>
-        <netty.version>4.1.119.Final</netty.version>
+        <netty.version>4.1.121.Final</netty.version>
         <netty.io_uring.version>0.0.26.Final</netty.io_uring.version>
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
@@ -60,7 +60,7 @@
         <spotbugs-annotations.version>4.9.3</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
-        <jacoco-maven-plugin.version>0.8.12</jacoco-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.13</jacoco-maven-plugin.version>
         <apicurio-schema-validation.version>0.0.7</apicurio-schema-validation.version>
         <apicurio-registry.version>2.6.8.Final</apicurio-registry.version>
         <apicurio-common.version>0.1.18.Final</apicurio-common.version>
