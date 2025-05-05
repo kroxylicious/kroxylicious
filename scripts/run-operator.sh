@@ -4,7 +4,7 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
-
+set -euo pipefail
 # simple script to build and run the operator
 cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" || exit
 cd .. || exit
@@ -20,6 +20,11 @@ fi
 TMP_INSTALL_DIR="$(mktemp -d)"
 trap 'rm -rf -- "$TMP_INSTALL_DIR"' EXIT
 
+
+if [[ -z ${IMAGE_TAG:-''} ]]; then
+  error "No value specified for IMAGE_TAG"
+  exit 1
+fi
 
 cd kroxylicious-operator || exit
 info "installing kafka (no-op if already installed)"
