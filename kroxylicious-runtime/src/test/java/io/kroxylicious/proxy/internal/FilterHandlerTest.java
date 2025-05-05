@@ -37,6 +37,8 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import io.netty.buffer.Unpooled;
+
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FetchRequestFilter;
@@ -58,6 +60,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.verify;
 
 class FilterHandlerTest extends FilterHarness {
 
@@ -73,6 +77,15 @@ class FilterHandlerTest extends FilterHarness {
         var frame = writeRequest(new ApiVersionsRequestData());
         var propagated = channel.readOutbound();
         assertEquals(frame, propagated, "Expect it to be the frame that was sent");
+    }
+
+    // Note: Unpooled.EMPTY_BUFFER is used by KafkaProxyFrontendHandler#closeOnFlush
+    @Test
+    void canForwardEmptyBuffers() {
+        buildChannel();
+        channel.writeOutbound(Unpooled.EMPTY_BUFFER);
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isSameAs(Unpooled.EMPTY_BUFFER);
     }
 
     @Test
@@ -510,6 +523,30 @@ class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
+    void closedChannelReleasesOpaqueDeferredPendingRequests() {
+        var seen = new ArrayList<ApiMessage>();
+        var filterFuture = new CompletableFuture<RequestFilterResult>();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> {
+            seen.add(request);
+            return filterFuture;
+        };
+        buildChannel(filter);
+        var first = writeRequest(new ApiVersionsRequestData());
+        var opaqueBuf = spy(Unpooled.buffer());
+        writeArbitraryOpaqueRequest(opaqueBuf);
+        // the filter handler will have queued up the opaque request, awaiting the completion of the first.
+        filterFuture.complete(new RequestFilterResultBuilderImpl().withCloseConnection().build());
+        channel.runPendingTasks();
+
+        assertThat(channel.isOpen()).isFalse();
+        var propagated = channel.readOutbound();
+        assertThat(propagated).isNull();
+        assertThat(seen).containsExactly(first.body());
+
+        verify(opaqueBuf).release();
+    }
+
+    @Test
     void closedChannelIgnoresDeferredPendingResponse() {
         var seen = new ArrayList<ApiMessage>();
         var filterFuture = new CompletableFuture<ResponseFilterResult>();
@@ -528,6 +565,32 @@ class FilterHandlerTest extends FilterHarness {
         var propagated = channel.readInbound();
         assertThat(propagated).isNull();
         assertThat(seen).containsExactly(frame1.body());
+    }
+
+    @Test
+    void closedChannelReleasesOpaqueDeferredPendingResponses() {
+        var seen = new ArrayList<ApiMessage>();
+        var filterFuture = new CompletableFuture<ResponseFilterResult>();
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> {
+            seen.add(response);
+            return filterFuture;
+        };
+        buildChannel(filter);
+        var frame1 = writeResponse(new ApiVersionsResponseData().setErrorCode((short) 1));
+        var opaqueBuf = spy(Unpooled.buffer());
+        writeArbitraryOpaqueResponse(opaqueBuf);
+
+        writeResponse(new ApiVersionsResponseData().setErrorCode((short) 2));
+        // the filter handler will have queued up the second response, awaiting the completion of the first.
+        filterFuture.complete(new ResponseFilterResultBuilderImpl().withCloseConnection().build());
+        channel.runPendingTasks();
+
+        assertThat(channel.isOpen()).isFalse();
+        var propagated = channel.readInbound();
+        assertThat(propagated).isNull();
+        assertThat(seen).containsExactly(frame1.body());
+
+        verify(opaqueBuf).release();
     }
 
     @Test

@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.frame;
 
+import java.util.Objects;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +38,7 @@ public abstract class OpaqueFrame implements Frame {
      * @param length The length of the frame within {@code buf}.
      */
     OpaqueFrame(ByteBuf buf, int correlationId, int length) {
+        Objects.requireNonNull(buf);
         this.length = length;
         this.correlationId = correlationId;
         this.buf = buf.asReadOnly();
@@ -63,6 +66,16 @@ public abstract class OpaqueFrame implements Frame {
         out.ensureWritable(estimateEncodedSize());
         out.writeInt(length);
         out.writeBytes(buf, length);
+        buf.release();
+    }
+
+    /**
+     * Releases the underlying buffer.  This is used in the situation where the proxy
+     * knows that the frame cannot be forwarded to the upstream or downstream (probably
+     * owing to previous network error) and the proxy needs to release the buffer to
+     * prevent a resource leak.
+     */
+    public void releaseBuffer() {
         buf.release();
     }
 

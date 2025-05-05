@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2113](https://github.com/kroxylicious/kroxylicious/pull/2113) Ensure that filter handler does not leak deferred opaque requests/responses if the upstream or downstream side closes unexpectedly 
 * [#2098](https://github.com/kroxylicious/kroxylicious/pull/2098) Bump io.netty:netty-bom from 4.1.119.Final to 4.1.121.Final
 * [#1928](https://github.com/kroxylicious/kroxylicious/pull/2085) Bump info.picocli:picocli from 4.7.6 to 4.7.7
 * [#1437](https://github.com/kroxylicious/kroxylicious/issues/1437) Remove "zero-ack produce requests" warning
