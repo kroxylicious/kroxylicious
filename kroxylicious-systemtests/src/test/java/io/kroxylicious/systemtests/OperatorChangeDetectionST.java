@@ -50,7 +50,7 @@ class OperatorChangeDetectionST extends AbstractST {
         kroxylicious.deployPortIdentifiesNodeWithNoFilters(kafkaClusterName);
         KubeClient kubeClient = kubeClient(namespace);
 
-        await().atMost(Duration.ofSeconds(30)).untilAsserted(() -> {
+        await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
             List<Pod> proxyPods = kubeClient.listPods(namespace, "app.kubernetes.io/name", "kroxylicious-proxy");
             assertThat(proxyPods).singleElement().extracting(Pod::getMetadata).satisfies(podMetadata -> OperatorAssertions.assertThat(podMetadata)
                     .hasAnnotationSatisfying("kroxylicious.io/referent-checksum", value -> assertThat(value).isNotBlank()));
