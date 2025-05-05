@@ -34,9 +34,9 @@ import io.kroxylicious.doxylicious.model.OutputFileAssertion;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public class ProcIT {
+public class ProcedureIT {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ProcIT.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProcedureIT.class);
 
     private static void deleteFileTree(Path path) throws IOException {
         LOGGER.info("Deleting file tree {}", path);
