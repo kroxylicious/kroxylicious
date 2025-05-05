@@ -37,11 +37,12 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
-import static io.kroxylicious.kubernetes.operator.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
+import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
 
 /**
  * <p>Reconciles a {@link KafkaProtocolFilter} by checking whether the {@link Secret}s

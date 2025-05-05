@@ -42,7 +42,7 @@ public class Environment {
     private static final String KROXYLICIOUS_OPERATOR_REGISTRY_ENV = "KROXYLICIOUS_OPERATOR_REGISTRY";
     private static final String KROXYLICIOUS_VERSION_ENV = "KROXYLICIOUS_VERSION";
     private static final String KROXYLICIOUS_OPERATOR_VERSION_ENV = "KROXYLICIOUS_OPERATOR_VERSION";
-    private static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN";
+    public static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN";
     private static final String CONTAINER_CONFIG_PATH_ENV = "CONTAINER_CONFIG_PATH";
     private static final String SKIP_STRIMZI_INSTALL_ENV = "SKIP_STRIMZI_INSTALL";
     private static final String KAFKA_CLIENT_ENV = "KAFKA_CLIENT";

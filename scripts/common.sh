@@ -59,3 +59,18 @@ export SED
 extractRegistryServer () {
   echo $1 | ${SED} -e 's#\([^:]*:\)\?\(//\)\?\([^/]*\).*#\3#'
 }
+
+function info {
+  printf "${GREEN}$(basename "$0"): ${1}${NO_COLOUR}\n"
+}
+
+function error {
+  printf "${RED}$(basename "$0"): ${2}${NO_COLOUR}\n"
+}
+
+function buildPullSpec {
+  IMAGE_REGISTRY=${IMAGE_REGISTRY:-"quay.io"}
+  IMAGE_REGISTRY_ORG=${IMAGE_REGISTRY_ORG:-${QUAY_ORG}}
+  IMAGE_NAME=${IMAGE_NAME:-${1}}
+  echo "${IMAGE_REGISTRY}/${IMAGE_REGISTRY_ORG}/${IMAGE_NAME}:${IMAGE_TAG}"
+}
