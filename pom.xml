@@ -68,7 +68,7 @@
 
         <!-- Test dependencies -->
         <strimzi.version>0.45.0</strimzi.version>  <!-- when bumping strimzi, be sure to comment out the kafka.version override in the systemtest module's pom -->
-        <kubernetes-client.version>6.13.5</kubernetes-client.version>
+        <kubernetes-client.version>7.1.0</kubernetes-client.version>
         <enforcer.api.version>3.5.0</enforcer.api.version>
         <maven.core.version>3.9.9</maven.core.version>
         <awaitility.version>4.3.0</awaitility.version>
