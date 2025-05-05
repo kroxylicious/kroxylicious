@@ -39,8 +39,11 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
+import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
+import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -656,12 +659,7 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void mappingToSecretToVirtualKafkaClusterWithTls() {
         // Given
-        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mock();
-        KubernetesClient client = mock();
-        when(eventSourceContext.getClient()).thenReturn(client);
-
-        KubernetesResourceList<VirtualKafkaCluster> mockList = mockListOperation(client, VirtualKafkaCluster.class);
-        when(mockList.getItems()).thenReturn(List.of(CLUSTER_NO_FILTERS_WITH_TLS));
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_NO_FILTERS_WITH_TLS);
 
         // When
         var mapper = VirtualKafkaClusterReconciler.secretToVirtualKafkaCluster(eventSourceContext);
@@ -674,12 +672,7 @@ class VirtualKafkaClusterReconcilerTest {
     @Test
     void mappingToSecretToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTls() {
         // Given
-        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mock();
-        KubernetesClient client = mock();
-        when(eventSourceContext.getClient()).thenReturn(client);
-
-        KubernetesResourceList<VirtualKafkaCluster> mockList = mockListOperation(client, VirtualKafkaCluster.class);
-        when(mockList.getItems()).thenReturn(List.of(CLUSTER_NO_FILTERS));
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_NO_FILTERS);
 
         // When
         var mapper = VirtualKafkaClusterReconciler.secretToVirtualKafkaCluster(eventSourceContext);
@@ -694,7 +687,171 @@ class VirtualKafkaClusterReconcilerTest {
         when(context.getSecondaryResource(Secret.class, VirtualKafkaClusterReconciler.SECRETS_EVENT_SOURCE_NAME)).thenReturn(optional);
     }
 
-    private <T extends HasMetadata> KubernetesResourceList<T> mockListOperation(KubernetesClient client, Class<T> clazz) {
+    @Test
+    void ingressSecondaryToPrimaryMapper() {
+        // given
+        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec()
+                .withIngresses(new IngressesBuilder()
+                        .withNewIngressRef().withName("ingress").endIngressRef().build())
+                .endSpec().build();
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(cluster);
+        SecondaryToPrimaryMapper<KafkaProxyIngress> mapper = VirtualKafkaClusterReconciler.ingressSecondaryToPrimaryMapper(eventSourceContext);
+        KafkaProxyIngress ingress = new KafkaProxyIngressBuilder().withNewMetadata().withName("ingress").endMetadata().withNewSpec().withNewProxyRef()
+                .withName("proxy")
+                .endProxyRef().endSpec().build();
+
+        // when
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(ingress);
+
+        // then
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(cluster));
+    }
+
+    @Test
+    void filterSecondaryToPrimaryMapper() {
+        // given
+        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec()
+                .withFilterRefs(new FilterRefBuilder().withName("filter").build()).endSpec().build();
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(cluster);
+        SecondaryToPrimaryMapper<KafkaProtocolFilter> mapper = VirtualKafkaClusterReconciler.filterSecondaryToPrimaryMapper(eventSourceContext);
+        KafkaProtocolFilter filter = new KafkaProtocolFilterBuilder().withNewMetadata().withName("filter").endMetadata().withNewSpec().endSpec().build();
+
+        // when
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(filter);
+
+        // then
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(cluster));
+    }
+
+    @Test
+    void kafkaServiceSecondaryToPrimaryMapper() {
+        // given
+        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec()
+                .withTargetKafkaServiceRef(new KafkaServiceRefBuilder().withName("target-kafka").build()).endSpec().build();
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(cluster);
+        SecondaryToPrimaryMapper<KafkaService> mapper = VirtualKafkaClusterReconciler.kafkaServiceSecondaryToPrimaryMapper(eventSourceContext);
+        KafkaService service = new KafkaServiceBuilder().withNewMetadata().withName("target-kafka").endMetadata().withNewSpec().endSpec().build();
+
+        // when
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(service);
+
+        // then
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(cluster));
+    }
+
+    @Test
+    void filterSecondaryToPrimaryMapperHandlesNullFilterRefs() {
+        // given
+        VirtualKafkaCluster clusterWithNullFilterRefs = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec().endSpec()
+                .build();
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(clusterWithNullFilterRefs);
+        SecondaryToPrimaryMapper<KafkaProtocolFilter> mapper = VirtualKafkaClusterReconciler.filterSecondaryToPrimaryMapper(eventSourceContext);
+        KafkaProtocolFilter filter = new KafkaProtocolFilterBuilder().withNewMetadata().withName("filter").endMetadata().withNewSpec().endSpec().build();
+
+        // when
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(filter);
+
+        // then
+        assertThat(primaryResourceIDs).isEmpty();
+    }
+
+    @Test
+    void ingressSecondaryToPrimaryMapperIgnoresIngressWithStaleStatus() {
+        // given
+        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec()
+                .withIngresses(new IngressesBuilder().withNewIngressRef().withName("ingress").endIngressRef().build()).endSpec().build();
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(cluster);
+        SecondaryToPrimaryMapper<KafkaProxyIngress> mapper = VirtualKafkaClusterReconciler.ingressSecondaryToPrimaryMapper(eventSourceContext);
+        // @formatter:off
+        KafkaProxyIngress ingress = new KafkaProxyIngressBuilder()
+                .withNewMetadata()
+                .withName("ingress")
+                .withGeneration(23L)
+                .endMetadata()
+                .withNewSpec()
+                .withNewProxyRef()
+                .withName("proxy")
+                .endProxyRef()
+                .endSpec()
+                .withNewStatus()
+                .withObservedGeneration(20L)
+                .endStatus()
+                .build();
+        // @formatter:on
+
+        // when
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(ingress);
+
+        // then
+        assertThat(primaryResourceIDs).isEmpty();
+    }
+
+    @Test
+    void filterSecondaryToPrimaryMapperIgnoresFilterWithStaleStatus() {
+        // given
+        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec()
+                .withFilterRefs(new FilterRefBuilder().withName("filter").build()).endSpec().build();
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(cluster);
+        SecondaryToPrimaryMapper<KafkaProtocolFilter> mapper = VirtualKafkaClusterReconciler.filterSecondaryToPrimaryMapper(eventSourceContext);
+        // @formatter:off
+        KafkaProtocolFilter ingress = new KafkaProtocolFilterBuilder()
+                .withNewMetadata()
+                .withName("filter")
+                .withGeneration(23L)
+                .endMetadata()
+                .withNewSpec()
+                .endSpec()
+                .withNewStatus()
+                .withObservedGeneration(20L)
+                .endStatus()
+                .build();
+        // @formatter:on
+
+        // when
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(ingress);
+
+        // then
+        assertThat(primaryResourceIDs).isEmpty();
+    }
+
+    @Test
+    void kafkaServiceSecondaryToPrimaryMapperIgnoresServiceWithStaleStatus() {
+        // given
+        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec()
+                .withTargetKafkaServiceRef(new KafkaServiceRefBuilder().withName("target-kafka").build()).endSpec().build();
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(cluster);
+        SecondaryToPrimaryMapper<KafkaService> mapper = VirtualKafkaClusterReconciler.kafkaServiceSecondaryToPrimaryMapper(eventSourceContext);
+        // @formatter:off
+        KafkaService service = new KafkaServiceBuilder()
+                .withNewMetadata()
+                .withName("target-kafka")
+                .withGeneration(23L)
+                .endMetadata()
+                .withNewSpec()
+                .endSpec()
+                .withNewStatus()
+                .withObservedGeneration(20L)
+                .endStatus()
+                .build();
+        // @formatter:on
+
+        // when
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(service);
+
+        // then
+        assertThat(primaryResourceIDs).isEmpty();
+    }
+
+    private static EventSourceContext<VirtualKafkaCluster> mockContextContaining(VirtualKafkaCluster cluster) {
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mock();
+        KubernetesClient client = mock();
+        when(eventSourceContext.getClient()).thenReturn(client);
+        KubernetesResourceList<VirtualKafkaCluster> mockList = mockListOperation(client, VirtualKafkaCluster.class);
+        when(mockList.getItems()).thenReturn(List.of(cluster));
+        return eventSourceContext;
+    }
+
+    private static <T extends HasMetadata> KubernetesResourceList<T> mockListOperation(KubernetesClient client, Class<T> clazz) {
         MixedOperation<T, KubernetesResourceList<T>, Resource<T>> mockOperation = mock();
         when(client.resources(clazz)).thenReturn(mockOperation);
         KubernetesResourceList<T> mockList = mock();
@@ -702,5 +859,4 @@ class VirtualKafkaClusterReconcilerTest {
         when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
         return mockList;
     }
-
 }
