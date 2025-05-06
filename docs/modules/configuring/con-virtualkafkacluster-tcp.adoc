@@ -34,7 +34,7 @@ spec:
     - ingressRef: # <3>
         name: cluster-ip
 ----
-<1> The `proxyRef` names the `KafkaProxy` resource that this virtual cluster is part of.
+<1> The `proxyRef` names the `KafkaProxy` hosting with this virtual cluster.
   It must be in the same namespace as the `VirtualKafkaCluster`.
 <2> The `KafkaService` that is proxied by the virtual cluster.
   It must be in the same namespace as the `VirtualKafkaCluster`.

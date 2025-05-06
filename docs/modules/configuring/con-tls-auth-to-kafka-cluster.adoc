@@ -3,7 +3,7 @@
 // kroxylicious-operator/assemblies/assembly-operator-secure-proxy-broker-connection.adoc
 
 [id='con-tls-auth-to-kafka-cluster-{context}']
-= TLS authentication to a Kafka cluster
+= TLS authentication to proxied Kafka clusters
 
 Some Kafka clusters require mutual TLS (mTLS) authentication. 
 You can configure the proxy to present a TLS client certificate using the `KafkaService` resource.
