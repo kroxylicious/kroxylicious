@@ -95,10 +95,11 @@ virtualClusters:
 <1> PKCS #12 store containing CA certificate(s) used to verify that the client's certificate is trusted.
 <2> (Optional) Password to protect the PKCS #12 store.
 <3> (Optional) Keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
-<4> Client authentication mode. 
+<4> (Optional) Client authentication mode. 
 If set to `REQUIRED`, the client must present a valid certificate. 
 If set to `REQUESTED`, the client is requested to present a certificate. If presented, the certificate is validated. If the client chooses not to present a certificate the connection is still allowed. 
 If set to `NONE`, client authentication is disabled.
+If a client authentication mode is not specified, then the default behaviour is `REQUIRED`.
 
 NOTE: The client's identity, as established through TLS client authentication, is currently not relayed to the target cluster. 
 For more information, see the {github-issues}/1637[related issue^].

@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2135](https://github.com/kroxylicious/kroxylicious/pull/2135) Require client certificates by default if user supplies downstream trust
 * [#2140](https://github.com/kroxylicious/kroxylicious/pull/2140) Bump Jackson from 2.18.1 to 2.18.3
 * [#2115](https://github.com/kroxylicious/kroxylicious/pull/2115) Ensure request path chains deferred opaque requests correctly
 * [#2113](https://github.com/kroxylicious/kroxylicious/pull/2113) Ensure that filter handler does not leak deferred opaque requests/responses if the upstream or downstream side closes unexpectedly 
@@ -16,6 +17,12 @@ Format `<github issue/pr number>: <short description>`.
 * [#1900](https://github.com/kroxylicious/kroxylicious/issues/1900) Enforce business rule that a proxy must have at least one virtual cluster
 * [#1855](https://github.com/kroxylicious/kroxylicious/issues/1855) Upgrade to Apache Kafka 4.0
 * [#1928](https://github.com/kroxylicious/kroxylicious/pull/1928) Make Kroxylicious Operator metrics available for collection
+
+### Changes, deprecations and removals
+
+* The default behaviour for client authentication has changed, if a Gateway is configured with client trust certificates, then
+by default we will require the client to supply certificates. Previously the user had to also configure the clientAuth mode to
+`REQUIRED` to enable this behaviour, the default was to not check the client certificates.
 
 ## 0.11.0
 
