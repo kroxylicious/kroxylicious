@@ -19,6 +19,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.proxy.config.Configuration;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -28,7 +29,8 @@ public record KafkaProxyContext(VirtualKafkaClusterStatusFactory virtualKafkaClu
                                 List<Volume> volumes,
                                 List<VolumeMount> mounts) {
 
-    private static final String KEY_CTX = KafkaProxyContext.class.getName();
+    @VisibleForTesting
+    static final String KEY_CTX = KafkaProxyContext.class.getName();
 
     static void init(Context<KafkaProxy> context,
                      VirtualKafkaClusterStatusFactory virtualKafkaClusterStatusFactory,

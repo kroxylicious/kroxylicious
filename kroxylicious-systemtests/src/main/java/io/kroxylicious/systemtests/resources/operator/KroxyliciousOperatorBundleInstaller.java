@@ -30,13 +30,14 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.skodjob.testframe.enums.InstallType;
 import io.skodjob.testframe.installation.InstallationMethod;
 import io.skodjob.testframe.resources.KubeResourceManager;
+import io.skodjob.testframe.utils.ImageUtils;
 import io.skodjob.testframe.utils.TestFrameUtils;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
-import io.kroxylicious.systemtests.utils.TestUtils;
+import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -138,7 +139,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .endMetadata()
                 .editSpec()
                 .editFirstContainer()
-                .withImage(TestUtils.changeRegistryOrgImageAndTag(deploymentImage, Environment.KROXYLICIOUS_OPERATOR_REGISTRY,
+                .withImage(ImageUtils.changeRegistryOrgImageAndTag(deploymentImage, Environment.KROXYLICIOUS_OPERATOR_REGISTRY,
                         Environment.KROXYLICIOUS_OPERATOR_ORG, Environment.KROXYLICIOUS_OPERATOR_IMAGE, Environment.KROXYLICIOUS_OPERATOR_VERSION))
                 .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                 .endContainer()
@@ -150,7 +151,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .endSpec()
                 .build();
 
-        KubeResourceManager.get().createResourceWithWait(operatorDeployment);
+        KubeResourceManager.get().createOrUpdateResourceWithWait(operatorDeployment);
     }
 
     /**
@@ -167,7 +168,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
                 .toList();
         for (File crdFile : crdFiles) {
             CustomResourceDefinition customResourceDefinition = TestFrameUtils.configFromYaml(crdFile, CustomResourceDefinition.class);
-            KubeResourceManager.get().createResourceWithWait(customResourceDefinition);
+            KubeResourceManager.get().createOrUpdateResourceWithWait(customResourceDefinition);
         }
     }
 
@@ -224,14 +225,14 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         LOGGER.info("Install Kroxylicious Operator via Yaml bundle in namespace {}", namespaceInstallTo);
 
         setTestClassNameAndTestMethodName();
-
+        NamespaceUtils.addNamespaceToSet(Constants.KROXYLICIOUS_OPERATOR_NAMESPACE, testClassName);
         prepareEnvForOperator(namespaceInstallTo);
     }
 
     @Override
     public synchronized void delete() {
         LOGGER.info(SEPARATOR);
-        if (IS_EMPTY.test(this)) {
+        if (IS_EMPTY.test(this) || Environment.SKIP_TEARDOWN) {
             LOGGER.info("Skip un-installation of the Kroxylicious Operator");
         }
         else {
@@ -239,13 +240,11 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
 
             // clear all resources related to the extension context
             try {
-                if (!Environment.SKIP_TEARDOWN) {
-                    for (File operatorFile : getFilteredOperatorFiles(Predicate.not(deploymentFiles))) {
-                        LOGGER.info("Deleting Kroxylicious Operator element: {}", operatorFile.getName());
-                        kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).inAnyNamespace().delete();
-                    }
-                    KubeResourceManager.get().deleteResources(true);
+                for (File operatorFile : getFilteredOperatorFiles(Predicate.not(deploymentFiles))) {
+                    LOGGER.info("Deleting Kroxylicious Operator element: {}", operatorFile.getName());
+                    kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).inAnyNamespace().delete();
                 }
+                KubeResourceManager.get().deleteResources(true);
             }
             catch (Exception e) {
                 LOGGER.error("An error occurred when deleting the resources", e);

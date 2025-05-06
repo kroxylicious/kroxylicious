@@ -25,6 +25,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.KafkaProxyIngressStatusAssert;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 import static io.kroxylicious.kubernetes.operator.assertj.KafkaProxyIngressStatusAssert.assertThat;
 import static org.assertj.core.api.Assertions.assertThat;
