@@ -42,6 +42,8 @@ spec:
         app.kubernetes.io/name: "kroxylicious-proxy"
         app.kubernetes.io/instance: "use-pod-template-spec"
         app.kubernetes.io/component: "proxy"
+      annotations:
+        kroxylicious.io/referent-checksum: "AAAAAAAB4wY"
     spec:
       containers:
         - name: "proxy"

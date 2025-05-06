@@ -40,6 +40,8 @@ spec:
         app.kubernetes.io/name: "kroxylicious-proxy"
         app.kubernetes.io/instance: "twocluster"
         app.kubernetes.io/component: "proxy"
+      annotations:
+        kroxylicious.io/referent-checksum: "AAAAAAAB4wY"
     spec:
       containers:
         - name: "proxy"

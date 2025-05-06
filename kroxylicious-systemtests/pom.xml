@@ -203,6 +203,12 @@
             <groupId>io.skodjob</groupId>
             <artifactId>test-frame-log-collector</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-operator-test-support</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>

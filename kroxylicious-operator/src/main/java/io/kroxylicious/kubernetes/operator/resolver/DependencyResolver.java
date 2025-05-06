@@ -58,7 +58,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
  */
 public class DependencyResolver {
 
-    private static final ProxyResolutionResult EMPTY_RESOLUTION_RESULT = new ProxyResolutionResult(Map.of(), Map.of(), Map.of(), Set.of());
+    public static final ProxyResolutionResult EMPTY_RESOLUTION_RESULT = new ProxyResolutionResult(Map.of(), Map.of(), Map.of(), Set.of());
 
     private DependencyResolver() {
     }
