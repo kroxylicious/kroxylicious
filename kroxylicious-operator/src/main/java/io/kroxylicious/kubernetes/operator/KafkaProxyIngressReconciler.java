@@ -73,7 +73,7 @@ public class KafkaProxyIngressReconciler implements
 
         UpdateControl<KafkaProxyIngress> updateControl;
         if (proxyOpt.isPresent()) {
-            String checksum = MetadataChecksumGenerator.checksumFor(proxyOpt.get());
+            String checksum = MetadataChecksumGenerator.checksumFor(List.of(proxyOpt.get()));
             updateControl = UpdateControl.patchResourceAndStatus(
                     statusFactory.newTrueConditionStatusPatch(
                             ingress,

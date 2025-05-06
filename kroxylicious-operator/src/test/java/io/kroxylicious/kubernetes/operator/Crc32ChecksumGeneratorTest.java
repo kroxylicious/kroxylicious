@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -30,6 +31,16 @@ class Crc32ChecksumGeneratorTest {
             .withGeneration(1L)
             .endMetadata()
             .build();
+
+    static {
+        new KafkaProxyBuilder()
+                .withNewMetadata()
+                .withName("my-other-proxy")
+                .withUid("my-other-proxy-uuid")
+                .withGeneration(2L)
+                .endMetadata()
+                .build();
+    }
     // @formatter:on
 
     @Test
@@ -37,7 +48,7 @@ class Crc32ChecksumGeneratorTest {
         // Given
 
         // When
-        String checksum = MetadataChecksumGenerator.checksumFor(PROXY);
+        String checksum = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
 
         // Then
         assertThat(checksum)
@@ -47,11 +58,22 @@ class Crc32ChecksumGeneratorTest {
     }
 
     @Test
+    void emptyInputShouldResultInUnspecifiedChecksum() {
+        // Given
+
+        // When
+        String checksum = MetadataChecksumGenerator.checksumFor(List.of());
+
+        // Then
+        assertThat(checksum).isEqualTo(MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
+    }
+
+    @Test
     void shouldCalculateChecksum() {
         // Given
 
         // When
-        String checksum = MetadataChecksumGenerator.checksumFor(PROXY);
+        String checksum = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
 
         // Then
         assertThat(checksum)
@@ -62,10 +84,10 @@ class Crc32ChecksumGeneratorTest {
     @Test
     void shouldGenerationSameChecksumForTheSameInput() {
         // Given
-        String checksumA = MetadataChecksumGenerator.checksumFor(PROXY);
+        String checksumA = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
 
         // When
-        String checksumB = MetadataChecksumGenerator.checksumFor(PROXY);
+        String checksumB = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
 
         // Then
         assertThat(checksumA).isEqualTo(checksumB);
@@ -74,11 +96,11 @@ class Crc32ChecksumGeneratorTest {
     @Test
     void shouldIncludeUidInChecksum() {
         // Given
-        String proxyChecksum = MetadataChecksumGenerator.checksumFor(PROXY);
+        String proxyChecksum = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
 
         // When
-        String checksum = MetadataChecksumGenerator
-                .checksumFor(new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata()).withUid("updated-uid").endMetadata().build());
+        String checksum = MetadataChecksumGenerator.checksumFor(List.of(
+                new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata()).withUid("updated-uid").endMetadata().build()));
 
         // Then
         assertThat(checksum)
@@ -89,11 +111,11 @@ class Crc32ChecksumGeneratorTest {
     @Test
     void shouldIncludeGenerationInChecksum() {
         // Given
-        String proxyChecksum = MetadataChecksumGenerator.checksumFor(PROXY);
+        String proxyChecksum = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
 
         // When
-        String checksum = MetadataChecksumGenerator
-                .checksumFor(new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata()).withGeneration(15L).endMetadata().build());
+        String checksum = MetadataChecksumGenerator.checksumFor(List.of(
+                new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata()).withGeneration(15L).endMetadata().build()));
 
         // Then
         assertThat(checksum)
@@ -106,11 +128,11 @@ class Crc32ChecksumGeneratorTest {
     void shouldIncludeResourceVersionInChecksumWhenGenerationIsNull() {
         // Given
         Secret secret = new SecretBuilder().withNewMetadata().withUid("uid").withResourceVersion("6432").endMetadata().build();
-        String secretChecksum = MetadataChecksumGenerator.checksumFor(secret);
+        String secretChecksum = MetadataChecksumGenerator.checksumFor((List.of(secret)));
 
         // When
         String checksumWithDifferentResourceVersion = MetadataChecksumGenerator
-                .checksumFor(new SecretBuilder(secret).editMetadata().withResourceVersion("6455").endMetadata().build());
+                .checksumFor(List.of(new SecretBuilder(secret).editMetadata().withResourceVersion("6455").endMetadata().build()));
 
         // Then
         assertThat(checksumWithDifferentResourceVersion)
@@ -123,11 +145,11 @@ class Crc32ChecksumGeneratorTest {
     void shouldPreferGenerationInChecksumWhenGeneration() {
         // Given
         Secret secret = new SecretBuilder().withNewMetadata().withUid("uid").withResourceVersion("6432").withGeneration(1L).endMetadata().build();
-        String secretChecksum = MetadataChecksumGenerator.checksumFor(secret);
+        String secretChecksum = MetadataChecksumGenerator.checksumFor(List.of(secret));
 
         // When
-        String checksumWithDifferentResourceVersion = MetadataChecksumGenerator
-                .checksumFor(new SecretBuilder(secret).editMetadata().withResourceVersion("6478").withGeneration(1L).endMetadata().build());
+        String checksumWithDifferentResourceVersion = MetadataChecksumGenerator.checksumFor(List.of(
+                new SecretBuilder(secret).editMetadata().withResourceVersion("6478").withGeneration(1L).endMetadata().build()));
 
         // Then
         assertThat(checksumWithDifferentResourceVersion)
@@ -138,7 +160,7 @@ class Crc32ChecksumGeneratorTest {
     @Test
     void shouldIncludeMultipleReferentsInChecksum() {
         // Given
-        String proxyChecksum = MetadataChecksumGenerator.checksumFor(PROXY);
+        String proxyChecksum = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
         KafkaProxy anotherProxy = new KafkaProxyBuilder()
                 .withNewMetadataLike(PROXY.getMetadata())
                 .withUid(UUID.randomUUID().toString())
@@ -147,7 +169,7 @@ class Crc32ChecksumGeneratorTest {
                 .build();
 
         // When
-        String checksum = MetadataChecksumGenerator.checksumFor(PROXY, anotherProxy);
+        String checksum = MetadataChecksumGenerator.checksumFor(List.of(PROXY, anotherProxy));
 
         // Then
         assertThat(checksum)
@@ -155,15 +177,15 @@ class Crc32ChecksumGeneratorTest {
                 .isNotEqualTo(proxyChecksum);
 
         // Check it is deterministic
-        assertThat(MetadataChecksumGenerator.checksumFor(PROXY, anotherProxy)).isEqualTo(checksum);
-        assertThat(MetadataChecksumGenerator.checksumFor(PROXY)).isEqualTo(proxyChecksum);
+        assertThat(MetadataChecksumGenerator.checksumFor(List.of(PROXY, anotherProxy))).isEqualTo(checksum);
+        assertThat(MetadataChecksumGenerator.checksumFor(List.of(PROXY))).isEqualTo(proxyChecksum);
     }
 
     @Test
     void shouldIncludeUidFromHasMetadata() {
         // Given
         MetadataChecksumGenerator metadataChecksumGenerator = new Crc32ChecksumGenerator();
-        String proxyChecksum = MetadataChecksumGenerator.checksumFor(PROXY);
+        String proxyChecksum = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
 
         // When
         metadataChecksumGenerator.appendMetadata(new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata()).withUid("updated-uid").endMetadata().build());
@@ -178,7 +200,7 @@ class Crc32ChecksumGeneratorTest {
     void shouldIncludeUidFromObjectMeta() {
         // Given
         MetadataChecksumGenerator metadataChecksumGenerator = new Crc32ChecksumGenerator();
-        String proxyChecksum = MetadataChecksumGenerator.checksumFor(PROXY);
+        String proxyChecksum = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
 
         // When
         metadataChecksumGenerator
@@ -194,7 +216,7 @@ class Crc32ChecksumGeneratorTest {
     void shouldIncludeGenerationFromHasMetadata() {
         // Given
         MetadataChecksumGenerator metadataChecksumGenerator = new Crc32ChecksumGenerator();
-        String proxyChecksum = MetadataChecksumGenerator.checksumFor(PROXY);
+        String proxyChecksum = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
 
         // When
         metadataChecksumGenerator.appendMetadata(new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata()).withGeneration(3456789L).endMetadata().build());
@@ -209,7 +231,7 @@ class Crc32ChecksumGeneratorTest {
     void shouldIncludeGenerationFromObjectMeta() {
         // Given
         MetadataChecksumGenerator metadataChecksumGenerator = new Crc32ChecksumGenerator();
-        String proxyChecksum = MetadataChecksumGenerator.checksumFor(PROXY);
+        String proxyChecksum = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
 
         // When
         metadataChecksumGenerator
@@ -225,7 +247,7 @@ class Crc32ChecksumGeneratorTest {
     void shouldIncludeReferentAnnotation() {
         // Given
         MetadataChecksumGenerator metadataChecksumGenerator = new Crc32ChecksumGenerator();
-        String proxyChecksum = MetadataChecksumGenerator.checksumFor(PROXY);
+        String proxyChecksum = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
 
         // When
         metadataChecksumGenerator
@@ -242,7 +264,7 @@ class Crc32ChecksumGeneratorTest {
     void shouldIgnoreOtherAnnotation() {
         // Given
         MetadataChecksumGenerator metadataChecksumGenerator = new Crc32ChecksumGenerator();
-        String proxyChecksum = MetadataChecksumGenerator.checksumFor(PROXY);
+        String proxyChecksum = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
 
         // When
         metadataChecksumGenerator
@@ -259,7 +281,7 @@ class Crc32ChecksumGeneratorTest {
     void shouldIgnoreNullAnnotation() {
         // Given
         MetadataChecksumGenerator metadataChecksumGenerator = new Crc32ChecksumGenerator();
-        String proxyChecksum = MetadataChecksumGenerator.checksumFor(PROXY);
+        String proxyChecksum = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
 
         // When
         metadataChecksumGenerator

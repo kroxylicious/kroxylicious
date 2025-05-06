@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -15,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -32,9 +34,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.TrustAnchorRef;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
-
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
@@ -132,12 +133,14 @@ public final class KafkaServiceReconciler implements
     public UpdateControl<KafkaService> reconcile(KafkaService service, Context<KafkaService> context) {
 
         KafkaService updatedService = null;
-
+        List<HasMetadata> referents = new ArrayList<>();
         var trustAnchorRefOpt = Optional.ofNullable(service.getSpec())
                 .map(KafkaServiceSpec::getTls)
                 .map(Tls::getTrustAnchorRef);
         if (trustAnchorRefOpt.isPresent()) {
-            updatedService = checkTrustAnchorRef(service, context, trustAnchorRefOpt.get());
+            ResourceCheckResult<KafkaService> result = checkTrustAnchorRef(service, context, trustAnchorRefOpt.get());
+            updatedService = result.resource();
+            referents.addAll(result.referents());
         }
 
         if (updatedService == null) {
@@ -146,15 +149,19 @@ public final class KafkaServiceReconciler implements
                     .map(Tls::getCertificateRef);
             if (certRefOpt.isPresent()) {
                 String path = "spec.tls.certificateRef";
-                updatedService = ResourcesUtil.checkCertRef(service, context, SECRETS_EVENT_SOURCE_NAME, certRefOpt.get(), path, statusFactory);
+                ResourceCheckResult<KafkaService> result = ResourcesUtil.checkCertRef(service, certRefOpt.get(), path, statusFactory, context,
+                        SECRETS_EVENT_SOURCE_NAME);
+                updatedService = result.resource();
+                referents.addAll(result.referents());
             }
         }
 
         if (updatedService == null) {
-            updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs);
+            updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs,
+                    MetadataChecksumGenerator.checksumFor(referents));
         }
 
-        UpdateControl<KafkaService> uc = UpdateControl.patchStatus(updatedService);
+        UpdateControl<KafkaService> uc = UpdateControl.patchResourceAndStatus(updatedService);
 
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(service), name(service));
@@ -162,45 +169,49 @@ public final class KafkaServiceReconciler implements
         return uc;
     }
 
-    @Nullable
-    private KafkaService checkTrustAnchorRef(KafkaService service,
-                                             Context<KafkaService> context,
-                                             TrustAnchorRef trustAnchorRef) {
+    private ResourceCheckResult<KafkaService> checkTrustAnchorRef(KafkaService service,
+                                                                  Context<KafkaService> context,
+                                                                  TrustAnchorRef trustAnchorRef) {
         String path = "spec.tls.trustAnchorRef";
         if (ResourcesUtil.isConfigMap(trustAnchorRef)) {
             Optional<ConfigMap> configMapOpt = context.getSecondaryResource(ConfigMap.class, CONFIG_MAPS_EVENT_SOURCE_NAME);
             if (configMapOpt.isEmpty()) {
-                return statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
+                return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
                         Condition.REASON_REFS_NOT_FOUND,
-                        path + ": referenced resource not found");
+                        path + ": referenced resource not found"), List.of());
             }
             else {
                 String key = trustAnchorRef.getKey();
                 if (key == null) {
-                    return statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
+                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
                             Condition.REASON_INVALID,
-                            path + " must specify 'key'");
+                            path + " must specify 'key'"), List.of());
                 }
                 if (!key.endsWith(".pem")
                         && !key.endsWith(".p12")
                         && !key.endsWith(".jks")) {
-                    return statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
+                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
                             Condition.REASON_INVALID,
-                            path + ".key should end with .pem, .p12 or .jks");
+                            path + ".key should end with .pem, .p12 or .jks"), List.of());
                 }
-                else if (!configMapOpt.get().getData().containsKey(trustAnchorRef.getKey())) {
-                    return statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
-                            Condition.REASON_INVALID_REFERENCED_RESOURCE,
-                            path + ": referenced resource does not contain key " + trustAnchorRef.getKey());
+                else {
+                    ConfigMap configMap = configMapOpt.get();
+                    if (!configMap.getData().containsKey(trustAnchorRef.getKey())) {
+                        return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
+                                Condition.REASON_INVALID_REFERENCED_RESOURCE,
+                                path + ": referenced resource does not contain key " + trustAnchorRef.getKey()), List.of());
+                    }
+                    else {
+                        return new ResourceCheckResult<>(null, List.of(configMap));
+                    }
                 }
             }
         }
         else {
-            return statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
                     Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
-                    "spec.tls.trustAnchorRef supports referents: configmaps");
+                    "spec.tls.trustAnchorRef supports referents: configmaps"), List.of());
         }
-        return null;
     }
 
     @Override
