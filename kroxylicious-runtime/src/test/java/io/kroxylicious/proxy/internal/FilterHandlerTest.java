@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -31,12 +32,14 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.types.RawTaggedField;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
@@ -136,35 +139,6 @@ class FilterHandlerTest extends FilterHarness {
     }
 
     @Test
-    void deferredRequestMethodsDispatchedOnEventLoop() {
-        var req1 = new ApiVersionsRequestData().setClientSoftwareName("req1");
-
-        var requestFutureMap = new LinkedHashMap<ApiVersionsRequestData, CompletableFuture<Void>>();
-        requestFutureMap.put(req1, new CompletableFuture<>());
-
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> requestFutureMap.get(request)
-                .thenCompose((u) -> context.forwardRequest(header, request));
-        buildChannel(filter);
-
-        requestFutureMap.keySet().forEach(this::writeRequest);
-        OpaqueRequestFrame opaqueRequestFrame = writeArbitraryOpaqueRequest();
-        channel.runPendingTasks();
-
-        var propagated = channel.readOutbound();
-        assertThat(propagated).isNull();
-
-        // complete req1's future, now expect both requests to flow.
-        requestFutureMap.get(req1).complete(null);
-
-        channel.runPendingTasks();
-        DecodedRequestFrame<?> outboundRequest1 = channel.readOutbound();
-        assertThat(outboundRequest1).extracting(DecodedRequestFrame::body).isEqualTo(req1);
-
-        OpaqueRequestFrame outboundRequest2 = channel.readOutbound();
-        assertThat(outboundRequest2).isSameAs(opaqueRequestFrame);
-    }
-
-    @Test
     void deferredRequestMethodsDispatchedOnEventloop() {
         var req1 = new ApiVersionsRequestData().setClientSoftwareName("req1");
         var req2 = new ApiVersionsRequestData().setClientSoftwareName("req2");
@@ -193,7 +167,7 @@ class FilterHandlerTest extends FilterHarness {
                 }
                 // delay required to provoke the second request to be queued
                 return requestFutureMap.get(request)
-                        .thenCompose((u) -> context.forwardRequest(header, request));
+                        .thenCompose(u -> context.forwardRequest(header, request));
             }
         };
         buildChannel(filter);
@@ -219,144 +193,227 @@ class FilterHandlerTest extends FilterHarness {
         assertThat(outboundRequest2).extracting(DecodedRequestFrame::body).isEqualTo(req2);
     }
 
-    @Test
-    void multipleDeferredRequests() {
-        var req1 = new ApiVersionsRequestData().setClientSoftwareName("req1");
-        var req2 = new ApiVersionsRequestData().setClientSoftwareName("req2");
-        var req3 = new ApiVersionsRequestData().setClientSoftwareName("req3");
+    static Stream<Arguments> deferredRequests() {
+        var deferredApiRequest1 = new ApiVersionsRequestData().setClientSoftwareName("req1");
+        var deferredApiRequest2 = new ApiVersionsRequestData().setClientSoftwareName("req2");
+        var deferredApiRequest3 = new ApiVersionsRequestData().setClientSoftwareName("req3");
+        return Stream.of(
+                Arguments.argumentSet("single api request deferred",
+                        (Consumer<FilterHandlerTest>) test -> {
+                            test.writeRequest(deferredApiRequest1);
+                        },
+                        (Consumer<FilterHandlerTest>) test -> {
+                            DecodedRequestFrame<?> outboundRequest = test.channel.readOutbound();
+                            assertThat(outboundRequest)
+                                    .extracting(DecodedRequestFrame::body)
+                                    .isEqualTo(deferredApiRequest1);
 
-        var requestFutureMap = new LinkedHashMap<ApiVersionsRequestData, CompletableFuture<Void>>();
-        requestFutureMap.put(req1, new CompletableFuture<>());
-        requestFutureMap.put(req2, new CompletableFuture<>());
-        requestFutureMap.put(req3, CompletableFuture.completedFuture(null));
+                        }),
+                Arguments.argumentSet("many deferred api requests received correctly ordered",
+                        (Consumer<FilterHandlerTest>) test -> {
+                            test.writeRequest(deferredApiRequest1);
+                            test.writeRequest(deferredApiRequest2);
+                            test.writeRequest(deferredApiRequest3);
+                        },
+                        (Consumer<FilterHandlerTest>) test -> {
+                            List<DecodedRequestFrame<?>> requests = new ArrayList<>();
+                            requests.add(test.channel.readOutbound());
+                            requests.add(test.channel.readOutbound());
+                            requests.add(test.channel.readOutbound());
+                            assertThat(requests)
+                                    .extracting(DecodedRequestFrame::body)
+                                    .asInstanceOf(InstanceOfAssertFactories.list(ApiVersionsRequestData.class))
+                                    .containsExactly(deferredApiRequest1, deferredApiRequest2, deferredApiRequest3);
 
-        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> requestFutureMap.get(request)
-                .thenCompose((u) -> context.forwardRequest(header, request));
+                        }),
+                Arguments.argumentSet("many deferred opaque requests received correctly ordered",
+                        (Consumer<FilterHandlerTest>) test -> {
+                            var resp1 = Unpooled.buffer();
+                            resp1.writeByte((byte) 1);
+                            var resp2 = Unpooled.buffer();
+                            resp2.writeByte((byte) 2);
+                            var resp3 = Unpooled.buffer();
+                            resp3.writeByte((byte) 3);
+                            test.writeArbitraryOpaqueRequest(resp1);
+                            test.writeArbitraryOpaqueRequest(resp2);
+                            test.writeArbitraryOpaqueRequest(resp3);
+                        },
+                        (Consumer<FilterHandlerTest>) test -> {
+                            List<OpaqueRequestFrame> requests = new ArrayList<>();
+                            requests.add(test.channel.readOutbound());
+                            requests.add(test.channel.readOutbound());
+                            requests.add(test.channel.readOutbound());
+                            List<Byte> expected = List.of((byte) 1, (byte) 2, (byte) 3);
+                            assertThat(requests)
+                                    .extracting(OpaqueRequestFrame::buf)
+                                    .extracting(ByteBuf::readByte)
+                                    .containsExactlyElementsOf(expected);
+
+                        }),
+                Arguments.argumentSet("mixed deferred requests received correctly ordered",
+                        (Consumer<FilterHandlerTest>) test -> {
+                            test.writeRequest(deferredApiRequest1);
+                            var opaqueRequest2 = Unpooled.buffer();
+                            opaqueRequest2.writeByte((byte) 2);
+                            test.writeArbitraryOpaqueRequest(opaqueRequest2);
+                            test.writeRequest(deferredApiRequest3);
+                        },
+                        (Consumer<FilterHandlerTest>) test -> {
+                            DecodedRequestFrame<?> request1 = test.channel.readOutbound();
+                            assertThat(request1)
+                                    .extracting(DecodedRequestFrame::body)
+                                    .isEqualTo(deferredApiRequest1);
+
+                            OpaqueRequestFrame request2 = test.channel.readOutbound();
+                            assertThat(request2)
+                                    .extracting(OpaqueRequestFrame::buf)
+                                    .extracting(ByteBuf::readByte)
+                                    .isEqualTo((byte) 2);
+
+                            DecodedRequestFrame<?> request3 = test.channel.readOutbound();
+                            assertThat(request3)
+                                    .extracting(DecodedRequestFrame::body)
+                                    .isEqualTo(deferredApiRequest3);
+                        }));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void deferredRequests(Consumer<FilterHandlerTest> deferredWork, Consumer<FilterHandlerTest> requestAssertions) {
+        var first = new ApiVersionsRequestData().setClientSoftwareName("req0");
+        var firstFuture = new CompletableFuture<Void>();
+
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> firstFuture.thenCompose(u -> context.forwardRequest(header, request));
         buildChannel(filter);
-        // freeze time to prevent the deferred request timeout driving completion
-        channel.freezeTime();
 
-        requestFutureMap.keySet().forEach(this::writeRequest);
+        writeRequest(first);
+        deferredWork.accept(this);
         channel.runPendingTasks();
 
+        // Nothing should be propagated yet, as the first request is awaiting the future
         var propagated = channel.readOutbound();
         assertThat(propagated).isNull();
 
-        // complete req1's future, now expect both requests to flow.
-        requestFutureMap.get(req1).complete(null);
-
+        // complete first's future, now expect both requests to flow.
+        firstFuture.complete(null);
         channel.runPendingTasks();
+
         DecodedRequestFrame<?> outboundRequest1 = channel.readOutbound();
-        assertThat(outboundRequest1).extracting(DecodedRequestFrame::body).isEqualTo(req1);
+        assertThat(outboundRequest1).extracting(DecodedRequestFrame::body).isEqualTo(first);
 
-        requestFutureMap.get(req2).complete(null);
-
-        channel.runPendingTasks();
-
-        DecodedRequestFrame<?> outboundRequest2 = channel.readOutbound();
-        assertThat(outboundRequest2).extracting(DecodedRequestFrame::body).isEqualTo(req2);
-
-        DecodedRequestFrame<?> outboundRequest3 = channel.readOutbound();
-        assertThat(outboundRequest3).extracting(DecodedRequestFrame::body).isEqualTo(req3);
+        requestAssertions.accept(this);
     }
 
-    @Test
-    void deferredResponseDelaysSubsequentResponse() {
-        var res1 = new ApiVersionsResponseData().setErrorCode((short) 1);
-        var res2 = new ApiVersionsResponseData().setErrorCode((short) 2);
+    static Stream<Arguments> deferredResponses() {
+        var deferredApiResponse1 = new ApiVersionsResponseData().setErrorCode((short) 1);
+        var deferredApiResponse2 = new ApiVersionsResponseData().setErrorCode((short) 2);
+        var deferredApiResponse3 = new ApiVersionsResponseData().setErrorCode((short) 3);
+        return Stream.of(
+                Arguments.argumentSet("single api response deferred",
+                        (Consumer<FilterHandlerTest>) test -> {
+                            test.writeResponse(deferredApiResponse1);
+                        },
+                        (Consumer<FilterHandlerTest>) test -> {
+                            DecodedResponseFrame<?> inboundResponse = test.channel.readInbound();
+                            assertThat(inboundResponse)
+                                    .extracting(DecodedResponseFrame::body)
+                                    .isEqualTo(deferredApiResponse1);
 
-        var responseFutureMap = new LinkedHashMap<ApiVersionsResponseData, CompletableFuture<Void>>();
-        responseFutureMap.put(res1, new CompletableFuture<>());
-        responseFutureMap.put(res2, CompletableFuture.completedFuture(null));
+                        }),
+                Arguments.argumentSet("many deferred api responses received correctly ordered",
+                        (Consumer<FilterHandlerTest>) test -> {
+                            test.writeResponse(deferredApiResponse1);
+                            test.writeResponse(deferredApiResponse2);
+                            test.writeResponse(deferredApiResponse3);
+                        },
+                        (Consumer<FilterHandlerTest>) test -> {
+                            List<DecodedResponseFrame<?>> responses = new ArrayList<>();
+                            responses.add(test.channel.readInbound());
+                            responses.add(test.channel.readInbound());
+                            responses.add(test.channel.readInbound());
+                            assertThat(responses)
+                                    .extracting(DecodedResponseFrame::body)
+                                    .asInstanceOf(InstanceOfAssertFactories.list(ApiVersionsResponseData.class))
+                                    .containsExactly(deferredApiResponse1, deferredApiResponse2, deferredApiResponse3);
 
-        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> responseFutureMap.get(response)
-                .thenCompose((u) -> context.forwardResponse(header, response));
+                        }),
+                Arguments.argumentSet("many deferred opaque responses received correctly ordered",
+                        (Consumer<FilterHandlerTest>) test -> {
+                            var resp1 = Unpooled.buffer();
+                            resp1.writeByte((byte) 1);
+                            var resp2 = Unpooled.buffer();
+                            resp2.writeByte((byte) 2);
+                            var resp3 = Unpooled.buffer();
+                            resp3.writeByte((byte) 3);
+                            test.writeArbitraryOpaqueResponse(resp1);
+                            test.writeArbitraryOpaqueResponse(resp2);
+                            test.writeArbitraryOpaqueResponse(resp3);
+                        },
+                        (Consumer<FilterHandlerTest>) test -> {
+                            List<OpaqueResponseFrame> responses = new ArrayList<>();
+                            responses.add(test.channel.readInbound());
+                            responses.add(test.channel.readInbound());
+                            responses.add(test.channel.readInbound());
+                            List<Byte> expected = List.of((byte) 1, (byte) 2, (byte) 3);
+                            assertThat(responses)
+                                    .extracting(OpaqueResponseFrame::buf)
+                                    .extracting(ByteBuf::readByte)
+                                    .containsExactlyElementsOf(expected);
+
+                        }),
+                Arguments.argumentSet("mixed deferred responses received correctly ordered",
+                        (Consumer<FilterHandlerTest>) test -> {
+                            test.writeResponse(deferredApiResponse1);
+                            var opaqueResponse2 = Unpooled.buffer();
+                            opaqueResponse2.writeByte((byte) 2);
+                            test.writeArbitraryOpaqueResponse(opaqueResponse2);
+                            test.writeResponse(deferredApiResponse3);
+                        },
+                        (Consumer<FilterHandlerTest>) test -> {
+                            DecodedResponseFrame<?> response1 = test.channel.readInbound();
+                            assertThat(response1)
+                                    .extracting(DecodedResponseFrame::body)
+                                    .isEqualTo(deferredApiResponse1);
+
+                            OpaqueResponseFrame response2 = test.channel.readInbound();
+                            assertThat(response2)
+                                    .extracting(OpaqueResponseFrame::buf)
+                                    .extracting(ByteBuf::readByte)
+                                    .isEqualTo((byte) 2);
+
+                            DecodedResponseFrame<?> response3 = test.channel.readInbound();
+                            assertThat(response3)
+                                    .extracting(DecodedResponseFrame::body)
+                                    .isEqualTo(deferredApiResponse3);
+                        }));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void deferredResponses(Consumer<FilterHandlerTest> deferredWork, Consumer<FilterHandlerTest> responseAssertions) {
+        var first = new ApiVersionsResponseData().setErrorCode((short) -1);
+        var firstFuture = new CompletableFuture<Void>();
+
+        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> firstFuture.thenCompose(u -> context.forwardResponse(header, response));
         buildChannel(filter);
 
-        responseFutureMap.keySet().forEach(this::writeResponse);
+        writeResponse(first);
+        deferredWork.accept(this);
+
         channel.runPendingTasks();
 
+        // Nothing should be propagated yet, as the first response is awaiting the future
         var propagated = channel.readInbound();
         assertThat(propagated).isNull();
 
-        // complete res1's future, now expect both response to flow.
-        responseFutureMap.get(res1).complete(null);
-
+        // complete first's future, now expect both response to flow.
+        firstFuture.complete(null);
         channel.runPendingTasks();
+
         DecodedResponseFrame<?> inboundResponse1 = channel.readInbound();
-        assertThat(inboundResponse1).extracting(DecodedResponseFrame::body).isEqualTo(res1);
+        assertThat(inboundResponse1).extracting(DecodedResponseFrame::body).isEqualTo(first);
 
-        DecodedResponseFrame<?> inboundResponse2 = channel.readInbound();
-        assertThat(inboundResponse2).extracting(DecodedResponseFrame::body).isEqualTo(res2);
-    }
-
-    @Test
-    void deferredResponseDelaysSubsequentOpaqueResponse() {
-        var res1 = new ApiVersionsResponseData().setErrorCode((short) 1);
-
-        var responseFutureMap = new LinkedHashMap<ApiVersionsResponseData, CompletableFuture<Void>>();
-        responseFutureMap.put(res1, new CompletableFuture<>());
-
-        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> responseFutureMap.get(response)
-                .thenCompose((u) -> context.forwardResponse(header, response));
-        buildChannel(filter);
-
-        responseFutureMap.keySet().forEach(this::writeResponse);
-        OpaqueResponseFrame opaqueResponseFrame = writeArbitraryOpaqueResponse();
-        channel.runPendingTasks();
-
-        var propagated = channel.readInbound();
-        assertThat(propagated).isNull();
-
-        // complete res1's future, now expect both response to flow.
-        responseFutureMap.get(res1).complete(null);
-
-        channel.runPendingTasks();
-        DecodedResponseFrame<?> inboundResponse1 = channel.readInbound();
-        assertThat(inboundResponse1).extracting(DecodedResponseFrame::body).isEqualTo(res1);
-
-        OpaqueResponseFrame inboundResponse2 = channel.readInbound();
-        assertThat(inboundResponse2).isSameAs(opaqueResponseFrame);
-    }
-
-    @Test
-    void multipleDeferredResponses() {
-        var res1 = new ApiVersionsResponseData().setErrorCode((short) 1);
-        var res2 = new ApiVersionsResponseData().setErrorCode((short) 2);
-        var res3 = new ApiVersionsResponseData().setErrorCode((short) 3);
-
-        var responseFutureMap = new LinkedHashMap<ApiVersionsResponseData, CompletableFuture<Void>>();
-        responseFutureMap.put(res1, new CompletableFuture<>());
-        responseFutureMap.put(res2, new CompletableFuture<>());
-        responseFutureMap.put(res3, CompletableFuture.completedFuture(null));
-
-        ApiVersionsResponseFilter filter = (apiVersion, header, response, context) -> responseFutureMap.get(response)
-                .thenCompose((u) -> context.forwardResponse(header, response));
-        buildChannel(filter);
-
-        responseFutureMap.keySet().forEach(this::writeResponse);
-        channel.runPendingTasks();
-
-        var propagated = channel.readInbound();
-        assertThat(propagated).isNull();
-
-        // complete res1's future, expect res1's response to flow toward client
-        responseFutureMap.get(res1).complete(null);
-
-        channel.runPendingTasks();
-        DecodedResponseFrame<?> inboundResponse1 = channel.readInbound();
-        assertThat(inboundResponse1).extracting(DecodedResponseFrame::body).isEqualTo(res1);
-
-        // complete res2's future, now expect res2 and res3 responses to flow.
-        responseFutureMap.get(res2).complete(null);
-
-        channel.runPendingTasks();
-
-        DecodedResponseFrame<?> inboundResponse2 = channel.readInbound();
-        assertThat(inboundResponse2).extracting(DecodedResponseFrame::body).isEqualTo(res2);
-
-        DecodedResponseFrame<?> inboundResponse3 = channel.readInbound();
-        assertThat(inboundResponse3).extracting(DecodedResponseFrame::body).isEqualTo(res3);
+        responseAssertions.accept(this);
     }
 
     @Test
@@ -373,7 +430,7 @@ class FilterHandlerTest extends FilterHarness {
         channel.runPendingTasks();
 
         assertThat(filterFuture).isCompletedExceptionally().isNotCancelled();
-        assertThatThrownBy(() -> filterFuture.get()).hasCauseInstanceOf(TimeoutException.class);
+        assertThatThrownBy(filterFuture::get).hasCauseInstanceOf(TimeoutException.class);
         assertThat(channel.isOpen()).isFalse();
     }
 
@@ -391,7 +448,7 @@ class FilterHandlerTest extends FilterHarness {
         channel.runPendingTasks();
 
         assertThat(filterFuture).isCompletedExceptionally().isNotCancelled();
-        assertThatThrownBy(() -> filterFuture.get()).hasCauseInstanceOf(TimeoutException.class);
+        assertThatThrownBy(filterFuture::get).hasCauseInstanceOf(TimeoutException.class);
         assertThat(channel.isOpen()).isFalse();
     }
 

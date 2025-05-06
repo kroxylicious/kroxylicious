@@ -155,7 +155,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
         else {
             if (msg instanceof OpaqueRequestFrame || msg == Unpooled.EMPTY_BUFFER) {
-                writeFuture.whenComplete((unused, throwable) -> {
+                writeFuture = writeFuture.whenComplete((unused, throwable) -> {
                     if (ctx.channel().isOpen()) {
                         ctx.write(msg, promise);
                     }
