@@ -89,8 +89,8 @@
             <scope>runtime</scope>
             <exclusions>
                 <exclusion>
-                    <groupId>com.squareup.okhttp3</groupId>
-                    <artifactId>okhttp</artifactId>
+                    <groupId>io.fabric8</groupId>
+                    <artifactId>kubernetes-httpclient-vertx</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -245,7 +245,12 @@
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-server-mock</artifactId>
             <scope>test</scope>
-            <!-- TODO exclude okhttp -->
+            <exclusions>
+                <exclusion>
+                    <groupId>io.fabric8</groupId>
+                    <artifactId>kubernetes-httpclient-vertx</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
