@@ -37,6 +37,7 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
+import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
