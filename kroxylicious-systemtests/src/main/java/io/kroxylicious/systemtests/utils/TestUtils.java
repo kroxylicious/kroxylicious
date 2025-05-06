@@ -16,11 +16,6 @@ import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -31,10 +26,7 @@ import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
  * The type Test utils.
  */
 public class TestUtils {
-    private static final Logger LOGGER = LoggerFactory.getLogger(TestUtils.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    private static final Pattern IMAGE_PATTERN_FULL_PATH = Pattern.compile("^(?<registry>[^/]*)/(?<org>[^/]*)/(?<image>[^:]*):(?<tag>.*)$");
-    private static final Pattern IMAGE_PATTERN = Pattern.compile("^(?<org>[^/]*)/(?<image>[^:]*):(?<tag>.*)$");
 
     private TestUtils() {
     }
@@ -111,51 +103,5 @@ public class TestUtils {
         catch (IOException e) {
             throw new UncheckedIOException(e);
         }
-    }
-
-    // TO BE REMOVED when introduced in ImageUtils from TestFrame project
-
-    /**
-     * Change registry org image and tag.
-     *
-     * @param imageRepo the image repo
-     * @param newRegistry the new registry
-     * @param newOrg the new org
-     * @param newImage the new image
-     * @param newTag the new tag
-     * @return the string
-     */
-    public static String changeRegistryOrgImageAndTag(String imageRepo, String newRegistry, String newOrg, String newImage, String newTag) {
-        Matcher m = IMAGE_PATTERN_FULL_PATH.matcher(imageRepo);
-        if (m.find()) {
-            String registry = setImagePropertiesIfNeeded(m.group("registry"), newRegistry);
-            String org = setImagePropertiesIfNeeded(m.group("org"), newOrg);
-            String tag = setImagePropertiesIfNeeded(m.group("tag"), newTag);
-            String image = setImagePropertiesIfNeeded(m.group("image"), newImage);
-
-            String newImageRepo = registry + "/" + org + "/" + image + ":" + tag;
-            LOGGER.info("Updating container image to {}", newImageRepo);
-            return newImageRepo;
-        }
-        else {
-            m = IMAGE_PATTERN.matcher(imageRepo);
-            if (m.find()) {
-                String registry = newRegistry != null ? newRegistry + "/" : "";
-                String org = setImagePropertiesIfNeeded(m.group("org"), newOrg);
-                String tag = setImagePropertiesIfNeeded(m.group("tag"), newTag);
-                String image = setImagePropertiesIfNeeded(m.group("image"), newImage);
-
-                String newImageRepo = registry + org + "/" + image + ":" + tag;
-                LOGGER.info("Updating container image to {}", newImageRepo);
-                return newImageRepo;
-            }
-            else {
-                return imageRepo;
-            }
-        }
-    }
-
-    private static String setImagePropertiesIfNeeded(String currentValue, String newValue) {
-        return newValue != null && !newValue.isEmpty() && !currentValue.equals(newValue) ? newValue : currentValue;
     }
 }
