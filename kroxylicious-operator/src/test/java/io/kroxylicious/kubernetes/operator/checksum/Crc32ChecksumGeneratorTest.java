@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kubernetes.operator;
+package io.kroxylicious.kubernetes.operator.checksum;
 
 import java.util.List;
 import java.util.Map;
@@ -18,8 +18,6 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
-import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
-import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
