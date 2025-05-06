@@ -14,6 +14,7 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 public class KafkaProtocolFilterStatusFactory extends StatusFactory<KafkaProtocolFilter> {
 

@@ -14,6 +14,7 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 public class KafkaProxyIngressStatusFactory extends StatusFactory<KafkaProxyIngress> {
 
