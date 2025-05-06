@@ -6,7 +6,7 @@
 
 FROM registry.access.redhat.com/ubi9/openjdk-17:1.20 AS builder
 
-ARG TARGETOS
+ARG TARGETOS=linux
 ARG TARGETARCH
 
 USER root

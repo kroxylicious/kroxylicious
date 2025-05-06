@@ -32,7 +32,7 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.KafkaProtocolFilterStatusAssert;
 
-import static io.kroxylicious.kubernetes.operator.MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION;
+import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
