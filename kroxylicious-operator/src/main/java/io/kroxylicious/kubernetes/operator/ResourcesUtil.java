@@ -290,7 +290,13 @@ public class ResourcesUtil {
         return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
                 referent,
                 owner,
-                primary -> refAccessor.apply(primary).stream().anyMatch(ref -> ResourcesUtil.isReferent(ref, referent)));
+                primary -> {
+                    Collection<? extends LocalRef<R>> refs = refAccessor.apply(primary);
+                    if (refs == null) {
+                        return false;
+                    }
+                    return refs.stream().anyMatch(ref -> ResourcesUtil.isReferent(ref, referent));
+                });
     }
 
     public static String namespacedSlug(LocalRef<?> ref, HasMetadata resource) {

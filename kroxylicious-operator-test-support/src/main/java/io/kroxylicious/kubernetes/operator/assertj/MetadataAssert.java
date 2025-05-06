@@ -9,12 +9,9 @@ package io.kroxylicious.kubernetes.operator.assertj;
 import java.util.function.Consumer;
 
 import org.assertj.core.api.AbstractObjectAssert;
-import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.MapAssert;
-import org.assertj.core.api.ObjectAssert;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
 
 @SuppressWarnings("UnusedReturnValue")
 public class MetadataAssert<T extends HasMetadata> extends AbstractObjectAssert<MetadataAssert<T>, T> {
@@ -27,22 +24,23 @@ public class MetadataAssert<T extends HasMetadata> extends AbstractObjectAssert<
     }
 
     public MapAssert<String, String> hasAnnotationSatisfying(String annotationName, Consumer<String> expectedValueConsumer) {
-        return assertHasAnnotations()
-                .hasEntrySatisfying(annotationName, expectedValueConsumer);
+        return assertHasObjectMeta().hasAnnotationSatisfying(annotationName, expectedValueConsumer);
     }
 
-    public MapAssert<String, String> assertHasAnnotations() {
-        return assertHasObjectMeta()
-                .extracting(ObjectMeta::getAnnotations)
-                .asInstanceOf(InstanceOfAssertFactories.map(String.class, String.class));
+    public MapAssert<String, String> hasAnnotations() {
+        return assertHasObjectMeta().hasAnnotations();
     }
 
-    private ObjectAssert<ObjectMeta> assertHasObjectMeta() {
-        return assertThat(actual)
-                .isNotNull()
-                .asInstanceOf(InstanceOfAssertFactories.type(HasMetadata.class))
-                .extracting(HasMetadata::getMetadata)
-                .isNotNull()
-                .asInstanceOf(InstanceOfAssertFactories.type(ObjectMeta.class));
+    public void hasNoAnnotations() {
+        assertHasObjectMeta().hasNoAnnotations();
+    }
+
+    public ObjectMetaAssert assertHasObjectMeta() {
+        assertThat(actual).isNotNull();
+        return ObjectMetaAssert.assertThat(actual.getMetadata()).isNotNull();
+    }
+
+    public MapAssert<String, String> doesNotHaveAnnotation(String annotationName) {
+        return assertHasObjectMeta().doesNotHaveAnnotation(annotationName);
     }
 }

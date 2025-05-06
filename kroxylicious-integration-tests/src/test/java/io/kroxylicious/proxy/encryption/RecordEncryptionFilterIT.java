@@ -53,6 +53,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
+
 import io.kroxylicious.filter.encryption.RecordEncryption;
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
 import io.kroxylicious.filter.encryption.config.UnresolvedKeyPolicy;
@@ -84,6 +86,7 @@ import static org.hamcrest.Matchers.contains;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(TestKmsFacadeInvocationContextProvider.class)
+@ExtendWith(NettyLeakDetectorExtension.class)
 class RecordEncryptionFilterIT {
 
     private static final String TEMPLATE_KEK_SELECTOR_PATTERN = "$(topicName)";

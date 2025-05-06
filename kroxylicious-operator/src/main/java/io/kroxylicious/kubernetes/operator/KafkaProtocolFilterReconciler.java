@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -36,9 +37,12 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
+import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
 
 /**
  * <p>Reconciles a {@link KafkaProtocolFilter} by checking whether the {@link Secret}s
@@ -123,15 +127,11 @@ public class KafkaProtocolFilterReconciler implements
                                                         KafkaProtocolFilter filter,
                                                         Context<KafkaProtocolFilter> context) {
 
-        var existingSecrets = context.getSecondaryResourcesAsStream(Secret.class)
-                .map(ResourcesUtil::name)
-                .collect(Collectors.toSet());
-        LOGGER.debug("Existing secrets: {}", existingSecrets);
+        Map<String, Secret> existingSecretsByName = context.getSecondaryResourcesAsStream(Secret.class).collect(toByNameMap());
+        LOGGER.debug("Existing secrets: {}", existingSecretsByName.keySet());
 
-        var existingConfigMaps = context.getSecondaryResourcesAsStream(ConfigMap.class)
-                .map(ResourcesUtil::name)
-                .collect(Collectors.toSet());
-        LOGGER.debug("Existing configmaps: {}", existingConfigMaps);
+        Map<String, ConfigMap> existingConfigMapsByName = context.getSecondaryResourcesAsStream(ConfigMap.class).collect(toByNameMap());
+        LOGGER.debug("Existing configmaps: {}", existingConfigMapsByName.keySet());
 
         var interpolationResult = secureConfigInterpolator.interpolate(filter.getSpec().getConfigTemplate());
         var referencedSecrets = interpolationResult.volumes().stream()
@@ -149,15 +149,20 @@ public class KafkaProtocolFilterReconciler implements
         LOGGER.debug("Referenced configmaps: {}", referencedConfigMaps);
 
         KafkaProtocolFilter patch;
-        if (existingSecrets.containsAll(referencedSecrets)
-                && existingConfigMaps.containsAll(referencedConfigMaps)) {
+        if (existingSecretsByName.keySet().containsAll(referencedSecrets)
+                && existingConfigMapsByName.keySet().containsAll(referencedConfigMaps)) {
+            Stream<HasMetadata> referents = Stream.concat(referencedSecrets.stream().map(existingSecretsByName::get),
+                    referencedConfigMaps.stream().map(existingConfigMapsByName::get));
+            HasMetadata[] referentsArray = referents.toArray(HasMetadata[]::new);
+            String checksum = referentsArray.length == 0 ? NO_CHECKSUM_SPECIFIED : MetadataChecksumGenerator.checksumFor(referentsArray);
             patch = statusFactory.newTrueConditionStatusPatch(
                     filter,
-                    Condition.Type.ResolvedRefs);
+                    Condition.Type.ResolvedRefs,
+                    checksum);
         }
         else {
-            referencedSecrets.removeAll(existingSecrets);
-            referencedConfigMaps.removeAll(existingConfigMaps);
+            referencedSecrets.removeAll(existingSecretsByName.keySet());
+            referencedConfigMaps.removeAll(existingConfigMapsByName.keySet());
             String message = "Referenced";
             if (!referencedSecrets.isEmpty()) {
                 message += " Secrets [" + String.join(", ", referencedSecrets) + "]";
@@ -176,7 +181,7 @@ public class KafkaProtocolFilterReconciler implements
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(filter), name(filter));
         }
-        return UpdateControl.patchStatus(patch);
+        return UpdateControl.patchResourceAndStatus(patch);
     }
 
     @Override

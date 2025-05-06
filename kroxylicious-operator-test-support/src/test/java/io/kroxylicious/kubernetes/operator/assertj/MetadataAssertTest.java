@@ -35,7 +35,7 @@ class MetadataAssertTest {
 
         // When
         // Then
-        MetadataAssert.assertThat(thingWithMetadata).assertHasAnnotations();
+        MetadataAssert.assertThat(thingWithMetadata).hasAnnotations();
     }
 
     @Test
@@ -45,7 +45,7 @@ class MetadataAssertTest {
 
         // When
         // Then
-        Assertions.assertThatThrownBy(() -> Assertions.assertThatThrownBy(() -> MetadataAssert.assertThat(thingWithMetadata))).isInstanceOf(AssertionError.class);
+        Assertions.assertThatThrownBy(() -> MetadataAssert.assertThat(thingWithMetadata).hasAnnotations()).isInstanceOf(AssertionError.class);
     }
 
     @Test
@@ -55,7 +55,7 @@ class MetadataAssertTest {
 
         // When
         // Then
-        Assertions.assertThatThrownBy(() -> Assertions.assertThatThrownBy(() -> MetadataAssert.assertThat(thingWithoutMetadata))).isInstanceOf(AssertionError.class);
+        Assertions.assertThatThrownBy(() -> MetadataAssert.assertThat(thingWithoutMetadata).assertHasObjectMeta()).isInstanceOf(AssertionError.class);
     }
 
     @Test

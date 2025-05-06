@@ -10,7 +10,8 @@
     ":gitSignOff"
   ],
   "enabledManagers": [
-    "custom.regex"
+    "custom.regex",
+    "dockerfile"
   ],
   "customManagers": [
     {

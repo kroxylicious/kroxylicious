@@ -31,7 +31,9 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.KafkaProtocolFilterStatusAssert;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
+import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
 
@@ -122,6 +124,9 @@ class KafkaProtocolFilterReconcilerIT {
                     .conditionList()
                     .singleElement()
                     .isResolvedRefsTrue(kpf);
+            String checksum = kpf.getMetadata().getAnnotations()
+                    .getOrDefault(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, NO_CHECKSUM_SPECIFIED);
+            assertThat(checksum).isNotEqualTo(NO_CHECKSUM_SPECIFIED);
         });
     }
 
@@ -156,6 +161,44 @@ class KafkaProtocolFilterReconcilerIT {
                 .addToData("baz", Base64.getEncoder().encodeToString("".getBytes(StandardCharsets.UTF_8)))
                 .build());
         assertAllConditionsTrue(filterOne);
+    }
+
+    @Test
+    void shouldUpdateReferentAnnotationOnSecretModify() {
+        // given
+        var filterOne = createFilterFirst();
+        String checksum = testActor.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
+                .getOrDefault(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, NO_CHECKSUM_SPECIFIED);
+
+        // when
+        testActor.resources(Secret.class).withName(A).edit(secret -> secret.edit()
+                .addToData("baz", Base64.getEncoder().encodeToString("".getBytes(StandardCharsets.UTF_8)))
+                .build());
+
+        // then
+        assertAllConditionsTrue(filterOne);
+        String newChecksum = testActor.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
+                .getOrDefault(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, NO_CHECKSUM_SPECIFIED);
+        assertThat(newChecksum).isNotEqualTo(checksum);
+    }
+
+    @Test
+    void shouldUpdateReferentAnnotationOnConfigMapModify() {
+        // given
+        var filterOne = createFilterFirst();
+        String checksum = testActor.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
+                .getOrDefault(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, NO_CHECKSUM_SPECIFIED);
+
+        // when
+        testActor.resources(ConfigMap.class).withName(B).edit(configMap -> configMap.edit()
+                .addToData("baz", Base64.getEncoder().encodeToString("".getBytes(StandardCharsets.UTF_8)))
+                .build());
+
+        // then
+        assertAllConditionsTrue(filterOne);
+        String newChecksum = testActor.get(KafkaProtocolFilter.class, ResourcesUtil.name(filterOne)).getMetadata().getAnnotations()
+                .getOrDefault(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, NO_CHECKSUM_SPECIFIED);
+        assertThat(newChecksum).isNotEqualTo(checksum);
     }
 
     @Test

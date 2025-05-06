@@ -8,11 +8,19 @@ package io.kroxylicious.proxy.filter.oauthbearer;
 
 import java.net.URI;
 import java.util.List;
+import java.util.UUID;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junitpioneer.jupiter.RestoreSystemProperties;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -21,7 +29,9 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.filter.oauthbearer.OauthBearerValidation.Config;
 
+import static io.kroxylicious.proxy.filter.oauthbearer.OauthBearerValidation.ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.assertArg;
@@ -30,6 +40,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
+@RestoreSystemProperties
 class OauthBearerValidationTest {
 
     @Mock
@@ -51,7 +62,7 @@ class OauthBearerValidationTest {
     @Test
     void mustProvideDefaultValuesForConfig() throws Exception {
         ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
-        OauthBearerValidation.Config yamlConfig = yamlMapper.readerFor(OauthBearerValidation.Config.class).readValue("""
+        Config yamlConfig = yamlMapper.readerFor(Config.class).readValue("""
                 jwksEndpointUrl: https://jwks.endpoint
                 """);
 
@@ -60,14 +71,14 @@ class OauthBearerValidationTest {
 
     @Test
     @SuppressWarnings("java:S5838")
-    void mustInitAndCreateFilterWithDefaultsNull() throws Exception {
+    void mustInitAndCreateFilterWithDefaultsNull() {
         mustInitAndCreateFilter(defaultConfig());
     }
 
     @Test
-    void mustInitAndCreateFilterWithNegativeAndEmptyValues() throws Exception {
-        OauthBearerValidation.Config config = new OauthBearerValidation.Config(
-                new URI("https://jwks.endpoint"),
+    void mustInitAndCreateFilterWithNegativeAndEmptyValues() {
+        Config config = new Config(
+                URI.create("https://jwks.endpoint"),
                 -1L,
                 -1L,
                 -1L,
@@ -86,7 +97,7 @@ class OauthBearerValidationTest {
         // given
         when(ffc.filterDispatchExecutor()).thenReturn(executor);
         OauthBearerValidation oauthBearerValidation = new OauthBearerValidation(callbackHandler);
-        OauthBearerValidation.Config config = new OauthBearerValidation.Config(
+        Config config = new Config(
                 new URI("https://jwks.endpoint"),
                 10000L,
                 20000L,
@@ -132,8 +143,55 @@ class OauthBearerValidationTest {
         verify(callbackHandler).close();
     }
 
+    @Test
+    void initShouldAddJwksEndpointToOauthAllowList() {
+        // given
+        OauthBearerValidation oauthBearerValidation = new OauthBearerValidation(callbackHandler);
+        Config config = defaultConfig(URI.create("https://" + UUID.randomUUID() + ".invalid"));
+
+        // when
+        oauthBearerValidation.initialize(ffc, config);
+
+        // then
+        assertThat(System.getProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG))
+                .isNotEmpty()
+                .contains(config.jwksEndpointUrl().toString());
+    }
+
+    static Stream<Arguments> closeShouldRestoreOauthAllowList() {
+        return Stream.of(
+                Arguments.argumentSet("close clears system property",
+                        (Consumer<String>) unused -> System.clearProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG),
+                        (BiConsumer<String, String>) (initial, propValue) -> assertThat(propValue).isNull()),
+                Arguments.argumentSet("close preserves an existing system property that exactly matches config value",
+                        (Consumer<String>) configValue -> System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, configValue),
+                        (BiConsumer<String, String>) (initial, propValue) -> assertThat(propValue).isEqualTo(initial)),
+                Arguments.argumentSet("close preserves an existing system property that did not matches config value",
+                        (Consumer<String>) configValue -> System.setProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG, "https://another.invalid"),
+                        (BiConsumer<String, String>) (initial, propValue) -> assertThat(propValue).isEqualTo("https://another.invalid")));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    @SuppressWarnings("java:S6103") // false positive, the consumer does include an assertion.
+    void closeShouldRestoreOauthAllowList(Consumer<String> prepareSysProperties, BiConsumer<String, String> postCloseAssertions) {
+        // given
+        var jwksEndpointUrl = "https://" + UUID.randomUUID() + ".invalid";
+        prepareSysProperties.accept(jwksEndpointUrl);
+        OauthBearerValidation oauthBearerValidation = new OauthBearerValidation(callbackHandler);
+        Config config = defaultConfig(URI.create(jwksEndpointUrl));
+        var context = oauthBearerValidation.initialize(ffc, config);
+
+        // when
+        oauthBearerValidation.close(context);
+
+        // then
+        assertThat(System.getProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG))
+                .satisfies(current -> postCloseAssertions.accept(jwksEndpointUrl, current));
+    }
+
     @SuppressWarnings("java:S5838")
-    void mustInitAndCreateFilter(OauthBearerValidation.Config config) {
+    void mustInitAndCreateFilter(Config config) {
         // given
         OauthBearerValidation oauthBearerValidation = new OauthBearerValidation(callbackHandler);
         when(ffc.filterDispatchExecutor()).thenReturn(executor);
@@ -162,9 +220,13 @@ class OauthBearerValidationTest {
         assertThat(sharedContext.config().authenticateCacheMaxSize()).isEqualTo(1000);
     }
 
-    private OauthBearerValidation.Config defaultConfig() throws Exception {
-        return new OauthBearerValidation.Config(
-                new URI("https://jwks.endpoint"),
+    private Config defaultConfig() {
+        return defaultConfig(URI.create("https://jwks.endpoint"));
+    }
+
+    private Config defaultConfig(URI jwksEndpointUrl) {
+        return new Config(
+                jwksEndpointUrl,
                 null,
                 null,
                 null,

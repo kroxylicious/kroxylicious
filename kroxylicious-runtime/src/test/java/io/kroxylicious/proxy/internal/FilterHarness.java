@@ -22,6 +22,7 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.junit.jupiter.api.AfterEach;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -143,7 +144,12 @@ public abstract class FilterHarness {
      * @return the opaque frame written to the channel
      */
     protected OpaqueRequestFrame writeArbitraryOpaqueRequest() {
-        OpaqueRequestFrame frame = new OpaqueRequestFrame(Unpooled.buffer(), 55, false, 0, false);
+        ByteBuf buffer = Unpooled.buffer();
+        return writeArbitraryOpaqueRequest(buffer);
+    }
+
+    protected OpaqueRequestFrame writeArbitraryOpaqueRequest(ByteBuf buffer) {
+        OpaqueRequestFrame frame = new OpaqueRequestFrame(buffer, 55, false, buffer.readableBytes(), false);
         channel.writeOneOutbound(frame);
         return frame;
     }
@@ -154,7 +160,12 @@ public abstract class FilterHarness {
      * @return the opaque frame written to the channel
      */
     protected OpaqueResponseFrame writeArbitraryOpaqueResponse() {
-        OpaqueResponseFrame frame = new OpaqueResponseFrame(Unpooled.buffer(), 55, 0);
+        ByteBuf buffer = Unpooled.buffer();
+        return writeArbitraryOpaqueResponse(buffer);
+    }
+
+    protected OpaqueResponseFrame writeArbitraryOpaqueResponse(ByteBuf buffer) {
+        OpaqueResponseFrame frame = new OpaqueResponseFrame(buffer, 55, buffer.readableBytes());
         channel.writeOneInbound(frame);
         return frame;
     }

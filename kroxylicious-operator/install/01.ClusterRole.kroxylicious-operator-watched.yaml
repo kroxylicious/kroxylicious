@@ -49,6 +49,8 @@ rules:
       - get
       - list
       - watch
+      - patch
+      - update
   - # The operator needs to update the status on its own CRs
     apiGroups:
       - "filter.kroxylicious.io"
