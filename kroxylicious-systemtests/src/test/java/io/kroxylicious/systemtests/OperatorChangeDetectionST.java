@@ -41,7 +41,6 @@ class OperatorChangeDetectionST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorChangeDetectionST.class);
     private static Kroxylicious kroxylicious;
     private final String kafkaClusterName = "my-cluster";
-    protected static final String BROKER_NODE_NAME = "kafka";
     private KroxyliciousOperator kroxyliciousOperator;
 
     @Test
@@ -73,6 +72,7 @@ class OperatorChangeDetectionST extends AbstractST {
         // Then
         await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
             Deployment proxyDeployment = kubeClient.getDeployment(namespace, "simple");
+            assertThat(proxyDeployment).isNotNull();
             OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
                     value -> assertThat(value).isNotEqualTo(originalChecksum));
         });
