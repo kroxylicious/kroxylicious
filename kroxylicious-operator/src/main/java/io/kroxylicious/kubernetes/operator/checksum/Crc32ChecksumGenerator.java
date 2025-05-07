@@ -17,6 +17,8 @@ import javax.annotation.concurrent.NotThreadSafe;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
 @NotThreadSafe
 public class Crc32ChecksumGenerator implements MetadataChecksumGenerator {
 
@@ -52,6 +54,7 @@ public class Crc32ChecksumGenerator implements MetadataChecksumGenerator {
     @Override
     public void appendLong(Long value) {
         byteBuffer.putLong(0, value);
+        byteBuffer.position(0);
         checksum.update(byteBuffer);
     }
 
@@ -62,6 +65,12 @@ public class Crc32ChecksumGenerator implements MetadataChecksumGenerator {
             return NO_CHECKSUM_SPECIFIED;
         }
         byteBuffer.putLong(0, value);
+        byteBuffer.position(0);
         return BASE_64_ENCODER.encodeToString(byteBuffer.array());
+    }
+
+    @VisibleForTesting
+    long getValue() {
+        return checksum.getValue();
     }
 }
