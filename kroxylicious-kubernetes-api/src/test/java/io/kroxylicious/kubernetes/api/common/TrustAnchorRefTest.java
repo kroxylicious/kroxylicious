@@ -13,6 +13,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TrustAnchorRefTest {
 
     @Test
+    // we knowingly use equals across types because we want the property that specific LocalRef types are equal to any other LocalRef
+    // with the same group, kind and name.
+    @SuppressWarnings("java:S5845")
     void shouldRespectEqualsAndHashCode() {
         var secretRefFoo = new TrustAnchorRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("").build()).withKey("key").build();
         var secretRefFoo2 = new TrustAnchorRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Secret").withGroup("").build()).withKey("key").build();
