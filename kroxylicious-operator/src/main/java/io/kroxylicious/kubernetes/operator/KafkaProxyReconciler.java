@@ -62,7 +62,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.tls.Options;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls.TlsClientAuthentication;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterSpec;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
@@ -320,7 +320,7 @@ public class KafkaProxyReconciler implements
     private static ConfigurationFragment<Optional<Tls>> buildTlsFragment(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls ingressTls) {
         return ConfigurationFragment.combine(
                 buildKeyProvider(ingressTls.getCertificateRef(), SERVER_CERTS_BASE_DIR),
-                buildTrustProvider(ingressTls.getTrustAnchorRef(), ingressTls.getOptions(), SERVER_TRUSTED_CERTS_BASE_DIR),
+                buildTrustProvider(ingressTls.getTrustAnchorRef(), ingressTls.getTlsClientAuthentication(), SERVER_TRUSTED_CERTS_BASE_DIR),
                 (keyProviderOpt, trustProvider) -> Optional.of(
                         new Tls(keyProviderOpt.orElse(null),
                                 trustProvider,
@@ -376,7 +376,8 @@ public class KafkaProxyReconciler implements
                 }).orElse(ConfigurationFragment.empty());
     }
 
-    private static ConfigurationFragment<TrustProvider> buildTrustProvider(@Nullable TrustAnchorRef trustAnchorRef, @Nullable Options options, Path parent) {
+    private static ConfigurationFragment<TrustProvider> buildTrustProvider(@Nullable TrustAnchorRef trustAnchorRef,
+                                                                           @Nullable TlsClientAuthentication clientAuthentication, Path parent) {
         return Optional.ofNullable(trustAnchorRef)
                 .filter(tar -> ResourcesUtil.isConfigMap(tar.getRef()))
                 .map(tar -> {
@@ -388,7 +389,7 @@ public class KafkaProxyReconciler implements
                             .endConfigMap()
                             .build();
                     Path mountPath = parent.resolve(ref.getName());
-                    var serverOptions = buildTlsSeverOptions(options);
+                    var serverOptions = buildTlsSeverOptions(clientAuthentication);
 
                     var mount = new VolumeMountBuilder()
                             .withName(ResourcesUtil.volumeName("", "configmaps", ref.getName()))
@@ -451,22 +452,21 @@ public class KafkaProxyReconciler implements
 
     private static Optional<AllowDeny<String>> buildProtocols(@Nullable Protocols protocols) {
         return Optional.ofNullable(protocols)
-                .map(p -> new AllowDeny<>(p.getAllowed(), new HashSet<>(p.getDenied())));
+                .map(p -> new AllowDeny<>(p.getAllow(), new HashSet<>(p.getDeny())));
     }
 
     private static Optional<AllowDeny<String>> buildCipherSuites(@Nullable CipherSuites cipherSuites) {
         return Optional.ofNullable(cipherSuites)
-                .map(c -> new AllowDeny<>(c.getAllowed(), new HashSet<>(c.getDenied())));
+                .map(c -> new AllowDeny<>(c.getAllow(), new HashSet<>(c.getDeny())));
     }
 
-    private static Optional<ServerOptions> buildTlsSeverOptions(@Nullable Options options) {
+    private static Optional<ServerOptions> buildTlsSeverOptions(@Nullable TlsClientAuthentication clientAuthentication) {
         var knownNames = Arrays.stream(TlsClientAuth.values())
                 .map(TlsClientAuth::name)
                 .collect(Collectors.toSet());
 
-        return Optional.ofNullable(options)
-                .map(Options::getClientAuth)
-                .map(Options.ClientAuth::getValue)
+        return Optional.ofNullable(clientAuthentication)
+                .map(TlsClientAuthentication::getValue)
                 .filter(knownNames::contains)
                 .map(TlsClientAuth::valueOf)
                 .filter(Predicate.not(TlsClientAuth.NONE::equals))

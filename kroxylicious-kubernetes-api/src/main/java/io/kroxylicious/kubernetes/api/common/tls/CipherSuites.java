@@ -13,10 +13,10 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.annotation.JsonSetter;
 
 /**
- * TLS CipherSuite controls.
+ * TLS cipher suite controls.
  */
 @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-@com.fasterxml.jackson.annotation.JsonPropertyOrder({ "allowed", "denied" })
+@com.fasterxml.jackson.annotation.JsonPropertyOrder({ "allow", "deby" })
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 @javax.annotation.processing.Generated("io.fabric8.java.generator.CRGeneratorRunner")
 @lombok.ToString()
@@ -39,56 +39,56 @@ public class CipherSuites implements io.fabric8.kubernetes.api.builder.Editable<
     }
 
     /**
-     * The allowed cipher suites.
+     * The cipher suites to allow.
      * If not specified a default list of ciphers, which depends on the runtime and enabled protocols, will be used.
      */
-    @JsonProperty("allowed")
-    @JsonPropertyDescription("The allowed cipher suites.\nIf not specified a default list of ciphers, which depends on the runtime and enabled protocols, will be used.\n")
+    @JsonProperty("allow")
+    @JsonPropertyDescription("The cipher suites to allow.\nIf not specified a default list of ciphers, which depends on the runtime and enabled protocols, will be used.\n")
     @JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
-    private java.util.List<String> allowed;
+    private java.util.List<String> allow;
 
     /**
-     * List of allowed cipher suites.
+     * List of cipher suites to allow.
      *
      * @return list of cipher suite names.
      */
-    public java.util.List<String> getAllowed() {
-        return allowed;
+    public java.util.List<String> getAllow() {
+        return allow;
     }
 
     /**
-     * Sets the list of allowed cipher suites.
+     * Sets the list of cipher suites to allow.
      *
-     * @param allowed list of cipher suites.
+     * @param allow list of cipher suites.
      */
-    public void setAllowed(java.util.List<String> allowed) {
-        this.allowed = allowed;
+    public void setAllow(java.util.List<String> allow) {
+        this.allow = allow;
     }
 
     /**
-     * The denied cipher suites.
+     * The list of cipher suites to deny.
      * If not specified this will default to the empty list.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty("denied")
-    @com.fasterxml.jackson.annotation.JsonPropertyDescription("The denied cipher suites.\nIf not specified this will default to the empty list.\n")
+    @com.fasterxml.jackson.annotation.JsonProperty("deny")
+    @com.fasterxml.jackson.annotation.JsonPropertyDescription("The cipher suites to deny.\nIf not specified this will default to the empty list.\n")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
-    private List<String> denied = io.fabric8.kubernetes.client.utils.Serialization.unmarshal("[]", java.util.List.class);
+    private List<String> deny = io.fabric8.kubernetes.client.utils.Serialization.unmarshal("[]", java.util.List.class);
 
     /**
-     *  List of denied cipher suites.
+     *  List of cipher suites to deny.
      *
      * @return list of cipher suites.
      */
-    public List<String> getDenied() {
-        return denied;
+    public List<String> getDeny() {
+        return deny;
     }
 
     /**
-     * Sets the list of denied cipher suites.
+     * Sets the list of cipher suites to deny
      *
-     * @param denied list of cipher suites.
+     * @param deny list of cipher suites.
      */
-    public void setDenied(List<String> denied) {
-        this.denied = denied;
+    public void setDeny(List<String> deny) {
+        this.deny = deny;
     }
 }

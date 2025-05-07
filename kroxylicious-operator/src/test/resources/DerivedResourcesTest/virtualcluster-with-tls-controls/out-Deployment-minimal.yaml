@@ -33,6 +33,8 @@ spec:
       app.kubernetes.io/component: "proxy"
   template:
     metadata:
+      annotations:
+        kroxylicious.io/referent-checksum: "AAAAAAAB4wY"
       labels:
         app: "kroxylicious"
         app.kubernetes.io/part-of: "kafka"
