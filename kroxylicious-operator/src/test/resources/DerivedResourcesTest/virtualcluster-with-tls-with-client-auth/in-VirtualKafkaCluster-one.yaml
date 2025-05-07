@@ -25,7 +25,6 @@ spec:
         trustAnchorRef:
           name: downstream-ca
           key: cas.pem
-        options:
-          clientAuth: REQUIRED
+        tlsClientAuthentication: REQUIRED
 status:
   observedGeneration: 4

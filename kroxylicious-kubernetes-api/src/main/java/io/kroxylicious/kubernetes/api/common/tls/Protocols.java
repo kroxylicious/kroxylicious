@@ -9,10 +9,10 @@ package io.kroxylicious.kubernetes.api.common.tls;
 import java.util.List;
 
 /**
- * TLS Protocol controls.
+ * TLS protocol controls.
  */
 @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
-@com.fasterxml.jackson.annotation.JsonPropertyOrder({ "allowed", "denied" })
+@com.fasterxml.jackson.annotation.JsonPropertyOrder({ "allow", "deny" })
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
 @javax.annotation.processing.Generated("io.fabric8.java.generator.CRGeneratorRunner")
 @lombok.ToString()
@@ -35,56 +35,56 @@ public class Protocols implements io.fabric8.kubernetes.api.builder.Editable<Pro
     }
 
     /**
-     * The allowed TLS protocols, ordered by preference.
+     * The TLS protocols to allow, ordered by preference.
      * If not specified this defaults to the TLS protocols of the proxy JVM's default SSL context.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty("allowed")
-    @com.fasterxml.jackson.annotation.JsonPropertyDescription("The allowed TLS protocols, ordered by preference.\nIf not specified this defaults to the TLS protocols of the proxy JVM's default SSL context.\n")
+    @com.fasterxml.jackson.annotation.JsonProperty("allow")
+    @com.fasterxml.jackson.annotation.JsonPropertyDescription("The TLS protocols to allow, ordered by preference.\nIf not specified this defaults to the TLS protocols of the proxy JVM's default SSL context.\n")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
-    private java.util.List<String> allowed;
+    private java.util.List<String> allow;
 
     /**
-     * Ordered list of allowed protocols.
+     * Ordered list of protocols to allow.
      *
      * @return list of protocols.
      */
-    public List<String> getAllowed() {
-        return allowed;
+    public List<String> getAllow() {
+        return allow;
     }
 
     /**
-     * Sets the ordered list of allowed protocols.
+     * Sets the ordered list of protocols to allow.
      *
-     * @param allowed list of protocols.
+     * @param allow list of protocols.
      */
-    public void setAllowed(List<String> allowed) {
-        this.allowed = allowed;
+    public void setAllow(List<String> allow) {
+        this.allow = allow;
     }
 
     /**
-     * The denied TLS protocols.
+     * The TLS protocols to deny.
      * If not specified this defaults to the empty list.
      */
-    @com.fasterxml.jackson.annotation.JsonProperty("denied")
-    @com.fasterxml.jackson.annotation.JsonPropertyDescription("The denied TLS protocols.\nIf not specified this defaults to the empty list.\n")
+    @com.fasterxml.jackson.annotation.JsonProperty("deny")
+    @com.fasterxml.jackson.annotation.JsonPropertyDescription("The TLS protocols to deny.\nIf not specified this defaults to the empty list.\n")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
-    private List<String> denied = io.fabric8.kubernetes.client.utils.Serialization.unmarshal("[]", java.util.List.class);
+    private List<String> deny = io.fabric8.kubernetes.client.utils.Serialization.unmarshal("[]", java.util.List.class);
 
     /**
-     *  List of denied protocols.
+     *  List of protocols to deny.
      *
      * @return list of protocols.
      */
-    public List<String> getDenied() {
-        return denied;
+    public List<String> getDeny() {
+        return deny;
     }
 
     /**
-     * Sets the list of denied protocols.
+     * Sets the list of protocols to deny.
      *
-     * @param denied list of protocols.
+     * @param deny list of protocols.
      */
-    public void setDenied(List<String> denied) {
-        this.denied = denied;
+    public void setDeny(List<String> deny) {
+        this.deny = deny;
     }
 }

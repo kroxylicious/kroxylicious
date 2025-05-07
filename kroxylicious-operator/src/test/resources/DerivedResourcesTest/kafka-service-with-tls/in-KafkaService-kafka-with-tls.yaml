@@ -20,10 +20,10 @@ spec:
       name: upstream-ca
       key: cas.pem
     cipherSuites:
-      allowed:
+      allow:
       - foobar
     protocols:
-      denied:
+      deny:
       - TLS1.2
 status:
   observedGeneration: 3
