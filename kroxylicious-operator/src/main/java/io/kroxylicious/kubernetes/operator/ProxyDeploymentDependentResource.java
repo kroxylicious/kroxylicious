@@ -32,11 +32,11 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
-import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
+import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
@@ -132,7 +132,7 @@ public class ProxyDeploymentDependentResource
     private PodTemplateSpec podTemplate(KafkaProxy primary,
                                         KafkaProxyContext kafkaProxyContext,
                                         ProxyIngressModel ingressModel,
-                                        List<VirtualKafkaCluster> virtualKafkaClusters,
+                                        List<ClusterResolutionResult> clusterResolutionResults,
                                         String checksum) {
         PodTemplateSpecFluent<PodTemplateSpecBuilder>.MetadataNested<PodTemplateSpecBuilder> metadataBuilder = new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
@@ -151,7 +151,7 @@ public class ProxyDeploymentDependentResource
                             .withType("RuntimeDefault")
                         .endSeccompProfile()
                     .endSecurityContext()
-                    .withContainers(proxyContainer(kafkaProxyContext, ingressModel, virtualKafkaClusters))
+                    .withContainers(proxyContainer(kafkaProxyContext, ingressModel, clusterResolutionResults))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
                         .withNewConfigMap()
@@ -166,7 +166,7 @@ public class ProxyDeploymentDependentResource
 
     private Container proxyContainer(KafkaProxyContext kafkaProxyContext,
                                      ProxyIngressModel ingressModel,
-                                     List<VirtualKafkaCluster> virtualKafkaClusters) {
+                                     List<ClusterResolutionResult> clusterResolutionResults) {
         // @formatter:off
          var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
@@ -203,9 +203,9 @@ public class ProxyDeploymentDependentResource
                     .withName(MANAGEMENT_PORT_NAME)
                 .endPort();
         // broker ports
-        virtualKafkaClusters.forEach(virtualKafkaCluster -> {
-            if (!kafkaProxyContext.isBroken(virtualKafkaCluster)) {
-                ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(virtualKafkaCluster).orElseThrow();
+        clusterResolutionResults.forEach(resolutionResult -> {
+            if (!kafkaProxyContext.isBroken(resolutionResult.cluster())) {
+                ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(resolutionResult.cluster()).orElseThrow();
                 for (ProxyIngressModel.IngressModel ingress : virtualClusterIngressModel.ingressModels()) {
                     ingress.proxyContainerPorts().forEach(containerBuilder::addToPorts);
                 }

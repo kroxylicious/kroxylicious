@@ -35,8 +35,10 @@ import io.kroxylicious.kubernetes.api.common.CertificateRef;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
@@ -312,41 +314,73 @@ public class ResourcesUtil {
     /**
      * Checks that the status observedGeneration is equal to the metadata generation. Indicating
      * that the current {@code spec} of the resource has been reconciled.
-     * @param cluster cluster
+     * @param hasMetadata hasMetadata
+     * @throws IllegalStateException if hasMetadata is not a CustomResource type owned by the Kroxylicious Operator
      * @return true if status observedGeneration is equal to the metadata generation
      */
-    public static boolean isStatusFresh(VirtualKafkaCluster cluster) {
-        return isStatusFresh(cluster, c -> Optional.ofNullable(c.getStatus()).map(VirtualKafkaClusterStatus::getObservedGeneration).orElse(null));
+    public static boolean isStatusFresh(HasMetadata hasMetadata) {
+        Objects.requireNonNull(hasMetadata);
+        if (hasMetadata instanceof KafkaProtocolFilter filter) {
+            return isStatusFresh(filter, i -> Optional.ofNullable(i.getStatus()).map(KafkaProtocolFilterStatus::getObservedGeneration).orElse(null));
+        }
+        else if (hasMetadata instanceof KafkaService service) {
+            return isStatusFresh(service, i -> Optional.ofNullable(i.getStatus()).map(KafkaServiceStatus::getObservedGeneration).orElse(null));
+        }
+        else if (hasMetadata instanceof VirtualKafkaCluster cluster) {
+            return isStatusFresh(cluster, c -> Optional.ofNullable(c.getStatus()).map(VirtualKafkaClusterStatus::getObservedGeneration).orElse(null));
+        }
+        else if (hasMetadata instanceof KafkaProxyIngress ingress) {
+            return isStatusFresh(ingress, i -> Optional.ofNullable(i.getStatus()).map(KafkaProxyIngressStatus::getObservedGeneration).orElse(null));
+        }
+        else if (hasMetadata instanceof KafkaProxy kafkaProxy) {
+            return isStatusFresh(kafkaProxy, i -> Optional.ofNullable(i.getStatus()).map(KafkaProxyStatus::getObservedGeneration).orElse(null));
+        }
+        else {
+            throw new IllegalArgumentException("Unknown resource type: " + hasMetadata.getClass().getName());
+        }
     }
 
     /**
-     * Checks that the status observedGeneration is equal to the metadata generation. Indicating
-     * that the current {@code spec} of the resource has been reconciled.
-     * @param ingress ingress
-     * @return true if status observedGeneration is equal to the metadata generation
+     * Checks that the status contains a fresh ResolvedRefs=false condition
+     * @param hasMetadata hasMetadata
+     * @throws IllegalStateException if hasMetadata is not a CustomResource type owned by the Kroxylicious Operator which uses ResolvedRefs Conditions
+     * @return true if hasMetadata status contains a fresh ResolvedRefs=false condition
      */
-    public static boolean isStatusFresh(KafkaProxyIngress ingress) {
-        return isStatusFresh(ingress, i -> Optional.ofNullable(i.getStatus()).map(KafkaProxyIngressStatus::getObservedGeneration).orElse(null));
+    public static boolean hasResolvedRefsFalseCondition(HasMetadata hasMetadata) {
+        Objects.requireNonNull(hasMetadata);
+        List<Condition> conditions;
+        if (hasMetadata instanceof KafkaProtocolFilter filter) {
+            conditions = Optional.ofNullable(filter.getStatus()).map(KafkaProtocolFilterStatus::getConditions).orElse(List.of());
+        }
+        else if (hasMetadata instanceof KafkaService service) {
+            conditions = Optional.ofNullable(service.getStatus()).map(KafkaServiceStatus::getConditions).orElse(List.of());
+        }
+        else if (hasMetadata instanceof VirtualKafkaCluster cluster) {
+            conditions = Optional.ofNullable(cluster.getStatus()).map(VirtualKafkaClusterStatus::getConditions).orElse(List.of());
+        }
+        else if (hasMetadata instanceof KafkaProxyIngress ingress) {
+            conditions = Optional.ofNullable(ingress.getStatus()).map(KafkaProxyIngressStatus::getConditions).orElse(List.of());
+        }
+        else {
+            throw new IllegalArgumentException("Resource kind '" + HasMetadata.getKind(hasMetadata.getClass()) + "' does not use ResolveRefs conditions");
+        }
+        return conditions.stream().anyMatch(Condition::isResolvedRefsFalse);
     }
 
-    /**
-     * Checks that the status observedGeneration is equal to the metadata generation. Indicating
-     * that the current {@code spec} of the resource has been reconciled.
-     * @param service service
-     * @return true if status observedGeneration is equal to the metadata generation
-     */
-    public static boolean isStatusFresh(KafkaService service) {
-        return isStatusFresh(service, i -> Optional.ofNullable(i.getStatus()).map(KafkaServiceStatus::getObservedGeneration).orElse(null));
+    public static Predicate<HasMetadata> isStatusFresh() {
+        return ResourcesUtil::isStatusFresh;
     }
 
-    /**
-     * Checks that the status observedGeneration is equal to the metadata generation. Indicating
-     * that the current {@code spec} of the resource has been reconciled.
-     * @param filter filter
-     * @return true if status observedGeneration is equal to the metadata generation
-     */
-    public static boolean isStatusFresh(KafkaProtocolFilter filter) {
-        return isStatusFresh(filter, i -> Optional.ofNullable(i.getStatus()).map(KafkaProtocolFilterStatus::getObservedGeneration).orElse(null));
+    public static Predicate<HasMetadata> isStatusStale() {
+        return isStatusFresh().negate();
+    }
+
+    public static Predicate<HasMetadata> hasResolvedRefsFalseCondition() {
+        return ResourcesUtil::hasResolvedRefsFalseCondition;
+    }
+
+    public static Predicate<HasMetadata> hasKind(String kind) {
+        return hasMetadata -> HasMetadata.getKind(hasMetadata.getClass()).equals(kind);
     }
 
     @SuppressWarnings("java:S4276") // ToLongFunction is not appropriate, since observedGeneration may be null
