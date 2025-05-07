@@ -145,7 +145,7 @@ public final class VirtualKafkaClusterReconciler implements
             var certRefCheck = certRefs.stream()
                     .map(certRef -> {
                         var path = "spec.ingresses[].tls.certificateRef";
-                        return ResourcesUtil.checkCertRef(cluster, context, SECRETS_EVENT_SOURCE_NAME, certRef, path, statusFactory);
+                        return ResourcesUtil.checkCertRef(cluster, certRef, path, statusFactory, context, SECRETS_EVENT_SOURCE_NAME).resource();
                     })
                     .filter(Objects::nonNull)
                     .findFirst();

@@ -1,0 +1,24 @@
+// file included in the following:
+//
+// kroxylicious-operator/assemblies/assembly-operator-deploy-a-proxy.adoc
+
+[id='con-kafkaproxy-{context}']
+= Proxy configuration to host virtual clusters
+
+A `KafkaProxy` resource represents an instance of the Kroxylicious Proxy.
+Conceptually, it is the top-level resource that links together `KafkaProxyIngress`, `VirtualKafkaCluster`, `KafkaService`, and `KafkaProtocolFilter` resources to form a complete working proxy.
+
+`KafkaProxy` resources are referenced by `KafkaProxyIngress` and `VirtualKafkaCluster` resources to define how the proxy is exposed and what it proxies.
+
+.Example `KafkaProxy` configuration
+[source,yaml]
+----
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: simple
+spec: {} # <1>
+----
+<1>  An empty `spec` creates a proxy with default configuration. 
+

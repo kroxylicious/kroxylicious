@@ -28,10 +28,12 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
+import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
 import static org.awaitility.Awaitility.await;
 
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
@@ -75,7 +77,7 @@ class KafkaServiceReconcilerIT {
         testActor.create(resource);
 
         // Then
-        assertResolvedRefsTrue(resource, FOO_BOOTSTRAP_9090);
+        assertResolvedRefsTrue(resource, FOO_BOOTSTRAP_9090, false);
     }
 
     @Test
@@ -88,7 +90,7 @@ class KafkaServiceReconcilerIT {
         testActor.replace(updated);
 
         // Then
-        assertResolvedRefsTrue(updated, BAR_BOOTSTRAP_9090);
+        assertResolvedRefsTrue(updated, BAR_BOOTSTRAP_9090, false);
     }
 
     @Test
@@ -106,7 +108,7 @@ class KafkaServiceReconcilerIT {
         testActor.create(tlsCertificateSecret(SECRET_X));
 
         // Then
-        assertResolvedRefsTrue(kafkaService, FOO_BOOTSTRAP_9090);
+        assertResolvedRefsTrue(kafkaService, FOO_BOOTSTRAP_9090, true);
 
     }
 
@@ -115,7 +117,7 @@ class KafkaServiceReconcilerIT {
         // Given
         var tlsCertSecret = testActor.create(tlsCertificateSecret(SECRET_X));
         KafkaService resource = testActor.create(kafkaService(SERVICE_A, SECRET_X, null));
-        assertResolvedRefsTrue(resource, FOO_BOOTSTRAP_9090);
+        assertResolvedRefsTrue(resource, FOO_BOOTSTRAP_9090, true);
 
         // When
         testActor.delete(tlsCertSecret);
@@ -139,8 +141,37 @@ class KafkaServiceReconcilerIT {
         testActor.create(trustAnchorConfigMap(CONFIG_MAP_T));
 
         // Then
-        assertResolvedRefsTrue(kafkaService, FOO_BOOTSTRAP_9090);
+        assertResolvedRefsTrue(kafkaService, FOO_BOOTSTRAP_9090, true);
 
+    }
+
+    @Test
+    void shouldUpdateReferentAnnotationWhenTrustAnchorConfigMapModified() {
+        // Given
+        testActor.create(trustAnchorConfigMap(CONFIG_MAP_T));
+        KafkaService resource = kafkaService(SERVICE_A, null, CONFIG_MAP_T);
+        final KafkaService kafkaService = testActor.create(resource);
+        String checksum = awaitReferentsChecksumSpecified(resource);
+
+        // When
+        testActor.replace(trustAnchorConfigMap(CONFIG_MAP_T).edit().addToData("arbitrary", "arbitrary").build());
+
+        // Then
+        assertReferentsChecksumNotEqual(kafkaService, checksum);
+    }
+
+    @Test
+    void shouldUpdateReferentAnnotationWhenCertificateSecretModified() {
+        // Given
+        testActor.create(tlsCertificateSecret(SECRET_X));
+        KafkaService resource = testActor.create(kafkaService(SERVICE_A, SECRET_X, null));
+        String checksum = awaitReferentsChecksumSpecified(resource);
+
+        // When
+        testActor.replace(tlsCertificateSecret(SECRET_X).edit().addToData("arbitrary", "whatever").build());
+
+        // Then
+        assertReferentsChecksumNotEqual(resource, checksum);
     }
 
     @Test
@@ -148,7 +179,7 @@ class KafkaServiceReconcilerIT {
         // Given
         var trustedCaCerts = testActor.create(trustAnchorConfigMap(CONFIG_MAP_T));
         KafkaService resource = testActor.create(kafkaService(SERVICE_A, null, CONFIG_MAP_T));
-        assertResolvedRefsTrue(resource, FOO_BOOTSTRAP_9090);
+        assertResolvedRefsTrue(resource, FOO_BOOTSTRAP_9090, true);
 
         // When
         testActor.delete(trustedCaCerts);
@@ -218,7 +249,7 @@ class KafkaServiceReconcilerIT {
         // @formatter:on
     }
 
-    private void assertResolvedRefsTrue(KafkaService cr, String expectedBootstrap) {
+    private void assertResolvedRefsTrue(KafkaService cr, String expectedBootstrap, boolean hasReferents) {
         AWAIT.untilAsserted(() -> {
             final KafkaService kafkaService = testActor.get(KafkaService.class, ResourcesUtil.name(cr));
             Assertions.assertThat(kafkaService).isNotNull();
@@ -228,7 +259,34 @@ class KafkaServiceReconcilerIT {
                     .conditionList()
                     .singleElement()
                     .isResolvedRefsTrue();
+            String checksum = getReferentChecksum(kafkaService);
+            if (hasReferents) {
+                Assertions.assertThat(checksum).isNotEqualTo(NO_CHECKSUM_SPECIFIED);
+            }
+            else {
+                Assertions.assertThat(checksum).isEqualTo(NO_CHECKSUM_SPECIFIED);
+            }
         });
+    }
+
+    private String awaitReferentsChecksumSpecified(KafkaService cr) {
+        return AWAIT.until(() -> {
+            final KafkaService kafkaService = testActor.get(KafkaService.class, ResourcesUtil.name(cr));
+            return getReferentChecksum(kafkaService);
+        }, s -> !s.equals(NO_CHECKSUM_SPECIFIED));
+    }
+
+    private void assertReferentsChecksumNotEqual(KafkaService cr, String checksum) {
+        AWAIT.untilAsserted(() -> {
+            final KafkaService kafkaService = testActor.get(KafkaService.class, ResourcesUtil.name(cr));
+            String actualChecksum = getReferentChecksum(kafkaService);
+            Assertions.assertThat(actualChecksum).isNotEqualTo(checksum);
+        });
+    }
+
+    private static String getReferentChecksum(KafkaService kafkaService) {
+        return kafkaService.getMetadata().getAnnotations()
+                .getOrDefault(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, NO_CHECKSUM_SPECIFIED);
     }
 
     private void assertResolvedRefsFalse(KafkaService cr,

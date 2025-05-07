@@ -1,0 +1,18 @@
+// file included in the following:
+//
+// kroxylicious-operator/assemblies/assembly-operator-secure-proxy.adoc
+
+[id='assembly-operator-secure-proxy-broker-connection-{context}']
+= Securing the proxy-to-broker connection
+
+[role="_abstract"]
+Secure proxy-to-broker communication using TLS.
+
+include::../modules/configuring/con-configuring-kafkaservice-trust.adoc[leveloffset=+1]
+
+include::../modules/configuring/con-tls-auth-to-kafka-cluster.adoc[leveloffset=+1]
+
+include::../modules/configuring/con-configuring-kafkaservice-protocol.adoc[leveloffset=+1]
+
+include::../modules/configuring/con-configuring-kafkaservice-cipher.adoc[leveloffset=+1]
+
