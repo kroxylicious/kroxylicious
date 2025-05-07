@@ -1,0 +1,60 @@
+// file included in the following:
+//
+// kroxylicious-operator/assemblies/assembly-operator-secure-client-proxy-connection.adoc
+
+[id='con-configuring-virtualkafkacluster-{context}']
+= TLS configuration for client-to-proxy connections
+
+This example shows a `VirtualKafkaCluster`, exposing it to Kafka clients running on the same Kubernetes cluster.
+It uses TLS as the transport protocol so that communication between Kafka clients and the proxy is encrypted.
+
+.Example `VirtualKafkaCluster` configuration
+[source,yaml]
+----
+kind: VirtualKafkaCluster
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: my-cluster
+  namespace: my-proxy
+spec:
+  proxyRef: # <1>
+    name: simple
+  targetKafkaServiceRef: # <2>
+    name: my-cluster
+  ingresses:
+    - ingressRef: # <3>
+        name: cluster-ip
+      tls: # <4>
+        certificateRef:
+          name: server-certificate
+          kind: Secret
+----
+<1> The `proxyRef` names the `KafkaProxy` resource that this virtual cluster is part of.
+  It must be in the same namespace as the `VirtualKafkaCluster`.
+<2> The virtual cluster names the `KafkaService` to be proxied.
+  It must be in the same namespace as the `VirtualKafkaCluster`.
+<3> The virtual cluster can be exposed by one or more ingresses.
+  Each ingress must reference a `KafkaProxyIngress` in the same namespace as the `VirtualKafkaCluster`.
+<4> If the ingress supports TLS, the `tls` property configures the TLS server certificate to use.
+
+Within a `VirtualKafkaCluster`, an ingress's `tls` property configures TLS for that ingress.
+The `tls.certificateRef` specifies the `Secret` resource holding the TLS server certificate that the proxy uses for clients connecting through this ingress.
+The referenced `KafkaProxyIngress` also needs to be configured for TLS.
+
+.Example `KafkaProxyIngress` configuration for TLS
+[source,yaml]
+----
+kind: KafkaProxyIngress
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: cluster-ip
+  namespace: my-proxy
+spec:
+  proxyRef: # <1>
+    name: simple
+  clusterIP: # <2>
+    protocol: TLS # <3>
+----
+<1>The ingress must reference a `KafkaProxy` in the same namespace as the `KafkaProxyIngress`.
+<2> Exposes the proxy to Kafka clients inside the same Kubernetes cluster using a `ClusterIP` service.
+<3> The ingress uses `TLS` as the transport protocol.
