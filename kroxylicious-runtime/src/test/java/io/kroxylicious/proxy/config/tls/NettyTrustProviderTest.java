@@ -59,7 +59,7 @@ class NettyTrustProviderTest {
         return Stream.of(argumentSet("required", TlsClientAuth.REQUIRED, ClientAuth.REQUIRE),
                 argumentSet("requested", TlsClientAuth.REQUESTED, ClientAuth.OPTIONAL),
                 argumentSet("none", TlsClientAuth.NONE, ClientAuth.NONE),
-                argumentSet("no configuration", null, ClientAuth.NONE));
+                argumentSet("no configuration", null, ClientAuth.REQUIRE));
     }
 
     @ParameterizedTest
