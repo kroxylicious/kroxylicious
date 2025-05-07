@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2140](https://github.com/kroxylicious/kroxylicious/pull/2140) Bump Jackson from 2.18.1 to 2.18.3
 * [#2115](https://github.com/kroxylicious/kroxylicious/pull/2115) Ensure request path chains deferred opaque requests correctly
 * [#2113](https://github.com/kroxylicious/kroxylicious/pull/2113) Ensure that filter handler does not leak deferred opaque requests/responses if the upstream or downstream side closes unexpectedly 
 * [#2098](https://github.com/kroxylicious/kroxylicious/pull/2098) Bump io.netty:netty-bom from 4.1.119.Final to 4.1.121.Final
