@@ -11,6 +11,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +26,7 @@ import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecFluent;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
+import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
@@ -32,6 +35,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
@@ -103,8 +107,21 @@ public class ProxyDeploymentDependentResource
                 .orElse(new Crc32ChecksumGenerator());
 
         kafkaProxyIngress.ifPresent(checksumGenerator::appendMetadata);
+        context.getSecondaryResources(KafkaProtocolFilter.class).forEach(entity -> {
+            String prior = checksumGenerator.encode();
+            checksumGenerator.appendMetadata(entity);
+            LOGGER.info("checksum before {} after {} appending metadata from entity: {}@{}", prior, checksumGenerator.encode(), KubernetesResourceUtil.getName(entity),
+                    KubernetesResourceUtil.getOrCreateMetadata(entity).getGeneration());
+        });
+        String encoded = checksumGenerator.encode();
+        final var filterNames = context.getSecondaryResources(KafkaProtocolFilter.class).stream().map(KubernetesResourceUtil::getName).toList();
+        final var generations = context.getSecondaryResources(KafkaProtocolFilter.class).stream().map(KubernetesResourceUtil::getOrCreateMetadata).map(
+                ObjectMeta::getGeneration).toList();
 
-        return checksumGenerator.encode();
+        String details = IntStream.range(0, filterNames.size()).mapToObj(idx -> String.format("%s@%s", filterNames.get(idx), generations.get(idx)))
+                .collect(Collectors.joining());
+        LOGGER.info("Checksum: {} generated for KafkaProxy: {} including: {}", encoded, KubernetesResourceUtil.getName(primary), details);
+        return encoded;
     }
 
     private static Map<String, String> deploymentSelector(KafkaProxy primary) {
