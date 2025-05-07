@@ -9,17 +9,22 @@ package io.kroxylicious.systemtests.utils;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.batch.v1.Job;
+import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.KafkaStatus;
+import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
+import io.kroxylicious.systemtests.resources.strimzi.KafkaType;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
@@ -134,5 +139,30 @@ public class KafkaUtils {
         else {
             return "";
         }
+    }
+
+    /**
+     * Gets kafka listener status.
+     *
+     * @param listenerStatusName the listener status name
+     * @return the kafka listener status
+     */
+    public static Optional<ListenerStatus> getKafkaListenerStatus(String listenerStatusName) {
+        KafkaType type = new KafkaType();
+        return await().atMost(Duration.ofSeconds(60))
+                .pollInterval(Duration.ofMillis(200))
+                .until(
+                        () -> type.getClient().inNamespace(Constants.KAFKA_DEFAULT_NAMESPACE)
+                                .list()
+                                .getItems()
+                                .stream()
+                                .findFirst()
+                                .map(Kafka::getStatus)
+                                .map(KafkaStatus::getListeners)
+                                .stream()
+                                .flatMap(List::stream)
+                                .filter(listenerStatus -> listenerStatus.getName().contains(listenerStatusName))
+                                .findFirst(),
+                        Optional::isPresent);
     }
 }

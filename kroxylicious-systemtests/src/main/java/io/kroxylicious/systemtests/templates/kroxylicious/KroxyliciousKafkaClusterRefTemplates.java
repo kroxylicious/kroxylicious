@@ -6,10 +6,13 @@
 
 package io.kroxylicious.systemtests.templates.kroxylicious;
 
+import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
+
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.TlsBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.TrustAnchorRefBuilder;
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 public class KroxyliciousKafkaClusterRefTemplates {
 
@@ -17,13 +20,13 @@ public class KroxyliciousKafkaClusterRefTemplates {
     }
 
     /**
-     * Default kafka cluster ref deployment.
+     * Default kafka cluster ref CR.
      *
      * @param namespaceName the namespace name
      * @param clusterRefName the cluster ref name
      * @return the kafka service builder
      */
-    public static KafkaServiceBuilder defaultKafkaClusterRefDeployment(String namespaceName, String clusterRefName) {
+    public static KafkaServiceBuilder defaultKafkaClusterRefCR(String namespaceName, String clusterRefName) {
         // @formatter:off
         return new KafkaServiceBuilder()
                 .withNewMetadata()
@@ -31,16 +34,23 @@ public class KroxyliciousKafkaClusterRefTemplates {
                     .withNamespace(namespaceName)
                 .endMetadata()
                 .withNewSpec()
-                    .withBootstrapServers("%s-kafka-bootstrap.%s.svc.cluster.local:9092".formatted(clusterRefName, Constants.KAFKA_DEFAULT_NAMESPACE))
+                    .withBootstrapServers(getKafkaBootstrap("plain"))
                 .endSpec();
         // @formatter:on
     }
 
-    public static KafkaServiceBuilder kafkaClusterRefDeploymentWithTls(String namespaceName, String clusterRefName) {
+    /**
+     * Kafka cluster ref CR with tls.
+     *
+     * @param namespaceName the namespace name
+     * @param clusterRefName the cluster ref name
+     * @return the kafka service builder
+     */
+    public static KafkaServiceBuilder kafkaClusterRefCRWithTls(String namespaceName, String clusterRefName) {
         // @formatter:off
-        return defaultKafkaClusterRefDeployment(namespaceName, clusterRefName)
+        return defaultKafkaClusterRefCR(namespaceName, clusterRefName)
                 .editSpec()
-                    .withBootstrapServers("%s-kafka-bootstrap.%s.svc.cluster.local:9093".formatted(clusterRefName, Constants.KAFKA_DEFAULT_NAMESPACE))
+                    .withBootstrapServers(getKafkaBootstrap("tls"))
                     .withTls(new TlsBuilder()
                             .withTrustAnchorRef(new TrustAnchorRefBuilder()
                                     .withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT)
@@ -50,5 +60,14 @@ public class KroxyliciousKafkaClusterRefTemplates {
                             .build())
                 .endSpec();
         // @formatter:on
+    }
+
+    private static String getKafkaBootstrap(String listenerStatusName) {
+        // wait for listeners to contain data
+        var kafkaListenerStatus = KafkaUtils.getKafkaListenerStatus(listenerStatusName);
+
+        return kafkaListenerStatus.stream()
+                .map(ListenerStatus::getBootstrapServers)
+                .findFirst().orElseThrow();
     }
 }

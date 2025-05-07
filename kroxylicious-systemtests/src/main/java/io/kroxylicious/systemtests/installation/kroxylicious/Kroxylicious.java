@@ -13,8 +13,6 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.strimzi.api.kafka.model.kafka.Kafka;
-import io.strimzi.api.kafka.model.kafka.KafkaStatus;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
@@ -24,13 +22,13 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingress
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
-import io.kroxylicious.systemtests.resources.strimzi.KafkaType;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousConfigMapTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaClusterRefTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyIngressTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
+import io.kroxylicious.systemtests.utils.KafkaUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
@@ -66,11 +64,11 @@ public class Kroxylicious {
      */
     public void deployPortIdentifiesNodeWithFilters(String clusterName, List<String> filterNames) {
         resourceManager.createResourceFromBuilderWithWait(
-                KroxyliciousKafkaProxyTemplates.defaultKafkaProxyDeployment(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
-                KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressDeployment(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
+                KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
+                KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressCR(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
                         Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
-                KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefDeployment(deploymentNamespace, clusterName),
-                KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterDeployment(deploymentNamespace, clusterName,
+                KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(deploymentNamespace, clusterName),
+                KroxyliciousVirtualKafkaClusterTemplates.virtualKafkaClusterWithFilterCR(deploymentNamespace, clusterName,
                         Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
                         clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, filterNames));
     }
@@ -80,11 +78,11 @@ public class Kroxylicious {
      */
     public void deployPortIdentifiesNodeWithNoFilters(String clusterName) {
         resourceManager.createResourceFromBuilder(
-                KroxyliciousKafkaProxyTemplates.defaultKafkaProxyDeployment(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
-                KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressDeployment(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
+                KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
+                KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressCR(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
                         Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
-                KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefDeployment(deploymentNamespace, clusterName),
-                KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterDeployment(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
+                KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(deploymentNamespace, clusterName),
+                KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
                         clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP));
     }
 
@@ -96,33 +94,17 @@ public class Kroxylicious {
     public void deployPortIdentifiesNodeWithTlsAndNoFilters(String clusterName) {
         createCertificateConfigMap(deploymentNamespace);
         resourceManager.createResourceFromBuilder(
-                KroxyliciousKafkaProxyTemplates.defaultKafkaProxyDeployment(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
-                KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressDeployment(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
+                KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
+                KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressCR(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
                         Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
-                KroxyliciousKafkaClusterRefTemplates.kafkaClusterRefDeploymentWithTls(deploymentNamespace, clusterName),
-                KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterDeployment(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
+                KroxyliciousKafkaClusterRefTemplates.kafkaClusterRefCRWithTls(deploymentNamespace, clusterName),
+                KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
                         clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP));
     }
 
     private void createCertificateConfigMap(String namespace) {
-        KafkaType type = new KafkaType();
-
         // wait for listeners to contain data
-        var tlsListenerStatus = await().atMost(Duration.ofSeconds(60))
-                .pollInterval(Duration.ofMillis(200))
-                .until(
-                        () -> type.getClient().inNamespace(Constants.KAFKA_DEFAULT_NAMESPACE)
-                                .list()
-                                .getItems()
-                                .stream()
-                                .findFirst()
-                                .map(Kafka::getStatus)
-                                .map(KafkaStatus::getListeners)
-                                .stream()
-                                .flatMap(List::stream)
-                                .filter(listenerStatus -> listenerStatus.getName().contains("tls"))
-                                .findFirst(),
-                        Optional::isPresent);
+        var tlsListenerStatus = KafkaUtils.getKafkaListenerStatus("tls");
 
         var cert = tlsListenerStatus.stream()
                 .map(ListenerStatus::getCertificates)

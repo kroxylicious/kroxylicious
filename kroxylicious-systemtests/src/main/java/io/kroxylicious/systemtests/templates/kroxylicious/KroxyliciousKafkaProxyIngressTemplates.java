@@ -16,14 +16,14 @@ public class KroxyliciousKafkaProxyIngressTemplates {
     }
 
     /**
-     * Default kafka proxy ingress deployment.
+     * Default kafka proxy ingress CR.
      *
      * @param namespaceName the namespace name
      * @param ingressName the ingress name
      * @param proxyName the name of the proxy to reference
      * @return the kafka proxy ingress builder
      */
-    public static KafkaProxyIngressBuilder defaultKafkaProxyIngressDeployment(String namespaceName, String ingressName, String proxyName) {
+    public static KafkaProxyIngressBuilder defaultKafkaProxyIngressCR(String namespaceName, String ingressName, String proxyName) {
         // @formatter:off
         return new KafkaProxyIngressBuilder()
                 .withNewMetadata()
