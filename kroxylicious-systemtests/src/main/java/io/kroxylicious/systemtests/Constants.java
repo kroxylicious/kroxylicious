@@ -118,7 +118,7 @@ public final class Constants {
      */
     public static final String CERT_MANAGER_URL = "https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml";
     /**
-     * kafka client labels to identify the test client
+     * the kubernetes labels used to identify the test kafka clients pods
      */
     public static final String KAFKA_CONSUMER_CLIENT_LABEL = "kafka-consumer-client";
     public static final String KAFKA_PRODUCER_CLIENT_LABEL = "kafka-producer-client";
