@@ -135,6 +135,31 @@ spec:
                                 type: string
                                 minLength: 1
                                 maxLength: 253
+                          trustAnchorRef:
+                            description: |
+                              A reference to a resource holding the trusted CA certificates for validation of
+                              a Kafka client's TLS client certificate.
+                              If not specified the system will use the trust store inherited from the JVM that the
+                              proxy runs on.
+                            type: object
+                            required: [ "name", "key" ]
+                            properties:
+                              kind:
+                                description: The API kind of the resource containing the TLS trust anchor(s).
+                                type: string
+                                default: ConfigMap
+                              group:
+                                description: The API group of the resource containing the TLS trust anchor(s).
+                                type: string
+                                default: ""
+                              name:
+                                description: The name of the resource containing the TLS trust anchor(s).
+                                type: string
+                              key:
+                                description: |
+                                  The name of the key identifying the certificate bundle within the resource. 
+                                  Supported formats for the bundle are: PEM, PKCS#12 and JKS.
+                                type: string
                 filterRefs:
                   description: The filters to be used for this cluster. Each filter is a separate resource.
                   type: array

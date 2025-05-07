@@ -28,12 +28,11 @@ import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMap
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
-import io.kroxylicious.kubernetes.api.common.AnyLocalRef;
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.TrustAnchorRef;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -42,8 +41,9 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
 /**
- * <p>Reconciles a {@link KafkaService} by checking whether resources referred to in {@code spec.tls.certificateRefs}
- * actually exist, setting a {@link Condition.Type#ResolvedRefs} {@link Condition} accordingly.</p>
+ * <p>Reconciles a {@link KafkaService} by checking whether resources referred to in {@code spec.tls.certificateRef}
+ * and/or {@code spec.tls.trustAnchorRef} actually exist, setting a {@link Condition.Type#ResolvedRefs} {@link Condition}
+ * accordingly.</p>
  *
  * <p>Because a service CR is not uniquely associated with a {@code KafkaProxy} it's not possible
  * to set an {@code Accepted} condition on CR instances.</p>
@@ -55,14 +55,8 @@ public final class KafkaServiceReconciler implements
 
     public static final String SECRETS_EVENT_SOURCE_NAME = "secrets";
     public static final String CONFIG_MAPS_EVENT_SOURCE_NAME = "configmaps";
-
-    public static AnyLocalRef asRef(TrustAnchorRef reference) {
-        AnyLocalRef result = new AnyLocalRef();
-        result.setGroup(reference.getGroup());
-        result.setKind(reference.getKind());
-        result.setName(reference.getName());
-        return result;
-    }
+    private static final String SPEC_TLS_TRUST_ANCHOR_REF = "spec.tls.trustAnchorRef";
+    private static final String SPEC_TLS_CERTIFICATE_REF = "spec.tls.certificateRef";
 
     private final KafkaServiceStatusFactory statusFactory;
 
@@ -117,7 +111,7 @@ public final class KafkaServiceReconciler implements
                 service -> Optional.ofNullable(service.getSpec())
                         .map(KafkaServiceSpec::getTls)
                         .map(Tls::getTrustAnchorRef)
-                        .map(KafkaServiceReconciler::asRef));
+                        .map(TrustAnchorRef::getRef));
     }
 
     @VisibleForTesting
@@ -125,7 +119,7 @@ public final class KafkaServiceReconciler implements
         return (KafkaService cluster) -> Optional.ofNullable(cluster.getSpec())
                 .map(KafkaServiceSpec::getTls)
                 .map(Tls::getTrustAnchorRef)
-                .map(tar -> ResourcesUtil.localRefAsResourceId(cluster, asRef(tar)))
+                .map(tar -> ResourcesUtil.localRefAsResourceId(cluster, tar.getRef()))
                 .orElse(Set.of());
     }
 
@@ -138,7 +132,9 @@ public final class KafkaServiceReconciler implements
                 .map(KafkaServiceSpec::getTls)
                 .map(Tls::getTrustAnchorRef);
         if (trustAnchorRefOpt.isPresent()) {
-            ResourceCheckResult<KafkaService> result = checkTrustAnchorRef(service, context, trustAnchorRefOpt.get());
+            ResourceCheckResult<KafkaService> result = ResourcesUtil.checkTrustAnchorRef(service, context, CONFIG_MAPS_EVENT_SOURCE_NAME, trustAnchorRefOpt.get(),
+                    SPEC_TLS_TRUST_ANCHOR_REF,
+                    statusFactory);
             updatedService = result.resource();
             referents.addAll(result.referents());
         }
@@ -167,51 +163,6 @@ public final class KafkaServiceReconciler implements
             LOGGER.info("Completed reconciliation of {}/{}", namespace(service), name(service));
         }
         return uc;
-    }
-
-    private ResourceCheckResult<KafkaService> checkTrustAnchorRef(KafkaService service,
-                                                                  Context<KafkaService> context,
-                                                                  TrustAnchorRef trustAnchorRef) {
-        String path = "spec.tls.trustAnchorRef";
-        if (ResourcesUtil.isConfigMap(trustAnchorRef)) {
-            Optional<ConfigMap> configMapOpt = context.getSecondaryResource(ConfigMap.class, CONFIG_MAPS_EVENT_SOURCE_NAME);
-            if (configMapOpt.isEmpty()) {
-                return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
-                        Condition.REASON_REFS_NOT_FOUND,
-                        path + ": referenced resource not found"), List.of());
-            }
-            else {
-                String key = trustAnchorRef.getKey();
-                if (key == null) {
-                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
-                            Condition.REASON_INVALID,
-                            path + " must specify 'key'"), List.of());
-                }
-                if (!key.endsWith(".pem")
-                        && !key.endsWith(".p12")
-                        && !key.endsWith(".jks")) {
-                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
-                            Condition.REASON_INVALID,
-                            path + ".key should end with .pem, .p12 or .jks"), List.of());
-                }
-                else {
-                    ConfigMap configMap = configMapOpt.get();
-                    if (!configMap.getData().containsKey(trustAnchorRef.getKey())) {
-                        return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
-                                Condition.REASON_INVALID_REFERENCED_RESOURCE,
-                                path + ": referenced resource does not contain key " + trustAnchorRef.getKey()), List.of());
-                    }
-                    else {
-                        return new ResourceCheckResult<>(null, List.of(configMap));
-                    }
-                }
-            }
-        }
-        else {
-            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
-                    Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
-                    "spec.tls.trustAnchorRef supports referents: configmaps"), List.of());
-        }
     }
 
     @Override

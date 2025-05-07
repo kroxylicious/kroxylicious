@@ -326,7 +326,7 @@ class VirtualKafkaClusterReconcilerIT {
                 .withNewProxyRef()
                     .withName(proxyName)
                 .endProxyRef()
-                .addAllToIngresses(ingresses)
+                .withIngresses(ingresses)
                 .withNewTargetKafkaServiceRef()
                     .withName(serviceName)
                 .endTargetKafkaServiceRef();

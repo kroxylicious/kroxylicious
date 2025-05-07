@@ -18,7 +18,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public abstract class LocalRef<T> implements Comparable<LocalRef<T>> {
 
-    public static final Comparator<LocalRef<?>> COMPARATOR = Comparator.<LocalRef<?>, String> comparing(LocalRef::getKind, Comparator.nullsLast(String::compareTo))
+    private static final Comparator<LocalRef<?>> COMPARATOR = Comparator.<LocalRef<?>, String> comparing(LocalRef::getKind, Comparator.nullsLast(String::compareTo))
             .thenComparing(LocalRef::getGroup, Comparator.nullsLast(String::compareTo))
             .thenComparing(LocalRef::getName, Comparator.nullsLast(String::compareTo));
 

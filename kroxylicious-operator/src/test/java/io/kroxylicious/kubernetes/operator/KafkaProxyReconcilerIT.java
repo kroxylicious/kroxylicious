@@ -33,6 +33,7 @@ import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
@@ -44,9 +45,15 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.readiness.Readiness;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
+import io.kroxylicious.kubernetes.api.common.CertificateRef;
+import io.kroxylicious.kubernetes.api.common.CertificateRefBuilder;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
+import io.kroxylicious.kubernetes.api.common.IngressRef;
+import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRef;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -61,6 +68,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatusBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
@@ -179,7 +187,9 @@ class KafkaProxyReconcilerIT {
         String downstreamCertSecretName = "downstream-tls-certificate";
         Secret tlsCert = testActor.create(tlsKeyAndCertSecret(downstreamCertSecretName));
 
-        VirtualKafkaCluster resource = virtualKafkaCluster(CLUSTER_BAR, proxy, kafkaService, ingress, Optional.empty(), Optional.of(tlsCert));
+        Ingresses build = new IngressesBuilder().withIngressRef(toIngressRef(ingress)).withNewTls().withCertificateRef(
+                toCertificateRef(tlsCert)).endTls().build();
+        VirtualKafkaCluster resource = virtualKafkaCluster(CLUSTER_BAR, proxy, kafkaService, List.of(build), Optional.empty());
 
         // When
         updateStatusObservedGeneration(testActor.create(resource));
@@ -187,6 +197,37 @@ class KafkaProxyReconcilerIT {
         // Then
         assertProxyConfigContents(proxy, Set.of(downstreamCertSecretName), Set.of());
         assertDeploymentMountsSecret(proxy, downstreamCertSecretName);
+    }
+
+    @Test
+    void createVirtualClusterUsingTlsWithTrustAnchors() {
+        // Given
+        KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
+
+        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)));
+
+        KafkaProxyIngress ingress = updateStatusObservedGeneration(testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy, TLS)));
+
+        Secret tlsServerCert = testActor.create(tlsKeyAndCertSecret("downstream-tls-certificate"));
+        String downstreamTrustAnchorName = "downstream-tls-trust-anchor";
+        ConfigMap trustAnchor = testActor.create(trustAnchorConfigMap(downstreamTrustAnchorName, "tls.pem"));
+
+        Ingresses clusterIngress = new IngressesBuilder()
+                .withIngressRef(toIngressRef(ingress))
+                .withNewTls()
+                .withCertificateRef(toCertificateRef(tlsServerCert))
+                .withTrustAnchorRef(toTrustAnchorRef(trustAnchor))
+                .endTls()
+                .build();
+
+        VirtualKafkaCluster resource = virtualKafkaCluster(CLUSTER_BAR, proxy, kafkaService, List.of(clusterIngress), Optional.empty());
+
+        // When
+        updateStatusObservedGeneration(testActor.create(resource));
+
+        // Then
+        assertProxyConfigContents(proxy, Set.of(downstreamTrustAnchorName), Set.of());
+        assertDeploymentMountsConfigMap(proxy, downstreamTrustAnchorName);
     }
 
     @Test
@@ -201,7 +242,8 @@ class KafkaProxyReconcilerIT {
                 .endSpec().build());
         barService = updateStatusObservedGeneration(barService);
         KafkaProxyIngress ingressBar = updateStatusObservedGeneration(testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy, TCP)));
-        VirtualKafkaCluster clusterBar = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxy, barService, ingressBar, Optional.of(filter), Optional.empty()));
+        VirtualKafkaCluster clusterBar = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxy, barService,
+                List.of(new IngressesBuilder().withIngressRef(toIngressRef(ingressBar)).build()), Optional.of(filter)));
         updateStatusObservedGeneration(clusterBar);
         clusterBar.setStatus(new VirtualKafkaClusterStatusBuilder().withObservedGeneration(generation(clusterBar)).build());
 
@@ -288,6 +330,7 @@ class KafkaProxyReconcilerIT {
     }
 
     private record CreatedResources(KafkaProxy proxy, Set<VirtualKafkaCluster> clusters, Set<KafkaService> services, Set<KafkaProxyIngress> ingresses) {
+
         VirtualKafkaCluster cluster(String name) {
             return findOnlyResourceNamed(name, clusters).orElseThrow();
         }
@@ -299,6 +342,7 @@ class KafkaProxyReconcilerIT {
         KafkaProxyIngress ingress(String name) {
             return findOnlyResourceNamed(name, ingresses).orElseThrow();
         }
+
     }
 
     CreatedResources doCreate() {
@@ -315,12 +359,13 @@ class KafkaProxyReconcilerIT {
         KafkaProxyIngress ingressBar = testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy, TCP));
         ingressBar = updateStatusObservedGeneration(ingressBar);
         Set<KafkaService> kafkaServices = Set.of(barService);
-        VirtualKafkaCluster clusterBar = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxy, barService, ingressBar, Optional.of(filter), Optional.empty()));
+        VirtualKafkaCluster clusterBar = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxy, barService,
+                List.of(new IngressesBuilder().withIngressRef(toIngressRef(ingressBar)).build()), Optional.of(filter)));
         clusterBar = updateStatusObservedGeneration(clusterBar);
         Set<VirtualKafkaCluster> clusters = Set.of(clusterBar);
         assertProxyConfigContents(proxy, Set.of(CLUSTER_BAR_BOOTSTRAP, filter.getSpec().getType()), Set.of());
         assertDefaultVirtualClusterGatewayConfigured(proxy, clusterBar);
-        assertDeploymentMountsConfigConfigMap(proxy);
+        assertDeploymentMountsConfigMap(proxy, ProxyConfigDependentResource.configMapName(proxy));
         assertDeploymentBecomesReady(proxy);
         assertServiceTargetsProxyInstances(proxy, clusterBar, ingressBar);
         return new CreatedResources(proxy, clusters, kafkaServices, Set.of(ingressBar));
@@ -402,20 +447,16 @@ class KafkaProxyReconcilerIT {
         });
     }
 
-    private void assertDeploymentMountsConfigConfigMap(KafkaProxy proxy) {
-        assertDeploymentMountsConfigMap(proxy, ProxyConfigDependentResource.configMapName(proxy));
+    private void assertDeploymentMountsSecret(KafkaProxy proxy, String secretName) {
+        assertDeploymentMounts(proxy,
+                Volume::getSecret,
+                secretVoumeSource -> secretVoumeSource.getSecretName().equals(secretName));
     }
 
     private void assertDeploymentMountsConfigMap(KafkaProxy proxy, String configMapName) {
         assertDeploymentMounts(proxy,
                 Volume::getConfigMap,
-                cm -> cm.getName().equals(configMapName));
-    }
-
-    private void assertDeploymentMountsSecret(KafkaProxy proxy, String secretName) {
-        assertDeploymentMounts(proxy,
-                Volume::getSecret,
-                secretVoumeSource -> secretVoumeSource.getSecretName().equals(secretName));
+                configMapVoumeSource -> configMapVoumeSource.getName().equals(configMapName));
     }
 
     private <T> void assertDeploymentMounts(KafkaProxy proxy, Function<Volume, T> volumeSourceExtractor, Predicate<T> volumeSourcePredicate) {
@@ -538,9 +579,11 @@ class KafkaProxyReconcilerIT {
         KafkaService barService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)));
         KafkaProtocolFilter filter = updateStatusObservedGeneration(testActor.create(filter(FILTER_NAME)));
 
-        VirtualKafkaCluster fooCluster = testActor.create(virtualKafkaCluster(CLUSTER_FOO, proxyA, fooService, ingressFoo, Optional.of(filter), Optional.empty()));
+        VirtualKafkaCluster fooCluster = testActor.create(virtualKafkaCluster(CLUSTER_FOO, proxyA, fooService,
+                List.of(new IngressesBuilder().withIngressRef(toIngressRef(ingressFoo)).build()), Optional.of(filter)));
         updateStatusObservedGeneration(fooCluster);
-        VirtualKafkaCluster barCluster = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxyB, barService, ingressBar, Optional.of(filter), Optional.empty()));
+        VirtualKafkaCluster barCluster = testActor.create(virtualKafkaCluster(CLUSTER_BAR, proxyB, barService,
+                List.of(new IngressesBuilder().withIngressRef(toIngressRef(ingressBar)).build()), Optional.of(filter)));
         updateStatusObservedGeneration(barCluster);
 
         assertProxyConfigContents(proxyA, Set.of(CLUSTER_FOO_BOOTSTRAP), Set.of());
@@ -585,8 +628,8 @@ class KafkaProxyReconcilerIT {
         KafkaProtocolFilter filter = updateStatusObservedGeneration(testActor.create(filter(FILTER_NAME)));
 
         VirtualKafkaCluster fooCluster = updateStatusObservedGeneration(
-                testActor.create(virtualKafkaCluster(CLUSTER_FOO, proxyA, fooService, ingressFoo, Optional.of(filter),
-                        Optional.empty())));
+                testActor.create(virtualKafkaCluster(CLUSTER_FOO, proxyA, fooService, List.of(new IngressesBuilder().withIngressRef(toIngressRef(ingressFoo)).build()),
+                        Optional.of(filter))));
 
         assertProxyConfigContents(proxyA, Set.of(CLUSTER_FOO_BOOTSTRAP), Set.of());
         assertServiceTargetsProxyInstances(proxyA, fooCluster, ingressFoo);
@@ -646,25 +689,7 @@ class KafkaProxyReconcilerIT {
     }
 
     private static VirtualKafkaCluster virtualKafkaCluster(String clusterName, KafkaProxy proxy, KafkaService service,
-                                                           KafkaProxyIngress ingress, Optional<KafkaProtocolFilter> filter, Optional<Secret> tlsCert) {
-        // @formatter:off
-        var ingressesBuilder = new IngressesBuilder()
-                .withNewIngressRef()
-                    .withName(name(ingress))
-                .endIngressRef();
-        // @formatter:on
-
-        tlsCert.ifPresent(c -> {
-            // @formatter:off
-            ingressesBuilder
-                    .editOrNewTls()
-                        .withNewCertificateRef()
-                            .withName(name(c))
-                        .endCertificateRef()
-                    .endTls();
-            // @formatter:on
-        });
-
+                                                           List<Ingresses> ingresses, Optional<KafkaProtocolFilter> filter) {
         var filterRefs = filter.map(f -> new FilterRefBuilder().withName(name(f)).build()).stream().toList();
         var serviceRef = new KafkaServiceRefBuilder().withName(name(service)).build();
 
@@ -678,7 +703,7 @@ class KafkaProxyReconcilerIT {
                     .withNewProxyRef()
                         .withName(name(proxy))
                     .endProxyRef()
-                    .addToIngresses(ingressesBuilder.build())
+                    .withIngresses(ingresses)
                     .withFilterRefs(filterRefs)
                 .endSpec()
                 .build();
@@ -694,7 +719,9 @@ class KafkaProxyReconcilerIT {
                             .withName(UPSTREAM_TLS_CERTIFICATE_SECRET_NAME)
                         .endCertificateRef()
                         .withNewTrustAnchorRef()
-                            .withName(CA_BUNDLE_CONFIG_MAP_NAME)
+                            .withNewRef()
+                                .withName(CA_BUNDLE_CONFIG_MAP_NAME)
+                            .endRef()
                             .withKey(TRUSTED_CAS_PEM)
                         .endTrustAnchorRef()
                         .withNewProtocols()
@@ -742,4 +769,32 @@ class KafkaProxyReconcilerIT {
                 .addToData("tls.key", "whatever")
                 .build();
     }
+
+    private ConfigMap trustAnchorConfigMap(String name, String filename) {
+        return new ConfigMapBuilder()
+                .withNewMetadata()
+                .withName(name)
+                .endMetadata()
+                .addToData(filename, "whatever")
+                .addToData("key", filename)
+                .build();
+    }
+
+    private static IngressRef toIngressRef(HasMetadata resource) {
+        return new IngressRefBuilder().withName(resource.getMetadata().getName()).build();
+    }
+
+    private CertificateRef toCertificateRef(HasMetadata resource) {
+        return new CertificateRefBuilder().withName(resource.getMetadata().getName()).build();
+    }
+
+    private TrustAnchorRef toTrustAnchorRef(ConfigMap trustAnchor) {
+        return new TrustAnchorRefBuilder()
+                .withNewRef()
+                .withName(trustAnchor.getMetadata().getName())
+                .endRef()
+                .withKey(trustAnchor.getData().get("key"))
+                .build();
+    }
+
 }
