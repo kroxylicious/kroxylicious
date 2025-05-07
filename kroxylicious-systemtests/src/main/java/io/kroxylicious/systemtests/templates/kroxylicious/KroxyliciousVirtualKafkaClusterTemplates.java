@@ -55,7 +55,7 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
      * @return the virtual kafka cluster builder
      */
     public static VirtualKafkaClusterBuilder defaultVirtualKafkaClusterCR(String namespaceName, String clusterName, String proxyName, String clusterRefName,
-                                                                                  String ingressName) {
+                                                                          String ingressName) {
         return baseVirtualKafkaClusterCR(namespaceName, clusterName, proxyName, clusterRefName, ingressName);
     }
 
