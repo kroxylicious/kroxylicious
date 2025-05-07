@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
 
 import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.PROXY_PORT_START;
@@ -42,17 +42,15 @@ public class IngressAllocator {
                                                               ProxyResolutionResult resolutionResult) {
         AtomicInteger exclusivePorts = new AtomicInteger(PROXY_PORT_START);
         // include broken clusters in the model, so that if they are healed the ports will stay the same
-        Stream<VirtualKafkaCluster> virtualKafkaClusterStream = resolutionResult.allClustersInNameOrder().stream();
+        Stream<ClusterResolutionResult> virtualKafkaClusterStream = resolutionResult.allResolutionResultsInClusterNameOrder();
         List<ProxyIngressModel.VirtualClusterIngressModel> list = virtualKafkaClusterStream
-                .map(it -> new ProxyIngressModel.VirtualClusterIngressModel(it, allocateIngressModel(primary, it, exclusivePorts,
-                        resolutionResult)))
+                .map(it -> new ProxyIngressModel.VirtualClusterIngressModel(it.cluster(), allocateIngressModel(primary, it, exclusivePorts)))
                 .toList();
         return new ProxyIngressModel(list);
     }
 
-    private static List<ProxyIngressModel.IngressModel> allocateIngressModel(KafkaProxy primary, VirtualKafkaCluster it, AtomicInteger ports,
-                                                                             ProxyResolutionResult resolutionResult) {
-        Stream<IngressDefinition> ingressStream = Ingresses.ingressesFor(primary, it, resolutionResult);
+    private static List<ProxyIngressModel.IngressModel> allocateIngressModel(KafkaProxy primary, ClusterResolutionResult it, AtomicInteger ports) {
+        Stream<IngressDefinition> ingressStream = IngressDefinitionBuilder.buildIngressDefinitions(primary, it);
         return ingressStream.map(resource -> {
             int toAllocate = resource.numIdentifyingPortsRequired();
             IngressConflictException exception = null;

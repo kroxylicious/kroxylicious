@@ -12,7 +12,7 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 
 /**
- * Stateful Ingress model that provides:
+ * Ingress model that provides:
  * <ol>
  *     <li>
  *         The Gateway Config, that will be added to the virtual clusters gateways
