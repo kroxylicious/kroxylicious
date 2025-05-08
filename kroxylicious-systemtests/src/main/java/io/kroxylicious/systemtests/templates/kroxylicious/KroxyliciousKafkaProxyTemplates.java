@@ -14,13 +14,13 @@ public class KroxyliciousKafkaProxyTemplates {
     }
 
     /**
-     * Default kafka proxy deployment.
+     * Default kafka proxy CR.
      *
      * @param namespaceName the namespace name
      * @param name the name
      * @return the kafka proxy builder
      */
-    public static KafkaProxyBuilder defaultKafkaProxyDeployment(String namespaceName, String name) {
+    public static KafkaProxyBuilder defaultKafkaProxyCR(String namespaceName, String name) {
         // @formatter:off
         return new KafkaProxyBuilder()
                 .withNewMetadata()

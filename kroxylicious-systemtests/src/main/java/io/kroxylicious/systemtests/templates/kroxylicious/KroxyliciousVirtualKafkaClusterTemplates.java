@@ -20,8 +20,8 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
     private KroxyliciousVirtualKafkaClusterTemplates() {
     }
 
-    private static VirtualKafkaClusterBuilder baseVirtualKafkaClusterDeployment(String namespaceName, String clusterName, String proxyName, String clusterRefName,
-                                                                                String ingressName) {
+    private static VirtualKafkaClusterBuilder baseVirtualKafkaClusterCR(String namespaceName, String clusterName, String proxyName, String clusterRefName,
+                                                                        String ingressName) {
         // @formatter:off
         return new VirtualKafkaClusterBuilder()
                 .withNewMetadata()
@@ -45,7 +45,7 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
     }
 
     /**
-     * Default virtual kafka cluster deployment.
+     * Default virtual kafka cluster CR.
      *
      * @param namespaceName the namespace name
      * @param clusterName the cluster name
@@ -54,13 +54,13 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
      * @param ingressName the ingress name
      * @return the virtual kafka cluster builder
      */
-    public static VirtualKafkaClusterBuilder defaultVirtualKafkaClusterDeployment(String namespaceName, String clusterName, String proxyName, String clusterRefName,
-                                                                                  String ingressName) {
-        return baseVirtualKafkaClusterDeployment(namespaceName, clusterName, proxyName, clusterRefName, ingressName);
+    public static VirtualKafkaClusterBuilder defaultVirtualKafkaClusterCR(String namespaceName, String clusterName, String proxyName, String clusterRefName,
+                                                                          String ingressName) {
+        return baseVirtualKafkaClusterCR(namespaceName, clusterName, proxyName, clusterRefName, ingressName);
     }
 
     /**
-     * Default virtual kafka cluster deployment.
+     * Default virtual kafka cluster CR.
      *
      * @param namespaceName the namespace name
      * @param clusterName the cluster name
@@ -70,9 +70,9 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
      * @param filterNames the filter names
      * @return the virtual kafka cluster builder
      */
-    public static VirtualKafkaClusterBuilder virtualKafkaClusterWithFilterDeployment(String namespaceName, String clusterName, String proxyName, String clusterRefName,
-                                                                                     String ingressName, List<String> filterNames) {
-        return baseVirtualKafkaClusterDeployment(namespaceName, clusterName, proxyName, clusterRefName, ingressName)
+    public static VirtualKafkaClusterBuilder virtualKafkaClusterWithFilterCR(String namespaceName, String clusterName, String proxyName, String clusterRefName,
+                                                                             String ingressName, List<String> filterNames) {
+        return baseVirtualKafkaClusterCR(namespaceName, clusterName, proxyName, clusterRefName, ingressName)
                 .editSpec()
                 .addAllToFilterRefs(getFilterRefs(filterNames))
                 .endSpec();
