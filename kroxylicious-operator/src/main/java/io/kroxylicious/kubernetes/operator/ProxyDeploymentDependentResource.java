@@ -11,8 +11,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,20 +105,10 @@ public class ProxyDeploymentDependentResource
                 .orElse(new Crc32ChecksumGenerator());
 
         kafkaProxyIngress.ifPresent(checksumGenerator::appendMetadata);
-        context.getSecondaryResources(KafkaProtocolFilter.class).forEach(entity -> {
-            String prior = checksumGenerator.encode();
-            checksumGenerator.appendMetadata(entity);
-            LOGGER.info("checksum before {} after {} appending metadata from entity: {}@{}", prior, checksumGenerator.encode(), KubernetesResourceUtil.getName(entity),
-                    KubernetesResourceUtil.getOrCreateMetadata(entity).getGeneration());
-        });
+        context.getSecondaryResources(KafkaProtocolFilter.class).forEach(checksumGenerator::appendMetadata);
         String encoded = checksumGenerator.encode();
-        final var filterNames = context.getSecondaryResources(KafkaProtocolFilter.class).stream().map(KubernetesResourceUtil::getName).toList();
-        final var generations = context.getSecondaryResources(KafkaProtocolFilter.class).stream().map(KubernetesResourceUtil::getOrCreateMetadata).map(
-                ObjectMeta::getGeneration).toList();
 
-        String details = IntStream.range(0, filterNames.size()).mapToObj(idx -> String.format("%s@%s", filterNames.get(idx), generations.get(idx)))
-                .collect(Collectors.joining());
-        LOGGER.info("Checksum: {} generated for KafkaProxy: {} including: {}", encoded, KubernetesResourceUtil.getName(primary), details);
+        LOGGER.info("Checksum: {} generated for KafkaProxy: {}", encoded, KubernetesResourceUtil.getName(primary));
         return encoded;
     }
 
