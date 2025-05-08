@@ -5,6 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## SNAPSHOT
 ## 0.12.0
 
 * [#2135](https://github.com/kroxylicious/kroxylicious/pull/2135) Require client certificates by default if user supplies downstream trust
