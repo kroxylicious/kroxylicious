@@ -320,7 +320,7 @@ public class KafkaProxyReconciler implements
     private static ConfigurationFragment<Optional<Tls>> buildTlsFragment(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls ingressTls) {
         return ConfigurationFragment.combine(
                 buildKeyProvider(ingressTls.getCertificateRef(), SERVER_CERTS_BASE_DIR),
-                buildTrustProvider(ingressTls.getTrustAnchorRef(), ingressTls.getTlsClientAuthentication(), SERVER_TRUSTED_CERTS_BASE_DIR),
+                buildTrustProvider(true, ingressTls.getTrustAnchorRef(), ingressTls.getTlsClientAuthentication(), SERVER_TRUSTED_CERTS_BASE_DIR),
                 (keyProviderOpt, trustProvider) -> Optional.of(
                         new Tls(keyProviderOpt.orElse(null),
                                 trustProvider,
@@ -342,7 +342,7 @@ public class KafkaProxyReconciler implements
                 .map(KafkaServiceSpec::getTls)
                 .map(serviceTls -> ConfigurationFragment.combine(
                         buildKeyProvider(serviceTls.getCertificateRef(), CLIENT_CERTS_BASE_DIR),
-                        buildTrustProvider(serviceTls.getTrustAnchorRef(), null, CLIENT_TRUSTED_CERTS_BASE_DIR),
+                        buildTrustProvider(false, serviceTls.getTrustAnchorRef(), null, CLIENT_TRUSTED_CERTS_BASE_DIR),
                         (keyProviderOpt, trustProvider) -> Optional.of(
                                 new Tls(keyProviderOpt.orElse(null),
                                         trustProvider,
@@ -376,8 +376,10 @@ public class KafkaProxyReconciler implements
                 }).orElse(ConfigurationFragment.empty());
     }
 
-    private static ConfigurationFragment<TrustProvider> buildTrustProvider(@Nullable TrustAnchorRef trustAnchorRef,
-                                                                           @Nullable TlsClientAuthentication clientAuthentication, Path parent) {
+    private static ConfigurationFragment<TrustProvider> buildTrustProvider(boolean forServer,
+                                                                           @Nullable TrustAnchorRef trustAnchorRef,
+                                                                           @Nullable TlsClientAuthentication clientAuthentication,
+                                                                           Path parent) {
         return Optional.ofNullable(trustAnchorRef)
                 .filter(tar -> ResourcesUtil.isConfigMap(tar.getRef()))
                 .map(tar -> {
@@ -389,7 +391,6 @@ public class KafkaProxyReconciler implements
                             .endConfigMap()
                             .build();
                     Path mountPath = parent.resolve(ref.getName());
-                    var serverOptions = buildTlsSeverOptions(clientAuthentication);
 
                     var mount = new VolumeMountBuilder()
                             .withName(ResourcesUtil.volumeName("", "configmaps", ref.getName()))
@@ -400,7 +401,7 @@ public class KafkaProxyReconciler implements
                             mountPath.resolve(tar.getKey()).toString(),
                             null,
                             "PEM",
-                            serverOptions.orElse(null));
+                            forServer ? buildTlsServerOptions(clientAuthentication) : null);
                     return new ConfigurationFragment<>(trustProvider,
                             Set.of(volume),
                             Set.of(mount));
@@ -460,17 +461,17 @@ public class KafkaProxyReconciler implements
                 .map(c -> new AllowDeny<>(c.getAllow(), new HashSet<>(c.getDeny())));
     }
 
-    private static Optional<ServerOptions> buildTlsSeverOptions(@Nullable TlsClientAuthentication clientAuthentication) {
+    private static ServerOptions buildTlsServerOptions(@Nullable TlsClientAuthentication clientAuthentication) {
         var knownNames = Arrays.stream(TlsClientAuth.values())
                 .map(TlsClientAuth::name)
                 .collect(Collectors.toSet());
 
-        return Optional.ofNullable(clientAuthentication)
+        var clientAuth = Optional.ofNullable(clientAuthentication)
                 .map(TlsClientAuthentication::getValue)
                 .filter(knownNames::contains)
                 .map(TlsClientAuth::valueOf)
-                .filter(Predicate.not(TlsClientAuth.NONE::equals))
-                .map(ServerOptions::new);
+                .orElse(TlsClientAuth.REQUIRED);
+        return new ServerOptions(clientAuth);
     }
 
     private static InformerEventSource<VirtualKafkaCluster, KafkaProxy> buildVirtualKafkaClusterEventSource(EventSourceContext<KafkaProxy> context) {
