@@ -43,4 +43,6 @@ data:
           key:
             privateKeyFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.key"
             certificateFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.crt"
-          trust: {}
+          trust:
+            storeFile: "/opt/kroxylicious/virtual-cluster/trusted-certs/downstream-ca/cas.pem"
+            storeType: "PEM"

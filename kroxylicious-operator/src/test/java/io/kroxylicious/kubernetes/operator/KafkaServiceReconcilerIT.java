@@ -238,7 +238,9 @@ class KafkaServiceReconcilerIT {
                     .editSpec()
                         .editOrNewTls()
                             .withNewTrustAnchorRef()
-                                .withName(trustResourceName)
+                                .withNewRef()
+                                    .withName(trustResourceName)
+                                .endRef()
                                 .withKey("ca-bundle.pem")
                             .endTrustAnchorRef()
                         .endTls()
@@ -292,7 +294,7 @@ class KafkaServiceReconcilerIT {
     private void assertResolvedRefsFalse(KafkaService cr,
                                          String reason,
                                          String message) {
-        AWAIT.alias("FilterStatusResolvedRefs").untilAsserted(() -> {
+        AWAIT.alias("KafkaServiceStatusResolvedRefs").untilAsserted(() -> {
             var kafkaService = testActor.resources(KafkaService.class)
                     .withName(ResourcesUtil.name(cr)).get();
             Assertions.assertThat(kafkaService.getStatus()).isNotNull();

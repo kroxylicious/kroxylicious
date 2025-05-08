@@ -62,12 +62,13 @@ public class NettyTrustProvider {
             }
 
             private void enableClientAuth(TrustStore trustStore) {
-                Optional.ofNullable(trustStore.trustOptions())
+                ClientAuth clientAuth = Optional.ofNullable(trustStore.trustOptions())
                         .filter(ServerOptions.class::isInstance)
                         .map(ServerOptions.class::cast)
                         .map(ServerOptions::clientAuth)
                         .map(NettyTrustProvider::toNettyClientAuth)
-                        .ifPresent(builder::clientAuth);
+                        .orElse(ClientAuth.REQUIRE);
+                builder.clientAuth(clientAuth);
             }
 
             @Override

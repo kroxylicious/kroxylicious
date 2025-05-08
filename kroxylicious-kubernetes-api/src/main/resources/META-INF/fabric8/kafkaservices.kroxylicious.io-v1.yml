@@ -81,7 +81,8 @@ spec:
                       description: |
                         A reference to a resource holding the trusted CA certificates for validation of
                         a Kafka broker's TLS server certificate.
-                        If not specified the proxy will use the trust store inherited from the platform.
+                        If not specified the system will use the trust store inherited from the JVM that the
+                        proxy runs on.
                       type: object
                       required: [ "name", "key" ]
                       properties:
