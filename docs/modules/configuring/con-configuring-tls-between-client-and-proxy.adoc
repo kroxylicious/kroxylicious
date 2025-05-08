@@ -55,6 +55,6 @@ spec:
   clusterIP: # <2>
     protocol: TLS # <3>
 ----
-<1>The ingress must reference a `KafkaProxy` in the same namespace as the `KafkaProxyIngress`.
+<1> The ingress must reference a `KafkaProxy` in the same namespace as the `KafkaProxyIngress`.
 <2> Exposes the proxy to Kafka clients inside the same Kubernetes cluster using a `ClusterIP` service.
 <3> The ingress uses `TLS` as the transport protocol.
