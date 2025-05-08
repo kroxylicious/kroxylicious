@@ -14,7 +14,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.12.0</version>
+        <version>0.13.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-kms-provider-kroxylicious-inmemory-test-support</artifactId>
