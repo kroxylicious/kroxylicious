@@ -8,6 +8,7 @@ package io.kroxylicious.systemtests;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Optional;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -70,12 +71,13 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("Kafka proxy ingress edited");
 
         // Then
-        await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
-            Deployment proxyDeployment = kubeClient.getDeployment(namespace, "simple");
-            assertThat(proxyDeployment).isNotNull();
-            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
-                    value -> assertThat(value).isNotEqualTo(originalChecksum));
-        });
+        var deployment = await().atMost(Duration.ofSeconds(90))
+                .pollInterval(Duration.ofMillis(200))
+                .until(
+                        () -> Optional.of(kubeClient.getDeployment(namespace, "simple")),
+                        Optional::isPresent);
+        OperatorAssertions.assertThat(deployment.orElseThrow().getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
+                value -> assertThat(value).isNotEqualTo(originalChecksum));
     }
 
     private static String getChecksumFromAnnotation(HasMetadata entity) {
