@@ -34,7 +34,7 @@ public class KroxyliciousKafkaClusterRefTemplates {
                     .withNamespace(namespaceName)
                 .endMetadata()
                 .withNewSpec()
-                    .withBootstrapServers(getKafkaBootstrap("plain"))
+                    .withBootstrapServers(getKafkaBootstrap("plain", clusterRefName))
                 .endSpec();
         // @formatter:on
     }
@@ -50,7 +50,7 @@ public class KroxyliciousKafkaClusterRefTemplates {
         // @formatter:off
         return defaultKafkaClusterRefCR(namespaceName, clusterRefName)
                 .editSpec()
-                    .withBootstrapServers(getKafkaBootstrap("tls"))
+                    .withBootstrapServers(getKafkaBootstrap("tls", clusterRefName))
                     .withTls(new TlsBuilder()
                             .withTrustAnchorRef(new TrustAnchorRefBuilder()
                                     .withNewRef()
@@ -64,12 +64,12 @@ public class KroxyliciousKafkaClusterRefTemplates {
         // @formatter:on
     }
 
-    private static String getKafkaBootstrap(String listenerStatusName) {
+    private static String getKafkaBootstrap(String listenerStatusName, String clusterRefName) {
         // wait for listeners to contain data
         var kafkaListenerStatus = KafkaUtils.getKafkaListenerStatus(listenerStatusName);
 
         return kafkaListenerStatus.stream()
                 .map(ListenerStatus::getBootstrapServers)
-                .findFirst().orElseThrow();
+                .findFirst().orElse("%s-kafka-bootstrap.%s.svc.cluster.local:9092".formatted(clusterRefName, Constants.KAFKA_DEFAULT_NAMESPACE));
     }
 }
