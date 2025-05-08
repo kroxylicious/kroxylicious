@@ -55,6 +55,10 @@ jobs:
           "kubernetes version": 'v1.32.0'
           "github token": ${{ secrets.GITHUB_TOKEN }}
           driver: docker
+      - name: 'Test for unpublished reference release (japicmp)'
+        run: |
+          REFERENCE_RELEASE=$(mvn --quiet -pl kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
+          echo "REFERENCE_RELEASE_UNPUBLISHED=$(mvn --quiet dependency:get -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom 1>/dev/null && echo false || echo true)" >> $GITHUB_ENV
       - name: Cache SonarCloud packages
         uses: actions/cache@v4
         if: github.ref_name == 'main' || env.SONAR_TOKEN_SET == 'true'
