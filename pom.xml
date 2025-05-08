@@ -190,8 +190,8 @@
                 <version>${caffeine.version}</version>
                 <exclusions>
                     <exclusion>
-                        <groupId>org.checkerframework</groupId>
-                        <artifactId>checker-qual</artifactId>
+                        <groupId>org.jspecify</groupId>
+                        <artifactId>jspecify</artifactId>
                     </exclusion>
                     <exclusion>
                         <groupId>com.google.errorprone</groupId>
