@@ -1,0 +1,36 @@
+// file included in the following:
+//
+// kroxylicious-operator/assemblies/assembly-operator-secure-client-proxy-connection.adoc
+
+[id='con-kafka-client-tls-protocol-{context}']
+= TLS version configuration for client-to-proxy connections
+
+include::../../snippets/snip-tls-protocol-versions.adoc[]
+
+This example configures a `VirtualKafkaCluster` to allow only kafka clients using TLS v1.3.
+
+.Example `VirtualKafkaCluster` with restricted TLS protocol versions.
+[source,yaml]
+----
+kind: VirtualKafkaCluster
+metadata:
+  # ...
+spec:
+  # ...
+  ingresses:
+    - ingressRef:
+        name: cluster-ip
+      tls:
+        certificateRef:
+          # ...
+        protocols: # <1>
+          allow: # <2>
+            - TLSv1.3
+----
+<1> The `protocols` property configures the TLS protocol versions
+<2> `allow` lists the versions of TLS which are permitted.
+
+The `protocols` property also supports `deny`, if you prefer to list the versions to exclude instead.
+
+The names of the TLS protocol versions supported depend on the JVM in the proxy container image.
+See {tlsProtocolNames}.

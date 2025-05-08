@@ -5,17 +5,7 @@
 [id='con-configuring-kafkaservice-cipher-{context}']
 = TLS cipher suite configuration for proxy-to-cluster connections
 
-A cipher suite is a set of cryptographic algorithms that together provide the security guarantees offered by TLS.
-During TLS negotiation a server and client agree on a common cipher suite that they both support.
-
-Some older cipher suites are now considered insecure, but may be enabled on the Kafka cluster to allow older clients to connect.
-
-The cipher suites enabled by default in the proxy depend on the JVM used in the proxy image and the TLS protocol version that is negotiated.
-
-To prevent a TLS downgrade attack you can disable cipher suites known (or thought) to be insecure from the ones that the proxy is allowed to use.
-However, the proxy and the cluster must support at least one cipher suite in common.
-
-IMPORTANT: It is good practice to disable insecure cipher suites.
+include::../../snippets/snip-tls-cipher-suite.adoc[]
 
 .Example `KafkaService` configured so that the proxy will negotiate TLS connection using only the listed ciphers.
 [source,yaml]
@@ -28,14 +18,14 @@ spec:
   tls:
     # ...
     cipherSuites: # <1>
-      allowed: # <2>
+      allow: # <2>
        - TLS_AES_128_GCM_SHA256
        - TLS_AES_256_GCM_SHA384
 ----
 <1> The `cipherSuites` object configures the cipher suites.
-<2> `allowed` lists the cipher suites which are permitted.
+<2> `allow` lists the cipher suites which are permitted.
 
-The `cipherSuites` property also supports `denied`, if you prefer to list the cipher suites to exclude instead.
+The `cipherSuites` property also supports `deny`, if you prefer to list the cipher suites to exclude instead.
 
 The names of the cipher suites supported depend on the JVM in the proxy container image.
 See {cipherSuiteNames}.
