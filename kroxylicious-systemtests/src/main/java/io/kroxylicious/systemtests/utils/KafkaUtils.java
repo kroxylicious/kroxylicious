@@ -169,6 +169,7 @@ public class KafkaUtils {
     /**
      * Is kafka up.
      *
+     * @param clusterName the cluster name
      * @return the boolean
      */
     public static boolean isKafkaUp(String clusterName) {
