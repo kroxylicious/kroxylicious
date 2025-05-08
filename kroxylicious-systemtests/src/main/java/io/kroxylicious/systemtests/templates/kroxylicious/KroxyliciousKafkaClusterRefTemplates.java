@@ -8,9 +8,9 @@ package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.TlsBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.TrustAnchorRefBuilder;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
@@ -53,8 +53,10 @@ public class KroxyliciousKafkaClusterRefTemplates {
                     .withBootstrapServers(getKafkaBootstrap("tls"))
                     .withTls(new TlsBuilder()
                             .withTrustAnchorRef(new TrustAnchorRefBuilder()
-                                    .withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT)
-                                    .withKind(Constants.CONFIG_MAP)
+                                    .withNewRef()
+                                        .withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT)
+                                        .withKind(Constants.CONFIG_MAP)
+                                    .endRef()
                                     .withKey(Constants.KROXYLICIOUS_TLS_CA_NAME)
                                     .build())
                             .build())
