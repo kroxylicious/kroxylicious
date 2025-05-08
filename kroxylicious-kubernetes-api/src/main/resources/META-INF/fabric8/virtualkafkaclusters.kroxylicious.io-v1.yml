@@ -207,10 +207,10 @@ spec:
                           tlsClientAuthentication:
                             description: |
                               Controls the TLS client authentication options applied by the server.
-                              If unspecified, no TLS client authentication options are applied.
+                              If a trust anchor has been provided, the system defaults to 'REQUIRED'.
+                              Otherwise the system will default to 'NONE'.
                             type: string
                             enum: [ "REQUIRED", "REQUESTED", "NONE" ]
-                            default: "NONE"
                 filterRefs:
                   description: The filters to be used for this cluster. Each filter is a separate resource.
                   type: array
