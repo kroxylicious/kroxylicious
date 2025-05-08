@@ -165,4 +165,17 @@ public class KafkaUtils {
                                 .findFirst(),
                         Optional::isPresent);
     }
+
+    /**
+     * Is kafka up.
+     *
+     * @return the boolean
+     */
+    public static boolean isKafkaUp(String clusterName) {
+        List<Pod> kafkaPods = kubeClient().listPods(Constants.KAFKA_DEFAULT_NAMESPACE).stream()
+                .filter(pod -> pod.getMetadata().getName().contains(clusterName))
+                .toList();
+
+        return !kafkaPods.isEmpty();
+    }
 }

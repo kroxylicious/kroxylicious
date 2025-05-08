@@ -66,10 +66,16 @@ public class KroxyliciousKafkaClusterRefTemplates {
 
     private static String getKafkaBootstrap(String listenerStatusName, String clusterRefName) {
         // wait for listeners to contain data
-        var kafkaListenerStatus = KafkaUtils.getKafkaListenerStatus(listenerStatusName);
+        if (KafkaUtils.isKafkaUp(clusterRefName)) {
+            var kafkaListenerStatus = KafkaUtils.getKafkaListenerStatus(listenerStatusName);
 
-        return kafkaListenerStatus.stream()
-                .map(ListenerStatus::getBootstrapServers)
-                .findFirst().orElse("%s-kafka-bootstrap.%s.svc.cluster.local:9092".formatted(clusterRefName, Constants.KAFKA_DEFAULT_NAMESPACE));
+            return kafkaListenerStatus.stream()
+                    .map(ListenerStatus::getBootstrapServers)
+                    .findFirst().orElseThrow();
+        }
+        else {
+            // Some operator tests do not need kafka running so we can set a default value
+            return String.format("%s-kafka-bootstrap.%s.svc.cluster.local:9092".formatted(clusterRefName, Constants.KAFKA_DEFAULT_NAMESPACE));
+        }
     }
 }
