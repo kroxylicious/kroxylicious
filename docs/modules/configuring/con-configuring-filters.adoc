@@ -43,23 +43,3 @@ virtualClusters:
 * When a virtual cluster has defined `filters`, like `my-proxy-with-custom-filters`, then those filters are used instead of the `defaultFilters`.
 * When using `defaultFilters` or a virtual cluster's `filters` to reference a filter definition, you must define a filter with the corresponding name in `filterDefinitions`.
 
-The top-level `filters` property allows defining _anonymous_ filters without a `name`.
-
-WARNING: The `filters` property is deprecated and will be removed in a future version of Kroxylicious. Update existing configurations to use `filterDefinitions` instead.
-
-[id='con-filters-{context}']
-.The deprecated `filters` property
-[source,yaml]
-----
-filters: # deprecated!
-  - type: RecordEncryption
-    config:
-      # ...
-virtualClusters:
-  - name: my-proxy-with-default-filters
-    # ...
-----
-
-The top-level `filters` property applies to all virtual clusters in the configuration. 
-You cannot use both the top-level `filters` and `filterDefinitions` properties in the same configuration.
-

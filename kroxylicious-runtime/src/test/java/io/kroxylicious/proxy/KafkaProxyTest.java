@@ -43,14 +43,17 @@ class KafkaProxyTest {
                        - name: default
                          portIdentifiesNode:
                            bootstrapAddress: cluster1:9192
-                   filters:
-                   - type: RequiresConfigFactory
+                   filterDefinitions:
+                   - name: filter1
+                     type: RequiresConfigFactory
+                   defaultFilters:
+                   - filter1
                 """;
         var configParser = new ConfigParser();
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
-            assertThatThrownBy(kafkaProxy::startup).isInstanceOf(PluginConfigurationException.class)
-                    .hasMessage(
-                            "Exception initializing filter factory RequiresConfigFactory with config null: RequiresConfigFactory requires configuration, but config object is null");
+            assertThatThrownBy(kafkaProxy::startup)
+                    .isInstanceOf(PluginConfigurationException.class)
+                    .hasMessageContaining("Exception initializing filter factory filter1 with config null");
         }
     }
 
