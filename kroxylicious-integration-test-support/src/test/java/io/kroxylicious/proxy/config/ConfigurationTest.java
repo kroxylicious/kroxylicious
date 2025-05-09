@@ -56,70 +56,13 @@ class ConfigurationTest {
     private final ConfigParser configParser = new ConfigParser();
 
     @Test
-    void shouldAcceptOldBootstrapServers() throws IOException {
-        var vc = MAPPER.readValue(
-                """
-                              name: cluster
-                              targetCluster:
-                                bootstrap_servers: kafka.example:1234
-                              gateways:
-                              - name: default
-                                sniHostIdentifiesNode:
-                                  bootstrapAddress: cluster1:9192
-                                  advertisedBrokerAddressPattern: broker-$(nodeId)
-                                tls:
-                                  key:
-                                    certificateFile: /tmp/cert
-                                    privateKeyFile: /tmp/key
-                        """, VirtualCluster.class);
-
-        TargetCluster targetCluster = vc.targetCluster();
-        assertThat(targetCluster).isNotNull();
-        assertThat(targetCluster.bootstrapServers()).isEqualTo("kafka.example:1234");
-    }
-
-    @Test
-    void shouldRejectOldAndNewBootstrapServers() throws IOException {
-        assertThatThrownBy(() -> {
-            MAPPER.readValue(
-                    """
-                                  targetCluster:
-                                    bootstrap_servers: kafka.example:1234
-                                    bootstrapServers: kafka.example:1234
-                                  gateways:
-                                  - name: default
-                                    portIdentifiesNode:
-                                      bootstrapAddress: cluster1:9192
-                            """, VirtualCluster.class);
-        }).isInstanceOf(ValueInstantiationException.class)
-                .hasCauseInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("'bootstrapServers' and 'bootstrap_servers' cannot both be specified in a target cluster.");
-    }
-
-    @Test
-    void shouldRequireOldOrNewBootstrapServers() throws IOException {
-        assertThatThrownBy(() -> {
-            MAPPER.readValue(
-                    """
-                                targetCluster: {}
-                                gateways:
-                                - name: default
-                                  portIdentifiesNode:
-                                    bootstrapAddress: cluster1:9192
-                            """, VirtualCluster.class);
-        }).isInstanceOf(ValueInstantiationException.class)
-                .hasCauseInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("'bootstrapServers' is required in a target cluster.");
-    }
-
-    @Test
     void shouldRejectVirtualClusterWithNoGateways() {
         assertThatThrownBy(() -> {
             MAPPER.readValue(
                     """
                               name: cluster
                               targetCluster:
-                                bootstrap_servers: kafka.example:1234
+                                bootstrapServers: kafka.example:1234
                             """, VirtualCluster.class);
         }).isInstanceOf(ValueInstantiationException.class)
                 .hasCauseInstanceOf(IllegalConfigurationException.class)
@@ -133,7 +76,7 @@ class ConfigurationTest {
                     """
                               name: cluster
                               targetCluster:
-                                bootstrap_servers: kafka.example:1234
+                                bootstrapServers: kafka.example:1234
                               gateways: null
                             """, VirtualCluster.class);
         }).isInstanceOf(ValueInstantiationException.class)
@@ -148,7 +91,7 @@ class ConfigurationTest {
                     """
                               name: cluster
                               targetCluster:
-                                bootstrap_servers: kafka.example:1234
+                                bootstrapServers: kafka.example:1234
                               gateways: [null]
                             """, VirtualCluster.class);
         }).isInstanceOf(ValueInstantiationException.class)
@@ -163,7 +106,7 @@ class ConfigurationTest {
                     """
                               name: cluster
                               targetCluster:
-                                bootstrap_servers: kafka.example:1234
+                                bootstrapServers: kafka.example:1234
                               tls:
                                  key:
                                    certificateFile: /tmp/cert
@@ -183,7 +126,7 @@ class ConfigurationTest {
                     """
                               name: cluster
                               targetCluster:
-                                bootstrap_servers: kafka.example:1234
+                                bootstrapServers: kafka.example:1234
                               tls:
                                  key:
                                    certificateFile: /tmp/cert
@@ -204,7 +147,7 @@ class ConfigurationTest {
                     """
                               name: cluster
                               targetCluster:
-                                bootstrap_servers: kafka.example:1234
+                                bootstrapServers: kafka.example:1234
                               gateways:
                               - name: default
                                 sniHostIdentifiesNode:
@@ -232,7 +175,7 @@ class ConfigurationTest {
                 """
                                   name: cluster
                                   targetCluster:
-                                    bootstrap_servers: kafka.example:1234
+                                    bootstrapServers: kafka.example:1234
                                   clusterNetworkAddressConfigProvider:
                                     type: SniRoutingClusterNetworkAddressConfigProvider
                                     config:
@@ -251,7 +194,7 @@ class ConfigurationTest {
                 """
                                   name: cluster
                                   targetCluster:
-                                    bootstrap_servers: kafka.example:1234
+                                    bootstrapServers: kafka.example:1234
                                   clusterNetworkAddressConfigProvider:
                                     type: SniRoutingClusterNetworkAddressConfigProvider
                                     config: {}

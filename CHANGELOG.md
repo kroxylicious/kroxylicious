@@ -6,6 +6,15 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+
+* [#1871](https://github.com/kroxylicious/kroxylicious/issues/1871) Remove deprecated configuration property bootstrap_servers
+
+### Changes, deprecations and removals
+
+* Remove the deprecated configuration property `bootstrap_servers` from the `targetCluster` object. Use `bootstrapServers`
+  instead.
+
+
 ## 0.12.0
 
 * [#2135](https://github.com/kroxylicious/kroxylicious/pull/2135) Require client certificates by default if user supplies downstream trust
