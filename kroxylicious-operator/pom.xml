@@ -326,73 +326,51 @@
 
     <profiles>
         <profile>
-            <id>kubeTest</id>
-            <properties>
-                <container.tool>podman</container.tool> <!-- override for docker -->
-                <container.tag>test</container.tag>
-                <image.archive.file>/tmp/myimage.tar</image.archive.file>
-            </properties>
+            <id>containers</id>
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>org.codehaus.mojo</groupId>
-                        <artifactId>exec-maven-plugin</artifactId>
-                        <version>3.5.0</version>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
                         <executions>
                             <execution>
-                                <!-- build the container image -->
-                                <id>podman-build</id>
                                 <goals>
-                                    <goal>exec</goal>
+                                    <goal>build</goal>
+                                    <goal>save</goal>
                                 </goals>
                                 <phase>package</phase>
                                 <configuration>
-                                    <workingDirectory>..</workingDirectory>
-                                    <executable>${container.tool}</executable>
-                                    <arguments>
-                                        <argument>build</argument>
-                                        <argument>--file=./Dockerfile.operator</argument>
-                                        <argument>--build-arg=KROXYLICIOUS_VERSION=${project.version}</argument>
-                                        <argument>--tag=kroxylicious.io/operator:${container.tag}</argument>
-                                    </arguments>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <!-- export the container image to a temp file -->
-                                <id>podman-push</id>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <phase>package</phase>
-                                <configuration>
-                                    <workingDirectory>..</workingDirectory>
-                                    <executable>${container.tool}</executable>
-                                    <arguments>
-                                        <argument>push</argument>
-                                        <argument>kroxylicious.io/operator:${container.tag}</argument>
-                                        <argument>docker-archive:${image.archive.file}</argument>
-                                    </arguments>
-                                </configuration>
-                            </execution>
-                            <execution>
-                                <!-- load the container image from the temp file into minikube -->
-                                <id>minikube-load</id>
-                                <goals>
-                                    <goal>exec</goal>
-                                </goals>
-                                <phase>package</phase>
-                                <configuration>
-                                    <workingDirectory>..</workingDirectory>
-                                    <executable>minikube</executable>
-                                    <arguments>
-                                        <argument>image</argument>
-                                        <argument>load</argument>
-                                        <argument>${image.archive.file}</argument>
-                                    </arguments>
+                                    <images>
+                                        <image>
+                                            <name>kroxylicious/operator:${project.version}</name>
+                                            <alias>optr</alias>
+                                            <build>
+                                                <dockerFile>src/main/docker/operator.dockerfile</dockerFile>
+                                                <contextDir>${project.basedir}</contextDir>
+                                                <args>
+                                                    <KROXYLICIOUS_VERSION>${project.version}</KROXYLICIOUS_VERSION>
+                                                </args>
+                                            </build>
+                                        </image>
+                                    </images>
+                                    <saveFile>target/kroxylicious-operator.img.tar.gz</saveFile>
                                 </configuration>
                             </execution>
                         </executions>
                     </plugin>
+                </plugins>
+            </build>
+        </profile>
+        <profile>
+            <id>kubeTest</id>
+            <properties>
+                <container.tool>podman</container.tool> <!-- override for docker -->
+                <container.image.operator>kroxylicious/operator:${project.version}</container.image.operator>
+                <image.archive.file>target/kroxylicious-operator.img.tar.gz</image.archive.file>
+                <skipKTs>false</skipKTs>
+            </properties>
+            <build>
+                <plugins>
                     <plugin>
                         <!-- copy from packaging into target/packaged, interpolating $[ ] (e.g. to use the container image) -->
                         <groupId>org.apache.maven.plugins</groupId>
@@ -433,13 +411,37 @@
                         </executions>
                     </plugin>
                     <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.5.0</version>
+                        <executions>
+                            <execution>
+                                <!-- load the container image from the temp file into minikube -->
+                                <id>minikube-load</id>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <phase>verify</phase>
+                                <configuration>
+                                    <workingDirectory>..</workingDirectory>
+                                    <executable>minikube</executable>
+                                    <arguments>
+                                        <argument>image</argument>
+                                        <argument>load</argument>
+                                        <argument>${project.basedir}/${image.archive.file}</argument>
+                                    </arguments>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-failsafe-plugin</artifactId>
                         <version>3.5.3</version>
                         <executions>
                             <execution>
                                 <!-- run the tests which depend on having an operator image + install manifests -->
-                                <id>test-in-kube</id>
+                                <id>kube-integration-test</id>
                                 <goals>
                                     <goal>integration-test</goal>
 <!--                                    <goal>verify</goal>-->
@@ -451,9 +453,21 @@
                                         <include>**/*KT.java</include>
                                         <include>**/*KTCase.java</include>
                                     </includes>
-                                    <skip>false</skip>
-                                    <skipITs>false</skipITs>
-                                    <skipTests>false</skipTests>
+                                    <skipITs>${skipKTs}</skipITs>
+                                    <skip>${skipKTs}</skip>
+                                    <skipTests>${skipKTs}</skipTests>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>kube-verify</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>verify</goal>
+                                </goals>
+                                <configuration>
+                                    <skipITs>${skipKTs}</skipITs>
+                                    <skip>${skipKTs}</skip>
+                                    <skipTests>${skipKTs}</skipTests>
                                 </configuration>
                             </execution>
                         </executions>
@@ -461,5 +475,6 @@
                 </plugins>
             </build>
         </profile>
+
     </profiles>
 </project>

@@ -31,7 +31,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: operator
-          image: kroxylicious.io/operator:$[container.tag]
+          image: $[container.image.operator]
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
