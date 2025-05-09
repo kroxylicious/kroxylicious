@@ -60,7 +60,7 @@ spec:
               type: object
             spec:
               type: object
-              required: ["proxyRef", "targetKafkaServiceRef", "ingresses"]
+              required: [ "proxyRef", "targetKafkaServiceRef", "ingresses" ]
               properties:
                 proxyRef:
                   type: object
@@ -101,7 +101,7 @@ spec:
                         properties:
                           name:
                             description: -|
-                                The name of the KafkaProxyIngresses.
+                              The name of the KafkaProxyIngresses.
                             maxLength: 253
                             minLength: 1
                             type: string
@@ -160,6 +160,57 @@ spec:
                                   The name of the key identifying the certificate bundle within the resource. 
                                   Supported formats for the bundle are: PEM, PKCS#12 and JKS.
                                 type: string
+                          protocols:
+                            description: |
+                              The TLS protocols to allow or deny.
+                              Either `allow` or `deny` can be given.
+                              The supported protocols are those supported by the proxy JVM.
+                            type: object
+                            properties:
+                              allow:
+                                description: |
+                                  The TLS protocols to allow, ordered by preference.
+                                  If not specified this defaults to the TLS protocols of the proxy JVM's default SSL context.
+                                type: array
+                                items:
+                                  type: string
+                              deny:
+                                description: |
+                                  The TLS protocols to deny.
+                                  If not specified this defaults to the empty list.
+                                type: array
+                                items:
+                                  type: string
+                                default: [ ]
+                          cipherSuites:
+                            description: |
+                              The TLS cipher suites to allow or deny.
+                              Either `allow` or `deny` can be given.
+                              The supported cipher suites are those supported by the proxy JVM.
+                            type: object
+                            properties:
+                              allow:
+                                description: |
+                                  The TLS cipher suites to allow.
+                                  If not specified a default list of ciphers, which depends on the runtime and enabled protocols, will be used.
+                                type: array
+                                items:
+                                  type: string
+                              deny:
+                                description: |
+                                  The TLS cipher suites to deny
+                                  If not specified this will default to the empty list.
+                                type: array
+                                items:
+                                  type: string
+                                default: [ ]
+                          tlsClientAuthentication:
+                            description: |
+                              Controls the TLS client authentication options applied by the server.
+                              If a trust anchor has been provided, the system defaults to 'REQUIRED'.
+                              Otherwise the system will default to 'NONE'.
+                            type: string
+                            enum: [ "REQUIRED", "REQUESTED", "NONE" ]
                 filterRefs:
                   description: The filters to be used for this cluster. Each filter is a separate resource.
                   type: array
@@ -232,7 +283,7 @@ spec:
                   description: -|
                     Lists the ingresses that have been associated with the virtual cluster.
                   type: array
-                  default: []
+                  default: [ ]
                   items:
                     type: object
                     required: [ "name" ]
