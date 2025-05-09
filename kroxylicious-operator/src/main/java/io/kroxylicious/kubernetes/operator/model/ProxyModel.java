@@ -8,8 +8,8 @@ package io.kroxylicious.kubernetes.operator.model;
 
 import java.util.List;
 
-import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
+import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
 
 /**
@@ -22,6 +22,6 @@ import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
  */
 public record ProxyModel(ProxyResolutionResult resolutionResult,
                          ProxyIngressModel ingressModel,
-                         List<VirtualKafkaCluster> clustersWithValidIngresses) {
+                         List<ClusterResolutionResult> clustersWithValidIngresses) {
 
 }
