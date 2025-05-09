@@ -252,5 +252,37 @@
                 </dependency>
             </dependencies>
         </profile>
+        <profile>
+            <id>containers</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <goals><goal>build</goal></goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <images>
+                                        <image>
+                                            <name>kroxylicious/proxy:${project.version}</name>
+                                            <alias>pxy</alias>
+                                            <build>
+                                                <dockerFile>src/main/docker/proxy.dockerfile</dockerFile>
+                                                <contextDir>${project.basedir}</contextDir>
+                                                <args>
+                                                    <KROXYLICIOUS_VERSION>${project.version}</KROXYLICIOUS_VERSION>
+                                                </args>
+                                            </build>
+                                        </image>
+                                    </images>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 </project>
