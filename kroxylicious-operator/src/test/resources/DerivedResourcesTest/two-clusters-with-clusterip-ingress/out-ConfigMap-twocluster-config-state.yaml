@@ -24,6 +24,7 @@ data:
   cluster-bar: |-
     ---
     metadata:
+      generation: 6
       name: "bar"
       namespace: "proxy-ns"
     status:
@@ -39,6 +40,7 @@ data:
   cluster-foo: |-
     ---
     metadata:
+      generation: 7
       name: "foo"
       namespace: "proxy-ns"
     status:

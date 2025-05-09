@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -85,6 +86,7 @@ class VirtualKafkaClusterReconcilerTest {
     public static final VirtualKafkaCluster CLUSTER_NO_FILTERS = new VirtualKafkaClusterBuilder()
             .withNewMetadata()
                 .withName("foo")
+                .withUid(UUID.randomUUID().toString())
                 .withNamespace(NAMESPACE)
                 .withGeneration(42L)
             .endMetadata()

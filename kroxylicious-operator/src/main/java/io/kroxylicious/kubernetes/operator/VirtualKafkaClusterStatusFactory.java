@@ -23,18 +23,19 @@ public class VirtualKafkaClusterStatusFactory extends StatusFactory<VirtualKafka
         super(clock);
     }
 
-    VirtualKafkaCluster clusterStatusPatch(VirtualKafkaCluster observedIngress,
+    VirtualKafkaCluster clusterStatusPatch(VirtualKafkaCluster virtualKafkaCluster,
                                            ResourceState condition, List<Ingresses> ingresses) {
         // @formatter:off
         return new VirtualKafkaClusterBuilder()
                 .withNewMetadata()
-                    .withUid(ResourcesUtil.uid(observedIngress))
-                    .withName(ResourcesUtil.name(observedIngress))
-                    .withNamespace(ResourcesUtil.namespace(observedIngress))
+                    .withUid(ResourcesUtil.uid(virtualKafkaCluster))
+                    .withName(ResourcesUtil.name(virtualKafkaCluster))
+                    .withNamespace(ResourcesUtil.namespace(virtualKafkaCluster))
+                    .withGeneration(ResourcesUtil.generation(virtualKafkaCluster))
                 .endMetadata()
                 .withNewStatus()
-                    .withObservedGeneration(ResourcesUtil.generation(observedIngress))
-                    .withConditions(ResourceState.newConditions(Optional.ofNullable(observedIngress.getStatus()).map(VirtualKafkaClusterStatus::getConditions).orElse(List.of()), condition))
+                    .withObservedGeneration(ResourcesUtil.generation(virtualKafkaCluster))
+                    .withConditions(ResourceState.newConditions(Optional.ofNullable(virtualKafkaCluster.getStatus()).map(VirtualKafkaClusterStatus::getConditions).orElse(List.of()), condition))
                     .withIngresses(ingresses)
                 .endStatus()
                 .build();

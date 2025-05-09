@@ -24,6 +24,7 @@ import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
+import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
@@ -53,6 +54,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses.Protocol;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.IngressesBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult.DanglingReference;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
@@ -104,20 +106,27 @@ public final class VirtualKafkaClusterReconciler implements
     public UpdateControl<VirtualKafkaCluster> reconcile(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
         ClusterResolutionResult clusterResolutionResult = resolver.resolveClusterRefs(cluster, context);
 
-        VirtualKafkaCluster updatedCluster = null;
+        UpdateControl<VirtualKafkaCluster> reconciliationResult;
         if (clusterResolutionResult.allReferentsFullyResolved()) {
-            updatedCluster = checkClusterIngressTlsSettings(cluster, context);
+            VirtualKafkaCluster updatedCluster = checkClusterIngressTlsSettings(cluster, context);
             if (updatedCluster == null) {
                 updatedCluster = maybeCombineStatusWithClusterConfigMap(cluster, context);
+                KubernetesResourceUtil.getOrCreateAnnotations(updatedCluster)
+                        .put(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
+                                MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED /* clusterResolutionResult.dependantsChecksum() */);
+                reconciliationResult = UpdateControl.patchResourceAndStatus(updatedCluster);
+            }
+            else {
+                reconciliationResult = UpdateControl.patchStatus(updatedCluster);
             }
         }
         else {
-            updatedCluster = handleResolutionProblems(cluster, clusterResolutionResult);
+            reconciliationResult = UpdateControl.patchStatus(handleResolutionProblems(cluster, clusterResolutionResult));
         }
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(cluster), name(cluster));
         }
-        return UpdateControl.patchStatus(updatedCluster);
+        return reconciliationResult;
     }
 
     /**
