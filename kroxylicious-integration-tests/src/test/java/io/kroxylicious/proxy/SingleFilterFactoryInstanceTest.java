@@ -14,7 +14,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
-import io.kroxylicious.proxy.config.FilterDefinitionBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 
@@ -27,42 +26,11 @@ public class SingleFilterFactoryInstanceTest {
     private MockServerKroxyliciousTester mockTester;
 
     @AfterEach
-    public void afterEach() {
+    void afterEach() {
         if (mockTester != null) {
             mockTester.close();
             InvocationCountingFilterFactory.assertAllClosedAndResetCounts();
         }
-    }
-
-    @Test
-    void shouldOnlyInitialiseFilterFactoryOnce_filters() {
-        // Given
-        final UUID configInstance = UUID.randomUUID();
-
-        // When
-        mockTester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
-                .addToFilters(new FilterDefinitionBuilder("InvocationCountingFilterFactory").withConfig(INITIALISATION_COUNTER, configInstance)
-                        .build()));
-
-        // Then
-        InvocationCountingFilterFactory.assertInitializationCount(configInstance, 1);
-
-    }
-
-    @Test
-    void shouldInitialiseOncePerConfig_filters() {
-        // Given
-        final UUID configInstanceA = UUID.randomUUID();
-        final UUID configInstanceB = UUID.randomUUID();
-
-        // When
-        mockTester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
-                .addToFilters(new FilterDefinitionBuilder("InvocationCountingFilterFactory").withConfig(INITIALISATION_COUNTER, configInstanceA).build())
-                .addToFilters(new FilterDefinitionBuilder("InvocationCountingFilterFactory").withConfig(INITIALISATION_COUNTER, configInstanceB).build()));
-
-        // Then
-        InvocationCountingFilterFactory.assertInitializationCount(configInstanceA, 1);
-        InvocationCountingFilterFactory.assertInitializationCount(configInstanceB, 1);
     }
 
     @Test

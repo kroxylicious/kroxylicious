@@ -39,8 +39,4 @@ public record NamedFilterDefinition(
         Objects.requireNonNull(type);
     }
 
-    public FilterDefinition asFilterDefinition() {
-        return new FilterDefinition(type, config);
-    }
-
 }

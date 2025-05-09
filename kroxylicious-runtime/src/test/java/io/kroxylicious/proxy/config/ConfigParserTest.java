@@ -235,8 +235,11 @@ class ConfigParserTest {
                                 brokerAddressPattern: broker$(nodeId)
                         """),
                 Arguments.argumentSet("Filters", """
-                        filters:
-                        - type: TestFilterFactory
+                        filterDefinitions:
+                        - name: myfilter
+                          type: TestFilterFactory
+                        defaultFilters:
+                        - myfilter
                         virtualClusters:
                         - name: demo1
                           targetCluster:
@@ -552,10 +555,13 @@ class ConfigParserTest {
     void testNestedPlugins() {
         ConfigParser cp = new ConfigParser();
         var config = cp.parseConfiguration("""
-                filters:
-                - type: NestedPluginConfigFactory
+                filterDefinitions:
+                - name: nested
+                  type: NestedPluginConfigFactory
                   config:
                     examplePlugin: ExamplePluginInstance
+                defaultFilters:
+                -  nested
                 virtualClusters:
                 - name: demo1
                   targetCluster:
@@ -565,9 +571,9 @@ class ConfigParserTest {
                     portIdentifiesNode:
                       bootstrapAddress: "localhost:9082"
                 """);
-        assertThat(config.filters()).hasSize(1);
+        assertThat(config.filterDefinitions()).hasSize(1);
 
-        FilterDefinition fd = config.filters().get(0);
+        NamedFilterDefinition fd = config.filterDefinitions().get(0);
         assertThat(fd.type()).isEqualTo("NestedPluginConfigFactory");
         FilterFactory<?, ?> ff = cp.pluginFactory(FilterFactory.class).pluginInstance(fd.type());
         assertThat(ff).isNotNull();
@@ -583,8 +589,9 @@ class ConfigParserTest {
     void testUnknownPlugin() {
         ConfigParser cp = new ConfigParser();
         var iae = assertThrows(IllegalArgumentException.class, () -> cp.parseConfiguration("""
-                filters:
-                - type: NestedPluginConfigFactory
+                filterDefinitions:
+                - name: unknown-plugin
+                  type: NestedPluginConfigFactory
                   config:
                     examplePlugin: NotAKnownPlugin
 
@@ -610,7 +617,7 @@ class ConfigParserTest {
         // When
 
         // Then
-        for (FilterDefinition fd : config.filters()) {
+        for (NamedFilterDefinition fd : config.filterDefinitions()) {
             var pluginFactory = cp.pluginFactory((Class<FilterFactory<? super Object, ? super Object>>) (Class<?>) FilterFactory.class);
             var filterFactory = pluginFactory.pluginInstance(fd.type());
             Class<?> configType = pluginFactory.configType(fd.type());
@@ -620,13 +627,16 @@ class ConfigParserTest {
         }
     }
 
-    public static Stream<Arguments> shouldWorkWithDifferentConfigCreators() {
+    static Stream<Arguments> shouldWorkWithDifferentConfigCreators() {
         return Stream.of(Arguments.argumentSet("constructor injection",
                 """
-                        filters:
-                        - type: ConstructorInjection
+                        filterDefinitions:
+                        - name: ctor-injection
+                          type: ConstructorInjection
                           config:
                             str: hello, world
+                        defaultFilters:
+                        -  ctor-injection
                         virtualClusters:
                         - name: demo1
                           targetCluster:
@@ -639,10 +649,13 @@ class ConfigParserTest {
                 ConstructorInjectionConfig.class),
                 Arguments.argumentSet("factory method",
                         """
-                                filters:
-                                - type: FactoryMethod
+                                filterDefinitions:
+                                - name: factory-method
+                                  type: FactoryMethod
                                   config:
                                     str: hello, world
+                                defaultFilters:
+                                -  factory-method
                                 virtualClusters:
                                 - name: demo1
                                   targetCluster:
@@ -655,10 +668,13 @@ class ConfigParserTest {
                         FactoryMethodConfig.class),
                 Arguments.argumentSet("field injection",
                         """
-                                filters:
-                                - type: FieldInjection
+                                filterDefinitions:
+                                - name: field-injection
+                                  type: FieldInjection
                                   config:
                                     str: hello, world
+                                defaultFilters:
+                                -  field-injection
                                 virtualClusters:
                                 - name: demo1
                                   targetCluster:
@@ -671,10 +687,13 @@ class ConfigParserTest {
                         FieldInjectionConfig.class),
                 Arguments.argumentSet("record",
                         """
-                                filters:
-                                - type: Record
+                                filterDefinitions:
+                                - name: record
+                                  type: Record
                                   config:
                                     str: hello, world
+                                defaultFilters:
+                                -  record
                                 virtualClusters:
                                 - name: demo1
                                   targetCluster:
@@ -687,10 +706,13 @@ class ConfigParserTest {
                         RecordConfig.class),
                 Arguments.argumentSet("setter injection",
                         """
-                                filters:
-                                - type: SetterInjection
+                                filterDefinitions:
+                                - name: setter-injection
+                                  type: SetterInjection
                                   config:
                                     str: hello, world
+                                defaultFilters:
+                                -  setter-injection
                                 virtualClusters:
                                 - name: demo1
                                   targetCluster:
@@ -730,8 +752,9 @@ class ConfigParserTest {
         ConfigParser cp = new ConfigParser();
 
         var iae = assertThrows(IllegalArgumentException.class, () -> cp.parseConfiguration("""
-                filters:
-                - type: MissingPluginImplName
+                filterDefinitions:
+                - name: missing-plugin-name
+                  type: MissingPluginImplName
                   config:
                     id: NotAKnownPlugin
                     config:
