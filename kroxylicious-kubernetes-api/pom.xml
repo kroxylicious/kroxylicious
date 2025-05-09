@@ -171,10 +171,10 @@
                             io.kroxylicious.kubernetes.api.common.CertificateRef
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.CertificateRef>
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.Protocols>
-                            io.kroxylicious.kubernetes.api.common.tls.Protocols
+                            io.kroxylicious.kubernetes.api.common.Protocols
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.Protocols>
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.CipherSuites>
-                            io.kroxylicious.kubernetes.api.common.tls.CipherSuites
+                            io.kroxylicious.kubernetes.api.common.CipherSuites
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.CipherSuites>
                         <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.tls.CertificateRef>
                             io.kroxylicious.kubernetes.api.common.CertificateRef
@@ -183,10 +183,10 @@
                             io.kroxylicious.kubernetes.api.common.TrustAnchorRef
                         </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.tls.TrustAnchorRef>
                         <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.tls.Protocols>
-                            io.kroxylicious.kubernetes.api.common.tls.Protocols
+                            io.kroxylicious.kubernetes.api.common.Protocols
                         </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.tls.Protocols>
                         <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.tls.CipherSuites>
-                            io.kroxylicious.kubernetes.api.common.tls.CipherSuites
+                            io.kroxylicious.kubernetes.api.common.CipherSuites
                         </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.tls.CipherSuites>
                         <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.FilterRefs>
                             io.kroxylicious.kubernetes.api.common.FilterRef
