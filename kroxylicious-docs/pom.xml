@@ -79,4 +79,35 @@
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>ci</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>docs-validate-yaml-snippets</id>
+                                <phase>process-resources</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <skip>${skip-validate-yaml-snippets}</skip>
+                                    <!--suppress MavenModelInspection -->
+                                    <executable>${rootdir}/scripts/extract-yaml-fencedcodeblocks.sh</executable>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
