@@ -51,7 +51,7 @@ A module contains a procedure (`proc-`), concepts (`con-`), or reference (`ref-`
 To generate the guide in HTML, run the following Maven command from the project root directory (the parent directory of the `docs` directory).
 
 ```shell
-mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-kroxylicious-proxy-to-html
+mvn -pl doc org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-kroxylicious-proxy-to-html
 ```
 
 The HTML is output to `target/kroxylicious-proxy/html/index.html`. 
