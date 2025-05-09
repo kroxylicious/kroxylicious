@@ -48,12 +48,12 @@ import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMap
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
+import io.kroxylicious.kubernetes.api.common.CipherSuites;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
+import io.kroxylicious.kubernetes.api.common.Protocols;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
-import io.kroxylicious.kubernetes.api.common.tls.CipherSuites;
-import io.kroxylicious.kubernetes.api.common.tls.Protocols;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
