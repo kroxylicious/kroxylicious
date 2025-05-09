@@ -24,11 +24,7 @@ include::../modules/configuring/con-kafkaservice-by-bootstrap.adoc[leveloffset=+
 
 include::../modules/configuring/con-virtualkafkacluster-tcp.adoc[leveloffset=+2]
 
-// TODO
-// == Deploying the example proxy
-//
-// include::../modules/configuring/proc-deploying-example-proxy.adoc[leveloffset=+1]
-//
+include::../modules/deploying/proc_deploy_minimal_proxy.adoc[leveloffset=+1]
 
 // configuring filters
 include::assembly-operator-configuring-kafkaprotocolfilters.adoc[leveloffset=+1]
