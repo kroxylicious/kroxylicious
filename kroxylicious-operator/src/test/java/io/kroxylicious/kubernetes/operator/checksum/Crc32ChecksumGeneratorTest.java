@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.kubernetes.operator;
+package io.kroxylicious.kubernetes.operator.checksum;
 
 import java.util.List;
 import java.util.Map;
@@ -18,8 +18,6 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
-import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
-import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -31,16 +29,6 @@ class Crc32ChecksumGeneratorTest {
             .withGeneration(1L)
             .endMetadata()
             .build();
-
-    static {
-        new KafkaProxyBuilder()
-                .withNewMetadata()
-                .withName("my-other-proxy")
-                .withUid("my-other-proxy-uuid")
-                .withGeneration(2L)
-                .endMetadata()
-                .build();
-    }
     // @formatter:on
 
     @Test
@@ -121,6 +109,58 @@ class Crc32ChecksumGeneratorTest {
         assertThat(checksum)
                 .isNotBlank()
                 .isNotEqualTo(proxyChecksum);
+    }
+
+    @Test
+    void shouldAppendGenerationToChecksum() {
+        // Given
+        String proxyChecksum = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
+        Crc32ChecksumGenerator generator = new Crc32ChecksumGenerator();
+        generator.appendMetadata(PROXY);
+
+        // When
+        String checksum = generator.encode();
+
+        // Then
+        assertThat(checksum)
+                .isNotBlank()
+                .isEqualTo(proxyChecksum);
+    }
+
+    @Test
+    void shouldGenerateDifferentChecksumsForRepeatedCallsToAppendLong() {
+        // Given
+        String filterUid = UUID.randomUUID().toString();
+        Crc32ChecksumGenerator generator = new Crc32ChecksumGenerator();
+        generator.appendLong(1L);
+        long checksumGeneration1 = generator.getValue();
+
+        // When
+        generator.appendLong(2L);
+
+        // Then
+        var checksumGeneration2 = generator.getValue();
+        assertThat(checksumGeneration2)
+                .isNotZero()
+                .isNotEqualTo(checksumGeneration1);
+    }
+
+    @Test
+    void shouldGenerateDifferentChecksumsForRepeatedCallsToAppendLongEncode() {
+        // Given
+        String filterUid = UUID.randomUUID().toString();
+        Crc32ChecksumGenerator generator = new Crc32ChecksumGenerator();
+        generator.appendLong(1L);
+        var checksumGeneration1 = generator.encode();
+
+        // When
+        generator.appendLong(2L);
+
+        // Then
+        var checksumGeneration2 = generator.encode();
+        assertThat(checksumGeneration2)
+                .isNotBlank()
+                .isNotEqualTo(checksumGeneration1);
     }
 
     // some kubernetes objects like secret and configmap where the state cannot vary from the user's desired intent do not have a generation
