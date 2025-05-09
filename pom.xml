@@ -493,6 +493,7 @@
         <module>kroxylicious-kubernetes-api</module>
         <module>kroxylicious-operator-test-support</module>
         <module>kroxylicious-operator</module>
+        <module>docs</module>
     </modules>
 
 
@@ -780,7 +781,11 @@
                     <artifactId>japicmp-maven-plugin</artifactId>
                     <version>0.23.1</version>
                 </plugin>
-
+                <plugin>
+                    <groupId>org.asciidoctor</groupId>
+                    <artifactId>asciidoctor-maven-plugin</artifactId>
+                    <version>3.1.1</version>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -832,43 +837,6 @@
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>exec-maven-plugin</artifactId>
                 <version>3.5.0</version>
-            </plugin>
-            <plugin>
-                <groupId>org.asciidoctor</groupId>
-                <artifactId>asciidoctor-maven-plugin</artifactId>
-                <version>3.1.1</version>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.asciidoctor</groupId>
-                        <artifactId>asciidoctorj-diagram</artifactId>
-                        <version>2.3.2</version>
-                    </dependency>
-                </dependencies>
-                <executions>
-                    <execution>
-                        <id>convert-kroxylicious-proxy-to-html</id>
-                        <goals>
-                            <goal>process-asciidoc</goal>
-                        </goals>
-                        <configuration>
-                            <requires>
-                                <require>asciidoctor-diagram</require>
-                            </requires>
-                            <sourceDirectory>docs</sourceDirectory>
-                            <outputDirectory>${project.build.directory}/docs/html</outputDirectory>
-                            <preserveDirectories>true</preserveDirectories>
-                            <attributes>
-                                <source-highlighter>coderay</source-highlighter>
-                                <imagesdir>./images</imagesdir>
-                                <toc>left</toc>
-                                <icons>font</icons>
-                                <attribute>revnumber!</attribute>
-                                <attribute>revdate!</attribute>
-                                <attribute>revremark!</attribute>
-                            </attributes>
-                        </configuration>
-                    </execution>
-                </executions>
             </plugin>
             <plugin>
                 <groupId>org.commonjava.maven.plugins</groupId>
