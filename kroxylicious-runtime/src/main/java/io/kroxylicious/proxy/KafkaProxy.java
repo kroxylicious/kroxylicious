@@ -159,7 +159,7 @@ public final class KafkaProxy implements AutoCloseable {
                 Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, tags);
                 Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, tags);
             });
-
+            STARTUP_SHUTDOWN_LOGGER.info("Kroxylicious is started");
             return this;
         }
         catch (RuntimeException e) {
