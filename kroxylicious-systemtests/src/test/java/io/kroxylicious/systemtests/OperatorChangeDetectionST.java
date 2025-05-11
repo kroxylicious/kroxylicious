@@ -9,6 +9,7 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -131,16 +132,19 @@ class OperatorChangeDetectionST extends AbstractST {
     }
 
     private String getInitialChecksum(String namespace, KubeClient kubeClient) {
-        await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
-            List<Pod> proxyPods = kubeClient.listPods(namespace, "app.kubernetes.io/name", "kroxylicious-proxy");
-            assertThat(proxyPods).singleElement().extracting(Pod::getMetadata).satisfies(podMetadata -> OperatorAssertions.assertThat(podMetadata)
-                    .hasAnnotationSatisfying("kroxylicious.io/referent-checksum", value -> assertThat(value).isNotBlank()));
-            Deployment proxyDeployment = kubeClient.getDeployment(namespace, "simple");
-            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
-                    value -> assertThat(value).isEqualTo(getChecksumFromAnnotation(proxyPods.get(0))));
-        });
-        List<Pod> proxyPods = kubeClient.listPods(namespace, "app.kubernetes.io/name", "kroxylicious-proxy");
-        return getChecksumFromAnnotation(proxyPods.get(0));
+        AtomicReference<String> checksumFromAnnotation = new AtomicReference<>();
+        await().atMost(Duration.ofSeconds(90))
+                .untilAsserted(() -> kubeClient.listPods(namespace, "app.kubernetes.io/name", "kroxylicious-proxy"),
+                        proxyPods -> {
+                            assertThat(proxyPods).singleElement().extracting(Pod::getMetadata).satisfies(podMetadata -> OperatorAssertions.assertThat(podMetadata)
+                                    .hasAnnotationSatisfying("kroxylicious.io/referent-checksum", value -> assertThat(value).isNotBlank()));
+                            Deployment proxyDeployment = kubeClient.getDeployment(namespace, "simple");
+                            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying(
+                                    "kroxylicious.io/referent-checksum",
+                                    value -> assertThat(value).isEqualTo(getChecksumFromAnnotation(proxyPods.get(0))));
+                            checksumFromAnnotation.set(getChecksumFromAnnotation(proxyPods.get(0)));
+                        });
+        return checksumFromAnnotation.get();
     }
 
     private String getChecksumFromAnnotation(HasMetadata entity) {
