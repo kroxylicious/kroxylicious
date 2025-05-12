@@ -108,7 +108,9 @@ public class ProxyDeploymentDependentResource
         context.getSecondaryResources(KafkaProtocolFilter.class).forEach(checksumGenerator::appendMetadata);
         String encoded = checksumGenerator.encode();
 
-        LOGGER.info("Checksum: {} generated for KafkaProxy: {}", encoded, KubernetesResourceUtil.getName(primary));
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Checksum: {} generated for KafkaProxy: {}", encoded, KubernetesResourceUtil.getName(primary));
+        }
         return encoded;
     }
 
