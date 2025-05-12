@@ -12,6 +12,10 @@ These instructions assume that you are using the
 link:{fortanix-support}/docs/clients-command-line-interface-cli-for-fortanix-data-security-manager[Fortanix DSM CLI],
 but you can use the Fortanix DSM user interface if preferred.
 
+NOTE: The Fortanix KMS plugin for Record Encryption doesn't yet support keys in the
+https://support.fortanix.com/docs/users-guide-key-undo-policy#50-deactivate-and-compromise-key-with-key-undo-policy[Deactivated state].
+For more information, see the {github-issues}/1767[related issue^].
+
 == Fortanix DSM Cluster URL
 
 The Record Encryption filter requires the URL of the Fortanix DSM cluster.
