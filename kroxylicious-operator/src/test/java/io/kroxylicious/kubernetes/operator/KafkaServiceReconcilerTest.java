@@ -403,7 +403,7 @@ class KafkaServiceReconcilerTest {
 
     @Test
     void shouldSetReferentAnnotationWhenCertificateRefSecretPresent() {
-        Context<KafkaService> context = mock(Context.class);
+        Context<KafkaService> context = mockContext();
         mockGetSecret(context, Optional.of(TLS_SECRET));
         KafkaService service = new KafkaServiceBuilder(SERVICE).editSpec().editTls().withTrustAnchorRef(null).endTls().endSpec().build();
         // When
@@ -419,7 +419,7 @@ class KafkaServiceReconcilerTest {
 
     @Test
     void shouldSetReferentAnnotationWhenTrustAnchorRefConfigMapPresent() {
-        Context<KafkaService> context = mock(Context.class);
+        Context<KafkaService> context = mockContext();
         mockGetConfigMap(context, Optional.of(PEM_CONFIG_MAP));
         KafkaService service = new KafkaServiceBuilder(SERVICE).editSpec().editTls().withCertificateRef(null).editTrustAnchorRef().withKey("ca-bundle.pem")
                 .endTrustAnchorRef().endTls().endSpec().build();
@@ -436,7 +436,7 @@ class KafkaServiceReconcilerTest {
 
     @Test
     void shouldNotSetReferentAnnotationWhenServiceHasNoReferents() {
-        Context<KafkaService> context = mock(Context.class);
+        Context<KafkaService> context = mockContext();
         KafkaService service = new KafkaServiceBuilder(SERVICE).editSpec().editTls().withTrustAnchorRef(null).endTls().endSpec().build();
         // When
         final UpdateControl<KafkaService> updateControl = kafkaServiceReconciler.reconcile(service, context);
@@ -579,4 +579,8 @@ class KafkaServiceReconcilerTest {
         return mockList;
     }
 
+    @SuppressWarnings("unchecked")
+    private static Context<KafkaService> mockContext() {
+        return mock(Context.class);
+    }
 }

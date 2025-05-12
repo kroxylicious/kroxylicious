@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -25,6 +26,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
@@ -50,6 +53,8 @@ class ProxyDeploymentDependentResourceTest {
 
     private KafkaProxyIngress kafkaProxyIngress;
 
+    private KafkaProtocolFilter kafkaProtocolFilterA;
+
     @BeforeEach
     void setUp() {
         PodTemplateSpec podTemplate = new PodTemplateSpecBuilder().withNewMetadata().addToLabels("c", "d").addToLabels("a", "b").endMetadata().build();
@@ -58,10 +63,14 @@ class ProxyDeploymentDependentResourceTest {
 
         kafkaProxyIngress = new KafkaProxyIngressBuilder().withNewMetadata().withUid(PROXY_INGRESS_UID).withName("Ingress").withGeneration(PROXY_INGRESS_GENERATION)
                 .withAnnotations(Map.of(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, PROXY_INGRESS_CHECKSUM)).endMetadata().build();
+        kafkaProtocolFilterA = new KafkaProtocolFilterBuilder().withNewMetadata().withName("filterA").withGeneration(234L).withUid(UUID.randomUUID().toString())
+                .endMetadata().build();
+
         var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext<>(null, null, kubernetesContext);
         resourceContext.put(Crc32ChecksumGenerator.CHECKSUM_CONTEXT_KEY, metadataChecksumGenerator);
         when(kubernetesContext.managedWorkflowAndDependentResourceContext()).thenReturn(resourceContext);
         when(kubernetesContext.getSecondaryResource(KafkaProxyIngress.class)).thenReturn(Optional.of(kafkaProxyIngress));
+        when(kubernetesContext.getSecondaryResources(KafkaProtocolFilter.class)).thenReturn(Set.of(kafkaProtocolFilterA));
     }
 
     @Test
@@ -99,6 +108,40 @@ class ProxyDeploymentDependentResourceTest {
 
         // Then
         verify(metadataChecksumGenerator).appendMetadata(kafkaProxyIngress);
+        // We can't assert anything about the checksum here as the generator is mocked, we just want to verify the generator is used correctly
+    }
+
+    @Test
+    void shouldIncludeKafkaProtocolFilterUidAndGeneration() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+
+        // When
+        proxyDeploymentDependentResource.checksumFor(kafkaProxy, kubernetesContext);
+
+        // Then
+        verify(metadataChecksumGenerator).appendMetadata(kafkaProtocolFilterA);
+        // We can't assert anything about the checksum here as the generator is mocked, we just want to verify the generator is used correctly
+    }
+
+    @Test
+    void shouldIncludeMultipleKafkaProtocolFiltersInChecksum() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+        var kafkaProtocolFilterB = new KafkaProtocolFilterBuilder().withNewMetadata().withName("filterB").withGeneration(2L).withUid(UUID.randomUUID().toString())
+                .endMetadata().build();
+        var kafkaProtocolFilterC = new KafkaProtocolFilterBuilder().withNewMetadata().withName("filterC").withGeneration(2L).withUid(UUID.randomUUID().toString())
+                .endMetadata().build();
+
+        when(kubernetesContext.getSecondaryResources(KafkaProtocolFilter.class)).thenReturn(Set.of(kafkaProtocolFilterA, kafkaProtocolFilterB, kafkaProtocolFilterC));
+
+        // When
+        proxyDeploymentDependentResource.checksumFor(kafkaProxy, kubernetesContext);
+
+        // Then
+        verify(metadataChecksumGenerator).appendMetadata(kafkaProtocolFilterA);
+        verify(metadataChecksumGenerator).appendMetadata(kafkaProtocolFilterB);
+        verify(metadataChecksumGenerator).appendMetadata(kafkaProtocolFilterC);
         // We can't assert anything about the checksum here as the generator is mocked, we just want to verify the generator is used correctly
     }
 
