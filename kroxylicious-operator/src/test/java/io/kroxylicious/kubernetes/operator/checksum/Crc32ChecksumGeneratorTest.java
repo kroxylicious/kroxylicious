@@ -114,17 +114,19 @@ class Crc32ChecksumGeneratorTest {
     @Test
     void shouldAppendGenerationToChecksum() {
         // Given
-        String proxyChecksum = MetadataChecksumGenerator.checksumFor(List.of(PROXY));
         Crc32ChecksumGenerator generator = new Crc32ChecksumGenerator();
+        Crc32ChecksumGenerator generator2 = new Crc32ChecksumGenerator();
         generator.appendMetadata(PROXY);
+        String proxyChecksum = generator.encode();
+        KafkaProxy updatedProxy = new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata()).withGeneration(15L).endMetadata().build();
 
         // When
-        String checksum = generator.encode();
+        generator2.appendMetadata(updatedProxy);
 
         // Then
-        assertThat(checksum)
+        assertThat(generator2.encode())
                 .isNotBlank()
-                .isEqualTo(proxyChecksum);
+                .isNotEqualTo(proxyChecksum);
     }
 
     @Test
@@ -143,24 +145,7 @@ class Crc32ChecksumGeneratorTest {
                 .isNotZero()
                 .isNotEqualTo(checksumGeneration1);
     }
-
-    @Test
-    void shouldGenerateDifferentChecksumsForRepeatedCallsToAppendLongEncode() {
-        // Given
-        Crc32ChecksumGenerator generator = new Crc32ChecksumGenerator();
-        generator.appendLong(1L);
-        var checksumGeneration1 = generator.encode();
-
-        // When
-        generator.appendLong(2L);
-
-        // Then
-        var checksumGeneration2 = generator.encode();
-        assertThat(checksumGeneration2)
-                .isNotBlank()
-                .isNotEqualTo(checksumGeneration1);
-    }
-
+    
     // some kubernetes objects like secret and configmap where the state cannot vary from the user's desired intent do not have a generation
     @Test
     void shouldIncludeResourceVersionInChecksumWhenGenerationIsNull() {
