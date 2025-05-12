@@ -8,22 +8,10 @@
 kind: KafkaService
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: kafka-with-tls
+  name: kafka
   namespace: proxy-ns
   generation: 3
 spec:
   bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
-  tls:
-    certificateRef:
-      name: upstream-tls-cert
-    trustAnchorRef:
-      name: upstream-ca
-      key: cas.pem
-    cipherSuites:
-      allow:
-      - foobar
-    protocols:
-      deny:
-      - TLS1.2
 status:
   observedGeneration: 3

@@ -46,3 +46,5 @@ data:
           trust:
             storeFile: "/opt/kroxylicious/virtual-cluster/trusted-certs/downstream-ca/cas.pem"
             storeType: "PEM"
+            trustOptions:
+              clientAuth: "REQUIRED"
