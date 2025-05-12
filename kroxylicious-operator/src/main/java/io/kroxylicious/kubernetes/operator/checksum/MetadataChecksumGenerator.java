@@ -39,7 +39,9 @@ public interface MetadataChecksumGenerator {
         }
     }
 
-    void appendMetadata(HasMetadata entity);
+    default void appendMetadata(HasMetadata entity) {
+        appendMetadata(entity.getMetadata());
+    }
 
     void appendString(String value);
 

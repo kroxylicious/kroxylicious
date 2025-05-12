@@ -14,7 +14,6 @@ import java.util.zip.CRC32;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
-import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -39,11 +38,6 @@ public class Crc32ChecksumGenerator implements MetadataChecksumGenerator {
         if (annotations != null && annotations.containsKey(REFERENT_CHECKSUM_ANNOTATION)) {
             appendString(annotations.get(REFERENT_CHECKSUM_ANNOTATION));
         }
-    }
-
-    @Override
-    public void appendMetadata(HasMetadata entity) {
-        appendMetadata(entity.getMetadata());
     }
 
     @Override

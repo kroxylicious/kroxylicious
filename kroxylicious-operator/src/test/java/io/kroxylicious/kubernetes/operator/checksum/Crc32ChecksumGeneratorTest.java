@@ -130,7 +130,6 @@ class Crc32ChecksumGeneratorTest {
     @Test
     void shouldGenerateDifferentChecksumsForRepeatedCallsToAppendLong() {
         // Given
-        String filterUid = UUID.randomUUID().toString();
         Crc32ChecksumGenerator generator = new Crc32ChecksumGenerator();
         generator.appendLong(1L);
         long checksumGeneration1 = generator.getValue();
@@ -148,7 +147,6 @@ class Crc32ChecksumGeneratorTest {
     @Test
     void shouldGenerateDifferentChecksumsForRepeatedCallsToAppendLongEncode() {
         // Given
-        String filterUid = UUID.randomUUID().toString();
         Crc32ChecksumGenerator generator = new Crc32ChecksumGenerator();
         generator.appendLong(1L);
         var checksumGeneration1 = generator.encode();
