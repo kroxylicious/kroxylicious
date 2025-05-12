@@ -182,7 +182,6 @@ class Crc32ChecksumGeneratorTest {
         // When
         checksumGenerator.appendMetadata(new SecretBuilder(secret).editMetadata().withResourceVersion("6478").withGeneration(1L).endMetadata().build());
 
-
         // Then
         assertThat(checksumGenerator.encode())
                 .isNotBlank()

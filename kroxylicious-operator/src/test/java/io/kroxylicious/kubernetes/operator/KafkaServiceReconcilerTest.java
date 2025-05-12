@@ -373,15 +373,15 @@ class KafkaServiceReconcilerTest {
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private static void mockGetConfigMap(
-            Context<KafkaService> context,
-            Optional<ConfigMap> empty) {
+                                         Context<KafkaService> context,
+                                         Optional<ConfigMap> empty) {
         when(context.getSecondaryResource(ConfigMap.class, KafkaServiceReconciler.CONFIG_MAPS_EVENT_SOURCE_NAME)).thenReturn(empty);
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private static void mockGetSecret(
-            Context<KafkaService> context,
-            Optional<Secret> optional) {
+                                      Context<KafkaService> context,
+                                      Optional<Secret> optional) {
         when(context.getSecondaryResource(Secret.class, KafkaServiceReconciler.SECRETS_EVENT_SOURCE_NAME)).thenReturn(optional);
     }
 
