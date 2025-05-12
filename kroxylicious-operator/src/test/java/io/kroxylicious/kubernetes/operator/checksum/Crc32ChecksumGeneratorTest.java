@@ -145,7 +145,7 @@ class Crc32ChecksumGeneratorTest {
                 .isNotZero()
                 .isNotEqualTo(checksumGeneration1);
     }
-    
+
     // some kubernetes objects like secret and configmap where the state cannot vary from the user's desired intent do not have a generation
     @Test
     void shouldIncludeResourceVersionInChecksumWhenGenerationIsNull() {
