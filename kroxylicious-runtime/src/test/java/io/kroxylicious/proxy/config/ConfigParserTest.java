@@ -527,6 +527,26 @@ class ConfigParserTest {
                 .hasMessageContaining("Missing required creator property 'targetCluster'");
     }
 
+    @Test
+    void shouldDetectMissingTargetClusterBootstrapServers() {
+        // Given
+        assertThatThrownBy(() ->
+        // When
+        configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: demo
+                    targetCluster: {}
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """))
+                // Then
+                .isInstanceOf(IllegalArgumentException.class)
+                .cause()
+                .hasMessageContaining("Missing required creator property 'bootstrapServers'");
+    }
+
     @ParameterizedTest
     @ValueSource(strings = {
             """
