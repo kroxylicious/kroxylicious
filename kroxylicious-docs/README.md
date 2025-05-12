@@ -46,12 +46,14 @@ A module contains a procedure (`proc-`), concepts (`con-`), or reference (`ref-`
 | `shared/attributes.adoc` | Global book attributes                      |
 | `kroxylicious-proxy/`    | The Kroxylicious Proxy guide                |
 
-## Generating the guide
+## Generating the guide locally
 
 To generate the guide in HTML, run the following Maven command from the project root directory (the parent directory of the `docs` directory).
+The diagrams in the documentation rely on an ascii-art to SVG plugin.  Install the plugin https://github.com/asciitosvg/asciitosvg if you
+want to see the rendered diagrams in the HTML.
 
 ```shell
-mvn -pl doc org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-kroxylicious-proxy-to-html
+mvn -pl kroxylicious-docs org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-kroxylicious-proxy-to-html
 ```
 
 The HTML is output to `target/kroxylicious-proxy/html/index.html`. 

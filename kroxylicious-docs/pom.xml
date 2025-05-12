@@ -19,9 +19,19 @@
 
     <artifactId>kroxylicious-docs</artifactId>
     <description>Documentation for Kroxylicious</description>
-
+    <packaging>pom</packaging>
+    
     <build>
         <plugins>
+            <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>default-jar</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.asciidoctor</groupId>
                 <artifactId>asciidoctor-maven-plugin</artifactId>
