@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator.checksum;
 
-import java.util.List;
 import java.util.Map;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
@@ -17,18 +16,6 @@ public interface MetadataChecksumGenerator {
     String REFERENT_CHECKSUM_ANNOTATION = "kroxylicious.io/referent-checksum";
     String CHECKSUM_CONTEXT_KEY = "kroxylicious.io/referent-checksum-generator";
     String NO_CHECKSUM_SPECIFIED = "";
-
-    static String checksumFor(List<? extends HasMetadata> metadataSources) {
-        if (metadataSources.isEmpty()) {
-            return NO_CHECKSUM_SPECIFIED;
-        }
-        var checksum = new Crc32ChecksumGenerator();
-        for (HasMetadata metadataSource : metadataSources) {
-            var objectMeta = metadataSource.getMetadata();
-            checksum.appendMetadata(objectMeta);
-        }
-        return checksum.encode();
-    }
 
     default void appendMetadata(ObjectMeta objectMeta) {
         appendString(objectMeta.getUid());
