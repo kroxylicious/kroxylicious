@@ -31,7 +31,6 @@ import io.kroxylicious.kms.provider.aws.kms.model.ErrorResponse;
 import io.kroxylicious.kms.provider.aws.kms.model.RotateKeyRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionRequest;
 import io.kroxylicious.kms.provider.aws.kms.model.ScheduleKeyDeletionResponse;
-import io.kroxylicious.kms.provider.aws.kms.model.UpdateAliasRequest;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
@@ -49,7 +48,6 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
     private static final String TRENT_SERVICE_DESCRIBE_KEY = "TrentService.DescribeKey";
     private static final String TRENT_SERVICE_CREATE_KEY = "TrentService.CreateKey";
     private static final String TRENT_SERVICE_CREATE_ALIAS = "TrentService.CreateAlias";
-    private static final String TRENT_SERVICE_UPDATE_ALIAS = "TrentService.UpdateAlias";
     private static final String TRENT_SERVICE_ROTATE_KEY = "TrentService.RotateKeyOnDemand";
     private static final String TRENT_SERVICE_DELETE_ALIAS = "TrentService.DeleteAlias";
     private static final String TRENT_SERVICE_SCHEDULE_KEY_DELETION = "TrentService.ScheduleKeyDeletion";
@@ -147,18 +145,6 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
             var rotateKeyRequest = createRequest(rotateKey, TRENT_SERVICE_ROTATE_KEY);
 
             sendRequestExpectingNoResponse(rotateKeyRequest);
-        }
-
-        private void pseudoRotate(String alias) {
-
-            // mimic rotate by creating a new key and repoint the alias at it, leaving the original key in place.
-            final CreateKeyRequest request = new CreateKeyRequest("[rotated] key for alias: " + alias);
-            var keyRequest = createRequest(request, TRENT_SERVICE_CREATE_KEY);
-            var createKeyResponse = sendRequest(alias, keyRequest, CREATE_KEY_RESPONSE_TYPE_REF);
-
-            final UpdateAliasRequest update = new UpdateAliasRequest(createKeyResponse.keyMetadata().keyId(), AwsKms.ALIAS_PREFIX + alias);
-            var aliasRequest = createRequest(update, TRENT_SERVICE_UPDATE_ALIAS);
-            sendRequestExpectingNoResponse(aliasRequest);
         }
 
         private HttpRequest createRequest(Object request, String target) {
