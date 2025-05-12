@@ -144,8 +144,7 @@ public final class KafkaServiceReconciler implements
                     .map(KafkaServiceSpec::getTls)
                     .map(Tls::getCertificateRef);
             if (certRefOpt.isPresent()) {
-                String path = "spec.tls.certificateRef";
-                ResourceCheckResult<KafkaService> result = ResourcesUtil.checkCertRef(service, certRefOpt.get(), path, statusFactory, context,
+                ResourceCheckResult<KafkaService> result = ResourcesUtil.checkCertRef(service, certRefOpt.get(), SPEC_TLS_CERTIFICATE_REF, statusFactory, context,
                         SECRETS_EVENT_SOURCE_NAME);
                 updatedService = result.resource();
                 referents.addAll(result.referents());

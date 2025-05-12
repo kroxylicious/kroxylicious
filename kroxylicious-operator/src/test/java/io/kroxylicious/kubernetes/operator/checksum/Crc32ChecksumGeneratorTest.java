@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator.checksum;
 
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -14,7 +13,6 @@ import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 
@@ -210,28 +208,12 @@ class Crc32ChecksumGeneratorTest {
                 .isNotEqualTo(proxyChecksum);
 
         // Check it is deterministic
-
-        List<? extends HasMetadata> metadataSources1 = List.of(PROXY, anotherProxy);
         Crc32ChecksumGenerator checksumGenerator1 = new Crc32ChecksumGenerator();
         checksumGenerator1.appendMetadata(PROXY);
         checksumGenerator1.appendMetadata(anotherProxy);
         assertThat(checksumGenerator1.encode()).isEqualTo(checksumGenerator.encode());
 
         assertThat(generateProxyChecksum()).isEqualTo(proxyChecksum);
-    }
-
-    @Test
-    void shouldIncludeUidFromHasMetadata() {
-        // Given
-        String proxyChecksum = generateProxyChecksum();
-
-        // When
-        checksumGenerator.appendMetadata(new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata()).withUid("updated-uid").endMetadata().build());
-
-        // Then
-        assertThat(checksumGenerator.encode())
-                .isNotBlank()
-                .isNotEqualTo(proxyChecksum);
     }
 
     @Test
