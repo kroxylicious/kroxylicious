@@ -15,9 +15,11 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
+import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.service.HostPort;
 
 class ProxyConfigAssertTest {
@@ -84,6 +86,45 @@ class ProxyConfigAssertTest {
         ProxyConfigAssert.ProxyConfigGatewayAssert gatewayAssert = new ProxyConfigAssert.ProxyConfigGatewayAssert(virtualClusterGateway);
         ProxyConfigAssert.ProxyConfigPortIdentifiesNodeGatewayAssert portIdentifiesNodeGatewayAssert = gatewayAssert.portIdentifiesNode();
         Assertions.assertThat(portIdentifiesNodeGatewayAssert.actual()).isNotNull().isSameAs(strategy);
+    }
+
+    @Test
+    void sniHostIdentifiesNodeGateway() {
+        SniHostIdentifiesNodeIdentificationStrategy strategy = new SniHostIdentifiesNodeIdentificationStrategy("abc:123", "localhost");
+        VirtualClusterGateway virtualClusterGateway = new VirtualClusterGateway("default",
+                null, strategy, Optional.of(new Tls(null, null, null, null)));
+        ProxyConfigAssert.ProxyConfigGatewayAssert gatewayAssert = new ProxyConfigAssert.ProxyConfigGatewayAssert(virtualClusterGateway);
+        ProxyConfigAssert.ProxyConfigSniHostIdentifiesNodeGatewayAssert sniHostIdentifiesNodeGatewayAssert = gatewayAssert.sniHostIdentifiesNode();
+        Assertions.assertThat(sniHostIdentifiesNodeGatewayAssert.actual()).isNotNull().isSameAs(strategy);
+    }
+
+    @Test
+    void sniHostIdentifiesNodeGateway_BootstrapAddress() {
+        SniHostIdentifiesNodeIdentificationStrategy strategy = new SniHostIdentifiesNodeIdentificationStrategy("abc:123", "localhost");
+        VirtualClusterGateway virtualClusterGateway = new VirtualClusterGateway("default",
+                null, strategy, Optional.of(new Tls(null, null, null, null)));
+        ProxyConfigAssert.ProxyConfigGatewayAssert gatewayAssert = new ProxyConfigAssert.ProxyConfigGatewayAssert(virtualClusterGateway);
+        ProxyConfigAssert.ProxyConfigSniHostIdentifiesNodeGatewayAssert sniHostIdentifiesNodeGatewayAssert = gatewayAssert.sniHostIdentifiesNode();
+        Assertions.assertThat(sniHostIdentifiesNodeGatewayAssert.bootstrapAddress().isEqualTo("abc:123"));
+    }
+
+    @Test
+    void sniHostIdentifiesNodeGateway_AdvertisedBrokerAddressPattern() {
+        SniHostIdentifiesNodeIdentificationStrategy strategy = new SniHostIdentifiesNodeIdentificationStrategy("abc:123", "localhost");
+        VirtualClusterGateway virtualClusterGateway = new VirtualClusterGateway("default",
+                null, strategy, Optional.of(new Tls(null, null, null, null)));
+        ProxyConfigAssert.ProxyConfigGatewayAssert gatewayAssert = new ProxyConfigAssert.ProxyConfigGatewayAssert(virtualClusterGateway);
+        ProxyConfigAssert.ProxyConfigSniHostIdentifiesNodeGatewayAssert sniHostIdentifiesNodeGatewayAssert = gatewayAssert.sniHostIdentifiesNode();
+        Assertions.assertThat(sniHostIdentifiesNodeGatewayAssert.advertisedBrokerAddressPattern().isEqualTo("localhost"));
+    }
+
+    @Test
+    void sniHostIdentifiesNodeGatewayNotExist() {
+        PortIdentifiesNodeIdentificationStrategy strategy = new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9292), null, null, null);
+        VirtualClusterGateway virtualClusterGateway = new VirtualClusterGateway("default",
+                strategy, null, Optional.empty());
+        ProxyConfigAssert.ProxyConfigGatewayAssert gatewayAssert = new ProxyConfigAssert.ProxyConfigGatewayAssert(virtualClusterGateway);
+        Assertions.assertThatThrownBy(gatewayAssert::sniHostIdentifiesNode).hasMessageContaining("Expecting actual not to be null");
     }
 
     @Test

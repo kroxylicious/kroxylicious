@@ -69,11 +69,20 @@ spec:
                     clusterIP specifies that this ingress is for access within the same Kubernetes cluster using 
                     ClusterIP Kubernetes Services.
                   required: [ "protocol" ]
+                  x-kubernetes-validations:
+                    - message: "nodeIdentifiedBy mechanism 'SNI' requires TLS protocol"
+                      rule: "!has(self.nodeIdentifiedBy) || !(self.nodeIdentifiedBy == 'SNI' && self.protocol != 'TLS')"
                   properties:
                     protocol:
                       description: "Protocol specifies the network protocol this ingress expects to receive."
                       type: string
                       enum: ["TCP", "TLS"]
+                    nodeIdentifiedBy:
+                      type: string
+                      description: "NodeIdentifiedBy specifies the mechanism used to identify upstream Kafka nodes. If SNI
+                      is selected, the ingress protocol must be TLS"
+                      default: "port"
+                      enum: ["port", "SNI"]
             status:
               type: object
               properties:

@@ -21,7 +21,6 @@ import java.util.TreeSet;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.slf4j.Logger;
@@ -59,22 +58,20 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls.TlsClientAuthentication;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterSpec;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
-import io.kroxylicious.kubernetes.operator.model.ingress.ClusterIPIngressDefinition;
-import io.kroxylicious.kubernetes.operator.model.ingress.ClusterIPIngressDefinition.ClusterIPIngressInstance;
+import io.kroxylicious.kubernetes.operator.model.ingress.IngressModel;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
-import io.kroxylicious.proxy.config.NamedRange;
+import io.kroxylicious.proxy.config.NodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
@@ -89,7 +86,6 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.config.tls.TrustStore;
-import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -97,7 +93,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
-import static java.lang.Math.toIntExact;
 
 // @formatter:off
 @Workflow(dependents = {
@@ -264,12 +259,9 @@ public class KafkaProxyReconciler implements
                                                                              ProxyIngressModel ingressModel) {
 
         ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(cluster.cluster()).orElseThrow();
-        var gatewayFragments = ConfigurationFragment.reduce(virtualClusterIngressModel.ingressModels().stream()
-                .map(ProxyIngressModel.IngressModel::ingressInstance)
-                .map(ingressInstance -> {
-                    var instance = ((ClusterIPIngressInstance) ingressInstance);
-                    return buildVirtualClusterGateway(instance);
-                }).toList());
+        var gatewayFragments = ConfigurationFragment.reduce(virtualClusterIngressModel.ingressModelResults().stream()
+                .map(ProxyIngressModel.IngressModelResult::ingressModel)
+                .map(KafkaProxyReconciler::buildVirtualClusterGateway).toList());
 
         KafkaService kafkaServiceRef = cluster.serviceResolutionResult().referentResource();
         var virtualClusterConfigurationFragment = gatewayFragments
@@ -287,30 +279,30 @@ public class KafkaProxyReconciler implements
                 (virtualCluster, gateways) -> virtualCluster);
     }
 
-    public static ConfigurationFragment<VirtualClusterGateway> buildVirtualClusterGateway(ClusterIPIngressInstance instance) {
-        List<NamedRange> portRanges = IntStream.range(0, instance.definition().nodeIdRanges().size()).mapToObj(i -> {
-            NodeIdRanges range = instance.definition().nodeIdRanges().get(i);
-            String name = Optional.ofNullable(range.getName()).orElse("range-" + i);
-            return new NamedRange(name, toIntExact(range.getStart()), toIntExact(range.getEnd()));
-        }).toList();
+    public static ConfigurationFragment<VirtualClusterGateway> buildVirtualClusterGateway(IngressModel gateway) {
 
-        var ingressName = instance.definition().resource().getMetadata().getName();
-        var tlsConfigFragment = instance.definition().cluster().getSpec().getIngresses().stream()
-                .filter(i -> ingressName.equals(i.getIngressRef().getName()))
-                .map(Ingresses::getTls)
-                .filter(Objects::nonNull)
-                .findFirst()
+        var tlsConfigFragment = gateway.downstreamTls()
                 .map(KafkaProxyReconciler::buildTlsFragment)
                 .orElse(ConfigurationFragment.empty());
 
         var volumes = tlsConfigFragment.volumes();
         var mounts = tlsConfigFragment.mounts();
 
+        NodeIdentificationStrategy nodeIdentificationStrategy = gateway.nodeIdentificationStrategy();
+        PortIdentifiesNodeIdentificationStrategy portStrategy = null;
+        SniHostIdentifiesNodeIdentificationStrategy sniStrategy = null;
+        if (nodeIdentificationStrategy instanceof PortIdentifiesNodeIdentificationStrategy port) {
+            portStrategy = port;
+        }
+        else if (nodeIdentificationStrategy instanceof SniHostIdentifiesNodeIdentificationStrategy sniHost) {
+            sniStrategy = sniHost;
+        }
+        else {
+            throw new IllegalStateException("Unsupported node identification strategy: " + nodeIdentificationStrategy);
+        }
         return new ConfigurationFragment<>(new VirtualClusterGateway("default",
-                new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", instance.firstIdentifyingPort()),
-                        qualifiedServiceHost(instance.definition()), null,
-                        portRanges),
-                null,
+                portStrategy,
+                sniStrategy,
                 tlsConfigFragment.fragment()), volumes, mounts);
     }
 
@@ -323,10 +315,6 @@ public class KafkaProxyReconciler implements
                                 trustProvider.orElse(null),
                                 buildCipherSuites(ingressTls.getCipherSuites()).orElse(null),
                                 buildProtocols(ingressTls.getProtocols()).orElse(null))));
-    }
-
-    private static String qualifiedServiceHost(ClusterIPIngressDefinition definition) {
-        return name(definition.cluster()) + "-" + name(definition.resource()) + "." + namespace(definition.cluster()) + ".svc.cluster.local";
     }
 
     private static ConfigurationFragment<TargetCluster> buildTargetCluster(KafkaService kafkaServiceRef) {

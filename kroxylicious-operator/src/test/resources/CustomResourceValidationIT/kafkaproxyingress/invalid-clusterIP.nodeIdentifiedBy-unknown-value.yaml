@@ -1,0 +1,22 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+resource:
+  kind: KafkaProxyIngress
+  apiVersion: kroxylicious.io/v1alpha1
+  metadata:
+    name: cluster-ip-bar
+    namespace: proxy-ns
+    generation: 2
+  spec:
+    proxyRef:
+      name: "my-proxy"
+    clusterIP:
+      protocol: 'TLS'
+      nodeIdentifiedBy: 'INCORRECT!'
+expectFailureMessageToContain: |
+  spec.clusterIP.nodeIdentifiedBy: Unsupported value: "INCORRECT!"

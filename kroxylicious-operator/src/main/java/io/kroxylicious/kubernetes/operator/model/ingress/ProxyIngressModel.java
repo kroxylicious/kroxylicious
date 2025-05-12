@@ -27,7 +27,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
  * Different ingresses may need different resources on the pod, like unique identifying ports that
  * the proxy can use to determine the upstream nodes, or a shared port.
  * This also is a place where we can transform a single KafkaProxyIngress specification into multiple
- * Ingress instances (numerous virtual clusters can refer to the same ingress), with it own unique
+ * IngressModel instances (numerous virtual clusters can refer to the same ingress), with it own unique
  * resource allocation in the proxy pod.
  * It also describes invalid ingresses
  * @param clusters the list of cluster models, note that we do not consider if the clusters are broken yet
@@ -40,21 +40,35 @@ public record ProxyIngressModel(List<VirtualClusterIngressModel> clusters) {
                 .findFirst();
     }
 
-    public record VirtualClusterIngressModel(VirtualKafkaCluster cluster, List<IngressModel> ingressModels) {
+    /**
+     *
+     * @param cluster cluster
+     * @param ingressModelResults the ingress model results, one per ingress in the VKC spec.ingresses in the same order
+     */
+    public record VirtualClusterIngressModel(VirtualKafkaCluster cluster, List<IngressModelResult> ingressModelResults) {
 
         public Stream<Service> services() {
-            return ingressModels.stream().flatMap(it -> it.ingressInstance().services()).map(ServiceBuilder::build);
+            return ingressModelResults.stream().flatMap(it -> it.ingressModel().services()).map(ServiceBuilder::build);
         }
 
         public Set<IngressConflictException> ingressExceptions() {
-            return ingressModels.stream().flatMap(it -> Stream.ofNullable(it.exception)).collect(Collectors.toSet());
+            return ingressModelResults.stream().flatMap(it -> Stream.ofNullable(it.exception)).collect(Collectors.toSet());
+        }
+
+        public boolean requiresSharedTLSPort() {
+            return ingressModelResults.stream().anyMatch(ingressModelResult -> ingressModelResult.ingressModel().requiresSharedTLSPort());
         }
     }
 
-    public record IngressModel(IngressInstance ingressInstance, @Nullable IngressConflictException exception) {
+    /**
+     * The result of modelling a single ingress from a VKC spec.ingresses array into an IngressModel
+     * @param ingressModel the ingress model
+     * @param exception an exception if there was a conflict, null otherwise
+     */
+    public record IngressModelResult(IngressModel ingressModel, @Nullable IngressConflictException exception) {
 
         public Stream<ContainerPort> proxyContainerPorts() {
-            return ingressInstance.proxyContainerPorts();
+            return ingressModel.proxyContainerPorts();
         }
 
     }
