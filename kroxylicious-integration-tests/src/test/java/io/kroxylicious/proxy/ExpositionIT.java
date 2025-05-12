@@ -107,7 +107,9 @@ class ExpositionIT extends BaseIT {
                                              @BrokerCluster(numBrokers = 2) KafkaCluster cluster) {
         virtualClusterBuilder
                 .withName("demo")
-                .editOrNewTargetCluster().withBootstrapServers(cluster.getBootstrapServers()).endTargetCluster();
+                .withNewTargetCluster()
+                .withBootstrapServers(cluster.getBootstrapServers())
+                .endTargetCluster();
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters(virtualClusterBuilder.build());
 
@@ -434,8 +436,6 @@ class ExpositionIT extends BaseIT {
         return Stream.of(
                 argumentSet("PortIdentifiesNode",
                         new VirtualClusterBuilder()
-                                .withNewTargetCluster()
-                                .endTargetCluster()
                                 .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                         .withNewTls()
                                         .withNewKeyStoreKey()
@@ -449,8 +449,6 @@ class ExpositionIT extends BaseIT {
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, portPerBrokerKeystoreTrustStorePair.password())),
                 argumentSet("SniHostIdentifiesNode",
                         new VirtualClusterBuilder()
-                                .withNewTargetCluster()
-                                .endTargetCluster()
                                 .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(SNI_BOOTSTRAP.toString(), SNI_BROKER_ADDRESS_PATTERN)
                                         .withNewTls()
                                         .withNewKeyStoreKey()
@@ -519,7 +517,9 @@ class ExpositionIT extends BaseIT {
                                                                                    KafkaCluster cluster) {
         virtualClusterBuilder
                 .withName("demo")
-                .editOrNewTargetCluster().withBootstrapServers(cluster.getBootstrapServers()).endTargetCluster();
+                .withNewTargetCluster()
+                .withBootstrapServers(cluster.getBootstrapServers())
+                .endTargetCluster();
 
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters(virtualClusterBuilder.build());
@@ -560,7 +560,9 @@ class ExpositionIT extends BaseIT {
                                    @BrokerCluster KafkaCluster cluster) {
         virtualClusterBuilder
                 .withName("demo")
-                .editOrNewTargetCluster().withBootstrapServers(cluster.getBootstrapServers()).endTargetCluster();
+                .withNewTargetCluster()
+                .withBootstrapServers(cluster.getBootstrapServers())
+                .endTargetCluster();
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters(virtualClusterBuilder.build());
 
