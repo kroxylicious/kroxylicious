@@ -43,7 +43,6 @@ data:
           key:
             privateKeyFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.key"
             certificateFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.crt"
-          trust: {}
           cipherSuites:
             denied:
             - "TLS_KRB5_WITH_3DES_EDE_CBC_MD5"
