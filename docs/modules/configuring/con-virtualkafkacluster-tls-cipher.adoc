@@ -7,7 +7,9 @@
 
 include::../../snippets/snip-tls-cipher-suite.adoc[]
 
-.Example `VirtualKafkaCluster` configured so that the proxy will negotiate TLS connection using only the listed ciphers.
+You can restrict which TLS cipher suites the proxy uses when negotiating client-to-proxy connections by configuring the `cipherSuites` property.
+
+.Example `VirtualKafkaCluster` configuration using cipherSuites to allow specific ciphers
 [source,yaml]
 ----
 kind: VirtualKafkaCluster
@@ -27,10 +29,10 @@ spec:
            - TLS_AES_256_GCM_SHA384
 
 ----
-<1> The `cipherSuites` object configures the cipher suites.
-<2> `allow` lists the cipher suites which are permitted.
+<1> Configures the cipher suites used by the proxy.
+<2> Lists the cipher suites explicitly allowed for TLS negotiation.
 
-The `cipherSuites` property also supports `deny`, if you prefer to list the cipher suites to exclude instead.
+Alternatively, you can use `deny` to specify cipher suites to exclude.
 
 The names of the cipher suites supported depend on the JVM in the proxy container image.
 See {cipherSuiteNames}.

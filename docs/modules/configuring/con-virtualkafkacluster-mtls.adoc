@@ -5,10 +5,10 @@
 [id='con-kafka-client-mtls-{context}']
 = Mutual TLS configuration for client-to-proxy connections
 
-You can configure a virtual cluster ingress to request or require that the Kafka client authenticates to the proxy using TLS.
-This is known as mutual TLS (mTLS), because both the client and the proxy authenticate each other using TLS.
+You can configure a virtual cluster ingress to request or require Kafka clients to authenticate to the proxy using TLS.
+This configuration is known as mutual TLS (mTLS), because both the client and the proxy authenticate each other using TLS.
 
-.Example `VirtualKafkaCluster` configured so that the proxy will *require* Kafka clients to present a trusted TLS client certificate.
+.Example `VirtualKafkaCluster` configuration requiring clients to present a trusted certificate
 [source,yaml]
 ----
 kind: VirtualKafkaCluster
@@ -28,8 +28,8 @@ spec:
           key: trusted-cas.pem # <4>
         tlsClientAuthentication: REQUIRED <5>
 ----
-<1> The `trustAnchorRef` property references a separate Kubernetes resource which contains the CA certificates to be trusted.
+<1> References a separate Kubernetes resource containing the trusted CA certificates.
 <2> The `kind` is optional and defaults to `ConfigMap`.
-<3> The `name` of the resource of the given `kind`. This resource must exist in the same namespace as the `VirtualKafkaCluster`
-<4> The `key` identifies the entry in the given resource. The corresponding value must be a set of CA certificates. Supported formats for the bundle are: PEM, PKCS#12 and JKS.
-<5> The `tlsClientAuthentication` property specifies whether client authentication is required (`REQUIRED`), requested (`REQUESTED`), or disabled (`NONE`). When a `trustAnchorRef` is given the default is `REQUIRED`.
+<3> Name of the resource of the given `kind`, which must exist in the same namespace as the `VirtualKafkaCluster`.
+<4> Key identifying the entry in the given resource. The corresponding value must be a set of CA certificates. Supported formats for the bundle are: `PEM`, `PKCS#12`, and `JKS`.
+<5> Specifies whether client authentication is required (`REQUIRED`), requested (`REQUESTED`), or disabled (`NONE`). If a `trustAnchorRef` is specified, the default is `REQUIRED`.
