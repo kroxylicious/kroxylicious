@@ -50,7 +50,6 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
 import io.kroxylicious.kubernetes.api.common.CipherSuites;
 import io.kroxylicious.kubernetes.api.common.Condition;
-import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.common.Protocols;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
@@ -70,7 +69,8 @@ import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.ingress.ClusterIPIngressDefinition;
 import io.kroxylicious.kubernetes.operator.model.ingress.ClusterIPIngressDefinition.ClusterIPIngressInstance;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
-import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
+import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
+import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedRange;
@@ -209,17 +209,17 @@ public class KafkaProxyReconciler implements
 
     private static List<ConfigurationFragment<VirtualCluster>> buildVirtualClusters(Set<String> successfullyBuiltFilterNames, ProxyModel model) {
         return model.clustersWithValidIngresses().stream()
-                .filter(cluster -> Optional.ofNullable(cluster.getSpec().getFilterRefs()).stream().flatMap(Collection::stream).allMatch(
-                        filters -> successfullyBuiltFilterNames.contains(filterDefinitionName(filters))))
-                .map(cluster -> buildVirtualCluster(cluster, model.resolutionResult().kafkaServiceRef(cluster).orElseThrow(), model.ingressModel()))
+                .filter(cluster -> cluster.filterResolutionResults().stream().allMatch(
+                        filterResult -> successfullyBuiltFilterNames.contains(filterDefinitionName(filterResult.reference()))))
+                .map(cluster -> buildVirtualCluster(cluster, model.ingressModel()))
                 .toList();
     }
 
     private List<ConfigurationFragment<NamedFilterDefinition>> buildFilterDefinitions(ProxyModel model) {
         List<ConfigurationFragment<NamedFilterDefinition>> filterDefinitions = new ArrayList<>();
         Set<NamedFilterDefinition> uniqueValues = new HashSet<>();
-        for (VirtualKafkaCluster cluster : model.clustersWithValidIngresses()) {
-            for (ConfigurationFragment<NamedFilterDefinition> namedFilterDefinitionAndFiles : filterDefinitions(cluster, model.resolutionResult())) {
+        for (ClusterResolutionResult cluster : model.clustersWithValidIngresses()) {
+            for (ConfigurationFragment<NamedFilterDefinition> namedFilterDefinitionAndFiles : filterDefinitions(cluster)) {
                 if (uniqueValues.add(namedFilterDefinitionAndFiles.fragment())) {
                     filterDefinitions.add(namedFilterDefinitionAndFiles);
                 }
@@ -229,34 +229,31 @@ public class KafkaProxyReconciler implements
         return filterDefinitions;
     }
 
-    private static List<String> filterNamesForCluster(VirtualKafkaCluster cluster) {
-        return Optional.ofNullable(cluster.getSpec().getFilterRefs())
-                .orElse(List.of())
-                .stream()
+    private static List<String> filterNamesForCluster(ClusterResolutionResult cluster) {
+        return cluster.filterResolutionResults().stream()
+                .map(ResolutionResult::reference)
                 .map(KafkaProxyReconciler::filterDefinitionName)
                 .toList();
     }
 
-    private static String filterDefinitionName(FilterRef filterCrRef) {
+    private static String filterDefinitionName(LocalRef<?> filterCrRef) {
         return filterCrRef.getName() + "." + filterCrRef.getKind() + "." + filterCrRef.getGroup();
     }
 
-    private List<ConfigurationFragment<NamedFilterDefinition>> filterDefinitions(VirtualKafkaCluster cluster,
-                                                                                 ProxyResolutionResult resolutionResult) {
+    private List<ConfigurationFragment<NamedFilterDefinition>> filterDefinitions(ClusterResolutionResult cluster) {
 
-        return Optional.ofNullable(cluster.getSpec().getFilterRefs()).orElse(List.of()).stream().map(filterCrRef -> {
+        return cluster.filterResolutionResults().stream()
+                .map(ResolutionResult::referentResource)
+                .map(filterCr -> {
+                    String filterDefinitionName = filterDefinitionName(ResourcesUtil.toLocalRef(filterCr));
+                    var spec = filterCr.getSpec();
+                    String type = spec.getType();
+                    SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(spec);
+                    return new ConfigurationFragment<>(new NamedFilterDefinition(filterDefinitionName, type, interpolationResult.config()),
+                            interpolationResult.volumes(),
+                            interpolationResult.mounts());
 
-            String filterDefinitionName = filterDefinitionName(filterCrRef);
-
-            var filterCr = resolutionResult.filter(filterCrRef).orElseThrow();
-            var spec = filterCr.getSpec();
-            String type = spec.getType();
-            SecureConfigInterpolator.InterpolationResult interpolationResult = interpolateConfig(spec);
-            return new ConfigurationFragment<>(new NamedFilterDefinition(filterDefinitionName, type, interpolationResult.config()),
-                    interpolationResult.volumes(),
-                    interpolationResult.mounts());
-
-        }).toList();
+                }).toList();
     }
 
     private SecureConfigInterpolator.InterpolationResult interpolateConfig(KafkaProtocolFilterSpec spec) {
@@ -264,11 +261,10 @@ public class KafkaProxyReconciler implements
         return secureConfigInterpolator.interpolate(configTemplate);
     }
 
-    private static ConfigurationFragment<VirtualCluster> buildVirtualCluster(VirtualKafkaCluster cluster,
-                                                                             KafkaService kafkaServiceRef,
+    private static ConfigurationFragment<VirtualCluster> buildVirtualCluster(ClusterResolutionResult cluster,
                                                                              ProxyIngressModel ingressModel) {
 
-        ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(cluster).orElseThrow();
+        ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(cluster.cluster()).orElseThrow();
         var gatewayFragments = ConfigurationFragment.reduce(virtualClusterIngressModel.ingressModels().stream()
                 .map(ProxyIngressModel.IngressModel::ingressInstance)
                 .map(ingressInstance -> {
@@ -276,15 +272,17 @@ public class KafkaProxyReconciler implements
                     return buildVirtualClusterGateway(instance);
                 }).toList());
 
-        var virtualClusterConfigurationFragment = gatewayFragments.flatMap(clusterCfs -> buildTargetCluster(kafkaServiceRef).map(targetCluster -> new VirtualCluster(
-                name(cluster),
-                targetCluster,
-                null,
-                Optional.empty(),
-                clusterCfs,
-                false,
-                false,
-                filterNamesForCluster(cluster))));
+        KafkaService kafkaServiceRef = cluster.serviceResolutionResult().referentResource();
+        var virtualClusterConfigurationFragment = gatewayFragments
+                .flatMap(clusterCfs -> buildTargetCluster(kafkaServiceRef).map(targetCluster -> new VirtualCluster(
+                        name(cluster.cluster()),
+                        targetCluster,
+                        null,
+                        Optional.empty(),
+                        clusterCfs,
+                        false,
+                        false,
+                        filterNamesForCluster(cluster))));
         return ConfigurationFragment.combine(virtualClusterConfigurationFragment,
                 gatewayFragments,
                 (virtualCluster, gateways) -> virtualCluster);
