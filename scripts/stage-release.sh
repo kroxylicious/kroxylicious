@@ -147,7 +147,7 @@ updateVersions "${INITIAL_VERSION}" "${RELEASE_VERSION}"
 #Set the release version in the Changelog
 replaceInFile "s_##\sSNAPSHOT_## ${RELEASE_VERSION//./\\.}_g" CHANGELOG.md
 
-replaceInFile "s_:ProductVersion:.*_:ProductVersion: ${RELEASE_VERSION%.*}_g" docs/_assets/attributes.adoc
+replaceInFile "s_:KroxyliciousVersion:.*_:KroxyliciousVersion: ${RELEASE_VERSION%.*}_g" docs/_assets/attributes.adoc
 replaceInFile "s_:gitRef:.*_:gitRef: releases/tag/v${RELEASE_VERSION//./\\.}_g" docs/_assets/attributes.adoc
 
 echo "Validating things still build"

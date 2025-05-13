@@ -152,19 +152,19 @@ class KafkaProtocolFilterReconcilerTest {
     // @formatter:on
 
     public static List<Arguments> shouldSetResolvedRefs() {
-        Context<KafkaProtocolFilter> bothExist = mock(Context.class);
+        Context<KafkaProtocolFilter> bothExist = mockContext();
         when(bothExist.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(SECRET));
         when(bothExist.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of(CONFIG_MAP));
 
-        Context<KafkaProtocolFilter> secretExists = mock(Context.class);
+        Context<KafkaProtocolFilter> secretExists = mockContext();
         when(secretExists.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(SECRET));
         when(secretExists.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of());
 
-        Context<KafkaProtocolFilter> cmExists = mock(Context.class);
+        Context<KafkaProtocolFilter> cmExists = mockContext();
         when(cmExists.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of());
         when(cmExists.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of(CONFIG_MAP));
 
-        Context<KafkaProtocolFilter> neitherExists = mock(Context.class);
+        Context<KafkaProtocolFilter> neitherExists = mockContext();
         when(neitherExists.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of());
         when(neitherExists.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of());
         return List.of(
@@ -233,7 +233,7 @@ class KafkaProtocolFilterReconcilerTest {
     @MethodSource
     void shouldSetReferentsChecksumAnnotation(Set<Secret> secretsInContext, Set<ConfigMap> configMapsInContext, KafkaProtocolFilter filter, String expectedChecksum) {
         // given
-        Context<KafkaProtocolFilter> bothExist = mock(Context.class);
+        Context<KafkaProtocolFilter> bothExist = mockContext();
         when(bothExist.getSecondaryResourcesAsStream(Secret.class)).thenReturn(secretsInContext.stream());
         when(bothExist.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(configMapsInContext.stream());
         var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
@@ -251,7 +251,7 @@ class KafkaProtocolFilterReconcilerTest {
     @Test
     void shouldNotSetReferentsChecksumAnnotationWhenNoReferents() {
         // given
-        Context<KafkaProtocolFilter> bothExist = mock(Context.class);
+        Context<KafkaProtocolFilter> bothExist = mockContext();
         when(bothExist.getSecondaryResources(Secret.class)).thenReturn(Set.of());
         when(bothExist.getSecondaryResources(ConfigMap.class)).thenReturn(Set.of(CONFIG_MAP));
         var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
@@ -266,12 +266,17 @@ class KafkaProtocolFilterReconcilerTest {
         assertThat(update.getResource().get().getMetadata().getAnnotations()).doesNotContainKey(REFERENT_CHECKSUM_ANNOTATION);
     }
 
+    @SuppressWarnings("unchecked")
+    private static Context<KafkaProtocolFilter> mockContext() {
+        return mock(Context.class);
+    }
+
     @Test
     void shouldSetResolvedRefsToUnknown() {
         // given
         var reconciler = new KafkaProtocolFilterReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR);
 
-        Context<KafkaProtocolFilter> context = mock(Context.class);
+        Context<KafkaProtocolFilter> context = mockContext();
 
         // when
         var update = reconciler.updateErrorStatus(FILTER, context, new RuntimeException("Boom!"));

@@ -33,7 +33,7 @@ import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
-import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
@@ -144,8 +144,7 @@ public final class KafkaServiceReconciler implements
                     .map(KafkaServiceSpec::getTls)
                     .map(Tls::getCertificateRef);
             if (certRefOpt.isPresent()) {
-                String path = "spec.tls.certificateRef";
-                ResourceCheckResult<KafkaService> result = ResourcesUtil.checkCertRef(service, certRefOpt.get(), path, statusFactory, context,
+                ResourceCheckResult<KafkaService> result = ResourcesUtil.checkCertRef(service, certRefOpt.get(), SPEC_TLS_CERTIFICATE_REF, statusFactory, context,
                         SECRETS_EVENT_SOURCE_NAME);
                 updatedService = result.resource();
                 referents.addAll(result.referents());
@@ -153,8 +152,14 @@ public final class KafkaServiceReconciler implements
         }
 
         if (updatedService == null) {
+            var checksumGenerator = new Crc32ChecksumGenerator();
+            for (HasMetadata metadataSource : referents) {
+                var objectMeta = metadataSource.getMetadata();
+                checksumGenerator.appendMetadata(objectMeta);
+            }
+
             updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs,
-                    MetadataChecksumGenerator.checksumFor(referents));
+                    checksumGenerator.encode());
         }
 
         UpdateControl<KafkaService> uc = UpdateControl.patchResourceAndStatus(updatedService);
