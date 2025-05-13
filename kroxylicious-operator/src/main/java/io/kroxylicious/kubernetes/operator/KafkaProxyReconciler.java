@@ -84,7 +84,6 @@ import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.KeyPair;
 import io.kroxylicious.proxy.config.tls.KeyProvider;
-import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
 import io.kroxylicious.proxy.config.tls.ServerOptions;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
@@ -321,7 +320,7 @@ public class KafkaProxyReconciler implements
                 buildTrustProvider(true, ingressTls.getTrustAnchorRef(), ingressTls.getTlsClientAuthentication(), SERVER_TRUSTED_CERTS_BASE_DIR),
                 (keyProviderOpt, trustProvider) -> Optional.of(
                         new Tls(keyProviderOpt.orElse(null),
-                                trustProvider,
+                                trustProvider.orElse(null),
                                 buildCipherSuites(ingressTls.getCipherSuites()).orElse(null),
                                 buildProtocols(ingressTls.getProtocols()).orElse(null))));
     }
@@ -343,7 +342,7 @@ public class KafkaProxyReconciler implements
                         buildTrustProvider(false, serviceTls.getTrustAnchorRef(), null, CLIENT_TRUSTED_CERTS_BASE_DIR),
                         (keyProviderOpt, trustProvider) -> Optional.of(
                                 new Tls(keyProviderOpt.orElse(null),
-                                        trustProvider,
+                                        trustProvider.orElse(null),
                                         buildCipherSuites(serviceTls.getCipherSuites()).orElse(null),
                                         buildProtocols(serviceTls.getProtocols()).orElse(null)))))
                 .orElse(ConfigurationFragment.empty());
@@ -374,10 +373,10 @@ public class KafkaProxyReconciler implements
                 }).orElse(ConfigurationFragment.empty());
     }
 
-    private static ConfigurationFragment<TrustProvider> buildTrustProvider(boolean forServer,
-                                                                           @Nullable TrustAnchorRef trustAnchorRef,
-                                                                           @Nullable TlsClientAuthentication clientAuthentication,
-                                                                           Path parent) {
+    private static ConfigurationFragment<Optional<TrustProvider>> buildTrustProvider(boolean forServer,
+                                                                                     @Nullable TrustAnchorRef trustAnchorRef,
+                                                                                     @Nullable TlsClientAuthentication clientAuthentication,
+                                                                                     Path parent) {
         return Optional.ofNullable(trustAnchorRef)
                 .filter(tar -> ResourcesUtil.isConfigMap(tar.getRef()))
                 .map(tar -> {
@@ -400,10 +399,10 @@ public class KafkaProxyReconciler implements
                             null,
                             "PEM",
                             forServer ? buildTlsServerOptions(clientAuthentication) : null);
-                    return new ConfigurationFragment<>(trustProvider,
+                    return new ConfigurationFragment<>(Optional.of(trustProvider),
                             Set.of(volume),
                             Set.of(mount));
-                }).orElse(new ConfigurationFragment<>(PlatformTrustProvider.INSTANCE, Set.of(), Set.of()));
+                }).orElse(ConfigurationFragment.empty());
     }
 
     /**
