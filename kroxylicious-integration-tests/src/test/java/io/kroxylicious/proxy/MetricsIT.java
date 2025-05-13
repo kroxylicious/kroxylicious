@@ -8,13 +8,12 @@ package io.kroxylicious.proxy;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,16 +37,14 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
-import static org.apache.kafka.clients.CommonClientConfigs.GROUP_ID_CONFIG;
-import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
-import static org.apache.kafka.clients.producer.ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG;
-import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginCallbackHandler.CLIENT_ID_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
 class MetricsIT {
+
+    private static final String TOPIC_1 = "my-test-topic";
 
     @BeforeEach
     public void beforeEach() {
@@ -166,11 +163,48 @@ class MetricsIT {
     }
 
     @Test
-    void testKroxyliciousInboundDownstreamMessages(KafkaCluster cluster, Topic topic) {
+    void shouldIncrementDownstreamMessagesOnProduceRequestWithoutFilter(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
+        var config = proxy(cluster)
+                .withNewManagement()
+                .withNewEndpoints()
+                .withNewPrometheus()
+                .endPrometheus()
+                .endEndpoints()
+                .endManagement();
 
-        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder("filter-1",
-                ProduceRequestTransformation.class.getName())
-                .withConfig("transformation", TestEncoderFactory.class.getName()).build();
+        try (var tester = kroxyliciousTester(config);
+                var managementClient = tester.getManagementClient();
+                var producer = tester.producer()) {
+
+            var metricList = managementClient.scrapeMetrics();
+
+            var inboundDownstreamMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_messages_total", null);
+
+            var inboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_decoded_messages_total", null);
+
+             producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
+
+            // updated metrics after some message were produced
+            var updatedMetricsList = managementClient.scrapeMetrics();
+
+            var updatedInboundDownstreamMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_messages_total", null);
+            var updatedInboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_decoded_messages_total", null);
+
+            assertThat(updatedInboundDownstreamMessagesMetricsValue).isGreaterThan(inboundDownstreamMessagesMetricsValue);
+            assertThat(updatedInboundDownstreamDecodedMessagesMetricsValue).isGreaterThan(inboundDownstreamDecodedMessagesMetricsValue);
+
+        }
+    }
+
+    @Test
+    void shouldIncrementDownstreamMessagesOnProduceRequestWithFilter(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
+
+        // the downstream messages and decoded messages is not yet differentiated by ApiKey
+        final UUID configInstance = UUID.randomUUID();
+
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder("filter",
+                CreateTopicRequest.class.getName()).
+                withConfig("configInstanceId", configInstance).build();
 
         var config = proxy(cluster)
                 .addToFilterDefinitions(namedFilterDefinition)
@@ -182,39 +216,116 @@ class MetricsIT {
                 .endEndpoints()
                 .endManagement();
 
-
         try (var tester = kroxyliciousTester(config);
-                var ahc = tester.getManagementClient();
-                var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldModifyProduceMessage", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
-                var consumer = tester
-                        .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(GROUP_ID_CONFIG, "my-group-id", AUTO_OFFSET_RESET_CONFIG, "earliest"));
-        ) {
+                var managementClient = tester.getManagementClient();
+                var producer = tester.producer()) {
 
-            var metricList = ahc.scrapeMetrics();
+            var metricList = managementClient.scrapeMetrics();
 
-            var inboundDownstreamMessagesMetricsValue = metricList.stream().filter(simpleMetric -> simpleMetric.name()
-                    .equals("kroxylicious_inbound_downstream_messages_total")).findFirst().get().value();
-            var inboundDownstreamDecodedMessagesMetricsValue = metricList.stream().filter(simpleMetric -> simpleMetric.name()
-                    .equals("kroxylicious_inbound_downstream_decoded_messages_total")).findFirst().get().value();
+            var inboundDownstreamMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_messages_total", null);
 
-            consumer.subscribe(Set.of(topic.name()));
+            var inboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_decoded_messages_total", null);
 
             producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
 
-            //updated metrics after some message were produced
-            metricList = ahc.scrapeMetrics();
+            // updated metrics after some message were produced
+            var updatedMetricsList = managementClient.scrapeMetrics();
 
-            var updatedInboundDownstreamMessagesMetricsValue = metricList.stream().filter(simpleMetric -> simpleMetric.name()
-                    .equals("kroxylicious_inbound_downstream_messages_total")).findFirst().get().value();
-            var updatedInboundDownstreamDecodedMessagesMetricsValue = metricList.stream().filter(simpleMetric -> simpleMetric.name()
-                    .equals("kroxylicious_inbound_downstream_decoded_messages_total")).findFirst().get().value();
+            var updatedInboundDownstreamMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_messages_total", null);
+            var updatedInboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_decoded_messages_total", null);
 
-            Assertions.assertTrue(inboundDownstreamMessagesMetricsValue < updatedInboundDownstreamMessagesMetricsValue);
-            Assertions.assertTrue(inboundDownstreamDecodedMessagesMetricsValue < updatedInboundDownstreamDecodedMessagesMetricsValue);
+            assertThat(updatedInboundDownstreamMessagesMetricsValue).isGreaterThan(inboundDownstreamMessagesMetricsValue);
+            assertThat(updatedInboundDownstreamDecodedMessagesMetricsValue).isGreaterThan(inboundDownstreamDecodedMessagesMetricsValue);
 
         }
-        catch (ExecutionException | InterruptedException e) {
-            throw new RuntimeException(e);
+    }
+
+    @Test
+    void shouldIncrementConnectionMetrics(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
+        var config = proxy(cluster)
+                .addToFilterDefinitions()
+                .addToDefaultFilters()
+                .withNewManagement()
+                .withNewEndpoints()
+                .withNewPrometheus()
+                .endPrometheus()
+                .endEndpoints()
+                .endManagement();
+
+        try (var tester = kroxyliciousTester(config);
+                var managementClient = tester.getManagementClient()) {
+
+            var metricsList = managementClient.scrapeMetrics();
+
+            assertThat(checkMetricsExistOrNot(metricsList, "kroxylicious_downstream_connections_total", null)).isEqualTo(false);
+            assertThat(checkMetricsExistOrNot(metricsList, "kroxylicious_upstream_connections_total", null)).isEqualTo(false);
+
+            var producer = tester.producer();
+            producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
+
+            // updated metrics after some message were produced
+            var updatedMetricsList = managementClient.scrapeMetrics();
+
+            assertThat(checkMetricsExistOrNot(updatedMetricsList, "kroxylicious_downstream_connections_total", null)).isEqualTo(true);
+
+            assertThat(getMetricsValue(updatedMetricsList, "kroxylicious_downstream_connections_total", null)).isGreaterThan(0);
+            assertThat(getMetricsValue(updatedMetricsList, "kroxylicious_upstream_connections_total", null)).isGreaterThan(0);
+
+        }
+    }
+
+    @Test
+    void shouldIncrementPayloadSizeBytesMetricsOnProduceRequest(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
+        var config = proxy(cluster)
+                .addToFilterDefinitions()
+                .addToDefaultFilters()
+                .withNewManagement()
+                .withNewEndpoints()
+                .withNewPrometheus()
+                .endPrometheus()
+                .endEndpoints()
+                .endManagement();
+
+        try (var tester = kroxyliciousTester(config);
+                var managementClient = tester.getManagementClient();
+                var producer = tester.producer();) {
+
+            var metricList = managementClient.scrapeMetrics();
+
+            assertThat(checkMetricsExistOrNot(metricList, "kroxylicious_payload_size_bytes_count", ApiKeys.PRODUCE)).isEqualTo(false);
+            assertThat(checkMetricsExistOrNot(metricList, "kroxylicious_payload_size_bytes_sum", ApiKeys.PRODUCE)).isEqualTo(false);
+
+            producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
+            producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
+
+            // updated metrics after some message were produced
+            var updatedMetricList = managementClient.scrapeMetrics();
+
+            assertThat(checkMetricsExistOrNot(updatedMetricList, "kroxylicious_payload_size_bytes_count", ApiKeys.PRODUCE)).isEqualTo(true);
+            assertThat(getMetricsValue(updatedMetricList, "kroxylicious_payload_size_bytes_count", ApiKeys.PRODUCE)).isGreaterThan(0);
+
+        }
+    }
+
+    boolean checkMetricsExistOrNot(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
+
+        if (apiKey != null) {
+            return metricList.stream().anyMatch(simpleMetric -> simpleMetric.name()
+                    .equals(metricsName)  && simpleMetric.labels().containsValue(apiKey.toString()));
+        } else {
+            return metricList.stream().anyMatch(simpleMetric -> simpleMetric.name()
+                    .equals(metricsName));
+        }
+    }
+
+    double getMetricsValue(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
+
+        if (apiKey != null) {
+            return metricList.stream().filter(simpleMetric -> simpleMetric.name().equals(metricsName)
+                    && simpleMetric.labels().containsValue(apiKey.toString())).findFirst().get().value();
+
+        } else {
+            return metricList.stream().filter(simpleMetric -> simpleMetric.name().equals(metricsName)).findFirst().get().value();
         }
     }
 
