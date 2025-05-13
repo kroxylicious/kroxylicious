@@ -15,12 +15,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An installation test which depends on CRC/{@code oc}.
+ * An installation test which depends on Kind/{@code kind}.
  * This test:
  * <ul>
- * <li>assumes CRC is running, so the test will be skipped if it's not.</li>
- * <li>loads the image using {@code oc import-image}.</li>
- * <li>cleans up the image using {@code oc delete imagestream}.</li>
+ * <li>assumes kind a kind cluster is available, so the test will be skipped if it's not.</li>
+ * <li>loads the image using {@code kind load image-archive}.</li>
  *
  * </ul>
  */
@@ -55,6 +54,6 @@ class KindInstallKT extends AbstractInstallKT {
     }
 
     public static boolean areToolsInstalled() {
-        return isToolOnPath("kind");
+        return isToolOnPath("kind") && testImageAvailable();
     }
 }

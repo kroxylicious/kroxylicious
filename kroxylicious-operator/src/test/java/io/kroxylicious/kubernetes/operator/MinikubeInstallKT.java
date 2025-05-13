@@ -12,6 +12,7 @@ import java.nio.file.Path;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +28,7 @@ import static org.assertj.core.api.Assumptions.assumeThatCode;
  * <li>cleans up the image using {@code minikube image rm}.</li>
  * </ul>
  */
+@EnabledIf("io.kroxylicious.kubernetes.operator.MinikubeInstallKT#areToolsInstalled")
 class MinikubeInstallKT extends AbstractInstallKT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MinikubeInstallKT.class);
@@ -75,4 +77,7 @@ class MinikubeInstallKT extends AbstractInstallKT {
         }
     }
 
+    public static boolean areToolsInstalled() {
+        return isToolOnPath("minikube") && testImageAvailable();
+    }
 }

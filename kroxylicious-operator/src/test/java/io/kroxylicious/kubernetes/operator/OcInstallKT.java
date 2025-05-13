@@ -11,6 +11,7 @@ import java.io.IOException;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +27,7 @@ import static org.assertj.core.api.Assumptions.assumeThatCode;
  *
  * </ul>
  */
+@EnabledIf("io.kroxylicious.kubernetes.operator.OcInstallKT#areToolsInstalled")
 class OcInstallKT extends AbstractInstallKT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OcInstallKT.class);
@@ -73,4 +75,7 @@ class OcInstallKT extends AbstractInstallKT {
         }
     }
 
+    public static boolean areToolsInstalled() {
+        return isToolOnPath("oc") && testImageAvailable();
+    }
 }

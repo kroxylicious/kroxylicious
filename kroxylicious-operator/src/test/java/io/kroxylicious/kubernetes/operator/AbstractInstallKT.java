@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -16,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.assertj.core.api.Assumptions.assumeThatCode;
 
 /**
@@ -68,6 +70,15 @@ abstract class AbstractInstallKT {
         assumeThatCode(() -> exec(tool))
                 .describedAs(tool + " must be available on the path")
                 .doesNotThrowAnyException();
+        return true;
+    }
+
+    static boolean testImageAvailable() {
+        String imageArchive = OperatorInfo.fromResource().imageArchive();
+        assumeThat(Path.of(imageArchive))
+                .describedAs("Container image archive %s must exist", imageArchive)
+                .withFailMessage("Container image archive %s did not exist", imageArchive)
+                .exists();
         return true;
     }
 
