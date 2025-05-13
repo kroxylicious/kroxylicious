@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThatCode;
 
 /**
  * An abstract test that we can install the operator.
@@ -60,6 +61,14 @@ abstract class AbstractInstallKT {
             }
             throw new AssertionError("Process " + argList + " did not complete within timeout");
         }
+    }
+
+    static boolean isToolOnPath(String tool) {
+        LOGGER.info("Checking whether {} is available", tool);
+        assumeThatCode(() -> exec(tool))
+                .describedAs(tool + " must be available on the path")
+                .doesNotThrowAnyException();
+        return true;
     }
 
     @Test
