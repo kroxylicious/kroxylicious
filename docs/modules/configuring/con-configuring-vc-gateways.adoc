@@ -225,6 +225,8 @@ The gateway exposes the following broker addresses:
 
 |===
 
+Both the `advertisedBrokerAddressPattern` and `bootstrapAddress` configuration parameters accept the `$(virtualClusterName)` replacement token, 
+which is optional. If included, `$(virtualClusterName)` is replaced with the name of the gateway's virtual cluster.
 
 .Example SNI Host Identifies Node configuration with customized advertised port
 [source,yaml]

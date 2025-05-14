@@ -7,7 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
-
+* [#2185](https://github.com/kroxylicious/kroxylicious/pull/2185) Add $(virtualClusterName) placeholders to SNI bootstrap address and advertised broker address pattern
 * [#2198](https://github.com/kroxylicious/kroxylicious/pull/2198) Require VirtualCluster name to be a valid DNS label
 * [#2188](https://github.com/kroxylicious/kroxylicious/pull/2188) Delete deprecated bootstrapAddressPattern SNI gateway property
 * [#2186](https://github.com/kroxylicious/kroxylicious/pull/2186) Remove deprecated FilterFactory implementations
@@ -29,6 +29,10 @@ Format `<github issue/pr number>: <short description>`.
 * Remove the deprecated configuration property `brokerAddressPattern` from `sniHostIdentifiesNode` gateway configuration. Use
   `advertisedBrokerAddressPattern` instead.
 * VirtualCluster names are now restricted to a maximum length of 63, and must match pattern `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` (case insensitive).
+* `virtualClusters[].gateways[].sniHostIdentifiesNode.bootstrapAddress` can now contain an optional replacement token `$(virtualClusterName)`.
+When this is present, it will be replaced with the name of that gateway's VirtualCluster.
+* `virtualClusters[].gateways[].sniHostIdentifiesNode.advertisedBrokerAddressPattern` can now contain an optional replacement token `$(virtualClusterName)`.
+When this is present, it will be replaced with the name of that gateway's VirtualCluster.
 
 ## 0.12.0
 
