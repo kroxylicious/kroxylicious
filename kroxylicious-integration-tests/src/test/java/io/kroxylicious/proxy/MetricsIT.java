@@ -25,7 +25,6 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.kroxylicious.proxy.config.MicrometerDefinitionBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
-import io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation;
 import io.kroxylicious.proxy.micrometer.CommonTagsHook;
 import io.kroxylicious.proxy.micrometer.StandardBindersHook;
 import io.kroxylicious.test.tester.SimpleMetric;
@@ -182,7 +181,7 @@ class MetricsIT {
 
             var inboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_decoded_messages_total", null);
 
-             producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
+            producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
 
             // updated metrics after some message were produced
             var updatedMetricsList = managementClient.scrapeMetrics();
@@ -203,8 +202,7 @@ class MetricsIT {
         final UUID configInstance = UUID.randomUUID();
 
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder("filter",
-                CreateTopicRequest.class.getName()).
-                withConfig("configInstanceId", configInstance).build();
+                CreateTopicRequest.class.getName()).withConfig("configInstanceId", configInstance).build();
 
         var config = proxy(cluster)
                 .addToFilterDefinitions(namedFilterDefinition)
@@ -236,7 +234,6 @@ class MetricsIT {
 
             assertThat(updatedInboundDownstreamMessagesMetricsValue).isGreaterThan(inboundDownstreamMessagesMetricsValue);
             assertThat(updatedInboundDownstreamDecodedMessagesMetricsValue).isGreaterThan(inboundDownstreamDecodedMessagesMetricsValue);
-
         }
     }
 
@@ -270,7 +267,6 @@ class MetricsIT {
 
             assertThat(getMetricsValue(updatedMetricsList, "kroxylicious_downstream_connections_total", null)).isGreaterThan(0);
             assertThat(getMetricsValue(updatedMetricsList, "kroxylicious_upstream_connections_total", null)).isGreaterThan(0);
-
         }
     }
 
@@ -303,7 +299,6 @@ class MetricsIT {
 
             assertThat(checkMetricsExistOrNot(updatedMetricList, "kroxylicious_payload_size_bytes_count", ApiKeys.PRODUCE)).isEqualTo(true);
             assertThat(getMetricsValue(updatedMetricList, "kroxylicious_payload_size_bytes_count", ApiKeys.PRODUCE)).isGreaterThan(0);
-
         }
     }
 
@@ -311,8 +306,9 @@ class MetricsIT {
 
         if (apiKey != null) {
             return metricList.stream().anyMatch(simpleMetric -> simpleMetric.name()
-                    .equals(metricsName)  && simpleMetric.labels().containsValue(apiKey.toString()));
-        } else {
+                    .equals(metricsName) && simpleMetric.labels().containsValue(apiKey.toString()));
+        }
+        else {
             return metricList.stream().anyMatch(simpleMetric -> simpleMetric.name()
                     .equals(metricsName));
         }
@@ -323,8 +319,8 @@ class MetricsIT {
         if (apiKey != null) {
             return metricList.stream().filter(simpleMetric -> simpleMetric.name().equals(metricsName)
                     && simpleMetric.labels().containsValue(apiKey.toString())).findFirst().get().value();
-
-        } else {
+        }
+        else {
             return metricList.stream().filter(simpleMetric -> simpleMetric.name().equals(metricsName)).findFirst().get().value();
         }
     }
