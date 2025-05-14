@@ -470,8 +470,9 @@ Then, when we configure a filter in Kroxylicious configuration like:
 
 [source,yaml]
 ----
-filters:
-- type: SampleFetchResponse
+filterDefinitions:
+- name: my-replacer
+  type: SampleFetchResponse
   config:
     findValue: a
     replacementValue: b

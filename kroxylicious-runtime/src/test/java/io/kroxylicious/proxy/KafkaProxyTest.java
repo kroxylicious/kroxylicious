@@ -179,7 +179,6 @@ class KafkaProxyTest {
                        - name: default
                          portIdentifiesNode:
                            bootstrapAddress: localhost:9192
-                   filters: []
                 """;
         var configParser = new ConfigParser();
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {

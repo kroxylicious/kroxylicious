@@ -27,8 +27,9 @@ You need at least two virtual clusters to apply multi-tenancy.
 +
 [source, yaml]
 ----
-filters:
-  - type: MultiTenant
+filterDefinitions:
+  - name: my-multi-tenant-filter
+    type: MultiTenant
     config:
       prefixResourceNameSeparator: "." # <1>
 ----
