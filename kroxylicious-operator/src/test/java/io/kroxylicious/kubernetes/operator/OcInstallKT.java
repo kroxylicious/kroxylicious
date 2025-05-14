@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
+import java.util.stream.Stream;
 
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
@@ -27,7 +28,7 @@ import static org.assertj.core.api.Assumptions.assumeThatCode;
  *
  * </ul>
  */
-@EnabledIf("io.kroxylicious.kubernetes.operator.OcInstallKT#areToolsInstalled")
+@EnabledIf(value = "io.kroxylicious.kubernetes.operator.OcInstallKT#isEnvironmentValid", disabledReason = "environment not usable")
 class OcInstallKT extends AbstractInstallKT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OcInstallKT.class);
@@ -42,16 +43,6 @@ class OcInstallKT extends AbstractInstallKT {
         Assertions.setDescriptionConsumer(desc -> {
             LOGGER.info("Testing assumption: \"{}\"", desc);
         });
-
-        LOGGER.info("Checking whether oc is available");
-        assumeThatCode(() -> exec("oc"))
-                .describedAs("oc must be available on the path")
-                .doesNotThrowAnyException();
-
-        LOGGER.info("Checking whether oc is logged in");
-        assumeThatCode(() -> exec("oc", "whoami"))
-                .describedAs("oc must be logged in")
-                .doesNotThrowAnyException();
 
         LOGGER.info("Logging into oc registry");
         assumeThatCode(() -> exec("oc", "registry", "login", "--insecure=true"))
@@ -75,7 +66,13 @@ class OcInstallKT extends AbstractInstallKT {
         }
     }
 
-    public static boolean areToolsInstalled() {
-        return isToolOnPath("oc") && testImageAvailable();
+    public static boolean isEnvironmentValid() throws IOException, InterruptedException {
+        validateToolsOnPath("oc");
+        return execValidate(OcInstallKT::checkKubeContext, ALWAYS_VALID, "oc", "whoami", "-c")
+                && testImageAvailable();
+    }
+
+    private static boolean checkKubeContext(Stream<String> lines) {
+        return lines.anyMatch(line -> line.contains("crc-testing"));
     }
 }

@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assumptions.assumeThatCode;
  * <li>cleans up the image using {@code minikube image rm}.</li>
  * </ul>
  */
-@EnabledIf("io.kroxylicious.kubernetes.operator.MinikubeInstallKT#areToolsInstalled")
+@EnabledIf("io.kroxylicious.kubernetes.operator.MinikubeInstallKT#isEnvironmentValid")
 class MinikubeInstallKT extends AbstractInstallKT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MinikubeInstallKT.class);
@@ -36,11 +36,13 @@ class MinikubeInstallKT extends AbstractInstallKT {
     // These are normally set automatically by mvn
     private static final String IMAGE_ARCHIVE;
     private static final String IMAGE_NAME;
+
     static {
         OperatorInfo operatorInfo = OperatorInfo.fromResource();
         IMAGE_ARCHIVE = operatorInfo.imageArchive();
         IMAGE_NAME = operatorInfo.imageName();
     }
+
     private static boolean loaded = false;
 
     @BeforeAll
@@ -77,7 +79,8 @@ class MinikubeInstallKT extends AbstractInstallKT {
         }
     }
 
-    public static boolean areToolsInstalled() {
-        return isToolOnPath("minikube") && testImageAvailable();
+    public static boolean isEnvironmentValid() throws IOException, InterruptedException {
+        validateToolsOnPath("minikube");
+        return validateKubeContext("minikube") && testImageAvailable();
     }
 }

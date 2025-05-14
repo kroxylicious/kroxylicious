@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory;
  *
  * </ul>
  */
-@EnabledIf("io.kroxylicious.kubernetes.operator.KindInstallKT#areToolsInstalled")
+@EnabledIf("io.kroxylicious.kubernetes.operator.KindInstallKT#isEnvironmentValid")
 class KindInstallKT extends AbstractInstallKT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KindInstallKT.class);
@@ -53,7 +53,8 @@ class KindInstallKT extends AbstractInstallKT {
         // }
     }
 
-    public static boolean areToolsInstalled() {
-        return isToolOnPath("kind") && testImageAvailable();
+    public static boolean isEnvironmentValid() throws IOException, InterruptedException {
+        validateToolsOnPath("kind");
+        return validateKubeContext("kind-kind") && testImageAvailable();
     }
 }
