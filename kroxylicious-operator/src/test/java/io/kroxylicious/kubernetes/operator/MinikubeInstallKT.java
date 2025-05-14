@@ -33,15 +33,8 @@ class MinikubeInstallKT extends AbstractInstallKT {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(MinikubeInstallKT.class);
 
-    // These are normally set automatically by mvn
-    private static final String IMAGE_ARCHIVE;
-    private static final String IMAGE_NAME;
-
-    static {
-        OperatorInfo operatorInfo = OperatorInfo.fromResource();
-        IMAGE_ARCHIVE = operatorInfo.imageArchive();
-        IMAGE_NAME = operatorInfo.imageName();
-    }
+    private static final String IMAGE_ARCHIVE = OperatorInfo.fromResource().imageArchive();
+    private static final String IMAGE_NAME = OperatorInfo.fromResource().imageName();
 
     private static boolean loaded = false;
 
