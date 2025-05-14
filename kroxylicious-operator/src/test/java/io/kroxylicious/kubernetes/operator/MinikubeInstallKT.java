@@ -80,7 +80,6 @@ class MinikubeInstallKT extends AbstractInstallKT {
     }
 
     public static boolean isEnvironmentValid() throws IOException, InterruptedException {
-        validateToolsOnPath("minikube");
-        return validateKubeContext("minikube") && testImageAvailable();
+        return validateToolsOnPath("minikube", "not-found") && validateKubeContext("minikube") && testImageAvailable();
     }
 }

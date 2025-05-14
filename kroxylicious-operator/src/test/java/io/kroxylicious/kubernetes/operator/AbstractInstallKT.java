@@ -13,12 +13,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.assertj.core.api.Assertions;
 import org.assertj.core.util.Sets;
 import org.junit.jupiter.api.Test;
+import org.opentest4j.TestAbortedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,10 +83,16 @@ abstract class AbstractInstallKT {
 
     static boolean isToolOnPath(String tool) {
         LOGGER.info("Checking whether {} is available", tool);
-        assumeThatCode(() -> exec(tool))
-                .describedAs(tool + " must be available on the path")
-                .doesNotThrowAnyException();
-        return true;
+        try {
+            assumeThatCode(() -> exec(tool))
+                    .describedAs(tool + " must be available on the path")
+                    .doesNotThrowAnyException();
+            return true;
+        }
+        catch (TestAbortedException abort) {
+            LOGGER.warn("{}", abort.getMessage());
+            return false;
+        }
     }
 
     static boolean testImageAvailable() {
@@ -124,11 +129,16 @@ abstract class AbstractInstallKT {
         }
     }
 
-    static void validateToolsOnPath(String... additionalTools) {
+    static boolean validateToolsOnPath(String... additionalTools) {
         Set<String> tools = Sets.newLinkedHashSet(additionalTools);
         tools.add("kubectl");
-        Set<String> validTools = tools.stream().filter(AbstractInstallKT::isToolOnPath).collect(Collectors.toSet());
-        Assertions.assertThat(validTools).containsExactlyInAnyOrderElementsOf(tools);
+        try {
+            return tools.stream().allMatch(AbstractInstallKT::isToolOnPath);
+        }
+        catch (TestAbortedException abort) {
+            LOGGER.warn("{}", abort.getMessage());
+        }
+        return false;
     }
 
     static boolean validateKubeContext(String expectedContext) throws IOException, InterruptedException {

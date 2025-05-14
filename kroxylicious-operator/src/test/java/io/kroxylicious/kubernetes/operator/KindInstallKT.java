@@ -54,7 +54,6 @@ class KindInstallKT extends AbstractInstallKT {
     }
 
     public static boolean isEnvironmentValid() throws IOException, InterruptedException {
-        validateToolsOnPath("kind");
-        return validateKubeContext("kind-kind") && testImageAvailable();
+        return validateToolsOnPath("kind") && validateKubeContext("kind-kind") && testImageAvailable();
     }
 }
