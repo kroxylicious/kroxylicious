@@ -45,12 +45,12 @@ class KindInstallKT extends AbstractInstallKT {
 
     @AfterAll
     static void afterAll() throws IOException, InterruptedException {
-//        if (loaded) {
-            // TODO deleting image from kind would look something like `podman exec -it $(kind get clusters | head -1)-control-plane crictl rmi quay.io/kroxylicious/operator:0.13.0-SNAPSHOT`
-            // but for that to work we need to know the container engine docker -vs- podman and the tag (which we don't currently have in the properties)
-//            LOGGER.info("Deleting imagestream {}", IMAGE_STREAM_NAME);
-//            exec("kind", "delete", "imagestream", IMAGE_STREAM_NAME);
-//        }
+        // if (loaded) {
+        // TODO deleting image from kind would look something like `podman exec -it $(kind get clusters | head -1)-control-plane crictl rmi quay.io/kroxylicious/operator:0.13.0-SNAPSHOT`
+        // but for that to work we need to know the container engine docker -vs- podman and the tag (which we don't currently have in the properties)
+        // LOGGER.info("Deleting imagestream {}", IMAGE_STREAM_NAME);
+        // exec("kind", "delete", "imagestream", IMAGE_STREAM_NAME);
+        // }
     }
 
     public static boolean areToolsInstalled() {
