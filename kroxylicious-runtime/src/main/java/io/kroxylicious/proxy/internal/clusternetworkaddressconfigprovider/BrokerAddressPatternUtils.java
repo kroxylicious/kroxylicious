@@ -19,10 +19,12 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 final class BrokerAddressPatternUtils {
     private static final String LITERAL_NODE_ID = "$(nodeId)";
+    private static final String LITERAL_VIRTUAL_CLUSTER_NAME = "$(virtualClusterName)";
     private static final Pattern LITERAL_NODE_ID_PATTERN = Pattern.compile(Pattern.quote(LITERAL_NODE_ID));
     private static final Pattern PORT_SPECIFIER_RE = Pattern.compile("^(.*):([1-9]\\d*)$");
     private static final Pattern TOKEN_RE = Pattern.compile("(\\$\\([^)]+\\))");
-    public static Set<String> EXPECTED_TOKEN_SET = Set.of(LITERAL_NODE_ID);
+    public static Set<String> REQUIRED_TOKEN_SET = Set.of(LITERAL_NODE_ID);
+    public static Set<String> ALLOWED_TOKEN_SET = Set.of(LITERAL_NODE_ID, LITERAL_VIRTUAL_CLUSTER_NAME);
 
     private BrokerAddressPatternUtils() {
     }
@@ -91,6 +93,10 @@ final class BrokerAddressPatternUtils {
         }
     }
 
+    public static String replaceVirtualClusterName(String parsedBrokerAddressPattern, String clusterName) {
+        return parsedBrokerAddressPattern.replaceAll(Pattern.quote(LITERAL_VIRTUAL_CLUSTER_NAME), clusterName);
+    }
+
     /**
      * Represents a pattern string and optional port.
      * @param addressPattern address pattern, must not be null
@@ -110,8 +116,14 @@ final class BrokerAddressPatternUtils {
         return LITERAL_NODE_ID_PATTERN.matcher(brokerAddressPattern).replaceAll(Integer.toString(nodeId));
     }
 
-    static Pattern createNodeIdCapturingRegex(String brokerAddressPattern) {
-        var partsQuoted = Arrays.stream(brokerAddressPattern.split(Pattern.quote(LITERAL_NODE_ID))).map(Pattern::quote);
-        return Pattern.compile(partsQuoted.collect(Collectors.joining("(\\d+)")), Pattern.CASE_INSENSITIVE);
+    static String createNodeIdCapturingRegexPattern(String brokerAddressPattern, String virtualClusterName) {
+        String clusterReplaced = replaceVirtualClusterPattern(brokerAddressPattern, virtualClusterName);
+        // the -1 split limit produces an empty final item in the array if the node id replacement is at the end of the string
+        var partsQuoted = Arrays.stream(clusterReplaced.split(Pattern.quote(LITERAL_NODE_ID), -1)).map(Pattern::quote);
+        return partsQuoted.collect(Collectors.joining("(\\d+)"));
+    }
+
+    private static String replaceVirtualClusterPattern(String brokerAddressPattern, String virtualClusterName) {
+        return brokerAddressPattern.replaceAll(Pattern.quote(LITERAL_VIRTUAL_CLUSTER_NAME), virtualClusterName);
     }
 }

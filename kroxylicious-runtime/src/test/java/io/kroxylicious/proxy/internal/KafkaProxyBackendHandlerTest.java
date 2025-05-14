@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
@@ -45,7 +46,8 @@ class KafkaProxyBackendHandlerTest {
     @SuppressWarnings("removal")
     private static final ClusterNetworkAddressConfigProvider ADDRESS_CONFIG_PROVIDER = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
             new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(new HostPort("localhost", 9090), "broker-", 9190,
-                    0, 10));
+                    0, 10),
+            Mockito.mock(VirtualClusterModel.class));
     @Mock
     ProxyChannelStateMachine proxyChannelStateMachine;
 

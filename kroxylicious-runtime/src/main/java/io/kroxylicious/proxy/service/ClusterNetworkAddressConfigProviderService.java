@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy.service;
 
+import io.kroxylicious.proxy.model.VirtualClusterModel;
+
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
@@ -17,10 +19,12 @@ public interface ClusterNetworkAddressConfigProviderService<T> {
 
     /**
      * Build a cluster network address config provider
+     *
      * @param config config
+     * @param virtualCluster virtual cluster model
      * @return cluster network address config provider
      */
     @NonNull
-    ClusterNetworkAddressConfigProvider build(T config);
+    ClusterNetworkAddressConfigProvider build(T config, VirtualClusterModel virtualCluster);
 
 }

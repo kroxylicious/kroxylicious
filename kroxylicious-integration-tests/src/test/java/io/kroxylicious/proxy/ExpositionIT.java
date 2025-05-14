@@ -50,6 +50,7 @@ import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.net.PassthroughProxy;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedRange;
+import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
@@ -94,6 +95,7 @@ class ExpositionIT extends BaseIT {
 
     public static final HostPort SNI_BOOTSTRAP = new HostPort("bootstrap." + SNI_BASE_ADDRESS, 9192);
     public static final String SNI_BROKER_ADDRESS_PATTERN = "broker-$(nodeId)." + SNI_BASE_ADDRESS;
+    public static final String SNI_BROKER_ADDRESS_PATTERN_WITH_CLUSTER_NAME = "$(virtualClusterName)-broker-$(nodeId)." + SNI_BASE_ADDRESS;
     public static final String SASL_USER = "user";
     public static final String SASL_PASSWORD = "password";
 
@@ -459,6 +461,19 @@ class ExpositionIT extends BaseIT {
                                         .build()),
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, sniKeystoreTrustStorePair.clientTrustStore(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, sniKeystoreTrustStorePair.password())),
+                argumentSet("SniHostIdentifiesNodeWithClusterNameReplacement",
+                        new VirtualClusterBuilder()
+                                .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(SNI_BOOTSTRAP.toString(), SNI_BROKER_ADDRESS_PATTERN_WITH_CLUSTER_NAME)
+                                        .withNewTls()
+                                        .withNewKeyStoreKey()
+                                        .withStoreFile(sniKeystoreTrustStorePair.brokerKeyStore())
+                                        .withNewInlinePasswordStoreProvider(sniKeystoreTrustStorePair.password())
+                                        .endKeyStoreKey()
+                                        .endTls()
+                                        .build()),
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, sniKeystoreTrustStorePair.clientTrustStore(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, sniKeystoreTrustStorePair.password())));
     }
 
@@ -567,8 +582,12 @@ class ExpositionIT extends BaseIT {
                 .addToVirtualClusters(virtualClusterBuilder.build());
 
         final HostPort discoveryBrokerAddressToProbe;
-        if (virtualClusterBuilder.buildFirstGateway().sniHostIdentifiesNode() != null) {
-            discoveryBrokerAddressToProbe = new HostPort(SNI_BROKER_ADDRESS_PATTERN.replace("$(nodeId)", Integer.toString(cluster.getNumOfBrokers())),
+        SniHostIdentifiesNodeIdentificationStrategy sniStrategy = virtualClusterBuilder.buildFirstGateway().sniHostIdentifiesNode();
+        if (sniStrategy != null) {
+            String pattern = sniStrategy.advertisedBrokerAddressPattern();
+            String replacedNodeId = pattern.replace("$(nodeId)", Integer.toString(cluster.getNumOfBrokers()));
+            String replacedVirtualClusterName = replacedNodeId.replace("$(virtualClusterName)", "demo");
+            discoveryBrokerAddressToProbe = new HostPort(replacedVirtualClusterName,
                     SNI_BOOTSTRAP.port());
         }
         else {
