@@ -14,6 +14,7 @@ Format `<github issue/pr number>: <short description>`.
 * Remove the deprecated configuration property `bootstrap_servers` from the `targetCluster` object. Use `bootstrapServers`
   instead.
 * Remove deprecated `MultiTenantTransformationFilterFactory`. Use `MultiTenant` instead.
+* Remove deprecated `SampleProduceRequestFilterFactory` to. Use `SampleProduceRequest` instead.
 
 
 ## 0.12.0

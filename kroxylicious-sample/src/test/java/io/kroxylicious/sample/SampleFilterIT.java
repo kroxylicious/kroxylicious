@@ -44,8 +44,6 @@ class SampleFilterIT {
     private static final String REPLACE_CONFIG_FIELD = "replacementValue";
     private static final TestFilter SAMPLE_PRODUCE_REQUEST_FILTER = new TestFilter(SampleProduceRequest.class.getName(),
             Map.of(FIND_CONFIG_FIELD, "foo", REPLACE_CONFIG_FIELD, "bar"));
-    private static final TestFilter SAMPLE_PRODUCE_REQUEST_FILTER_DEPRECATED_FACTORY_NAME = new TestFilter(SampleProduceRequestFilterFactory.class.getName(),
-            Map.of(FIND_CONFIG_FIELD, "foo", REPLACE_CONFIG_FIELD, "bar"));
     private static final TestFilter SAMPLE_FETCH_RESPONSE_FILTER = new TestFilter(SampleFetchResponse.class.getName(),
             Map.of(FIND_CONFIG_FIELD, "bar", REPLACE_CONFIG_FIELD, "baz"));
 
@@ -79,14 +77,6 @@ class SampleFilterIT {
     @Test
     void sampleProduceRequestFilterWillTransform() {
         test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER);
-        test.produceMessage(PRE_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .assertConsumerRecordEquals(PRODUCE_TRANSFORM_VALUE);
-    }
-
-    @Test
-    void deprecatedSampleProduceRequestFilterWillTransform() {
-        test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER_DEPRECATED_FACTORY_NAME);
         test.produceMessage(PRE_TRANSFORM_VALUE)
                 .consumeSingleRecord()
                 .assertConsumerRecordEquals(PRODUCE_TRANSFORM_VALUE);
