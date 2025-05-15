@@ -54,6 +54,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses.Protocol;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.IngressesBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult.DanglingReference;
@@ -111,9 +112,11 @@ public final class VirtualKafkaClusterReconciler implements
             VirtualKafkaCluster updatedCluster = checkClusterIngressTlsSettings(cluster, context);
             if (updatedCluster == null) {
                 updatedCluster = maybeCombineStatusWithClusterConfigMap(cluster, context);
+                Crc32ChecksumGenerator checksumGenerator = new Crc32ChecksumGenerator();
+                clusterResolutionResult.allResolvedReferents().forEach(checksumGenerator::appendMetadata);
                 KubernetesResourceUtil.getOrCreateAnnotations(updatedCluster)
                         .put(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
-                                MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED /* clusterResolutionResult.dependantsChecksum() */);
+                                checksumGenerator.encode() /* clusterResolutionResult.dependantsChecksum() */);
                 reconciliationResult = UpdateControl.patchResourceAndStatus(updatedCluster);
             }
             else {

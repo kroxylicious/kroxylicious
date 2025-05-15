@@ -9,14 +9,13 @@ package io.kroxylicious.kubernetes.operator.checksum;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.Map;
 import java.util.zip.CRC32;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
-import io.fabric8.kubernetes.api.model.ObjectMeta;
-
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 @NotThreadSafe
 public class Crc32ChecksumGenerator implements MetadataChecksumGenerator {
@@ -31,18 +30,10 @@ public class Crc32ChecksumGenerator implements MetadataChecksumGenerator {
     }
 
     @Override
-    public void appendMetadata(ObjectMeta objectMeta) {
-        appendString(objectMeta.getUid());
-        appendVersionSpecifier(objectMeta);
-        Map<String, String> annotations = objectMeta.getAnnotations();
-        if (annotations != null && annotations.containsKey(REFERENT_CHECKSUM_ANNOTATION)) {
-            appendString(annotations.get(REFERENT_CHECKSUM_ANNOTATION));
+    public void appendString(@Nullable String value) {
+        if (value != null) {
+            checksum.update(value.getBytes(StandardCharsets.UTF_8));
         }
-    }
-
-    @Override
-    public void appendString(String value) {
-        checksum.update(value.getBytes(StandardCharsets.UTF_8));
     }
 
     @Override
