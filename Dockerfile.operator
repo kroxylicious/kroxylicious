@@ -40,7 +40,7 @@ RUN set -ex; \
 COPY . .
 RUN mvn -q -B clean package -Pdist -Dquick
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6-1745487894
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6-1747218906
 
 ARG JAVA_VERSION=17
 ARG KROXYLICIOUS_VERSION
