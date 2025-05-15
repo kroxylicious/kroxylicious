@@ -30,11 +30,10 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernete
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -75,7 +74,7 @@ public class ProxyDeploymentDependentResource
                                  Context<KafkaProxy> context) {
         KafkaProxyContext kafkaProxyContext = KafkaProxyContext.proxyContext(context);
         var model = kafkaProxyContext.model();
-        String checksum = checksumFor(primary, context);
+        String checksum = checksumFor(primary, context, model);
 
         // @formatter:off
         return new DeploymentBuilder()
@@ -98,14 +97,16 @@ public class ProxyDeploymentDependentResource
     }
 
     @VisibleForTesting
-    String checksumFor(KafkaProxy primary, Context<KafkaProxy> context) {
-        Optional<KafkaProxyIngress> kafkaProxyIngress = context.getSecondaryResource(KafkaProxyIngress.class);
+    String checksumFor(KafkaProxy primary, Context<KafkaProxy> context, ProxyModel model) {
         MetadataChecksumGenerator checksumGenerator = context.managedWorkflowAndDependentResourceContext()
                 .get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)
                 .orElse(new Crc32ChecksumGenerator());
 
-        kafkaProxyIngress.ifPresent(checksumGenerator::appendMetadata);
-        context.getSecondaryResources(KafkaProtocolFilter.class).forEach(checksumGenerator::appendMetadata);
+        model.clustersWithValidIngresses().stream().map(ClusterResolutionResult::cluster).forEach(entity -> {
+            LOGGER.info("Adding '{}'-{}@{} to checksum for {}", KubernetesResourceUtil.getName(entity), ResourcesUtil.generation(entity),
+                    ResourcesUtil.generation(entity), KubernetesResourceUtil.getName(primary));
+            checksumGenerator.appendMetadata(entity);
+        });
         String encoded = checksumGenerator.encode();
 
         if (LOGGER.isInfoEnabled()) {

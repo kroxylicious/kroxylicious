@@ -87,6 +87,7 @@ class OperatorChangeDetectionST extends AbstractST {
                 .withConfigTemplate(Map.of("findValue", "foo", "replacementValue", "bar"))
                 .endSpec();
         // @formatter:on
+        resourceManager.createOrUpdateResourceWithWait(arbitraryFilter);
         kroxylicious.deployPortIdentifiesNodeWithNoFilters("test-vkc");
         KubeClient kubeClient = kubeClient(namespace);
 
