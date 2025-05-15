@@ -3,7 +3,7 @@
 // assembly-record-encryption-filter.adoc
 
 [id='assembly-hashicorp-vault-{context}']
-= Setting up HashiCorp Vault
+= Preparing HashiCorp Vault
 
 [role="_abstract"]
 To use HashiCorp Vault with the Record Encryption filter, use the following setup:
@@ -13,5 +13,5 @@ To use HashiCorp Vault with the Record Encryption filter, use the following setu
 * Obtain a Vault token that includes the filter policy.
 
 include::../modules/record-encryption/hashicorp-vault/con-vault-setup.adoc[leveloffset=+1]
-include::../modules/record-encryption/hashicorp-vault/con-vault-service-config.adoc[leveloffset=+1]
+
 include::../modules/record-encryption/hashicorp-vault/con-vault-key-creation.adoc[leveloffset=+1]

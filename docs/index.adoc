@@ -6,4 +6,6 @@ link:kroxylicious-proxy/[Proxy guide]:: Covers using the proxy, including config
 
 link:kroxylicious-operator/[Operator for Kubernetes]:: Covers using the Kubernetes operator for the proxy, including configuration, security and operation.
 
+link:record-encryption-guide/[Record Encryption guide]:: Covers using the record encryption filter, including configuration, security and operation.
+
 link:developers-guide/[Developer's guide]:: Covers writing plugins for the proxy in the Java programming language
