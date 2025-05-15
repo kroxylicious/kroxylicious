@@ -38,7 +38,7 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
 
     @Test
     void valid() {
-        var config = new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, "broker$(nodeId)-good", null);
+        var config = new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT.toString(), "broker$(nodeId)-good", null);
         assertThat(config).isNotNull();
     }
 
@@ -50,14 +50,15 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
 
     @Test
     void getBootstrapAddressFromConfig() {
-        var config = new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, "broker$(nodeId)-good", null);
-        assertThat(config.getBootstrapAddress()).isEqualTo(GOOD_HOST_PORT);
+        var config = new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT.toString(), "broker$(nodeId)-good", null);
+        assertThat(config.getBootstrapAddressPattern()).isEqualTo(GOOD_HOST_PORT.host());
+        assertThat(config.getAdvertisedPort()).isEqualTo(GOOD_HOST_PORT.port());
     }
 
     @Test
     void getBrokerAddressPatternFromConfig() {
         var brokerAddressPattern = "broker$(nodeId)-good";
-        var config = new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, brokerAddressPattern, null);
+        var config = new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT.toString(), brokerAddressPattern, null);
         assertThat(config.getBrokerAddressPattern()).isEqualTo(brokerAddressPattern);
     }
 
@@ -72,7 +73,7 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
     @MethodSource
     void mustSupplyABrokerAddressPatternOrAdvertisedBrokerAddressPattern(String brokerAddress, String advertisedBrokerAddress, boolean valid) {
         ThrowableAssert.ThrowingCallable test = () -> {
-            new SniRoutingClusterNetworkAddressConfigProviderConfig(parse("arbitrary:1235"), brokerAddress, advertisedBrokerAddress);
+            new SniRoutingClusterNetworkAddressConfigProviderConfig("arbitrary:1235", brokerAddress, advertisedBrokerAddress);
         };
         if (valid) {
             assertThatCode(test).doesNotThrowAnyException();
@@ -87,7 +88,7 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
     @NullAndEmptySource
     void invalidBrokerAddressPattern(String input) {
         var goodHostPort = parse("good:1235");
-        assertThatThrownBy(() -> new SniRoutingClusterNetworkAddressConfigProviderConfig(goodHostPort, input, (String) null))
+        assertThatThrownBy(() -> new SniRoutingClusterNetworkAddressConfigProviderConfig(goodHostPort.toString(), input, (String) null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -96,7 +97,7 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
     @NullAndEmptySource
     void invalidAdvertisedBrokerAddressPattern(String input) {
         var goodHostPort = parse("good:1235");
-        assertThatThrownBy(() -> new SniRoutingClusterNetworkAddressConfigProviderConfig(goodHostPort, (String) null, input))
+        assertThatThrownBy(() -> new SniRoutingClusterNetworkAddressConfigProviderConfig(goodHostPort.toString(), (String) null, input))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -104,63 +105,63 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
     @ValueSource(strings = { "broker$(nodeId)", "twice$(nodeId)allowed$(nodeId)too", "broker$(nodeId).kafka.com" })
     void validBrokerAddressPatterns(String input) {
         var goodHostPort = parse("good:1235");
-        var config = new SniRoutingClusterNetworkAddressConfigProviderConfig(goodHostPort, input, null);
+        var config = new SniRoutingClusterNetworkAddressConfigProviderConfig(goodHostPort.toString(), input, null);
         assertThat(config).isNotNull();
     }
 
     @Test
     void getBrokerAddress() {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, "broker-$(nodeId).kafka", null), mockCluster("cluster"));
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT.toString(), "broker-$(nodeId).kafka", null), mockCluster("cluster"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(HostPort.parse("broker-0.kafka:1234"));
     }
 
     @Test
     void getAdvertisedBrokerAddress() {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, null, "broker-$(nodeId).kafka"), mockCluster("cluster"));
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT.toString(), null, "broker-$(nodeId).kafka"), mockCluster("cluster"));
         assertThat(provider.getAdvertisedBrokerAddress(0)).isEqualTo(HostPort.parse("broker-0.kafka:1234"));
-    }
-
-    @Test
-    void getAdvertisedBrokerAddressWithClusterNameReplacement() {
-        var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, null, "broker-$(virtualClusterName)-$(nodeId).kafka"), mockCluster("cluster"));
-        assertThat(provider.getAdvertisedBrokerAddress(0)).isEqualTo(HostPort.parse("broker-cluster-0.kafka:1234"));
     }
 
     @Test
     void getClusterBootstrapAddress() {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, "broker-$(nodeId).kafka", null), mockCluster("cluster"));
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT.toString(), "broker-$(nodeId).kafka", null), mockCluster("cluster"));
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(GOOD_HOST_PORT);
+    }
+
+    @Test
+    void getClusterBootstrapAddressReplacesClusterName() {
+        var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
+                new SniRoutingClusterNetworkAddressConfigProviderConfig("$(virtualClusterName)-boot.kafka:1234", "broker-$(nodeId).kafka", null), mockCluster("cluster"));
+        assertThat(provider.getClusterBootstrapAddress()).isEqualTo(HostPort.parse("cluster-boot.kafka:1234"));
     }
 
     @Test
     void getSharedPorts() {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, "broker-$(nodeId).kafka", null), mockCluster("cluster"));
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT.toString(), "broker-$(nodeId).kafka", null), mockCluster("cluster"));
         assertThat(provider.getSharedPorts()).isEqualTo(Set.of(GOOD_HOST_PORT.port()));
     }
 
     @Test
     void requiresServerNameIndication() {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, "broker-$(nodeId).kafka", null), mockCluster("cluster"));
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT.toString(), "broker-$(nodeId).kafka", null), mockCluster("cluster"));
         assertThat(provider.requiresServerNameIndication()).isTrue();
     }
 
     @Test
     void getAdvertisedPortForDeprecatedBrokerAddressPatternIsBootstrapBrokerAddress() {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, "broker-$(nodeId).kafka", null), mockCluster("cluster"));
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT.toString(), "broker-$(nodeId).kafka", null), mockCluster("cluster"));
         assertThat(provider.getAdvertisedBrokerAddress(0)).isEqualTo(HostPort.parse("broker-0.kafka:1234"));
     }
 
     @Test
-    void getBrokerAddressPrefersAdvertisedPortIfProvided() {
+    void getBrokerAddressUsesBootstrapPort() {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, (String) null, "broker-$(nodeId).kafka:443"),
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT.toString(), (String) null, "broker-$(nodeId).kafka:443"),
                 mockCluster("cluster"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(HostPort.parse("broker-0.kafka:1234"));
     }
@@ -168,14 +169,14 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
     @Test
     void getAdvertisedPortPrefersAdvertisedBrokerAddressIfSpecified() {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, null, "broker-$(nodeId).kafka:443"), mockCluster("cluster"));
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT.toString(), null, "broker-$(nodeId).kafka:443"), mockCluster("cluster"));
         assertThat(provider.getAdvertisedBrokerAddress(0)).isEqualTo(HostPort.parse("broker-0.kafka:443"));
     }
 
     @Test
     void getAdvertisedPortDefaultsToBootstrapBrokerAddressIfNotSpecified() {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, (String) null, "broker-$(nodeId).kafka"),
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT.toString(), (String) null, "broker-$(nodeId).kafka"),
                 mockCluster("cluster"));
         assertThat(provider.getAdvertisedBrokerAddress(0)).isEqualTo(HostPort.parse("broker-0.kafka:1234"));
     }
@@ -211,7 +212,7 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
     @MethodSource
     void getBrokerIdFromBrokerAddress(String brokerAddressPattern, String clusterName, @ConvertWith(HostPortConverter.class) HostPort address, Integer expected) {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, brokerAddressPattern, null), mockCluster(clusterName));
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT.toString(), brokerAddressPattern, null), mockCluster(clusterName));
 
         assertThat(provider.getBrokerIdFromBrokerAddress(address)).isEqualTo(expected);
     }
@@ -221,7 +222,7 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
     void getBrokerIdFromAdvertisedBrokerAddress(String brokerAddressPattern, String clusterName, @ConvertWith(HostPortConverter.class) HostPort address,
                                                 Integer expected) {
         var provider = new SniRoutingClusterNetworkAddressConfigProvider().build(
-                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, null, brokerAddressPattern), mockCluster(clusterName));
+                new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT.toString(), null, brokerAddressPattern), mockCluster(clusterName));
 
         assertThat(provider.getBrokerIdFromBrokerAddress(address)).isEqualTo(expected);
     }
@@ -234,7 +235,7 @@ class SniRoutingClusterNetworkAddressConfigProviderTest {
 
     @Test
     void badNodeId() {
-        var config = new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT, "broker-$(nodeId).kafka", null);
+        var config = new SniRoutingClusterNetworkAddressConfigProviderConfig(GOOD_HOST_PORT.toString(), "broker-$(nodeId).kafka", null);
         var service = new SniRoutingClusterNetworkAddressConfigProvider();
         var provider = service.build(config, mockCluster("cluster"));
 

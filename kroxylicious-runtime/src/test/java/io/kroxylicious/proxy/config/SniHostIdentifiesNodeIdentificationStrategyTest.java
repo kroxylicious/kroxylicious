@@ -23,7 +23,7 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
 
     @Test
     void providesDefinition() {
-        var strategy = new SniHostIdentifiesNodeIdentificationStrategy(HostPort.parse("boot:1234"), "mybroker-$(nodeId)");
+        var strategy = new SniHostIdentifiesNodeIdentificationStrategy("boot:1234", "mybroker-$(nodeId)");
         var definition = strategy.get();
         assertThat(definition.type()).isEqualTo(SniRoutingClusterNetworkAddressConfigProvider.class.getSimpleName());
     }
@@ -31,7 +31,7 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
     @Test
     void canConstructProviderFromDefinition() {
         var bootstrap = HostPort.parse("boot:1234");
-        var strategy = new SniHostIdentifiesNodeIdentificationStrategy(bootstrap, "mybroker-$(nodeId)");
+        var strategy = new SniHostIdentifiesNodeIdentificationStrategy(bootstrap.toString(), "mybroker-$(nodeId)");
         var definition = strategy.get();
 
         VirtualClusterModel mock = Mockito.mock(
@@ -46,7 +46,7 @@ class SniHostIdentifiesNodeIdentificationStrategyTest {
     void canConstructProviderFromDefinitionWithClusterNameReplacementToken() {
         String virtualClusterName = "my-cluster";
         var bootstrap = HostPort.parse("boot:1234");
-        var strategy = new SniHostIdentifiesNodeIdentificationStrategy(bootstrap, "my-broker-$(virtualClusterName)-$(nodeId)");
+        var strategy = new SniHostIdentifiesNodeIdentificationStrategy(bootstrap.toString(), "my-broker-$(virtualClusterName)-$(nodeId)");
         var definition = strategy.get();
 
         VirtualClusterModel mock = Mockito.mock(

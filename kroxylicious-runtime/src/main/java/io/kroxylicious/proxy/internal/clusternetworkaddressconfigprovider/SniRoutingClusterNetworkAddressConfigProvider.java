@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -72,7 +73,9 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements
          * @param virtualCluster
          */
         private Provider(SniRoutingClusterNetworkAddressConfigProviderConfig config, VirtualClusterModel virtualCluster) {
-            this.bootstrapAddress = config.bootstrapAddress;
+            this.bootstrapAddress = new HostPort(
+                    BrokerAddressPatternUtils.replaceVirtualClusterName(config.parsedBootstrapAddressPattern, virtualCluster.getClusterName()),
+                    config.getBootstrapPort());
             this.brokerAddressPattern = BrokerAddressPatternUtils.replaceVirtualClusterName(config.parsedBrokerAddressPattern, virtualCluster.getClusterName());
             this.brokerAddressNodeIdCapturingRegex = buildNodeIdCaptureRegex(config, virtualCluster);
             this.advertisedPort = config.getAdvertisedPort();
@@ -143,12 +146,16 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements
         private static final String ADVERTISED_BROKER_ADDRESS_PATTERN = "advertisedBrokerAddressPattern";
         public static final String BROKER_ADDRESS_PATTERN = "brokerAddressPattern";
 
-        private final HostPort bootstrapAddress;
+        private final String bootstrapAddress;
 
+        @JsonIgnore
+        private final String parsedBootstrapAddressPattern;
         @JsonIgnore
         private final String parsedBrokerAddressPattern;
         @JsonIgnore
         private final Integer advertisedPort;
+        @JsonIgnore
+        private final Integer bootstrapPort;
 
         // present for serialize/deserialize fidelity
         @SuppressWarnings("unused")
@@ -157,7 +164,7 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements
         @SuppressWarnings("unused")
         private final String advertisedBrokerAddressPattern;
 
-        public SniRoutingClusterNetworkAddressConfigProviderConfig(@JsonProperty(required = true) HostPort bootstrapAddress,
+        public SniRoutingClusterNetworkAddressConfigProviderConfig(@JsonProperty(required = true) String bootstrapAddress,
                                                                    @Deprecated(forRemoval = true, since = "0.10.0") @JsonProperty String brokerAddressPattern,
                                                                    @JsonProperty String advertisedBrokerAddressPattern) {
             this.brokerAddressPattern = brokerAddressPattern;
@@ -178,9 +185,15 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements
                 brokerAddressPatternToParse = brokerAddressPattern;
             }
 
+            PatternAndPort bootstrapPatternAndPort = BrokerAddressPatternUtils.parse(bootstrapAddress);
+            Optional<Integer> bootstrapPort = bootstrapPatternAndPort.port();
+            if (bootstrapPort.isEmpty()) {
+                throw new IllegalArgumentException("bootstrapAddress " + bootstrapAddress + " does not contain a port");
+            }
+            this.bootstrapPort = bootstrapPort.get();
             PatternAndPort patternAndPort = BrokerAddressPatternUtils.parse(brokerAddressPatternToParse);
             String brokerAddressPatternPart = patternAndPort.addressPattern();
-            advertisedPort = patternAndPort.port().orElse(bootstrapAddress.port());
+            advertisedPort = patternAndPort.port().orElse(this.bootstrapPort);
 
             validatePortSpecifier(brokerAddressPatternPart, s -> {
                 throw new IllegalArgumentException(
@@ -196,6 +209,7 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements
             });
 
             this.bootstrapAddress = bootstrapAddress;
+            this.parsedBootstrapAddressPattern = bootstrapPatternAndPort.addressPattern();
             this.parsedBrokerAddressPattern = brokerAddressPatternPart;
         }
 
@@ -208,8 +222,8 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements
             }
         }
 
-        public HostPort getBootstrapAddress() {
-            return bootstrapAddress;
+        public String getBootstrapAddressPattern() {
+            return parsedBootstrapAddressPattern;
         }
 
         public String getBrokerAddressPattern() {
@@ -218,6 +232,10 @@ public class SniRoutingClusterNetworkAddressConfigProvider implements
 
         public int getAdvertisedPort() {
             return advertisedPort;
+        }
+
+        public int getBootstrapPort() {
+            return bootstrapPort;
         }
 
     }
