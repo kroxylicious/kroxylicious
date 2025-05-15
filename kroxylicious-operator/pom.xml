@@ -316,7 +316,8 @@
         <profile>
             <id>dist</id>
             <properties>
-                <skipKTs>false</skipKTs>
+                <skipDocker>false</skipDocker>
+                <skipKTs>${skipDocker}</skipKTs>
             </properties>
             <build>
                 <plugins>
@@ -350,6 +351,7 @@
                                 </goals>
                                 <phase>package</phase>
                                 <configuration>
+                                    <skip>${skipDocker}</skip>
                                     <images>
                                         <image>
                                             <name>${io.kroxylicious.operator.image.name}</name>
