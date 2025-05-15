@@ -223,17 +223,6 @@ class ConfigParserTest {
                                     startInclusive: 0
                                     endExclusive: 1
                         """),
-                Arguments.argumentSet("Virtual cluster (SniRouting - deprecated)", """
-                        virtualClusters:
-                          - name: demo1
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
-                            clusterNetworkAddressConfigProvider:
-                              type: SniRoutingClusterNetworkAddressConfigProvider
-                              config:
-                                bootstrapAddress: cluster1:9192
-                                brokerAddressPattern: broker$(nodeId)
-                        """),
                 Arguments.argumentSet("Filters", """
                         filterDefinitions:
                         - name: myfilter

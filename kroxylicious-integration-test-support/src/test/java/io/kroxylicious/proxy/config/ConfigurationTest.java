@@ -20,6 +20,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
@@ -169,6 +170,27 @@ class ConfigurationTest {
     }
 
     @Test
+    void shouldRejectSniGatewayWithNoAdvertisedBrokerAddressPattern() {
+        assertThatThrownBy(() -> {
+            MAPPER.readValue(
+                    """
+                              name: cluster
+                              targetCluster:
+                                bootstrapServers: kafka.example:1234
+                              gateways:
+                              - name: default
+                                sniHostIdentifiesNode:
+                                    bootstrapAddress: cluster1:9192
+                                tls:
+                                  key:
+                                    certificateFile: /tmp/cert
+                                    privateKeyFile: /tmp/key
+                            """, VirtualCluster.class);
+        }).isInstanceOf(MismatchedInputException.class)
+                .hasMessageContaining("Missing required creator property 'advertisedBrokerAddressPattern'");
+    }
+
+    @Test
     @SuppressWarnings("removal")
     void shouldAcceptDeprecatedTopLevelNetworkConfigProvider() throws IOException {
         var vc = MAPPER.readValue(
@@ -180,7 +202,7 @@ class ConfigurationTest {
                                     type: SniRoutingClusterNetworkAddressConfigProvider
                                     config:
                                       bootstrapAddress: cluster1:9192
-                                      brokerAddressPattern: broker-$(nodeId)
+                                      advertisedBrokerAddressPattern: broker-$(nodeId)
                         """, VirtualCluster.class);
 
         assertThat(vc.clusterNetworkAddressConfigProvider().type())
