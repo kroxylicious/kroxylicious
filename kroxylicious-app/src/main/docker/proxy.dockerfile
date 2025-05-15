@@ -4,10 +4,14 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-FROM registry.access.redhat.com/ubi9/openjdk-17:1.22-1.1745840591 AS builder
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.5-1745855087
 
-ARG TARGETOS=linux
+ARG TARGETOS
 ARG TARGETARCH
+ARG JAVA_VERSION=17
+ARG KROXYLICIOUS_VERSION
+ARG CONTAINER_USER=kroxylicious
+ARG CONTAINER_USER_UID=185
 
 USER root
 WORKDIR /opt/kroxylicious
@@ -18,7 +22,7 @@ ENV TINI_SHA256_AMD64=93dcc18adc78c65a028a84799ecf8ad40c936fdfc5f2a57b1acda5a811
 ENV TINI_SHA256_ARM64=07952557df20bfd2a95f9bef198b445e006171969499a1d361bd9e6f8e5e0e81
 ENV TINI_SHA256_PPC64LE=3f658420974768e40810001a038c29d003728c5fe86da211cff5059e48cfdfde
 ENV TINI_SHA256_S390X=931b70a182af879ca249ae9de87ef68423121b38d235c78997fafc680ceab32d
-ENV TINI_DEST=/opt/tini/bin/tini
+ENV TINI_DEST=/usr/bin/tini
 
 RUN set -ex; \
     mkdir -p /opt/tini/bin/; \
@@ -37,18 +41,6 @@ RUN set -ex; \
     fi; \
     chmod +x ${TINI_DEST}
 
-COPY . .
-RUN mvn -q -B clean package -Pdist -Dquick -DskipDocker=true
-
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6-1747218906
-
-ARG JAVA_VERSION=17
-ARG KROXYLICIOUS_VERSION
-ARG CONTAINER_USER=kroxylicious
-ARG CONTAINER_USER_UID=185
-
-USER root
-
 RUN microdnf -y update \
     && microdnf --setopt=install_weak_deps=0 --setopt=tsflags=nodocs install -y \
                 java-${JAVA_VERSION}-openjdk-headless \
@@ -58,11 +50,10 @@ RUN microdnf -y update \
     && microdnf remove -y shadow-utils \
     && microdnf clean all
 
-ENV JAVA_HOME=/usr/lib/jvm/jre-17
+ENV JAVA_HOME=/usr/lib/jvm/jre-${JAVA_VERSION}
 
-COPY --from=builder /opt/tini/bin/tini /usr/bin/tini
-COPY --from=builder /opt/kroxylicious/kroxylicious-operator/target/kroxylicious-operator-${KROXYLICIOUS_VERSION}-bin/kroxylicious-operator-${KROXYLICIOUS_VERSION} /opt/kroxylicious-operator
+COPY target/kroxylicious-app-${KROXYLICIOUS_VERSION}-bin/kroxylicious-app-${KROXYLICIOUS_VERSION}/ .
 
 USER ${CONTAINER_USER_UID}
 
-ENTRYPOINT ["/usr/bin/tini", "--", "/opt/kroxylicious-operator/bin/operator-start.sh" ]
+ENTRYPOINT ["/usr/bin/tini", "--", "/opt/kroxylicious/bin/kroxylicious-start.sh" ]
