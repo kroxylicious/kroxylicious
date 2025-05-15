@@ -105,6 +105,11 @@ public final class Constants {
     public static final String SERVICE_ACCOUNT = "ServiceAccount";
     public static final String STRIMZI_KAFKA_KIND = "Kafka";
     public static final String STRIMZI_KAFKA_NODE_POOL_KIND = "KafkaNodePool";
+    public static final String KROXYLICIOUS_KAFKA_PROTOCOL_FILTER_KIND = "KafkaProtocolFilter";
+    public static final String KROXYLICIOUS_KAFKA_PROXY_KIND = "KafkaProxy";
+    public static final String KROXYLICIOUS_KAFKA_PROXY_INGRESS_KIND = "KafkaProxyIngress";
+    public static final String KROXYLICIOUS_KAFKA_SERVICE_KIND = "KafkaService";
+    public static final String KROXYLICIOUS_VIRTUAL_KAFKA_CLUSTER_KIND = "VirtualKafkaCluster";
 
     /**
      * Test clients image url

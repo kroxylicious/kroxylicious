@@ -141,7 +141,12 @@ public class TestLogCollector {
                 Constants.SERVICE.toLowerCase(Locale.ROOT),
                 Constants.JOB.toLowerCase(Locale.ROOT),
                 Kafka.RESOURCE_SINGULAR,
-                KafkaNodePool.RESOURCE_SINGULAR));
+                KafkaNodePool.RESOURCE_SINGULAR,
+                Constants.KROXYLICIOUS_KAFKA_PROXY_INGRESS_KIND.toLowerCase(Locale.ROOT),
+                Constants.KROXYLICIOUS_KAFKA_PROXY_KIND.toLowerCase(Locale.ROOT),
+                Constants.KROXYLICIOUS_KAFKA_SERVICE_KIND.toLowerCase(Locale.ROOT),
+                Constants.KROXYLICIOUS_VIRTUAL_KAFKA_CLUSTER_KIND.toLowerCase(Locale.ROOT),
+                Constants.KROXYLICIOUS_KAFKA_PROTOCOL_FILTER_KIND.toLowerCase(Locale.ROOT)));
 
         return new LogCollectorBuilder()
                 .withKubeClient(new KubeClient())
