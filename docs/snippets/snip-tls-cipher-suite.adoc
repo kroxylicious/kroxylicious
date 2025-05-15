@@ -1,0 +1,13 @@
+:_mod-docs-content-type: SNIPPET
+
+A cipher suite is a set of cryptographic algorithms that together provide the security guarantees offered by TLS.
+During TLS negotiation, a server and client agree on a common cipher suite that they both support.
+
+Some older cipher suites are now considered insecure, but may be enabled on the Kafka cluster to allow older clients to connect.
+
+The cipher suites enabled by default in the proxy depend on the JVM used in the proxy image and the TLS protocol version that is negotiated.
+
+To prevent TLS downgrade attacks, you can disable cipher suites known to be insecure or no longer recommended.
+However, the proxy and the cluster must support at least one cipher suite in common.
+
+IMPORTANT: It is good practice to disable insecure cipher suites.

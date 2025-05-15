@@ -1,0 +1,10 @@
+:_mod-docs-content-type: SNIPPET
+
+Some older versions of TLS (and SSL before it) are now considered insecure.
+These versions remain enabled by default in order to maximize interoperability between TLS clients and servers that only support older versions.
+
+If the Kafka cluster than you want to connect to supports newer TLS versions, you can disable the proxy's support for older, insecure versions.
+For example, if the Kafka cluster supports TLSv1.1, TLSv1.2 and TLSv1.3 you might choose to enable only TLSv1.3 support.
+This would reduce the susceptibility to a TLS downgrade attack.
+
+IMPORTANT: It is good practice to disable insecure protocol versions.

@@ -1,0 +1,38 @@
+// file included in the following:
+//
+// kroxylicious-operator/assemblies/assembly-operator-secure-client-proxy-connection.adoc
+
+[id='con-kafka-client-tls-cipher-{context}']
+= TLS cipher suite configuration for client-to-proxy connections
+
+include::../../snippets/snip-tls-cipher-suite.adoc[]
+
+You can restrict which TLS cipher suites the proxy uses when negotiating client-to-proxy connections by configuring the `cipherSuites` property.
+
+.Example `VirtualKafkaCluster` configuration using cipherSuites to allow specific ciphers
+[source,yaml]
+----
+kind: VirtualKafkaCluster
+metadata:
+  # ...
+spec:
+  # ...
+  ingresses:
+    - ingressRef:
+        name: cluster-ip
+      tls:
+        certificateRef:
+          # ...
+        cipherSuites: # <1>
+          allow: # <2>
+           - TLS_AES_128_GCM_SHA256
+           - TLS_AES_256_GCM_SHA384
+
+----
+<1> Configures the cipher suites used by the proxy.
+<2> Lists the cipher suites explicitly allowed for TLS negotiation.
+
+Alternatively, you can use `deny` to specify cipher suites to exclude.
+
+The names of the cipher suites supported depend on the JVM in the proxy container image.
+See {cipherSuiteNames}.
