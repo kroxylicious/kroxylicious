@@ -8,7 +8,10 @@
 [role="_abstract"]
 Kroxylicious comes with a suite of built-in filters designed to enhance the functionality and security of your Kafka clusters.
 
-include::assembly-record-encryption-filter.adoc[leveloffset=+1]
+== Record Encryption filter
+
+This is documented in a dedicated Record Encryption guide.
+
 include::assembly-multi-tenancy-filter.adoc[leveloffset=+1]
 include::assembly-record-validation-filter.adoc[leveloffset=+1]
 include::../modules/oauthbearer/con-oauthbearer.adoc[leveloffset=+1]

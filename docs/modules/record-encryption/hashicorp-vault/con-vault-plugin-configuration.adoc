@@ -1,11 +1,11 @@
 // file included in the following:
 //
-// assembly-hashicorp-vault.adoc
+// assembly-configuring-record-encryption-filter
 
-[id='con-vault-service-config-{context}']
-= Configuring the HashiCorp Vault KMS
+[id='con-vault-plugin-configuration-{context}']
+= HashiCorp Vault plugin configuration
 
-For HashiCorp Vault, the KMS configuration looks like this.
+For HashiCorp Vault, the KMS configuration used by the filter looks like this.
 Use the Vault Token and Vault Transit Engine URL values from the KMS setup.
 
 [source, yaml]

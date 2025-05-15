@@ -1,0 +1,35 @@
+// file included in the following:
+//
+// record-encryption-guide/index.adoc
+
+[id='proc-configuring-record-encryption-filter-{context}']
+= Configuring the Record Encryption filter
+
+[role="_abstract"]
+This section describes how to configure the Record Encryption filter.
+This includes configuring the filter to use the KMS that's has already been prepared.
+We will first cover how to configure each of the KMS plugins.
+We will then look at a filter configuration that uses one of those plugins.
+Finally, we will look at how to use the filter configuration in the proxy, or on Kubernetes.
+
+.Prerequisites
+
+* An instance of Kroxylicious.
+For information on deploying Kroxylicious, see the
+"Kroxylicious Proxy" or "Kroxylicious Operator for Kubernetes" guides.
+* A KMS has been prepared for use by the filter, with KEKs to encrypt records set up for topics.
+
+include::../modules/record-encryption/hashicorp-vault/con-vault-plugin-configuration.adoc[leveloffset=+1]
+
+include::../modules/record-encryption/aws-kms/con-aws-kms-plugin-configuration.adoc[leveloffset=+1]
+
+ifdef::include-fortanix-dsm-kms[]
+include::../modules/record-encryption/fortanix-dsm/con-fortanix-dsm-plugin-configuration.adoc[leveloffset=+1]
+endif::[]
+
+include::../modules/record-encryption/con-record-encryption-filter-config.adoc[leveloffset=+1]
+
+include::../modules/record-encryption/con-example-proxy-config.adoc[leveloffset=+1]
+
+include::../modules/record-encryption/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+1]
+

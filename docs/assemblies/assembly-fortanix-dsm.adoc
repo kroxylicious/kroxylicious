@@ -3,15 +3,14 @@
 // assembly-record-encryption-filter.adoc
 
 [id='assembly-fortanix-dsm-{context}']
-= Setting up Fortanix Data Security Manager (DSM)
+= Preparing Fortanix Data Security Manager (DSM)
 
 [role="_abstract"]
-To use Fortanix Data Security Manager (DSM) with the Record Encryption filter, use the following setup:
+To prepare Fortanix Data Security Manager (DSM) for use with the Record Encryption filter, use the following setup:
 
 * Establish a naming convention for keys and decide in which group the keys will live
 * Create an application identity, with an API key, for use by the Record Encryption filter.
 * Create keys within Fortanix DSM.
 
 include::../modules/record-encryption/fortanix-dsm/con-fortanix-dsm-setup.adoc[leveloffset=+1]
-include::../modules/record-encryption/fortanix-dsm/con-fortanix-dsm-service-config.adoc[leveloffset=+1]
 include::../modules/record-encryption/fortanix-dsm/con-fortanix-dsm-key-creation.adoc[leveloffset=+1]

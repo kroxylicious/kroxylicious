@@ -1,21 +1,21 @@
 // file included in the following:
 //
-// assembly-record-encryption-filter.adoc
+// assembly-configuring-record-encryption-filter
 
-[id='proc-configuring-record-encryption-filter-{context}']
-= Setting up the Record Encryption filter
+[id='con-record-encryption-filter-config-{context}']
+= Filter configuration
 
 [role="_abstract"]
-This procedure describes how to set up the Record Encryption filter.
-Provide the filter configuration and the Key Encryption Key (KEK) selector to use. 
-The KEK selector maps topic name to key names.  
+This procedure describes how to configure the Record Encryption filter.
+Provide the filter configuration and the Key Encryption Key (KEK) selector to use.
+The KEK selector maps topic name to key names.
 The filter looks up the resulting key name in the KMS.
 
 .Prerequisites
 
-* An instance of Kroxylicious. 
-For information on deploying Kroxylicious, see the link:{github}[samples and examples^].
-* A config map for Kroxylicious that includes the configuration for creating virtual clusters and filters. 
+* An instance of Kroxylicious.
+For information on deploying Kroxylicious, see the
+"Kroxylicious Proxy" or "Kroxylicious Operator for Kubernetes" guides.
 * A KMS is installed and set up for the filter with KEKs to encrypt records set up for topics.
 
 .Procedure
@@ -25,22 +25,18 @@ For information on deploying Kroxylicious, see the link:{github}[samples and exa
 .Example Record Encryption filter configuration
 [source,yaml]
 ----
-filterDefinitions:
-  - name: my-record-encryption
-    type: RecordEncryption
-    config:
-      kms: <kms_service_name> # <1>
-      kmsConfig:
-        <kms_specific_config> # <2>
-        # ...
-      selector: <KEK_selector_service_name> # <3>
-      selectorConfig:
-        template: "KEK_$(topicName)" # <4>
-      unresolvedKeyPolicy: PASSTHROUGH_UNENCRYPTED # <5>
-      experimental:
-        encryptionDekRefreshAfterWriteSeconds: 3600 # <6>
-        encryptionDekExpireAfterWriteSeconds: 7200 # <7>
-        maxEncryptionsPerDek: 5000000 # <8>
+kms: <kms_service_name> # <1>
+kmsConfig:
+  <kms_specific_config> # <2>
+  # ...
+selector: <KEK_selector_service_name> # <3>
+selectorConfig:
+  template: "KEK_$(topicName)" # <4>
+unresolvedKeyPolicy: PASSTHROUGH_UNENCRYPTED # <5>
+experimental:
+  encryptionDekRefreshAfterWriteSeconds: 3600 # <6>
+  encryptionDekExpireAfterWriteSeconds: 7200 # <7>
+  maxEncryptionsPerDek: 5000000 # <8>
 ----
 <1> The KMS service name.
 <2> Configuration specific to the KMS provider.
@@ -56,7 +52,7 @@ to the Virtual Cluster should be encrypted because unencrypted data will never b
 <7> How long after creation of a DEK until it is removed from the cache. This setting puts an upper bound on how long a DEK can remain cached.
 <8> The maximum number of records any DEK should be used to encrypt. After this limit is hit, that DEK will be destroyed and a new one created.
 +
-`encryptionDekRefreshAfterWriteSeconds` and `encryptionDekExpireAfterWriteSeconds` help govern the "originator usage period" of the DEK. That is the period of time the DEK will be used to encrypt records.  Keeping the period short helps reduce the blast radius in the event that DEK key material is leaked. However, there is a trade-off. The additional KMS API calls will increase produce/consume latency and may increase your KMS provider costs. 
+`encryptionDekRefreshAfterWriteSeconds` and `encryptionDekExpireAfterWriteSeconds` help govern the "originator usage period" of the DEK. That is the period of time the DEK will be used to encrypt records.  Keeping the period short helps reduce the blast radius in the event that DEK key material is leaked. However, there is a trade-off. The additional KMS API calls will increase produce/consume latency and may increase your KMS provider costs.
 +
 `maxEncryptionsPerDek` helps prevent key exhaustion by placing an upper limit of the amount of times that a DEK may be used to encrypt records.
 

@@ -1,0 +1,33 @@
+// file included in the following:
+//
+// assembly-configuring-record-encryption-filter
+
+[id='con-example-proxy-config-{context}']
+= Example proxy configuration file
+
+If your instance of the Kroxylicious Proxy is running directly on top of an operating system the filter configuration will be given in the list of `filterDefinitions`.
+
+.Complete example Record Encryption filter configuration using the Vault KMS
+[source,yaml]
+----
+filterDefinitions:
+  - name: my-encryption-filter
+    type: RecordEncryption
+    config:
+      kms: VaultKmsService
+      kmsConfig:
+        vaultTransitEngineUrl: # ...
+        tls: # ...
+        vaultToken:
+          passwordFile: /opt/vault/token
+      selector: TemplateKekSelector
+      selectorConfig:
+        template: "KEK_$(topicName)"
+      unresolvedKeyPolicy: PASSTHROUGH_UNENCRYPTED
+      experimental:
+        encryptionDekRefreshAfterWriteSeconds: 3600
+        encryptionDekExpireAfterWriteSeconds: 7200
+        maxEncryptionsPerDek: 5000000
+----
+
+Refer to the Kroxylicious Proxy guide for more information about configuring the proxy.
