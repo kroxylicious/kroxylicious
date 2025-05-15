@@ -184,7 +184,7 @@ public class KroxyliciousConfigUtils {
         }
         else if (providerDefinition.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig sc) {
             var strategy = new SniHostIdentifiesNodeIdentificationStrategy(sc.getBootstrapAddress(),
-                    sc.getBrokerAddressPattern());
+                    sc.getAdvertisedBrokerAddressPattern());
 
             return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
                     null, strategy, cluster.tls()));

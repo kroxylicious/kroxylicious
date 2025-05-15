@@ -180,7 +180,7 @@ class ConfigurationTest {
                                     type: SniRoutingClusterNetworkAddressConfigProvider
                                     config:
                                       bootstrapAddress: cluster1:9192
-                                      brokerAddressPattern: broker-$(nodeId)
+                                      advertisedBrokerAddressPattern: broker-$(nodeId)
                         """, VirtualCluster.class);
 
         assertThat(vc.clusterNetworkAddressConfigProvider().type())

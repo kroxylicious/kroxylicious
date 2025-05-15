@@ -13,6 +13,8 @@ Format `<github issue/pr number>: <short description>`.
 
 * Remove the deprecated configuration property `bootstrap_servers` from the `targetCluster` object. Use `bootstrapServers`
   instead.
+* Remove the deprecated configuration property `brokerAddressPattern` from `sniHostIdentifiesNode` gateway configuration. Use
+  `advertisedBrokerAddressPattern` instead.
 
 
 ## 0.12.0
