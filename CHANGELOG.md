@@ -16,7 +16,8 @@ Format `<github issue/pr number>: <short description>`.
 * Remove deprecated `MultiTenantTransformationFilterFactory`. Use `MultiTenant` instead.
 * Remove deprecated `SampleProduceRequestFilterFactory`. Use `SampleProduceRequest` instead.
 * Remove deprecated `SampleFetchResponseFilterFactory`. Use `SampleFetchResponse` instead.
-* Reomve deprecated `ProduceRequestTransformationFilterFactory`. Use `ProduceRequestTransformation` instead.
+* Remove deprecated `ProduceRequestTransformationFilterFactory`. Use `ProduceRequestTransformation` instead.
+* Remove deprecated `FetchResponseTransformationFilterFactory`. Use `FetchResponseTransformation` instead.
 
 
 ## 0.12.0
