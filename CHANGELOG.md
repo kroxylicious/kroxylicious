@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2186](https://github.com/kroxylicious/kroxylicious/pull/2186) Remove deprecated FilterFactory implementations
 * [#1871](https://github.com/kroxylicious/kroxylicious/issues/1871) Remove deprecated configuration property bootstrap_servers
 
 ### Changes, deprecations and removals
