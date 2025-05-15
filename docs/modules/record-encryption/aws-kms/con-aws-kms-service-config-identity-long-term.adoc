@@ -1,6 +1,6 @@
 // file included in the following:
 //
-// con-aws-kms-service-config.adoc
+// con-aws-kms-plugin-configuration.adoc
 
 
 .Configuration for authenticating with a long-term IAM identity
