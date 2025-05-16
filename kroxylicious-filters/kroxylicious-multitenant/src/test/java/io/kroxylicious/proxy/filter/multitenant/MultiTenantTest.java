@@ -24,11 +24,4 @@ class MultiTenantTest {
         assertThat(filter).isNotNull().isInstanceOf(MultiTenantFilter.class);
     }
 
-    @Test
-    void createFilterDeprecatedFactory() {
-        var factory = new MultiTenantTransformationFilterFactory();
-        Filter filter = factory.createFilter(Mockito.mock(FilterFactoryContext.class), Mockito.mock(MultiTenantConfig.class));
-        assertThat(filter).isNotNull().isInstanceOf(MultiTenantFilter.class);
-    }
-
 }

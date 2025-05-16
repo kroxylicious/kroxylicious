@@ -47,8 +47,11 @@ your Kafka client off-EC2.
              bootstrapAddress: ec2-xx-xx-xx-xx.compute-1.amazonaws.com:9192
          logNetwork: false
          logFrames: false
-     filters:
-     - type: RecordEncryption
+         filters:
+           - record-encryption
+     filterDefinitions:
+     - name: record-encryption
+       type: RecordEncryption
        config:
          kms: AwsKmsService
          kmsConfig:
