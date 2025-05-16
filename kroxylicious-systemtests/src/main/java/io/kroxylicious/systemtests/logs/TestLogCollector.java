@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 
@@ -135,18 +134,18 @@ public class TestLogCollector {
      */
     private LogCollector defaultLogCollector() {
         List<String> resources = new ArrayList<>(List.of(
-                Constants.SECRET.toLowerCase(Locale.ROOT),
-                Constants.DEPLOYMENT.toLowerCase(Locale.ROOT),
-                Constants.CONFIG_MAP.toLowerCase(Locale.ROOT),
-                Constants.SERVICE.toLowerCase(Locale.ROOT),
-                Constants.JOB.toLowerCase(Locale.ROOT),
+                Constants.SECRET,
+                Constants.DEPLOYMENT,
+                Constants.CONFIG_MAP,
+                Constants.SERVICE,
+                Constants.JOB,
                 Kafka.RESOURCE_SINGULAR,
                 KafkaNodePool.RESOURCE_SINGULAR,
-                Constants.KROXYLICIOUS_KAFKA_PROXY_INGRESS_KIND.toLowerCase(Locale.ROOT),
-                Constants.KROXYLICIOUS_KAFKA_PROXY_KIND.toLowerCase(Locale.ROOT),
-                Constants.KROXYLICIOUS_KAFKA_SERVICE_KIND.toLowerCase(Locale.ROOT),
-                Constants.KROXYLICIOUS_VIRTUAL_KAFKA_CLUSTER_KIND.toLowerCase(Locale.ROOT),
-                Constants.KROXYLICIOUS_KAFKA_PROTOCOL_FILTER_KIND.toLowerCase(Locale.ROOT)));
+                Constants.KROXYLICIOUS_KAFKA_PROXY_INGRESS_KIND,
+                Constants.KROXYLICIOUS_KAFKA_PROXY_KIND,
+                Constants.KROXYLICIOUS_KAFKA_SERVICE_KIND,
+                Constants.KROXYLICIOUS_VIRTUAL_KAFKA_CLUSTER_KIND,
+                Constants.KROXYLICIOUS_KAFKA_PROTOCOL_FILTER_KIND));
 
         return new LogCollectorBuilder()
                 .withKubeClient(new KubeClient())
