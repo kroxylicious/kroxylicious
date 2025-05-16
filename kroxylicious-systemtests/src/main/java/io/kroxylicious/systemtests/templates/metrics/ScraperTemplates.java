@@ -6,58 +6,32 @@
 
 package io.kroxylicious.systemtests.templates.metrics;
 
-import java.util.HashMap;
-import java.util.Map;
-
-import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
-import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
-
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.Environment;
-import io.kroxylicious.systemtests.templates.ContainerTemplates;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaClusterRefTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyIngressTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 
 public class ScraperTemplates {
+    private static final ResourceManager resourceManager = ResourceManager.getInstance();
 
     private ScraperTemplates() {
     }
 
-    public static DeploymentBuilder scraperPod(String namespaceName, String podName) {
-        Map<String, String> label = new HashMap<>();
-
-        label.put(Constants.SCRAPER_LABEL_KEY, Constants.SCRAPER_LABEL_VALUE);
-        label.put(Constants.DEPLOYMENT_TYPE, Constants.SCRAPER_NAME);
-        String kroxyRepoUrl = Environment.KROXYLICIOUS_REGISTRY + "/" + Environment.KROXYLICIOUS_ORG + "/" + Environment.KROXYLICIOUS_IMAGE
-                + (Environment.KROXYLICIOUS_IMAGE.endsWith(":") ? "" : ":");
-        String scraperImage = kroxyRepoUrl + Environment.KROXYLICIOUS_VERSION;
-
-        return new DeploymentBuilder()
-                .withNewMetadata()
-                .withName(podName)
-                .withLabels(label)
-                .withNamespace(namespaceName)
-                .endMetadata()
-                .withNewSpec()
-                .withNewSelector()
-                .addToMatchLabels("app", podName)
-                .addToMatchLabels(label)
-                .endSelector()
-                .withReplicas(1)
-                .withNewTemplate()
-                .withNewMetadata()
-                .addToLabels("app", podName)
-                .addToLabels(label)
-                .endMetadata()
-                .withNewSpec()
-                .withContainers(
-                        ContainerTemplates.baseImageBuilder(podName, scraperImage)
-                                .withCommand("sleep")
-                                .withArgs("infinity")
-                                .build())
-                .withImagePullSecrets(new LocalObjectReferenceBuilder()
-                        .withName("regcred")
-                        .build())
-                .endSpec()
-                .endTemplate()
-                .endSpec();
+    /**
+     * Deploy port identifies node with no filters.
+     *
+     * @param namespace the namespace
+     * @param clusterName the cluster name
+     */
+    public static void deployPortIdentifiesNodeWithNoFilters(String namespace, String clusterName) {
+        resourceManager.createResourceFromBuilder(
+                KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(namespace, clusterName),
+                KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressCR(namespace, Constants.SCRAPER_LABEL_VALUE,
+                        clusterName),
+                KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(namespace, clusterName),
+                KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(namespace, clusterName, clusterName,
+                        clusterName, Constants.SCRAPER_LABEL_VALUE));
     }
 }

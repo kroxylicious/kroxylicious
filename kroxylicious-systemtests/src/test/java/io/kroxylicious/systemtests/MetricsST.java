@@ -128,8 +128,10 @@ class MetricsST extends AbstractST {
     @SuppressWarnings("java:S2925")
     @BeforeEach
     void beforeEach(String namespace) throws InterruptedException {
-        final String scraperName = namespace + "-" + Constants.SCRAPER_LABEL_VALUE;
-        resourceManager.createResourceFromBuilderWithWait(ScraperTemplates.scraperPod(namespace, scraperName));
+        final String scraperName = Constants.SCRAPER_LABEL_VALUE;
+
+        ScraperTemplates.deployPortIdentifiesNodeWithNoFilters(namespace, scraperName);
+//        resourceManager.createResourceFromBuilderWithWait(ScraperTemplates.scraperPod(namespace, scraperName));
         cluster.setNamespace(namespace);
 
         LOGGER.atInfo().setMessage("Sleeping for {} seconds to give operators and operands some time to stabilize before collecting metrics.")
