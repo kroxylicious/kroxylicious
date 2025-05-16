@@ -131,7 +131,6 @@ class MetricsST extends AbstractST {
         final String scraperName = Constants.SCRAPER_LABEL_VALUE;
 
         ScraperTemplates.deployPortIdentifiesNodeWithNoFilters(namespace, scraperName);
-//        resourceManager.createResourceFromBuilderWithWait(ScraperTemplates.scraperPod(namespace, scraperName));
         cluster.setNamespace(namespace);
 
         LOGGER.atInfo().setMessage("Sleeping for {} seconds to give operators and operands some time to stabilize before collecting metrics.")
