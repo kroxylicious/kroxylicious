@@ -53,8 +53,9 @@ The **SampleFetchResponseFilter** and **SampleProduceRequestFilter** each have t
 The default configuration for **SampleProduceRequestFilter** is:
 
 ```yaml
-filters:
-  - type: SampleProduceRequest
+filtersDefinitions:
+  - name: my-produce-replacer
+    type: SampleProduceRequest
     config:
       findValue: foo
       replacementValue: bar
@@ -65,8 +66,9 @@ This means that it will search for the string `foo` in the produce data and repl
 The default configuration for **SampleFetchResponseFilter** is:
 
 ```yaml
-filters:
-  - type: SampleFetchResponse
+filterDefinitions:
+  - name: my-fetch-replacer
+    type: SampleFetchResponse
     config:
       findValue: bar
       replacementValue: baz

@@ -319,6 +319,17 @@ class Crc32ChecksumGeneratorTest {
         assertThat(encoded).isBlank();
     }
 
+    @Test
+    void shouldCopeWithAppendingNullString() {
+        // Given
+
+        // When
+        checksumGenerator.appendString(null);
+
+        // Then
+        assertThat(checksumGenerator.encode()).isEqualTo(MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
+    }
+
     private static String generateProxyChecksum() {
         var generator = new Crc32ChecksumGenerator();
         generator.appendMetadata(PROXY);
