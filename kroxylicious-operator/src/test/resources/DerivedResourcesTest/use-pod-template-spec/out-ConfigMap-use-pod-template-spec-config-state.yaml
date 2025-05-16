@@ -24,6 +24,7 @@ data:
   cluster-one: |-
     ---
     metadata:
+      generation: 5
       name: "one"
       namespace: "proxy-ns"
     status:
