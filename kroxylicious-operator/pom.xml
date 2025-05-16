@@ -21,6 +21,8 @@
     <properties>
         <josdk.version>5.0.3</josdk.version>
         <prometheus-metrics.version>1.3.6</prometheus-metrics.version>
+        <io.kroxylicious.operator.image.name>quay.io/kroxylicious/operator:${project.version}</io.kroxylicious.operator.image.name>
+        <io.kroxylicious.operator.image.archive>target/kroxylicious-operator.img.tar.gz</io.kroxylicious.operator.image.archive>
     </properties>
 
     <dependencyManagement>
@@ -49,6 +51,14 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
+            <dependency>
+                <groupId>org.opentest4j</groupId>
+                <artifactId>opentest4j</artifactId>
+                <version>1.3.0</version>
+                <scope>test</scope>
+            </dependency>
+
         </dependencies>
     </dependencyManagement>
 
@@ -258,6 +268,10 @@
             <artifactId>kubernetes-model-rbac</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.opentest4j</groupId>
+            <artifactId>opentest4j</artifactId>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -272,24 +286,6 @@
                         <goals>
                             <goal>integration-test</goal>
                             <goal>verify</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-assembly-plugin</artifactId>
-                <configuration>
-                    <descriptors>
-                        <descriptor>src/assembly/binary-distribution.xml</descriptor>
-                    </descriptors>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>make-assembly</id> <!-- this is used for inheritance merges -->
-                        <phase>package</phase> <!-- bind to the packaging phase -->
-                        <goals>
-                            <goal>single</goal>
                         </goals>
                     </execution>
                 </executions>
@@ -321,6 +317,152 @@
             <testResource>
                 <directory>src/test/resources</directory>
             </testResource>
+            <testResource>
+                <directory>src/test/resources-filtered</directory>
+                <filtering>true</filtering>
+            </testResource>
         </testResources>
     </build>
+
+    <profiles>
+        <profile>
+            <id>dist</id>
+            <properties>
+                <skipDocker>false</skipDocker>
+                <skipKTs>${skipDocker}</skipKTs>
+            </properties>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-assembly-plugin</artifactId>
+                        <configuration>
+                            <descriptors>
+                                <descriptor>src/assembly/binary-distribution.xml</descriptor>
+                            </descriptors>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>make-assembly</id> <!-- this is used for inheritance merges -->
+                                <phase>package</phase> <!-- bind to the packaging phase -->
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>io.fabric8</groupId>
+                        <artifactId>docker-maven-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>default</id>
+                                <goals>
+                                    <goal>build</goal>
+                                    <goal>save</goal>
+                                </goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <skip>${skipDocker}</skip>
+                                    <images>
+                                        <image>
+                                            <name>${io.kroxylicious.operator.image.name}</name>
+                                            <alias>optr</alias>
+                                            <build>
+                                                <dockerFile>src/main/docker/operator.dockerfile</dockerFile>
+                                                <contextDir>${project.basedir}</contextDir>
+                                                <args>
+                                                    <KROXYLICIOUS_VERSION>${project.version}</KROXYLICIOUS_VERSION>
+                                                </args>
+                                            </build>
+                                        </image>
+                                    </images>
+                                    <saveFile>${io.kroxylicious.operator.image.archive}</saveFile>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <!-- copy from packaging into target/packaged, interpolating $[ ] (e.g. to use the container image) -->
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>copy-operator-install</id>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <delimiters>
+                                        <delimiter>$[*]</delimiter>
+                                    </delimiters>
+                                    <resources>
+                                        <resource>
+                                            <directory>packaging</directory>
+                                            <filtering>true</filtering>
+                                        </resource>
+                                    </resources>
+                                    <outputDirectory>target/packaged</outputDirectory>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>copy-crds</id>
+                                <goals><goal>copy-resources</goal></goals>
+                                <phase>package</phase>
+                                <configuration>
+                                    <resources>
+                                        <resource>
+                                            <directory>../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8</directory>
+                                            <filtering>false</filtering>
+                                        </resource>
+                                    </resources>
+                                    <outputDirectory>target/packaged/install</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <version>3.5.3</version>
+                        <executions>
+                            <execution>
+                                <!-- run the tests which depend on having an operator image + install manifests -->
+                                <id>kube-integration-test</id>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                </goals>
+                                <phase>verify</phase>
+                                <configuration>
+                                    <includes>
+                                        <include>**/KT*.java</include>
+                                        <include>**/*KT.java</include>
+                                        <include>**/*KTCase.java</include>
+                                    </includes>
+                                    <skipITs>${skipKTs}</skipITs>
+                                    <skip>${skipKTs}</skip>
+                                    <skipTests>${skipKTs}</skipTests>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>kube-verify</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>verify</goal>
+                                </goals>
+                                <configuration>
+                                    <skipITs>${skipKTs}</skipITs>
+                                    <skip>${skipKTs}</skip>
+                                    <skipTests>${skipKTs}</skipTests>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+    </profiles>
 </project>

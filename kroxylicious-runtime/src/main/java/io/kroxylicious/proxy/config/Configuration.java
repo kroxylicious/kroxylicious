@@ -6,10 +6,8 @@
 package io.kroxylicious.proxy.config;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +22,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonAlias;
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 import com.fasterxml.jackson.core.JsonParser;
@@ -55,57 +52,35 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <br>
  * Note that {@code adminHttp} is accepted as an alias for {@code management}.  Use of {@code adminHttp} is deprecated since 0.11.0
  * and will be removed in a future release.
+ *
+ * @param management management configuration
+ * @param filterDefinitions A list of named filter definitions (names must be unique)
+ * @param defaultFilters The names of the {@link #filterDefinitions()} to be use when a {@link VirtualCluster} doesn't specify its own {@link VirtualCluster#filters()}.
+ * @param virtualClusters The virtual clusters
+ * @param micrometer The micrometer config
+ * @param useIoUring true to use iouring
+ * @param development Development options
  */
-@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "filters", "micrometer", "useIoUring", "development" })
+@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development" })
 public record Configuration(
                             @Nullable @JsonAlias("adminHttp") @JsonDeserialize(using = AdminHttpDeprecationLoggingDeserializer.class) ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
                             @Nullable List<String> defaultFilters,
                             @NonNull @JsonProperty(required = true) @JsonDeserialize(using = VirtualClusterContainerDeserializer.class) List<VirtualCluster> virtualClusters,
-                            @Deprecated @Nullable List<FilterDefinition> filters,
                             @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
                             @NonNull Optional<Map<String, Object>> development) {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 
-    private static void checkNamedFiltersAreDefined(Set<String> filterDefsByName,
-                                                    @Nullable List<String> filterNames,
-                                                    String componentName) {
-        var unknown = Optional.ofNullable(filterNames)
-                .orElse(List.of())
-                .stream()
-                .filter(filterName -> !filterDefsByName.contains(filterName))
-                .toList();
-        if (!unknown.isEmpty()) {
-            throw new IllegalConfigurationException("'" + componentName + "' references filters not defined in 'filterDefinitions': " + unknown);
-        }
-    }
-
     /**
-     * Specifying {@code filters} is deprecated.
-     * Use the {@link Configuration#Configuration(ManagementConfiguration, List, List, List, List, boolean, Optional)} constructor instead.
-     * @param management management configuration
-     * @param filterDefinitions A list of named filter definitions (names must be unique)
-     * @param defaultFilters The names of the {@link #filterDefinitions()} to be use when a {@link VirtualCluster} doesn't specify its own {@link VirtualCluster#filters()}.
-     * @param virtualClusters The virtual clusters
-     * @param filters Deprecated. The filter definitions to be used for all virtual clusters. Can only be specified if {@link #filterDefinitions()} is null.
-     * @param micrometer The micrometer config
-     * @param useIoUring true to use iouring
-     * @param development Development options
+     * Creates an instance of configuration.
      *
      */
-    @Deprecated(since = "0.10.0", forRemoval = true)
-    @JsonCreator
     public Configuration {
         Objects.requireNonNull(development);
         if (virtualClusters == null || virtualClusters.isEmpty()) {
             throw new IllegalConfigurationException("At least one virtual cluster must be defined.");
-        }
-
-        // Enforce post condition: filters and filterDefinitions are not both set
-        if (filters != null && filterDefinitions != null) {
-            throw new IllegalConfigurationException("'filters' and 'filterDefinitions' can't both be set");
         }
 
         validateNoDuplicatedClusterNames(virtualClusters);
@@ -117,43 +92,29 @@ public record Configuration(
             if (!duplicatedNames.isEmpty()) {
                 throw new IllegalConfigurationException("'filterDefinitions' contains multiple items with the same names: " + duplicatedNames);
             }
-        }
 
-        // Enforce post condition: Every filter referenced by a name is defined in the filterDefinitions
-        Set<String> filterDefsByName = Optional.ofNullable(filterDefinitions).orElse(List.of()).stream().map(NamedFilterDefinition::name).collect(
-                Collectors.toSet());
-        checkNamedFiltersAreDefined(filterDefsByName, defaultFilters, "defaultFilters");
-        for (var virtualCluster : virtualClusters) {
-            checkNamedFiltersAreDefined(filterDefsByName, virtualCluster.filters(), "virtualClusters." + virtualCluster.name() + ".filters");
-        }
-
-        // Every filter defined in the filterDefinitions is used somewhere
-        if (filterDefinitions != null) {
-            var defined = filterDefinitions.stream().map(NamedFilterDefinition::name).collect(Collectors.toCollection(HashSet::new));
-            if (defaultFilters != null) {
-                defaultFilters.forEach(defined::remove);
+            // Enforce post condition: Every filter referenced by a name is defined in the filterDefinitions
+            Set<String> filterDefsByName = Optional.ofNullable(filterDefinitions).orElse(List.of()).stream().map(NamedFilterDefinition::name).collect(
+                    Collectors.toSet());
+            checkNamedFiltersAreDefined(filterDefsByName, defaultFilters, "defaultFilters");
+            for (var virtualCluster : virtualClusters) {
+                checkNamedFiltersAreDefined(filterDefsByName, virtualCluster.filters(), "virtualClusters." + virtualCluster.name() + ".filters");
             }
-            virtualClusters.stream()
-                    .map(VirtualCluster::filters)
-                    .filter(Objects::nonNull)
-                    .flatMap(Collection::stream)
-                    .forEach(defined::remove);
-            if (!defined.isEmpty()) {
-                throw new IllegalConfigurationException(
-                        "'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': " + defined);
-            }
-        }
 
-        if (filters != null && virtualClusters.stream()
-                .map(VirtualCluster::filters)
-                .anyMatch(Objects::nonNull)) {
-            throw new IllegalConfigurationException(
-                    "'filters' cannot be specified on a virtual cluster when 'filters' is defined at the top level.");
+            checkAllNamedFilterAreUsed(filterDefinitions, virtualClusters, defaultFilters);
         }
+    }
 
-        if (filters != null) {
-            LOGGER.warn("The 'filters' configuration property is deprecated and will be removed in a future release. "
-                    + "Configurations should be updated to use 'filterDefinitions' and 'defaultFilters'.");
+    private static void checkNamedFiltersAreDefined(Set<String> filterDefsByName,
+                                                    @Nullable List<String> filterNames,
+                                                    String componentName) {
+        var unknown = Optional.ofNullable(filterNames)
+                .orElse(List.of())
+                .stream()
+                .filter(filterName -> !filterDefsByName.contains(filterName))
+                .toList();
+        if (!unknown.isEmpty()) {
+            throw new IllegalConfigurationException("'" + componentName + "' references filters not defined in 'filterDefinitions': " + unknown);
         }
     }
 
@@ -171,33 +132,20 @@ public record Configuration(
         }
     }
 
-    /**
-     * @deprecated This constructor is currently retained to be source compatible the call sites that are passing the deprecated `filters` parameter.
-     * Replaced by {@link #Configuration(ManagementConfiguration, List, List, List, List, boolean, Optional)}.
-     */
-    @Deprecated(since = "0.10.0", forRemoval = true)
-    public Configuration(
-                         @Nullable @JsonAlias("adminHttp") ManagementConfiguration management,
-                         @NonNull List<VirtualCluster> virtualClusters,
-                         @Nullable List<FilterDefinition> filters,
-                         List<MicrometerDefinition> micrometer,
-                         boolean useIoUring,
-                         @NonNull Optional<Map<String, Object>> development) {
-        this(management, null, null, virtualClusters, filters, micrometer, useIoUring, development);
-    }
-
-    /**
-     * This constructor uses the new style `defaultFilters` and `filterDefinitions` parameters instead of the deprecated `filters`.
-     */
-    public Configuration(
-                         @Nullable @JsonAlias("adminHttp") ManagementConfiguration management,
-                         @Nullable List<NamedFilterDefinition> filterDefinitions,
-                         @Nullable List<String> defaultFilters,
-                         @NonNull List<VirtualCluster> virtualClusters,
-                         List<MicrometerDefinition> micrometer,
-                         boolean useIoUring,
-                         @NonNull Optional<Map<String, Object>> development) {
-        this(management, filterDefinitions, defaultFilters, virtualClusters, null, micrometer, useIoUring, development);
+    private void checkAllNamedFilterAreUsed(List<NamedFilterDefinition> filterDefinitions, List<VirtualCluster> clusters, List<String> defaultFilters) {
+        var defined = filterDefinitions.stream().map(NamedFilterDefinition::name).collect(Collectors.toCollection(HashSet::new));
+        if (defaultFilters != null) {
+            defaultFilters.forEach(defined::remove);
+        }
+        clusters.stream()
+                .map(VirtualCluster::filters)
+                .filter(Objects::nonNull)
+                .flatMap(Collection::stream)
+                .forEach(defined::remove);
+        if (!defined.isEmpty()) {
+            throw new IllegalConfigurationException(
+                    "'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': " + defined);
+        }
     }
 
     private static VirtualClusterModel toVirtualClusterModel(@NonNull VirtualCluster virtualCluster,
@@ -267,49 +215,6 @@ public record Configuration(
         return useIoUring();
     }
 
-    /**
-     * @deprecated This will be removed when support for {@code filters} is removed.
-     * @return NamedFilterDefinition for all the filters defined in the configuration, generating names if the config specified {@link #filters()}.
-     */
-    @Deprecated(since = "0.10.0", forRemoval = true)
-    public @NonNull List<NamedFilterDefinition> toNamedFilterDefinitions() {
-        if (filterDefinitions != null) {
-            return filterDefinitions;
-        }
-        else {
-            return toNamedFilterDefinitions(filters != null ? filters : List.of());
-        }
-    }
-
-    /**
-     * Generate named filters for the given anonymous filters.
-     * The filter's type is used as the name, unless this is ambiguous, in which case the type is disambiguated
-     * using a suffix based on the index of the filter within the list.
-     * @param filters The anonymous filters.
-     * @return The named filters.
-     */
-    @NonNull
-    public static List<NamedFilterDefinition> toNamedFilterDefinitions(List<FilterDefinition> filters) {
-        var multipleTypes = filters.stream()
-                .collect(Collectors.groupingBy(FilterDefinition::type))
-                .entrySet().stream()
-                .filter(entry -> entry.getValue().size() > 1)
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toSet());
-        List<NamedFilterDefinition> filterDefinitions;
-        filterDefinitions = new ArrayList<>();
-        HashMap<String, Integer> typeCounts = new HashMap<>(1 + (int) (multipleTypes.size() / 0.75f));
-        for (FilterDefinition anonymousFilter : Optional.ofNullable(filters).orElse(List.of())) {
-            String filterName = anonymousFilter.type();
-            if (multipleTypes.contains(anonymousFilter.type())) {
-                int count = typeCounts.compute(anonymousFilter.type(), (type, typeCount) -> typeCount == null ? 0 : ++typeCount);
-                filterName += "-" + count;
-            }
-            filterDefinitions.add(new NamedFilterDefinition(filterName, anonymousFilter.type(), anonymousFilter.config()));
-        }
-        return filterDefinitions;
-    }
-
     public @NonNull List<VirtualClusterModel> virtualClusterModel(PluginFactoryRegistry pfr) {
         var filterDefinitionsByName = Optional.ofNullable(this.filterDefinitions()).orElse(List.of())
                 .stream()
@@ -335,7 +240,7 @@ public record Configuration(
             filterDefinitions = resolveFilterNames(filterDefinitionsByName, defaultFilters);
         }
         else {
-            filterDefinitions = toNamedFilterDefinitions(filters != null ? filters : List.of());
+            filterDefinitions = List.of();
         }
         return filterDefinitions;
     }

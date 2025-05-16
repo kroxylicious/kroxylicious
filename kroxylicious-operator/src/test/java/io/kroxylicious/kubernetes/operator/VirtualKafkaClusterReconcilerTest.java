@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -85,6 +86,7 @@ class VirtualKafkaClusterReconcilerTest {
     public static final VirtualKafkaCluster CLUSTER_NO_FILTERS = new VirtualKafkaClusterBuilder()
             .withNewMetadata()
                 .withName("foo")
+                .withUid(UUID.randomUUID().toString())
                 .withNamespace(NAMESPACE)
                 .withGeneration(42L)
             .endMetadata()
@@ -155,6 +157,7 @@ class VirtualKafkaClusterReconcilerTest {
     public static final KafkaProxy PROXY = new KafkaProxyBuilder()
             .withNewMetadata()
                 .withName(PROXY_NAME)
+                .withUid(UUID.randomUUID().toString())
                 .withGeneration(101L)
             .endMetadata()
             .withNewSpec()
@@ -164,6 +167,7 @@ class VirtualKafkaClusterReconcilerTest {
     public static final KafkaService SERVICE = new KafkaServiceBuilder()
             .withNewMetadata()
                 .withName("my-kafka")
+                .withUid(UUID.randomUUID().toString())
               .withGeneration(201L)
             .endMetadata()
             .withNewSpec()
@@ -173,6 +177,7 @@ class VirtualKafkaClusterReconcilerTest {
     public static final KafkaProxyIngress INGRESS = new KafkaProxyIngressBuilder()
             .withNewMetadata()
                 .withName("my-ingress")
+                .withUid(UUID.randomUUID().toString())
              .withGeneration(301L)
             .endMetadata()
             .withNewSpec()
@@ -191,6 +196,7 @@ class VirtualKafkaClusterReconcilerTest {
             .withNewMetadata()
                 .withName("my-filter")
                 .withGeneration(401L)
+                .withUid(UUID.randomUUID().toString())
             .endMetadata()
             .withNewSpec()
             .endSpec()

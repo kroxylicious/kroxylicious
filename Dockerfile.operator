@@ -38,7 +38,7 @@ RUN set -ex; \
     chmod +x ${TINI_DEST}
 
 COPY . .
-RUN mvn -q -B clean package -Pdist -Dquick
+RUN mvn -q -B clean package -Pdist -Dquick -DskipDocker=true
 
 FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6-1747218906
 
