@@ -7,13 +7,15 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2164](https://github.com/kroxylicious/kroxylicious/issues/2164) Remove deprecated top-level configuration property filters
 * [#1871](https://github.com/kroxylicious/kroxylicious/issues/1871) Remove deprecated configuration property bootstrap_servers
 
 ### Changes, deprecations and removals
 
-* Remove the deprecated configuration property `bootstrap_servers` from the `targetCluster` object. Use `bootstrapServers`
+* The deprecated top-level configuration property `filters` has been removed. Define filters using `filterDefinitions`
+  Use `defaultFilters` (or the virtual cluster property `filters`) to assign filters to the virtual clusters.
+* Removal the deprecated configuration property `bootstrap_servers` from the `targetCluster` object. Use `bootstrapServers`
   instead.
-
 
 ## 0.12.0
 
