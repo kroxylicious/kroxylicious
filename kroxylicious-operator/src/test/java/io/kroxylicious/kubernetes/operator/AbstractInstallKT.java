@@ -17,9 +17,15 @@ import java.util.stream.Stream;
 
 import org.assertj.core.util.Sets;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.opentest4j.TestAbortedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.doxylicious.junit5.Procedure;
+import io.kroxylicious.doxylicious.junit5.ProcedureTestTemplateExtension;
+import io.kroxylicious.doxylicious.junit5.TestProcedure;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
@@ -127,6 +133,14 @@ abstract class AbstractInstallKT {
                     "-f",
                     "target/packaged/install");
         }
+    }
+
+    @TestTemplate
+    @ExtendWith(ProcedureTestTemplateExtension.class)
+    @TestProcedure(value = "deploy_minimal_proxy", assuming = "have_a_kubectl", workingDir = "target/packaged")
+    void testProcedures(Procedure procedure) {
+        procedure.executeProcedure(); // TODO working directory=target/packaged
+        procedure.assertVerification();
     }
 
     static boolean validateToolsOnPath(String... additionalTools) {
