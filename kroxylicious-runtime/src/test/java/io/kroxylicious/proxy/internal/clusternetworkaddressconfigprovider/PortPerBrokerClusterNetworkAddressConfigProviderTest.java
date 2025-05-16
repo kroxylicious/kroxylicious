@@ -13,7 +13,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.EmptySource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.mockito.Mockito;
 
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig;
@@ -90,7 +92,8 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
     void portsExhausted() {
         var provider = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
                 new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("localhost:1235"),
-                        "localhost", 1236, 0, 1));
+                        "localhost", 1236, 0, 1),
+                Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("localhost:1236"));
         assertThatThrownBy(() -> provider.getBrokerAddress(1))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -99,7 +102,7 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
     @Test
     void defaultsBrokerPatternBasedOnBootstrapHost() {
         var provider = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
-                new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("mycluster:1235"), null, 1236, 0, 1237));
+                new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("mycluster:1235"), null, 1236, 0, 1237), Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(parse("mycluster:1235"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("mycluster:1236"));
     }
@@ -107,7 +110,7 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
     @Test
     void defaultsBrokerStartPortBasedOnBootstrapPort() {
         var provider = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
-                new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("mycluster:1235"), null, null, 0, 1237));
+                new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("mycluster:1235"), null, null, 0, 1237), Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(parse("mycluster:1235"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("mycluster:1236"));
     }
@@ -115,7 +118,7 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
     @Test
     void defaultsNumberOfBrokerPorts() {
         var provider = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
-                new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("mycluster:1235"), null, null, 0, null));
+                new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("mycluster:1235"), null, null, 0, null), Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(parse("mycluster:1235"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("mycluster:1236"));
         assertThat(provider.getBrokerAddress(1)).isEqualTo(parse("mycluster:1237"));
@@ -129,7 +132,7 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
     @Test
     void lowestTargetBrokerIdConfigurable() {
         var provider = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
-                new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("mycluster:1235"), null, null, 2, null));
+                new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("mycluster:1235"), null, null, 2, null), Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(parse("mycluster:1235"));
         assertThat(provider.getBrokerAddress(2)).isEqualTo(parse("mycluster:1236"));
         assertThat(provider.getBrokerAddress(3)).isEqualTo(parse("mycluster:1237"));
@@ -144,7 +147,8 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
     void definesExclusiveAndSharedCorrectly() {
         var provider = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
                 new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("localhost:1235"),
-                        "localhost", 1236, 0, 2));
+                        "localhost", 1236, 0, 2),
+                Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getExclusivePorts()).containsExactlyInAnyOrder(1235, 1236, 1237);
         assertThat(provider.getSharedPorts()).isEmpty();
     }
@@ -153,7 +157,8 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
     void generatesBrokerAddresses() {
         var provider = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
                 new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("localhost:1235"),
-                        "localhost", 1236, 0, 3));
+                        "localhost", 1236, 0, 3),
+                Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(parse("localhost:1235"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("localhost:1236"));
         assertThat(provider.getBrokerAddress(1)).isEqualTo(parse("localhost:1237"));
@@ -164,7 +169,8 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
         var provider = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
                 new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("cluster.kafka.example.com:1235"),
                         "broker.kafka.example.com", 1236,
-                        0, 1238));
+                        0, 1238),
+                Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(parse("cluster.kafka.example.com:1235"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("broker.kafka.example.com:1236"));
         assertThat(provider.getBrokerAddress(1)).isEqualTo(parse("broker.kafka.example.com:1237"));
@@ -175,7 +181,8 @@ class PortPerBrokerClusterNetworkAddressConfigProviderTest {
         var provider = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
                 new PortPerBrokerClusterNetworkAddressConfigProviderConfig(parse("cluster.kafka.example.com:1235"),
                         "broker$(nodeId).kafka.example.com",
-                        1236, 0, 1238));
+                        1236, 0, 1238),
+                Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(parse("cluster.kafka.example.com:1235"));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(parse("broker0.kafka.example.com:1236"));
         assertThat(provider.getBrokerAddress(1)).isEqualTo(parse("broker1.kafka.example.com:1237"));

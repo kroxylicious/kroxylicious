@@ -12,6 +12,7 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProviderService;
@@ -42,8 +43,8 @@ public class PortPerBrokerClusterNetworkAddressConfigProvider
 
     @NonNull
     @Override
-    public ClusterNetworkAddressConfigProvider build(PortPerBrokerClusterNetworkAddressConfigProviderConfig config) {
-        return new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(config.rangeAwareConfig);
+    public ClusterNetworkAddressConfigProvider build(PortPerBrokerClusterNetworkAddressConfigProviderConfig config, VirtualClusterModel virtualCluster) {
+        return new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(config.rangeAwareConfig, virtualCluster);
     }
 
     /**

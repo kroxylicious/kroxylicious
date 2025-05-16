@@ -24,7 +24,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  *        must be resolvable and routable from the client's network).  A port number can be included.  If the port number is not included, the port number assigned
  *        to the bootstrapAddress is used.  One pattern is supported: {@code $(nodeId)} which interpolates the node id into the address (required).
  */
-public record SniHostIdentifiesNodeIdentificationStrategy(@NonNull @JsonProperty(required = true) HostPort bootstrapAddress,
+public record SniHostIdentifiesNodeIdentificationStrategy(@NonNull @JsonProperty(required = true) String bootstrapAddress,
                                                           @NonNull @JsonProperty(required = true) String advertisedBrokerAddressPattern)
         implements NodeIdentificationStrategy {
     public SniHostIdentifiesNodeIdentificationStrategy {
