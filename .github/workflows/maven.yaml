@@ -94,6 +94,8 @@ jobs:
           KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
           KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
         run: mvn -B verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} -DskipUTs -pl '!:kroxylicious-operator' -am
+      - name: 'Ensure the Asciidoc can be converted to HTML '
+        run: mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-kroxylicious-proxy-to-html
       - name: 'Build Kroxylicious maven project on main with Sonar'
         if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
         env:
