@@ -82,7 +82,6 @@ public class Environment {
     /**
      * The url where kroxylicious image lives to be downloaded.
      */
-    private static final String KROXYLICIOUS_IMAGE_REPO_DEFAULT = "quay.io/kroxylicious/kroxylicious";
     private static final String KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT = "quay.io/kroxylicious/operator";
 
     /**
