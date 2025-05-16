@@ -1,3 +1,9 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
 id: deploy_strimzi_operator_from_strimzi_io
 satisfies: deploy_strimzi_operator
 prereqs:
