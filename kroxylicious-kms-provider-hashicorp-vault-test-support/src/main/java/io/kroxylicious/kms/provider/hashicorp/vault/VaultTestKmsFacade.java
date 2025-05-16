@@ -15,7 +15,7 @@ import org.testcontainers.vault.VaultContainer;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
-    private static final DockerImageName HASHICORP_VAULT = DockerImageName.parse("hashicorp/vault:1.19.3");
+    private static final DockerImageName HASHICORP_VAULT = DockerImageName.parse("hashicorp/vault:1.19.4");
 
     @SuppressWarnings("rawtypes")
     private VaultContainer vaultContainer;
