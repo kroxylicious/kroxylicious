@@ -43,8 +43,6 @@ import static org.assertj.core.api.Assertions.tuple;
 @ExtendWith(NettyLeakDetectorExtension.class)
 class MetricsIT {
 
-    private static final String TOPIC_1 = "my-test-topic";
-
     @BeforeEach
     public void beforeEach() {
         assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
@@ -225,10 +223,8 @@ class MetricsIT {
             // Then
             // updated metrics after some message were produced
             var updatedMetricsList = managementClient.scrapeMetrics();
-
             var updatedInboundDownstreamMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_messages_total", null);
             var updatedInboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_decoded_messages_total", null);
-
             assertThat(updatedInboundDownstreamMessagesMetricsValue).isGreaterThan(inboundDownstreamMessagesMetricsValue);
             assertThat(updatedInboundDownstreamDecodedMessagesMetricsValue).isGreaterThan(inboundDownstreamDecodedMessagesMetricsValue);
         }
@@ -292,7 +288,6 @@ class MetricsIT {
             // Then
             // updated metrics after some message were produced
             var updatedMetricList = managementClient.scrapeMetrics();
-
             assertMetricsWithValue(updatedMetricList, "kroxylicious_payload_size_bytes_count", ApiKeys.PRODUCE);
             assertMetricsWithValue(updatedMetricList, "kroxylicious_payload_size_bytes_sum", ApiKeys.PRODUCE);
         }
@@ -322,7 +317,6 @@ class MetricsIT {
     }
 
     double getMetricsValue(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
-
         if (apiKey != null) {
             return metricList.stream().filter(simpleMetric -> simpleMetric.name().equals(metricsName)
                     && simpleMetric.labels().containsValue(apiKey.toString())).findFirst().get().value();
