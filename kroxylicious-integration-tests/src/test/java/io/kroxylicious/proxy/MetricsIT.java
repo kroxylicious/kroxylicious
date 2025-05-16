@@ -171,27 +171,24 @@ class MetricsIT {
                 .endEndpoints()
                 .endManagement();
 
+        // Given
         try (var tester = kroxyliciousTester(config);
                 var managementClient = tester.getManagementClient();
                 var producer = tester.producer()) {
-
             var metricList = managementClient.scrapeMetrics();
-
             var inboundDownstreamMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_messages_total", null);
-
             var inboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_decoded_messages_total", null);
 
+            // When
             producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
 
+            // Then
             // updated metrics after some message were produced
             var updatedMetricsList = managementClient.scrapeMetrics();
-
             var updatedInboundDownstreamMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_messages_total", null);
             var updatedInboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_decoded_messages_total", null);
-
             assertThat(updatedInboundDownstreamMessagesMetricsValue).isGreaterThan(inboundDownstreamMessagesMetricsValue);
             assertThat(updatedInboundDownstreamDecodedMessagesMetricsValue).isGreaterThan(inboundDownstreamDecodedMessagesMetricsValue);
-
         }
     }
 
@@ -214,18 +211,18 @@ class MetricsIT {
                 .endEndpoints()
                 .endManagement();
 
+        // Given
         try (var tester = kroxyliciousTester(config);
                 var managementClient = tester.getManagementClient();
                 var producer = tester.producer()) {
-
             var metricList = managementClient.scrapeMetrics();
-
             var inboundDownstreamMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_messages_total", null);
-
             var inboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_decoded_messages_total", null);
 
+            // When
             producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
 
+            // Then
             // updated metrics after some message were produced
             var updatedMetricsList = managementClient.scrapeMetrics();
 
@@ -249,24 +246,22 @@ class MetricsIT {
                 .endEndpoints()
                 .endManagement();
 
+        // Given
         try (var tester = kroxyliciousTester(config);
                 var managementClient = tester.getManagementClient()) {
-
             var metricsList = managementClient.scrapeMetrics();
+            assertMetricsDoesNotExist(metricsList, "kroxylicious_downstream_connections_total", null);
+            assertMetricsDoesNotExist(metricsList, "kroxylicious_upstream_connections_total", null);
 
-            assertThat(checkMetricsExistOrNot(metricsList, "kroxylicious_downstream_connections_total", null)).isEqualTo(false);
-            assertThat(checkMetricsExistOrNot(metricsList, "kroxylicious_upstream_connections_total", null)).isEqualTo(false);
-
+            // When
             var producer = tester.producer();
             producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
 
+            // Then
             // updated metrics after some message were produced
             var updatedMetricsList = managementClient.scrapeMetrics();
-
-            assertThat(checkMetricsExistOrNot(updatedMetricsList, "kroxylicious_downstream_connections_total", null)).isEqualTo(true);
-
-            assertThat(getMetricsValue(updatedMetricsList, "kroxylicious_downstream_connections_total", null)).isGreaterThan(0);
-            assertThat(getMetricsValue(updatedMetricsList, "kroxylicious_upstream_connections_total", null)).isGreaterThan(0);
+            assertMetricsWithValue(updatedMetricsList, "kroxylicious_downstream_connections_total", null);
+            assertMetricsWithValue(updatedMetricsList, "kroxylicious_upstream_connections_total", null);
         }
     }
 
@@ -282,36 +277,48 @@ class MetricsIT {
                 .endEndpoints()
                 .endManagement();
 
+        // Given
         try (var tester = kroxyliciousTester(config);
                 var managementClient = tester.getManagementClient();
                 var producer = tester.producer();) {
-
             var metricList = managementClient.scrapeMetrics();
+            assertMetricsDoesNotExist(metricList, "kroxylicious_payload_size_bytes_count", ApiKeys.PRODUCE);
+            assertMetricsDoesNotExist(metricList, "kroxylicious_payload_size_bytes_sum", ApiKeys.PRODUCE);
 
-            assertThat(checkMetricsExistOrNot(metricList, "kroxylicious_payload_size_bytes_count", ApiKeys.PRODUCE)).isEqualTo(false);
-            assertThat(checkMetricsExistOrNot(metricList, "kroxylicious_payload_size_bytes_sum", ApiKeys.PRODUCE)).isEqualTo(false);
-
+            // When
             producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
             producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
 
+            // Then
             // updated metrics after some message were produced
             var updatedMetricList = managementClient.scrapeMetrics();
 
-            assertThat(checkMetricsExistOrNot(updatedMetricList, "kroxylicious_payload_size_bytes_count", ApiKeys.PRODUCE)).isEqualTo(true);
-            assertThat(getMetricsValue(updatedMetricList, "kroxylicious_payload_size_bytes_count", ApiKeys.PRODUCE)).isGreaterThan(0);
+            assertMetricsWithValue(updatedMetricList, "kroxylicious_payload_size_bytes_count", ApiKeys.PRODUCE);
+            assertMetricsWithValue(updatedMetricList, "kroxylicious_payload_size_bytes_sum", ApiKeys.PRODUCE);
         }
     }
 
-    boolean checkMetricsExistOrNot(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
+    void assertMetricsDoesNotExist(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
+        assertThat(metricList)
+                .hasSizeGreaterThan(0)
+                .noneSatisfy(simpleMetric -> {
+                    assertThat(simpleMetric.name()).isEqualTo(metricsName);
+                    if (apiKey != null) {
+                        assertThat(simpleMetric.labels()).containsValue(apiKey.toString());
+                    }
+                });
+    }
 
-        if (apiKey != null) {
-            return metricList.stream().anyMatch(simpleMetric -> simpleMetric.name()
-                    .equals(metricsName) && simpleMetric.labels().containsValue(apiKey.toString()));
-        }
-        else {
-            return metricList.stream().anyMatch(simpleMetric -> simpleMetric.name()
-                    .equals(metricsName));
-        }
+    void assertMetricsWithValue(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
+        assertThat(metricList)
+                .hasSizeGreaterThan(0)
+                .anySatisfy(simpleMetric -> {
+                    assertThat(simpleMetric.name()).isEqualTo(metricsName);
+                    if (apiKey != null) {
+                        assertThat(simpleMetric.labels()).containsValue(apiKey.toString());
+                    }
+                    assertThat(simpleMetric.value()).isGreaterThan(0);
+                });
     }
 
     double getMetricsValue(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
