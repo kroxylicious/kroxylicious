@@ -13,14 +13,7 @@
 
 .Procedure
 
-. Apply the `CustomResourceDefinition` resources
-+
-[source,shell]
-----
-kubectl apply -f src/main/resources/META-INF/fabric8
-----
-
-. Apply the remaining resources
+. Apply the installation manifests
 +
 [source,shell]
 ----

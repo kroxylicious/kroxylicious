@@ -15,12 +15,12 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>doxylicious</artifactId>
-        <version>0.12.0-SNAPSHOT</version>
+        <version>0.13.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
     <artifactId>doxylicious-core</artifactId>
     <description>Documentation and testing tools</description>
-    <version>0.12.0-SNAPSHOT</version>
 
     <dependencies>
         <dependency>

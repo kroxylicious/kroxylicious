@@ -1,4 +1,3 @@
----
 id: deploy_a_strimzi_cluster
 satisfies: have_a_target_kafka_cluster
 prereqs:
