@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,7 +25,10 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.skodjob.testframe.resources.KubeResourceManager;
 
+import io.kroxylicious.kubernetes.api.common.FilterRef;
+import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
@@ -34,6 +38,7 @@ import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperato
 import io.kroxylicious.systemtests.k8s.KubeClient;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
 
+import static io.kroxylicious.systemtests.TestTags.OPERATOR;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -41,6 +46,7 @@ import static org.awaitility.Awaitility.await;
 /**
  * The Kroxylicious system tests.
  */
+@Tag(OPERATOR)
 class OperatorChangeDetectionST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorChangeDetectionST.class);
@@ -64,6 +70,41 @@ class OperatorChangeDetectionST extends AbstractST {
         // When
         KubeResourceManager.get().createOrUpdateResourceWithWait(updatedIngress);
         LOGGER.info("Kafka proxy ingress edited");
+
+        // Then
+        await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
+            Deployment proxyDeployment = kubeClient.getDeployment(namespace, "simple");
+            assertThat(proxyDeployment).isNotNull();
+            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
+                    value -> assertThat(value).isNotEqualTo(originalChecksum));
+        });
+    }
+
+    @Test
+    void shouldUpdateDeploymentWhenVirtualKafkaClusterChanges(String namespace) {
+        // Given
+        // @formatter:off
+        KafkaProtocolFilterBuilder arbitraryFilter = KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
+                .withNewSpec()
+                .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
+                .withConfigTemplate(Map.of("findValue", "foo", "replacementValue", "bar"))
+                .endSpec();
+        // @formatter:on
+        resourceManager.createOrUpdateResourceWithWait(arbitraryFilter);
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters("test-vkc");
+        KubeClient kubeClient = kubeClient(namespace);
+
+        String originalChecksum = getInitialChecksum(namespace, kubeClient);
+
+        VirtualKafkaCluster virtualKafkaCluster = kubeClient.getClient().resources(VirtualKafkaCluster.class).inNamespace(namespace)
+                .withName("test-vkc").get();
+
+        FilterRef filterRef = new FilterRefBuilder().withName("arbitrary-filter").build();
+        VirtualKafkaCluster updatedVirtualCluster = virtualKafkaCluster.edit().editSpec().withFilterRefs(filterRef).endSpec().build();
+
+        // When
+        KubeResourceManager.get().createOrUpdateResourceWithWait(updatedVirtualCluster);
+        LOGGER.info("virtual cluster edited");
 
         // Then
         await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
@@ -136,13 +177,19 @@ class OperatorChangeDetectionST extends AbstractST {
         await().atMost(Duration.ofSeconds(90))
                 .untilAsserted(() -> kubeClient.listPods(namespace, "app.kubernetes.io/name", "kroxylicious-proxy"),
                         proxyPods -> {
-                            assertThat(proxyPods).singleElement().extracting(Pod::getMetadata).satisfies(podMetadata -> OperatorAssertions.assertThat(podMetadata)
-                                    .hasAnnotationSatisfying("kroxylicious.io/referent-checksum", value -> assertThat(value).isNotBlank()));
+                            assertThat(proxyPods)
+                                    .singleElement()
+                                    .extracting(Pod::getMetadata)
+                                    .satisfies(podMetadata -> OperatorAssertions.assertThat(podMetadata)
+                                            .hasAnnotationSatisfying("kroxylicious.io/referent-checksum", value -> assertThat(value).isNotBlank()));
+
+                            String checksumFromPod = getChecksumFromAnnotation(proxyPods.get(0));
                             Deployment proxyDeployment = kubeClient.getDeployment(namespace, "simple");
-                            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying(
-                                    "kroxylicious.io/referent-checksum",
-                                    value -> assertThat(value).isEqualTo(getChecksumFromAnnotation(proxyPods.get(0))));
-                            checksumFromAnnotation.set(getChecksumFromAnnotation(proxyPods.get(0)));
+                            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata())
+                                    .hasAnnotationSatisfying(
+                                            "kroxylicious.io/referent-checksum",
+                                            value -> assertThat(value).isEqualTo(checksumFromPod));
+                            checksumFromAnnotation.set(checksumFromPod);
                         });
         return checksumFromAnnotation.get();
     }

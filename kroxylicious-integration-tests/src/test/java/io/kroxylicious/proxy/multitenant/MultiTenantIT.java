@@ -50,8 +50,6 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
-import io.kroxylicious.proxy.filter.multitenant.MultiTenantTransformationFilterFactory;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.test.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -381,23 +379,6 @@ class MultiTenantIT extends BaseMultiTenantIT {
             assertThat(names).contains(expectedTargetClusterTopicName);
         });
 
-    }
-
-    @Test
-    void deprecatedFactoryName(KafkaCluster cluster) {
-        var filterBuilder = new NamedFilterDefinitionBuilder("filter-1", MultiTenantTransformationFilterFactory.class.getName());
-        var config = getConfig(cluster, this.certificateGenerator, filterBuilder);
-        try (var tester = kroxyliciousTester(config);
-                var admin = tester.admin(TENANT_1_CLUSTER, this.clientConfig)) {
-            var created = createTopics(admin, NEW_TOPIC_1);
-
-            await().atMost(Duration.ofSeconds(5)).ignoreExceptions().untilAsserted(() -> {
-                var describeTopicsResult = admin.describeTopics(TopicNameCollection.ofTopicNames(List.of(TOPIC_1)));
-                var topicMap = describeTopicsResult.allTopicNames().get();
-                assertThat(topicMap).hasEntrySatisfying(TOPIC_1,
-                        allOf(matches(TopicDescription::name, TOPIC_1), matches(TopicDescription::topicId, created.topicId(TOPIC_1).get())));
-            });
-        }
     }
 
     // ========================================================
