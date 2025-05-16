@@ -1,0 +1,13 @@
+id: deploy_kroxy_operator_from_manifests
+satisfies: deploy_kroxy_operator
+title:
+  adoc: Deploying the Kroxylicious operator from manifests
+prereqs:
+  - ref: have_a_kubectl
+    adoc: Access to the Kubernetes cluster using `kubectl`.
+procedure:
+  - step:
+      - adoc: Apply the installation manifests
+      - exec: kubectl apply -f install
+tearDown:
+  - exec: kubectl delete -f install

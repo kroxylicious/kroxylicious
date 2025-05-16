@@ -48,7 +48,7 @@ class ProcExecutorTest {
         StepDecl sleepStep = new StepDecl(null, "sleep 10");
         var proc = new ProcDecl("sleep_for_a_bit", false, null, List.of(), List.of(sleepStep));
 
-        ProcExecutor procExecutor = new ProcExecutor(Base.from(List.of(proc)), Duration.ofMillis(100), Duration.ofSeconds(5));
+        ProcExecutor procExecutor = new ProcExecutor(Base.from(List.of(proc)), null, Duration.ofMillis(100), Duration.ofSeconds(5));
         assertThatThrownBy(() -> procExecutor.executeProcedure(proc))
                 .isExactlyInstanceOf(ExecException.class)
                 .hasMessage("'sleep_for_a_bit/procedure/0/exec': Timed out waiting for command ['sleep', '10'] to exit (process destroyed)");

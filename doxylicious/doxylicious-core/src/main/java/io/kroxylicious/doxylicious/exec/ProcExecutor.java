@@ -31,6 +31,8 @@ import io.kroxylicious.doxylicious.model.ExecDecl;
 import io.kroxylicious.doxylicious.model.ProcDecl;
 import io.kroxylicious.doxylicious.model.StepDecl;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 public class ProcExecutor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcExecutor.class);
@@ -38,13 +40,18 @@ public class ProcExecutor {
     private final Base base;
     private final Duration timeout;
     private final Duration destroyTimeout;
+    private final Path workingDir;
 
     public ProcExecutor(Base base) {
-        this(base, Duration.ofSeconds(30), Duration.ofSeconds(10));
+        this(base, null, Duration.ofSeconds(30), Duration.ofSeconds(10));
     }
 
-    public ProcExecutor(Base base, Duration timeout, Duration destroyTimeout) {
+    public ProcExecutor(Base base,
+                        @Nullable Path workingDir,
+                        Duration timeout,
+                        Duration destroyTimeout) {
         this.base = base;
+        this.workingDir = workingDir;
         this.timeout = timeout;
         this.destroyTimeout = destroyTimeout;
     }
@@ -116,7 +123,6 @@ public class ProcExecutor {
         else {
             args = Arrays.asList(exec.command().split("\\s+"));
         }
-        LOGGER.atInfo().log("Executing {}", argsAsString(args));
         try {
             var dir = Files.createTempDirectory("");
             Path outPath = dir.resolve("out");
@@ -131,14 +137,20 @@ public class ProcExecutor {
                 // environment.clear();
                 environment.putAll(exec.env());
             }
-            if (exec.dir() != null) {
-                processBuilder.directory(new File(".."));
+            Path workingDir = this.workingDir == null ? Path.of(".") : this.workingDir;
+            if (exec.dir() == null) {
+                processBuilder.directory(workingDir.toFile());
             }
-            var process = processBuilder
+            else {
+                processBuilder.directory(workingDir.resolve(exec.dir()).toFile());
+            }
+            processBuilder = processBuilder
                     .command(args)
                     .redirectOutput(out)
-                    .redirectError(err)
-                    .start();
+                    .redirectError(err);
+            LOGGER.atInfo().log("Executing {} in directory {}", argsAsString(processBuilder.command()),
+                    processBuilder.directory() != null ? processBuilder.directory().getAbsoluteFile() : new File(".").getAbsoluteFile());
+            var process = processBuilder.start();
             var exited = process.waitFor(Optional.ofNullable(exec.timeout()).orElse(timeout).toMillis(), TimeUnit.MILLISECONDS);
             if (exited) {
                 if (Optional.ofNullable(exec.exitCodes()).orElse(Set.of(0)).contains(process.exitValue())) {

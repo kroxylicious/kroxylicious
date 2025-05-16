@@ -29,6 +29,12 @@ public @interface TestProcedure {
 
     Fix[] fixing() default {};
 
+    String workingDir() default ".";
+
+    String timeout() default "30s";
+
+    String destroyTimeout() default "10s";
+
     @Retention(RetentionPolicy.RUNTIME)
     @Target(ElementType.METHOD)
     @interface Fix {

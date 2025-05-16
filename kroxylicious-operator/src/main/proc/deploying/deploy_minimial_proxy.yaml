@@ -35,24 +35,16 @@ verification:
       - exec: kubectl create namespace kafka-client
   - step:
       - adoc: Run a producer to send some records through the proxy to the Kafka cluster
-      - exec: |
-          kubectl -n kafka-client run java-kafka-producer -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0 
-          --rm=true --restart=Never 
-          -- 
-          bin/kafka-verifiable-producer.sh 
-          --bootstrap-server=my-cluster-cluster-ip.my-proxy.svc.cluster.local:9292 
-          --topic=test-topic 
-          --max-messages=10
-#      - exec: |
-#          kubectl -n kafka-client run java-kafka-producer
-#          -ti
-#          --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0
-#          --rm=true
-#          --restart=Never
-#          --
-#          bin/kafka-console-producer.sh
-#          --bootstrap-server my-cluster-cluster-ip.my-proxy.svc.cluster.local:9292
-#          --topic test-topic
+      - exec:
+          timeout: 90s
+          command: |
+            kubectl -n kafka-client run java-kafka-producer -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0 
+            --rm=true --restart=Never 
+            -- 
+            bin/kafka-verifiable-producer.sh 
+            --bootstrap-server=my-cluster-cluster-ip.my-proxy.svc.cluster.local:9292 
+            --topic=test-topic 
+            --max-messages=10
   - step:
       - adoc: Run a consumer to retrieve the records you sent
       - exec: |
@@ -64,17 +56,6 @@ verification:
           --topic=test-topic 
           --reset-policy=earliest 
           --max-messages=10
-#      - exec: |
-#          kubectl -n kafka-client run java-kafka-consumer
-#          -ti
-#          --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0
-#          --rm=true
-#          --restart=Never
-#          --
-#          bin/kafka-console-consumer.sh
-#          --bootstrap-server my-cluster-cluster-ip.my-proxy.svc.cluster.local:9292
-#          --topic test-topic
-#          --from-beginning
   - step:
       - adoc: |
           Optionally, you can run a consumer against the backend Kafka cluster, to prove the records went to 
@@ -92,44 +73,6 @@ verification:
           --topic=test-topic 
           --reset-policy=earliest 
           --max-messages=10
-  - step:
-      - adoc: Clean up the resources you used you verification.
-      - adoc: Delete the Kafka topic you used.
-      - exec: |
-          kubectl -n kafka-client run java-kafka-admin -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0 
-          --rm=true --restart=Never 
-          --
-          bin/kafka-topics.sh 
-          --bootstrap-server=my-cluster-kafka-bootstrap.kafka.svc:9092 
-          --topic test-topic 
-          --delete
-      - adoc: Delete the Kafka consumer group you used to consume through the proxy.
-      - exec: |
-          kubectl -n kafka-client run java-kafka-admin -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0 
-          --rm=true --restart=Never 
-          -- 
-          bin/kafka-consumer-groups.sh 
-          --bootstrap-server=my-cluster-kafka-bootstrap.kafka.svc:9092 
-          --group=from-proxy 
-          --delete
-      - adoc: Delete the Kafka consumer group you used to consume directly from the Kafka cluster.
-      - exec: |
-          kubectl -n kafka-client run java-kafka-admin -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0 
-          --rm=true --restart=Never 
-          -- 
-          bin/kafka-consumer-groups.sh 
-          --bootstrap-server=my-cluster-kafka-bootstrap.kafka.svc:9092 
-          --group=from-cluster 
-          --delete
-      - adoc: Finally, delete the Kubernetes namespace you created the client pods in.
-      - exec: kubectl delete namespace kafka-client
-#tearDown:
-#  - exec: |
-#      kubectl -n kafka-client run java-kafka-admin -ti --image=quay.io/strimzi/kafka:0.38.0-kafka-3.6.0
-#      --rm=true --restart=Never
-#      --
-#      bin/kafka-topics.sh
-#      --bootstrap-server=my-cluster-kafka-bootstrap.kafka.svc:9092
-#      --topic test-topic
-#      --delete
-#  - exec: kubectl delete --ignore-not-found=true -f examples/simple/
+tearDown:
+  - exec: kubectl delete namespace kafka-client --ignore-not-found=true
+  - exec: kubectl delete --ignore-not-found=true -f examples/simple/

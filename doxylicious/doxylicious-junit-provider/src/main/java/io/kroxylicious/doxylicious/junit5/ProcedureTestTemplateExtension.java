@@ -19,6 +19,7 @@ import org.junit.jupiter.api.extension.TestTemplateInvocationContextProvider;
 import io.kroxylicious.doxylicious.Base;
 import io.kroxylicious.doxylicious.exec.ProcExecutor;
 import io.kroxylicious.doxylicious.exec.Suite;
+import io.kroxylicious.doxylicious.model.ExecDecl;
 
 public class ProcedureTestTemplateExtension implements
         TestTemplateInvocationContextProvider {
@@ -47,7 +48,11 @@ public class ProcedureTestTemplateExtension implements
             throw new RuntimeException("Proc " + testProcedure.value() + " not found");
         }
 
-        var exec = new ProcExecutor(base);
+        var workingDir = Path.of(testProcedure.workingDir());
+        var timeout = ExecDecl.parseDuration(testProcedure.timeout());
+        var destroyTimeout = ExecDecl.parseDuration(testProcedure.destroyTimeout());
+
+        var exec = new ProcExecutor(base, workingDir, timeout, destroyTimeout);
         Suite suite = exec.suite(testProcedure.value(),
                 Arrays.stream(testProcedure.assuming()).collect(Collectors.toSet()),
                 Arrays.stream(testProcedure.fixing()).collect(Collectors.toMap(TestProcedure.Fix::notional, TestProcedure.Fix::concrete)));

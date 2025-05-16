@@ -74,27 +74,32 @@ public record ExecDecl(
         }
     }
 
-    public static class DurationDeserializer extends JsonDeserializer<Duration> {
+    @SuppressWarnings("java:S6353") // \\d may be more concise, but [0-9] is better known
+    static final Pattern PATTERN = Pattern.compile("(?<num>[0-9]+)(?<unit>h|m|s|ms)");
 
-        @SuppressWarnings("java:S6353") // \\d may be more concise, but [0-9] is better known
-        static final Pattern PATTERN = Pattern.compile("(?<num>[0-9]+)(?<unit>h|m|s|ms)");
+    public static Duration parseDuration(String text) {
+        var matcher = PATTERN.matcher(text);
+        if (matcher.matches()) {
+            long num = Long.parseLong(matcher.group("num"));
+            return switch (matcher.group("unit")) {
+                case "h" -> Duration.ofHours(num);
+                case "m" -> Duration.ofMinutes(num);
+                case "s" -> Duration.ofSeconds(num);
+                case "ms" -> Duration.ofMillis(num);
+                default -> throw new IllegalStateException("Unexpected unit " + matcher.group("unit"));
+            };
+        }
+        throw new IllegalArgumentException("Invalid duration '" + text + "', should match " + PATTERN.pattern());
+    }
+
+    public static class DurationDeserializer extends JsonDeserializer<Duration> {
 
         @Override
         public Duration deserialize(JsonParser jsonParser, DeserializationContext deserializationContext)
                 throws IOException {
             String text = jsonParser.getText();
-            var matcher = PATTERN.matcher(text);
-            if (matcher.matches()) {
-                long num = Long.parseLong(matcher.group("num"));
-                return switch (matcher.group("unit")) {
-                    case "h" -> Duration.ofHours(num);
-                    case "m" -> Duration.ofMinutes(num);
-                    case "s" -> Duration.ofSeconds(num);
-                    case "ms" -> Duration.ofMillis(num);
-                    default -> throw new IllegalStateException("Unexpected unit " + matcher.group("unit"));
-                };
-            }
-            throw new IllegalArgumentException("Invalid duration '" + text + "', should match " + PATTERN.pattern());
+            return parseDuration(text);
         }
     }
+
 }
