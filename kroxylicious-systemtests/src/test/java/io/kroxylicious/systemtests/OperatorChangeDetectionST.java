@@ -14,6 +14,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperato
 import io.kroxylicious.systemtests.k8s.KubeClient;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
 
+import static io.kroxylicious.systemtests.TestTags.OPERATOR;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -44,6 +46,7 @@ import static org.awaitility.Awaitility.await;
 /**
  * The Kroxylicious system tests.
  */
+@Tag(OPERATOR)
 class OperatorChangeDetectionST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorChangeDetectionST.class);

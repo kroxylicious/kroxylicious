@@ -287,7 +287,7 @@ public class DeploymentUtils {
             if (resourceType.equals(Constants.NAMESPACE)) {
                 Namespace namespace = TestFrameUtils.configFromYaml(operatorFile, Namespace.class);
                 if (!isNamespaceCreated(namespace.getMetadata().getName())) {
-                    kubeClient().getClient().resource(namespace).create();
+                    NamespaceUtils.createNamespaceAndPrepare(namespace.getMetadata().getName());
                 }
             }
             else {
@@ -302,7 +302,6 @@ public class DeploymentUtils {
                     else {
                         resource.serverSideApply();
                     }
-
                 }
                 catch (FileNotFoundException e) {
                     throw new UncheckedIOException(e);
