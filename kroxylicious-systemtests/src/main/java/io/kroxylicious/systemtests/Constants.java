@@ -143,9 +143,7 @@ public final class Constants {
     /**
      * Scraper pod labels
      */
-    public static final String SCRAPER_LABEL_KEY = "user-test-app";
     public static final String SCRAPER_LABEL_VALUE = "scraper";
-    public static final String SCRAPER_NAME = "Scraper";
 
     /**
      * Basic paths to examples
