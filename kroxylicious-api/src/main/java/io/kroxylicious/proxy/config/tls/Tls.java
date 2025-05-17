@@ -22,30 +22,6 @@ public record Tls(KeyProvider key,
                   AllowDeny<String> cipherSuites,
                   AllowDeny<String> protocols) {
 
-    // Sundrio seems to need constructor order to matter, or it won't generate the with* methods for integration tests
-    // This can be removed once the old constructor is deprecated as unnecessary when the record will be generating it
-    public Tls(KeyProvider key, TrustProvider trust, AllowDeny<String> cipherSuites, AllowDeny<String> protocols) {
-        this.key = key;
-        this.trust = trust;
-        this.cipherSuites = cipherSuites;
-        this.protocols = protocols;
-    }
-
-    /**
-     * @deprecated use the all args constructor
-     * {@see io.kroxylicious.proxy.config.tls.Tls#Tls(
-     *      io.kroxylicious.proxy.config.tls.KeyProvider,
-     *      io.kroxylicious.proxy.config.tls.TrustProvider,
-     *      io.kroxylicious.proxy.config.tls.AllowDeny<String>,
-     *      io.kroxylicious.proxy.config.tls.AllowDeny<String>)
-     * }
-     */
-    // This is required for API backwards compatability
-    @Deprecated(forRemoval = true, since = "0.10.0")
-    public Tls(KeyProvider key, TrustProvider trust) {
-        this(key, trust, null, null);
-    }
-
     public static final String PEM = "PEM";
 
     public static String getStoreTypeOrPlatformDefault(String storeType) {
