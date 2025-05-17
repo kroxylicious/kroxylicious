@@ -37,6 +37,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -51,6 +52,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.FixedChecksumGenerator;
+import io.kroxylicious.proxy.config.ConfigParser;
+import io.kroxylicious.proxy.config.Configuration;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -58,6 +61,7 @@ import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResour
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
@@ -244,6 +248,11 @@ class DerivedResourcesTest {
                                 assertThat(Files.exists(expectedFile)).describedAs(expectedFile + " does not exist").isTrue();
                                 var expected = loadExpected(expectedFile, resourceType);
                                 assertSameYaml(actualResource, expected);
+                                if (actualResource instanceof ConfigMap cm && cm.getData().containsKey("proxy-config.yaml")) {
+                                    assertThatCode(() -> {
+                                        parseConfig(cm.getData().get("proxy-config.yaml"));
+                                    }).describedAs("proxy-config in configmap should be parseable").doesNotThrowAnyException();
+                                }
                                 unusedFiles.remove(expectedFile);
 
                             }));
@@ -258,6 +267,15 @@ class DerivedResourcesTest {
             return List.of(DynamicTest.dynamicTest("failed to initialize test", () -> {
                 throw e;
             }));
+        }
+    }
+
+    private static void parseConfig(String content) {
+        try {
+            ConfigParser.createBaseObjectMapper().readValue(content, Configuration.class);
+        }
+        catch (IOException e) {
+            throw new IllegalArgumentException("Couldn't parse configuration", e);
         }
     }
 

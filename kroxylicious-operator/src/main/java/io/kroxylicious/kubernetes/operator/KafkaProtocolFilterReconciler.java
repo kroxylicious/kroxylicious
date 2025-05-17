@@ -37,12 +37,11 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
-import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
-import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
 
 /**
  * <p>Reconciles a {@link KafkaProtocolFilter} by checking whether the {@link Secret}s
@@ -151,14 +150,14 @@ public class KafkaProtocolFilterReconciler implements
         KafkaProtocolFilter patch;
         if (existingSecretsByName.keySet().containsAll(referencedSecrets)
                 && existingConfigMapsByName.keySet().containsAll(referencedConfigMaps)) {
+            var checksumGenerator = new Crc32ChecksumGenerator();
             Stream<HasMetadata> referents = Stream.concat(referencedSecrets.stream().map(existingSecretsByName::get),
                     referencedConfigMaps.stream().map(existingConfigMapsByName::get));
-            HasMetadata[] referentsArray = referents.toArray(HasMetadata[]::new);
-            String checksum = referentsArray.length == 0 ? NO_CHECKSUM_SPECIFIED : MetadataChecksumGenerator.checksumFor(referentsArray);
+            referents.forEachOrdered(checksumGenerator::appendMetadata);
             patch = statusFactory.newTrueConditionStatusPatch(
                     filter,
                     Condition.Type.ResolvedRefs,
-                    checksum);
+                    checksumGenerator.encode());
         }
         else {
             referencedSecrets.removeAll(existingSecretsByName.keySet());

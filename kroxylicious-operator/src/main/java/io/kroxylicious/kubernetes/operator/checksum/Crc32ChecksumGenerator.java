@@ -9,13 +9,13 @@ package io.kroxylicious.kubernetes.operator.checksum;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
-import java.util.Map;
 import java.util.zip.CRC32;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
-import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 @NotThreadSafe
 public class Crc32ChecksumGenerator implements MetadataChecksumGenerator {
@@ -30,28 +30,16 @@ public class Crc32ChecksumGenerator implements MetadataChecksumGenerator {
     }
 
     @Override
-    public void appendMetadata(ObjectMeta objectMeta) {
-        appendString(objectMeta.getUid());
-        appendVersionSpecifier(objectMeta);
-        Map<String, String> annotations = objectMeta.getAnnotations();
-        if (annotations != null && annotations.containsKey(REFERENT_CHECKSUM_ANNOTATION)) {
-            appendString(annotations.get(REFERENT_CHECKSUM_ANNOTATION));
+    public void appendString(@Nullable String value) {
+        if (value != null) {
+            checksum.update(value.getBytes(StandardCharsets.UTF_8));
         }
-    }
-
-    @Override
-    public void appendMetadata(HasMetadata entity) {
-        appendMetadata(entity.getMetadata());
-    }
-
-    @Override
-    public void appendString(String value) {
-        checksum.update(value.getBytes(StandardCharsets.UTF_8));
     }
 
     @Override
     public void appendLong(Long value) {
         byteBuffer.putLong(0, value);
+        byteBuffer.position(0);
         checksum.update(byteBuffer);
     }
 
@@ -62,6 +50,12 @@ public class Crc32ChecksumGenerator implements MetadataChecksumGenerator {
             return NO_CHECKSUM_SPECIFIED;
         }
         byteBuffer.putLong(0, value);
+        byteBuffer.position(0);
         return BASE_64_ENCODER.encodeToString(byteBuffer.array());
+    }
+
+    @VisibleForTesting
+    long getValue() {
+        return checksum.getValue();
     }
 }

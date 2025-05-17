@@ -24,6 +24,7 @@ import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServicePort;
+import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
@@ -40,6 +41,7 @@ import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressSpec;
@@ -52,7 +54,10 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses.Protocol;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.IngressesBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
+import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult.DanglingReference;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -61,6 +66,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.fabric8.kubernetes.api.model.HasMetadata.getKind;
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 import static io.kroxylicious.kubernetes.operator.ProxyConfigStateDependentResource.CONFIG_STATE_CONFIG_MAP_SUFFIX;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.hasKind;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.hasResolvedRefsFalseCondition;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
@@ -81,6 +88,7 @@ public final class VirtualKafkaClusterReconciler implements
     static final String INGRESSES_EVENT_SOURCE_NAME = "ingresses";
     static final String FILTERS_EVENT_SOURCE_NAME = "filters";
     static final String SECRETS_EVENT_SOURCE_NAME = "secrets";
+    static final String CONFIGMAPS_EVENT_SOURCE_NAME = "configmaps";
     static final String KUBERNETES_SERVICES_EVENT_SOURCE_NAME = "kubernetesServices";
     private static final String KAFKA_PROXY_INGRESS_KIND = getKind(KafkaProxyIngress.class);
     private static final String KAFKA_PROXY_KIND = getKind(KafkaProxy.class);
@@ -99,20 +107,29 @@ public final class VirtualKafkaClusterReconciler implements
     public UpdateControl<VirtualKafkaCluster> reconcile(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
         ClusterResolutionResult clusterResolutionResult = resolver.resolveClusterRefs(cluster, context);
 
-        VirtualKafkaCluster updatedCluster = null;
-        if (clusterResolutionResult.isFullyResolved()) {
-            updatedCluster = checkClusterIngressTlsSettings(cluster, context);
+        UpdateControl<VirtualKafkaCluster> reconciliationResult;
+        if (clusterResolutionResult.allReferentsFullyResolved()) {
+            VirtualKafkaCluster updatedCluster = checkClusterIngressTlsSettings(cluster, context);
             if (updatedCluster == null) {
                 updatedCluster = maybeCombineStatusWithClusterConfigMap(cluster, context);
+                Crc32ChecksumGenerator checksumGenerator = new Crc32ChecksumGenerator();
+                clusterResolutionResult.allResolvedReferents().forEach(checksumGenerator::appendMetadata);
+                KubernetesResourceUtil.getOrCreateAnnotations(updatedCluster)
+                        .put(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
+                                checksumGenerator.encode() /* clusterResolutionResult.dependantsChecksum() */);
+                reconciliationResult = UpdateControl.patchResourceAndStatus(updatedCluster);
+            }
+            else {
+                reconciliationResult = UpdateControl.patchStatus(updatedCluster);
             }
         }
         else {
-            updatedCluster = handleResolutionProblems(cluster, clusterResolutionResult);
+            reconciliationResult = UpdateControl.patchStatus(handleResolutionProblems(cluster, clusterResolutionResult));
         }
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(cluster), name(cluster));
         }
-        return UpdateControl.patchStatus(updatedCluster);
+        return reconciliationResult;
     }
 
     /**
@@ -137,6 +154,15 @@ public final class VirtualKafkaClusterReconciler implements
             return tlsConsistencyCheck.get();
         }
 
+        VirtualKafkaCluster updatedVirtualCluster = checkIngressCertificateRefs(cluster, context);
+        if (updatedVirtualCluster == null) {
+            updatedVirtualCluster = checkIngressTrustAnchorRefs(cluster, context);
+        }
+        return updatedVirtualCluster;
+    }
+
+    @Nullable
+    private VirtualKafkaCluster checkIngressCertificateRefs(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
         var certRefs = cluster.getSpec().getIngresses().stream()
                 .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
                 .map(Tls::getCertificateRef)
@@ -145,12 +171,34 @@ public final class VirtualKafkaClusterReconciler implements
             var certRefCheck = certRefs.stream()
                     .map(certRef -> {
                         var path = "spec.ingresses[].tls.certificateRef";
-                        return ResourcesUtil.checkCertRef(cluster, context, SECRETS_EVENT_SOURCE_NAME, certRef, path, statusFactory);
+                        return ResourcesUtil.checkCertRef(cluster, certRef, path, statusFactory, context, SECRETS_EVENT_SOURCE_NAME).resource();
                     })
                     .filter(Objects::nonNull)
                     .findFirst();
             if (certRefCheck.isPresent()) {
                 return certRefCheck.get();
+            }
+        }
+        return null;
+    }
+
+    @Nullable
+    private VirtualKafkaCluster checkIngressTrustAnchorRefs(VirtualKafkaCluster cluster, Context<VirtualKafkaCluster> context) {
+        var trustRefs = cluster.getSpec().getIngresses().stream()
+                .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
+                .map(Tls::getTrustAnchorRef)
+                .filter(Objects::nonNull)
+                .toList();
+        if (!trustRefs.isEmpty()) {
+            var trustAnchorCheck = trustRefs.stream()
+                    .map(trustAnchorRef -> {
+                        var path = "spec.ingresses[].tls.trustAnchor";
+                        return ResourcesUtil.checkTrustAnchorRef(cluster, context, CONFIGMAPS_EVENT_SOURCE_NAME, trustAnchorRef, path, statusFactory).resource();
+                    })
+                    .filter(Objects::nonNull)
+                    .findFirst();
+            if (trustAnchorCheck.isPresent()) {
+                return trustAnchorCheck.get();
             }
         }
         return null;
@@ -162,7 +210,7 @@ public final class VirtualKafkaClusterReconciler implements
 
         ResourceState resolvedRefsTrueResourceState = ResourceState.of(statusFactory.newTrueCondition(cluster, Condition.Type.ResolvedRefs));
         return context
-                .getSecondaryResource(ConfigMap.class)
+                .getSecondaryResource(ConfigMap.class, PROXY_CONFIG_STATE_SOURCE_NAME)
                 .flatMap(cm -> Optional.ofNullable(cm.getData()))
                 .map(ProxyConfigStateData::new)
                 .flatMap(data -> data.getStatusPatchForCluster(name(cluster)))
@@ -225,28 +273,43 @@ public final class VirtualKafkaClusterReconciler implements
     private VirtualKafkaCluster handleResolutionProblems(VirtualKafkaCluster cluster,
                                                          ClusterResolutionResult clusterResolutionResult) {
         LocalRef<VirtualKafkaCluster> clusterRef = toLocalRef(cluster);
-        var unresolvedIngressProxies = clusterResolutionResult.findDanglingReferences(KAFKA_PROXY_INGRESS_KIND, KAFKA_PROXY_KIND).collect(Collectors.toSet());
-        if (clusterResolutionResult.anyDependenciesNotFoundFor(clusterRef)) {
+        var unresolvedIngressProxies = clusterResolutionResult.allDanglingReferences()
+                .filter(DanglingReference.hasReferrerKind(KAFKA_PROXY_INGRESS_KIND).and(DanglingReference.hasReferentKind(KAFKA_PROXY_KIND))).collect(Collectors.toSet());
+        if (clusterResolutionResult.allDanglingReferences().anyMatch(DanglingReference.hasReferrer(clusterRef))) {
             Stream<String> proxyMsg = refsMessage("spec.proxyRef references ", cluster,
-                    clusterResolutionResult.findDanglingReferences(clusterRef, KAFKA_PROXY_KIND));
+                    clusterResolutionResult.allDanglingReferences()
+                            .filter(DanglingReference.hasReferrer(clusterRef).and(DanglingReference.hasReferentKind(KAFKA_PROXY_KIND)))
+                            .map(DanglingReference::absentRef));
             Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", cluster,
-                    clusterResolutionResult.findDanglingReferences(clusterRef, KAFKA_SERVICE_KIND));
+                    clusterResolutionResult.allDanglingReferences()
+                            .filter(DanglingReference.hasReferrer(clusterRef).and(DanglingReference.hasReferentKind(KAFKA_SERVICE_KIND)))
+                            .map(DanglingReference::absentRef));
             Stream<String> ingressMsg = refsMessage("spec.ingresses[].ingressRef references ", cluster,
-                    clusterResolutionResult.findDanglingReferences(clusterRef, KAFKA_PROXY_INGRESS_KIND));
+                    clusterResolutionResult.allDanglingReferences()
+                            .filter(DanglingReference.hasReferrer(clusterRef).and(DanglingReference.hasReferentKind(KAFKA_PROXY_INGRESS_KIND)))
+                            .map(DanglingReference::absentRef));
             Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster,
-                    clusterResolutionResult.findDanglingReferences(clusterRef, KAFKA_PROTOCOL_FILTER_KIND));
+                    clusterResolutionResult.allDanglingReferences()
+                            .filter(DanglingReference.hasReferrer(clusterRef).and(DanglingReference.hasReferentKind(KAFKA_PROTOCOL_FILTER_KIND)))
+                            .map(DanglingReference::absentRef));
             return statusFactory.newFalseConditionStatusPatch(cluster, Condition.Type.ResolvedRefs, Condition.REASON_REFS_NOT_FOUND,
                     joiningMessages(proxyMsg, serviceMsg, ingressMsg, filterMsg));
         }
-        else if (clusterResolutionResult.anyResolvedRefsConditionsFalse() || !unresolvedIngressProxies.isEmpty()) {
+        else if (clusterResolutionResult.allResolvedReferents().anyMatch(ResourcesUtil::hasResolvedRefsFalseCondition) || !unresolvedIngressProxies.isEmpty()) {
             Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", cluster,
-                    clusterResolutionResult.findResourcesWithResolvedRefsFalse(KAFKA_SERVICE_KIND));
+                    clusterResolutionResult.allResolvedReferents().filter(hasResolvedRefsFalseCondition().and(hasKind(KAFKA_SERVICE_KIND)))
+                            .map(ResourcesUtil::toLocalRef));
             Stream<String> ingressMsg = refsMessage("spec.ingresses[].ingressRef references ", cluster,
-                    clusterResolutionResult.findResourcesWithResolvedRefsFalse(KAFKA_PROXY_INGRESS_KIND));
+                    clusterResolutionResult.allResolvedReferents()
+                            .filter(hasResolvedRefsFalseCondition().and(hasKind(KAFKA_PROXY_INGRESS_KIND))).map(ResourcesUtil::toLocalRef));
             Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster,
-                    clusterResolutionResult.findResourcesWithResolvedRefsFalse(KAFKA_PROTOCOL_FILTER_KIND));
+                    clusterResolutionResult.allResolvedReferents()
+                            .filter(hasResolvedRefsFalseCondition().and(hasKind(KAFKA_PROTOCOL_FILTER_KIND)))
+                            .map(ResourcesUtil::toLocalRef));
             Stream<String> ingressProxyMessage = refsMessage("a spec.ingresses[].ingressRef had an inconsistent or missing proxyRef ", cluster,
-                    clusterResolutionResult.findDanglingReferences(KAFKA_PROXY_INGRESS_KIND, KAFKA_PROXY_KIND));
+                    clusterResolutionResult.allDanglingReferences()
+                            .filter(DanglingReference.hasReferrerKind(KAFKA_PROXY_INGRESS_KIND).and(DanglingReference.hasReferentKind(KAFKA_PROXY_KIND)))
+                            .map(DanglingReference::absentRef));
             return statusFactory.newFalseConditionStatusPatch(cluster, Condition.Type.ResolvedRefs,
                     Condition.REASON_TRANSITIVE_REFS_NOT_FOUND,
                     joiningMessages(serviceMsg, ingressMsg, filterMsg, ingressProxyMessage));
@@ -357,6 +420,14 @@ public final class VirtualKafkaClusterReconciler implements
                 .withSecondaryToPrimaryMapper(secretToVirtualKafkaCluster(context))
                 .build();
 
+        InformerEventSourceConfiguration<ConfigMap> clusterToConfigMap = InformerEventSourceConfiguration.from(
+                ConfigMap.class,
+                VirtualKafkaCluster.class)
+                .withName(CONFIGMAPS_EVENT_SOURCE_NAME)
+                .withPrimaryToSecondaryMapper(virtualKafkaClusterToConfigMap())
+                .withSecondaryToPrimaryMapper(configMapToVirtualKafkaCluster(context))
+                .build();
+
         return List.of(
                 new InformerEventSource<>(clusterToProxy, context),
                 new InformerEventSource<>(clusterToProxyConfigState, context),
@@ -364,7 +435,8 @@ public final class VirtualKafkaClusterReconciler implements
                 new InformerEventSource<>(clusterToService, context),
                 new InformerEventSource<>(clusterToFilters, context),
                 new InformerEventSource<>(clusterToKubeService, context),
-                new InformerEventSource<>(clusterToSecret, context));
+                new InformerEventSource<>(clusterToSecret, context),
+                new InformerEventSource<>(clusterToConfigMap, context));
     }
 
     @VisibleForTesting
@@ -384,6 +456,28 @@ public final class VirtualKafkaClusterReconciler implements
                 cluster -> cluster.getSpec().getIngresses().stream()
                         .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
                         .map(Tls::getCertificateRef).toList());
+    }
+
+    @VisibleForTesting
+    static PrimaryToSecondaryMapper<VirtualKafkaCluster> virtualKafkaClusterToConfigMap() {
+        return (VirtualKafkaCluster cluster) -> ResourcesUtil.localRefsAsResourceIds(cluster,
+                cluster.getSpec().getIngresses().stream()
+                        .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
+                        .map(Tls::getTrustAnchorRef)
+                        .map(TrustAnchorRef::getRef)
+                        .toList());
+    }
+
+    @VisibleForTesting
+    static SecondaryToPrimaryMapper<ConfigMap> configMapToVirtualKafkaCluster(EventSourceContext<VirtualKafkaCluster> context) {
+        return configMap -> ResourcesUtil.findReferrersMulti(context,
+                configMap,
+                VirtualKafkaCluster.class,
+                cluster -> cluster.getSpec().getIngresses().stream()
+                        .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
+                        .map(Tls::getTrustAnchorRef)
+                        .map(TrustAnchorRef::getRef)
+                        .toList());
     }
 
     @VisibleForTesting

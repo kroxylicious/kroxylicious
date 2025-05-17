@@ -6,16 +6,16 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -23,12 +23,20 @@ import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManag
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.model.ProxyModel;
+import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
+import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
+import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 
-import static org.mockito.ArgumentMatchers.anyString;
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static io.kroxylicious.kubernetes.operator.resolver.DependencyResolver.EMPTY_RESOLUTION_RESULT;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -37,9 +45,6 @@ import static org.mockito.Mockito.when;
 class ProxyDeploymentDependentResourceTest {
 
     private static final String PROXY_NAME = "RandomProxy";
-    private static final String PROXY_INGRESS_CHECKSUM = "12345";
-    private static final String PROXY_INGRESS_UID = UUID.randomUUID().toString();
-    private static final long PROXY_INGRESS_GENERATION = 10L;
     private KafkaProxy kafkaProxy;
 
     @Mock
@@ -48,7 +53,10 @@ class ProxyDeploymentDependentResourceTest {
     @Mock
     private MetadataChecksumGenerator metadataChecksumGenerator;
 
-    private KafkaProxyIngress kafkaProxyIngress;
+    private ProxyModel proxyModel;
+
+    private VirtualKafkaCluster virtualKafkaCluster;
+    private KafkaService kafkaService;
 
     @BeforeEach
     void setUp() {
@@ -56,50 +64,43 @@ class ProxyDeploymentDependentResourceTest {
         kafkaProxy = new KafkaProxyBuilder().withNewMetadata().withName(PROXY_NAME).endMetadata()
                 .withNewSpec().withPodTemplate(podTemplate).endSpec().build();
 
-        kafkaProxyIngress = new KafkaProxyIngressBuilder().withNewMetadata().withUid(PROXY_INGRESS_UID).withName("Ingress").withGeneration(PROXY_INGRESS_GENERATION)
-                .withAnnotations(Map.of(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, PROXY_INGRESS_CHECKSUM)).endMetadata().build();
-        var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext<>(null, null, kubernetesContext);
+        kafkaService = new KafkaServiceBuilder().withNewMetadata().withName(PROXY_NAME).endMetadata().build();
+        virtualKafkaCluster = new VirtualKafkaClusterBuilder().build();
+
+        proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyIngressModel(List.of()), List.of(clusterResolutionResultFor(virtualKafkaCluster)));
+
+        var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext<>(null, kafkaProxy, kubernetesContext);
         resourceContext.put(Crc32ChecksumGenerator.CHECKSUM_CONTEXT_KEY, metadataChecksumGenerator);
         when(kubernetesContext.managedWorkflowAndDependentResourceContext()).thenReturn(resourceContext);
-        when(kubernetesContext.getSecondaryResource(KafkaProxyIngress.class)).thenReturn(Optional.of(kafkaProxyIngress));
     }
 
     @Test
-    void shouldNotIncludeKafkaProxyIngressWithoutChecksum() {
+    void shouldIncludeResolvedVirtualClusterInChecksum() {
         // Given
         ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
 
         // When
-        proxyDeploymentDependentResource.checksumFor(kafkaProxy, kubernetesContext);
+        proxyDeploymentDependentResource.checksumFor(kafkaProxy, kubernetesContext, proxyModel);
 
         // Then
-        verify(metadataChecksumGenerator, times(0)).appendString(PROXY_INGRESS_CHECKSUM);
+        verify(metadataChecksumGenerator).appendMetadata(virtualKafkaCluster);
     }
 
     @Test
-    void shouldSkipMissingKafkaProxyIngress() {
+    void shouldIncludeMultipleResolvedVirtualClusterInChecksum() {
         // Given
-        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
-        when(kubernetesContext.getSecondaryResource(KafkaProxyIngress.class)).thenReturn(Optional.empty());
-
-        // When
-        proxyDeploymentDependentResource.checksumFor(kafkaProxy, kubernetesContext);
-
-        // Then
-        verify(metadataChecksumGenerator, times(0)).appendString(anyString());
-    }
-
-    @Test
-    void shouldIncludeKafkaProxyIngressUidAndGeneration() {
-        // Given
+        var virtualKafkaClusterB = new VirtualKafkaClusterBuilder().build();
+        List<ClusterResolutionResult> clusterResolutionResults = List.of(
+                clusterResolutionResultFor(virtualKafkaCluster),
+                clusterResolutionResultFor(virtualKafkaClusterB));
+        proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyIngressModel(List.of()), clusterResolutionResults);
         ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
 
         // When
-        proxyDeploymentDependentResource.checksumFor(kafkaProxy, kubernetesContext);
+        proxyDeploymentDependentResource.checksumFor(kafkaProxy, kubernetesContext, proxyModel);
 
         // Then
-        verify(metadataChecksumGenerator).appendMetadata(kafkaProxyIngress);
-        // We can't assert anything about the checksum here as the generator is mocked, we just want to verify the generator is used correctly
+        verify(metadataChecksumGenerator, times(clusterResolutionResults.size())).appendMetadata(ArgumentMatchers.any(VirtualKafkaCluster.class));
     }
 
     @Test
@@ -108,10 +109,24 @@ class ProxyDeploymentDependentResourceTest {
         ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
 
         // When
-        proxyDeploymentDependentResource.checksumFor(kafkaProxy, kubernetesContext);
+        proxyDeploymentDependentResource.checksumFor(kafkaProxy, kubernetesContext, proxyModel);
 
         // Then
         verify(metadataChecksumGenerator).encode();
         // We can't assert anything about the checksum here as the generator is mocked, we just want to verify the generator is used correctly
+    }
+
+    @NonNull
+    private ClusterResolutionResult clusterResolutionResultFor(VirtualKafkaCluster virtualKafkaCluster) {
+        return new ClusterResolutionResult(virtualKafkaCluster,
+                buildResolutionResultFromCluster(kafkaProxy),
+                List.of(),
+                buildResolutionResultFromCluster(kafkaService),
+                List.of());
+    }
+
+    @NonNull
+    private <T extends HasMetadata> ResolutionResult<T> buildResolutionResultFromCluster(T referent) {
+        return new ResolutionResult<>(ResourcesUtil.toLocalRef(virtualKafkaCluster), ResourcesUtil.toLocalRef(referent), referent);
     }
 }

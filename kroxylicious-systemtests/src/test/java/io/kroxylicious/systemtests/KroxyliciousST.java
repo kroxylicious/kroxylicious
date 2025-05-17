@@ -48,13 +48,33 @@ class KroxyliciousST extends AbstractST {
      * @param namespace the namespace
      */
     @Test
-    void produceAndConsumeMessage(String namespace) {
-        int numberOfMessages = 1;
-
+    void produceAndConsumeMessages(String namespace) {
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
+
+        produceAndConsumeMessage(namespace);
+    }
+
+    /**
+     * Produce and consume message with TLS.
+     *
+     * @param namespace the namespace
+     */
+    @Test
+    void produceAndConsumeMessagesWithTls(String namespace) {
+        // start Kroxylicious
+        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
+        kroxylicious = new Kroxylicious(namespace);
+        kroxylicious.deployPortIdentifiesNodeWithTlsAndNoFilters(clusterName);
+
+        produceAndConsumeMessage(namespace);
+    }
+
+    private void produceAndConsumeMessage(String namespace) {
+        int numberOfMessages = 1;
+
         String bootstrap = kroxylicious.getBootstrap(clusterName);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();

@@ -55,6 +55,10 @@ jobs:
           "kubernetes version": 'v1.32.0'
           "github token": ${{ secrets.GITHUB_TOKEN }}
           driver: docker
+      - name: 'Test for unpublished reference release (japicmp)'
+        run: |
+          REFERENCE_RELEASE=$(mvn --quiet -pl kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
+          echo "REFERENCE_RELEASE_UNPUBLISHED=$(mvn --quiet dependency:get -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom 1>/dev/null && echo false || echo true)" >> $GITHUB_ENV
       - name: Cache SonarCloud packages
         uses: actions/cache@v4
         if: github.ref_name == 'main' || env.SONAR_TOKEN_SET == 'true'
@@ -80,30 +84,7 @@ jobs:
           # KROXYLICIOUS_IMAGE env var is used by the Operator ITs
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_ENV"
           # make sure everything is built and compiles
-          mvn -B install -DskipTests -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} -pl ':kroxylicious-operator' -am
-          # now run just the operator unit tests.         
-          mvn -B verify -DskipITs -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} -pl ':kroxylicious-operator'
-      - name: 'Set up Docker Buildx'
-        uses: docker/setup-buildx-action@v3
-      - name: 'Build tagged Docker image'
-        uses: docker/build-push-action@v6
-        with:
-          file: Dockerfile
-          context: .
-          build-args:
-            KROXYLICIOUS_VERSION=${{ env.KROXYLICIOUS_VERSION }}
-          tags: ${{ env.KROXYLICIOUS_IMAGE }}
-          push: false
-          cache-from: type=gha
-          cache-to: type=gha,mode=max,compression=zstd
-          load: 'true'
-      - name: 'Load Kroxylicious Image in Minikube'
-        run: minikube image load  ${{ env.KROXYLICIOUS_IMAGE }}
-      - name: 'Run Kroxylicious operator integration tests'
-        if: github.ref_name != 'main' || env.SONAR_TOKEN_SET != 'true'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn -B verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} -DskipUTs -pl ':kroxylicious-operator'
+          mvn -B install -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} -pl ':kroxylicious-operator' -am
       - name: 'Build Kroxylicious maven project on main with Sonar'
         if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
         env:

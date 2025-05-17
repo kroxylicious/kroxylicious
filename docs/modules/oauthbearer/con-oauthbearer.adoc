@@ -76,8 +76,9 @@ There are two steps to using the filter.
 
 [source, yaml]
 ----
-filters:
-  - type: OauthBearerValidation
+filterDefinitions:
+  - name: my-oauth-filter
+    type: OauthBearerValidation
     config:
       jwksEndpointUrl: https://oauth/JWKS   #<1>
       jwksEndpointRefreshMs: 3600000        #<2>

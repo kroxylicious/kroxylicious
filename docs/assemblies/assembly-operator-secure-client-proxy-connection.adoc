@@ -1,0 +1,17 @@
+// file included in the following:
+//
+// kroxylicious-operator/assemblies/assembly-operator-secure-proxy.adoc
+
+[id='assembly-operator-secure-client-proxy-connection-{context}']
+= Securing the client-to-proxy connection
+
+[role="_abstract"]
+Secure client-to-proxy communications using TLS.
+
+include::../modules/configuring/con-configuring-tls-between-client-and-proxy.adoc[leveloffset=+1]
+
+include::../modules/configuring/con-virtualkafkacluster-mtls.adoc[leveloffset=+1]
+
+include::../modules/configuring/con-virtualkafkacluster-tls-protocol.adoc[leveloffset=+1]
+
+include::../modules/configuring/con-virtualkafkacluster-tls-cipher.adoc[leveloffset=+1]

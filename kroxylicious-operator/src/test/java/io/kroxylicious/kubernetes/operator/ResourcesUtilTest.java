@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,6 +34,8 @@ import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
+import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
@@ -47,6 +50,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
@@ -393,6 +398,87 @@ class ResourcesUtilTest {
         assertThat(ResourcesUtil.isStatusFresh(cluster)).isEqualTo(isReconciled);
     }
 
+    public static Stream<Arguments> hasResolvedRefsFalse() {
+        Condition resolvedRefsTrueCondition = resolvedRefsCondition(Condition.Status.TRUE);
+        Condition resolvedRefsFalseCondition = resolvedRefsCondition(Condition.Status.FALSE);
+        VirtualKafkaCluster vkcNoStatus = new VirtualKafkaClusterBuilder().build();
+        VirtualKafkaCluster vkcNoConditions = new VirtualKafkaClusterBuilder().withNewStatus().endStatus().build();
+        VirtualKafkaCluster vkcEmptyConditions = new VirtualKafkaClusterBuilder().withNewStatus().withConditions(List.of()).endStatus().build();
+        VirtualKafkaCluster vkcResolvedRefsTrue = new VirtualKafkaClusterBuilder().withNewStatus().withConditions(
+                resolvedRefsTrueCondition).endStatus().build();
+        VirtualKafkaCluster vkcResolvedRefsFalse = new VirtualKafkaClusterBuilder().withNewStatus().withConditions(
+                resolvedRefsFalseCondition).endStatus().build();
+
+        KafkaService ksNoStatus = new KafkaServiceBuilder().build();
+        KafkaService ksNoConditions = new KafkaServiceBuilder().withNewStatus().endStatus().build();
+        KafkaService ksEmptyConditions = new KafkaServiceBuilder().withNewStatus().withConditions(List.of()).endStatus().build();
+        KafkaService ksResolvedRefsTrue = new KafkaServiceBuilder().withNewStatus().withConditions(
+                resolvedRefsTrueCondition).endStatus().build();
+        KafkaService ksResolvedRefsFalse = new KafkaServiceBuilder().withNewStatus().withConditions(
+                resolvedRefsFalseCondition).endStatus().build();
+
+        KafkaProtocolFilter kpfNoStatus = new KafkaProtocolFilterBuilder().build();
+        KafkaProtocolFilter kpfNoConditions = new KafkaProtocolFilterBuilder().withNewStatus().endStatus().build();
+        KafkaProtocolFilter kpfEmptyConditions = new KafkaProtocolFilterBuilder().withNewStatus().withConditions(List.of()).endStatus().build();
+        KafkaProtocolFilter kpfResolvedRefsTrue = new KafkaProtocolFilterBuilder().withNewStatus().withConditions(
+                resolvedRefsTrueCondition).endStatus().build();
+        KafkaProtocolFilter kpfResolvedRefsFalse = new KafkaProtocolFilterBuilder().withNewStatus().withConditions(
+                resolvedRefsFalseCondition).endStatus().build();
+
+        KafkaProxyIngress kpiNoStatus = new KafkaProxyIngressBuilder().build();
+        KafkaProxyIngress kpiNoConditions = new KafkaProxyIngressBuilder().withNewStatus().endStatus().build();
+        KafkaProxyIngress kpiEmptyConditions = new KafkaProxyIngressBuilder().withNewStatus().withConditions(List.of()).endStatus().build();
+        KafkaProxyIngress kpiResolvedRefsTrue = new KafkaProxyIngressBuilder().withNewStatus().withConditions(
+                resolvedRefsTrueCondition).endStatus().build();
+        KafkaProxyIngress kpiResolvedRefsFalse = new KafkaProxyIngressBuilder().withNewStatus().withConditions(
+                resolvedRefsFalseCondition).endStatus().build();
+
+        return Stream.of(Arguments.argumentSet("virtualkafkacluster - no status", vkcNoStatus, false),
+                Arguments.argumentSet("virtualkafkacluster - no conditions on status", vkcNoConditions, false),
+                Arguments.argumentSet("virtualkafkacluster - empty conditions on status", vkcEmptyConditions, false),
+                Arguments.argumentSet("virtualkafkacluster - resolved refs true", vkcResolvedRefsTrue, false),
+                Arguments.argumentSet("virtualkafkacluster - resolved refs false", vkcResolvedRefsFalse, true),
+                Arguments.argumentSet("kafkaservice - no status", ksNoStatus, false),
+                Arguments.argumentSet("kafkaservice - no conditions on status", ksNoConditions, false),
+                Arguments.argumentSet("kafkaservice - empty conditions on status", ksEmptyConditions, false),
+                Arguments.argumentSet("kafkaservice - resolved refs true", ksResolvedRefsTrue, false),
+                Arguments.argumentSet("kafkaservice - resolved refs false", ksResolvedRefsFalse, true),
+                Arguments.argumentSet("kafkaprotocolfilter - no status", kpfNoStatus, false),
+                Arguments.argumentSet("kafkaprotocolfilter - no conditions on status", kpfNoConditions, false),
+                Arguments.argumentSet("kafkaprotocolfilter - empty conditions on status", kpfEmptyConditions, false),
+                Arguments.argumentSet("kafkaprotocolfilter - resolved refs true", kpfResolvedRefsTrue, false),
+                Arguments.argumentSet("kafkaprotocolfilter - resolved refs false", kpfResolvedRefsFalse, true),
+                Arguments.argumentSet("kafkaproxyingress - no status", kpiNoStatus, false),
+                Arguments.argumentSet("kafkaproxyingress - no conditions on status", kpiNoConditions, false),
+                Arguments.argumentSet("kafkaproxyingress - empty conditions on status", kpiEmptyConditions, false),
+                Arguments.argumentSet("kafkaproxyingress - resolved refs true", kpiResolvedRefsTrue, false),
+                Arguments.argumentSet("kafkaproxyingress - resolved refs false", kpiResolvedRefsFalse, true));
+    }
+
+    @NonNull
+    private static Condition resolvedRefsCondition(Condition.Status status) {
+        return new ConditionBuilder()
+                .withLastTransitionTime(Instant.EPOCH)
+                .withMessage("message")
+                .withObservedGeneration(1L)
+                .withType(Condition.Type.ResolvedRefs)
+                .withStatus(
+                        status)
+                .withReason("reason").build();
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void hasResolvedRefsFalse(HasMetadata cluster, boolean hasResolvedRefsFalse) {
+        assertThat(ResourcesUtil.hasResolvedRefsFalseCondition(cluster)).isEqualTo(hasResolvedRefsFalse);
+    }
+
+    @Test
+    void hasResolvedRefsFalseThrowsWhenResourceDoesntUseResolveRefs() {
+        assertThatThrownBy(() -> ResourcesUtil.hasResolvedRefsFalseCondition(new KafkaProxy())).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Resource kind 'KafkaProxy' does not use ResolveRefs conditions");
+    }
+
     public static Stream<Arguments> isStatusFresh_KafkaProxyIngress() {
         KafkaProxyIngress observedGenerationEqualsMetadataGeneration = new KafkaProxyIngressBuilder()
                 .withNewMetadata()
@@ -461,6 +547,41 @@ class ResourcesUtilTest {
     @MethodSource
     void isStatusFresh_KafkaProtocolFilter(KafkaProtocolFilter filter, boolean isReconciled) {
         assertThat(ResourcesUtil.isStatusFresh(filter)).isEqualTo(isReconciled);
+    }
+
+    public static Stream<Arguments> isStatusFresh_KafkaProxy() {
+        KafkaProxy observedGenerationEqualsMetadataGeneration = new KafkaProxyBuilder()
+                .withNewMetadata()
+                .withGeneration(1L)
+                .endMetadata()
+                .editStatus().withObservedGeneration(1L)
+                .endStatus().build();
+        KafkaProxy observedGenerationLessThanMetadataGeneration = new KafkaProxyBuilder()
+                .withNewMetadata()
+                .withGeneration(2L)
+                .endMetadata()
+                .editStatus().withObservedGeneration(1L)
+                .endStatus().build();
+        KafkaProxy observedGenerationNull = new KafkaProxyBuilder()
+                .withNewMetadata()
+                .withGeneration(2L)
+                .endMetadata()
+                .editStatus().withObservedGeneration(null)
+                .endStatus().build();
+        KafkaProxy statusNull = new KafkaProxyBuilder()
+                .withNewMetadata()
+                .withGeneration(2L)
+                .endMetadata().build();
+        return Stream.of(Arguments.argumentSet("observed generation equals metadata generation", observedGenerationEqualsMetadataGeneration, true),
+                Arguments.argumentSet("observed generation less than metadata generation", observedGenerationLessThanMetadataGeneration, false),
+                Arguments.argumentSet("observed generation null", observedGenerationNull, false),
+                Arguments.argumentSet("status null", statusNull, false));
+    }
+
+    @ParameterizedTest
+    @MethodSource
+    void isStatusFresh_KafkaProxy(KafkaProxy proxy, boolean isReconciled) {
+        assertThat(ResourcesUtil.isStatusFresh(proxy)).isEqualTo(isReconciled);
     }
 
     public static Stream<Arguments> isStatusFresh_KafkaService() {

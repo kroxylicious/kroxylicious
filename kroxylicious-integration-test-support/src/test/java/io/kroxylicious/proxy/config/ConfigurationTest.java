@@ -56,70 +56,13 @@ class ConfigurationTest {
     private final ConfigParser configParser = new ConfigParser();
 
     @Test
-    void shouldAcceptOldBootstrapServers() throws IOException {
-        var vc = MAPPER.readValue(
-                """
-                              name: cluster
-                              targetCluster:
-                                bootstrap_servers: kafka.example:1234
-                              gateways:
-                              - name: default
-                                sniHostIdentifiesNode:
-                                  bootstrapAddress: cluster1:9192
-                                  advertisedBrokerAddressPattern: broker-$(nodeId)
-                                tls:
-                                  key:
-                                    certificateFile: /tmp/cert
-                                    privateKeyFile: /tmp/key
-                        """, VirtualCluster.class);
-
-        TargetCluster targetCluster = vc.targetCluster();
-        assertThat(targetCluster).isNotNull();
-        assertThat(targetCluster.bootstrapServers()).isEqualTo("kafka.example:1234");
-    }
-
-    @Test
-    void shouldRejectOldAndNewBootstrapServers() throws IOException {
-        assertThatThrownBy(() -> {
-            MAPPER.readValue(
-                    """
-                                  targetCluster:
-                                    bootstrap_servers: kafka.example:1234
-                                    bootstrapServers: kafka.example:1234
-                                  gateways:
-                                  - name: default
-                                    portIdentifiesNode:
-                                      bootstrapAddress: cluster1:9192
-                            """, VirtualCluster.class);
-        }).isInstanceOf(ValueInstantiationException.class)
-                .hasCauseInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("'bootstrapServers' and 'bootstrap_servers' cannot both be specified in a target cluster.");
-    }
-
-    @Test
-    void shouldRequireOldOrNewBootstrapServers() throws IOException {
-        assertThatThrownBy(() -> {
-            MAPPER.readValue(
-                    """
-                                targetCluster: {}
-                                gateways:
-                                - name: default
-                                  portIdentifiesNode:
-                                    bootstrapAddress: cluster1:9192
-                            """, VirtualCluster.class);
-        }).isInstanceOf(ValueInstantiationException.class)
-                .hasCauseInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("'bootstrapServers' is required in a target cluster.");
-    }
-
-    @Test
     void shouldRejectVirtualClusterWithNoGateways() {
         assertThatThrownBy(() -> {
             MAPPER.readValue(
                     """
                               name: cluster
                               targetCluster:
-                                bootstrap_servers: kafka.example:1234
+                                bootstrapServers: kafka.example:1234
                             """, VirtualCluster.class);
         }).isInstanceOf(ValueInstantiationException.class)
                 .hasCauseInstanceOf(IllegalConfigurationException.class)
@@ -133,7 +76,7 @@ class ConfigurationTest {
                     """
                               name: cluster
                               targetCluster:
-                                bootstrap_servers: kafka.example:1234
+                                bootstrapServers: kafka.example:1234
                               gateways: null
                             """, VirtualCluster.class);
         }).isInstanceOf(ValueInstantiationException.class)
@@ -148,7 +91,7 @@ class ConfigurationTest {
                     """
                               name: cluster
                               targetCluster:
-                                bootstrap_servers: kafka.example:1234
+                                bootstrapServers: kafka.example:1234
                               gateways: [null]
                             """, VirtualCluster.class);
         }).isInstanceOf(ValueInstantiationException.class)
@@ -163,7 +106,7 @@ class ConfigurationTest {
                     """
                               name: cluster
                               targetCluster:
-                                bootstrap_servers: kafka.example:1234
+                                bootstrapServers: kafka.example:1234
                               tls:
                                  key:
                                    certificateFile: /tmp/cert
@@ -183,7 +126,7 @@ class ConfigurationTest {
                     """
                               name: cluster
                               targetCluster:
-                                bootstrap_servers: kafka.example:1234
+                                bootstrapServers: kafka.example:1234
                               tls:
                                  key:
                                    certificateFile: /tmp/cert
@@ -204,7 +147,7 @@ class ConfigurationTest {
                     """
                               name: cluster
                               targetCluster:
-                                bootstrap_servers: kafka.example:1234
+                                bootstrapServers: kafka.example:1234
                               gateways:
                               - name: default
                                 sniHostIdentifiesNode:
@@ -232,7 +175,7 @@ class ConfigurationTest {
                 """
                                   name: cluster
                                   targetCluster:
-                                    bootstrap_servers: kafka.example:1234
+                                    bootstrapServers: kafka.example:1234
                                   clusterNetworkAddressConfigProvider:
                                     type: SniRoutingClusterNetworkAddressConfigProvider
                                     config:
@@ -251,7 +194,7 @@ class ConfigurationTest {
                 """
                                   name: cluster
                                   targetCluster:
-                                    bootstrap_servers: kafka.example:1234
+                                    bootstrapServers: kafka.example:1234
                                   clusterNetworkAddressConfigProvider:
                                     type: SniRoutingClusterNetworkAddressConfigProvider
                                     config: {}
@@ -291,27 +234,6 @@ class ConfigurationTest {
                               portIdentifiesNode:
                                 bootstrapAddress: example.com:1234
                         """),
-                argumentSet("With filters",
-                        new ConfigurationBuilder()
-                                .addToVirtualClusters(VIRTUAL_CLUSTER)
-                                .addToFilters(filter.asFilterDefinition())
-                                .build(),
-                        """
-                                    filters:
-                                    - type: ExampleFilterFactory
-                                      config:
-                                        examplePlugin: ExamplePluginInstance
-                                        examplePluginConfig:
-                                          pluginKey: pluginValue
-                                    virtualClusters:
-                                      - name: demo
-                                        targetCluster:
-                                          bootstrapServers: kafka.example:1234
-                                        gateways:
-                                        - name: default
-                                          portIdentifiesNode:
-                                            bootstrapAddress: example.com:1234
-                                """),
                 argumentSet("With filterDefinitions",
                         new ConfigurationBuilder()
                                 .addToVirtualClusters(VIRTUAL_CLUSTER)
@@ -600,38 +522,6 @@ class ConfigurationTest {
     }
 
     @Test
-    void shouldGenerateUniqueNames() {
-        List<FilterDefinition> filters = List.of(
-                new FilterDefinition("Bar", "1"),
-                new FilterDefinition("Foo", "2"),
-                new FilterDefinition("Bar", "3"));
-        assertThat(Configuration.toNamedFilterDefinitions(filters)).isEqualTo(List.of(
-                new NamedFilterDefinition("Bar-0", "Bar", "1"),
-                new NamedFilterDefinition("Foo", "Foo", "2"),
-                new NamedFilterDefinition("Bar-1", "Bar", "3")));
-    }
-
-    @Test
-    @SuppressWarnings({ "java:S5738", "removal" })
-    void shouldRejectBothFiltersAndFilterDefinitions() {
-        List<NamedFilterDefinition> filterDefinitions = List.of(new NamedFilterDefinition("foo", "", ""));
-        List<FilterDefinition> filters = List.of(new FilterDefinition("", ""));
-        Optional<Map<String, Object>> development = Optional.empty();
-        var virtualCluster = List.of(VIRTUAL_CLUSTER);
-        assertThatThrownBy(() -> new Configuration(null,
-                filterDefinitions,
-                null,
-                virtualCluster,
-                filters,
-                null,
-                false,
-                development))
-                .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessage("'filters' and 'filterDefinitions' can't both be set");
-    }
-
-    @Test
-    @SuppressWarnings({ "java:S5738", "removal" })
     void shouldRejectFilterDefinitionsWithSameName() {
         List<NamedFilterDefinition> filterDefinitions = List.of(
                 new NamedFilterDefinition("foo", "", ""),
@@ -642,7 +532,6 @@ class ConfigurationTest {
                 filterDefinitions,
                 null,
                 virtualCluster,
-                null,
                 null,
                 false,
                 development))
@@ -659,7 +548,8 @@ class ConfigurationTest {
         assertThatThrownBy(() -> new Configuration(null, filterDefinitions,
                 defaultFilters,
                 virtualCluster,
-                null, false,
+                null,
+                false,
                 development))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'defaultFilters' references filters not defined in 'filterDefinitions': [missing]");
@@ -704,25 +594,6 @@ class ConfigurationTest {
                 development))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': [unused]");
-    }
-
-    @Test
-    @SuppressWarnings({ "java:S5738", "removal" })
-    void shouldRejectVirtualClusterFiltersWhenTopLevelFilters() {
-        Optional<Map<String, Object>> development = Optional.empty();
-        List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
-        TargetCluster targetCluster = new TargetCluster("unused:9082", Optional.empty());
-        List<VirtualCluster> virtualClusters = List.of(new VirtualCluster("vc1", targetCluster, null, Optional.empty(), defaultGateway, false, false, List.of()));
-        assertThatThrownBy(() -> new Configuration(
-                null,
-                null,
-                null,
-                virtualClusters,
-                List.<FilterDefinition> of(),
-                null, false,
-                development))
-                .isInstanceOf(IllegalConfigurationException.class)
-                .hasMessage("'filters' cannot be specified on a virtual cluster when 'filters' is defined at the top level.");
     }
 
     @Test

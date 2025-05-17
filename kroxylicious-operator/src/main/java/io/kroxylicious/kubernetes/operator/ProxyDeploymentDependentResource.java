@@ -24,17 +24,18 @@ import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecFluent;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
+import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
-import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
+import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
@@ -73,7 +74,7 @@ public class ProxyDeploymentDependentResource
                                  Context<KafkaProxy> context) {
         KafkaProxyContext kafkaProxyContext = KafkaProxyContext.proxyContext(context);
         var model = kafkaProxyContext.model();
-        String checksum = checksumFor(primary, context);
+        String checksum = checksumFor(primary, context, model);
 
         // @formatter:off
         return new DeploymentBuilder()
@@ -96,15 +97,22 @@ public class ProxyDeploymentDependentResource
     }
 
     @VisibleForTesting
-    String checksumFor(KafkaProxy primary, Context<KafkaProxy> context) {
-        Optional<KafkaProxyIngress> kafkaProxyIngress = context.getSecondaryResource(KafkaProxyIngress.class);
+    String checksumFor(KafkaProxy primary, Context<KafkaProxy> context, ProxyModel model) {
         MetadataChecksumGenerator checksumGenerator = context.managedWorkflowAndDependentResourceContext()
                 .get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)
                 .orElse(new Crc32ChecksumGenerator());
 
-        kafkaProxyIngress.ifPresent(checksumGenerator::appendMetadata);
+        model.clustersWithValidIngresses().stream().map(ClusterResolutionResult::cluster).forEach(entity -> {
+            LOGGER.info("Adding '{}'-{}@{} to checksum for {}", KubernetesResourceUtil.getName(entity), ResourcesUtil.generation(entity),
+                    ResourcesUtil.generation(entity), KubernetesResourceUtil.getName(primary));
+            checksumGenerator.appendMetadata(entity);
+        });
+        String encoded = checksumGenerator.encode();
 
-        return checksumGenerator.encode();
+        if (LOGGER.isInfoEnabled()) {
+            LOGGER.info("Checksum: {} generated for KafkaProxy: {}", encoded, KubernetesResourceUtil.getName(primary));
+        }
+        return encoded;
     }
 
     private static Map<String, String> deploymentSelector(KafkaProxy primary) {
@@ -125,7 +133,7 @@ public class ProxyDeploymentDependentResource
     private PodTemplateSpec podTemplate(KafkaProxy primary,
                                         KafkaProxyContext kafkaProxyContext,
                                         ProxyIngressModel ingressModel,
-                                        List<VirtualKafkaCluster> virtualKafkaClusters,
+                                        List<ClusterResolutionResult> clusterResolutionResults,
                                         String checksum) {
         PodTemplateSpecFluent<PodTemplateSpecBuilder>.MetadataNested<PodTemplateSpecBuilder> metadataBuilder = new PodTemplateSpecBuilder()
                 .editOrNewMetadata()
@@ -144,7 +152,7 @@ public class ProxyDeploymentDependentResource
                             .withType("RuntimeDefault")
                         .endSeccompProfile()
                     .endSecurityContext()
-                    .withContainers(proxyContainer(kafkaProxyContext, ingressModel, virtualKafkaClusters))
+                    .withContainers(proxyContainer(kafkaProxyContext, ingressModel, clusterResolutionResults))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
                         .withNewConfigMap()
@@ -159,7 +167,7 @@ public class ProxyDeploymentDependentResource
 
     private Container proxyContainer(KafkaProxyContext kafkaProxyContext,
                                      ProxyIngressModel ingressModel,
-                                     List<VirtualKafkaCluster> virtualKafkaClusters) {
+                                     List<ClusterResolutionResult> clusterResolutionResults) {
         // @formatter:off
          var containerBuilder = new ContainerBuilder()
                 .withName("proxy")
@@ -196,9 +204,9 @@ public class ProxyDeploymentDependentResource
                     .withName(MANAGEMENT_PORT_NAME)
                 .endPort();
         // broker ports
-        virtualKafkaClusters.forEach(virtualKafkaCluster -> {
-            if (!kafkaProxyContext.isBroken(virtualKafkaCluster)) {
-                ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(virtualKafkaCluster).orElseThrow();
+        clusterResolutionResults.forEach(resolutionResult -> {
+            if (!kafkaProxyContext.isBroken(resolutionResult.cluster())) {
+                ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(resolutionResult.cluster()).orElseThrow();
                 for (ProxyIngressModel.IngressModel ingress : virtualClusterIngressModel.ingressModels()) {
                     ingress.proxyContainerPorts().forEach(containerBuilder::addToPorts);
                 }

@@ -19,6 +19,7 @@ import java.util.stream.Collector;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.OwnerReference;
@@ -33,17 +34,17 @@ import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.tls.TrustAnchorRef;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
-
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 
@@ -105,7 +106,7 @@ public class ResourcesUtil {
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
     }
 
-    static boolean isConfigMap(TrustAnchorRef ref) {
+    static boolean isConfigMap(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "ConfigMap".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
     }
@@ -313,41 +314,73 @@ public class ResourcesUtil {
     /**
      * Checks that the status observedGeneration is equal to the metadata generation. Indicating
      * that the current {@code spec} of the resource has been reconciled.
-     * @param cluster cluster
+     * @param hasMetadata hasMetadata
+     * @throws IllegalStateException if hasMetadata is not a CustomResource type owned by the Kroxylicious Operator
      * @return true if status observedGeneration is equal to the metadata generation
      */
-    public static boolean isStatusFresh(VirtualKafkaCluster cluster) {
-        return isStatusFresh(cluster, c -> Optional.ofNullable(c.getStatus()).map(VirtualKafkaClusterStatus::getObservedGeneration).orElse(null));
+    public static boolean isStatusFresh(HasMetadata hasMetadata) {
+        Objects.requireNonNull(hasMetadata);
+        if (hasMetadata instanceof KafkaProtocolFilter filter) {
+            return isStatusFresh(filter, i -> Optional.ofNullable(i.getStatus()).map(KafkaProtocolFilterStatus::getObservedGeneration).orElse(null));
+        }
+        else if (hasMetadata instanceof KafkaService service) {
+            return isStatusFresh(service, i -> Optional.ofNullable(i.getStatus()).map(KafkaServiceStatus::getObservedGeneration).orElse(null));
+        }
+        else if (hasMetadata instanceof VirtualKafkaCluster cluster) {
+            return isStatusFresh(cluster, c -> Optional.ofNullable(c.getStatus()).map(VirtualKafkaClusterStatus::getObservedGeneration).orElse(null));
+        }
+        else if (hasMetadata instanceof KafkaProxyIngress ingress) {
+            return isStatusFresh(ingress, i -> Optional.ofNullable(i.getStatus()).map(KafkaProxyIngressStatus::getObservedGeneration).orElse(null));
+        }
+        else if (hasMetadata instanceof KafkaProxy kafkaProxy) {
+            return isStatusFresh(kafkaProxy, i -> Optional.ofNullable(i.getStatus()).map(KafkaProxyStatus::getObservedGeneration).orElse(null));
+        }
+        else {
+            throw new IllegalArgumentException("Unknown resource type: " + hasMetadata.getClass().getName());
+        }
     }
 
     /**
-     * Checks that the status observedGeneration is equal to the metadata generation. Indicating
-     * that the current {@code spec} of the resource has been reconciled.
-     * @param ingress ingress
-     * @return true if status observedGeneration is equal to the metadata generation
+     * Checks that the status contains a fresh ResolvedRefs=false condition
+     * @param hasMetadata hasMetadata
+     * @throws IllegalStateException if hasMetadata is not a CustomResource type owned by the Kroxylicious Operator which uses ResolvedRefs Conditions
+     * @return true if hasMetadata status contains a fresh ResolvedRefs=false condition
      */
-    public static boolean isStatusFresh(KafkaProxyIngress ingress) {
-        return isStatusFresh(ingress, i -> Optional.ofNullable(i.getStatus()).map(KafkaProxyIngressStatus::getObservedGeneration).orElse(null));
+    public static boolean hasResolvedRefsFalseCondition(HasMetadata hasMetadata) {
+        Objects.requireNonNull(hasMetadata);
+        List<Condition> conditions;
+        if (hasMetadata instanceof KafkaProtocolFilter filter) {
+            conditions = Optional.ofNullable(filter.getStatus()).map(KafkaProtocolFilterStatus::getConditions).orElse(List.of());
+        }
+        else if (hasMetadata instanceof KafkaService service) {
+            conditions = Optional.ofNullable(service.getStatus()).map(KafkaServiceStatus::getConditions).orElse(List.of());
+        }
+        else if (hasMetadata instanceof VirtualKafkaCluster cluster) {
+            conditions = Optional.ofNullable(cluster.getStatus()).map(VirtualKafkaClusterStatus::getConditions).orElse(List.of());
+        }
+        else if (hasMetadata instanceof KafkaProxyIngress ingress) {
+            conditions = Optional.ofNullable(ingress.getStatus()).map(KafkaProxyIngressStatus::getConditions).orElse(List.of());
+        }
+        else {
+            throw new IllegalArgumentException("Resource kind '" + HasMetadata.getKind(hasMetadata.getClass()) + "' does not use ResolveRefs conditions");
+        }
+        return conditions.stream().anyMatch(Condition::isResolvedRefsFalse);
     }
 
-    /**
-     * Checks that the status observedGeneration is equal to the metadata generation. Indicating
-     * that the current {@code spec} of the resource has been reconciled.
-     * @param service service
-     * @return true if status observedGeneration is equal to the metadata generation
-     */
-    public static boolean isStatusFresh(KafkaService service) {
-        return isStatusFresh(service, i -> Optional.ofNullable(i.getStatus()).map(KafkaServiceStatus::getObservedGeneration).orElse(null));
+    public static Predicate<HasMetadata> isStatusFresh() {
+        return ResourcesUtil::isStatusFresh;
     }
 
-    /**
-     * Checks that the status observedGeneration is equal to the metadata generation. Indicating
-     * that the current {@code spec} of the resource has been reconciled.
-     * @param filter filter
-     * @return true if status observedGeneration is equal to the metadata generation
-     */
-    public static boolean isStatusFresh(KafkaProtocolFilter filter) {
-        return isStatusFresh(filter, i -> Optional.ofNullable(i.getStatus()).map(KafkaProtocolFilterStatus::getObservedGeneration).orElse(null));
+    public static Predicate<HasMetadata> isStatusStale() {
+        return isStatusFresh().negate();
+    }
+
+    public static Predicate<HasMetadata> hasResolvedRefsFalseCondition() {
+        return ResourcesUtil::hasResolvedRefsFalseCondition;
+    }
+
+    public static Predicate<HasMetadata> hasKind(String kind) {
+        return hasMetadata -> HasMetadata.getKind(hasMetadata.getClass()).equals(kind);
     }
 
     @SuppressWarnings("java:S4276") // ToLongFunction is not appropriate, since observedGeneration may be null
@@ -373,33 +406,101 @@ public class ResourcesUtil {
      * @return modified resource if the certificate references is invalid, or null otherwise.
      * @param <T> custom resource type
      */
-    @Nullable
-    public static <T extends CustomResource<?, ?>> T checkCertRef(T resource,
-                                                                  Context<T> context,
-                                                                  String secretEventSourceName,
-                                                                  CertificateRef certRef,
-                                                                  String path,
-                                                                  StatusFactory<T> statusFactory) {
+    public static <T extends CustomResource<?, ?>> ResourceCheckResult<T> checkCertRef(T resource,
+                                                                                       CertificateRef certRef,
+                                                                                       String path,
+                                                                                       StatusFactory<T> statusFactory,
+                                                                                       Context<T> context,
+                                                                                       String secretEventSourceName) {
         if (isSecret(certRef)) {
             Optional<Secret> secretOpt = context.getSecondaryResource(Secret.class, secretEventSourceName);
             if (secretOpt.isEmpty()) {
-                return statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                         Condition.REASON_REFS_NOT_FOUND,
-                        path + ": referenced resource not found");
+                        path + ": referenced resource not found"), List.of());
             }
             else {
-                if (!"kubernetes.io/tls".equals(secretOpt.get().getType())) {
-                    return statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                Secret secret = secretOpt.get();
+                if (!"kubernetes.io/tls".equals(secret.getType())) {
+                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                             Condition.REASON_INVALID_REFERENCED_RESOURCE,
-                            path + ": referenced secret should have 'type: kubernetes.io/tls'");
+                            path + ": referenced secret should have 'type: kubernetes.io/tls'"), List.of());
+                }
+                else {
+                    return new ResourceCheckResult<>(null, List.of(secret));
                 }
             }
         }
         else {
-            return statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
-                    path + ": supports referents: secrets");
+                    path + ": supports referents: secrets"), List.of());
         }
-        return null;
+    }
+
+    /**
+     * Checks the validity of the given {@link TrustAnchorRef} which appears in the {@code resource}.
+     * Specifically, this checks if the reference refers to a Kubernetes ConfigMap, and if the ConfigMap
+     * actually exists. It validates that the ConfigMap has a data item with key value {@code key} with
+     * a value that is the key name of a second data item, containing the trust material.  The key
+     * name of the trust material must end with .pem, .p12 or .jks.  This is used to determine the
+     * trust store's type. If any of those conditions are false, a condition is added to the resource
+     * and the modified resource returned. If the reference is valid, null is returned.
+     *
+     * @param resource resource
+     * @param context context
+     * @param eventSourceName event source name used to resolve the secret
+     * @param trustAnchorRef certificate reference
+     * @param path path to the certificate reference within the resource
+     * @param statusFactory used to generate the condition.
+     * @return modified resource if the certificate references is invalid, or null otherwise.
+     *
+     * @param <T> custom resource type
+     */
+    public static <T extends CustomResource<?, ?>> ResourceCheckResult<T> checkTrustAnchorRef(T resource,
+                                                                                              Context<T> context,
+                                                                                              String eventSourceName,
+                                                                                              TrustAnchorRef trustAnchorRef,
+                                                                                              String path,
+                                                                                              StatusFactory<T> statusFactory) {
+        if (isConfigMap(trustAnchorRef.getRef())) {
+            Optional<ConfigMap> configMapOpt = context.getSecondaryResource(ConfigMap.class, eventSourceName);
+            if (configMapOpt.isEmpty()) {
+                return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                        Condition.REASON_REFS_NOT_FOUND,
+                        path + ": referenced resource not found"), List.of());
+            }
+            else {
+                String key = trustAnchorRef.getKey();
+                if (key == null) {
+                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                            Condition.REASON_INVALID,
+                            path + " must specify 'key'"), List.of());
+                }
+                if (!key.endsWith(".pem")
+                        && !key.endsWith(".p12")
+                        && !key.endsWith(".jks")) {
+                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                            Condition.REASON_INVALID,
+                            path + ".key should end with .pem, .p12 or .jks"), List.of());
+                }
+                else {
+                    ConfigMap configMap = configMapOpt.get();
+                    if (!configMap.getData().containsKey(trustAnchorRef.getKey())) {
+                        return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                                Condition.REASON_INVALID_REFERENCED_RESOURCE,
+                                path + ": referenced resource does not contain key " + trustAnchorRef.getKey()), List.of());
+                    }
+                    else {
+                        return new ResourceCheckResult<>(null, List.of(configMap));
+                    }
+                }
+            }
+        }
+        else {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
+                    path + " supports referents: configmaps"), List.of());
+        }
     }
 }

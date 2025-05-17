@@ -6,6 +6,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.Comparator;
+import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -92,25 +93,33 @@ public class ProxyConfigStateDependentResource
 
     private static void addResolvedRefsConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigStateData data) {
         proxyModel.resolutionResult().clusterResolutionResults().stream()
-                .filter(result -> !result.isFullyResolved())
+                .filter(result -> !result.allReferentsFullyResolved() || ResourcesUtil.hasResolvedRefsFalseCondition(result.cluster()))
                 .forEach(clusterResolutionResult -> {
                     VirtualKafkaCluster cluster = clusterResolutionResult.cluster();
                     VirtualKafkaCluster patch;
-                    if (!clusterResolutionResult.danglingReferences().isEmpty()) {
+                    if (clusterResolutionResult.allDanglingReferences().findAny().isPresent()) {
                         Comparator<ClusterResolutionResult.DanglingReference> comparator = Comparator.<ClusterResolutionResult.DanglingReference, LocalRef> comparing(
-                                ClusterResolutionResult.DanglingReference::to);
+                                ClusterResolutionResult.DanglingReference::absentRef);
 
-                        LocalRef<?> firstDanglingDependency = clusterResolutionResult.danglingReferences().stream()
-                                .sorted(comparator).map(ClusterResolutionResult.DanglingReference::to).findFirst()
+                        LocalRef<?> firstDanglingReference = clusterResolutionResult.allDanglingReferences()
+                                .sorted(comparator).map(ClusterResolutionResult.DanglingReference::absentRef).findFirst()
                                 .orElseThrow();
                         String message = String.format("Resource %s was not found.",
-                                ResourcesUtil.namespacedSlug(firstDanglingDependency, cluster));
+                                ResourcesUtil.namespacedSlug(firstDanglingReference, cluster));
                         patch = statusFactory.newFalseConditionStatusPatch(cluster,
                                 Condition.Type.ResolvedRefs, Condition.REASON_INVALID, message);
                     }
                     else {
+                        Stream<LocalRef<?>> referentsWithResolvedRefsFalse = clusterResolutionResult.allResolvedReferents()
+                                .filter(ResourcesUtil::hasResolvedRefsFalseCondition)
+                                .map(ResourcesUtil::toLocalRef);
+                        Stream<LocalRef<?>> clusterWithResolvedRefsTrue = ResourcesUtil.hasResolvedRefsFalseCondition(clusterResolutionResult.cluster())
+                                ? Stream.of(ResourcesUtil.toLocalRef(
+                                        clusterResolutionResult.cluster()))
+                                : Stream.of();
                         String message = String.format("Resource %s has ResolvedRefs=False.",
-                                ResourcesUtil.namespacedSlug(clusterResolutionResult.findResourcesWithResolvedRefsFalse().sorted().findFirst().orElseThrow(),
+                                ResourcesUtil.namespacedSlug(
+                                        Stream.concat(referentsWithResolvedRefsFalse, clusterWithResolvedRefsTrue).sorted().findFirst().orElseThrow(),
                                         cluster));
                         patch = statusFactory.newFalseConditionStatusPatch(cluster,
                                 Condition.Type.ResolvedRefs, Condition.REASON_INVALID, message);

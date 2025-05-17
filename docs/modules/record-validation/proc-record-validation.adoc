@@ -22,8 +22,9 @@ For information on deploying Kroxylicious, see the link:{github}[samples and exa
 
 [source,yaml]
 ----
-filters:
-  - type: RecordValidation
+filterDefinitions:
+  - name: my-record-validation
+    type: RecordValidation
     config:
         rules:
         - topicNames:                                                  # <1>

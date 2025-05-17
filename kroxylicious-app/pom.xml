@@ -14,7 +14,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.12.0-SNAPSHOT</version>
+        <version>0.13.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -134,19 +134,6 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>io.github.git-commit-id</groupId>
-                <artifactId>git-commit-id-maven-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>get-the-git-infos</id>
-                        <goals>
-                            <goal>revision</goal>
-                        </goals>
-                        <phase>initialize</phase>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
@@ -188,6 +175,11 @@
     <profiles>
         <profile>
             <id>dist</id>
+            <properties>
+                <io.kroxylicious.proxy.image.name>quay.io/kroxylicious/proxy:${project.version}</io.kroxylicious.proxy.image.name>
+                <io.kroxylicious.proxy.image.archive>target/kroxylicious-proxy.img.tar.gz</io.kroxylicious.proxy.image.archive>
+                <skipDocker>false</skipDocker>
+            </properties>
             <build>
                 <plugins>
                     <plugin>
@@ -211,6 +203,36 @@
                             </execution>
                         </executions>
                     </plugin>
+                    <plugin>
+                    <groupId>io.fabric8</groupId>
+                    <artifactId>docker-maven-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>build</goal>
+                                <goal>save</goal>
+                            </goals>
+                            <phase>package</phase>
+                            <configuration>
+                                <skip>${skipDocker}</skip>
+                                <images>
+                                    <image>
+                                        <name>${io.kroxylicious.proxy.image.name}</name>
+                                        <alias>pxy</alias>
+                                        <build>
+                                            <dockerFile>src/main/docker/proxy.dockerfile</dockerFile>
+                                            <contextDir>${project.basedir}</contextDir>
+                                            <args>
+                                                <KROXYLICIOUS_VERSION>${project.version}</KROXYLICIOUS_VERSION>
+                                            </args>
+                                        </build>
+                                    </image>
+                                </images>
+                                <saveFile>${io.kroxylicious.proxy.image.archive}</saveFile>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
                 </plugins>
             </build>
         </profile>

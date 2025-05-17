@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.function.Consumer;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -78,12 +79,14 @@ class VirtualKafkaClusterReconcilerTest {
 
     public static final String PROXY_NAME = "my-proxy";
     public static final String NAMESPACE = "my-namespace";
-    public static final String SERVER_CERT_NAME = "server-cert";
+    public static final String SERVER_CERT_SECRET_NAME = "server-cert";
+    public static final String TRUST_ANCHOR_CERT_CONFIGMAP_NAME = "trust-anchor-cert";
 
     // @formatter:off
     public static final VirtualKafkaCluster CLUSTER_NO_FILTERS = new VirtualKafkaClusterBuilder()
             .withNewMetadata()
                 .withName("foo")
+                .withUid(UUID.randomUUID().toString())
                 .withNamespace(NAMESPACE)
                 .withGeneration(42L)
             .endMetadata()
@@ -102,23 +105,41 @@ class VirtualKafkaClusterReconcilerTest {
             .endSpec()
             .build();
 
-    private static final VirtualKafkaCluster CLUSTER_NO_FILTERS_WITH_TLS = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
+    private static final VirtualKafkaCluster CLUSTER_TLS_NO_FILTERS = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
             .editOrNewSpec()
                 .withIngresses(new IngressesBuilder(CLUSTER_NO_FILTERS.getSpec().getIngresses().get(0))
                     .withNewTls()
                         .withNewCertificateRef()
-                            .withName(SERVER_CERT_NAME)
+                            .withName(SERVER_CERT_SECRET_NAME)
                         .endCertificateRef()
                     .endTls()
                 .build())
             .endSpec()
             .build();
-    private static final VirtualKafkaCluster CLUSTER_NO_FILTERS_WITH_TLS_WRONG_RESOURCE_TYPE = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
+
+    private static final VirtualKafkaCluster CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
             .editOrNewSpec()
                 .withIngresses(new IngressesBuilder(CLUSTER_NO_FILTERS.getSpec().getIngresses().get(0))
                     .withNewTls()
                         .withNewCertificateRef()
-                            .withName(SERVER_CERT_NAME)
+                            .withName(SERVER_CERT_SECRET_NAME)
+                        .endCertificateRef()
+                        .withNewTrustAnchorRef()
+                        .withNewRef()
+                            .withName(TRUST_ANCHOR_CERT_CONFIGMAP_NAME)
+                        .endRef()
+                        .withKey("ca-bundle.pem")
+                        .endTrustAnchorRef()
+                    .endTls()
+                .build())
+            .endSpec()
+            .build();
+    private static final VirtualKafkaCluster CLUSTER_TLS_NO_FILTERS_WITH_SECRET_WRONG_RESOURCE_TYPE = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
+            .editOrNewSpec()
+                .withIngresses(new IngressesBuilder(CLUSTER_NO_FILTERS.getSpec().getIngresses().get(0))
+                    .withNewTls()
+                        .withNewCertificateRef()
+                            .withName(SERVER_CERT_SECRET_NAME)
                             .withKind("ConfigMap")
                         .endCertificateRef()
                     .endTls()
@@ -136,6 +157,7 @@ class VirtualKafkaClusterReconcilerTest {
     public static final KafkaProxy PROXY = new KafkaProxyBuilder()
             .withNewMetadata()
                 .withName(PROXY_NAME)
+                .withUid(UUID.randomUUID().toString())
                 .withGeneration(101L)
             .endMetadata()
             .withNewSpec()
@@ -145,6 +167,7 @@ class VirtualKafkaClusterReconcilerTest {
     public static final KafkaService SERVICE = new KafkaServiceBuilder()
             .withNewMetadata()
                 .withName("my-kafka")
+                .withUid(UUID.randomUUID().toString())
               .withGeneration(201L)
             .endMetadata()
             .withNewSpec()
@@ -154,6 +177,7 @@ class VirtualKafkaClusterReconcilerTest {
     public static final KafkaProxyIngress INGRESS = new KafkaProxyIngressBuilder()
             .withNewMetadata()
                 .withName("my-ingress")
+                .withUid(UUID.randomUUID().toString())
              .withGeneration(301L)
             .endMetadata()
             .withNewSpec()
@@ -172,6 +196,7 @@ class VirtualKafkaClusterReconcilerTest {
             .withNewMetadata()
                 .withName("my-filter")
                 .withGeneration(401L)
+                .withUid(UUID.randomUUID().toString())
             .endMetadata()
             .withNewSpec()
             .endSpec()
@@ -190,9 +215,9 @@ class VirtualKafkaClusterReconcilerTest {
 
     private static final Secret KUBE_TLS_CERT_SECRET = new SecretBuilder()
             .withNewMetadata()
-            .withName(SERVER_CERT_NAME)
-            .withNamespace(NAMESPACE)
-            .withGeneration(42L)
+                .withName(SERVER_CERT_SECRET_NAME)
+                .withNamespace(NAMESPACE)
+                .withGeneration(42L)
             .endMetadata()
             .withType("kubernetes.io/tls")
             .addToData("tls.crt", "value")
@@ -200,13 +225,22 @@ class VirtualKafkaClusterReconcilerTest {
             .build();
     private static final Secret NON_KUBE_TLS_CERT_SECRET = new SecretBuilder()
             .withNewMetadata()
-            .withName(SERVER_CERT_NAME)
-            .withNamespace(NAMESPACE)
-            .withGeneration(42L)
+                .withName(SERVER_CERT_SECRET_NAME)
+                .withNamespace(NAMESPACE)
+                .withGeneration(42L)
             .endMetadata()
             .withType("example.com/nottls")  // unexpected type value
             .addToData("tls.crt", "value")
             .addToData("tls.key", "value")
+            .build();
+
+    public static final ConfigMap PEM_CONFIG_MAP = new ConfigMapBuilder()
+            .withNewMetadata()
+                .withName(TRUST_ANCHOR_CERT_CONFIGMAP_NAME)
+                .withNamespace(NAMESPACE)
+                .withGeneration(42L)
+            .endMetadata()
+            .addToData("ca-bundle.pem", "value")
             .build();
 
     // @formatter:on
@@ -423,7 +457,7 @@ class VirtualKafkaClusterReconcilerTest {
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS_WITH_TLS));
             when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
             result.add(Arguments.argumentSet("cluster with tls",
-                    CLUSTER_NO_FILTERS_WITH_TLS,
+                    CLUSTER_TLS_NO_FILTERS,
                     context,
                     (Consumer<ConditionListAssert>) conditionList -> {
                         conditionList
@@ -439,8 +473,8 @@ class VirtualKafkaClusterReconcilerTest {
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS_WITH_TLS));
             when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
-            result.add(Arguments.argumentSet("cluster with tls - secret not found",
-                    CLUSTER_NO_FILTERS_WITH_TLS,
+            result.add(Arguments.argumentSet("cluster with tls - server cert secret not found",
+                    CLUSTER_TLS_NO_FILTERS,
                     context,
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
                             .singleElement()
@@ -456,8 +490,8 @@ class VirtualKafkaClusterReconcilerTest {
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS_WITH_TLS));
             when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
-            result.add(Arguments.argumentSet("cluster with tls - wrong secret type",
-                    CLUSTER_NO_FILTERS_WITH_TLS,
+            result.add(Arguments.argumentSet("cluster with tls -  server cert secret wrong type",
+                    CLUSTER_TLS_NO_FILTERS,
                     context,
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
                             .singleElement()
@@ -473,8 +507,8 @@ class VirtualKafkaClusterReconcilerTest {
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS_WITH_TLS));
             when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
-            result.add(Arguments.argumentSet("cluster with tls - unsupported resource type",
-                    CLUSTER_NO_FILTERS_WITH_TLS_WRONG_RESOURCE_TYPE,
+            result.add(Arguments.argumentSet("cluster with tls - server cert unsupported resource type",
+                    CLUSTER_TLS_NO_FILTERS_WITH_SECRET_WRONG_RESOURCE_TYPE,
                     context,
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
                             .singleElement()
@@ -485,12 +519,47 @@ class VirtualKafkaClusterReconcilerTest {
 
         {
             Context<? extends CustomResource<?, ?>> context = mock();
+            mockGetSecret(context, Optional.of(KUBE_TLS_CERT_SECRET));
+            mockGetConfigMap(context, Optional.of(PEM_CONFIG_MAP));
+            when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
+            when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS_WITH_TLS));
+            when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
+            result.add(Arguments.argumentSet("cluster with tls with trust anchor",
+                    CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR,
+                    context,
+                    (Consumer<ConditionListAssert>) conditionList -> {
+                        conditionList
+                                .singleElement()
+                                .isResolvedRefsTrue();
+                    }));
+        }
+
+        {
+            Context<? extends CustomResource<?, ?>> context = mock();
+
+            mockGetSecret(context, Optional.of(KUBE_TLS_CERT_SECRET));
+            mockGetConfigMap(context, Optional.empty());
+            when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
+            when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS_WITH_TLS));
+            when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
+            result.add(Arguments.argumentSet("cluster with tls - trust anchor cert configmap not found",
+                    CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR,
+                    context,
+                    (Consumer<ConditionListAssert>) conditionList -> conditionList
+                            .singleElement()
+                            .isResolvedRefsFalse(
+                                    Condition.REASON_REFS_NOT_FOUND,
+                                    "spec.ingresses[].tls.trustAnchor: referenced resource not found")));
+        }
+
+        {
+            Context<? extends CustomResource<?, ?>> context = mock();
 
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS));
             when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
             result.add(Arguments.argumentSet("cluster defines tls, ingress does not",
-                    CLUSTER_NO_FILTERS_WITH_TLS,
+                    CLUSTER_TLS_NO_FILTERS,
                     context,
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
                             .singleElement()
@@ -638,7 +707,7 @@ class VirtualKafkaClusterReconcilerTest {
         var mapper = VirtualKafkaClusterReconciler.virtualKafkaClusterToSecret();
 
         // When
-        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(CLUSTER_NO_FILTERS_WITH_TLS);
+        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(CLUSTER_TLS_NO_FILTERS);
 
         // Then
         assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(KUBE_TLS_CERT_SECRET));
@@ -657,20 +726,20 @@ class VirtualKafkaClusterReconcilerTest {
     }
 
     @Test
-    void mappingToSecretToVirtualKafkaClusterWithTls() {
+    void canMapFromSecretToVirtualKafkaClusterWithTls() {
         // Given
-        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_NO_FILTERS_WITH_TLS);
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_TLS_NO_FILTERS);
 
         // When
         var mapper = VirtualKafkaClusterReconciler.secretToVirtualKafkaCluster(eventSourceContext);
 
         // Then
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(KUBE_TLS_CERT_SECRET);
-        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(CLUSTER_NO_FILTERS_WITH_TLS));
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(CLUSTER_TLS_NO_FILTERS));
     }
 
     @Test
-    void mappingToSecretToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTls() {
+    void canMapFromSecretToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTls() {
         // Given
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_NO_FILTERS);
 
@@ -682,9 +751,54 @@ class VirtualKafkaClusterReconcilerTest {
         assertThat(primaryResourceIDs).isEmpty();
     }
 
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private static void mockGetSecret(Context<? extends CustomResource<?, ?>> context, Optional<Secret> optional) {
-        when(context.getSecondaryResource(Secret.class, VirtualKafkaClusterReconciler.SECRETS_EVENT_SOURCE_NAME)).thenReturn(optional);
+    @Test
+    void canMapFromVirtualKafkaClusterWithTrustAnchorToConfigMap() {
+        // Given
+        var mapper = VirtualKafkaClusterReconciler.virtualKafkaClusterToConfigMap();
+
+        // When
+        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR);
+
+        // Then
+        assertThat(secondaryResourceIDs).containsExactly(ResourceID.fromResource(PEM_CONFIG_MAP));
+    }
+
+    @Test
+    void canMapFromVirtualKafkaClusterWithoutTrustAnchorToConfigMap() {
+        // Given
+        var mapper = VirtualKafkaClusterReconciler.virtualKafkaClusterToConfigMap();
+
+        // When
+        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(CLUSTER_NO_FILTERS);
+
+        // Then
+        assertThat(secondaryResourceIDs).isEmpty();
+    }
+
+    @Test
+    void canMapFromConfigMapToVirtualKafkaClusterWithTls() {
+        // Given
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR);
+
+        // When
+        var mapper = VirtualKafkaClusterReconciler.configMapToVirtualKafkaCluster(eventSourceContext);
+
+        // Then
+        var primaryResourceIDs = mapper.toPrimaryResourceIDs(PEM_CONFIG_MAP);
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR));
+    }
+
+    @Test
+    void canMapFromConfigMapToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTls() {
+        // Given
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_NO_FILTERS);
+
+        // When
+        var mapper = VirtualKafkaClusterReconciler.configMapToVirtualKafkaCluster(eventSourceContext);
+
+        // Then
+        var primaryResourceIDs = mapper.toPrimaryResourceIDs(PEM_CONFIG_MAP);
+        assertThat(primaryResourceIDs).isEmpty();
     }
 
     @Test
@@ -859,4 +973,17 @@ class VirtualKafkaClusterReconcilerTest {
         when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
         return mockList;
     }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private static void mockGetSecret(Context<? extends CustomResource<?, ?>> context, Optional<Secret> optional) {
+        when(context.getSecondaryResource(Secret.class, VirtualKafkaClusterReconciler.SECRETS_EVENT_SOURCE_NAME)).thenReturn(optional);
+    }
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private static void mockGetConfigMap(
+                                         Context<? extends CustomResource<?, ?>> context,
+                                         Optional<ConfigMap> empty) {
+        when(context.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.CONFIGMAPS_EVENT_SOURCE_NAME)).thenReturn(empty);
+    }
+
 }

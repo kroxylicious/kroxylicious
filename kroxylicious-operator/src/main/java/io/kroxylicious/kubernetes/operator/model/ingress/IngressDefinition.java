@@ -9,10 +9,10 @@ package io.kroxylicious.kubernetes.operator.model.ingress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 
 /**
- * Stateless Ingress model that:
+ * Ingress definition for a single VirtualKafkaCluster, KafkaProxyIngress pair that:
  * <ol>
- *     <li>describes the requirements of the ingress (e.g. how many exclusive ports it requires)</li>
- *     <li>can instantiate IngressInstances, allowing multiple virtual clusters to use the same IngressDefinition</li>
+ *     <li>declares the requirements of the ingress (e.g. how many identifying ports it requires)</li>
+ *     <li>can instantiate IngressInstances</li>
  * </ol>
  */
 public interface IngressDefinition {

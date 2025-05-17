@@ -1,0 +1,18 @@
+// file included in the following:
+//
+// kroxylicious-operator/assemblies/assembly-operator-secure-proxy.adoc
+
+[id='assembly-operator-secure-filter-{context}']
+= Securing filters
+
+[role="_abstract"]
+Secure filters by using the security features provided by each filter and storing sensitive values in external resources such as a Kubernetes `Secret`.
+
+include::../modules/configuring/con-kafkaprotocolfilter-secrets.adoc[leveloffset=+1]
+
+// TODO securing the encryption filter
+
+// TODO securing the validation filter
+
+// TODO securing 3rd party filters
+

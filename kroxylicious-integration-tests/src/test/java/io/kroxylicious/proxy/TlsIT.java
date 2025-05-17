@@ -744,6 +744,36 @@ class TlsIT extends BaseIT {
     }
 
     @Test
+    void downstreamMutualTls_SuccessfulTlsClientAuthRequiredByDefault(KafkaCluster cluster) throws Exception {
+        try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, null));
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, clientCertGenerator.getKeyStoreLocation(),
+                                SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, clientCertGenerator.getPassword(),
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+            // do some work to ensure connection is opened
+            final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
+            assertThat(createTopicsResult.all()).isDone();
+        }
+    }
+
+    @Test
+    void downstreamMutualTls_UnsuccessfulTlsClientAuthRequiredByDefault(KafkaCluster cluster) throws Exception {
+        try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, null));
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+            // Would need key information provided for mTLS to work here for TlsClientAuth.REQUIRED
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS)).hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .hasRootCauseMessage("Received fatal alert: bad_certificate");
+        }
+    }
+
+    @Test
     void downstreamMutualTls_SuccessfulTlsClientAuthRequired(KafkaCluster cluster) throws Exception {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.REQUIRED));
                 var admin = tester.admin("demo",

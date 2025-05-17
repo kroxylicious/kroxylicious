@@ -25,6 +25,8 @@ public final class Constants {
     public static final String KROXYLICIOUS_PROXY_SIMPLE_NAME = "simple";
     public static final String KROXYLICIOUS_INGRESS_CLUSTER_IP = "cluster-ip";
     public static final String KROXYLICIOUS_ENCRYPTION_FILTER_NAME = "encryption";
+    public static final String KROXYLICIOUS_TLS_CLIENT_CA_CERT = "my-cluster-clients-ca-cert";
+    public static final String KROXYLICIOUS_TLS_CA_NAME = "ca.pem";
 
     /**
      * Strimzi cluster operator deployment name
@@ -102,8 +104,12 @@ public final class Constants {
     public static final String SERVICE = "Service";
     public static final String SERVICE_ACCOUNT = "ServiceAccount";
     public static final String STRIMZI_KAFKA_KIND = "Kafka";
-    public static final String STRIMZI_KAFKA_USER_KIND = "KafkaUser";
     public static final String STRIMZI_KAFKA_NODE_POOL_KIND = "KafkaNodePool";
+    public static final String KROXYLICIOUS_KAFKA_PROTOCOL_FILTER_KIND = "KafkaProtocolFilter";
+    public static final String KROXYLICIOUS_KAFKA_PROXY_KIND = "KafkaProxy";
+    public static final String KROXYLICIOUS_KAFKA_PROXY_INGRESS_KIND = "KafkaProxyIngress";
+    public static final String KROXYLICIOUS_KAFKA_SERVICE_KIND = "KafkaService";
+    public static final String KROXYLICIOUS_VIRTUAL_KAFKA_CLUSTER_KIND = "VirtualKafkaCluster";
 
     /**
      * Test clients image url
@@ -117,16 +123,10 @@ public final class Constants {
      */
     public static final String CERT_MANAGER_URL = "https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml";
     /**
-     * kafka consumer client label to identify the consumer test client
+     * the kubernetes labels used to identify the test kafka clients pods
      */
     public static final String KAFKA_CONSUMER_CLIENT_LABEL = "kafka-consumer-client";
-    /**
-     * kafka producer client label to identify the producer test client
-     */
     public static final String KAFKA_PRODUCER_CLIENT_LABEL = "kafka-producer-client";
-    /**
-     * kafka admin client label to identify the admin test client
-     */
     public static final String KAFKA_ADMIN_CLIENT_LABEL = "admin-client-cli";
     /**
      * Image pull policies

@@ -26,7 +26,7 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
-import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
@@ -73,12 +73,13 @@ public class KafkaProxyIngressReconciler implements
 
         UpdateControl<KafkaProxyIngress> updateControl;
         if (proxyOpt.isPresent()) {
-            String checksum = MetadataChecksumGenerator.checksumFor(proxyOpt.get());
+            var checksumGenerator = new Crc32ChecksumGenerator();
+            checksumGenerator.appendMetadata(proxyOpt.get());
             updateControl = UpdateControl.patchResourceAndStatus(
                     statusFactory.newTrueConditionStatusPatch(
                             ingress,
                             Condition.Type.ResolvedRefs,
-                            checksum));
+                            checksumGenerator.encode()));
         }
         else {
             updateControl = UpdateControl.patchStatus(statusFactory.newFalseConditionStatusPatch(

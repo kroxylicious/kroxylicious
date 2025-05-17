@@ -1,0 +1,32 @@
+// file included in the following:
+//
+// kroxylicious-operator/assemblies/assembly-operator-deploy-a-proxy.adoc
+
+[id='con-configuring-kafkaservice-bootstrap-{context}']
+= Configuration for proxied Kafka clusters
+
+A proxied Kafka cluster is configured in a `KafkaService` resource, which specifies how the proxy connects to the cluster.
+The Kafka cluster may or may not be running in the same Kubernetes cluster as the proxy: Network connectivity is all that's required.
+
+This example shows a `KafkaService` defining how to connect to a Kafka cluster at `kafka.example.com`.
+
+.Example `KafkaService` configuration
+[source,yaml]
+----
+kind: KafkaService
+metadata:
+  # ...
+spec:
+  bootstrapServers: kafka.example.com:9092 # <1>
+  nodeIdRanges: # <2>
+    - name: brokers # <3>
+      start: 0 # <4>
+      end: 5 # <5>
+  # ...
+----
+<1> The `bootstrapServers` property is a comma-separated list of addresses in `<host>:<port>` format. Including multiple broker addresses helps clients connect when one is unavailable.
+<2> `nodeIdRanges` declares the IDs of all the broker nodes in the Kafka cluster
+<3> `name` is optional, but specifying it can make errors easier to diagnose.
+<4> The start of the ID range, inclusive.
+<5> The end of the ID range, inclusive.
+

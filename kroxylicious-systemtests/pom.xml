@@ -14,7 +14,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.12.0-SNAPSHOT</version>
+        <version>0.13.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-systemtests</artifactId>
@@ -25,7 +25,9 @@
 
     <properties>
         <!-- Override for kafka version - used when Apache Kafka is ahead of the Strimzi release  -->
-        <kafka.version>3.9.0</kafka.version>
+        <!--
+        <kafka.version>4.0.0</kafka.version>
+        -->
     </properties>
 
     <dependencies>
@@ -68,6 +70,17 @@
             <groupId>io.fabric8</groupId>
             <artifactId>kubernetes-client</artifactId>
             <scope>runtime</scope>
+            <exclusions>
+                <exclusion>
+                    <groupId>io.fabric8</groupId>
+                    <artifactId>kubernetes-httpclient-vertx</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>kubernetes-httpclient-jdk</artifactId>
+            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
@@ -85,11 +98,6 @@
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>openshift-model-operator</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.fabric8</groupId>
-            <artifactId>kubernetes-httpclient-jdk</artifactId>
-            <scope>runtime</scope>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
