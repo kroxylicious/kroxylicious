@@ -5,6 +5,7 @@
 #
 
 ---
+$schema: https://kroxylicious.io/schema/proc-schema.yaml
 id: have_a_kubectl
 notional: true
 verification:
