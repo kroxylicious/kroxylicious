@@ -8,6 +8,7 @@ Format `<github issue/pr number>: <short description>`.
 ## SNAPSHOT
 
 
+* [#2198](https://github.com/kroxylicious/kroxylicious/pull/2198) Require VirtualCluster name to be a valid DNS label
 * [#2188](https://github.com/kroxylicious/kroxylicious/pull/2188) Delete deprecated bootstrapAddressPattern SNI gateway property
 * [#2186](https://github.com/kroxylicious/kroxylicious/pull/2186) Remove deprecated FilterFactory implementations
 * [#2164](https://github.com/kroxylicious/kroxylicious/issues/2164) Remove deprecated top-level configuration property filters
@@ -27,6 +28,7 @@ Format `<github issue/pr number>: <short description>`.
 * Remove deprecated `io.kroxylicious.proxy.config.tls.Tls(KeyProvider, TrustProvider)` constructor.
 * Remove the deprecated configuration property `brokerAddressPattern` from `sniHostIdentifiesNode` gateway configuration. Use
   `advertisedBrokerAddressPattern` instead.
+* VirtualCluster names are now restricted to a maximum length of 63, and must match pattern `^[a-z0-9]([-a-z0-9]*[a-z0-9])?$` (case insensitive).
 
 ## 0.12.0
 

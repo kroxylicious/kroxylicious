@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -46,6 +47,8 @@ public record VirtualCluster(@NonNull @JsonProperty(required = true) String name
 
     private static final Logger LOGGER = LoggerFactory.getLogger(VirtualCluster.class);
 
+    private static final Pattern DNS_LABEL_PATTERN = Pattern.compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", Pattern.CASE_INSENSITIVE);
+
     /**
      * Name given to the gateway defined using the deprecated fields.
      */
@@ -56,6 +59,11 @@ public record VirtualCluster(@NonNull @JsonProperty(required = true) String name
     public VirtualCluster {
         Objects.requireNonNull(name);
         Objects.requireNonNull(targetCluster);
+        if (!isDnsLabel(name)) {
+            throw new IllegalConfigurationException(
+                    "Virtual cluster name '" + name + "' is invalid. It must be less than 64 characters long and match pattern " + DNS_LABEL_PATTERN.pattern()
+                            + " (case insensitive)");
+        }
 
         if (clusterNetworkAddressConfigProvider != null || (tls != null && tls.isPresent())) {
             if (clusterNetworkAddressConfigProvider == null) {
@@ -78,6 +86,15 @@ public record VirtualCluster(@NonNull @JsonProperty(required = true) String name
                 throw new IllegalConfigurationException("one or more gateways were null");
             }
             validateNoDuplicatedGatewayNames(gateways);
+        }
+    }
+
+    boolean isDnsLabel(String name) {
+        if (name.length() > 63) {
+            return false;
+        }
+        else {
+            return DNS_LABEL_PATTERN.matcher(name).matches();
         }
     }
 
