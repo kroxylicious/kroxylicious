@@ -4,5 +4,6 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
+$schema: https://kroxylicious.io/schema/proc-schema.yaml
 id: have_a_target_kafka_cluster
 notional: true
