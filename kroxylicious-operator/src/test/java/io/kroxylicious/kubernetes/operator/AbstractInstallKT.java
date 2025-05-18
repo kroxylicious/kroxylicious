@@ -139,7 +139,7 @@ abstract class AbstractInstallKT {
     @ExtendWith(ProcedureTestTemplateExtension.class)
     @TestProcedure(value = "deploy_minimal_proxy", assuming = "have_a_kubectl", workingDir = "target/packaged")
     void testProcedures(Procedure procedure) {
-        procedure.executeProcedure(); // TODO working directory=target/packaged
+        procedure.executeProcedure();
         procedure.assertVerification();
     }
 

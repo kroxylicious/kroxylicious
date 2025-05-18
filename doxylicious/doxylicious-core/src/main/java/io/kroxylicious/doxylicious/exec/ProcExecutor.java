@@ -11,7 +11,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -116,15 +115,9 @@ public class ProcExecutor {
     }
 
     public ExecResult exec(String path, ExecDecl exec) throws ExecException {
-        List<String> args;
-        if (exec.args() != null) {
-            args = exec.args();
-        }
-        else {
-            args = Arrays.asList(exec.command().split("\\s+"));
-        }
+        List<String> args = exec.args();
         try {
-            var dir = Files.createTempDirectory("");
+            var dir = tempDirectory();
             Path outPath = dir.resolve("out");
             File out = outPath.toFile();
             out.deleteOnExit();
@@ -173,7 +166,10 @@ public class ProcExecutor {
         }
     }
 
-    record ExecResult(int exitCode, String stdout, String stderr) {}
+    @SuppressWarnings("java:S5443")
+    private static Path tempDirectory() throws IOException {
+        return Files.createTempDirectory(ProcExecutor.class.getSimpleName());
+    }
 
     private static ExecResult handleExpectedErrorCode(ExecDecl exec, List<String> args, Path outPath, Path errPath, int exitCode) throws IOException {
         LOGGER.atInfo().log("Command terminated normally: {}", argsAsString(args));
