@@ -23,6 +23,7 @@ Format `<github issue/pr number>: <short description>`.
 * Remove deprecated `SampleFetchResponseFilterFactory`. Use `SampleFetchResponse` instead.
 * Remove deprecated `ProduceRequestTransformationFilterFactory`. Use `ProduceRequestTransformation` instead.
 * Remove deprecated `FetchResponseTransformationFilterFactory`. Use `FetchResponseTransformation` instead.
+* Remove deprecated `io.kroxylicious.proxy.config.tls.Tls(KeyProvider, TrustProvider)` constructor.
 
 ## 0.12.0
 

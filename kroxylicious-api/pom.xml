@@ -162,6 +162,7 @@
                         <breakBuildBasedOnSemanticVersioningForMajorVersionZero>${ApiCompatability.EnforceForMajorVersionZero}</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
                         <excludes>
                             <exclude>io.kroxylicious.proxy.filter.FilterFactoryContext#eventLoop()</exclude> <!-- https://github.com/kroxylicious/kroxylicious/issues/1380 scheduled removal of deprecated API method -->
+                            <exclude>io.kroxylicious.proxy.config.tls.Tls#Tls(io.kroxylicious.proxy.config.tls.KeyProvider, io.kroxylicious.proxy.config.tls.TrustProvider)</exclude>
                             <!-- The following filter exclusions relate to RPCs that were removed at Kafka 4.0 -->
                             <exclude>io.kroxylicious.proxy.filter.ControlledShutdownRequestFilter</exclude>
                             <exclude>io.kroxylicious.proxy.filter.ControlledShutdownResponseFilter</exclude>
