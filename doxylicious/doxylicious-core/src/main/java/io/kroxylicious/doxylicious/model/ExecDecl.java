@@ -9,9 +9,9 @@ package io.kroxylicious.doxylicious.model;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public record ExecDecl(
@@ -49,13 +50,15 @@ public record ExecDecl(
         this(null, null, command, args, exitCodes, timeout, destroyTimeout, standardOutput, standardError);
     }
 
-    public String command() {
-        if (command != null) {
-            return command;
+    public @NonNull List<String> args() {
+        if (args != null) {
+            return args;
+        }
+        else if (command() != null) {
+            return Arrays.asList(command().trim().split("\\s+"));
         }
         else {
-            Objects.requireNonNull(args);
-            return String.join(" ", args);
+            throw new IllegalStateException("One of command and args must be specified");
         }
     }
 
