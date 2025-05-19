@@ -333,13 +333,9 @@ has been applied ineffectively.
 * [OPTIONAL] aws cli ([install guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)): in case an AWS Cloud account is used for KMS.
 
 ### Environment variables
-* `KROXYLICIOUS_REGISTRY`: url to the registry where the image of kroxylicious is located. Default value: `quay.io`
-* `KROXYLICIOUS_ORG`: name of the organisation in the registry where kroxylicious is located. Default value: `kroxylicious`
-* `KROXYLICIOUS_IMAGE_NAME`: name of the image of kroxylicious to be used. Default value: `kroxylicious`
 * `KROXYLICIOUS_OPERATOR_REGISTRY`: url to the registry where the image of kroxylicious operator is located. Default value: `quay.io`
 * `KROXYLICIOUS_OPERATOR_ORG`: name of the organisation in the registry where kroxylicious operator is located. Default value: `kroxylicious`
 * `KROXYLICIOUS_OPERATOR_IMAGE_NAME`: name of the image of kroxylicious operator to be used. Default value: `operator`
-* `KROXYLICIOUS_VERSION`: version of kroxylicious to be used. Default value: `${project.version}` in pom file
 * `KROXYLICIOUS_OPERATOR_VERSION`: version of kroxylicious operator to be used. Default value: `${project.version}` in pom file
 * `KAFKA_VERSION`: kafka version to be used. Default value: `${kafka.version}` in pom file
 * `STRIMZI_VERSION`: strimzi version to be used. Default value: `${strimzi.version}` in pom file
