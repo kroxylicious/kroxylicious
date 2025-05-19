@@ -22,12 +22,15 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.skodjob.testframe.resources.KubeResourceManager;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
@@ -107,7 +110,7 @@ class OperatorChangeDetectionST extends AbstractST {
     }
 
     @Test
-    void shouldRolloutDeploymentWhenFilterConfigurationChanges(String namespace) {
+    void shouldUpdateWhenFilterConfigurationChanges(String namespace) {
         // Given
         // @formatter:off
         KafkaProtocolFilterBuilder arbitraryFilter = KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
@@ -141,9 +144,36 @@ class OperatorChangeDetectionST extends AbstractST {
         assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
     }
 
+    @Test
+    void shouldUpdateDeploymentWhenKafkaProxyChanges(String namespace) {
+        // Given
+        KubeClient kubeClient = kubeClient(namespace);
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters(kafkaClusterName);
+
+        String originalChecksum = getInitialChecksum(namespace, kubeClient);
+
+        KafkaProxy kafkaProxy = kubeClient.getClient().resources(KafkaProxy.class).inNamespace(namespace)
+                .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).get();
+
+        // @formatter:off
+        KafkaProxyBuilder updatedKafkaProxy = kafkaProxy.edit()
+                .editOrNewSpec()
+                .withPodTemplate(new PodTemplateSpecBuilder().build())
+                .endSpec();
+
+        // @formatter:on
+
+        // When
+        resourceManager.createOrUpdateResourceWithWait(updatedKafkaProxy);
+        LOGGER.info("Kafka proxy updated");
+
+        // Then
+        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+    }
+
     private static void assertDeploymentUpdated(String namespace, KubeClient kubeClient, String originalChecksum) {
         await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
-            Deployment proxyDeployment = kubeClient.getDeployment(namespace, "simple");
+            Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
             Assertions.assertThat(proxyDeployment).isNotNull();
             OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
                     value -> assertThat(value).isNotEqualTo(originalChecksum));
