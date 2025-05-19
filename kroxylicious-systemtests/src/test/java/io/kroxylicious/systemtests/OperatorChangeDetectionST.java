@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -72,12 +73,7 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("Kafka proxy ingress edited");
 
         // Then
-        await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
-            Deployment proxyDeployment = kubeClient.getDeployment(namespace, "simple");
-            assertThat(proxyDeployment).isNotNull();
-            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
-                    value -> assertThat(value).isNotEqualTo(originalChecksum));
-        });
+        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
     }
 
     @Test
@@ -107,12 +103,7 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("virtual cluster edited");
 
         // Then
-        await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
-            Deployment proxyDeployment = kubeClient.getDeployment(namespace, "simple");
-            assertThat(proxyDeployment).isNotNull();
-            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
-                    value -> assertThat(value).isNotEqualTo(originalChecksum));
-        });
+        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
     }
 
     @Test
@@ -147,8 +138,13 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("Kafka proxy filter updated");
 
         // Then
+        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+    }
+
+    private static void assertDeploymentUpdated(String namespace, KubeClient kubeClient, String originalChecksum) {
         await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
             Deployment proxyDeployment = kubeClient.getDeployment(namespace, "simple");
+            Assertions.assertThat(proxyDeployment).isNotNull();
             OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
                     value -> assertThat(value).isNotEqualTo(originalChecksum));
         });
