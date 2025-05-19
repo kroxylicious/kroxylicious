@@ -10,6 +10,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
@@ -121,13 +122,14 @@ public record Configuration(
     private void validateNoDuplicatedClusterNames(List<VirtualCluster> clusters) {
         var names = clusters.stream()
                 .map(VirtualCluster::name)
+                .map(name -> name.toLowerCase(Locale.ROOT))
                 .toList();
         var duplicates = names.stream()
                 .filter(i -> Collections.frequency(names, i) > 1)
                 .collect(Collectors.toSet());
         if (!duplicates.isEmpty()) {
             throw new IllegalConfigurationException(
-                    "Virtual cluster must be unique. The following virtual cluster names are duplicated: [%s]".formatted(
+                    "Virtual cluster must be unique (case insensitive). The following virtual cluster names are duplicated: [%s]".formatted(
                             String.join(", ", duplicates)));
         }
     }
