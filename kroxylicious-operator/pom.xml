@@ -19,7 +19,7 @@
     <artifactId>kroxylicious-operator</artifactId>
 
     <properties>
-        <josdk.version>5.0.3</josdk.version>
+        <josdk.version>5.0.4</josdk.version>
         <prometheus-metrics.version>1.3.7</prometheus-metrics.version>
         <io.kroxylicious.operator.image.name>quay.io/kroxylicious/operator:${project.version}</io.kroxylicious.operator.image.name>
         <io.kroxylicious.operator.image.archive>target/kroxylicious-operator.img.tar.gz</io.kroxylicious.operator.image.archive>
