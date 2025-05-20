@@ -146,6 +146,7 @@ public final class Constants {
     public static final String SCRAPER_LABEL_KEY = "user-test-app";
     public static final String SCRAPER_LABEL_VALUE = "scraper";
     public static final String SCRAPER_NAME = "Scraper";
+    public static final String CURL_IMAGE = Constants.DOCKER_REGISTRY_GCR_MIRROR + "/curlimages/curl:8.13.0";
 
     /**
      * Basic paths to examples
