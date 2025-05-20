@@ -50,7 +50,7 @@ public record ClusterResolutionResult(VirtualKafkaCluster cluster,
      */
     public boolean allReferentsFullyResolved() {
         return allDanglingReferences().findAny().isEmpty() && allResolvedReferents()
-                .noneMatch(ResourcesUtil::hasResolvedRefsFalseCondition);
+                .noneMatch(ResourcesUtil::hasFreshResolvedRefsFalseCondition);
     }
 
     /**

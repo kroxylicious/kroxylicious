@@ -102,7 +102,7 @@ class DependencyResolverTest {
     @Test
     void resolveProxyRefsWithNullFiltersOnVirtualCluster() {
         // given
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
         VirtualKafkaCluster cluster = virtualCluster(null, "cluster", List.of(), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
 
@@ -112,7 +112,7 @@ class DependencyResolverTest {
         // then
         assertThat(resolutionResult.allClustersInNameOrder()).containsExactly(cluster);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
-        assertThat(ResourcesUtil.hasResolvedRefsFalseCondition(onlyResult.cluster())).isFalse();
+        assertThat(ResourcesUtil.hasFreshResolvedRefsFalseCondition(onlyResult.cluster())).isFalse();
         assertThat(onlyResult.allReferentsFullyResolved()).isTrue();
         assertThat(onlyResult.allDanglingReferences()).isEmpty();
     }
@@ -120,7 +120,7 @@ class DependencyResolverTest {
     @Test
     void resolveClusterRefsWithNullFilters() {
         // given
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
         VirtualKafkaCluster cluster = virtualCluster(null, "cluster", List.of(), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
         givenProxiesInContext(PROXY);
@@ -129,7 +129,7 @@ class DependencyResolverTest {
         ClusterResolutionResult clusterResolutionResult = resolveClusterRefs(cluster);
 
         // then
-        assertThat(ResourcesUtil.hasResolvedRefsFalseCondition(clusterResolutionResult.cluster())).isFalse();
+        assertThat(ResourcesUtil.hasFreshResolvedRefsFalseCondition(clusterResolutionResult.cluster())).isFalse();
         assertThat(clusterResolutionResult.allReferentsFullyResolved()).isTrue();
         assertThat(clusterResolutionResult.allDanglingReferences()).isEmpty();
     }
@@ -137,9 +137,12 @@ class DependencyResolverTest {
     @Test
     void resolveProxyRefsWithResolvedRefsFalseCondition() {
         // given
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
+        long latestGeneration = 1L;
         VirtualKafkaCluster cluster = virtualCluster(null, "cluster", List.of(), getProxyRef(PROXY_NAME))
-                .edit().editStatus().addToConditions(resolvedRefsFalse()).endStatus().build();
+                .edit()
+                .withNewMetadata().withGeneration(latestGeneration).endMetadata()
+                .editStatus().addToConditions(resolvedRefsFalse(latestGeneration)).endStatus().build();
         givenVirtualKafkaClustersInContext(cluster);
 
         // when
@@ -149,13 +152,35 @@ class DependencyResolverTest {
         assertThat(resolutionResult.allClustersInNameOrder()).containsExactly(cluster);
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.allReferentsFullyResolved()).isTrue();
-        assertThat(ResourcesUtil.hasResolvedRefsFalseCondition(onlyResult.cluster())).isTrue();
+        assertThat(ResourcesUtil.hasFreshResolvedRefsFalseCondition(onlyResult.cluster())).isTrue();
+    }
+
+    @Test
+    void shouldIgnoreStaleResolvedRefsFalseConditionOfResolvedCluster() {
+        // given
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
+        long latestGeneration = 2L;
+        long staleGeneration = 1L;
+        VirtualKafkaCluster cluster = virtualCluster(null, "cluster", List.of(), getProxyRef(PROXY_NAME))
+                .edit()
+                .withNewMetadata().withGeneration(latestGeneration).endMetadata()
+                .editStatus().addToConditions(resolvedRefsFalse(staleGeneration)).endStatus().build();
+        givenVirtualKafkaClustersInContext(cluster);
+
+        // when
+        ProxyResolutionResult resolutionResult = resolveProxyRefs(PROXY);
+
+        // then
+        assertThat(resolutionResult.allClustersInNameOrder()).containsExactly(cluster);
+        ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
+        assertThat(onlyResult.allReferentsFullyResolved()).isTrue();
+        assertThat(ResourcesUtil.hasFreshResolvedRefsFalseCondition(onlyResult.cluster())).isFalse();
     }
 
     @Test
     void resolveProxyRefsWithStaleKafkaServiceStatus() {
         // given
-        KafkaService kafkaService = kafkaService("cluster", 2L, 1L);
+        KafkaService kafkaService = kafkaService("cluster", 2L);
         givenKafkaServicesInContext(kafkaService);
         VirtualKafkaCluster cluster = virtualCluster(null, "cluster", List.of(), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
@@ -174,8 +199,8 @@ class DependencyResolverTest {
     @Test
     void resolveProxyRefsWithStaleKafkaProxyIngressStatus() {
         // given
-        givenKafkaServicesInContext(kafkaService("clusterRef"));
-        KafkaProxyIngress ingress = getKafkaProxyIngress("ingress", PROXY_NAME, 2L, 1L);
+        givenKafkaServicesInContext(kafkaService("clusterRef", 1L));
+        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME, 2L);
         givenIngressesInContext(ingress);
         VirtualKafkaCluster cluster = virtualCluster(List.of(), "clusterRef", List.of(ingress("ingress")), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
@@ -195,7 +220,7 @@ class DependencyResolverTest {
         // given
         KafkaProtocolFilter filter = protocolFilter("filterName", 2L, 1L);
         givenFiltersInContext(filter);
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
 
@@ -212,7 +237,7 @@ class DependencyResolverTest {
     @Test
     void resolveProxyRefsWithStaleVirtualKafkaClusterStatus() {
         // given
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
         long oldGeneration = 1L;
         long generation = 2L;
         VirtualKafkaCluster cluster = virtualCluster(null, "cluster", List.of(), getProxyRef(PROXY_NAME))
@@ -235,7 +260,7 @@ class DependencyResolverTest {
     @Test
     void resolveClusterRefsWithStaleVirtualKafkaClusterStatus() {
         // given
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
         long oldGeneration = 1L;
         long generation = 2L;
         VirtualKafkaCluster cluster = virtualCluster(null, "cluster", List.of(), getProxyRef(PROXY_NAME))
@@ -255,9 +280,11 @@ class DependencyResolverTest {
     @Test
     void resolveClusterRefsWhenClusterHasResolvedRefsFalse() {
         // given
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
+        long latestGeneration = 1L;
         VirtualKafkaCluster cluster = virtualCluster(null, "cluster", List.of(), getProxyRef(PROXY_NAME))
-                .edit().editStatus().addToConditions(resolvedRefsFalse()).endStatus().build();
+                .edit().withNewMetadata().withGeneration(latestGeneration).endMetadata()
+                .editStatus().addToConditions(resolvedRefsFalse(latestGeneration)).endStatus().build();
         givenVirtualKafkaClustersInContext(cluster);
         givenProxiesInContext(PROXY);
 
@@ -270,16 +297,18 @@ class DependencyResolverTest {
         // cluster. Ie if a previous reconciliation sets the cluster to ResolvedRefs: False, we do not want that status to
         // be considered when calculating a fresh status.
         assertThat(clusterResolutionResult.allReferentsFullyResolved()).isTrue();
-        assertThat(ResourcesUtil.hasResolvedRefsFalseCondition(clusterResolutionResult.cluster())).isTrue();
-        assertThat(clusterResolutionResult.allResolvedReferents().anyMatch(ResourcesUtil::hasResolvedRefsFalseCondition)).isFalse();
+        assertThat(ResourcesUtil.hasFreshResolvedRefsFalseCondition(clusterResolutionResult.cluster())).isTrue();
+        assertThat(clusterResolutionResult.allResolvedReferents().anyMatch(ResourcesUtil::hasFreshResolvedRefsFalseCondition)).isFalse();
     }
 
     @Test
     void resolveProxyRefsWithFilterHavingResolvedRefsFalseCondition() {
         // given
-        KafkaProtocolFilter filter = protocolFilter("filterName").edit().withNewStatus().addToConditions(resolvedRefsFalse()).endStatus().build();
+        long latestGeneration = 1L;
+        KafkaProtocolFilter filter = protocolFilter("filterName", latestGeneration).edit().withNewStatus().addToConditions(resolvedRefsFalse(latestGeneration))
+                .endStatus().build();
         givenFiltersInContext(filter);
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
 
@@ -289,21 +318,43 @@ class DependencyResolverTest {
         // then
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.allReferentsFullyResolved()).isFalse();
-        assertThat(onlyResult.allResolvedReferents().filter(ResourcesUtil::hasResolvedRefsFalseCondition)).containsExactly(filter);
+        assertThat(onlyResult.allResolvedReferents().filter(ResourcesUtil::hasFreshResolvedRefsFalseCondition)).containsExactly(filter);
         String referentKind = HasMetadata.getKind(KafkaProtocolFilter.class);
-        assertThat(onlyResult.allResolvedReferents().filter(ResourcesUtil.hasResolvedRefsFalseCondition().and(ResourcesUtil.hasKind(referentKind))))
+        assertThat(onlyResult.allResolvedReferents().filter(ResourcesUtil.hasFreshResolvedRefsFalseCondition().and(ResourcesUtil.hasKind(referentKind))))
                 .containsExactly(filter);
 
-        assertThat(onlyResult.allResolvedReferents().anyMatch(ResourcesUtil::hasResolvedRefsFalseCondition)).isTrue();
+        assertThat(onlyResult.allResolvedReferents().anyMatch(ResourcesUtil::hasFreshResolvedRefsFalseCondition)).isTrue();
+    }
+
+    @Test
+    void shouldIgnoreStaleResolvedRefsFalseConditionOfResolvedFilter() {
+        // given
+        long latestGeneration = 2L;
+        long staleGeneration = 1L;
+        KafkaProtocolFilter filter = protocolFilter("filterName", latestGeneration).edit().withNewStatus().addToConditions(resolvedRefsFalse(staleGeneration)).endStatus()
+                .build();
+        givenFiltersInContext(filter);
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
+        VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(), getProxyRef(PROXY_NAME));
+        givenVirtualKafkaClustersInContext(cluster);
+
+        // when
+        ProxyResolutionResult resolutionResult = resolveProxyRefs(PROXY);
+
+        // then
+        ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
+        assertThat(onlyResult.allReferentsFullyResolved()).isTrue();
+        assertThat(onlyResult.allResolvedReferents().filter(ResourcesUtil::hasFreshResolvedRefsFalseCondition)).isEmpty();
     }
 
     @Test
     void resolveClusterRefsWithFilterHavingResolvedRefsFalseCondition() {
         // given
-        KafkaProtocolFilter filter = protocolFilter("filterName").edit().withNewStatus().addToConditions(resolvedRefsFalse())
+        long latestGeneration = 1L;
+        KafkaProtocolFilter filter = protocolFilter("filterName", latestGeneration).edit().withNewStatus().addToConditions(resolvedRefsFalse(latestGeneration))
                 .endStatus().build();
         givenFiltersInContext(filter);
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
         givenProxiesInContext(PROXY);
@@ -315,16 +366,16 @@ class DependencyResolverTest {
         assertThat(clusterResolutionResult.allReferentsFullyResolved()).isFalse();
         assertThat(clusterResolutionResult.allResolvedReferents().filter(ResourcesUtil.isStatusStale())).containsExactly(filter);
         String referentKind = HasMetadata.getKind(KafkaProtocolFilter.class);
-        assertThat(clusterResolutionResult.allResolvedReferents().filter(ResourcesUtil.hasResolvedRefsFalseCondition().and(ResourcesUtil.hasKind(referentKind))))
+        assertThat(clusterResolutionResult.allResolvedReferents().filter(ResourcesUtil.hasFreshResolvedRefsFalseCondition().and(ResourcesUtil.hasKind(referentKind))))
                 .containsExactly(
                         filter);
-        assertThat(clusterResolutionResult.allResolvedReferents().anyMatch(ResourcesUtil::hasResolvedRefsFalseCondition)).isTrue();
+        assertThat(clusterResolutionResult.allResolvedReferents().anyMatch(ResourcesUtil::hasFreshResolvedRefsFalseCondition)).isTrue();
     }
 
-    private static @NonNull Condition resolvedRefsFalse() {
+    private static @NonNull Condition resolvedRefsFalse(long observedGeneration) {
         return new ConditionBuilder().withType(Condition.Type.ResolvedRefs)
                 .withStatus(Condition.Status.FALSE)
-                .withObservedGeneration(1L)
+                .withObservedGeneration(observedGeneration)
                 .withLastTransitionTime(Instant.EPOCH)
                 .withMessage("BadThings")
                 .withReason("BadThings").build();
@@ -333,9 +384,10 @@ class DependencyResolverTest {
     @Test
     void resolveProxyRefsWithServiceHavingResolvedRefsFalseCondition() {
         // given
-        KafkaProtocolFilter filter = protocolFilter("filterName");
+        KafkaProtocolFilter filter = protocolFilter("filterName", 1L);
         givenFiltersInContext(filter);
-        KafkaService service = kafkaService("cluster").edit().withNewStatus().addToConditions(resolvedRefsFalse()).endStatus().build();
+        long latestGeneration = 1L;
+        KafkaService service = kafkaService("cluster", latestGeneration).edit().withNewStatus().addToConditions(resolvedRefsFalse(latestGeneration)).endStatus().build();
         givenKafkaServicesInContext(service);
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
@@ -346,20 +398,43 @@ class DependencyResolverTest {
         // then
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.allReferentsFullyResolved()).isFalse();
-        assertThat(onlyResult.allResolvedReferents().filter(ResourcesUtil::hasResolvedRefsFalseCondition))
+        assertThat(onlyResult.allResolvedReferents().filter(ResourcesUtil::hasFreshResolvedRefsFalseCondition))
                 .containsExactly(service);
         String referentKind = HasMetadata.getKind(KafkaService.class);
-        assertThat(onlyResult.allResolvedReferents().filter(ResourcesUtil.hasResolvedRefsFalseCondition().and(ResourcesUtil.hasKind(referentKind))))
+        assertThat(onlyResult.allResolvedReferents().filter(ResourcesUtil.hasFreshResolvedRefsFalseCondition().and(ResourcesUtil.hasKind(referentKind))))
                 .containsExactly(service);
-        assertThat(onlyResult.allResolvedReferents().anyMatch(ResourcesUtil::hasResolvedRefsFalseCondition)).isTrue();
+        assertThat(onlyResult.allResolvedReferents().anyMatch(ResourcesUtil::hasFreshResolvedRefsFalseCondition)).isTrue();
+    }
+
+    @Test
+    void shouldIgnoreStaleResolvedRefsFalseConditionOfResolvedKafkaService() {
+        // given
+        KafkaProtocolFilter filter = protocolFilter("filterName", 1L);
+        givenFiltersInContext(filter);
+        long latestGeneration = 2L;
+        long staleGeneration = 1L;
+        KafkaService service = kafkaService("cluster", latestGeneration).edit().withNewStatus().addToConditions(resolvedRefsFalse(staleGeneration)).endStatus().build();
+        givenKafkaServicesInContext(service);
+        VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(), getProxyRef(PROXY_NAME));
+        givenVirtualKafkaClustersInContext(cluster);
+
+        // when
+        ProxyResolutionResult resolutionResult = resolveProxyRefs(PROXY);
+
+        // then
+        ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
+        assertThat(onlyResult.allReferentsFullyResolved()).isTrue();
+        assertThat(onlyResult.allResolvedReferents().filter(ResourcesUtil::hasFreshResolvedRefsFalseCondition))
+                .isEmpty();
     }
 
     @Test
     void resolveClusterRefsWithServiceHavingResolvedRefsFalseCondition() {
         // given
-        KafkaProtocolFilter filter = protocolFilter("filterName");
+        long latestGeneration = 1L;
+        KafkaProtocolFilter filter = protocolFilter("filterName", latestGeneration);
         givenFiltersInContext(filter);
-        KafkaService service = kafkaService("cluster").edit().withNewStatus().addToConditions(resolvedRefsFalse()).endStatus().build();
+        KafkaService service = kafkaService("cluster", 1L).edit().withNewStatus().addToConditions(resolvedRefsFalse(latestGeneration)).endStatus().build();
         givenKafkaServicesInContext(service);
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
@@ -370,21 +445,23 @@ class DependencyResolverTest {
 
         // then
         assertThat(clusterResolutionResult.allReferentsFullyResolved()).isFalse();
-        assertThat(clusterResolutionResult.allResolvedReferents().filter(ResourcesUtil::hasResolvedRefsFalseCondition))
+        assertThat(clusterResolutionResult.allResolvedReferents().filter(ResourcesUtil::hasFreshResolvedRefsFalseCondition))
                 .containsExactly(service);
         String referentKind = HasMetadata.getKind(KafkaService.class);
-        assertThat(clusterResolutionResult.allResolvedReferents().filter(ResourcesUtil.hasResolvedRefsFalseCondition().and(ResourcesUtil.hasKind(referentKind))))
+        assertThat(clusterResolutionResult.allResolvedReferents().filter(ResourcesUtil.hasFreshResolvedRefsFalseCondition().and(ResourcesUtil.hasKind(referentKind))))
                 .containsExactly(service);
-        assertThat(clusterResolutionResult.allResolvedReferents().anyMatch(ResourcesUtil::hasResolvedRefsFalseCondition)).isTrue();
+        assertThat(clusterResolutionResult.allResolvedReferents().anyMatch(ResourcesUtil::hasFreshResolvedRefsFalseCondition)).isTrue();
     }
 
     @Test
     void resolveProxyRefsWithIngressHavingResolvedRefsFalseCondition() {
         // given
-        KafkaProtocolFilter filter = protocolFilter("filterName");
+        KafkaProtocolFilter filter = protocolFilter("filterName", 1L);
         givenFiltersInContext(filter);
-        givenKafkaServicesInContext(kafkaService("cluster"));
-        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME).edit().withNewStatus().addToConditions(resolvedRefsFalse()).endStatus().build();
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
+        long latestGeneration = 1L;
+        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME, latestGeneration).edit().withNewStatus().addToConditions(resolvedRefsFalse(latestGeneration))
+                .endStatus().build();
         givenIngressesInContext(ingress);
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(ingress("ingress")), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
@@ -395,21 +472,46 @@ class DependencyResolverTest {
         // then
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.allReferentsFullyResolved()).isFalse();
-        assertThat(onlyResult.allResolvedReferents().filter(ResourcesUtil::hasResolvedRefsFalseCondition))
+        assertThat(onlyResult.allResolvedReferents().filter(ResourcesUtil::hasFreshResolvedRefsFalseCondition))
                 .containsExactly(ingress);
         String referentKind = HasMetadata.getKind(KafkaProxyIngress.class);
-        assertThat(onlyResult.allResolvedReferents().filter(ResourcesUtil.hasResolvedRefsFalseCondition().and(ResourcesUtil.hasKind(referentKind))))
+        assertThat(onlyResult.allResolvedReferents().filter(ResourcesUtil.hasFreshResolvedRefsFalseCondition().and(ResourcesUtil.hasKind(referentKind))))
                 .containsExactly(ingress);
-        assertThat(onlyResult.allResolvedReferents().anyMatch(ResourcesUtil::hasResolvedRefsFalseCondition)).isTrue();
+        assertThat(onlyResult.allResolvedReferents().anyMatch(ResourcesUtil::hasFreshResolvedRefsFalseCondition)).isTrue();
+    }
+
+    @Test
+    void shouldIgnoreStaleResolvedRefsFalseConditionOfResolvedIngress() {
+        // given
+        KafkaProtocolFilter filter = protocolFilter("filterName", 1L);
+        givenFiltersInContext(filter);
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
+        long latestGeneration = 2L;
+        long staleGeneration = 1L;
+        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME, latestGeneration).edit().withNewStatus().addToConditions(resolvedRefsFalse(staleGeneration))
+                .endStatus().build();
+        givenIngressesInContext(ingress);
+        VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(ingress("ingress")), getProxyRef(PROXY_NAME));
+        givenVirtualKafkaClustersInContext(cluster);
+
+        // when
+        ProxyResolutionResult resolutionResult = resolveProxyRefs(PROXY);
+
+        // then
+        ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
+        assertThat(onlyResult.allReferentsFullyResolved()).isTrue();
+        assertThat(onlyResult.allResolvedReferents().filter(ResourcesUtil::hasFreshResolvedRefsFalseCondition))
+                .isEmpty();
     }
 
     @Test
     void resolveClusterRefsWithIngressHavingResolvedRefsFalseCondition() {
         // given
-        KafkaProtocolFilter filter = protocolFilter("filterName");
+        long latestGeneration = 1L;
+        KafkaProtocolFilter filter = protocolFilter("filterName", latestGeneration);
         givenFiltersInContext(filter);
-        givenKafkaServicesInContext(kafkaService("cluster"));
-        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME).edit().withNewStatus().addToConditions(resolvedRefsFalse()).endStatus().build();
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
+        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME, 1L).edit().withNewStatus().addToConditions(resolvedRefsFalse(latestGeneration)).endStatus().build();
         givenIngressesInContext(ingress);
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(ingress("ingress")), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
@@ -420,18 +522,18 @@ class DependencyResolverTest {
 
         // then
         assertThat(clusterResolutionResult.allReferentsFullyResolved()).isFalse();
-        assertThat(clusterResolutionResult.allResolvedReferents().filter(ResourcesUtil::hasResolvedRefsFalseCondition))
+        assertThat(clusterResolutionResult.allResolvedReferents().filter(ResourcesUtil::hasFreshResolvedRefsFalseCondition))
                 .containsExactly(ingress);
         String referentKind = HasMetadata.getKind(KafkaProxyIngress.class);
-        assertThat(clusterResolutionResult.allResolvedReferents().filter(ResourcesUtil.hasResolvedRefsFalseCondition().and(ResourcesUtil.hasKind(referentKind))))
+        assertThat(clusterResolutionResult.allResolvedReferents().filter(ResourcesUtil.hasFreshResolvedRefsFalseCondition().and(ResourcesUtil.hasKind(referentKind))))
                 .containsExactly(ingress);
-        assertThat(clusterResolutionResult.allResolvedReferents().anyMatch(ResourcesUtil::hasResolvedRefsFalseCondition)).isTrue();
+        assertThat(clusterResolutionResult.allResolvedReferents().anyMatch(ResourcesUtil::hasFreshResolvedRefsFalseCondition)).isTrue();
     }
 
     @Test
     void resolveProxyRefsWithSingleDanglingFilterRef() {
         // given
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("another")), "cluster", List.of(), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
 
@@ -447,7 +549,7 @@ class DependencyResolverTest {
     @Test
     void resolveClusterRefsWithSingleDanglingFilterRef() {
         // given
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("another")), "cluster", List.of(), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
         givenProxiesInContext(PROXY);
@@ -463,9 +565,9 @@ class DependencyResolverTest {
     @Test
     void resolveProxyRefsWithSingleResolvedFilter() {
         // given
-        KafkaProtocolFilter filter = protocolFilter("filterName");
+        KafkaProtocolFilter filter = protocolFilter("filterName", 1L);
         givenFiltersInContext(filter);
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
 
@@ -484,9 +586,9 @@ class DependencyResolverTest {
     @Test
     void resolveClusterRefsWithSingleResolvedFilter() {
         // given
-        KafkaProtocolFilter filter = protocolFilter("filterName");
+        KafkaProtocolFilter filter = protocolFilter("filterName", 1L);
         givenFiltersInContext(filter);
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
         givenProxiesInContext(PROXY);
@@ -505,10 +607,10 @@ class DependencyResolverTest {
     @Test
     void resolveProxyRefsWithMultipleResolvedFilter() {
         // given
-        KafkaProtocolFilter filter = protocolFilter("filterName");
-        KafkaProtocolFilter filter2 = protocolFilter("filterName2");
+        KafkaProtocolFilter filter = protocolFilter("filterName", 1L);
+        KafkaProtocolFilter filter2 = protocolFilter("filterName2", 1L);
         givenFiltersInContext(filter, filter2);
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName"), filterRef("filterName2")), "cluster", List.of(),
                 getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
@@ -526,10 +628,10 @@ class DependencyResolverTest {
     @Test
     void resolveClusterRefsWithMultipleResolvedFilter() {
         // given
-        KafkaProtocolFilter filter = protocolFilter("filterName");
-        KafkaProtocolFilter filter2 = protocolFilter("filterName2");
+        KafkaProtocolFilter filter = protocolFilter("filterName", 1L);
+        KafkaProtocolFilter filter2 = protocolFilter("filterName2", 1L);
         givenFiltersInContext(filter, filter2);
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName"), filterRef("filterName2")), "cluster", List.of(),
                 getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
@@ -546,9 +648,9 @@ class DependencyResolverTest {
     @Test
     void resolveProxyRefsWithSubsetOfFiltersReferenced() {
         // given
-        KafkaProtocolFilter filter = protocolFilter("filterName");
+        KafkaProtocolFilter filter = protocolFilter("filterName", 1L);
         givenFiltersInContext(filter);
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName"), filterRef("filterName2")), "cluster", List.of(),
                 getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
@@ -565,9 +667,9 @@ class DependencyResolverTest {
     @Test
     void resolveClusterRefsWithSubsetOfFiltersReferenced() {
         // given
-        KafkaProtocolFilter filter = protocolFilter("filterName");
+        KafkaProtocolFilter filter = protocolFilter("filterName", 1L);
         givenFiltersInContext(filter);
-        givenKafkaServicesInContext(kafkaService("cluster"));
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
         VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName"), filterRef("filterName2")), "cluster", List.of(),
                 getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
@@ -584,7 +686,7 @@ class DependencyResolverTest {
     @Test
     void resolveProxyRefsWithDanglingIngressRef() {
         // given
-        givenKafkaServicesInContext(kafkaService("clusterRef"));
+        givenKafkaServicesInContext(kafkaService("clusterRef", 1L));
         VirtualKafkaCluster cluster = virtualCluster(List.of(), "clusterRef", List.of(ingress("ingressMissing")), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
 
@@ -600,7 +702,7 @@ class DependencyResolverTest {
     @Test
     void resolveClusterRefsWithDanglingIngressRef() {
         // given
-        givenKafkaServicesInContext(kafkaService("clusterRef"));
+        givenKafkaServicesInContext(kafkaService("clusterRef", 1L));
         VirtualKafkaCluster cluster = virtualCluster(List.of(), "clusterRef", List.of(ingress("ingressMissing")), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
         givenProxiesInContext(PROXY);
@@ -647,8 +749,8 @@ class DependencyResolverTest {
     @Test
     void resolveProxyRefsWithSingleResolvedIngress() {
         // given
-        givenKafkaServicesInContext(kafkaService("clusterRef"));
-        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME);
+        givenKafkaServicesInContext(kafkaService("clusterRef", 1L));
+        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME, 1L);
         givenIngressesInContext(ingress);
         VirtualKafkaCluster cluster = virtualCluster(List.of(), "clusterRef", List.of(ingress("ingress")), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
@@ -665,8 +767,8 @@ class DependencyResolverTest {
     @Test
     void resolveClusterRefsWithSingleResolvedIngress() {
         // given
-        givenKafkaServicesInContext(kafkaService("clusterRef"));
-        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME);
+        givenKafkaServicesInContext(kafkaService("clusterRef", 1L));
+        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME, 1L);
         givenIngressesInContext(ingress);
         VirtualKafkaCluster cluster = virtualCluster(List.of(), "clusterRef", List.of(ingress("ingress")), getProxyRef(PROXY_NAME));
         givenVirtualKafkaClustersInContext(cluster);
@@ -683,9 +785,9 @@ class DependencyResolverTest {
     @Test
     void resolveProxyRefsWithMultipleResolvedIngresses() {
         // given
-        givenKafkaServicesInContext(kafkaService("clusterRef"));
-        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME);
-        KafkaProxyIngress ingress2 = ingress("ingress2", PROXY_NAME);
+        givenKafkaServicesInContext(kafkaService("clusterRef", 1L));
+        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME, 1L);
+        KafkaProxyIngress ingress2 = ingress("ingress2", PROXY_NAME, 1L);
         givenIngressesInContext(ingress, ingress2);
         VirtualKafkaCluster cluster = virtualCluster(List.of(), "clusterRef", List.of(ingress("ingress"), ingress("ingress2")),
                 getProxyRef(PROXY_NAME));
@@ -703,9 +805,9 @@ class DependencyResolverTest {
     @Test
     void resolveClusterRefsWithMultipleResolvedIngresses() {
         // given
-        givenKafkaServicesInContext(kafkaService("clusterRef"));
-        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME);
-        KafkaProxyIngress ingress2 = ingress("ingress2", PROXY_NAME);
+        givenKafkaServicesInContext(kafkaService("clusterRef", 1L));
+        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME, 1L);
+        KafkaProxyIngress ingress2 = ingress("ingress2", PROXY_NAME, 1L);
         givenIngressesInContext(ingress, ingress2);
         VirtualKafkaCluster cluster = virtualCluster(List.of(), "clusterRef", List.of(ingress("ingress"), ingress("ingress2")),
                 getProxyRef(PROXY_NAME));
@@ -723,8 +825,8 @@ class DependencyResolverTest {
     @Test
     void resolveProxyRefsWithSubsetOfIngressesResolved() {
         // given
-        givenKafkaServicesInContext(kafkaService("clusterRef"));
-        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME);
+        givenKafkaServicesInContext(kafkaService("clusterRef", 1L));
+        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME, 1L);
         givenIngressesInContext(ingress);
         VirtualKafkaCluster cluster = virtualCluster(List.of(), "clusterRef", List.of(ingress("ingress"), ingress("ingress2")),
                 getProxyRef(PROXY_NAME));
@@ -742,8 +844,8 @@ class DependencyResolverTest {
     @Test
     void resolveClusterRefsWithSubsetOfIngressesResolved() {
         // given
-        givenKafkaServicesInContext(kafkaService("clusterRef"));
-        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME);
+        givenKafkaServicesInContext(kafkaService("clusterRef", 1L));
+        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME, 1L);
         givenIngressesInContext(ingress);
         VirtualKafkaCluster cluster = virtualCluster(List.of(), "clusterRef", List.of(ingress("ingress"), ingress("ingress2")),
                 getProxyRef(PROXY_NAME));
@@ -761,8 +863,8 @@ class DependencyResolverTest {
     @Test
     void resolveClusterRefsWithIngressReferencingDifferentProxyThanCluster() {
         // given
-        givenKafkaServicesInContext(kafkaService("clusterRef"));
-        KafkaProxyIngress ingress = ingress("ingress", "another-proxy");
+        givenKafkaServicesInContext(kafkaService("clusterRef", 1L));
+        KafkaProxyIngress ingress = ingress("ingress", "another-proxy", 1L);
         givenIngressesInContext(ingress);
         VirtualKafkaCluster cluster = virtualCluster(List.of(), "clusterRef", List.of(ingress("ingress")),
                 getProxyRef(PROXY_NAME));
@@ -781,8 +883,8 @@ class DependencyResolverTest {
     @Test
     void resolveClusterRefsWithDanglingProxyRef() {
         // given
-        givenKafkaServicesInContext(kafkaService("clusterRef"));
-        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME);
+        givenKafkaServicesInContext(kafkaService("clusterRef", 1L));
+        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME, 1L);
         givenIngressesInContext(ingress);
         VirtualKafkaCluster cluster = virtualCluster(List.of(), "clusterRef", List.of(ingress("ingress")),
                 getProxyRef("another-proxy"));
@@ -817,8 +919,8 @@ class DependencyResolverTest {
         return new IngressesBuilder().editOrNewIngressRef().withName(name).endIngressRef().build();
     }
 
-    private static KafkaProxyIngress ingress(String name, String proxyName) {
-        return getKafkaProxyIngress(name, proxyName, 1L, 1L);
+    private static KafkaProxyIngress ingress(String name, String proxyName, long generation) {
+        return getKafkaProxyIngress(name, proxyName, generation, 1L);
     }
 
     private static KafkaProxyIngress getKafkaProxyIngress(String name, String proxyName, long generation, long observedGeneration) {
@@ -848,8 +950,8 @@ class DependencyResolverTest {
         return onlyResult;
     }
 
-    private static KafkaService kafkaService(String clusterRef) {
-        return kafkaService(clusterRef, 1L, 1L);
+    private static KafkaService kafkaService(String clusterRef, long generation) {
+        return kafkaService(clusterRef, generation, 1L);
     }
 
     private static KafkaService kafkaService(String clusterRef, long generation, long observedGeneration) {
@@ -870,8 +972,8 @@ class DependencyResolverTest {
         return new FilterRefBuilder().withName(name).build();
     }
 
-    private static KafkaProtocolFilter protocolFilter(String name) {
-        return protocolFilter(name, 1L, 1L);
+    private static KafkaProtocolFilter protocolFilter(String name, long generation) {
+        return protocolFilter(name, generation, generation);
     }
 
     private static KafkaProtocolFilter protocolFilter(String name, long generation, long observedGeneration) {

@@ -341,12 +341,13 @@ public class ResourcesUtil {
     }
 
     /**
-     * Checks that the status contains a fresh ResolvedRefs=false condition
+     * Checks that the status contains a fresh ResolvedRefs=false condition. Fresh means that the
+     * observedGeneration of the condition is equal to the metadata.generation of the resource.
      * @param hasMetadata hasMetadata
      * @throws IllegalStateException if hasMetadata is not a CustomResource type owned by the Kroxylicious Operator which uses ResolvedRefs Conditions
      * @return true if hasMetadata status contains a fresh ResolvedRefs=false condition
      */
-    public static boolean hasResolvedRefsFalseCondition(HasMetadata hasMetadata) {
+    public static boolean hasFreshResolvedRefsFalseCondition(HasMetadata hasMetadata) {
         Objects.requireNonNull(hasMetadata);
         List<Condition> conditions;
         if (hasMetadata instanceof KafkaProtocolFilter filter) {
@@ -364,7 +365,9 @@ public class ResourcesUtil {
         else {
             throw new IllegalArgumentException("Resource kind '" + HasMetadata.getKind(hasMetadata.getClass()) + "' does not use ResolveRefs conditions");
         }
-        return conditions.stream().anyMatch(Condition::isResolvedRefsFalse);
+        return conditions.stream()
+                .filter(condition -> condition.getObservedGeneration().equals(hasMetadata.getMetadata().getGeneration()))
+                .anyMatch(Condition::isResolvedRefsFalse);
     }
 
     public static Predicate<HasMetadata> isStatusFresh() {
@@ -375,8 +378,8 @@ public class ResourcesUtil {
         return isStatusFresh().negate();
     }
 
-    public static Predicate<HasMetadata> hasResolvedRefsFalseCondition() {
-        return ResourcesUtil::hasResolvedRefsFalseCondition;
+    public static Predicate<HasMetadata> hasFreshResolvedRefsFalseCondition() {
+        return ResourcesUtil::hasFreshResolvedRefsFalseCondition;
     }
 
     public static Predicate<HasMetadata> hasKind(String kind) {
