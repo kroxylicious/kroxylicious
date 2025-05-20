@@ -57,6 +57,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResource
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 import static org.mockito.Mockito.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -386,10 +387,10 @@ class ResourcesUtilTest {
                 .withNewMetadata()
                 .withGeneration(2L)
                 .endMetadata().build();
-        return Stream.of(Arguments.argumentSet("observed generation equals metadata generation", observedGenerationEqualsMetadataGeneration, true),
-                Arguments.argumentSet("observed generation less than metadata generation", observedGenerationLessThanMetadataGeneration, false),
-                Arguments.argumentSet("observed generation null", observedGenerationNull, false),
-                Arguments.argumentSet("status null", statusNull, false));
+        return Stream.of(argumentSet("observed generation equals metadata generation", observedGenerationEqualsMetadataGeneration, true),
+                argumentSet("observed generation less than metadata generation", observedGenerationLessThanMetadataGeneration, false),
+                argumentSet("observed generation null", observedGenerationNull, false),
+                argumentSet("status null", statusNull, false));
     }
 
     @ParameterizedTest
@@ -399,68 +400,91 @@ class ResourcesUtilTest {
     }
 
     public static Stream<Arguments> hasResolvedRefsFalse() {
-        Condition resolvedRefsTrueCondition = resolvedRefsCondition(Condition.Status.TRUE);
-        Condition resolvedRefsFalseCondition = resolvedRefsCondition(Condition.Status.FALSE);
-        VirtualKafkaCluster vkcNoStatus = new VirtualKafkaClusterBuilder().build();
-        VirtualKafkaCluster vkcNoConditions = new VirtualKafkaClusterBuilder().withNewStatus().endStatus().build();
-        VirtualKafkaCluster vkcEmptyConditions = new VirtualKafkaClusterBuilder().withNewStatus().withConditions(List.of()).endStatus().build();
-        VirtualKafkaCluster vkcResolvedRefsTrue = new VirtualKafkaClusterBuilder().withNewStatus().withConditions(
+        long latestGeneration = 2L;
+        long staleGeneration = 1L;
+        Condition resolvedRefsTrueCondition = resolvedRefsCondition(Condition.Status.TRUE, latestGeneration);
+        Condition resolvedRefsFalseCondition = resolvedRefsCondition(Condition.Status.FALSE, latestGeneration);
+        Condition resolvedRefsFalseStaleCondition = resolvedRefsCondition(Condition.Status.FALSE, staleGeneration);
+        var baseVkcBuilder = new VirtualKafkaClusterBuilder().withNewMetadata()
+                .withGeneration(latestGeneration).endMetadata();
+        VirtualKafkaCluster vkcNoStatus = baseVkcBuilder.build();
+        VirtualKafkaCluster vkcNoConditions = new VirtualKafkaClusterBuilder(vkcNoStatus).withNewStatus().endStatus().build();
+        VirtualKafkaCluster vkcEmptyConditions = new VirtualKafkaClusterBuilder(vkcNoStatus).withNewStatus().withConditions(List.of()).endStatus().build();
+        VirtualKafkaCluster vkcResolvedRefsTrue = new VirtualKafkaClusterBuilder(vkcNoStatus).withNewStatus().withConditions(
                 resolvedRefsTrueCondition).endStatus().build();
-        VirtualKafkaCluster vkcResolvedRefsFalse = new VirtualKafkaClusterBuilder().withNewStatus().withConditions(
+        VirtualKafkaCluster vkcResolvedRefsFalse = new VirtualKafkaClusterBuilder(vkcNoStatus).withNewStatus().withConditions(
                 resolvedRefsFalseCondition).endStatus().build();
+        VirtualKafkaCluster vkcResolvedRefsFalseStale = new VirtualKafkaClusterBuilder(vkcNoStatus).withNewStatus().withConditions(
+                resolvedRefsFalseStaleCondition).endStatus().build();
 
-        KafkaService ksNoStatus = new KafkaServiceBuilder().build();
-        KafkaService ksNoConditions = new KafkaServiceBuilder().withNewStatus().endStatus().build();
-        KafkaService ksEmptyConditions = new KafkaServiceBuilder().withNewStatus().withConditions(List.of()).endStatus().build();
-        KafkaService ksResolvedRefsTrue = new KafkaServiceBuilder().withNewStatus().withConditions(
+        var baseKsBuilder = new KafkaServiceBuilder().withNewMetadata()
+                .withGeneration(latestGeneration).endMetadata();
+        KafkaService ksNoStatus = baseKsBuilder.build();
+        KafkaService ksNoConditions = new KafkaServiceBuilder(ksNoStatus).withNewStatus().endStatus().build();
+        KafkaService ksEmptyConditions = new KafkaServiceBuilder(ksNoStatus).withNewStatus().withConditions(List.of()).endStatus().build();
+        KafkaService ksResolvedRefsTrue = new KafkaServiceBuilder(ksNoStatus).withNewStatus().withConditions(
                 resolvedRefsTrueCondition).endStatus().build();
-        KafkaService ksResolvedRefsFalse = new KafkaServiceBuilder().withNewStatus().withConditions(
+        KafkaService ksResolvedRefsFalse = new KafkaServiceBuilder(ksNoStatus).withNewStatus().withConditions(
                 resolvedRefsFalseCondition).endStatus().build();
+        KafkaService ksResolvedRefsFalseStale = new KafkaServiceBuilder(ksNoStatus).withNewStatus().withConditions(
+                resolvedRefsFalseStaleCondition).endStatus().build();
 
-        KafkaProtocolFilter kpfNoStatus = new KafkaProtocolFilterBuilder().build();
-        KafkaProtocolFilter kpfNoConditions = new KafkaProtocolFilterBuilder().withNewStatus().endStatus().build();
-        KafkaProtocolFilter kpfEmptyConditions = new KafkaProtocolFilterBuilder().withNewStatus().withConditions(List.of()).endStatus().build();
-        KafkaProtocolFilter kpfResolvedRefsTrue = new KafkaProtocolFilterBuilder().withNewStatus().withConditions(
+        var baseKpfBuilder = new KafkaProtocolFilterBuilder().withNewMetadata()
+                .withGeneration(latestGeneration).endMetadata();
+        KafkaProtocolFilter kpfNoStatus = baseKpfBuilder.build();
+        KafkaProtocolFilter kpfNoConditions = new KafkaProtocolFilterBuilder(kpfNoStatus).withNewStatus().endStatus().build();
+        KafkaProtocolFilter kpfEmptyConditions = new KafkaProtocolFilterBuilder(kpfNoStatus).withNewStatus().withConditions(List.of()).endStatus().build();
+        KafkaProtocolFilter kpfResolvedRefsTrue = new KafkaProtocolFilterBuilder(kpfNoStatus).withNewStatus().withConditions(
                 resolvedRefsTrueCondition).endStatus().build();
-        KafkaProtocolFilter kpfResolvedRefsFalse = new KafkaProtocolFilterBuilder().withNewStatus().withConditions(
+        KafkaProtocolFilter kpfResolvedRefsFalse = new KafkaProtocolFilterBuilder(kpfNoStatus).withNewStatus().withConditions(
                 resolvedRefsFalseCondition).endStatus().build();
+        KafkaProtocolFilter kpfResolvedRefsFalseStale = new KafkaProtocolFilterBuilder(kpfNoStatus).withNewStatus().withConditions(
+                resolvedRefsFalseStaleCondition).endStatus().build();
 
-        KafkaProxyIngress kpiNoStatus = new KafkaProxyIngressBuilder().build();
-        KafkaProxyIngress kpiNoConditions = new KafkaProxyIngressBuilder().withNewStatus().endStatus().build();
-        KafkaProxyIngress kpiEmptyConditions = new KafkaProxyIngressBuilder().withNewStatus().withConditions(List.of()).endStatus().build();
-        KafkaProxyIngress kpiResolvedRefsTrue = new KafkaProxyIngressBuilder().withNewStatus().withConditions(
+        var baseKpiBuilder = new KafkaProxyIngressBuilder().withNewMetadata()
+                .withGeneration(latestGeneration).endMetadata();
+        KafkaProxyIngress kpiNoStatus = baseKpiBuilder.build();
+        KafkaProxyIngress kpiNoConditions = new KafkaProxyIngressBuilder(kpiNoStatus).withNewStatus().endStatus().build();
+        KafkaProxyIngress kpiEmptyConditions = new KafkaProxyIngressBuilder(kpiNoStatus).withNewStatus().withConditions(List.of()).endStatus().build();
+        KafkaProxyIngress kpiResolvedRefsTrue = new KafkaProxyIngressBuilder(kpiNoStatus).withNewStatus().withConditions(
                 resolvedRefsTrueCondition).endStatus().build();
-        KafkaProxyIngress kpiResolvedRefsFalse = new KafkaProxyIngressBuilder().withNewStatus().withConditions(
+        KafkaProxyIngress kpiResolvedRefsFalse = new KafkaProxyIngressBuilder(kpiNoStatus).withNewStatus().withConditions(
                 resolvedRefsFalseCondition).endStatus().build();
+        KafkaProxyIngress kpiResolvedRefsFalseStale = new KafkaProxyIngressBuilder(kpiNoStatus).withNewStatus().withConditions(
+                resolvedRefsFalseStaleCondition).endStatus().build();
 
-        return Stream.of(Arguments.argumentSet("virtualkafkacluster - no status", vkcNoStatus, false),
-                Arguments.argumentSet("virtualkafkacluster - no conditions on status", vkcNoConditions, false),
-                Arguments.argumentSet("virtualkafkacluster - empty conditions on status", vkcEmptyConditions, false),
-                Arguments.argumentSet("virtualkafkacluster - resolved refs true", vkcResolvedRefsTrue, false),
-                Arguments.argumentSet("virtualkafkacluster - resolved refs false", vkcResolvedRefsFalse, true),
-                Arguments.argumentSet("kafkaservice - no status", ksNoStatus, false),
-                Arguments.argumentSet("kafkaservice - no conditions on status", ksNoConditions, false),
-                Arguments.argumentSet("kafkaservice - empty conditions on status", ksEmptyConditions, false),
-                Arguments.argumentSet("kafkaservice - resolved refs true", ksResolvedRefsTrue, false),
-                Arguments.argumentSet("kafkaservice - resolved refs false", ksResolvedRefsFalse, true),
-                Arguments.argumentSet("kafkaprotocolfilter - no status", kpfNoStatus, false),
-                Arguments.argumentSet("kafkaprotocolfilter - no conditions on status", kpfNoConditions, false),
-                Arguments.argumentSet("kafkaprotocolfilter - empty conditions on status", kpfEmptyConditions, false),
-                Arguments.argumentSet("kafkaprotocolfilter - resolved refs true", kpfResolvedRefsTrue, false),
-                Arguments.argumentSet("kafkaprotocolfilter - resolved refs false", kpfResolvedRefsFalse, true),
-                Arguments.argumentSet("kafkaproxyingress - no status", kpiNoStatus, false),
-                Arguments.argumentSet("kafkaproxyingress - no conditions on status", kpiNoConditions, false),
-                Arguments.argumentSet("kafkaproxyingress - empty conditions on status", kpiEmptyConditions, false),
-                Arguments.argumentSet("kafkaproxyingress - resolved refs true", kpiResolvedRefsTrue, false),
-                Arguments.argumentSet("kafkaproxyingress - resolved refs false", kpiResolvedRefsFalse, true));
+        return Stream.of(argumentSet("virtualkafkacluster - no status", vkcNoStatus, false),
+                argumentSet("virtualkafkacluster - no conditions on status", vkcNoConditions, false),
+                argumentSet("virtualkafkacluster - empty conditions on status", vkcEmptyConditions, false),
+                argumentSet("virtualkafkacluster - resolved refs true", vkcResolvedRefsTrue, false),
+                argumentSet("virtualkafkacluster - resolved refs false", vkcResolvedRefsFalse, true),
+                argumentSet("virtualkafkacluster - resolved refs false stale observedGeneration", vkcResolvedRefsFalseStale, false),
+                argumentSet("kafkaservice - no status", ksNoStatus, false),
+                argumentSet("kafkaservice - no conditions on status", ksNoConditions, false),
+                argumentSet("kafkaservice - empty conditions on status", ksEmptyConditions, false),
+                argumentSet("kafkaservice - resolved refs true", ksResolvedRefsTrue, false),
+                argumentSet("kafkaservice - resolved refs false", ksResolvedRefsFalse, true),
+                argumentSet("kafkaservice - resolved refs false stale observedGeneration", ksResolvedRefsFalseStale, false),
+                argumentSet("kafkaprotocolfilter - no status", kpfNoStatus, false),
+                argumentSet("kafkaprotocolfilter - no conditions on status", kpfNoConditions, false),
+                argumentSet("kafkaprotocolfilter - empty conditions on status", kpfEmptyConditions, false),
+                argumentSet("kafkaprotocolfilter - resolved refs true", kpfResolvedRefsTrue, false),
+                argumentSet("kafkaprotocolfilter - resolved refs false", kpfResolvedRefsFalse, true),
+                argumentSet("kafkaprotocolfilter - resolved refs false stale observedGeneration", kpfResolvedRefsFalseStale, false),
+                argumentSet("kafkaproxyingress - no status", kpiNoStatus, false),
+                argumentSet("kafkaproxyingress - no conditions on status", kpiNoConditions, false),
+                argumentSet("kafkaproxyingress - empty conditions on status", kpiEmptyConditions, false),
+                argumentSet("kafkaproxyingress - resolved refs true", kpiResolvedRefsTrue, false),
+                argumentSet("kafkaproxyingress - resolved refs false", kpiResolvedRefsFalse, true),
+                argumentSet("kafkaproxyingress - resolved refs false stale observedGeneration", kpiResolvedRefsFalseStale, false));
     }
 
     @NonNull
-    private static Condition resolvedRefsCondition(Condition.Status status) {
+    private static Condition resolvedRefsCondition(Condition.Status status, long observedGeneration) {
         return new ConditionBuilder()
                 .withLastTransitionTime(Instant.EPOCH)
                 .withMessage("message")
-                .withObservedGeneration(1L)
+                .withObservedGeneration(observedGeneration)
                 .withType(Condition.Type.ResolvedRefs)
                 .withStatus(
                         status)
@@ -470,12 +494,12 @@ class ResourcesUtilTest {
     @ParameterizedTest
     @MethodSource
     void hasResolvedRefsFalse(HasMetadata cluster, boolean hasResolvedRefsFalse) {
-        assertThat(ResourcesUtil.hasResolvedRefsFalseCondition(cluster)).isEqualTo(hasResolvedRefsFalse);
+        assertThat(ResourcesUtil.hasFreshResolvedRefsFalseCondition(cluster)).isEqualTo(hasResolvedRefsFalse);
     }
 
     @Test
     void hasResolvedRefsFalseThrowsWhenResourceDoesntUseResolveRefs() {
-        assertThatThrownBy(() -> ResourcesUtil.hasResolvedRefsFalseCondition(new KafkaProxy())).isInstanceOf(IllegalArgumentException.class)
+        assertThatThrownBy(() -> ResourcesUtil.hasFreshResolvedRefsFalseCondition(new KafkaProxy())).isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Resource kind 'KafkaProxy' does not use ResolveRefs conditions");
     }
 
@@ -502,10 +526,10 @@ class ResourcesUtilTest {
                 .withNewMetadata()
                 .withGeneration(2L)
                 .endMetadata().build();
-        return Stream.of(Arguments.argumentSet("observed generation equals metadata generation", observedGenerationEqualsMetadataGeneration, true),
-                Arguments.argumentSet("observed generation less than metadata generation", observedGenerationLessThanMetadataGeneration, false),
-                Arguments.argumentSet("observed generation null", observedGenerationNull, false),
-                Arguments.argumentSet("status null", statusNull, false));
+        return Stream.of(argumentSet("observed generation equals metadata generation", observedGenerationEqualsMetadataGeneration, true),
+                argumentSet("observed generation less than metadata generation", observedGenerationLessThanMetadataGeneration, false),
+                argumentSet("observed generation null", observedGenerationNull, false),
+                argumentSet("status null", statusNull, false));
     }
 
     @ParameterizedTest
@@ -537,10 +561,10 @@ class ResourcesUtilTest {
                 .withNewMetadata()
                 .withGeneration(2L)
                 .endMetadata().build();
-        return Stream.of(Arguments.argumentSet("observed generation equals metadata generation", observedGenerationEqualsMetadataGeneration, true),
-                Arguments.argumentSet("observed generation less than metadata generation", observedGenerationLessThanMetadataGeneration, false),
-                Arguments.argumentSet("observed generation null", observedGenerationNull, false),
-                Arguments.argumentSet("status null", statusNull, false));
+        return Stream.of(argumentSet("observed generation equals metadata generation", observedGenerationEqualsMetadataGeneration, true),
+                argumentSet("observed generation less than metadata generation", observedGenerationLessThanMetadataGeneration, false),
+                argumentSet("observed generation null", observedGenerationNull, false),
+                argumentSet("status null", statusNull, false));
     }
 
     @ParameterizedTest
@@ -572,10 +596,10 @@ class ResourcesUtilTest {
                 .withNewMetadata()
                 .withGeneration(2L)
                 .endMetadata().build();
-        return Stream.of(Arguments.argumentSet("observed generation equals metadata generation", observedGenerationEqualsMetadataGeneration, true),
-                Arguments.argumentSet("observed generation less than metadata generation", observedGenerationLessThanMetadataGeneration, false),
-                Arguments.argumentSet("observed generation null", observedGenerationNull, false),
-                Arguments.argumentSet("status null", statusNull, false));
+        return Stream.of(argumentSet("observed generation equals metadata generation", observedGenerationEqualsMetadataGeneration, true),
+                argumentSet("observed generation less than metadata generation", observedGenerationLessThanMetadataGeneration, false),
+                argumentSet("observed generation null", observedGenerationNull, false),
+                argumentSet("status null", statusNull, false));
     }
 
     @ParameterizedTest
@@ -607,10 +631,10 @@ class ResourcesUtilTest {
                 .withNewMetadata()
                 .withGeneration(2L)
                 .endMetadata().build();
-        return Stream.of(Arguments.argumentSet("observed generation equals metadata generation", observedGenerationEqualsMetadataGeneration, true),
-                Arguments.argumentSet("observed generation less than metadata generation", observedGenerationLessThanMetadataGeneration, false),
-                Arguments.argumentSet("observed generation null", observedGenerationNull, false),
-                Arguments.argumentSet("status null", statusNull, false));
+        return Stream.of(argumentSet("observed generation equals metadata generation", observedGenerationEqualsMetadataGeneration, true),
+                argumentSet("observed generation less than metadata generation", observedGenerationLessThanMetadataGeneration, false),
+                argumentSet("observed generation null", observedGenerationNull, false),
+                argumentSet("status null", statusNull, false));
     }
 
     @ParameterizedTest

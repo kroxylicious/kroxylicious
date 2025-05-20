@@ -359,7 +359,7 @@ class VirtualKafkaClusterReconcilerTest {
                     .withType(Condition.Type.ResolvedRefs)
                     .withStatus(Condition.Status.FALSE)
                     .withLastTransitionTime(Instant.now())
-                    .withObservedGeneration(1L)
+                    .withObservedGeneration(SERVICE.getMetadata().getGeneration())
                     .withReason("NO_FILTERS")
                     .withMessage("no filters found")
                     .endCondition().endStatus().build()));
@@ -395,7 +395,7 @@ class VirtualKafkaClusterReconcilerTest {
                     Set.of(new KafkaProxyIngressBuilder(INGRESS).withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
                             .withStatus(Condition.Status.FALSE)
                             .withLastTransitionTime(Instant.now())
-                            .withObservedGeneration(1L)
+                            .withObservedGeneration(INGRESS.getMetadata().getGeneration())
                             .withReason("NO_FILTERS")
                             .withMessage("no filters found")
                             .endCondition().endStatus().build()));
@@ -435,7 +435,7 @@ class VirtualKafkaClusterReconcilerTest {
                     .withType(Condition.Type.ResolvedRefs)
                     .withStatus(Condition.Status.FALSE)
                     .withLastTransitionTime(Instant.now())
-                    .withObservedGeneration(1L)
+                    .withObservedGeneration(FILTER_MY_FILTER.getMetadata().getGeneration())
                     .withReason("RESOLVE_FAILURE")
                     .withMessage("failed to resolve")
                     .endCondition().endStatus().build()));

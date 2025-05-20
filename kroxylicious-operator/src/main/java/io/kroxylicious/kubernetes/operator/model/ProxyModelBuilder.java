@@ -45,7 +45,7 @@ public class ProxyModelBuilder {
         // that we know are unacceptable due to unresolved dependencies.
         ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, resolutionResult);
         List<ClusterResolutionResult> clustersWithValidIngresses = resolutionResult.allResolutionResultsInClusterNameOrder()
-                .filter(clusterResolutionResult -> clusterResolutionResult.allReferentsFullyResolved() && !ResourcesUtil.hasResolvedRefsFalseCondition(
+                .filter(clusterResolutionResult -> clusterResolutionResult.allReferentsFullyResolved() && !ResourcesUtil.hasFreshResolvedRefsFalseCondition(
                         clusterResolutionResult.cluster()))
                 .filter(result -> ingressModel.clusterIngressModel(result.cluster()).map(i -> i.ingressExceptions().isEmpty()).orElse(false))
                 .toList();

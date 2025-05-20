@@ -66,8 +66,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static io.fabric8.kubernetes.api.model.HasMetadata.getKind;
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 import static io.kroxylicious.kubernetes.operator.ProxyConfigStateDependentResource.CONFIG_STATE_CONFIG_MAP_SUFFIX;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.hasFreshResolvedRefsFalseCondition;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.hasKind;
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.hasResolvedRefsFalseCondition;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
@@ -295,16 +295,16 @@ public final class VirtualKafkaClusterReconciler implements
             return statusFactory.newFalseConditionStatusPatch(cluster, Condition.Type.ResolvedRefs, Condition.REASON_REFS_NOT_FOUND,
                     joiningMessages(proxyMsg, serviceMsg, ingressMsg, filterMsg));
         }
-        else if (clusterResolutionResult.allResolvedReferents().anyMatch(ResourcesUtil::hasResolvedRefsFalseCondition) || !unresolvedIngressProxies.isEmpty()) {
+        else if (clusterResolutionResult.allResolvedReferents().anyMatch(ResourcesUtil::hasFreshResolvedRefsFalseCondition) || !unresolvedIngressProxies.isEmpty()) {
             Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", cluster,
-                    clusterResolutionResult.allResolvedReferents().filter(hasResolvedRefsFalseCondition().and(hasKind(KAFKA_SERVICE_KIND)))
+                    clusterResolutionResult.allResolvedReferents().filter(hasFreshResolvedRefsFalseCondition().and(hasKind(KAFKA_SERVICE_KIND)))
                             .map(ResourcesUtil::toLocalRef));
             Stream<String> ingressMsg = refsMessage("spec.ingresses[].ingressRef references ", cluster,
                     clusterResolutionResult.allResolvedReferents()
-                            .filter(hasResolvedRefsFalseCondition().and(hasKind(KAFKA_PROXY_INGRESS_KIND))).map(ResourcesUtil::toLocalRef));
+                            .filter(hasFreshResolvedRefsFalseCondition().and(hasKind(KAFKA_PROXY_INGRESS_KIND))).map(ResourcesUtil::toLocalRef));
             Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster,
                     clusterResolutionResult.allResolvedReferents()
-                            .filter(hasResolvedRefsFalseCondition().and(hasKind(KAFKA_PROTOCOL_FILTER_KIND)))
+                            .filter(hasFreshResolvedRefsFalseCondition().and(hasKind(KAFKA_PROTOCOL_FILTER_KIND)))
                             .map(ResourcesUtil::toLocalRef));
             Stream<String> ingressProxyMessage = refsMessage("a spec.ingresses[].ingressRef had an inconsistent or missing proxyRef ", cluster,
                     clusterResolutionResult.allDanglingReferences()

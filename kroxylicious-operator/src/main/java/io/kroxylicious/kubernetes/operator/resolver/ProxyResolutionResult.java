@@ -37,7 +37,7 @@ public class ProxyResolutionResult {
      */
     public List<VirtualKafkaCluster> fullyResolvedClustersInNameOrder() {
         return clustersSatisfying(
-                clusterResolutionResult -> clusterResolutionResult.allReferentsFullyResolved() && !ResourcesUtil.hasResolvedRefsFalseCondition(
+                clusterResolutionResult -> clusterResolutionResult.allReferentsFullyResolved() && !ResourcesUtil.hasFreshResolvedRefsFalseCondition(
                         clusterResolutionResult.cluster()));
     }
 

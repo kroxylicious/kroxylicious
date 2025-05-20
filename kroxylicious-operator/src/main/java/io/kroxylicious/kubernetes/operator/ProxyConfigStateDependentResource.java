@@ -93,7 +93,7 @@ public class ProxyConfigStateDependentResource
 
     private static void addResolvedRefsConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigStateData data) {
         proxyModel.resolutionResult().clusterResolutionResults().stream()
-                .filter(result -> !result.allReferentsFullyResolved() || ResourcesUtil.hasResolvedRefsFalseCondition(result.cluster()))
+                .filter(result -> !result.allReferentsFullyResolved() || ResourcesUtil.hasFreshResolvedRefsFalseCondition(result.cluster()))
                 .forEach(clusterResolutionResult -> {
                     VirtualKafkaCluster cluster = clusterResolutionResult.cluster();
                     VirtualKafkaCluster patch;
@@ -111,9 +111,9 @@ public class ProxyConfigStateDependentResource
                     }
                     else {
                         Stream<LocalRef<?>> referentsWithResolvedRefsFalse = clusterResolutionResult.allResolvedReferents()
-                                .filter(ResourcesUtil::hasResolvedRefsFalseCondition)
+                                .filter(ResourcesUtil::hasFreshResolvedRefsFalseCondition)
                                 .map(ResourcesUtil::toLocalRef);
-                        Stream<LocalRef<?>> clusterWithResolvedRefsTrue = ResourcesUtil.hasResolvedRefsFalseCondition(clusterResolutionResult.cluster())
+                        Stream<LocalRef<?>> clusterWithResolvedRefsTrue = ResourcesUtil.hasFreshResolvedRefsFalseCondition(clusterResolutionResult.cluster())
                                 ? Stream.of(ResourcesUtil.toLocalRef(
                                         clusterResolutionResult.cluster()))
                                 : Stream.of();
