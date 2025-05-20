@@ -101,12 +101,8 @@ public class ProxyDeploymentDependentResource
         MetadataChecksumGenerator checksumGenerator = context.managedWorkflowAndDependentResourceContext()
                 .get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)
                 .orElse(new Crc32ChecksumGenerator());
-
-        model.clustersWithValidIngresses().stream().map(ClusterResolutionResult::cluster).forEach(entity -> {
-            LOGGER.info("Adding '{}'-{}@{} to checksum for {}", KubernetesResourceUtil.getName(entity), ResourcesUtil.generation(entity),
-                    ResourcesUtil.generation(entity), KubernetesResourceUtil.getName(primary));
-            checksumGenerator.appendMetadata(entity);
-        });
+        checksumGenerator.appendMetadata(primary);
+        model.clustersWithValidIngresses().stream().map(ClusterResolutionResult::cluster).forEach(checksumGenerator::appendMetadata);
         String encoded = checksumGenerator.encode();
 
         if (LOGGER.isInfoEnabled()) {
