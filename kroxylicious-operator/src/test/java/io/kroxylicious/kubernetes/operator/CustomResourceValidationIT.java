@@ -89,6 +89,20 @@ class CustomResourceValidationIT {
     @MethodSource
     @ParameterizedTest
     void testDerivedResourceInputsValid(Path validYaml) {
+        testValid(validYaml);
+    }
+
+    public static Stream<Path> testResourceValid() {
+        return TestFiles.recursiveFilesInDirectoryForTest(CustomResourceValidationIT.class, "valid-*.yaml").stream();
+    }
+
+    @MethodSource
+    @ParameterizedTest
+    void testResourceValid(Path validYaml) {
+        testValid(validYaml);
+    }
+
+    private static void testValid(Path validYaml) {
         try (InputStream is = Files.newInputStream(validYaml)) {
             NamespaceableResource<HasMetadata> resource = OperatorTestUtils.kubeClient().resource(is);
             Assertions.assertThatCode(resource::create).doesNotThrowAnyException();
