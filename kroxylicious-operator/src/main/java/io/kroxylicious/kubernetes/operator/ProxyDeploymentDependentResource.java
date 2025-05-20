@@ -207,7 +207,7 @@ public class ProxyDeploymentDependentResource
         clusterResolutionResults.forEach(resolutionResult -> {
             if (!kafkaProxyContext.isBroken(resolutionResult.cluster())) {
                 ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(resolutionResult.cluster()).orElseThrow();
-                for (ProxyIngressModel.IngressModel ingress : virtualClusterIngressModel.ingressModels()) {
+                for (ProxyIngressModel.IngressModelResult ingress : virtualClusterIngressModel.ingressModelResults()) {
                     ingress.proxyContainerPorts().forEach(containerBuilder::addToPorts);
                 }
             }
