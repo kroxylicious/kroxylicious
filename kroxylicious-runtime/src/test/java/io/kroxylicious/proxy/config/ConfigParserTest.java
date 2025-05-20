@@ -477,7 +477,36 @@ class ConfigParserTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasCauseInstanceOf(JsonMappingException.class) // Debatable to enforce the wrapped JsonMappingException
                 .cause()
-                .hasMessageContaining("Virtual cluster must be unique. The following virtual cluster names are duplicated: [demo1]");
+                .hasMessageContaining("Virtual cluster must be unique (case insensitive). The following virtual cluster names are duplicated: [demo1]");
+    }
+
+    @Test
+    void shouldDetectDuplicateClusterNodeNamesCaseInsensitively() {
+        // Given
+        assertThatThrownBy(() ->
+        // When
+        configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: demo1
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                  - name: dEmO1
+                    targetCluster:
+                      bootstrapServers: magic-kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """))
+                // Then
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasCauseInstanceOf(JsonMappingException.class) // Debatable to enforce the wrapped JsonMappingException
+                .cause()
+                .hasMessageContaining("Virtual cluster must be unique (case insensitive). The following virtual cluster names are duplicated: [demo1]");
     }
 
     @Test

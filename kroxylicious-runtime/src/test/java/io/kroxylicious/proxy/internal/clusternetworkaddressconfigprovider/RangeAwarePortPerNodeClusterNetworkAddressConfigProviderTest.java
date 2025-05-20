@@ -14,10 +14,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Mockito;
 
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.IntRangeSpec;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.NamedRangeSpec;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -43,7 +45,7 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
     @Test
     void brokerAddressSingleRange() {
         ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
-                getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)))));
+                getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)))), Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(new HostPort("broker0.kafka.example.com", 1236));
         assertThat(provider.getBrokerAddress(1)).isEqualTo(new HostPort("broker1.kafka.example.com", 1237));
     }
@@ -54,7 +56,8 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
         ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
                 new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
                         BOOSTRAP_HOSTPORT, "broker$(nodeId).kafka.example.com",
-                        null, namedRangeSpecs));
+                        null, namedRangeSpecs),
+                Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(new HostPort("broker0.kafka.example.com", 1236));
         assertThat(provider.getBrokerAddress(1)).isEqualTo(new HostPort("broker1.kafka.example.com", 1237));
     }
@@ -65,7 +68,8 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
         ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
                 new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
                         BOOSTRAP_HOSTPORT, null,
-                        null, namedRangeSpecs));
+                        null, namedRangeSpecs),
+                Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(new HostPort(BOOTSTRAP_HOST, 1236));
         assertThat(provider.getBrokerAddress(1)).isEqualTo(new HostPort(BOOTSTRAP_HOST, 1237));
     }
@@ -88,6 +92,16 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
                 null, rangeSpecs))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("nodeAddressPattern contains an unexpected replacement token '$(typoedNodeId)'");
+    }
+
+    @Test
+    void nodeAddressPatternCannotContainVirtualClusterNameReplacementPattern() {
+        List<NamedRangeSpec> rangeSpecs = List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)));
+        assertThatThrownBy(() -> new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
+                BOOSTRAP_HOSTPORT, "node-$(virtualClusterName).broker.com",
+                null, rangeSpecs))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("nodeAddressPattern contains an unexpected replacement token '$(virtualClusterName)'");
     }
 
     @Test
@@ -128,21 +142,22 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
         ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
                 new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
                         BOOSTRAP_HOSTPORT, "broker$(nodeId).kafka.example.com",
-                        1236, namedRangeSpecs));
+                        1236, namedRangeSpecs),
+                Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getClusterBootstrapAddress()).isEqualTo(BOOSTRAP_HOSTPORT);
     }
 
     @Test
     void exclusivePortsSingleRange() {
         ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
-                getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)))));
+                getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)))), Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getExclusivePorts()).containsExactly(1235, 1236, 1237);
     }
 
     @Test
     void discoveryAddressMapSingleRange() {
         ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
-                getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)))));
+                getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)))), Mockito.mock(VirtualClusterModel.class));
 
         Map<Integer, HostPort> expected = Map.of(
                 0, new HostPort("broker0.kafka.example.com", 1236),
@@ -153,7 +168,8 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
     @Test
     void brokerAddressMultipleRanges() {
         ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
-                getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)), new NamedRangeSpec("controllers", new IntRangeSpec(3, 5)))));
+                getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)), new NamedRangeSpec("controllers", new IntRangeSpec(3, 5)))),
+                Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getBrokerAddress(0)).isEqualTo(new HostPort("broker0.kafka.example.com", 1236));
         assertThat(provider.getBrokerAddress(1)).isEqualTo(new HostPort("broker1.kafka.example.com", 1237));
         assertThat(provider.getBrokerAddress(3)).isEqualTo(new HostPort("broker3.kafka.example.com", 1238));
@@ -163,7 +179,8 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
     @Test
     void brokerAddressUnknownNodeId() {
         ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
-                getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)), new NamedRangeSpec("controllers", new IntRangeSpec(3, 5)))));
+                getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)), new NamedRangeSpec("controllers", new IntRangeSpec(3, 5)))),
+                Mockito.mock(VirtualClusterModel.class));
         String expectedMessage = "Cannot generate node address for node id 5 as it is not contained in the ranges defined for provider with downstream bootstrap "
                 + BOOTSTRAP;
         assertThatThrownBy(() -> provider.getBrokerAddress(5)).isInstanceOf(IllegalArgumentException.class).hasMessage(expectedMessage);
@@ -172,7 +189,8 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
     @Test
     void discoveryAddressMapMultipleRanges() {
         ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
-                getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)), new NamedRangeSpec("controllers", new IntRangeSpec(3, 5)))));
+                getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)), new NamedRangeSpec("controllers", new IntRangeSpec(3, 5)))),
+                Mockito.mock(VirtualClusterModel.class));
 
         Map<Integer, HostPort> expected = Map.of(
                 0, new HostPort("broker0.kafka.example.com", 1236),
@@ -224,7 +242,8 @@ class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderTest {
     @Test
     void exclusivePortsMultipleRanges() {
         ClusterNetworkAddressConfigProvider provider = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
-                getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)), new NamedRangeSpec("controllers", new IntRangeSpec(3, 5)))));
+                getConfig(List.of(new NamedRangeSpec("brokers", new IntRangeSpec(0, 2)), new NamedRangeSpec("controllers", new IntRangeSpec(3, 5)))),
+                Mockito.mock(VirtualClusterModel.class));
         assertThat(provider.getExclusivePorts()).containsExactly(1235, 1236, 1237, 1238, 1239);
     }
 

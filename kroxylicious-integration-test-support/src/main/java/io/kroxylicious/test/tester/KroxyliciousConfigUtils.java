@@ -116,7 +116,9 @@ public class KroxyliciousConfigUtils {
             return c.getBootstrapAddress().toString();
         }
         else if (provider.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig c) {
-            return new HostPort(c.getBootstrapAddress().host(), c.getAdvertisedPort()).toString();
+            String bootstrapAddressPattern = c.getBootstrapAddressPattern();
+            String replaced = bootstrapAddressPattern.replace("$(virtualClusterName)", virtualCluster);
+            return new HostPort(replaced, c.getAdvertisedPort()).toString();
         }
         else {
             throw new IllegalStateException("I don't know how to handle ClusterEndpointConfigProvider type:" + provider.type());
@@ -141,7 +143,7 @@ public class KroxyliciousConfigUtils {
     public static VirtualClusterGatewayBuilder defaultSniHostIdentifiesNodeGatewayBuilder(HostPort bootstrapAddress, String advertisedBrokerAddressPattern) {
         return defaultGatewayBuilder()
                 .withNewSniHostIdentifiesNode()
-                .withBootstrapAddress(bootstrapAddress)
+                .withBootstrapAddress(bootstrapAddress.toString())
                 .withAdvertisedBrokerAddressPattern(advertisedBrokerAddressPattern)
                 .endSniHostIdentifiesNode();
     }
@@ -183,7 +185,7 @@ public class KroxyliciousConfigUtils {
                     strategy, null, cluster.tls()));
         }
         else if (providerDefinition.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig sc) {
-            var strategy = new SniHostIdentifiesNodeIdentificationStrategy(sc.getBootstrapAddress(),
+            var strategy = new SniHostIdentifiesNodeIdentificationStrategy(new HostPort(sc.getBootstrapAddressPattern(), sc.getAdvertisedPort()).toString(),
                     sc.getAdvertisedBrokerAddressPattern());
 
             return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,

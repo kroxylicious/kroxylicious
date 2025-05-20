@@ -21,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Mockito;
 
 import io.netty.buffer.ByteBufAllocator;
 
@@ -286,6 +287,6 @@ class VirtualClusterListenerModelTest {
                 parse("localhost:1235"),
                 "localhost", 19092, 0, 1);
         return new PortPerBrokerClusterNetworkAddressConfigProvider().build(
-                clusterNetworkAddressConfigProviderConfig);
+                clusterNetworkAddressConfigProviderConfig, Mockito.mock(VirtualClusterModel.class));
     }
 }

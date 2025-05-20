@@ -9,9 +9,11 @@ package io.kroxylicious.proxy.config;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -79,7 +81,7 @@ class PortIdentifiesNodeIdentificationStrategyTest {
     private ClusterNetworkAddressConfigProvider buildProvider(PortIdentifiesNodeIdentificationStrategy strategy) {
         var definition = strategy.get();
         return service.build(
-                ((RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig) definition.config()));
+                ((RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig) definition.config()), Mockito.mock(VirtualClusterModel.class));
     }
 
 }
