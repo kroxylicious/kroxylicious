@@ -15,7 +15,7 @@ data:
       endpoints:
         prometheus: {}
     virtualClusters:
-      - name: my-cluster-proxy
+      - name: mycluster-proxy
         targetCluster:
           bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093
           tls:
@@ -26,8 +26,8 @@ data:
         gateways:
           - name: mygateway
             sniHostIdentifiesNode:
-              bootstrapAddress: mycluster-proxy.kafka:9092
-              advertisedBrokerAddressPattern: broker$(nodeId).mycluster-proxy.kafka
+              bootstrapAddress: $(virtualClusterName).kafka:9092
+              advertisedBrokerAddressPattern: broker$(nodeId).$(virtualClusterName).kafka
             tls:
               key:
                 storeFile: /opt/kroxylicious/server/key-material/keystore.p12

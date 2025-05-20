@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProviderService;
@@ -30,7 +31,7 @@ import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.EXPECTED_TOKEN_SET;
+import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.LITERAL_NODE_ID;
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validatePortSpecifier;
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.BrokerAddressPatternUtils.validateStringContainsOnlyExpectedTokens;
 
@@ -58,7 +59,7 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
 
     @NonNull
     @Override
-    public ClusterNetworkAddressConfigProvider build(RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig config) {
+    public ClusterNetworkAddressConfigProvider build(RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig config, VirtualClusterModel virtualCluster) {
         return new Provider(config);
     }
 
@@ -117,6 +118,8 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
      * Creates the configuration for this provider.
      */
     public static class RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig {
+        private static final Set<String> ALLOWED_TOKEN_SET = Set.of(LITERAL_NODE_ID);
+
         private final HostPort bootstrapAddress;
         private final String nodeAddressPattern;
         private final int nodeStartPort;
@@ -174,7 +177,7 @@ public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
             validatePortSpecifier(this.nodeAddressPattern, s -> {
                 throw new IllegalArgumentException("nodeAddressPattern cannot have port specifier.  Found port : " + s + " within " + this.nodeAddressPattern);
             });
-            validateStringContainsOnlyExpectedTokens(this.nodeAddressPattern, EXPECTED_TOKEN_SET, token -> {
+            validateStringContainsOnlyExpectedTokens(this.nodeAddressPattern, ALLOWED_TOKEN_SET, token -> {
                 throw new IllegalArgumentException("nodeAddressPattern contains an unexpected replacement token '" + token + "'");
             });
         }

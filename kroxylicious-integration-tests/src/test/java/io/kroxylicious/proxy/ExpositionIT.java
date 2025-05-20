@@ -50,6 +50,7 @@ import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.net.PassthroughProxy;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedRange;
+import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
@@ -66,6 +67,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.net.IntegrationTestInetAddressResolverProvider.TEST_DOMAIN;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
@@ -94,6 +96,7 @@ class ExpositionIT extends BaseIT {
 
     public static final HostPort SNI_BOOTSTRAP = new HostPort("bootstrap." + SNI_BASE_ADDRESS, 9192);
     public static final String SNI_BROKER_ADDRESS_PATTERN = "broker-$(nodeId)." + SNI_BASE_ADDRESS;
+    public static final String SNI_BROKER_ADDRESS_PATTERN_WITH_CLUSTER_NAME = "$(virtualClusterName)-broker-$(nodeId)." + SNI_BASE_ADDRESS;
     public static final String SASL_USER = "user";
     public static final String SASL_PASSWORD = "password";
 
@@ -300,6 +303,58 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
+    void exposeSingleUpstreamClustersWithTwoVirtualClustersUsingIdenticalSNIGatewayConfigurationWithClusterNameReplacement(KafkaCluster cluster) throws Exception {
+        var keystoreTrustStoreList = new ArrayList<KeystoreTrustStorePair>();
+        var virtualClusterCommonNamePattern = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".$(virtualClusterName)");
+        var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
+        var virtualClusterBrokerAddressPattern = "broker-$(nodeId)" + virtualClusterCommonNamePattern;
+        VirtualClusterGatewayBuilder sniBuilder = defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterBootstrapPattern + ":9192",
+                virtualClusterBrokerAddressPattern);
+
+        var builder = new ConfigurationBuilder();
+
+        int numberOfVirtualClusters = 2;
+        for (int i = 0; i < numberOfVirtualClusters; i++) {
+            String clusterName = "cluster" + i;
+            String withClusterNameReplaced = virtualClusterCommonNamePattern.replace("$(virtualClusterName)", clusterName);
+            String domain = "*" + withClusterNameReplaced;
+            var keystoreTrustStorePair = buildKeystoreTrustStorePair(domain);
+            keystoreTrustStoreList.add(keystoreTrustStorePair);
+            var virtualCluster = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, clusterName)
+                    .addToGateways(sniBuilder
+                            .withNewTls()
+                            .withNewKeyStoreKey()
+                            .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
+                            .withNewInlinePasswordStoreProvider(keystoreTrustStorePair.password())
+                            .endKeyStoreKey()
+                            .endTls()
+                            .build())
+                    .withLogNetwork(true)
+                    .withLogFrames(true)
+                    .build();
+            builder.addToVirtualClusters(virtualCluster);
+        }
+        try (var tester = kroxyliciousTester(builder)) {
+            for (int i = 0; i < numberOfVirtualClusters; i++) {
+                var trust = keystoreTrustStoreList.get(i);
+                String clusterName = "cluster" + i;
+                try (var admin = tester.admin(clusterName, Map.of(
+                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
+                        SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trust.clientTrustStore(),
+                        SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, trust.password()))) {
+                    // do some work to ensure virtual cluster is operational
+                    createTopic(admin, TOPIC + i, 1);
+                    Set<HostPort> nodeAdvertisedAddresses = admin.describeCluster().nodes().get(5, TimeUnit.SECONDS).stream()
+                            .map(node -> new HostPort(node.host(), node.port()))
+                            .collect(Collectors.toSet());
+                    String expectedAdvertisedBrokerHost = "broker-0.%s%s".formatted(clusterName, TEST_DOMAIN);
+                    assertThat(nodeAdvertisedAddresses).singleElement().isEqualTo(new HostPort(expectedAdvertisedBrokerHost, 9192));
+                }
+            }
+        }
+    }
+
+    @Test
     void exposesSingleUpstreamClustersUsingMultipleSniGateways(KafkaCluster cluster) throws Exception {
         var keystoreTrustStoreList = new ArrayList<KeystoreTrustStorePair>();
         var virtualClusterCommonNamePattern = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".virtualcluster%d");
@@ -318,7 +373,7 @@ class ExpositionIT extends BaseIT {
                     .addToGateways(new VirtualClusterGatewayBuilder()
                             .withName("gateway-" + i)
                             .withNewSniHostIdentifiesNode()
-                            .withBootstrapAddress(new HostPort(virtualClusterFQDN, 9192))
+                            .withBootstrapAddress(new HostPort(virtualClusterFQDN, 9192).toString())
                             .withAdvertisedBrokerAddressPattern(virtualClusterBrokerAddressPattern.formatted(i))
                             .endSniHostIdentifiesNode()
                             .withNewTls()
@@ -459,6 +514,19 @@ class ExpositionIT extends BaseIT {
                                         .build()),
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, sniKeystoreTrustStorePair.clientTrustStore(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, sniKeystoreTrustStorePair.password())),
+                argumentSet("SniHostIdentifiesNodeWithClusterNameReplacement",
+                        new VirtualClusterBuilder()
+                                .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(SNI_BOOTSTRAP.toString(), SNI_BROKER_ADDRESS_PATTERN_WITH_CLUSTER_NAME)
+                                        .withNewTls()
+                                        .withNewKeyStoreKey()
+                                        .withStoreFile(sniKeystoreTrustStorePair.brokerKeyStore())
+                                        .withNewInlinePasswordStoreProvider(sniKeystoreTrustStorePair.password())
+                                        .endKeyStoreKey()
+                                        .endTls()
+                                        .build()),
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, sniKeystoreTrustStorePair.clientTrustStore(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, sniKeystoreTrustStorePair.password())));
     }
 
@@ -567,8 +635,12 @@ class ExpositionIT extends BaseIT {
                 .addToVirtualClusters(virtualClusterBuilder.build());
 
         final HostPort discoveryBrokerAddressToProbe;
-        if (virtualClusterBuilder.buildFirstGateway().sniHostIdentifiesNode() != null) {
-            discoveryBrokerAddressToProbe = new HostPort(SNI_BROKER_ADDRESS_PATTERN.replace("$(nodeId)", Integer.toString(cluster.getNumOfBrokers())),
+        SniHostIdentifiesNodeIdentificationStrategy sniStrategy = virtualClusterBuilder.buildFirstGateway().sniHostIdentifiesNode();
+        if (sniStrategy != null) {
+            String pattern = sniStrategy.advertisedBrokerAddressPattern();
+            String replacedNodeId = pattern.replace("$(nodeId)", Integer.toString(cluster.getNumOfBrokers()));
+            String replacedVirtualClusterName = replacedNodeId.replace("$(virtualClusterName)", "demo");
+            discoveryBrokerAddressToProbe = new HostPort(replacedVirtualClusterName,
                     SNI_BOOTSTRAP.port());
         }
         else {

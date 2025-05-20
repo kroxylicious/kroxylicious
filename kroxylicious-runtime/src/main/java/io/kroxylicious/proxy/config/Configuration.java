@@ -172,7 +172,7 @@ public record Configuration(
     private static void addGateways(@NonNull PluginFactoryRegistry pfr, List<VirtualClusterGateway> gateways, VirtualClusterModel virtualClusterModel) {
         gateways.forEach(gateway -> {
             var config = gateway.clusterNetworkAddressConfigProvider().config();
-            var networkAddress = createDeprecatedProvider(config);
+            var networkAddress = createDeprecatedProvider(config, virtualClusterModel);
             var tls = gateway.tls();
             virtualClusterModel.addGateway(gateway.name(), networkAddress, tls);
         });
@@ -180,13 +180,13 @@ public record Configuration(
 
     @NonNull
     @SuppressWarnings("removal")
-    private static ClusterNetworkAddressConfigProvider createDeprecatedProvider(Object config) {
+    private static ClusterNetworkAddressConfigProvider createDeprecatedProvider(Object config, VirtualClusterModel virtualClusterModel) {
         // We avoid using the buildNetworkAddressProviderService in order to avoid the deprecation notice it will produce.
         if (config instanceof SniRoutingClusterNetworkAddressConfigProviderConfig sniConfig) {
-            return new SniRoutingClusterNetworkAddressConfigProvider().build(sniConfig);
+            return new SniRoutingClusterNetworkAddressConfigProvider().build(sniConfig, virtualClusterModel);
         }
         else if (config instanceof RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig rangeConfig) {
-            return new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(rangeConfig);
+            return new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(rangeConfig, virtualClusterModel);
         }
         else {
             throw new IllegalStateException("unexpected provider config type : " + config.getClass().getName());
@@ -198,15 +198,16 @@ public record Configuration(
                                                        VirtualClusterModel virtualClusterModel) {
         // VirtualCluster config validation should mean this we always have a provider if we reach this point.
         Objects.requireNonNull(virtualCluster.clusterNetworkAddressConfigProvider(), "provider unexpectedly null");
-        var networkAddress = buildNetworkAddressProviderService(virtualCluster.clusterNetworkAddressConfigProvider(), pfr);
+        var networkAddress = buildNetworkAddressProviderService(virtualCluster.clusterNetworkAddressConfigProvider(), pfr, virtualClusterModel);
         virtualClusterModel.addGateway(VirtualCluster.DEFAULT_GATEWAY_NAME, networkAddress, virtualCluster.tls());
     }
 
     private static ClusterNetworkAddressConfigProvider buildNetworkAddressProviderService(@NonNull ClusterNetworkAddressConfigProviderDefinition definition,
-                                                                                          @NonNull PluginFactoryRegistry registry) {
+                                                                                          @NonNull PluginFactoryRegistry registry,
+                                                                                          VirtualClusterModel virtualClusterModel) {
         var provider = registry.pluginFactory(ClusterNetworkAddressConfigProviderService.class)
                 .pluginInstance(definition.type());
-        return provider.build(definition.config());
+        return provider.build(definition.config(), virtualClusterModel);
     }
 
     public List<MicrometerDefinition> getMicrometer() {
