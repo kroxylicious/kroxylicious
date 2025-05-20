@@ -23,6 +23,8 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.skodjob.testframe.resources.KubeResourceManager;
@@ -116,7 +118,7 @@ class OperatorChangeDetectionST extends AbstractST {
         KafkaProtocolFilterBuilder arbitraryFilter = KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
                 .withNewSpec()
                     .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
-                    .withConfigTemplate(Map.of("findValue", "foo", "replacementValue", "bar"))
+                    .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",  Map.of("findValue", "foo", "replacementValue", "bar")))
                 .endSpec();
         // @formatter:on
         KubeClient kubeClient = kubeClient(namespace);
@@ -132,7 +134,7 @@ class OperatorChangeDetectionST extends AbstractST {
                 .get()
                 .edit()
                     .editSpec()
-                    .withConfigTemplate(Map.of("findValue", "foo", "replacementValue", "updated"))
+                    .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",  Map.of("findValue", "foo", "replacementValue", "updated")))
                 .endSpec();
         // @formatter:on
 
@@ -166,6 +168,37 @@ class OperatorChangeDetectionST extends AbstractST {
         // When
         resourceManager.createOrUpdateResourceWithWait(updatedKafkaProxy);
         LOGGER.info("Kafka proxy updated");
+
+        // Then
+        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+    }
+
+    @Test
+    void shouldUpdateDeploymentWhenSecretChanges(String namespace) {
+        // Given
+        resourceManager.createOrUpdateResourceWithWait(
+                new SecretBuilder().withNewMetadata().withName("upstream-tls-cert").withNamespace(namespace).endMetadata().withType("kubernetes.io/tls")
+                        .withData(Map.of("tls.crt", "whatever", "tls.key", "whatever")),
+                KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
+                        .withNewSpec()
+                        .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
+                        .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",
+                                Map.of("findValue", "foo", "replacementValue", "${secret:upstream-tls-cert:tls.key}")))
+                        .endSpec()
+        );
+
+        KubeClient kubeClient = kubeClient(namespace);
+        kroxylicious.deployPortIdentifiesNodeWithFilters(kafkaClusterName, List.of("arbitrary-filter"));
+        LOGGER.info("Kroxylicious deployed");
+
+        String originalChecksum = getInitialChecksum(namespace, kubeClient);
+
+        Secret existingSecret = kubeClient.getClient().resources(Secret.class).inNamespace(namespace)
+                .withName("upstream-tls-cert").get();
+
+        // When
+        resourceManager.createOrUpdateResourceWithWait(existingSecret.edit().withData(Map.of("tls.crt", "whatever", "tls.key", "unlocked")));
+        LOGGER.info("secret: upstream-tls-cert updated");
 
         // Then
         assertDeploymentUpdated(namespace, kubeClient, originalChecksum);

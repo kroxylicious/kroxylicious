@@ -122,6 +122,19 @@ class FetchResponseTransformationFilterTest {
         assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
     }
 
+
+    @Test
+    void shouldConstructReplacingFilter() {
+        FetchResponseTransformation factory = new FetchResponseTransformation();
+        assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
+                .hasMessage(FetchResponseTransformation.class.getSimpleName() + " requires configuration, but config object is null");
+        FilterFactoryContext constructContext = mock(FilterFactoryContext.class);
+        doReturn(new Replacing()).when(constructContext).pluginInstance(any(), any());
+        FetchResponseTransformation.Config config = new FetchResponseTransformation.Config(Replacing.class.getName(),
+                new Replacing.Config(null, "foo", "bar"));
+        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
+    }
+
     @Test
     void filterHandlesPreV13ResponseBasedOnTopicNames() throws Exception {
 

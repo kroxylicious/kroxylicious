@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +45,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
+import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -59,7 +61,7 @@ class KafkaProxyReconcilerTest {
 
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
 
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     Context<KafkaProxy> context;
 
     @Mock
@@ -70,6 +72,7 @@ class KafkaProxyReconcilerTest {
     @BeforeEach
     void openMocks() {
         closeable = MockitoAnnotations.openMocks(this);
+        when(context.managedWorkflowAndDependentResourceContext()).thenReturn(mdrc);
     }
 
     @AfterEach
@@ -85,6 +88,7 @@ class KafkaProxyReconcilerTest {
         var primary = new KafkaProxyBuilder()
                 .withNewMetadata()
                     .withGeneration(generation)
+                    .withUid(UUID.randomUUID().toString())
                     .withName("my-proxy")
                 .endMetadata()
                 .build();
@@ -103,6 +107,9 @@ class KafkaProxyReconcilerTest {
                 .containsOnlyTypes(Condition.Type.Ready)
                 .singleOfType(Condition.Type.Ready)
                 .isReadyTrue();
+        assertThat(updateControl.isPatchResource()).isTrue();
+        assertThat(updateControl.getResource().get()).satisfies(kp -> OperatorAssertions.assertThat(kp).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
+                actual -> assertThat(actual).isNotBlank()));
     }
 
     @Test
@@ -145,6 +152,7 @@ class KafkaProxyReconcilerTest {
         var primary = new KafkaProxyBuilder()
                 .withNewMetadata()
                     .withGeneration(generation)
+                    .withUid(UUID.randomUUID().toString())
                     .withName("my-proxy")
                 .endMetadata()
                 .withNewStatus()
@@ -163,7 +171,6 @@ class KafkaProxyReconcilerTest {
         Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
 
         // When
-
         var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(primary, context);
 
         // Then
@@ -339,6 +346,7 @@ class KafkaProxyReconcilerTest {
         var proxy = new KafkaProxyBuilder()
                 .withNewMetadata()
                     .withGeneration(generation)
+                    .withUid(UUID.randomUUID().toString())
                     .withName("my-proxy")
                 .endMetadata()
                 .withNewStatus()
@@ -378,6 +386,7 @@ class KafkaProxyReconcilerTest {
         var primary = new KafkaProxyBuilder()
                 .withNewMetadata()
                     .withGeneration(generation)
+                    .withUid(UUID.randomUUID().toString())
                     .withName("my-proxy")
                     .withNamespace("my-ns")
                 .endMetadata()
