@@ -64,6 +64,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls.TlsClientAuthentication;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterSpec;
+import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.ingress.ClusterIPIngressDefinition;
@@ -411,7 +413,11 @@ public class KafkaProxyReconciler implements
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
-        var uc = UpdateControl.patchStatus(statusFactory.newTrueConditionStatusPatch(primary, Condition.Type.Ready, ""));
+        MetadataChecksumGenerator checksumGenerator = context.managedWorkflowAndDependentResourceContext()
+                .get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)
+                .orElse(new Crc32ChecksumGenerator());
+        checksumGenerator.appendMetadata(primary);
+        var uc = UpdateControl.patchResourceAndStatus(statusFactory.newTrueConditionStatusPatch(primary, Condition.Type.Ready, checksumGenerator.encode()));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(primary), name(primary));
         }
