@@ -34,7 +34,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
-import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
+import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 
@@ -119,7 +119,7 @@ class ProxyDeploymentTest {
     @Test
     void shouldAddReferentChecksumOfProxy() {
         // Given
-        var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyIngressModel(List.of()), List.of());
+        var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), List.of());
         configureProxyModel(proxyModel);
         ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
 
@@ -139,7 +139,7 @@ class ProxyDeploymentTest {
                 .withGeneration(3L).endMetadata().build();
         kafkaService = new KafkaServiceBuilder().withNewMetadata().withName(PROXY_NAME).endMetadata().build();
 
-        var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyIngressModel(List.of()), List.of(clusterResolutionResultFor(virtualKafkaCluster)));
+        var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), List.of(clusterResolutionResultFor(virtualKafkaCluster)));
 
         Context<KafkaProxy> context = mock(Context.class);
         resourceContext = new DefaultManagedWorkflowAndDependentResourceContext<>(null, kafkaProxy, context);

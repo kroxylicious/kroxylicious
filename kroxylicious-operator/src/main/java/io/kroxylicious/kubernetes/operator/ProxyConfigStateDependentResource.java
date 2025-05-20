@@ -19,8 +19,8 @@ import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
-import io.kroxylicious.kubernetes.operator.model.ingress.IngressConflictException;
-import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
+import io.kroxylicious.kubernetes.operator.model.networking.IngressConflictException;
+import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
@@ -70,13 +70,13 @@ public class ProxyConfigStateDependentResource
     }
 
     private static void addAcceptedConditions(VirtualKafkaClusterStatusFactory statusFactory, ProxyModel proxyModel, ProxyConfigStateData data) {
-        var model = proxyModel.ingressModel();
-        for (ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel : model.clusters()) {
-            VirtualKafkaCluster cluster = virtualClusterIngressModel.cluster();
+        var model = proxyModel.networkingModel();
+        for (ProxyNetworkingModel.ClusterNetworkingModel clusterNetworkingModel : model.clusterNetworkingModels()) {
+            VirtualKafkaCluster cluster = clusterNetworkingModel.cluster();
 
             VirtualKafkaCluster patch;
-            if (!virtualClusterIngressModel.ingressExceptions().isEmpty()) {
-                IngressConflictException first = virtualClusterIngressModel.ingressExceptions().iterator().next();
+            if (!clusterNetworkingModel.ingressExceptions().isEmpty()) {
+                IngressConflictException first = clusterNetworkingModel.ingressExceptions().iterator().next();
                 patch = statusFactory.newFalseConditionStatusPatch(cluster,
                         Condition.Type.Accepted, Condition.REASON_INVALID,
                         "Ingress(es) [" + first.getIngressName() + "] of cluster conflicts with another ingress");

@@ -66,7 +66,7 @@ import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.kubernetes.operator.model.ingress.ClusterIPIngressDefinition.serviceName;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -203,7 +203,7 @@ class VirtualKafkaClusterReconcilerTest {
             .build();
     public static final Service KUBERNETES_INGRESS_SERVICES = new ServiceBuilder().
             withNewMetadata()
-                .withName(serviceName(CLUSTER_NO_FILTERS, INGRESS))
+                .withName(name(CLUSTER_NO_FILTERS) + "-" + name(INGRESS))
                 .withNamespace(NAMESPACE)
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(CLUSTER_NO_FILTERS)).endOwnerReference()
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(INGRESS)).endOwnerReference()
@@ -595,7 +595,7 @@ class VirtualKafkaClusterReconcilerTest {
                     .withName(clusterOneFilter.getSpec().getProxyRef().getName())
                 .endMetadata()
                 .withData(new ProxyConfigStateData().addStatusPatchForCluster(
-                    ResourcesUtil.name(clusterOneFilter),
+                    name(clusterOneFilter),
                     STATUS_FACTORY.newTrueConditionStatusPatch(clusterOneFilter, Condition.Type.ResolvedRefs, "")).build())
                 .build();
         // @formatter:on
