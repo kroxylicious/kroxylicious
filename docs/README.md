@@ -25,9 +25,9 @@ The content for the guide to the proxy is encapsulated in the index file:
 
 - [kroxylicious-proxy/index.adoc](kroxylicious-proxy/index.adoc)
 
-The content for the developer's guide is encapsulated in the index file:
+The content for the developer guide is encapsulated in the index file:
 
-- [developers-guide/index.adoc](kroxylicious-proxy/index.adoc) 
+- [developer-guide/index.adoc](kroxylicious-proxy/index.adoc) 
 
 ## Documentation folder structure
 
