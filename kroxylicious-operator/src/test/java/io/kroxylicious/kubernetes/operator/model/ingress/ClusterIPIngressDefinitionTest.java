@@ -146,7 +146,7 @@ class ClusterIPIngressDefinitionTest {
 
         // then
         assertThat(gateway).isNotNull();
-        assertThat(gateway.name()).isEqualTo("default");
+        assertThat(gateway.name()).isEqualTo(INGRESS_NAME);
         assertThat(gateway.tls()).isEmpty();
         assertThat(gateway.sniHostIdentifiesNode()).isNull();
         assertThat(gateway.portIdentifiesNode()).isNotNull().satisfies(portIdentifiesNode -> {
@@ -299,7 +299,7 @@ class ClusterIPIngressDefinitionTest {
 
         // then
         assertThat(gateway).isNotNull();
-        assertThat(gateway.name()).isEqualTo("default");
+        assertThat(gateway.name()).isEqualTo(INGRESS_NAME);
         assertThat(gateway.tls()).isEmpty();
         assertThat(gateway.sniHostIdentifiesNode()).isNull();
         assertThat(gateway.portIdentifiesNode()).isNotNull().satisfies(portIdentifiesNode -> {
@@ -334,7 +334,7 @@ class ClusterIPIngressDefinitionTest {
 
         // then
         assertThat(gateway).isNotNull();
-        assertThat(gateway.name()).isEqualTo("default");
+        assertThat(gateway.name()).isEqualTo(INGRESS_NAME);
         assertThat(gateway.tls()).isEmpty();
         assertThat(gateway.sniHostIdentifiesNode()).isNull();
         assertThat(gateway.portIdentifiesNode()).isNotNull().satisfies(portIdentifiesNode -> {

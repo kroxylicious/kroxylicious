@@ -34,6 +34,11 @@ public record LoadBalancerDefinition(KafkaProxyIngress ingress, LoadBalancer loa
         public static final int DEFAULT_LOADBALANCER_PORT = 9083;
 
         @Override
+        public KafkaProxyIngress ingress() {
+            return definition.ingress();
+        }
+
+        @Override
         public Stream<ServiceBuilder> services() {
             return Stream.empty();
         }

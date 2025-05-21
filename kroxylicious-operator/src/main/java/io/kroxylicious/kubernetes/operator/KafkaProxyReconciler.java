@@ -300,7 +300,7 @@ public class KafkaProxyReconciler implements
         else {
             throw new IllegalStateException("Unsupported node identification strategy: " + nodeIdentificationStrategy);
         }
-        return new ConfigurationFragment<>(new VirtualClusterGateway("default",
+        return new ConfigurationFragment<>(new VirtualClusterGateway(name(gateway.ingress()),
                 portIdentifiesNode,
                 sniHostIdentifiesNode,
                 tlsConfigFragment.fragment()), volumes, mounts);

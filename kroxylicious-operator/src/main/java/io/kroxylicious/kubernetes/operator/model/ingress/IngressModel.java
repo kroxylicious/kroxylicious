@@ -12,6 +12,7 @@ import java.util.stream.Stream;
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategy;
 
@@ -36,6 +37,12 @@ import io.kroxylicious.proxy.config.NodeIdentificationStrategy;
  * </ol>
  */
 public interface IngressModel {
+
+    /**
+     * The KafkaProxyIngress underlying this model
+     * @return a KafkaProxyIngress
+     */
+    KafkaProxyIngress ingress();
 
     /**
      * Kubernetes Services to be created for this IngressModel

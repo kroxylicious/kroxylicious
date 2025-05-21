@@ -65,6 +65,11 @@ public record ClusterIPIngressDefinition(
         }
 
         @Override
+        public KafkaProxyIngress ingress() {
+            return definition.ingress();
+        }
+
+        @Override
         public Stream<ServiceBuilder> services() {
             String serviceName = bootstrapServiceName(definition.cluster, name(definition.ingress));
             var serviceSpecBuilder = new ServiceBuilder()

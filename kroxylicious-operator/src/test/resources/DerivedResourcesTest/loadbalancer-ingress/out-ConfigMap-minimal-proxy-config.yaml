@@ -31,7 +31,7 @@ data:
       targetCluster:
         bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
       gateways:
-      - name: "default"
+      - name: "load-balancer"
         sniHostIdentifiesNode:
           bootstrapAddress: "$(virtualClusterName).kafkaproxy:9291"
           advertisedBrokerAddressPattern: "$(virtualClusterName)-$(nodeId).kafkaproxy:9083"
