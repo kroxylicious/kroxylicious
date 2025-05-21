@@ -31,11 +31,12 @@ interface IngressDefinition {
      * the port on the container is expected to unambiguously identify which node the client is connecting to.
      * I.e. using a port-per-broker strategy at the proxy.
      *
-     * @param firstIdentifyingPort the first identifying port allocated to this Ingress
-     * @param lastIdentifyingPort the last identifying port (inclusive) allocated to this Ingress
+     * @param firstIdentifyingPort the first identifying port allocated to this Ingress (if definition required identifying ports)
+     * @param lastIdentifyingPort the last identifying port (inclusive) allocated to this Ingress  (if definition required identifying ports)
+     * @param sharedSniPort the shared SNI port (if definition required SNI port)
      * @return a non-null IngressModel
      */
-    IngressModel createIngressModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort);
+    IngressModel createIngressModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort, @Nullable Integer sharedSniPort);
 
     /**
      * Some Ingress strategies require a set of ports in the proxy pod to be unique and exclusive so that the Proxy
@@ -43,6 +44,12 @@ interface IngressDefinition {
      *
      * @return the number of identifying ports this ingress requires
      */
-    int numIdentifyingPortsRequired();
+    default int numIdentifyingPortsRequired() {
+        return 0;
+    }
+
+    default boolean requiresSharedSniPort() {
+        return false;
+    }
 
 }

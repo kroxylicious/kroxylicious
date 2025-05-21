@@ -59,4 +59,12 @@ public interface IngressModel {
      * The downstream TLS to be injected into the Proxy Config for this IngressModel, if available
      */
     Optional<Tls> downstreamTls();
+
+    default boolean requiresSharedSniPort() {
+        return false;
+    }
+
+    default Stream<Integer> requiredSniLoadbalancerPorts() {
+        return Stream.empty();
+    }
 }

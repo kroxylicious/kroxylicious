@@ -16,6 +16,7 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -53,6 +54,15 @@ public record ProxyIngressModel(List<VirtualClusterIngressModel> clusters) {
 
         public Set<IngressConflictException> ingressExceptions() {
             return ingressModelResults.stream().flatMap(it -> Stream.ofNullable(it.exception)).collect(Collectors.toSet());
+        }
+
+        public boolean anyIngressRequiresSharedSniPort() {
+            return ingressModelResults.stream().anyMatch(ingressModelResult -> ingressModelResult.ingressModel().requiresSharedSniPort());
+        }
+
+        public Stream<Integer> requiredSniLoadbalancerPorts(KafkaProxy ignoredPrimary) {
+            return ingressModelResults.stream()
+                    .flatMap(ingressModelResult -> ingressModelResult.ingressModel.requiredSniLoadbalancerPorts());
         }
     }
 

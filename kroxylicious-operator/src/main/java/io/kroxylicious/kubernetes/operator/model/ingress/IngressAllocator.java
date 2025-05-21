@@ -16,6 +16,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
@@ -25,6 +26,7 @@ import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.PROXY_PORT_START;
+import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.SHARED_SNI_PORT;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 
 /**
@@ -67,6 +69,7 @@ public class IngressAllocator {
             int toAllocate = ingressDefinition.numIdentifyingPortsRequired();
             Integer firstIdentifyingPort = null;
             Integer lastIdentifyingPort = null;
+            Integer sharedSniPort = null;
             IngressConflictException exception = null;
             if (toAllocate != 0) {
                 if (ports.get() != PROXY_PORT_START) {
@@ -77,8 +80,11 @@ public class IngressAllocator {
                 firstIdentifyingPort = ports.get();
                 lastIdentifyingPort = ports.addAndGet(toAllocate) - 1;
             }
+            if (ingressDefinition.requiresSharedSniPort()) {
+                sharedSniPort = SHARED_SNI_PORT;
+            }
 
-            IngressModel ingressModel = ingressDefinition.createIngressModel(firstIdentifyingPort, lastIdentifyingPort);
+            IngressModel ingressModel = ingressDefinition.createIngressModel(firstIdentifyingPort, lastIdentifyingPort, sharedSniPort);
             return new ProxyIngressModel.IngressModelResult(ingressModel, exception);
         }).toList();
     }
@@ -108,8 +114,12 @@ public class IngressAllocator {
                                                             List<NodeIdRanges> nodeIdRanges,
                                                             @Nullable Tls tls) {
         ClusterIP clusterIP = ingress.getSpec().getClusterIP();
+        LoadBalancer loadBalancer = ingress.getSpec().getLoadBalancer();
         if (clusterIP != null) {
             return new ClusterIPIngressDefinition(ingress, cluster, primary, nodeIdRanges, tls);
+        }
+        else if (loadBalancer != null) {
+            return new LoadBalancerDefinition(ingress, loadBalancer, tls);
         }
         else {
             throw new IllegalStateException("ingress must have clusterIP specified");

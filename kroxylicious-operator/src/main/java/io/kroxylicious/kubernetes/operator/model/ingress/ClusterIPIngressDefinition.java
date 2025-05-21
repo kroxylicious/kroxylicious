@@ -143,7 +143,7 @@ public record ClusterIPIngressDefinition(
     }
 
     @Override
-    public IngressModel createIngressModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort) {
+    public IngressModel createIngressModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort, @Nullable Integer sharedSniPort) {
         Objects.requireNonNull(firstIdentifyingPort);
         Objects.requireNonNull(lastIdentifyingPort);
         return new PortIdentifiesNodeClusterIPIngressModel(this, firstIdentifyingPort, lastIdentifyingPort);
