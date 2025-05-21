@@ -14,14 +14,14 @@ The Kroxylicious Record Encryption filter enhances the security of Kafka message
 The filter uses industry-standard cryptographic techniques to apply encryption to Kafka messages, ensuring the confidentiality of data stored in the Kafka Cluster.
 By centralizing topic-level encryption, Kroxylicious provides streamlined protection across Kafka clusters.
 
-To use the filter, follow these three steps:
+To use the filter, follow these steps:
 
 1. Set up a Key Management System (KMS)
 2. Establish encryption keys within the KMS for securing the topics
 3. Configure the filter within Kroxylicious
 
 The filter integrates with a Key Management Service (KMS), which is responsible for the safe storage of sensitive key material.
-Kroxylicious currently supports the following KMS providers:
+Kroxylicious supports the following KMS providers:
 
 * HashiCorp Vault
 * AWS Key Management Service.

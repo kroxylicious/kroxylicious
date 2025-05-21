@@ -15,7 +15,7 @@ Finally, we will look at how to use the filter configuration in the proxy, or on
 .Prerequisites
 
 * An instance of Kroxylicious. +
-For information on deploying Kroxylicious, see the Kroxylicious Proxy guide or Kroxylicious Operator for Kubernetes guide.
+For information on deploying Kroxylicious, see the {ProxyGuide} or {OperatorGuide}.
 * A KMS has been prepared for use by the filter, with KEKs to encrypt records set up for topics.
 
 include::../modules/record-encryption/hashicorp-vault/con-vault-plugin-configuration.adoc[leveloffset=+1]
@@ -28,7 +28,10 @@ endif::[]
 
 include::../modules/record-encryption/con-record-encryption-filter-config.adoc[leveloffset=+1]
 
+ifdef::include-platform-bare-metal[]
 include::../modules/record-encryption/con-example-proxy-config.adoc[leveloffset=+1]
+endif::[]
 
+ifdef::include-platform-kubernetes[]
 include::../modules/record-encryption/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+1]
-
+endif::[]

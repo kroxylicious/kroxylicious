@@ -15,7 +15,7 @@ The filter looks up the resulting key name in the KMS.
 
 * An instance of Kroxylicious.
 For information on deploying Kroxylicious, see the
-"Kroxylicious Proxy" or "Kroxylicious Operator for Kubernetes" guides.
+{ProxyGuide} or {OperatorGuide}.
 * A KMS is installed and set up for the filter with KEKs to encrypt records set up for topics.
 
 .Procedure

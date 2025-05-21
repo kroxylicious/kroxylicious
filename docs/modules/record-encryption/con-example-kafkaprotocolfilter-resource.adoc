@@ -34,4 +34,4 @@ spec:
       maxEncryptionsPerDek: 5000000
 ----
 
-Refer to the Kroxylicious Operator for Kubernetes guide for more information about configuration on Kubernetes.
+Refer to the {OperatorGuide} for more information about configuration on Kubernetes.

@@ -10,7 +10,8 @@ Kroxylicious comes with a suite of built-in filters designed to enhance the func
 
 == Record Encryption filter
 
-This is documented in a dedicated Record Encryption guide.
+The Kroxylicious Record Encryption filter enables encryption-at-rest for Apache Kafka clusters.
+For information on using the filter, see the {RecordEncryptionGuide}.
 
 include::assembly-multi-tenancy-filter.adoc[leveloffset=+1]
 include::assembly-record-validation-filter.adoc[leveloffset=+1]

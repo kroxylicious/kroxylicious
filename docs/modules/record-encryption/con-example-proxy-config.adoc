@@ -5,7 +5,7 @@
 [id='con-example-proxy-config-{context}']
 = Example proxy configuration file
 
-If your instance of the Kroxylicious proxy runs directly on an operating system, provide the filter configuration in the `filterDefinitions` list of your Kroxylicious configuration.
+If your instance of the Kroxylicious proxy runs directly on an operating system, provide the filter configuration in the `filterDefinitions` list of your proxy configuration.
 Here's a complete example of a `filterDefinitions` entry configured for record encryption with Vault KMS:
 
 .Example `filterDefinitions` configuration
@@ -31,4 +31,4 @@ filterDefinitions:
         maxEncryptionsPerDek: 5000000
 ----
 
-Refer to the Kroxylicious Proxy guide for more information about configuring the proxy.
+Refer to the {ProxyGuide} for more information about configuring the proxy.

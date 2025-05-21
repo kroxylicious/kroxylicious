@@ -55,7 +55,7 @@ Create a Fortanix DSM App with sufficient permissions for the filter:
 sdkms-cli --api-endpoint https://<region>.smartkey.io create-app --name kroxylicious --default-group topic-keks --groups topic-keks
 ----
 
-NRetrieve the API key for the app:
+Retrieve the API key for the app:
 
 [source,shell]
 ----
