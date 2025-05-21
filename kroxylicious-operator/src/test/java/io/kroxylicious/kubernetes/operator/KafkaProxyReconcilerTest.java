@@ -46,6 +46,7 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -107,9 +108,9 @@ class KafkaProxyReconcilerTest {
                 .containsOnlyTypes(Condition.Type.Ready)
                 .singleOfType(Condition.Type.Ready)
                 .isReadyTrue();
-        assertThat(updateControl.isPatchResource()).isTrue();
-        assertThat(updateControl.getResource().get()).satisfies(kp -> OperatorAssertions.assertThat(kp).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
-                actual -> assertThat(actual).isNotBlank()));
+        assertThat(updateControl.isPatchResource()).isFalse();
+        assertThat(updateControl.getResource().get())
+                .satisfies(kp -> OperatorAssertions.assertThat(kp).doesNotHaveAnnotation(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION));
     }
 
     @Test

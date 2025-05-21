@@ -11,7 +11,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.UUID;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -45,15 +44,14 @@ class KafkaProxyStatusFactoryTest {
     }
 
     @Test
-    void shouldAddReferentsChecksumAnnotation() {
+    void shouldNotAddReferentsChecksumAnnotation() {
         // Given
 
         // When
         KafkaProxy patchedProxy = kafkaProxyStatusFactory.newTrueConditionStatusPatch(KAFKA_PROXY, Condition.Type.ResolvedRefs, CHECKSUM);
 
         // Then
-        assertThat(patchedProxy)
-                .hasAnnotationSatisfying("kroxylicious.io/referent-checksum", checksum -> Assertions.assertThat(checksum).isEqualTo(CHECKSUM));
+        assertThat(patchedProxy).doesNotHaveAnnotation(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION);
     }
 
     @Test
@@ -65,8 +63,7 @@ class KafkaProxyStatusFactoryTest {
                 MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
 
         // Then
-        assertThat(patchedProxy)
-                .doesNotHaveAnnotation("kroxylicious.io/referent-checksum");
+        assertThat(patchedProxy).doesNotHaveAnnotation(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION);
     }
 
     @Test
@@ -77,8 +74,7 @@ class KafkaProxyStatusFactoryTest {
         KafkaProxy patchedProxy = kafkaProxyStatusFactory.newFalseConditionStatusPatch(KAFKA_PROXY, Condition.Type.ResolvedRefs, "reason", "message");
 
         // Then
-        assertThat(patchedProxy)
-                .doesNotHaveAnnotation("kroxylicious.io/referent-checksum");
+        assertThat(patchedProxy).doesNotHaveAnnotation(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION);
     }
 
     @Test
@@ -90,8 +86,7 @@ class KafkaProxyStatusFactoryTest {
                 new RuntimeException("whoopsie it broke"));
 
         // Then
-        assertThat(patchedProxy)
-                .doesNotHaveAnnotation("kroxylicious.io/referent-checksum");
+        assertThat(patchedProxy).doesNotHaveAnnotation(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION);
     }
 
 }

@@ -117,7 +117,7 @@ class ProxyDeploymentTest {
     }
 
     @Test
-    void shouldReferentChecksumOfProxy() {
+    void shouldAddReferentChecksumOfProxy() {
         // Given
         var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyIngressModel(List.of()), List.of());
         configureProxyModel(proxyModel);
