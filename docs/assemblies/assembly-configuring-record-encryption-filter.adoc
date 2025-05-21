@@ -7,16 +7,15 @@
 
 [role="_abstract"]
 This section describes how to configure the Record Encryption filter.
-This includes configuring the filter to use the KMS that's has already been prepared.
+It includes configuring the filter to use a previously prepared KMS.
 We will first cover how to configure each of the KMS plugins.
 We will then look at a filter configuration that uses one of those plugins.
 Finally, we will look at how to use the filter configuration in the proxy, or on Kubernetes.
 
 .Prerequisites
 
-* An instance of Kroxylicious.
-For information on deploying Kroxylicious, see the
-"Kroxylicious Proxy" or "Kroxylicious Operator for Kubernetes" guides.
+* An instance of Kroxylicious. +
+For information on deploying Kroxylicious, see the Kroxylicious Proxy guide or Kroxylicious Operator for Kubernetes guide.
 * A KMS has been prepared for use by the filter, with KEKs to encrypt records set up for topics.
 
 include::../modules/record-encryption/hashicorp-vault/con-vault-plugin-configuration.adoc[leveloffset=+1]

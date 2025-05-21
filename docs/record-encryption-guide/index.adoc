@@ -10,19 +10,18 @@ include::_assets/attributes.adoc[]
 include::modules/record-encryption/con-about-{guide}-guide.adoc[leveloffset=+1]
 
 [role="_abstract"]
-Kroxylicious's Record Encryption filter enhances the security of Kafka messages.
+The Kroxylicious Record Encryption filter enhances the security of Kafka messages.
 The filter uses industry-standard cryptographic techniques to apply encryption to Kafka messages, ensuring the confidentiality of data stored in the Kafka Cluster.
-Kroxylicious centralizes topic-level encryption, ensuring streamlined encryption across Kafka clusters.
+By centralizing topic-level encryption, Kroxylicious provides streamlined protection across Kafka clusters.
 
-There are three steps to using the filter:
+To use the filter, follow these three steps:
 
-1. Setting up a Key Management System (KMS).
-2. Establishing the encryption keys within the KMS that will be used to encrypt the topics.
-3. Configuring the filter within Kroxylicious.
+1. Set up a Key Management System (KMS)
+2. Establish encryption keys within the KMS for securing the topics
+3. Configure the filter within Kroxylicious
 
-The filter integrates with a Key Management Service (KMS), which has ultimate responsibility for the safe storage of sensitive key material.
-The filter relies on a KMS implementation.
-Currently, Kroxylicious integrates with:
+The filter integrates with a Key Management Service (KMS), which is responsible for the safe storage of sensitive key material.
+Kroxylicious currently supports the following KMS providers:
 
 * HashiCorp Vault
 * AWS Key Management Service.
@@ -31,7 +30,7 @@ ifdef::include-fortanix-dsm-kms[]
 endif::[]
 
 You can provide implementations for your specific KMS systems.
-Additional KMS support will be added based on demand.
+Additional KMS support may be added based on demand.
 
 //overview of the record encryption process
 include::modules/record-encryption/con-record-encryption-overview.adoc[leveloffset=+1]

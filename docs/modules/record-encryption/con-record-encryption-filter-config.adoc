@@ -52,7 +52,7 @@ to the Virtual Cluster should be encrypted because unencrypted data will never b
 <7> How long after creation of a DEK until it is removed from the cache. This setting puts an upper bound on how long a DEK can remain cached.
 <8> The maximum number of records any DEK should be used to encrypt. After this limit is hit, that DEK will be destroyed and a new one created.
 +
-`encryptionDekRefreshAfterWriteSeconds` and `encryptionDekExpireAfterWriteSeconds` help govern the "originator usage period" of the DEK. That is the period of time the DEK will be used to encrypt records.  Keeping the period short helps reduce the blast radius in the event that DEK key material is leaked. However, there is a trade-off. The additional KMS API calls will increase produce/consume latency and may increase your KMS provider costs.
+`encryptionDekRefreshAfterWriteSeconds` and `encryptionDekExpireAfterWriteSeconds` properties govern the _originator usage period_ of the DEK, which is the amount of time the DEK remains valid for encrypting records.  Shortening this period helps limit the impact if the DEK key material is leaked. However, shorter periods increase the number of KMS API calls, which might affect produce and consume latency and raise KMS provider costs.
 +
 `maxEncryptionsPerDek` helps prevent key exhaustion by placing an upper limit of the amount of times that a DEK may be used to encrypt records.
 

@@ -5,9 +5,11 @@
 [id='con-example-kafkaprotocolfilter-resource-{context}']
 = Example `KafkaProtocolFilter` resource
 
-If your instance of Kroxylicious is running on Kubernetes you will need use a `KafkaProcotolFilter` resource to contain the filter configuration.
+If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProcotolFilter` resource to contain the filter configuration.
 
-.Complete example `KafkaProtocolFilter` resource for a Record Encryption filter configuration using the Vault KMS
+Here's a complete example of a `KafkaProtocolFilter` resource configured for record encryption with Vault KMS:
+
+.Example `KafkaProtocolFilter` resource
 [source,yaml]
 ----
 kind: KafkaProtocolFilter
