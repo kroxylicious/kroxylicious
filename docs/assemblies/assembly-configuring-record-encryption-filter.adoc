@@ -6,17 +6,37 @@
 = Configuring the Record Encryption filter
 
 [role="_abstract"]
-This section describes how to configure the Record Encryption filter.
-It includes configuring the filter to use a previously prepared KMS.
-We will first cover how to configure each of the KMS plugins.
-We will then look at a filter configuration that uses one of those plugins.
-Finally, we will look at how to use the filter configuration in the proxy, or on Kubernetes.
+This section describes at a high level how to configure the Record Encryption filter using a previously prepared KMS.
+Subsections provide in-depth details.
 
 .Prerequisites
 
 * An instance of Kroxylicious. +
 For information on deploying Kroxylicious, see the {ProxyGuide} or {OperatorGuide}.
 * A KMS has been prepared for use by the filter, with KEKs to encrypt records set up for topics.
+
+.Procedure
+
+. Configure the plugin for your supported KMS, as required.
++
+* <<con-vault-plugin-configuration-{context},HashiCorp Vault plugin configuration>>
+* <<con-aws-kms-plugin-configuration-{context},AWS KMS plugin configuration>>
+ifdef::include-fortanix-dsm-kms[]
+* <<con-fortanix-dsm-plugin-configuration-{context},Fortanix DSM plugin configuration>>
+endif::[]
+
+. Create a filter configuration that references the configured KMS plugins.
++
+See <<con-record-encryption-filter-config-{context}>>
+
+. Apply the filter configuration:
+
+ifdef::include-platform-bare-metal[]
+* In a standalone proxy deployment. See <<con-example-proxy-config-{context}>>
+endif::[]
+ifdef::include-platform-kubernetes[]
+* In a Kubernetes deployment using a `KafkaProcotolFilter` resource. See <<con-example-kafkaprotocolfilter-resource-{context}>>
+endif::[]
 
 include::../modules/record-encryption/hashicorp-vault/con-vault-plugin-configuration.adoc[leveloffset=+1]
 

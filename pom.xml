@@ -35,6 +35,7 @@
         <skipITs>${skipTests}</skipITs>
         <skipUTs>${skipTests}</skipUTs>
         <skipSTs>true</skipSTs>
+        <skipDocs>true</skipDocs>
 
         <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
 
@@ -849,28 +850,75 @@
                         <version>2.3.2</version>
                     </dependency>
                 </dependencies>
+                <configuration>
+                    <skip>${skipDocs}</skip>
+                    <requires>
+                        <require>asciidoctor-diagram</require>
+                    </requires>
+                    <resources>
+                        <resource>
+                            <directory>docs/_assets</directory>
+<!--                        <targetPath>${project.build.directory}/docs/kroxylicious-operator/html/images</targetPath>-->
+                            <targetPath>_assets</targetPath>
+                            <includes>
+                                <include>**/*.svg</include>
+                            </includes>
+                        </resource>
+                    </resources>
+                    <preserveDirectories>true</preserveDirectories>
+                    <attributes>
+                        <source-highlighter>coderay</source-highlighter>
+                        <imagesdir>./images</imagesdir>
+                        <toc>left</toc>
+                        <icons>font</icons>
+                        <attribute>revnumber!</attribute>
+                        <attribute>revdate!</attribute>
+                        <attribute>revremark!</attribute>
+                    </attributes>
+                </configuration>
                 <executions>
                     <execution>
-                        <id>convert-kroxylicious-proxy-to-html</id>
+                        <id>render-developer-guide</id>
                         <goals>
                             <goal>process-asciidoc</goal>
                         </goals>
-                        <configuration>
-                            <requires>
-                                <require>asciidoctor-diagram</require>
-                            </requires>
-                            <sourceDirectory>docs</sourceDirectory>
-                            <outputDirectory>${project.build.directory}/docs/html</outputDirectory>
-                            <preserveDirectories>true</preserveDirectories>
-                            <attributes>
-                                <source-highlighter>coderay</source-highlighter>
-                                <imagesdir>./images</imagesdir>
-                                <toc>left</toc>
-                                <icons>font</icons>
-                                <attribute>revnumber!</attribute>
-                                <attribute>revdate!</attribute>
-                                <attribute>revremark!</attribute>
-                            </attributes>
+                        <phase>package</phase>
+                        <configuration combine.self="append">
+                            <sourceDirectory>docs/developer-guide</sourceDirectory>
+                            <outputDirectory>${project.build.directory}/docs/developer-guide/html</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>render-proxy-guide</id>
+                        <goals>
+                            <goal>process-asciidoc</goal>
+                        </goals>
+                        <phase>package</phase>
+                        <configuration combine.self="append">
+                            <sourceDirectory>docs/kroxylicious-proxy</sourceDirectory>
+                            <outputDirectory>${project.build.directory}/docs/proxy-guide/html</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>render-operator-guide</id>
+                        <goals>
+                            <goal>process-asciidoc</goal>
+                        </goals>
+                        <phase>package</phase>
+                        <configuration combine.self="append">
+                            <sourceDirectory>docs/kroxylicious-operator</sourceDirectory>
+                            <outputDirectory>${project.build.directory}/docs/operator-guide/html</outputDirectory>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>render-record-encryption-guide</id>
+                        <goals>
+                            <goal>process-asciidoc</goal>
+                        </goals>
+                        <phase>package</phase>
+                        <configuration combine.self="append">
+                            <sourceDirectory>docs/record-encryption-guide</sourceDirectory>
+                            <outputDirectory>${project.build.directory}/docs/record-encryption/html</outputDirectory>
                         </configuration>
                     </execution>
                 </executions>
@@ -1286,7 +1334,14 @@
             <properties>
                 <skipTests>true</skipTests>
                 <maven.javadoc.skip>true</maven.javadoc.skip>
+                <skipDocs>true</skipDocs>
                 <checkstyle.skip>true</checkstyle.skip>
+            </properties>
+        </profile>
+        <profile>
+            <id>dist</id>
+            <properties>
+                <skipDocs>false</skipDocs>
             </properties>
         </profile>
         <profile>
