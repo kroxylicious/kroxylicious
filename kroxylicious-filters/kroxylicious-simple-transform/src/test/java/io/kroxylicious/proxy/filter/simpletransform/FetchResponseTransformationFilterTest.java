@@ -130,7 +130,7 @@ class FetchResponseTransformationFilterTest {
         FilterFactoryContext constructContext = mock(FilterFactoryContext.class);
         doReturn(new Replacing()).when(constructContext).pluginInstance(any(), any());
         FetchResponseTransformation.Config config = new FetchResponseTransformation.Config(Replacing.class.getName(),
-                new Replacing.Config(null, "foo", "bar"));
+                new Replacing.Config(null, "foo", "bar", null));
         assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
     }
 

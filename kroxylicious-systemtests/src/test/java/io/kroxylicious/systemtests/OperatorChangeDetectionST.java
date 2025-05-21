@@ -88,7 +88,7 @@ class OperatorChangeDetectionST extends AbstractST {
         KafkaProtocolFilterBuilder arbitraryFilter = KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
                 .withNewSpec()
                 .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
-                .withConfigTemplate(Map.of("findValue", "foo", "replacementValue", "bar"))
+                .withConfigTemplate(Map.of("findPattern", "foo", "replacementValue", "bar"))
                 .endSpec();
         // @formatter:on
         resourceManager.createOrUpdateResourceWithWait(arbitraryFilter);
@@ -118,7 +118,7 @@ class OperatorChangeDetectionST extends AbstractST {
         KafkaProtocolFilterBuilder arbitraryFilter = KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
                 .withNewSpec()
                     .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
-                    .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",  Map.of("findValue", "foo", "replacementValue", "bar")))
+                    .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",  Map.of("findPattern", "foo", "replacementValue", "bar")))
                 .endSpec();
         // @formatter:on
         KubeClient kubeClient = kubeClient(namespace);
@@ -134,7 +134,7 @@ class OperatorChangeDetectionST extends AbstractST {
                 .get()
                 .edit()
                     .editSpec()
-                    .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",  Map.of("findValue", "foo", "replacementValue", "updated")))
+                    .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",  Map.of("findPattern", "foo", "replacementValue", "updated")))
                 .endSpec();
         // @formatter:on
 
@@ -183,7 +183,7 @@ class OperatorChangeDetectionST extends AbstractST {
                         .withNewSpec()
                         .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
                         .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",
-                                Map.of("findValue", "foo", "replacementValue", "${secret:upstream-tls-cert:tls.key}")))
+                                Map.of("findPattern", "foo", "replaceFrom", "${secret:upstream-tls-cert:tls.key}")))
                         .endSpec());
 
         KubeClient kubeClient = kubeClient(namespace);
