@@ -468,6 +468,7 @@
     </dependencyManagement>
 
     <modules>
+        <module>doxylicious</module>
         <module>kroxylicious-annotations</module>
         <module>kroxylicious-kafka-message-tools</module>
         <module>kroxylicious-kms</module>

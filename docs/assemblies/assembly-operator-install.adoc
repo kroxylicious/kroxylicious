@@ -5,4 +5,4 @@
 [id='con-installing-{context}']
 = Installing the operator
 
-*TO DO*
+include::../modules/deploying/proc_deploy_kroxy_operator_from_manifests.adoc[leveloffset=+1]
