@@ -51,7 +51,7 @@ data:
             denied:
             - "TLS1.2"
       gateways:
-      - name: "default"
+      - name: "cluster-ip"
         portIdentifiesNode:
           bootstrapAddress: "localhost:9292"
           advertisedBrokerAddressPattern: "one-cluster-ip.proxy-ns.svc.cluster.local"
