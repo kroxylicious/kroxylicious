@@ -6,11 +6,14 @@
 
 package io.kroxylicious.proxy.filter.simpletransform;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
 import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -20,19 +23,30 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 @Plugin(configType = Replacing.Config.class)
 public class Replacing implements ByteBufferTransformationFactory<Replacing.Config> {
-    public record Config(@JsonProperty String charset, @JsonProperty(required = true) String findValue, @JsonProperty String replaceValue) {}
+    public record Config(@JsonProperty String charset, @JsonProperty(required = true) String targetPattern, @JsonProperty String replacementValue,
+                         @JsonProperty String replaceFrom) {}
 
     @Override
     public void validateConfiguration(Config config) throws PluginConfigurationException {
         config = requireConfig(config);
+        String charsetName = Optional.ofNullable(config.charset()).orElse(StandardCharsets.UTF_8.name());
         try {
-            Charset.forName(config.charset());
+            Charset.forName(charsetName);
         }
         catch (IllegalCharsetNameException e) {
-            throw new PluginConfigurationException("Illegal charset name: '" + config.charset() + "'");
+            throw new PluginConfigurationException("Illegal charset name: '" + charsetName + "'");
         }
         catch (UnsupportedCharsetException e) {
-            throw new PluginConfigurationException("Unsupported charset: :" + config.charset() + "'");
+            throw new PluginConfigurationException("Unsupported charset: :" + charsetName + "'");
+        }
+        if (config.replacementValue != null && config.replaceFrom != null) {
+            throw new PluginConfigurationException("Both replacementValue and replaceFrom are specified. MAKE UP YOUR MIND");
+        }
+        if (config.replaceFrom != null) {
+            Path path = Path.of(config.replaceFrom);
+            if (!Files.isReadable(path)) {
+                throw new PluginConfigurationException("Path " + path + " is not readable. ");
+            }
         }
     }
 
@@ -49,9 +63,13 @@ public class Replacing implements ByteBufferTransformationFactory<Replacing.Conf
 
         Transformation(Config config) {
             this.charset = Charset.forName(Optional.ofNullable(config.charset()).orElse(StandardCharsets.UTF_8.name()));
-            this.findPattern = config.findValue;
-            this.replaceWith = Optional.ofNullable(config.replaceValue).orElse("");
-
+            this.findPattern = config.targetPattern;
+            try {
+                this.replaceWith = Files.readString(Path.of(config.replaceFrom));
+            }
+            catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
 
         @Override
