@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.charset.UnsupportedCharsetException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 import java.util.Optional;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -23,21 +24,31 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 @Plugin(configType = Replacing.Config.class)
 public class Replacing implements ByteBufferTransformationFactory<Replacing.Config> {
-    public record Config(@JsonProperty String charset, @JsonProperty(required = true) String targetPattern, @JsonProperty String replacementValue,
-                         @JsonProperty String replaceFrom) {}
+    public record Config(
+                         @JsonProperty String charset,
+                         @JsonProperty(required = true) String targetPattern,
+                         @JsonProperty String replacementValue,
+                         @JsonProperty String replaceFrom) {
+        public Config(@JsonProperty String charset, @JsonProperty(required = true) String targetPattern, @JsonProperty String replacementValue,
+                      @JsonProperty String replaceFrom) {
+            this.charset = Optional.ofNullable(charset).orElse(StandardCharsets.UTF_8.name());
+            this.targetPattern = targetPattern;
+            this.replacementValue = replacementValue;
+            this.replaceFrom = replaceFrom;
+        }
+    }
 
     @Override
     public void validateConfiguration(Config config) throws PluginConfigurationException {
         config = requireConfig(config);
-        String charsetName = Optional.ofNullable(config.charset()).orElse(StandardCharsets.UTF_8.name());
         try {
-            Charset.forName(charsetName);
+            Charset.forName(config.charset);
         }
         catch (IllegalCharsetNameException e) {
-            throw new PluginConfigurationException("Illegal charset name: '" + charsetName + "'");
+            throw new PluginConfigurationException("Illegal charset name: '" + config.charset + "'");
         }
         catch (UnsupportedCharsetException e) {
-            throw new PluginConfigurationException("Unsupported charset: :" + charsetName + "'");
+            throw new PluginConfigurationException("Unsupported charset: " + config.charset + "'");
         }
         if (config.replacementValue != null && config.replaceFrom != null) {
             throw new PluginConfigurationException("Both replacementValue and replaceFrom are specified. MAKE UP YOUR MIND");
@@ -45,7 +56,7 @@ public class Replacing implements ByteBufferTransformationFactory<Replacing.Conf
         if (config.replaceFrom != null) {
             Path path = Path.of(config.replaceFrom);
             if (!Files.isReadable(path)) {
-                throw new PluginConfigurationException("Path " + path + " is not readable. ");
+                throw new PluginConfigurationException("Path: '" + path + "' is not readable. ");
             }
         }
     }
@@ -58,18 +69,18 @@ public class Replacing implements ByteBufferTransformationFactory<Replacing.Conf
     public static class Transformation implements ByteBufferTransformation {
 
         private final Charset charset;
-        private final String findPattern;
+        private final String targetPattern;
         private final String replaceWith;
 
         Transformation(Config config) {
             this.charset = Charset.forName(Optional.ofNullable(config.charset()).orElse(StandardCharsets.UTF_8.name()));
-            this.findPattern = config.targetPattern;
+            this.targetPattern = config.targetPattern;
             try {
                 if (config.replaceFrom != null) {
                     this.replaceWith = Files.readString(Path.of(config.replaceFrom));
                 }
                 else {
-                    this.replaceWith = config.replaceFrom;
+                    this.replaceWith = Objects.requireNonNullElse(config.replacementValue, "");
                 }
             }
             catch (IOException e) {
@@ -79,7 +90,7 @@ public class Replacing implements ByteBufferTransformationFactory<Replacing.Conf
 
         @Override
         public ByteBuffer transform(String topicName, ByteBuffer in) {
-            return ByteBuffer.wrap(new String(charset.decode(in).array()).replaceAll(findPattern, replaceWith).getBytes(charset));
+            return ByteBuffer.wrap(new String(charset.decode(in).array()).replaceAll(targetPattern, replaceWith).getBytes(charset));
         }
     }
 }
