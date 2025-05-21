@@ -65,7 +65,12 @@ public class Replacing implements ByteBufferTransformationFactory<Replacing.Conf
             this.charset = Charset.forName(Optional.ofNullable(config.charset()).orElse(StandardCharsets.UTF_8.name()));
             this.findPattern = config.targetPattern;
             try {
-                this.replaceWith = Files.readString(Path.of(config.replaceFrom));
+                if (config.replaceFrom != null) {
+                    this.replaceWith = Files.readString(Path.of(config.replaceFrom));
+                }
+                else {
+                    this.replaceWith = config.replaceFrom;
+                }
             }
             catch (IOException e) {
                 throw new RuntimeException(e);
