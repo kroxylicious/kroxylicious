@@ -26,7 +26,7 @@ import static java.util.Comparator.comparing;
 public class ProxyResolutionResult {
     private final Set<ClusterResolutionResult> clusterResolutionResults;
 
-    ProxyResolutionResult(Set<ClusterResolutionResult> clusterResolutionResults) {
+    public ProxyResolutionResult(Set<ClusterResolutionResult> clusterResolutionResults) {
         Objects.requireNonNull(clusterResolutionResults);
         this.clusterResolutionResults = clusterResolutionResults;
     }

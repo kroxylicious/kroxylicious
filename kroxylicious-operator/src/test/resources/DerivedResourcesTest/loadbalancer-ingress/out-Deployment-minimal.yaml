@@ -1,0 +1,89 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: "apps/v1"
+kind: "Deployment"
+metadata:
+  labels:
+    app: "kroxylicious"
+    app.kubernetes.io/part-of: "kafka"
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
+    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/instance: "minimal"
+    app.kubernetes.io/component: "proxy"
+  name: "minimal"
+  namespace: "proxy-ns"
+  ownerReferences:
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxy"
+      name: "minimal"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "kroxylicious"
+      app.kubernetes.io/part-of: "kafka"
+      app.kubernetes.io/managed-by: "kroxylicious-operator"
+      app.kubernetes.io/name: "kroxylicious-proxy"
+      app.kubernetes.io/instance: "minimal"
+      app.kubernetes.io/component: "proxy"
+  template:
+    metadata:
+      labels:
+        app: "kroxylicious"
+        app.kubernetes.io/part-of: "kafka"
+        app.kubernetes.io/managed-by: "kroxylicious-operator"
+        app.kubernetes.io/name: "kroxylicious-proxy"
+        app.kubernetes.io/instance: "minimal"
+        app.kubernetes.io/component: "proxy"
+      annotations:
+        kroxylicious.io/referent-checksum: "AAAAAAAB4wY"
+    spec:
+      containers:
+        - name: "proxy"
+          image: "quay.io/kroxylicious/kroxylicious:test"
+          args:
+            - "--config"
+            - "/opt/kroxylicious/config/proxy-config.yaml"
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: "/livez"
+              port: "management"
+            initialDelaySeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          ports:
+            - containerPort: 9190
+              name: "management"
+            - containerPort: 9291
+              name: "shared-sni-port"
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - "ALL"
+            readOnlyRootFilesystem: true
+          terminationMessagePolicy: "FallbackToLogsOnError"
+          volumeMounts:
+            - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
+              name: "config-volume"
+              subPath: "proxy-config.yaml"
+            - mountPath: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert"
+              name: "secrets-downstream-tls-cert"
+              readOnly: true
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: "RuntimeDefault"
+      volumes:
+        - configMap:
+            name: "minimal-proxy-config"
+          name: "config-volume"
+        - name: "secrets-downstream-tls-cert"
+          secret:
+            secretName: "downstream-tls-cert"

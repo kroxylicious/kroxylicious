@@ -106,7 +106,7 @@ public record ClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     @Override
-    public Stream<ContainerPort> proxyContainerPorts() {
+    public Stream<ContainerPort> identifyingProxyContainerPorts() {
         Stream<ContainerPort> bootstrapPort = Stream.of(new ContainerPortBuilder().withContainerPort(firstIdentifyingPort)
                 .withName(firstIdentifyingPort + "-bootstrap").build());
         int nodeCount = lastIdentifyingPort - firstIdentifyingPort;

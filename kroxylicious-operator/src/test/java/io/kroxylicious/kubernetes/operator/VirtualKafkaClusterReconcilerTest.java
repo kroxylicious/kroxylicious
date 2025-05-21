@@ -187,6 +187,7 @@ class VirtualKafkaClusterReconcilerTest {
             .endMetadata()
             .withNewSpec()
              .withNewProxyRef().withName(PROXY_NAME).endProxyRef()
+             .withNewClusterIP().withProtocol(ClusterIP.Protocol.TCP).endClusterIP()
             .endSpec()
             .build();
     public static final KafkaProxyIngress INGRESS_WITH_TLS = new KafkaProxyIngressBuilder(INGRESS)
