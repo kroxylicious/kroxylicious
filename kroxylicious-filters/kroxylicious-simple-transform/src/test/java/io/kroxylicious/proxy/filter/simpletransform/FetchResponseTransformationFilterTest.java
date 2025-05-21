@@ -122,7 +122,6 @@ class FetchResponseTransformationFilterTest {
         assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
     }
 
-
     @Test
     void shouldConstructReplacingFilter() {
         FetchResponseTransformation factory = new FetchResponseTransformation();

@@ -184,8 +184,7 @@ class OperatorChangeDetectionST extends AbstractST {
                         .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
                         .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",
                                 Map.of("findValue", "foo", "replacementValue", "${secret:upstream-tls-cert:tls.key}")))
-                        .endSpec()
-        );
+                        .endSpec());
 
         KubeClient kubeClient = kubeClient(namespace);
         kroxylicious.deployPortIdentifiesNodeWithFilters(kafkaClusterName, List.of("arbitrary-filter"));

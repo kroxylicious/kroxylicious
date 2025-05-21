@@ -59,7 +59,7 @@ class ProxyDeploymentTest {
     @BeforeEach
     void setUp() {
         PodTemplateSpec podTemplate = new PodTemplateSpecBuilder().withNewMetadata().addToLabels("c", "d").addToLabels("a", "b").endMetadata().build();
-        kafkaProxy = new KafkaProxyBuilder().withNewMetadata().withName(PROXY_NAME).endMetadata()
+        kafkaProxy = new KafkaProxyBuilder().withNewMetadata().withName(PROXY_NAME).withUid(UUID.randomUUID().toString()).endMetadata()
                 .withNewSpec().withPodTemplate(podTemplate).endSpec().build();
         kubernetesContext = setupContext();
     }
@@ -117,7 +117,7 @@ class ProxyDeploymentTest {
     }
 
     @Test
-    void shouldNotAddReferentChecksumAnnotationIfThereAreNoDependentResources() {
+    void shouldReferentChecksumOfProxy() {
         // Given
         var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyIngressModel(List.of()), List.of());
         configureProxyModel(proxyModel);
@@ -128,7 +128,7 @@ class ProxyDeploymentTest {
 
         // Then
         OperatorAssertions.assertThat(actual.getSpec().getTemplate().getMetadata())
-                .doesNotHaveAnnotation(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION);
+                .hasAnnotationSatisfying(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, value -> assertThat(value).isNotBlank());
 
     }
 
