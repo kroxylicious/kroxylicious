@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
+import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
@@ -54,6 +55,7 @@ public class ProxyDeploymentDependentResource
     public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
     private static final int MANAGEMENT_PORT = 9190;
     private static final String MANAGEMENT_PORT_NAME = "management";
+    public static final int PROXY_SHARED_TLS_PORT = 9291;
     public static final int PROXY_PORT_START = 9292;
     private final String kroxyliciousImage = getOperandImage();
     static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
@@ -207,8 +209,12 @@ public class ProxyDeploymentDependentResource
         clusterResolutionResults.forEach(resolutionResult -> {
             if (!kafkaProxyContext.isBroken(resolutionResult.cluster())) {
                 ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(resolutionResult.cluster()).orElseThrow();
-                for (ProxyIngressModel.IngressModel ingress : virtualClusterIngressModel.ingressModels()) {
-                    ingress.proxyContainerPorts().forEach(containerBuilder::addToPorts);
+                for (ProxyIngressModel.IngressModelResult gatewayResult : virtualClusterIngressModel.ingressModelResults()) {
+                    gatewayResult.proxyContainerPorts().forEach(containerBuilder::addToPorts);
+                }
+                if (virtualClusterIngressModel.requiresSharedTLSPort()) {
+                    containerBuilder.addToPorts(new ContainerPortBuilder().withContainerPort(PROXY_SHARED_TLS_PORT)
+                            .withName("shared-tls-port").build());
                 }
             }
         });

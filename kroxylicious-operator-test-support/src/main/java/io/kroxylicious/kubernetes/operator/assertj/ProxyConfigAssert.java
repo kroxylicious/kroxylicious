@@ -12,10 +12,12 @@ import java.util.Set;
 
 import org.assertj.core.api.AbstractObjectAssert;
 import org.assertj.core.api.Assertions;
+import org.assertj.core.api.StringAssert;
 
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
@@ -69,6 +71,27 @@ public class ProxyConfigAssert extends AbstractObjectAssert<ProxyConfigAssert, C
             return new ProxyConfigPortIdentifiesNodeGatewayAssert(actual.portIdentifiesNode());
         }
 
+        public ProxyConfigSniHostIdentifiesNodeGatewayAssert sniHostIdentifiesNode() {
+            Assertions.assertThat(actual.sniHostIdentifiesNode()).isNotNull();
+            return new ProxyConfigSniHostIdentifiesNodeGatewayAssert(actual.sniHostIdentifiesNode());
+        }
+
+    }
+
+    public static class ProxyConfigSniHostIdentifiesNodeGatewayAssert
+            extends AbstractObjectAssert<ProxyConfigSniHostIdentifiesNodeGatewayAssert, SniHostIdentifiesNodeIdentificationStrategy> {
+
+        public ProxyConfigSniHostIdentifiesNodeGatewayAssert(SniHostIdentifiesNodeIdentificationStrategy strategy) {
+            super(strategy, ProxyConfigSniHostIdentifiesNodeGatewayAssert.class);
+        }
+
+        public StringAssert bootstrapAddress() {
+            return new StringAssert(actual.bootstrapAddress());
+        }
+
+        public StringAssert advertisedBrokerAddressPattern() {
+            return new StringAssert(actual.advertisedBrokerAddressPattern());
+        }
     }
 
     public static class ProxyConfigPortIdentifiesNodeGatewayAssert
