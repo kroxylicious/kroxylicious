@@ -264,16 +264,16 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         @Override
         public void selectServer(NetFilter.NetFilterContext context) {
             List<FilterAndInvoker> apiVersionFilters = decodePredicate.isAuthenticationOffloadEnabled() ? List.of()
-                    : FilterAndInvoker.build(apiVersionsIntersectFilter);
+                    : FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
 
             NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
             List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, filterDefinitions);
-            List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build(new BrokerAddressFilter(gateway, endpointReconciler));
+            List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)", new BrokerAddressFilter(gateway, endpointReconciler));
             var filters = new ArrayList<>(apiVersionFilters);
-            filters.addAll(FilterAndInvoker.build(apiVersionsDowngradeFilter));
+            filters.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
             filters.addAll(filterChain);
             if (binding.restrictUpstreamToMetadataDiscovery()) {
-                filters.addAll(FilterAndInvoker.build(new EagerMetadataLearner()));
+                filters.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
             }
             filters.addAll(brokerAddressFilters);
 
