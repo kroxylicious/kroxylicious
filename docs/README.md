@@ -12,22 +12,21 @@ US (global) English is used throughout.
 
 <!-- omit from toc -->
 ## Table of Contents
-- [Kroxylicious guide](#kroxylicious-guide)
+- [Kroxylicious guides](#kroxylicious-guides)
 - [Documentation folder structure](#documentation-folder-structure)
-- [Generating the guide](#generating-the-guide)
+- [Generating the guides](#generating-the-guides)
 - [Contributing to the documentation](#contributing-to-the-documentation)
 
-## Kroxylicious guide
+## Kroxylicious guides
 
 The Kroxylicious documentation is organized into specific **Kroxylicious** guides.
 
-The content for the guide to the proxy is encapsulated in the index file:
+The content for the guides are each encapsulated in the index files:
 
 - [kroxylicious-proxy/index.adoc](kroxylicious-proxy/index.adoc)
-
-The content for the developer's guide is encapsulated in the index file:
-
-- [developers-guide/index.adoc](kroxylicious-proxy/index.adoc) 
+- [developer-guide/index.adoc](kroxylicious-proxy/index.adoc)
+- [operator-guide/index.adoc](operator-guide/index.adoc)
+- [record-encryption-guide/index.adoc](record-encryption-guide/index.adoc)
 
 ## Documentation folder structure
 
@@ -48,13 +47,13 @@ A module contains a procedure (`proc-`), concepts (`con-`), or reference (`ref-`
 
 ## Generating the guide
 
-To generate the guide in HTML, run the following Maven command from the project root directory (the parent directory of the `docs` directory).
+To generate the guides in HTML, run the following Maven command from the project root directory (the parent directory of the `docs` directory).
 
 ```shell
-mvn org.asciidoctor:asciidoctor-maven-plugin:process-asciidoc@convert-kroxylicious-proxy-to-html
+mvn -P dist package --non-recursive 
 ```
 
-The HTML is output to `target/kroxylicious-proxy/html/index.html`. 
+The HTML for each guide is output to a subdirectory of `target/docs`. 
 
 ## Contributing to the documentation
 

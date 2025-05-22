@@ -2,10 +2,10 @@
 include::_assets/attributes.adoc[]
 
 :context: proxy
-:guide: developers
+:guide: developer
 
 [id="using-book-{context}"]
-= Kroxylicious Developer's guide
+= Kroxylicious Developer guide
 
 include::modules/con-about-{guide}-guide.adoc[leveloffset=+1]
 

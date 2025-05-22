@@ -26,13 +26,13 @@ class FilterInvokersTest {
     @ParameterizedTest
     @MethodSource("invalidFilters")
     void testInvalidFilters(Filter invalid) {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> FilterInvokers.from(invalid));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> FilterInvokers.from("invalid", invalid));
     }
 
     @ParameterizedTest
     @MethodSource("validFilters")
     void testValidFilters(Filter invalid) {
-        assertThat(FilterInvokers.from(invalid)).isNotNull();
+        assertThat(FilterInvokers.from("valid", invalid)).isNotNull();
     }
 
     public static Stream<Filter> invalidFilters() {

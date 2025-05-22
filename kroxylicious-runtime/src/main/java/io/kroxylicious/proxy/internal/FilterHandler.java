@@ -10,8 +10,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
-import javax.annotation.Nullable;
-
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -31,7 +29,6 @@ import io.netty.channel.ChannelPromise;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.FilterInvoker;
 import io.kroxylicious.proxy.filter.FilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
@@ -40,6 +37,7 @@ import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
+import io.kroxylicious.proxy.frame.OpaqueFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
@@ -50,6 +48,7 @@ import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A {@code ChannelInboundHandler} (for handling requests from downstream)
@@ -58,28 +57,33 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class FilterHandler extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
-    private final Filter filter;
-    private final FilterInvoker invoker;
     private final long timeoutMs;
     private final String sniHostname;
     private final VirtualClusterModel virtualClusterModel;
     private final Channel inboundChannel;
+    private final FilterAndInvoker filterAndInvoker;
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private ChannelHandlerContext ctx;
     private PromiseFactory promiseFactory;
 
     public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, VirtualClusterModel virtualClusterModel, Channel inboundChannel) {
-        this.filter = Objects.requireNonNull(filterAndInvoker).filter();
-        this.invoker = filterAndInvoker.invoker();
+        this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
         this.virtualClusterModel = virtualClusterModel;
         this.inboundChannel = inboundChannel;
     }
 
+    @Override
+    public String toString() {
+        return "FilterHandler{" +
+                filterDescriptor() +
+                '}';
+    }
+
     String filterDescriptor() {
-        return filter.getClass().getSimpleName() + "@" + System.identityHashCode(filter);
+        return filterAndInvoker.filterName();
     }
 
     @Override
@@ -93,7 +97,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     public void channelRead(ChannelHandlerContext ctx, Object msg) {
         if (msg instanceof InternalResponseFrame<?> decodedFrame) {
             // jump the queue, let responses to asynchronous requests flow back to their sender
-            if (decodedFrame.isRecipient(filter)) {
+            if (decodedFrame.isRecipient(filterAndInvoker.filter())) {
                 completeInternalResponse(decodedFrame);
             }
             else {
@@ -127,8 +131,27 @@ public class FilterHandler extends ChannelDuplexHandler {
                 });
             }
             else {
-                throw new IllegalStateException("Unexpected message reading from upstream:  " + msg);
+                throw new IllegalStateException("Filter '" + filterAndInvoker.filterName() + "': Unexpected message reading from upstream: " + msgDescriptor(msg));
             }
+        }
+    }
+
+    /**
+     * @param obj A message
+     * @return A descriptor for the message (for logging purposes). Does not include the message contents.
+     */
+    static String msgDescriptor(@Nullable Object obj) {
+        if (obj == null) {
+            return "«null»";
+        }
+        else if (obj instanceof DecodedFrame<?, ?> df) {
+            return df.getClass().getSimpleName() + "(" + df.apiKey() + "@" + df.apiVersion() + " corrId=" + df.correlationId() + ")";
+        }
+        else if (obj instanceof OpaqueFrame of) {
+            return of.toString();
+        }
+        else {
+            return obj.getClass().getName();
         }
     }
 
@@ -167,7 +190,7 @@ public class FilterHandler extends ChannelDuplexHandler {
             else {
                 // Unpooled.EMPTY_BUFFER is used by KafkaProxyFrontendHandler#closeOnFlush
                 // but, otherwise we don't expect any other kind of message
-                throw new IllegalStateException("Unexpected message writing to upstream: " + msg);
+                throw new IllegalStateException("Filter '" + filterAndInvoker.filterName() + "': Unexpected message writing to upstream: " + msgDescriptor(msg));
             }
         }
     }
@@ -190,10 +213,10 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     private CompletableFuture<ResponseFilterResult> dispatchDecodedResponseFrame(DecodedResponseFrame<?> decodedFrame, InternalFilterContext filterContext) {
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Dispatching upstream {} response to filter {}: {}",
+            LOGGER.debug("{}: Dispatching upstream {} response to filter '{}': {}",
                     channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
         }
-        var stage = invoker.onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(),
+        var stage = filterAndInvoker.invoker().onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(),
                 decodedFrame.header(), decodedFrame.body(), filterContext);
         return stage instanceof InternalCompletionStage ? ((InternalCompletionStage<ResponseFilterResult>) stage).getUnderlyingCompletableFuture()
                 : stage.toCompletableFuture();
@@ -222,11 +245,11 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     private CompletableFuture<RequestFilterResult> dispatchDecodedRequest(DecodedRequestFrame<?> decodedFrame, InternalFilterContext filterContext) {
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Dispatching downstream {} request to filter{}: {}",
+            LOGGER.debug("{}: Dispatching downstream {} request to filter '{}': {}",
                     channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
         }
 
-        var stage = invoker.onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(),
+        var stage = filterAndInvoker.invoker().onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(),
                 decodedFrame.body(), filterContext);
         return stage instanceof InternalCompletionStage ? ((InternalCompletionStage<RequestFilterResult>) stage).getUnderlyingCompletableFuture()
                 : stage.toCompletableFuture();
@@ -242,7 +265,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private ResponseFilterResult handleResponseFilterResult(DecodedResponseFrame<?> decodedFrame, ResponseFilterResult responseFilterResult) {
         if (responseFilterResult.drop()) {
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("{}: Filter{} drops {} response",
+                LOGGER.debug("{}: Filter '{}' drops {} response",
                         channelDescriptor(), filterDescriptor(), decodedFrame.apiKey());
             }
             return responseFilterResult;
@@ -262,7 +285,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private RequestFilterResult handleRequestFilterResult(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise, RequestFilterResult requestFilterResult) {
         if (requestFilterResult.drop()) {
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("{}: Filter{} drops {} request",
+                LOGGER.debug("{}: Filter '{}' drops {} request",
                         channelDescriptor(), filterDescriptor(), decodedFrame.apiKey());
             }
             return requestFilterResult;
@@ -289,7 +312,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private <F extends FilterResult> F handleFilteringException(Throwable t, DecodedFrame<?, ?> decodedFrame) {
         if (LOGGER.isWarnEnabled()) {
             var direction = decodedFrame.header() instanceof RequestHeaderData ? "request" : "response";
-            LOGGER.atWarn().setMessage("{}: Filter{} for {} {} ended exceptionally - closing connection. Cause message {}")
+            LOGGER.atWarn().setMessage("{}: Filter '{}' for {} {} ended exceptionally - closing connection. Cause message {}")
                     .addArgument(channelDescriptor())
                     .addArgument(direction)
                     .addArgument(filterDescriptor())
@@ -305,7 +328,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(DecodedFrame<?, ?> decodedFrame, CompletableFuture<F> future) {
         inboundChannel.config().setAutoRead(false);
         promiseFactory.wrapWithTimeLimit(future,
-                () -> "Deferred work for filter %s did not complete processing within %s ms %s %s".formatted(filterDescriptor(), timeoutMs,
+                () -> "Deferred work for filter '%s' did not complete processing within %s ms %s %s".formatted(filterDescriptor(), timeoutMs,
                         decodedFrame instanceof DecodedRequestFrame ? "request" : "response", decodedFrame.apiKey()));
         return future.thenApplyAsync(filterResult -> filterResult, ctx.executor());
     }
@@ -337,11 +360,11 @@ public class FilterHandler extends ChannelDuplexHandler {
         // check it's a request
         String name = message.getClass().getName();
         if (!name.endsWith("RequestData")) {
-            throw new AssertionError("Attempt to use forwardRequest with a non-request: " + name);
+            throw new AssertionError("Filter '" + filterDescriptor() + "': Attempt to use forwardRequest with a non-request: " + name);
         }
 
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Forwarding request: {}", channelDescriptor(), decodedFrame);
+            LOGGER.debug("{}: Filter '{}' forwarding request: {}", channelDescriptor(), filterDescriptor(), decodedFrame);
         }
         ctx.write(decodedFrame, promise);
     }
@@ -350,18 +373,19 @@ public class FilterHandler extends ChannelDuplexHandler {
         // check it's a response
         String name = message.getClass().getName();
         if (!name.endsWith("ResponseData")) {
-            throw new AssertionError("Attempt to use forwardResponse with a non-response: " + name);
+            throw new AssertionError("Filter '" + filterDescriptor() + "': Attempt to use forwardResponse with a non-response: " + name);
         }
         if (decodedFrame instanceof RequestFrame) {
             if (message.apiKey() != decodedFrame.apiKey().id) {
                 throw new AssertionError(
-                        "Attempt to respond with ApiMessage of type " + ApiKeys.forId(message.apiKey()) + " but request is of type " + decodedFrame.apiKey());
+                        "Filter '" + filterDescriptor() + "': Attempt to respond with ApiMessage of type " + ApiKeys.forId(message.apiKey()) + " but request is of type "
+                                + decodedFrame.apiKey());
             }
             DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(decodedFrame.apiVersion(), decodedFrame.correlationId(),
                     header, message);
             decodedFrame.transferBuffersTo(responseFrame);
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
+                LOGGER.debug("{}: Filter '{}' forwarding response: {}", channelDescriptor(), filterDescriptor(), msgDescriptor(decodedFrame));
             }
             ctx.fireChannelRead(responseFrame);
             // required to flush the message back to the client
@@ -375,7 +399,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                 throw new AssertionError();
             }
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("{}: Forwarding response: {}", channelDescriptor(), decodedFrame);
+                LOGGER.debug("{}: Filter '{}' forwarding response: {}", channelDescriptor(), filterDescriptor(), msgDescriptor(decodedFrame));
             }
             ctx.fireChannelRead(decodedFrame);
         }
@@ -389,7 +413,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
         else {
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("{}: Filter {} attempted to short-circuit respond to a message with apiKey {}" +
+                LOGGER.debug("{}: Filter '{}' attempted to short-circuit respond to a message with apiKey {}" +
                         " that has no response in the Kafka Protocol, dropping response",
                         channelDescriptor(), filterDescriptor(), decodedFrame.apiKey());
             }
@@ -411,7 +435,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     @SuppressWarnings("unchecked")
     private void completeInternalResponse(InternalResponseFrame<?> decodedFrame) {
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Completing {} response for request sent by this filter{}: {}",
+            LOGGER.debug("{}: Completing {} response for request to filter '{}': {}",
                     channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
         }
         CompletableFuture<ApiMessage> p = (CompletableFuture<ApiMessage>) decodedFrame
@@ -421,7 +445,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     private static <F extends FilterResult> F validateFilterResultNonNull(F f) {
         return Objects.requireNonNullElseGet(f, () -> {
-            throw new IllegalStateException("filter completion must not yield a null result");
+            throw new IllegalStateException("Filter completion must not yield a null result");
         });
     }
 
@@ -487,19 +511,20 @@ public class FilterHandler extends ChannelDuplexHandler {
             header.setCorrelationId(-1);
 
             if (!apiKey.isVersionSupported(header.requestApiVersion())) {
-                throw new IllegalArgumentException("apiKey %s does not support version %d. the supported version range for this api key is %d...%d (inclusive)."
-                        .formatted(apiKey, header.requestApiVersion(), apiKey.oldestVersion(), apiKey.latestVersion()));
+                throw new IllegalArgumentException(
+                        "Filter '%s': apiKey %s does not support version %d. the supported version range for this api key is %d...%d (inclusive)."
+                                .formatted(filterDescriptor(), apiKey, header.requestApiVersion(), apiKey.oldestVersion(), apiKey.latestVersion()));
             }
 
             var hasResponse = apiKey != ApiKeys.PRODUCE || ((ProduceRequestData) request).acks() != 0;
             CompletableFuture<M> filterPromise = promiseFactory.newTimeLimitedPromise(
-                    () -> "Asynchronous %s request made by filter %s failed to complete within %s ms.".formatted(apiKey, filterDescriptor(), timeoutMs));
+                    () -> "Asynchronous %s request made by filter '%s' failed to complete within %s ms.".formatted(apiKey, filterDescriptor(), timeoutMs));
             var frame = new InternalRequestFrame<>(
                     header.requestApiVersion(), header.correlationId(), hasResponse,
-                    filter, filterPromise, header, request);
+                    filterAndInvoker.filter(), filterPromise, header, request);
 
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("{}: Sending request: {}", FilterHandler.this.channelDescriptor(), frame);
+                LOGGER.debug("{}: Filter '{}' sending request: {}", FilterHandler.this.channelDescriptor(), filterDescriptor(), msgDescriptor(frame));
             }
             ChannelPromise writePromise = ctx.channel().newPromise();
             ctx.writeAndFlush(frame, writePromise);
