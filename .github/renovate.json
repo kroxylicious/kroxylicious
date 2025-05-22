@@ -33,7 +33,7 @@
     {
       "customType": "regex",
       "fileMatch": ["kroxylicious-kms-provider-aws-kms-test-support/src/main/java/io/kroxylicious/kms/provider/aws/kms/AwsKmsTestKmsFacade.java",
-                    "kroxylicious-systemtests/src/main/resources/helm_localstack_overrides.yaml"],
+        "kroxylicious-systemtests/src/main/resources/helm_localstack_overrides.yaml"],
       "matchStrings": [
         "DockerImageName\\.parse\\(\"localstack/localstack:(?<currentValue>\\d+\\.\\d+.\\d+)\"\\)",
         "tag:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
@@ -53,11 +53,11 @@
       "customType": "regex",
       "fileMatch": ["kroxylicious-integration-tests/src/test/java/io/kroxylicious/proxy/filter/validation/JsonSchemaRecordValidationIT.java"],
       "matchStrings": [
-        "DockerImageName\\.parse\\(\"(?<depName>quay.io/apicurio/apicurio-registry-mem):(?<currentValue>\\d+\\.\\d+\\.\\d+\\.Final)\"\\)"
+        "(?<depName>quay.io/apicurio/apicurio-registry-mem):(?<currentValue>\\d+\\.\\d+\\.\\d+\\.Final)"
       ],
       "datasourceTemplate": "docker",
       "extractVersionTemplate": "^(?<version>.*)\\.Final$",
-      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)\\.Final$"
+      "versioningTemplate": "regex:^(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)?(\\.(?<build>.*))?$"
     },
     {
       "customType": "regex",
@@ -72,7 +72,7 @@
     {
       "customType": "regex",
       "fileMatch": [".github/workflows/maven.yaml",
-                    ".github/workflows/sonar.yaml"],
+        ".github/workflows/sonar.yaml"],
       "matchStrings": [
         "(?<depName>org.sonarsource.scanner.maven:sonar-maven-plugin):(?<currentValue>\\d+\\.\\d+\\.\\d+\\.\\d+)"
       ],
