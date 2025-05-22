@@ -1,7 +1,7 @@
 // file included in the following:
 //
 // kroxylicious-proxy/index.adoc
-// developers-guide/index.adoc
+// developer-guide/index.adoc
 
 [id='assembly-overview-{context}']
 = Kroxylicious Proxy overview

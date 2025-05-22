@@ -1,9 +1,14 @@
+include::_assets/attributes.adoc[]
+:DocRoot: .
+
 = Kroxylicious guides
 
 This release of Kroxylicious is documented in the following guides:
 
-link:kroxylicious-proxy/[Proxy guide]:: Covers using the proxy, including configuration, security and operation.
+{ProxyGuide}:: Covers using the proxy, including configuration, security and operation.
 
-link:kroxylicious-operator/[Operator for Kubernetes]:: Covers using the Kubernetes operator for the proxy, including configuration, security and operation.
+{OperatorGuide}:: Covers using the Kubernetes operator for the proxy, including configuration, security and operation.
 
-link:developers-guide/[Developer's guide]:: Covers writing plugins for the proxy in the Java programming language
+{RecordEncryptionGuide}:: Covers using the record encryption filter, including configuration, security and operation.
+
+{DeveloperGuide}:: Covers writing plugins for the proxy in the Java programming language

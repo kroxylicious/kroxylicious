@@ -57,7 +57,15 @@
 // Conditional inclusion flags
 :include-fortanix-dsm-kms: 1
 :include-aws-kms-service-config-identity-ec2-metadata: 1
+:include-platform-bare-metal: 1
+:include-platform-kubernetes: 1
 
 //API stability markers.
 :unstable-api-version: denoted by a major version 0
 :stable-api-version: version 1.0.0
+
+:DocRoot: ..
+:ProxyGuide: link:{DocRoot}/kroxylicious-proxy/[Kroxylicious Proxy guide]
+:RecordEncryptionGuide: link:{DocRoot}/record-encryption-guide/[Kroxylicious Record Encryption guide]
+:DeveloperGuide: link:{DocRoot}/developer-guide/[Kroxylicious Developer guide]
+:OperatorGuide: link:{DocRoot}/kroxylicious-operator/[Kroxylicious Operator for Kubernetes guide]

@@ -1,0 +1,16 @@
+// record-encryption-guide/index.adoc
+
+= Preparing your KMS
+
+[role="_abstract"]
+This section assumes that you already have a supported KMS instance up and running.
+It describes how to prepare the KMS for use with the filter.
+
+//setting up hashicorp vault
+include::assembly-hashicorp-vault.adoc[leveloffset=+1]
+//setting up AWS KMS
+include::assembly-aws-kms.adoc[leveloffset=+1]
+ifdef::include-fortanix-dsm-kms[]
+include::assembly-fortanix-dsm.adoc[leveloffset=+1]
+endif::[]
+
