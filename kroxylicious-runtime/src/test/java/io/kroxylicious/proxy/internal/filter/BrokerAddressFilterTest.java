@@ -34,6 +34,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import com.flipkart.zjsonpatch.JsonDiff;
 import com.google.common.reflect.ClassPath;
 
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
@@ -104,7 +105,7 @@ class BrokerAddressFilterTest {
     @BeforeEach
     public void beforeEach() {
         filter = new BrokerAddressFilter(virtualClusterListenerModel, endpointReconciler);
-        invoker = getOnlyElement(FilterAndInvoker.build(filter)).invoker();
+        invoker = getOnlyElement(FilterAndInvoker.build(((Filter) filter).getClass().getSimpleName(), filter)).invoker();
         lenient().when(virtualClusterListenerModel.getBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19199"));
         lenient().when(virtualClusterListenerModel.getAdvertisedBrokerAddress(0)).thenReturn(HostPort.parse("downstream:19200"));
 

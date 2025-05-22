@@ -36,48 +36,49 @@ public class FilterInvokers {
      * @param filter the Filter to create an invoker for
      * @return the invoker
      */
-    static List<FilterAndInvoker> from(Filter filter) {
-        List<FilterAndInvoker> filterInvokers = invokersForFilter(filter);
+    static List<FilterAndInvoker> from(String filterName, Filter filter) {
+        List<FilterAndInvoker> filterInvokers = invokersForFilter(filterName, filter);
         // all invokers are wrapped in safe invoker so that clients can safely call onRequest/onResponse
         // even if the invoker isn't interested in that message.
         return wrapAllInSafeInvoker(filterInvokers).toList();
     }
 
-    private static List<FilterAndInvoker> invokersForFilter(Filter filter) {
+    private static List<FilterAndInvoker> invokersForFilter(String filterName, Filter filter) {
         boolean isResponseFilter = filter instanceof ResponseFilter;
         boolean isRequestFilter = filter instanceof RequestFilter;
         boolean isAnySpecificFilterInterface = SpecificFilterArrayInvoker.implementsAnySpecificFilterInterface(filter);
-        validateFilter(filter, isResponseFilter, isRequestFilter, isAnySpecificFilterInterface);
+        validateFilter(filterName, isResponseFilter, isRequestFilter, isAnySpecificFilterInterface);
         if (isResponseFilter && isRequestFilter) {
-            return singleFilterAndInvoker(filter, new RequestResponseInvoker((RequestFilter) filter, (ResponseFilter) filter));
+            return singleFilterAndInvoker(filterName, filter, new RequestResponseInvoker((RequestFilter) filter, (ResponseFilter) filter));
         }
         else if (isRequestFilter) {
-            return singleFilterAndInvoker(filter, new RequestFilterInvoker((RequestFilter) filter));
+            return singleFilterAndInvoker(filterName, filter, new RequestFilterInvoker((RequestFilter) filter));
         }
         else if (isResponseFilter) {
-            return singleFilterAndInvoker(filter, new ResponseFilterInvoker((ResponseFilter) filter));
+            return singleFilterAndInvoker(filterName, filter, new ResponseFilterInvoker((ResponseFilter) filter));
         }
         else {
-            return singleFilterAndInvoker(filter, arrayInvoker(filter));
+            return singleFilterAndInvoker(filterName, filter, arrayInvoker(filter));
         }
     }
 
     private static Stream<FilterAndInvoker> wrapAllInSafeInvoker(List<FilterAndInvoker> filterInvokers) {
-        return filterInvokers.stream().map(filterAndInvoker -> new FilterAndInvoker(filterAndInvoker.filter(), new SafeInvoker(filterAndInvoker.invoker())));
+        return filterInvokers.stream()
+                .map(filterAndInvoker -> new FilterAndInvoker(filterAndInvoker.filterName(), filterAndInvoker.filter(), new SafeInvoker(filterAndInvoker.invoker())));
     }
 
-    private static void validateFilter(Filter filter, boolean isResponseFilter, boolean isRequestFilter, boolean isAnySpecificFilterInterface) {
+    private static void validateFilter(String filterName, boolean isResponseFilter, boolean isRequestFilter, boolean isAnySpecificFilterInterface) {
         if (isAnySpecificFilterInterface && (isRequestFilter || isResponseFilter)) {
-            throw unsupportedFilterInstance(filter, "Cannot mix specific message filter interfaces and [RequestFilter|ResponseFilter] interfaces");
+            throw unsupportedFilterInstance(filterName, "Cannot mix specific message filter interfaces and [RequestFilter|ResponseFilter] interfaces");
         }
         if (!isRequestFilter && !isResponseFilter && !isAnySpecificFilterInterface) {
-            throw unsupportedFilterInstance(filter,
+            throw unsupportedFilterInstance(filterName,
                     "Filter must implement ResponseFilter, RequestFilter or any combination of specific message Filter interfaces");
         }
     }
 
-    private static List<FilterAndInvoker> singleFilterAndInvoker(Filter filter, FilterInvoker invoker) {
-        return List.of(new FilterAndInvoker(filter, invoker));
+    private static List<FilterAndInvoker> singleFilterAndInvoker(String filterName, Filter filter, FilterInvoker invoker) {
+        return List.of(new FilterAndInvoker(filterName, filter, invoker));
     }
 
     /**
@@ -99,8 +100,8 @@ public class FilterInvokers {
         return HandleNothingFilterInvoker.INSTANCE;
     }
 
-    private static IllegalArgumentException unsupportedFilterInstance(Filter filter, String message) {
-        return new IllegalArgumentException("Invoker could not be created for: " + filter.getClass().getName() + ". " + message);
+    private static IllegalArgumentException unsupportedFilterInstance(String filterName, String message) {
+        return new IllegalArgumentException("Invoker could not be created for filter: " + filterName + ". " + message);
     }
 
 }

@@ -489,6 +489,8 @@ public class KafkaProxyFrontendHandler
             pipeline.addFirst("ssl", handler);
         });
 
+        LOGGER.debug("Configured broker channel pipeline: {}", pipeline);
+
         serverTcpConnectFuture.addListener(future -> {
             if (future.isSuccess()) {
                 LOGGER.trace("{}: Outbound connected", clientCtx().channel().id());
@@ -612,10 +614,13 @@ public class KafkaProxyFrontendHandler
                                       List<FilterAndInvoker> filters,
                                       ChannelPipeline pipeline,
                                       Channel inboundChannel) {
+        int num = 0;
         for (var protocolFilter : filters) {
             // TODO configurable timeout
+            // Handler name must be unique, but filters are allowed to appear multiple times
+            String handlerName = "filter-" + (++num) + "-" + protocolFilter.filterName();
             pipeline.addFirst(
-                    protocolFilter.toString(),
+                    handlerName,
                     new FilterHandler(
                             protocolFilter,
                             20000,
