@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,12 +22,17 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.skodjob.testframe.resources.KubeResourceManager;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
@@ -72,12 +78,7 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("Kafka proxy ingress edited");
 
         // Then
-        await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
-            Deployment proxyDeployment = kubeClient.getDeployment(namespace, "simple");
-            assertThat(proxyDeployment).isNotNull();
-            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
-                    value -> assertThat(value).isNotEqualTo(originalChecksum));
-        });
+        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
     }
 
     @Test
@@ -87,7 +88,7 @@ class OperatorChangeDetectionST extends AbstractST {
         KafkaProtocolFilterBuilder arbitraryFilter = KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
                 .withNewSpec()
                 .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
-                .withConfigTemplate(Map.of("findValue", "foo", "replacementValue", "bar"))
+                .withConfigTemplate(Map.of("findPattern", "foo", "replacementValue", "bar"))
                 .endSpec();
         // @formatter:on
         resourceManager.createOrUpdateResourceWithWait(arbitraryFilter);
@@ -107,22 +108,17 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("virtual cluster edited");
 
         // Then
-        await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
-            Deployment proxyDeployment = kubeClient.getDeployment(namespace, "simple");
-            assertThat(proxyDeployment).isNotNull();
-            OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
-                    value -> assertThat(value).isNotEqualTo(originalChecksum));
-        });
+        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
     }
 
     @Test
-    void shouldRolloutDeploymentWhenFilterConfigurationChanges(String namespace) {
+    void shouldUpdateWhenFilterConfigurationChanges(String namespace) {
         // Given
         // @formatter:off
         KafkaProtocolFilterBuilder arbitraryFilter = KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
                 .withNewSpec()
                     .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
-                    .withConfigTemplate(Map.of("findValue", "foo", "replacementValue", "bar"))
+                    .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",  Map.of("findPattern", "foo", "replacementValue", "bar")))
                 .endSpec();
         // @formatter:on
         KubeClient kubeClient = kubeClient(namespace);
@@ -138,7 +134,7 @@ class OperatorChangeDetectionST extends AbstractST {
                 .get()
                 .edit()
                     .editSpec()
-                    .withConfigTemplate(Map.of("findValue", "foo", "replacementValue", "updated"))
+                    .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",  Map.of("findPattern", "foo", "replacementValue", "updated")))
                 .endSpec();
         // @formatter:on
 
@@ -147,8 +143,70 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("Kafka proxy filter updated");
 
         // Then
+        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+    }
+
+    @Test
+    void shouldUpdateDeploymentWhenKafkaProxyChanges(String namespace) {
+        // Given
+        KubeClient kubeClient = kubeClient(namespace);
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters(kafkaClusterName);
+
+        String originalChecksum = getInitialChecksum(namespace, kubeClient);
+
+        KafkaProxy kafkaProxy = kubeClient.getClient().resources(KafkaProxy.class).inNamespace(namespace)
+                .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).get();
+
+        // @formatter:off
+        KafkaProxyBuilder updatedKafkaProxy = kafkaProxy.edit()
+                .editOrNewSpec()
+                .withPodTemplate(new PodTemplateSpecBuilder().build())
+                .endSpec();
+
+        // @formatter:on
+
+        // When
+        resourceManager.createOrUpdateResourceWithWait(updatedKafkaProxy);
+        LOGGER.info("Kafka proxy updated");
+
+        // Then
+        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+    }
+
+    @Test
+    void shouldUpdateDeploymentWhenSecretChanges(String namespace) {
+        // Given
+        resourceManager.createOrUpdateResourceWithWait(
+                new SecretBuilder().withNewMetadata().withName("upstream-tls-cert").withNamespace(namespace).endMetadata().withType("kubernetes.io/tls")
+                        .withData(Map.of("tls.crt", "whatever", "tls.key", "whatever")),
+                KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
+                        .withNewSpec()
+                        .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
+                        .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",
+                                Map.of("findPattern", "foo", "replaceFrom", "${secret:upstream-tls-cert:tls.key}")))
+                        .endSpec());
+
+        KubeClient kubeClient = kubeClient(namespace);
+        kroxylicious.deployPortIdentifiesNodeWithFilters(kafkaClusterName, List.of("arbitrary-filter"));
+        LOGGER.info("Kroxylicious deployed");
+
+        String originalChecksum = getInitialChecksum(namespace, kubeClient);
+
+        Secret existingSecret = kubeClient.getClient().resources(Secret.class).inNamespace(namespace)
+                .withName("upstream-tls-cert").get();
+
+        // When
+        resourceManager.createOrUpdateResourceWithWait(existingSecret.edit().withData(Map.of("tls.crt", "whatever", "tls.key", "unlocked")));
+        LOGGER.info("secret: upstream-tls-cert updated");
+
+        // Then
+        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+    }
+
+    private static void assertDeploymentUpdated(String namespace, KubeClient kubeClient, String originalChecksum) {
         await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
-            Deployment proxyDeployment = kubeClient.getDeployment(namespace, "simple");
+            Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
+            Assertions.assertThat(proxyDeployment).isNotNull();
             OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
                     value -> assertThat(value).isNotEqualTo(originalChecksum));
         });

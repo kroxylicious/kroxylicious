@@ -116,7 +116,7 @@ public final class VirtualKafkaClusterReconciler implements
                 clusterResolutionResult.allResolvedReferents().forEach(checksumGenerator::appendMetadata);
                 KubernetesResourceUtil.getOrCreateAnnotations(updatedCluster)
                         .put(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
-                                checksumGenerator.encode() /* clusterResolutionResult.dependantsChecksum() */);
+                                checksumGenerator.encode());
                 reconciliationResult = UpdateControl.patchResourceAndStatus(updatedCluster);
             }
             else {

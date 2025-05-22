@@ -75,6 +75,18 @@ class ProxyDeploymentDependentResourceTest {
     }
 
     @Test
+    void shouldIncludeKafkaProxyInChecksum() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+
+        // When
+        proxyDeploymentDependentResource.checksumFor(kafkaProxy, kubernetesContext, proxyModel);
+
+        // Then
+        verify(metadataChecksumGenerator).appendMetadata(kafkaProxy);
+    }
+
+    @Test
     void shouldIncludeResolvedVirtualClusterInChecksum() {
         // Given
         ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
