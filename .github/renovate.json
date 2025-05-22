@@ -32,7 +32,8 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["kroxylicious-kms-provider-aws-kms-test-support/src/main/java/io/kroxylicious/kms/provider/aws/kms/AwsKmsTestKmsFacade.java",
+      "fileMatch": [
+        "kroxylicious-kms-provider-aws-kms-test-support/src/main/java/io/kroxylicious/kms/provider/aws/kms/AwsKmsTestKmsFacade.java",
         "kroxylicious-systemtests/src/main/resources/helm_localstack_overrides.yaml"],
       "matchStrings": [
         "DockerImageName\\.parse\\(\"localstack/localstack:(?<currentValue>\\d+\\.\\d+.\\d+)\"\\)",
@@ -71,7 +72,8 @@
     },
     {
       "customType": "regex",
-      "fileMatch": [".github/workflows/maven.yaml",
+      "fileMatch": [
+        ".github/workflows/maven.yaml",
         ".github/workflows/sonar.yaml"],
       "matchStrings": [
         "(?<depName>org.sonarsource.scanner.maven:sonar-maven-plugin):(?<currentValue>\\d+\\.\\d+\\.\\d+\\.\\d+)"
