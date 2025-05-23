@@ -5,12 +5,17 @@
  */
 package io.kroxylicious.kubernetes.operator;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
 
+import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernetesDependentResource;
@@ -21,6 +26,9 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 
+import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
+import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.SHARED_SNI_PORT;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
 
 /**
@@ -57,7 +65,49 @@ public class ClusterServiceDependentResource
                 .flatMap(cluster -> model.ingressModel().clusterIngressModel(cluster)
                         .map(ProxyIngressModel.VirtualClusterIngressModel::services)
                         .orElse(Stream.empty()));
-        return serviceStream.collect(toByNameMap());
+
+        List<Integer> sharedSniLoadbalancerPorts = model.clustersWithValidIngresses().stream()
+                .map(ClusterResolutionResult::cluster)
+                .filter(cluster -> !kafkaProxyContext.isBroken(cluster))
+                .flatMap(cluster -> model.ingressModel().clusterIngressModel(cluster)
+                        .map(ingressModel -> ingressModel.requiredSniLoadbalancerPorts(primary))
+                        .orElse(Stream.empty()))
+                .distinct().sorted().toList();
+
+        return Stream.concat(serviceStream, sniLoadbalancerServices(primary, sharedSniLoadbalancerPorts)).collect(toByNameMap());
+    }
+
+    private ObjectMeta serviceMetadata(KafkaProxy primary, String name) {
+        return new ObjectMetaBuilder()
+                .withName(name)
+                .withNamespace(namespace(primary))
+                .addToLabels(standardLabels(primary))
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
+                .build();
+    }
+
+    public Stream<Service> sniLoadbalancerServices(KafkaProxy primary, List<Integer> loadBalancerPorts) {
+        if (loadBalancerPorts.isEmpty()) {
+            return Stream.empty();
+        }
+        else {
+            String serviceName = ResourcesUtil.name(primary) + "-sni";
+            var serviceSpecBuilder = new ServiceBuilder()
+                    .withMetadata(serviceMetadata(primary, serviceName))
+                    .withNewSpec()
+                    .withType("LoadBalancer")
+                    .withSelector(ProxyDeploymentDependentResource.podLabels(primary));
+            for (Integer loadBalancerPort : loadBalancerPorts) {
+                serviceSpecBuilder = serviceSpecBuilder
+                        .addNewPort()
+                        .withName("sni-" + loadBalancerPort)
+                        .withPort(loadBalancerPort)
+                        .withTargetPort(new IntOrString(SHARED_SNI_PORT))
+                        .withProtocol("TCP")
+                        .endPort();
+            }
+            return Stream.of(serviceSpecBuilder.endSpec().build());
+        }
     }
 
     @Override

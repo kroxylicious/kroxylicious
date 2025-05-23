@@ -44,11 +44,11 @@ import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses.Protocol;
@@ -71,6 +71,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.hasKind;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
+import static io.kroxylicious.kubernetes.operator.model.ingress.ClusterIPIngressDefinition.bootstrapServiceName;
 
 /**
  * Reconciles a {@link VirtualKafkaCluster} by checking whether the resources
@@ -403,7 +404,8 @@ public final class VirtualKafkaClusterReconciler implements
                     return cluster.getSpec().getIngresses()
                             .stream()
                             .map(Ingresses::getIngressRef)
-                            .flatMap(ir -> ResourcesUtil.localRefAsResourceId(cluster, new AnyLocalRefBuilder().withName(name + "-" + ir.getName()).build()).stream())
+                            .flatMap(ir -> ResourcesUtil
+                                    .localRefAsResourceId(cluster, new AnyLocalRefBuilder().withName(bootstrapServiceName(cluster, ir.getName())).build()).stream())
                             .collect(Collectors.toSet());
                 })
                 .withSecondaryToPrimaryMapper(kubenetesService -> Optional.of(kubenetesService)
@@ -552,11 +554,7 @@ public final class VirtualKafkaClusterReconciler implements
         if (proxyIngressOpt.isPresent()) {
             KafkaProxyIngress proxyIngress = proxyIngressOpt.get();
 
-            var proxyIngressDefinesTls = proxyIngressOpt
-                    .map(KafkaProxyIngress::getSpec)
-                    .map(KafkaProxyIngressSpec::getClusterIP)
-                    .map(ClusterIP::getProtocol)
-                    .orElse(ClusterIP.Protocol.TCP) == ClusterIP.Protocol.TLS;
+            var proxyIngressDefinesTls = getIngressProtocol(proxyIngress) == ClusterIP.Protocol.TLS;
             var clusterDefinesTls = clusterIngress.getTls() != null;
             if (clusterDefinesTls != proxyIngressDefinesTls) {
                 var slug = ResourcesUtil.namespacedSlug(toLocalRef(proxyIngress), proxyIngress);
@@ -572,6 +570,18 @@ public final class VirtualKafkaClusterReconciler implements
             }
         }
         return null;
+    }
+
+    private static ClusterIP.Protocol getIngressProtocol(KafkaProxyIngress proxyIngress) {
+        ClusterIP clusterIP = proxyIngress.getSpec().getClusterIP();
+        if (clusterIP != null) {
+            return clusterIP.getProtocol();
+        }
+        LoadBalancer loadBalancer = proxyIngress.getSpec().getLoadBalancer();
+        if (loadBalancer != null) {
+            return ClusterIP.Protocol.TLS;
+        }
+        throw new IllegalStateException("No protocol could be determined for " + proxyIngress);
     }
 
 }

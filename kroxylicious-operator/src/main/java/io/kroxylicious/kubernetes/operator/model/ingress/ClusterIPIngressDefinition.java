@@ -8,21 +8,31 @@ package io.kroxylicious.kubernetes.operator.model.ingress;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
-import io.kroxylicious.proxy.tag.VisibleForTesting;
+import io.kroxylicious.proxy.config.NamedRange;
+import io.kroxylicious.proxy.config.NodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
+import io.kroxylicious.proxy.service.HostPort;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
@@ -30,14 +40,15 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static java.lang.Math.toIntExact;
 
 public record ClusterIPIngressDefinition(
-                                         KafkaProxyIngress resource,
+                                         KafkaProxyIngress ingress,
                                          VirtualKafkaCluster cluster,
                                          KafkaProxy primary,
-                                         List<NodeIdRanges> nodeIdRanges)
+                                         List<NodeIdRanges> nodeIdRanges,
+                                         @Nullable Tls tls)
         implements IngressDefinition {
 
     public ClusterIPIngressDefinition {
-        Objects.requireNonNull(resource);
+        Objects.requireNonNull(ingress);
         Objects.requireNonNull(cluster);
         Objects.requireNonNull(primary);
         Objects.requireNonNull(nodeIdRanges);
@@ -46,24 +57,23 @@ public record ClusterIPIngressDefinition(
         }
     }
 
-    public record ClusterIPIngressInstance(ClusterIPIngressDefinition definition, int firstIdentifyingPort, int lastIdentifyingPort)
-            implements IngressInstance {
-        public ClusterIPIngressInstance {
+    private record PortIdentifiesNodeClusterIPIngressModel(ClusterIPIngressDefinition definition, int firstIdentifyingPort, int lastIdentifyingPort)
+            implements IngressModel {
+        public PortIdentifiesNodeClusterIPIngressModel {
             Objects.requireNonNull(definition);
             sanityCheckPortRange(definition, firstIdentifyingPort, lastIdentifyingPort);
         }
 
         @Override
+        public KafkaProxyIngress ingress() {
+            return definition.ingress();
+        }
+
+        @Override
         public Stream<ServiceBuilder> services() {
+            String serviceName = bootstrapServiceName(definition.cluster, name(definition.ingress));
             var serviceSpecBuilder = new ServiceBuilder()
-                    .withNewMetadata()
-                    .withName(serviceName(definition.cluster, definition.resource))
-                    .withNamespace(namespace(definition.cluster))
-                    .addToLabels(standardLabels(definition.primary))
-                    .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(definition.primary)).endOwnerReference()
-                    .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(definition.cluster)).endOwnerReference()
-                    .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(definition.resource)).endOwnerReference()
-                    .endMetadata()
+                    .withMetadata(definition.serviceMetadata(serviceName))
                     .withNewSpec()
                     .withSelector(ProxyDeploymentDependentResource.podLabels(definition.primary));
             for (int i = firstIdentifyingPort; i <= lastIdentifyingPort; i++) {
@@ -78,7 +88,7 @@ public record ClusterIPIngressDefinition(
             return Stream.of(serviceSpecBuilder.endSpec());
         }
 
-        private static void sanityCheckPortRange(ClusterIPIngressDefinition definition, int startPortInc, int endPortInc) {
+        private static void sanityCheckPortRange(ClusterIPIngressDefinition definition, Integer startPortInc, Integer endPortInc) {
             int requiredPorts = definition.numIdentifyingPortsRequired();
             if ((endPortInc - startPortInc + 1) != requiredPorts) {
                 throw new IllegalArgumentException("require " + requiredPorts + " ports");
@@ -97,18 +107,51 @@ public record ClusterIPIngressDefinition(
                     });
             return Stream.concat(bootstrapPort, ingressNodePorts);
         }
+
+        @Override
+        public NodeIdentificationStrategy nodeIdentificationStrategy() {
+            List<NamedRange> portRanges = IntStream.range(0, definition().nodeIdRanges().size()).mapToObj(i -> {
+                NodeIdRanges range = definition().nodeIdRanges().get(i);
+                String name = Optional.ofNullable(range.getName()).orElse("range-" + i);
+                return new NamedRange(name, toIntExact(range.getStart()), toIntExact(range.getEnd()));
+            }).toList();
+            return new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", firstIdentifyingPort()),
+                    definition.qualifiedServiceHost(), null,
+                    portRanges);
+        }
+
+        @Override
+        public Optional<Tls> downstreamTls() {
+            return Optional.ofNullable(definition.tls());
+        }
     }
 
-    @VisibleForTesting
-    public static String serviceName(VirtualKafkaCluster cluster, KafkaProxyIngress resource) {
+    private ObjectMeta serviceMetadata(String name) {
+        return new ObjectMetaBuilder()
+                .withName(name)
+                .withNamespace(namespace(cluster))
+                .addToLabels(standardLabels(primary))
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(cluster)).endOwnerReference()
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(ingress)).endOwnerReference()
+                .build();
+    }
+
+    public static String bootstrapServiceName(VirtualKafkaCluster cluster, String ingressName) {
         Objects.requireNonNull(cluster);
-        Objects.requireNonNull(resource);
-        return name(cluster) + "-" + name(resource);
+        Objects.requireNonNull(ingressName);
+        return name(cluster) + "-" + ingressName;
+    }
+
+    private String qualifiedServiceHost() {
+        return qualified(cluster(), bootstrapServiceName(cluster(), name(ingress())));
     }
 
     @Override
-    public ClusterIPIngressInstance createInstance(int firstIdentifyingPort, int lastIdentifyingPort) {
-        return new ClusterIPIngressInstance(this, firstIdentifyingPort, lastIdentifyingPort);
+    public IngressModel createIngressModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort, @Nullable Integer sharedSniPort) {
+        Objects.requireNonNull(firstIdentifyingPort);
+        Objects.requireNonNull(lastIdentifyingPort);
+        return new PortIdentifiesNodeClusterIPIngressModel(this, firstIdentifyingPort, lastIdentifyingPort);
     }
 
     @Override
@@ -120,6 +163,10 @@ public record ClusterIPIngressDefinition(
     // note: we use CRD validation to enforce end >= start at the apiserver level
     private int nodeCount() {
         return nodeIdRanges.stream().mapToInt(range -> toIntExact((range.getEnd() - range.getStart()) + 1)).sum();
+    }
+
+    public static String qualified(HasMetadata resource, String serviceName) {
+        return serviceName + "." + namespace(resource) + ".svc.cluster.local";
     }
 
 }

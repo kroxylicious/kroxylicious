@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,6 +56,7 @@ public class ProxyDeploymentDependentResource
     private static final int MANAGEMENT_PORT = 9190;
     private static final String MANAGEMENT_PORT_NAME = "management";
     public static final int PROXY_PORT_START = 9292;
+    public static final int SHARED_SNI_PORT = 9291;
     private final String kroxyliciousImage = getOperandImage();
     static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
 
@@ -204,14 +206,19 @@ public class ProxyDeploymentDependentResource
                     .withName(MANAGEMENT_PORT_NAME)
                 .endPort();
         // broker ports
+        AtomicBoolean anyIngressRequiresSharedSniPort = new AtomicBoolean(false);
         clusterResolutionResults.forEach(resolutionResult -> {
             if (!kafkaProxyContext.isBroken(resolutionResult.cluster())) {
                 ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(resolutionResult.cluster()).orElseThrow();
-                for (ProxyIngressModel.IngressModel ingress : virtualClusterIngressModel.ingressModels()) {
+                for (ProxyIngressModel.IngressModelResult ingress : virtualClusterIngressModel.ingressModelResults()) {
                     ingress.proxyContainerPorts().forEach(containerBuilder::addToPorts);
                 }
+                anyIngressRequiresSharedSniPort.compareAndExchange(false, virtualClusterIngressModel.anyIngressRequiresSharedSniPort());
             }
         });
+        if (anyIngressRequiresSharedSniPort.get()) {
+            containerBuilder.addNewPort().withContainerPort(SHARED_SNI_PORT).withName("snared-sni-port").endPort();
+        }
         return containerBuilder.build();
         // @formatter:on
     }

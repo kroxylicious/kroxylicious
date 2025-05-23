@@ -31,7 +31,7 @@ data:
       targetCluster:
         bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
       gateways:
-      - name: "default"
+      - name: "cluster-ip"
         portIdentifiesNode:
           bootstrapAddress: "localhost:9292"
           advertisedBrokerAddressPattern: "one-cluster-ip.proxy-ns.svc.cluster.local"
