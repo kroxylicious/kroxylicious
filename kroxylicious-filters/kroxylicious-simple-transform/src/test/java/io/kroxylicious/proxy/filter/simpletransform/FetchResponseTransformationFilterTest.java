@@ -6,8 +6,12 @@
 
 package io.kroxylicious.proxy.filter.simpletransform;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.Objects;
@@ -35,12 +39,16 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -85,6 +93,8 @@ class FetchResponseTransformationFilterTest {
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
 
+    private static final ObjectMapper MAPPER = ConfigParser.createObjectMapper();
+
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
@@ -123,10 +133,65 @@ class FetchResponseTransformationFilterTest {
     }
 
     @Test
+    void shouldRequireConfigForReplacingFilter() {
+        // Given
+        FetchResponseTransformation factory = new FetchResponseTransformation();
+
+        // When
+        // Then
+        assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
+                .hasMessage(FetchResponseTransformation.class.getSimpleName() + " requires configuration, but config object is null");
+    }
+
+    @Test
+    void shouldConstructReplacingFilter() {
+        FetchResponseTransformation factory = new FetchResponseTransformation();
+        FilterFactoryContext constructContext = mock(FilterFactoryContext.class);
+        doReturn(new Replacing()).when(constructContext).pluginInstance(any(), any());
+        FetchResponseTransformation.Config config = new FetchResponseTransformation.Config(Replacing.class.getName(),
+                new Replacing.Config(null, "foo", "bar", null));
+        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
+    }
+
+    @Test
+    void shouldConstructReplacingFilterWithPath(@TempDir Path tempDir) throws IOException {
+        Path replamventValuePath = Files.createFile(Path.of(tempDir.toAbsolutePath().toString(), "replacement-value.txt"));
+        Files.writeString(replamventValuePath, "bar", StandardCharsets.UTF_8);
+        FetchResponseTransformation factory = new FetchResponseTransformation();
+        FilterFactoryContext constructContext = mock(FilterFactoryContext.class);
+        doReturn(new Replacing()).when(constructContext).pluginInstance(any(), any());
+        FetchResponseTransformation.Config config = new FetchResponseTransformation.Config(Replacing.class.getName(),
+                new Replacing.Config(null, "foo", null, replamventValuePath));
+        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
+    }
+
+    @Test
+    void shouldConstructReplacingFilterWithPathConfig(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path replamventValuePath = Files.createFile(Path.of(tempDir.toAbsolutePath().toString(), "replacement-value.txt"));
+        Path valuePath = Files.writeString(replamventValuePath, "bar", StandardCharsets.UTF_8);
+
+        FetchResponseTransformation.Config config = new FetchResponseTransformation.Config(Replacing.class.getName(),
+                new Replacing.Config(null, "foo", null, Paths.get(valuePath.toUri())));
+        // toUri called so the expected and actual match see
+        // https://github.com/FasterXML/jackson-databind/blob/099481bf725afd11dfd4f3c23eed9465fa3391da/src/main/java/com/fasterxml/jackson/databind/ext/NioPathDeserializer.java#L65
+
+        String snippet = MAPPER.writeValueAsString(config).stripTrailing();
+
+        // When
+        FetchResponseTransformation.Config actual = MAPPER.readValue(snippet, FetchResponseTransformation.Config.class);
+
+        // Then
+        assertThat(actual)
+                .isInstanceOf(FetchResponseTransformation.Config.class)
+                .isEqualTo(config);
+    }
+
+    @Test
     void filterHandlesPreV13ResponseBasedOnTopicNames() throws Exception {
 
         var fetchResponse = new FetchResponseData();
-        fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord(RECORD_KEY, ORIGINAL_RECORD_VALUE).setTopic(TOPIC_NAME)); // Version 12
+        fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord().setTopic(TOPIC_NAME)); // Version 12
 
         var stage = filter.onFetchResponse(fetchResponse.apiKey(), new ResponseHeaderData(), fetchResponse, context);
         assertThat(stage).isCompleted();
@@ -147,7 +212,7 @@ class FetchResponseTransformationFilterTest {
     void filterHandlesV13OrHigherResponseBasedOnTopicIds() throws Exception {
 
         var fetchResponse = new FetchResponseData();
-        fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord(RECORD_KEY, ORIGINAL_RECORD_VALUE).setTopicId(TOPIC_ID));
+        fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord().setTopicId(TOPIC_ID));
 
         var metadataResponse = new MetadataResponseData();
         metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic().setTopicId(TOPIC_ID).setName(TOPIC_NAME));
@@ -185,7 +250,7 @@ class FetchResponseTransformationFilterTest {
 
         var fetchResponse = new FetchResponseData();
         // Version 13 switched to topic id rather than topic names.
-        fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord(RECORD_KEY, ORIGINAL_RECORD_VALUE).setTopicId(TOPIC_ID));
+        fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord().setTopicId(TOPIC_ID));
 
         var metadataResponse = new MetadataResponseData();
         metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic().setTopicId(TOPIC_ID).setName(TOPIC_NAME));
@@ -212,19 +277,19 @@ class FetchResponseTransformationFilterTest {
     }
 
     @NonNull
-    private static FetchableTopicResponse createFetchableTopicResponseWithOneRecord(String key, String value) {
+    private static FetchableTopicResponse createFetchableTopicResponseWithOneRecord() {
         var fetchableTopicResponse = new FetchableTopicResponse();
         var partitionData1 = new PartitionData();
-        partitionData1.setRecords(buildOneRecord(key, value));
+        partitionData1.setRecords(buildOneRecord());
         fetchableTopicResponse.partitions().add(partitionData1);
         return fetchableTopicResponse;
     }
 
-    private static MemoryRecords buildOneRecord(String key, String value) {
+    private static MemoryRecords buildOneRecord() {
         ByteBuffer buffer = ByteBuffer.allocate(1024);
         try (MemoryRecordsBuilder builder = MemoryRecords.builder(buffer, RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE, TimestampType.CREATE_TIME, 0L, System.currentTimeMillis())) {
-            builder.append(0L, key.getBytes(), value.getBytes());
+            builder.append(0L, FetchResponseTransformationFilterTest.RECORD_KEY.getBytes(), FetchResponseTransformationFilterTest.ORIGINAL_RECORD_VALUE.getBytes());
             return builder.build();
         }
     }
