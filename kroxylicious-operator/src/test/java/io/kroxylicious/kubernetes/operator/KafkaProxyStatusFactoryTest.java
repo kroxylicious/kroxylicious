@@ -29,9 +29,9 @@ class KafkaProxyStatusFactoryTest {
     // @formatter:off
     public static final KafkaProxy KAFKA_PROXY = new KafkaProxyBuilder()
             .withNewMetadata()
-            .withName("kafkaProxy")
-            .withGeneration(42L)
-            .withUid(UUID.randomUUID().toString())
+              .withName("kafkaProxy")
+                .withGeneration(42L)
+                .withUid(UUID.randomUUID().toString())
             .endMetadata()
             .withNewSpec()
             .endSpec()
