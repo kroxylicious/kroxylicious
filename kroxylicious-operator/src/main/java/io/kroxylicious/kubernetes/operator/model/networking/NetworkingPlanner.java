@@ -72,8 +72,7 @@ public class NetworkingPlanner {
         Stream<ClusterIngressNetworkingDefinition> networkingDefinitions = planClusterIngressNetworkingDefinitions(primary, clusterResolutionResult);
         List<ClusterIngressNetworkingModelResult> ingressResults = networkingDefinitions.map(networkingDefinition -> {
             int toAllocate = networkingDefinition.numIdentifyingPortsRequired();
-            Integer firstIdentifyingPort = null;
-            Integer lastIdentifyingPort = null;
+            PortAllocation identifyingPortAllocation = PortAllocation.empty();
             IngressConflictException exception = null;
             if (toAllocate != 0) {
                 if (identifyingPorts.get() != PROXY_PORT_START) {
@@ -81,11 +80,9 @@ public class NetworkingPlanner {
                             "Currently we do not support a virtual cluster with multiple ingresses that need unique ports to identify which node the "
                                     + "client is connecting to. We currently do not have a sufficient strategy for port allocation for this case. See https://github.com/kroxylicious/kroxylicious/issues/1902");
                 }
-                firstIdentifyingPort = identifyingPorts.get();
-                lastIdentifyingPort = identifyingPorts.addAndGet(toAllocate) - 1;
+                identifyingPortAllocation = PortAllocation.range(identifyingPorts.get(), identifyingPorts.addAndGet(toAllocate) - 1);
             }
-            ClusterIngressNetworkingModel networkingModel = networkingDefinition.createNetworkingModel(
-                    new PortRange(firstIdentifyingPort, lastIdentifyingPort));
+            ClusterIngressNetworkingModel networkingModel = networkingDefinition.createNetworkingModel(identifyingPortAllocation);
             return new ClusterIngressNetworkingModelResult(networkingModel, exception);
         }).toList();
         return new ClusterNetworkingModel(clusterResolutionResult.cluster(), ingressResults);
@@ -151,7 +148,7 @@ public class NetworkingPlanner {
          * @param identifyingPortRange the range of identifying ports, if required, null otherwise
          * @return a non-null ClusterIngressNetworkingModel
          */
-        ClusterIngressNetworkingModel createNetworkingModel(@Nullable PortRange identifyingPortRange);
+        ClusterIngressNetworkingModel createNetworkingModel(@Nullable PortAllocation identifyingPortRange);
 
         /**
          * Some Ingress strategies require a set of ports in the proxy pod to be unique and exclusive so that the Proxy
@@ -171,7 +168,7 @@ public class NetworkingPlanner {
             implements ClusterIngressNetworkingDefinition {
 
         @Override
-        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable PortRange identifyingPortRange) {
+        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable PortAllocation identifyingPortRange) {
             Objects.requireNonNull(identifyingPortRange);
             return new ClusterIPClusterIngressNetworkingModel(primary, cluster, ingress, nodeIdRanges, tls, identifyingPortRange);
         }

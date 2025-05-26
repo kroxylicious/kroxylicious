@@ -7,7 +7,6 @@
 package io.kroxylicious.kubernetes.operator.model.networking;
 
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.ContainerPort;
@@ -69,5 +68,5 @@ public interface ClusterIngressNetworkingModel {
      */
     Optional<Tls> downstreamTls();
 
-    Set<PortRange> proxyContainerIdentifyingPortRanges();
+    PortAllocation proxyContainerIdentifyingPortRanges();
 }

@@ -100,7 +100,7 @@ class ClusterIPClusterIngressNetworkingModelTest {
         List<NodeIdRanges> nodeIdRange = List.of(createNodeIdRange("a", 1L, 3L));
         // when
         ClusterIPClusterIngressNetworkingModel model = new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                nodeIdRange, null, new PortRange(1, 4));
+                nodeIdRange, null, PortAllocation.range(1, 4));
         // then
         assertThat(model).isNotNull();
     }
@@ -113,7 +113,7 @@ class ClusterIPClusterIngressNetworkingModelTest {
         // then
         // more ports than the 4 required by the node id range + 1 for bootstrap
         assertThatThrownBy(() -> new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                nodeIdRange, null, new PortRange(1, 5))).isInstanceOf(IllegalArgumentException.class);
+                nodeIdRange, null, PortAllocation.range(1, 5))).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -125,7 +125,7 @@ class ClusterIPClusterIngressNetworkingModelTest {
         // then
         // more ports than the 4 required by the node id range + 1 for bootstrap
         assertThatThrownBy(() -> new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                nodeIdRange, null, new PortRange(1, 3))).isInstanceOf(IllegalArgumentException.class);
+                nodeIdRange, null, PortAllocation.range(1, 3))).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -137,7 +137,7 @@ class ClusterIPClusterIngressNetworkingModelTest {
         List<NodeIdRanges> nodeIdRange = List.of(createNodeIdRange(rangeName, rangeStart, rangeEnd));
         // 3 ports for the nodeId range + 1 for bootstrap
         ClusterIngressNetworkingModel instance = new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                nodeIdRange, null, new PortRange(1, 4));
+                nodeIdRange, null, PortAllocation.range(1, 4));
         assertThat(instance).isNotNull();
 
         // when
@@ -163,7 +163,7 @@ class ClusterIPClusterIngressNetworkingModelTest {
         // given
         // 3 ports for the nodeId range + 1 for bootstrap
         ClusterIngressNetworkingModel instance = new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                List.of(createNodeIdRange("a", 1, 3)), null, new PortRange(1, 4));
+                List.of(createNodeIdRange("a", 1, 3)), null, PortAllocation.range(1, 4));
         assertThat(instance).isNotNull();
         assertThat(instance).isNotNull();
 
@@ -204,7 +204,7 @@ class ClusterIPClusterIngressNetworkingModelTest {
     void serviceCommonSpec() {
         // given
         ClusterIngressNetworkingModel instance = new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                List.of(createNodeIdRange("a", 1, 3)), null, new PortRange(1, 4));
+                List.of(createNodeIdRange("a", 1, 3)), null, PortAllocation.range(1, 4));
 
         // when
         List<ServiceBuilder> serviceBuilders = instance.services().toList();
@@ -226,7 +226,7 @@ class ClusterIPClusterIngressNetworkingModelTest {
         // given
         // 3 ports for the nodeId range + 1 for bootstrap
         ClusterIngressNetworkingModel instance = new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                List.of(createNodeIdRange("a", 1, 3)), null, new PortRange(1, 4));
+                List.of(createNodeIdRange("a", 1, 3)), null, PortAllocation.range(1, 4));
 
         assertThat(instance).isNotNull();
 
@@ -254,7 +254,7 @@ class ClusterIPClusterIngressNetworkingModelTest {
         // given
         // 2 ports for the nodeId ranges + 1 for bootstrap
         ClusterIngressNetworkingModel instance = new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                List.of(createNodeIdRange("a", 1, 1), createNodeIdRange("b", 3, 3)), null, new PortRange(1, 3));
+                List.of(createNodeIdRange("a", 1, 1), createNodeIdRange("b", 3, 3)), null, PortAllocation.range(1, 3));
 
         assertThat(instance).isNotNull();
 
@@ -288,7 +288,7 @@ class ClusterIPClusterIngressNetworkingModelTest {
 
         // 5 ports for the nodeId ranges + 1 for bootstrap
         ClusterIngressNetworkingModel instance = new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                nodeIdRange, null, new PortRange(2, 7));
+                nodeIdRange, null, PortAllocation.range(2, 7));
 
         assertThat(instance).isNotNull();
 
@@ -323,7 +323,7 @@ class ClusterIPClusterIngressNetworkingModelTest {
         int rangeEnd2 = 6;
         // 5 ports for the nodeId ranges + 1 for bootstrap
         ClusterIngressNetworkingModel instance = new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                List.of(createNodeIdRange(rangeName, rangeStart, rangeEnd), createNodeIdRange(rangeName2, rangeStart2, rangeEnd2)), null, new PortRange(2, 7));
+                List.of(createNodeIdRange(rangeName, rangeStart, rangeEnd), createNodeIdRange(rangeName2, rangeStart2, rangeEnd2)), null, PortAllocation.range(2, 7));
 
         assertThat(instance).isNotNull();
 
@@ -355,14 +355,14 @@ class ClusterIPClusterIngressNetworkingModelTest {
     @Test
     void rangesMustBeNonEmpty() {
         List<NodeIdRanges> nodeIdRanges = List.of();
-        assertThatThrownBy(() -> new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS, nodeIdRanges, null, new PortRange(1, 3)))
+        assertThatThrownBy(() -> new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS, nodeIdRanges, null, PortAllocation.range(1, 3)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     void proxyContainerPortsSingleRange() {
         ClusterIngressNetworkingModel instance = new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                List.of(createNodeIdRange("a", 1, 3)), null, new PortRange(1, 4));
+                List.of(createNodeIdRange("a", 1, 3)), null, PortAllocation.range(1, 4));
 
         assertThat(instance).isNotNull();
         assertThat(instance.proxyContainerPorts())
@@ -375,7 +375,7 @@ class ClusterIPClusterIngressNetworkingModelTest {
     @Test
     void proxyContainerPortsMultipleRanges() {
         ClusterIngressNetworkingModel instance = new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                List.of(createNodeIdRange("a", 1L, 1L), createNodeIdRange("b", 3L, 4L)), null, new PortRange(1, 4));
+                List.of(createNodeIdRange("a", 1L, 1L), createNodeIdRange("b", 3L, 4L)), null, PortAllocation.range(1, 4));
 
         assertThat(instance).isNotNull();
         assertThat(instance.proxyContainerPorts())
@@ -387,10 +387,12 @@ class ClusterIPClusterIngressNetworkingModelTest {
 
     public static Stream<Arguments> constructorArgsMustBeNonNull() {
         List<NodeIdRanges> nodeIdRanges = List.of(NODE_ID_RANGE);
-        ThrowingCallable nullIngress = () -> new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, null, nodeIdRanges, null, new PortRange(1, 4));
-        ThrowingCallable nullVirtualCluster = () -> new ClusterIPClusterIngressNetworkingModel(PROXY, null, INGRESS, nodeIdRanges, null, new PortRange(1, 4));
-        ThrowingCallable nullProxy = () -> new ClusterIPClusterIngressNetworkingModel(null, VIRTUAL_KAFKA_CLUSTER, INGRESS, nodeIdRanges, null, new PortRange(1, 4));
-        ThrowingCallable nullRanges = () -> new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS, null, null, new PortRange(1, 4));
+        ThrowingCallable nullIngress = () -> new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, null, nodeIdRanges, null,
+                PortAllocation.range(1, 4));
+        ThrowingCallable nullVirtualCluster = () -> new ClusterIPClusterIngressNetworkingModel(PROXY, null, INGRESS, nodeIdRanges, null, PortAllocation.range(1, 4));
+        ThrowingCallable nullProxy = () -> new ClusterIPClusterIngressNetworkingModel(null, VIRTUAL_KAFKA_CLUSTER, INGRESS, nodeIdRanges, null,
+                PortAllocation.range(1, 4));
+        ThrowingCallable nullRanges = () -> new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS, null, null, PortAllocation.range(1, 4));
         return Stream.of(argumentSet("ingress", nullIngress),
                 argumentSet("virtualCluster", nullVirtualCluster),
                 argumentSet("proxy", nullProxy),

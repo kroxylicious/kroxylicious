@@ -9,7 +9,6 @@ package io.kroxylicious.kubernetes.operator.model.networking;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -45,7 +44,7 @@ public record ClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
                                                      KafkaProxyIngress ingress,
                                                      List<NodeIdRanges> nodeIdRanges,
                                                      @Nullable Tls tls,
-                                                     PortRange identifyingPortRange)
+                                                     PortAllocation portAllocation)
         implements ClusterIngressNetworkingModel {
 
     public ClusterIPClusterIngressNetworkingModel {
@@ -57,9 +56,9 @@ public record ClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
             throw new IllegalArgumentException("nodeIdRanges cannot be empty");
         }
         int numIdentifyingPortsRequired = numIdentifyingPortsRequired(nodeIdRanges);
-        if (numIdentifyingPortsRequired != identifyingPortRange.portCount()) {
+        if (numIdentifyingPortsRequired != portAllocation.portCount()) {
             throw new IllegalArgumentException("number of identifying ports allocated %d does not match the number required %d"
-                    .formatted(identifyingPortRange.portCount(), numIdentifyingPortsRequired));
+                    .formatted(portAllocation.portCount(), numIdentifyingPortsRequired));
         }
     }
 
@@ -76,15 +75,15 @@ public record ClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
                 .withMetadata(serviceMetadata(serviceName))
                 .withNewSpec()
                 .withSelector(ProxyDeploymentDependentResource.podLabels(proxy));
-        for (int i = identifyingPortRange.firstPort(); i <= identifyingPortRange.lastPort(); i++) {
-            serviceSpecBuilder = serviceSpecBuilder
+        portAllocation.getPorts().forEach(port -> {
+            serviceSpecBuilder
                     .addNewPort()
-                    .withName(name(cluster) + "-" + i)
-                    .withPort(i)
-                    .withTargetPort(new IntOrString(i))
+                    .withName(name(cluster) + "-" + port)
+                    .withPort(port)
+                    .withTargetPort(new IntOrString(port))
                     .withProtocol("TCP")
                     .endPort();
-        }
+        });
         return Stream.of(serviceSpecBuilder.endSpec());
     }
 
@@ -106,13 +105,13 @@ public record ClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
 
     @Override
     public Stream<ContainerPort> proxyContainerPorts() {
-        Stream<ContainerPort> bootstrapPort = Stream.of(new ContainerPortBuilder().withContainerPort(identifyingPortRange.firstPort())
-                .withName(identifyingPortRange.firstPort() + "-bootstrap").build());
+        Stream<ContainerPort> bootstrapPort = Stream.of(new ContainerPortBuilder().withContainerPort(portAllocation.firstPort())
+                .withName(portAllocation.firstPort() + "-bootstrap").build());
         // subtract one for the bootstrap
-        int nodeCount = identifyingPortRange.portCount() - 1;
+        int nodeCount = portAllocation.portCount() - 1;
         Stream<ContainerPort> ingressNodePorts = IntStream.range(0, nodeCount).mapToObj(
                 nodeIdx -> {
-                    int port = identifyingPortRange.firstPort() + nodeIdx + 1;
+                    int port = portAllocation.firstPort() + nodeIdx + 1;
                     return new ContainerPortBuilder().withContainerPort(port)
                             .withName(port + "-node").build();
                 });
@@ -126,7 +125,7 @@ public record ClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
             String name = Optional.ofNullable(range.getName()).orElse("range-" + i);
             return new NamedRange(name, toIntExact(range.getStart()), toIntExact(range.getEnd()));
         }).toList();
-        return new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", identifyingPortRange.firstPort()),
+        return new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", portAllocation.firstPort()),
                 crossNamespaceServiceAddress(),
                 null,
                 portRanges);
@@ -145,8 +144,8 @@ public record ClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     @Override
-    public Set<PortRange> proxyContainerIdentifyingPortRanges() {
-        return Set.of(identifyingPortRange());
+    public PortAllocation proxyContainerIdentifyingPortRanges() {
+        return portAllocation;
     }
 
     public static int numIdentifyingPortsRequired(List<NodeIdRanges> nodeIdRanges) {
