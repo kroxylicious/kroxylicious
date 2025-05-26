@@ -74,7 +74,7 @@ class ReplacingTest {
         // Given
         Path replacementPath = tempDir.resolve(TOPIC_NAME + ".txt");
         Files.writeString(replacementPath, REPLACEMENT_VALUE, StandardCharsets.UTF_8);
-        Replacing.Config replaceFromFileConfig = new Replacing.Config(null, TARGET_PATTERN, null, replacementPath.toAbsolutePath().toString());
+        Replacing.Config replaceFromFileConfig = new Replacing.Config(null, TARGET_PATTERN, null, replacementPath);
         Replacing.Transformation transformation = replacing.createTransformation(replaceFromFileConfig);
         ByteBuffer expected = ByteBuffer.wrap(REPLACEMENT_VALUE.getBytes(StandardCharsets.UTF_8));
 
@@ -93,7 +93,7 @@ class ReplacingTest {
         // Given
         Path replacementPath = tempDir.resolve(TOPIC_NAME + ".txt");
         Files.createFile(replacementPath);
-        Replacing.Config replaceFromFileConfig = new Replacing.Config(null, TARGET_PATTERN, null, replacementPath.toAbsolutePath().toString());
+        Replacing.Config replaceFromFileConfig = new Replacing.Config(null, TARGET_PATTERN, null, replacementPath);
         Replacing.Transformation transformation = replacing.createTransformation(replaceFromFileConfig);
         ByteBuffer expected = ByteBuffer.wrap(EMPTY_STRING_BYTES);
 
@@ -147,12 +147,12 @@ class ReplacingTest {
         // Given
         Path replacementPath = tempDir.resolve(TOPIC_NAME + ".txt");
         Files.createFile(replacementPath);
-        Replacing.Config config = new Replacing.Config(null, TARGET_PATTERN, REPLACEMENT_VALUE, replacementPath.toAbsolutePath().toString());
+        Replacing.Config config = new Replacing.Config(null, TARGET_PATTERN, REPLACEMENT_VALUE, replacementPath);
 
         // When
         // Then
         assertThatThrownBy(() -> replacing.validateConfiguration(config))
-                .hasMessageContaining("Both replacementValue and replaceFrom are specified.")
+                .hasMessageContaining("Both replacementValue and pathToReplacementValue are specified.")
                 .isInstanceOf(PluginConfigurationException.class);
     }
 
@@ -180,7 +180,7 @@ class ReplacingTest {
         writeOnlyPermissions.removeAll(Set.of(PosixFilePermission.OWNER_READ, PosixFilePermission.GROUP_READ, PosixFilePermission.OTHERS_READ));
         writeOnlyPermissions.add(PosixFilePermission.OWNER_WRITE); // make sure we can still cleanup
         Files.setPosixFilePermissions(replacementPath, writeOnlyPermissions);
-        Replacing.Config config = new Replacing.Config(null, TARGET_PATTERN, null, replacementPath.toAbsolutePath().toString());
+        Replacing.Config config = new Replacing.Config(null, TARGET_PATTERN, null, replacementPath);
 
         // When
         // Then

@@ -28,13 +28,13 @@ public class Replacing implements ByteBufferTransformationFactory<Replacing.Conf
                          @JsonProperty String charset,
                          @JsonProperty(required = true) String targetPattern,
                          @JsonProperty String replacementValue,
-                         @JsonProperty String replaceFrom) {
+                         @JsonProperty Path pathToReplacementValue) {
         public Config(@JsonProperty String charset, @JsonProperty(required = true) String targetPattern, @JsonProperty String replacementValue,
-                      @JsonProperty String replaceFrom) {
+                      @JsonProperty Path pathToReplacementValue) {
             this.charset = Optional.ofNullable(charset).orElse(StandardCharsets.UTF_8.name());
             this.targetPattern = targetPattern;
             this.replacementValue = replacementValue;
-            this.replaceFrom = replaceFrom;
+            this.pathToReplacementValue = pathToReplacementValue;
         }
     }
 
@@ -50,13 +50,12 @@ public class Replacing implements ByteBufferTransformationFactory<Replacing.Conf
         catch (UnsupportedCharsetException e) {
             throw new PluginConfigurationException("Unsupported charset: " + config.charset + "'");
         }
-        if (config.replacementValue != null && config.replaceFrom != null) {
-            throw new PluginConfigurationException("Both replacementValue and replaceFrom are specified. MAKE UP YOUR MIND");
+        if (config.replacementValue != null && config.pathToReplacementValue != null) {
+            throw new PluginConfigurationException("Both replacementValue and pathToReplacementValue are specified. MAKE UP YOUR MIND");
         }
-        if (config.replaceFrom != null) {
-            Path path = Path.of(config.replaceFrom);
-            if (!Files.isReadable(path)) {
-                throw new PluginConfigurationException("Path: '" + path + "' is not readable. ");
+        if (config.pathToReplacementValue != null) {
+            if (!Files.isReadable(config.pathToReplacementValue)) {
+                throw new PluginConfigurationException("Path: '" + config.pathToReplacementValue + "' is not readable. ");
             }
         }
     }
@@ -76,8 +75,8 @@ public class Replacing implements ByteBufferTransformationFactory<Replacing.Conf
             this.charset = Charset.forName(Optional.ofNullable(config.charset()).orElse(StandardCharsets.UTF_8.name()));
             this.targetPattern = config.targetPattern;
             try {
-                if (config.replaceFrom != null) {
-                    this.replaceWith = Files.readString(Path.of(config.replaceFrom));
+                if (config.pathToReplacementValue != null) {
+                    this.replaceWith = Files.readString(config.pathToReplacementValue);
                 }
                 else {
                     this.replaceWith = Objects.requireNonNullElse(config.replacementValue, "");

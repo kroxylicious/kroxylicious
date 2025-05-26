@@ -183,7 +183,7 @@ class OperatorChangeDetectionST extends AbstractST {
                         .withNewSpec()
                         .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
                         .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",
-                                Map.of("findPattern", "foo", "replaceFrom", "${secret:kilted-kiwi:tls.key}")))
+                                Map.of("findPattern", "foo", "pathToReplacementValue", "${secret:kilted-kiwi:tls.key}")))
                         .endSpec());
 
         KubeClient kubeClient = kubeClient(namespace);

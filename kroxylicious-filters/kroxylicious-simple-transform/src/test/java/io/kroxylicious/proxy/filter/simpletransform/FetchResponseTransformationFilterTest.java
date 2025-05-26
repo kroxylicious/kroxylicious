@@ -6,8 +6,12 @@
 
 package io.kroxylicious.proxy.filter.simpletransform;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.Objects;
@@ -35,12 +39,16 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.stubbing.Answer;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -84,6 +92,8 @@ class FetchResponseTransformationFilterTest {
 
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
+
+    private static final ObjectMapper MAPPER = ConfigParser.createObjectMapper();
 
     @BeforeEach
     @SuppressWarnings("unchecked")
@@ -132,6 +142,42 @@ class FetchResponseTransformationFilterTest {
         FetchResponseTransformation.Config config = new FetchResponseTransformation.Config(Replacing.class.getName(),
                 new Replacing.Config(null, "foo", "bar", null));
         assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
+    }
+
+    @Test
+    void shouldConstructReplacingFilterWithPath(@TempDir Path tempDir) throws IOException {
+        Path replamventValuePath = Files.createFile(Path.of(tempDir.toAbsolutePath().toString(), "replacement-value.txt"));
+        Files.writeString(replamventValuePath, "bar", StandardCharsets.UTF_8);
+        FetchResponseTransformation factory = new FetchResponseTransformation();
+        assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
+                .hasMessage(FetchResponseTransformation.class.getSimpleName() + " requires configuration, but config object is null");
+        FilterFactoryContext constructContext = mock(FilterFactoryContext.class);
+        doReturn(new Replacing()).when(constructContext).pluginInstance(any(), any());
+        FetchResponseTransformation.Config config = new FetchResponseTransformation.Config(Replacing.class.getName(),
+                new Replacing.Config(null, "foo", null, replamventValuePath));
+        assertThat(factory.createFilter(constructContext, config)).isInstanceOf(FetchResponseTransformationFilter.class);
+    }
+
+    @Test
+    void shouldConstructReplacingFilterWithPathConfig(@TempDir Path tempDir) throws IOException {
+        // Given
+        Path replamventValuePath = Files.createFile(Path.of(tempDir.toAbsolutePath().toString(), "replacement-value.txt"));
+        Path valuePath = Files.writeString(replamventValuePath, "bar", StandardCharsets.UTF_8);
+
+        FetchResponseTransformation.Config config = new FetchResponseTransformation.Config(Replacing.class.getName(),
+                new Replacing.Config(null, "foo", null, Paths.get(valuePath.toUri())));
+        // toUri called so the expected and actual match see
+        // https://github.com/FasterXML/jackson-databind/blob/099481bf725afd11dfd4f3c23eed9465fa3391da/src/main/java/com/fasterxml/jackson/databind/ext/NioPathDeserializer.java#L65
+
+        String snippet = MAPPER.writeValueAsString(config).stripTrailing();
+
+        // When
+        FetchResponseTransformation.Config actual = MAPPER.readValue(snippet, FetchResponseTransformation.Config.class);
+
+        // Then
+        assertThat(actual)
+                .isInstanceOf(FetchResponseTransformation.Config.class)
+                .isEqualTo(config);
     }
 
     @Test
