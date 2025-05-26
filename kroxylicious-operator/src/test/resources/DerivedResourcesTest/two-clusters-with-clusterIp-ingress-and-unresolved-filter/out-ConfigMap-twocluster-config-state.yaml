@@ -17,9 +17,9 @@ metadata:
   name: "twocluster-config-state"
   namespace: "proxy-ns"
   ownerReferences:
-    - apiVersion: "kroxylicious.io/v1alpha1"
-      kind: "KafkaProxy"
-      name: "twocluster"
+  - apiVersion: "kroxylicious.io/v1alpha1"
+    kind: "KafkaProxy"
+    name: "twocluster"
 data:
   cluster-bar: |-
     ---
@@ -48,9 +48,9 @@ data:
       conditions:
       - observedGeneration: 2
         type: "Accepted"
-        status: "False"
+        status: "True"
         lastTransitionTime: "1970-01-01T00:00:00Z"
-        reason: "Invalid"
-        message: "Ingress(es) [cluster-ip-foo] of cluster conflicts with another ingress"
+        reason: "Accepted"
+        message: ""
       ingresses: []
       observedGeneration: 2

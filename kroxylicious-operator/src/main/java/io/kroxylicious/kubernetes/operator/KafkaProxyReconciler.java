@@ -26,6 +26,10 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
@@ -65,6 +69,7 @@ import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.ProxyModelBuilder;
 import io.kroxylicious.kubernetes.operator.model.networking.ClusterIngressNetworkingModel;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
+import io.kroxylicious.kubernetes.operator.model.networking.allocation.Allocation;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import io.kroxylicious.proxy.config.Configuration;
@@ -135,6 +140,7 @@ public class KafkaProxyReconciler implements
     private static final Path VIRTUAL_CLUSTER_MOUNTS_BASE = MOUNTS_BASE_DIR.resolve("virtual-cluster");
     private static final Path SERVER_CERTS_BASE_DIR = VIRTUAL_CLUSTER_MOUNTS_BASE.resolve("server-certs");
     private static final Path SERVER_TRUSTED_CERTS_BASE_DIR = VIRTUAL_CLUSTER_MOUNTS_BASE.resolve("trusted-certs");
+    public static final String PORT_ALLOCATION_ANNOTATION_KEY = "kroxylicious.io/port-allocation";
 
     private final Clock clock;
     private final SecureConfigInterpolator secureConfigInterpolator;
@@ -151,7 +157,10 @@ public class KafkaProxyReconciler implements
                             KafkaProxy proxy,
                             Context<KafkaProxy> context) {
         ProxyModelBuilder proxyModelBuilder = ProxyModelBuilder.contextBuilder();
-        ProxyModel model = proxyModelBuilder.build(proxy, context);
+        List<Allocation> allocations = Optional.ofNullable(proxy.getMetadata().getAnnotations().get(PORT_ALLOCATION_ANNOTATION_KEY))
+                .map(KafkaProxyReconciler::fromPortAllocationString)
+                .orElse(List.of());
+        ProxyModel model = proxyModelBuilder.build(proxy, context, allocations);
         boolean hasClusters = !model.clustersWithValidNetworking().isEmpty();
         ConfigurationFragment<Configuration> fragment = null;
         if (hasClusters) {
@@ -392,11 +401,35 @@ public class KafkaProxyReconciler implements
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
-        var uc = UpdateControl.patchStatus(statusFactory.newTrueConditionStatusPatch(primary, Condition.Type.Ready, ""));
+        ProxyNetworkingModel networkingModel = KafkaProxyContext.proxyContext(context).model().networkingModel();
+        String portAllocationString = toPortAllocationString(networkingModel);
+        KafkaProxy annotatedPrimary = primary.edit().editMetadata().addToAnnotations(PORT_ALLOCATION_ANNOTATION_KEY, portAllocationString).endMetadata().build();
+        var uc = UpdateControl.patchResourceAndStatus(statusFactory.newTrueConditionStatusPatch(annotatedPrimary, Condition.Type.Ready, ""));
         if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Completed reconciliation of {}/{}", namespace(primary), name(primary));
+            LOGGER.info("Completed reconciliation of {}/{}", namespace(annotatedPrimary), name(annotatedPrimary));
         }
         return uc;
+    }
+
+    private static String toPortAllocationString(ProxyNetworkingModel networkingModel) {
+        List<Allocation> allocations = networkingModel.portAllocations().stream()
+                .sorted(Comparator.comparing(a -> a.range().firstPort())).toList();
+        try {
+            return new ObjectMapper().writeValueAsString(allocations);
+        }
+        catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static List<Allocation> fromPortAllocationString(String string) {
+        try {
+            return new ObjectMapper().readValue(string, new TypeReference<List<Allocation>>() {
+            });
+        }
+        catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**

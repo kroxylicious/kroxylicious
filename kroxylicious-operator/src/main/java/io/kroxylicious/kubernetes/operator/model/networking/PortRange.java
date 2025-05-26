@@ -30,4 +30,11 @@ public record PortRange(int firstPort, int lastPort) {
         return lastPort - firstPort + 1;
     }
 
+    public boolean overlaps(PortRange portRange) {
+        return portRange.firstPort <= this.lastPort && this.firstPort <= portRange.lastPort;
+    }
+
+    public boolean contains(PortRange portRange) {
+        return this.firstPort <= portRange.firstPort && this.lastPort >= portRange.lastPort;
+    }
 }

@@ -1,0 +1,53 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: "v1"
+kind: "Service"
+metadata:
+  labels:
+    app.kubernetes.io/part-of: "kafka"
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
+    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/instance: "twocluster"
+    app.kubernetes.io/component: "proxy"
+  name: "foo-cluster-ip-foo"
+  namespace: "proxy-ns"
+  ownerReferences:
+  - apiVersion: "kroxylicious.io/v1alpha1"
+    kind: "KafkaProxy"
+    name: "twocluster"
+  - apiVersion: "kroxylicious.io/v1alpha1"
+    kind: "VirtualKafkaCluster"
+    name: "foo"
+  - apiVersion: "kroxylicious.io/v1alpha1"
+    kind: "KafkaProxyIngress"
+    name: "cluster-ip-foo"
+spec:
+  ports:
+  - name: "foo-9296"
+    port: 9296
+    protocol: "TCP"
+    targetPort: 9296
+  - name: "foo-9297"
+    port: 9297
+    protocol: "TCP"
+    targetPort: 9297
+  - name: "foo-9298"
+    port: 9298
+    protocol: "TCP"
+    targetPort: 9298
+  - name: "foo-9299"
+    port: 9299
+    protocol: "TCP"
+    targetPort: 9299
+  selector:
+    app: "kroxylicious"
+    app.kubernetes.io/part-of: "kafka"
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
+    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/instance: "twocluster"
+    app.kubernetes.io/component: "proxy"

@@ -30,6 +30,7 @@ public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
                     .withUid(ResourcesUtil.uid(observedProxy))
                     .withName(ResourcesUtil.name(observedProxy))
                     .withNamespace(ResourcesUtil.namespace(observedProxy))
+                    .withAnnotations(observedProxy.getMetadata().getAnnotations())
                 .endMetadata()
                 .withNewStatus()
                     .withObservedGeneration(ResourcesUtil.generation(observedProxy))

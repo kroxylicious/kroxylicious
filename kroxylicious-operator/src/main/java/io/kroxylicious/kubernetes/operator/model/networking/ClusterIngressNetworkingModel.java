@@ -68,5 +68,5 @@ public interface ClusterIngressNetworkingModel {
      */
     Optional<Tls> downstreamTls();
 
-    PortAllocation proxyContainerIdentifyingPortRanges();
+    PortAllocation proxyContainerPortAllocation();
 }

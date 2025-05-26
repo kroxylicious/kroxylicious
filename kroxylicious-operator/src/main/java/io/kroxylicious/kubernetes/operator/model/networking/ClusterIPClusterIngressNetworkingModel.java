@@ -144,7 +144,7 @@ public record ClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     @Override
-    public PortAllocation proxyContainerIdentifyingPortRanges() {
+    public PortAllocation proxyContainerPortAllocation() {
         return portAllocation;
     }
 

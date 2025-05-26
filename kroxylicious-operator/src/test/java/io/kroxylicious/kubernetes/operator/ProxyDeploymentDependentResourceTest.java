@@ -67,7 +67,7 @@ class ProxyDeploymentDependentResourceTest {
         kafkaService = new KafkaServiceBuilder().withNewMetadata().withName(PROXY_NAME).endMetadata().build();
         virtualKafkaCluster = new VirtualKafkaClusterBuilder().build();
 
-        proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), List.of(clusterResolutionResultFor(virtualKafkaCluster)));
+        proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of(), List.of()), List.of(clusterResolutionResultFor(virtualKafkaCluster)));
 
         var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext<>(null, kafkaProxy, kubernetesContext);
         resourceContext.put(Crc32ChecksumGenerator.CHECKSUM_CONTEXT_KEY, metadataChecksumGenerator);
@@ -105,7 +105,7 @@ class ProxyDeploymentDependentResourceTest {
         List<ClusterResolutionResult> clusterResolutionResults = List.of(
                 clusterResolutionResultFor(virtualKafkaCluster),
                 clusterResolutionResultFor(virtualKafkaClusterB));
-        proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), clusterResolutionResults);
+        proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of(), List.of()), clusterResolutionResults);
         ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
 
         // When

@@ -17,6 +17,7 @@ import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
 import io.kroxylicious.kubernetes.operator.model.networking.NetworkingPlanner;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
+import io.kroxylicious.kubernetes.operator.model.networking.allocation.Allocation;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
@@ -35,7 +36,7 @@ public class ProxyModelBuilder {
         this.resolver = resolver;
     }
 
-    public ProxyModel build(KafkaProxy primary, Context<KafkaProxy> context) {
+    public ProxyModel build(KafkaProxy primary, Context<KafkaProxy> context, List<Allocation> priorAllocations) {
         ProxyResolutionResult resolutionResult = resolver.resolveProxyRefs(primary, context);
         if (!resolutionResult.allReferentsHaveFreshStatus()) {
             String resources = resolutionResult.allReferentsWithStaleStatus().map(it -> ResourcesUtil.namespacedSlug(it, primary)).collect(Collectors.joining(","));
@@ -43,7 +44,7 @@ public class ProxyModelBuilder {
         }
         // to try and produce the most stable allocation of ports we can, we attempt to consider all clusters in the ingress allocation, even those
         // that we know are unacceptable due to unresolved dependencies.
-        ProxyNetworkingModel ingressModel = NetworkingPlanner.planNetworking(primary, resolutionResult);
+        ProxyNetworkingModel ingressModel = NetworkingPlanner.planNetworking(primary, resolutionResult, priorAllocations);
         List<ClusterResolutionResult> clustersWithValidIngresses = resolutionResult.allResolutionResultsInClusterNameOrder()
                 .filter(clusterResolutionResult -> clusterResolutionResult.allReferentsFullyResolved() && !ResourcesUtil.hasFreshResolvedRefsFalseCondition(
                         clusterResolutionResult.cluster()))

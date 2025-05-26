@@ -9,7 +9,6 @@ package io.kroxylicious.kubernetes.operator.model.networking;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -22,6 +21,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuil
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel.ClusterIngressNetworkingModelResult;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel.ClusterNetworkingModel;
+import io.kroxylicious.kubernetes.operator.model.networking.allocation.Allocation;
+import io.kroxylicious.kubernetes.operator.model.networking.allocation.PortRangeAllocator;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
 
@@ -53,34 +54,35 @@ public class NetworkingPlanner {
      *
      * @param primary primary being reconciled
      * @param proxyResolutionResult
+     * @param priorAllocations
      * @return non-null ProxyIngressModel
      */
     public static ProxyNetworkingModel planNetworking(KafkaProxy primary,
-                                                      ProxyResolutionResult proxyResolutionResult) {
-        AtomicInteger identifyingPorts = new AtomicInteger(PROXY_PORT_START);
+                                                      ProxyResolutionResult proxyResolutionResult,
+                                                      List<Allocation> priorAllocations) {
+        PortRangeAllocator portRangeAllocator = PortRangeAllocator.createUnallocated(new PortRange(PROXY_PORT_START, PROXY_PORT_START + 30000));
+        for (Allocation priorAllocation : priorAllocations) {
+            portRangeAllocator.reserve(priorAllocation);
+        }
+
         // include broken clusters in the model, so that if they are healed the ports will stay the same
         Stream<ClusterResolutionResult> virtualKafkaClusterStream = proxyResolutionResult.allResolutionResultsInClusterNameOrder();
         List<ClusterNetworkingModel> list = virtualKafkaClusterStream
-                .map(it -> planClusterNetworking(primary, it, identifyingPorts))
+                .map(it -> planClusterNetworking(primary, it, portRangeAllocator))
                 .toList();
-        return new ProxyNetworkingModel(list);
+        return new ProxyNetworkingModel(list, portRangeAllocator.allocations());
     }
 
     private static ClusterNetworkingModel planClusterNetworking(KafkaProxy primary,
                                                                 ClusterResolutionResult clusterResolutionResult,
-                                                                AtomicInteger identifyingPorts) {
+                                                                PortRangeAllocator allocator) {
         Stream<ClusterIngressNetworkingDefinition> networkingDefinitions = planClusterIngressNetworkingDefinitions(primary, clusterResolutionResult);
         List<ClusterIngressNetworkingModelResult> ingressResults = networkingDefinitions.map(networkingDefinition -> {
             int toAllocate = networkingDefinition.numIdentifyingPortsRequired();
             PortAllocation identifyingPortAllocation = PortAllocation.empty();
             IngressConflictException exception = null;
             if (toAllocate != 0) {
-                if (identifyingPorts.get() != PROXY_PORT_START) {
-                    exception = new IngressConflictException(name(networkingDefinition.ingress()),
-                            "Currently we do not support a virtual cluster with multiple ingresses that need unique ports to identify which node the "
-                                    + "client is connecting to. We currently do not have a sufficient strategy for port allocation for this case. See https://github.com/kroxylicious/kroxylicious/issues/1902");
-                }
-                identifyingPortAllocation = PortAllocation.range(identifyingPorts.get(), identifyingPorts.addAndGet(toAllocate) - 1);
+                identifyingPortAllocation = allocator.allocate(name(clusterResolutionResult.cluster()), name(networkingDefinition.ingress()), toAllocate);
             }
             ClusterIngressNetworkingModel networkingModel = networkingDefinition.createNetworkingModel(identifyingPortAllocation);
             return new ClusterIngressNetworkingModelResult(networkingModel, exception);

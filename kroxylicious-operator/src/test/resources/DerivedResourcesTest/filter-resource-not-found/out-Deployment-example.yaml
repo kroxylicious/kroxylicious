@@ -44,7 +44,9 @@ spec:
         kroxylicious.io/referent-checksum: "AAAAAAAB4wY"
     spec:
       containers:
-        - name: "proxy"
+        - args:
+            - "--config"
+            - "/opt/kroxylicious/config/proxy-config.yaml"
           image: "quay.io/kroxylicious/kroxylicious:test"
           livenessProbe:
             failureThreshold: 3
@@ -54,12 +56,18 @@ spec:
             initialDelaySeconds: 10
             successThreshold: 1
             timeoutSeconds: 1
-          args:
-            - "--config"
-            - "/opt/kroxylicious/config/proxy-config.yaml"
+          name: "proxy"
           ports:
             - containerPort: 9190
               name: "management"
+            - containerPort: 9296
+              name: "9296-bootstrap"
+            - containerPort: 9297
+              name: "9297-node"
+            - containerPort: 9298
+              name: "9298-node"
+            - containerPort: 9299
+              name: "9299-node"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
