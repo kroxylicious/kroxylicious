@@ -345,6 +345,7 @@ has been applied ineffectively.
 the container engine. Default value: `$HOME/.docker/config.json`
 * `SKIP_STRIMZI_INSTALL`: skip strimzi installation. Default value: `false`
 * `KAFKA_CLIENT`: client used to produce/consume messages. Default value: `strimzi_test_client`. Currently supported values: `strimzi_test_client`, `kaf`, `kcat`
+* `TEST_CLIENTS_IMAGE_BASE`: strimzi test client image to be used when running the tests. It is useful when running regression tests. Default value: `quay.io/strimzi-test-clients/test-clients:latest-kafka`
 * `AWS_USE_CLOUD`: set to `true` in case AWS Cloud is used for Record Encryption System Tests. LocalStack will be used by default. Default value: `false`
 * `AWS_REGION`: region of the AWS Cloud account to be used for KMS management. Default value: `us-east-2`
 * `AWS_ACCESS_KEY_ID`: key id of the aws account with admin permissions to be used for KMS management. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
