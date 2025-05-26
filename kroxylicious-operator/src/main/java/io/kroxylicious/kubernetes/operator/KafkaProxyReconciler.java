@@ -289,7 +289,7 @@ public class KafkaProxyReconciler implements
 
         NodeIdentificationStrategy nodeIdentificationStrategy = gateway.nodeIdentificationStrategy();
         if (nodeIdentificationStrategy instanceof PortIdentifiesNodeIdentificationStrategy port) {
-            return new ConfigurationFragment<>(new VirtualClusterGateway("default",
+            return new ConfigurationFragment<>(new VirtualClusterGateway(name(gateway.ingress()),
                     port,
                     null,
                     tlsConfigFragment.fragment()), volumes, mounts);

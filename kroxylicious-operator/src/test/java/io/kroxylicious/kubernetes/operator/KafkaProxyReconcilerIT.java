@@ -290,7 +290,7 @@ class KafkaProxyReconcilerIT {
         AWAIT.alias("proxy config - gateway configured with node id ranges from KafkaService").untilAsserted(() -> {
             ProxyConfigAssert.ProxyConfigPortIdentifiesNodeGatewayAssert portIdentifiesNodeGatewayAssert = assertProxyConfigInConfigMap(proxy)
                     .cluster(clusterBar.getMetadata().getName())
-                    .gateway("default")
+                    .gateway(name(ingressBar))
                     .portIdentifiesNode()
                     .hasBootstrapAddress(new HostPort("localhost", expectedBootstrapPort))
                     .hasNullNodeStartPort();
@@ -364,17 +364,17 @@ class KafkaProxyReconcilerIT {
         clusterBar = updateStatusObservedGeneration(clusterBar);
         Set<VirtualKafkaCluster> clusters = Set.of(clusterBar);
         assertProxyConfigContents(proxy, Set.of(CLUSTER_BAR_BOOTSTRAP, filter.getSpec().getType()), Set.of());
-        assertDefaultVirtualClusterGatewayConfigured(proxy, clusterBar);
+        assertDefaultVirtualClusterGatewayConfigured(proxy, ingressBar, clusterBar);
         assertDeploymentMountsConfigMap(proxy, ProxyConfigDependentResource.configMapName(proxy));
         assertDeploymentBecomesReady(proxy);
         assertServiceTargetsProxyInstances(proxy, clusterBar, ingressBar);
         return new CreatedResources(proxy, clusters, kafkaServices, Set.of(ingressBar));
     }
 
-    private void assertDefaultVirtualClusterGatewayConfigured(KafkaProxy proxy, VirtualKafkaCluster clusterBar) {
+    private void assertDefaultVirtualClusterGatewayConfigured(KafkaProxy proxy, KafkaProxyIngress ingressBar, VirtualKafkaCluster clusterBar) {
         AWAIT.alias("gateway configured as expected").untilAsserted(() -> {
             assertProxyConfigInConfigMap(proxy).cluster(clusterBar.getMetadata().getName())
-                    .gateway("default")
+                    .gateway(name(ingressBar))
                     .portIdentifiesNode()
                     .hasBootstrapAddress(new HostPort("localhost", 9292))
                     .hasNullNodeStartPort()
