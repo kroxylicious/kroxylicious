@@ -157,13 +157,17 @@ public class FilterChainFactory implements AutoCloseable {
      *
      * @return the new chain.
      */
-    public List<FilterAndInvoker> createFilters(FilterFactoryContext context, @Nullable List<NamedFilterDefinition> filterChain) {
+    public List<FilterAndInvoker> createFilters(FilterFactoryContext context,
+                                                @Nullable List<NamedFilterDefinition> filterChain) {
         if (filterChain == null) {
             return List.of();
         }
         return filterChain
                 .stream()
-                .flatMap(filterDefinition -> FilterAndInvoker.build(initialized.get(filterDefinition.name()).create(context)).stream())
+                .flatMap(filterDefinition -> FilterAndInvoker.build(
+                        filterDefinition.name(),
+                        initialized.get(filterDefinition.name()).create(context))
+                        .stream())
                 .toList();
     }
 }

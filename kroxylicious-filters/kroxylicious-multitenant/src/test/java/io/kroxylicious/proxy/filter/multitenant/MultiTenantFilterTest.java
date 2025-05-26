@@ -37,6 +37,7 @@ import com.flipkart.zjsonpatch.JsonDiff;
 import com.google.common.reflect.ClassPath;
 import com.google.common.reflect.ClassPath.ResourceInfo;
 
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
@@ -87,7 +88,7 @@ class MultiTenantFilterTest {
 
     private final MultiTenantFilter filter = new MultiTenantFilter(new MultiTenantConfig(null));
 
-    private final FilterInvoker invoker = getOnlyElement(FilterAndInvoker.build(filter)).invoker();
+    private final FilterInvoker invoker = getOnlyElement(FilterAndInvoker.build(((Filter) filter).getClass().getSimpleName(), filter)).invoker();
 
     @Mock(strictness = LENIENT)
     private FilterContext context;
