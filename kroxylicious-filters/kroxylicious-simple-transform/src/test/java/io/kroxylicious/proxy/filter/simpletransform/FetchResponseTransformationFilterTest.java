@@ -133,10 +133,19 @@ class FetchResponseTransformationFilterTest {
     }
 
     @Test
-    void shouldConstructReplacingFilter() {
+    void shouldRequireConfigForReplacingFilter() {
+        // Given
         FetchResponseTransformation factory = new FetchResponseTransformation();
+
+        // When
+        // Then
         assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
                 .hasMessage(FetchResponseTransformation.class.getSimpleName() + " requires configuration, but config object is null");
+    }
+
+    @Test
+    void shouldConstructReplacingFilter() {
+        FetchResponseTransformation factory = new FetchResponseTransformation();
         FilterFactoryContext constructContext = mock(FilterFactoryContext.class);
         doReturn(new Replacing()).when(constructContext).pluginInstance(any(), any());
         FetchResponseTransformation.Config config = new FetchResponseTransformation.Config(Replacing.class.getName(),
@@ -149,8 +158,6 @@ class FetchResponseTransformationFilterTest {
         Path replamventValuePath = Files.createFile(Path.of(tempDir.toAbsolutePath().toString(), "replacement-value.txt"));
         Files.writeString(replamventValuePath, "bar", StandardCharsets.UTF_8);
         FetchResponseTransformation factory = new FetchResponseTransformation();
-        assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
-                .hasMessage(FetchResponseTransformation.class.getSimpleName() + " requires configuration, but config object is null");
         FilterFactoryContext constructContext = mock(FilterFactoryContext.class);
         doReturn(new Replacing()).when(constructContext).pluginInstance(any(), any());
         FetchResponseTransformation.Config config = new FetchResponseTransformation.Config(Replacing.class.getName(),
