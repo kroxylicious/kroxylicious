@@ -52,7 +52,6 @@ public class Environment {
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_ENV = "AWS_KROXYLICIOUS_SECRET_ACCESS_KEY";
     private static final String AWS_REGION_ENV = "AWS_REGION";
     private static final String TEST_CLIENTS_IMAGE_BASE_ENV = "TEST_CLIENTS_IMAGE_BASE";
-    private static final String ARCHITECTURE_ENV = "ARCHITECTURE";
 
     /**
      * The kafka version default value
@@ -145,7 +144,6 @@ public class Environment {
             KROXYLICIOUS_OPERATOR_REGISTRY_DEFAULT);
 
     public static final String TEST_CLIENTS_IMAGE_BASE = ENVIRONMENT_VARIABLES.getOrDefault(TEST_CLIENTS_IMAGE_BASE_ENV, TEST_CLIENTS_IMAGE_BASE_DEFAULT);
-    public static final String ARCHITECTURE = ENVIRONMENT_VARIABLES.getOrDefault(ARCHITECTURE_ENV, "");
 
     private static String readMetadataProperty(String property) {
         var p = new Properties();
