@@ -68,17 +68,22 @@ class OperatorChangeDetectionST extends AbstractST {
 
         String originalChecksum = getInitialChecksum(namespace, kubeClient);
 
-        KafkaProxyIngress kafkaProxyIngress = kubeClient.getClient().resources(KafkaProxyIngress.class).inNamespace(namespace)
-                .withName(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).get();
-
-        KafkaProxyIngress updatedIngress = kafkaProxyIngress.edit().editSpec().editClusterIP().withProtocol(ClusterIP.Protocol.TLS).endClusterIP().endSpec().build();
+        updateIngresProtocol(ClusterIP.Protocol.TLS, kubeClient, namespace); // move to TLS but this is invalid
 
         // When
-        KubeResourceManager.get().createOrUpdateResourceWithWait(updatedIngress);
+        // So move back to TCP and check things get updated.
+        updateIngresProtocol(ClusterIP.Protocol.TCP, kubeClient, namespace);
         LOGGER.info("Kafka proxy ingress edited");
 
         // Then
         assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+    }
+
+    private static void updateIngresProtocol(ClusterIP.Protocol protocol, KubeClient kubeClient, String namespace) {
+        KafkaProxyIngress kafkaProxyIngress = kubeClient.getClient().resources(KafkaProxyIngress.class).inNamespace(namespace)
+                .withName(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).get();
+        KafkaProxyIngress updatedIngress = kafkaProxyIngress.edit().editSpec().editClusterIP().withProtocol(protocol).endClusterIP().endSpec().build();
+        KubeResourceManager.get().createOrUpdateResourceWithWait(updatedIngress);
     }
 
     @Test
