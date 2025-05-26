@@ -53,10 +53,8 @@ public class Replacing implements ByteBufferTransformationFactory<Replacing.Conf
         if (config.replacementValue != null && config.pathToReplacementValue != null) {
             throw new PluginConfigurationException("Both replacementValue and pathToReplacementValue are specified. MAKE UP YOUR MIND");
         }
-        if (config.pathToReplacementValue != null) {
-            if (!Files.isReadable(config.pathToReplacementValue)) {
-                throw new PluginConfigurationException("Path: '" + config.pathToReplacementValue + "' is not readable. ");
-            }
+        if (config.pathToReplacementValue != null && !Files.isReadable(config.pathToReplacementValue)) {
+            throw new PluginConfigurationException("Path: '" + config.pathToReplacementValue + "' is not readable. ");
         }
     }
 
