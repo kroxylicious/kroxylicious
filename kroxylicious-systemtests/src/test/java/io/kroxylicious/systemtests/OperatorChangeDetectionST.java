@@ -177,13 +177,13 @@ class OperatorChangeDetectionST extends AbstractST {
     void shouldUpdateDeploymentWhenSecretChanges(String namespace) {
         // Given
         resourceManager.createOrUpdateResourceWithWait(
-                new SecretBuilder().withNewMetadata().withName("upstream-tls-cert").withNamespace(namespace).endMetadata().withType("kubernetes.io/tls")
+                new SecretBuilder().withNewMetadata().withName("kilted-kiwi").withNamespace(namespace).endMetadata().withType("kubernetes.io/tls")
                         .withData(Map.of("tls.crt", "whatever", "tls.key", "whatever")),
                 KroxyliciousFilterTemplates.baseFilterDeployment(namespace, "arbitrary-filter")
                         .withNewSpec()
                         .withType("io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation")
                         .withConfigTemplate(Map.of("transformation", "Replacing", "transformationConfig",
-                                Map.of("findPattern", "foo", "replaceFrom", "${secret:upstream-tls-cert:tls.key}")))
+                                Map.of("findPattern", "foo", "replaceFrom", "${secret:kilted-kiwi:tls.key}")))
                         .endSpec());
 
         KubeClient kubeClient = kubeClient(namespace);
@@ -193,11 +193,11 @@ class OperatorChangeDetectionST extends AbstractST {
         String originalChecksum = getInitialChecksum(namespace, kubeClient);
 
         Secret existingSecret = kubeClient.getClient().resources(Secret.class).inNamespace(namespace)
-                .withName("upstream-tls-cert").get();
+                .withName("kilted-kiwi").get();
 
         // When
         resourceManager.createOrUpdateResourceWithWait(existingSecret.edit().withData(Map.of("tls.crt", "whatever", "tls.key", "unlocked")));
-        LOGGER.info("secret: upstream-tls-cert updated");
+        LOGGER.info("secret: kilted-kiwi updated");
 
         // Then
         assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
