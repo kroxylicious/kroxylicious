@@ -84,7 +84,8 @@ public class NetworkingPlanner {
                 firstIdentifyingPort = identifyingPorts.get();
                 lastIdentifyingPort = identifyingPorts.addAndGet(toAllocate) - 1;
             }
-            ClusterIngressNetworkingModel networkingModel = networkingDefinition.createNetworkingModel(firstIdentifyingPort, lastIdentifyingPort);
+            ClusterIngressNetworkingModel networkingModel = networkingDefinition.createNetworkingModel(
+                    new PortRange(firstIdentifyingPort, lastIdentifyingPort));
             return new ClusterIngressNetworkingModelResult(networkingModel, exception);
         }).toList();
         return new ClusterNetworkingModel(clusterResolutionResult.cluster(), ingressResults);
@@ -147,11 +148,10 @@ public class NetworkingPlanner {
          * the port on the container is expected to unambiguously identify which node the client is connecting to.
          * I.e. using a port-per-broker strategy at the proxy.
          *
-         * @param firstIdentifyingPort the first identifying port allocated to this Ingress
-         * @param lastIdentifyingPort the last identifying port (inclusive) allocated to this Ingress
+         * @param identifyingPortRange the range of identifying ports, if required, null otherwise
          * @return a non-null ClusterIngressNetworkingModel
          */
-        ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort);
+        ClusterIngressNetworkingModel createNetworkingModel(@Nullable PortRange identifyingPortRange);
 
         /**
          * Some Ingress strategies require a set of ports in the proxy pod to be unique and exclusive so that the Proxy
@@ -171,10 +171,9 @@ public class NetworkingPlanner {
             implements ClusterIngressNetworkingDefinition {
 
         @Override
-        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort) {
-            Objects.requireNonNull(firstIdentifyingPort);
-            Objects.requireNonNull(lastIdentifyingPort);
-            return new ClusterIPClusterIngressNetworkingModel(primary, cluster, ingress, nodeIdRanges, tls, firstIdentifyingPort, lastIdentifyingPort);
+        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable PortRange identifyingPortRange) {
+            Objects.requireNonNull(identifyingPortRange);
+            return new ClusterIPClusterIngressNetworkingModel(primary, cluster, ingress, nodeIdRanges, tls, identifyingPortRange);
         }
 
         @Override

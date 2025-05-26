@@ -7,6 +7,7 @@
 package io.kroxylicious.kubernetes.operator.model.networking;
 
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.ContainerPort;
@@ -67,4 +68,6 @@ public interface ClusterIngressNetworkingModel {
      * The downstream TLS to be injected into the Proxy Config for this model, if available
      */
     Optional<Tls> downstreamTls();
+
+    Set<PortRange> proxyContainerIdentifyingPortRanges();
 }
