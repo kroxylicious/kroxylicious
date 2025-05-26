@@ -71,6 +71,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.hasKind;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
+import static io.kroxylicious.kubernetes.operator.model.networking.ClusterIPClusterIngressNetworkingModel.bootstrapServiceName;
 
 /**
  * Reconciles a {@link VirtualKafkaCluster} by checking whether the resources
@@ -403,7 +404,8 @@ public final class VirtualKafkaClusterReconciler implements
                     return cluster.getSpec().getIngresses()
                             .stream()
                             .map(Ingresses::getIngressRef)
-                            .flatMap(ir -> ResourcesUtil.localRefAsResourceId(cluster, new AnyLocalRefBuilder().withName(name + "-" + ir.getName()).build()).stream())
+                            .flatMap(ir -> ResourcesUtil
+                                    .localRefAsResourceId(cluster, new AnyLocalRefBuilder().withName(bootstrapServiceName(cluster, ir.getName())).build()).stream())
                             .collect(Collectors.toSet());
                 })
                 .withSecondaryToPrimaryMapper(kubenetesService -> Optional.of(kubenetesService)
