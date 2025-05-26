@@ -5,3 +5,4 @@
 #
 
 io.kroxylicious.proxy.filter.simpletransform.UpperCasing
+io.kroxylicious.proxy.filter.simpletransform.Replacing
