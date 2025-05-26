@@ -191,7 +191,7 @@ class FetchResponseTransformationFilterTest {
     void filterHandlesPreV13ResponseBasedOnTopicNames() throws Exception {
 
         var fetchResponse = new FetchResponseData();
-        fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord(RECORD_KEY, ORIGINAL_RECORD_VALUE).setTopic(TOPIC_NAME)); // Version 12
+        fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord().setTopic(TOPIC_NAME)); // Version 12
 
         var stage = filter.onFetchResponse(fetchResponse.apiKey(), new ResponseHeaderData(), fetchResponse, context);
         assertThat(stage).isCompleted();
@@ -212,7 +212,7 @@ class FetchResponseTransformationFilterTest {
     void filterHandlesV13OrHigherResponseBasedOnTopicIds() throws Exception {
 
         var fetchResponse = new FetchResponseData();
-        fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord(RECORD_KEY, ORIGINAL_RECORD_VALUE).setTopicId(TOPIC_ID));
+        fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord().setTopicId(TOPIC_ID));
 
         var metadataResponse = new MetadataResponseData();
         metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic().setTopicId(TOPIC_ID).setName(TOPIC_NAME));
@@ -250,7 +250,7 @@ class FetchResponseTransformationFilterTest {
 
         var fetchResponse = new FetchResponseData();
         // Version 13 switched to topic id rather than topic names.
-        fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord(RECORD_KEY, ORIGINAL_RECORD_VALUE).setTopicId(TOPIC_ID));
+        fetchResponse.responses().add(createFetchableTopicResponseWithOneRecord().setTopicId(TOPIC_ID));
 
         var metadataResponse = new MetadataResponseData();
         metadataResponse.topics().add(new MetadataResponseData.MetadataResponseTopic().setTopicId(TOPIC_ID).setName(TOPIC_NAME));
@@ -277,19 +277,19 @@ class FetchResponseTransformationFilterTest {
     }
 
     @NonNull
-    private static FetchableTopicResponse createFetchableTopicResponseWithOneRecord(String key, String value) {
+    private static FetchableTopicResponse createFetchableTopicResponseWithOneRecord() {
         var fetchableTopicResponse = new FetchableTopicResponse();
         var partitionData1 = new PartitionData();
-        partitionData1.setRecords(buildOneRecord(key, value));
+        partitionData1.setRecords(buildOneRecord());
         fetchableTopicResponse.partitions().add(partitionData1);
         return fetchableTopicResponse;
     }
 
-    private static MemoryRecords buildOneRecord(String key, String value) {
+    private static MemoryRecords buildOneRecord() {
         ByteBuffer buffer = ByteBuffer.allocate(1024);
         try (MemoryRecordsBuilder builder = MemoryRecords.builder(buffer, RecordBatch.CURRENT_MAGIC_VALUE,
                 Compression.NONE, TimestampType.CREATE_TIME, 0L, System.currentTimeMillis())) {
-            builder.append(0L, key.getBytes(), value.getBytes());
+            builder.append(0L, FetchResponseTransformationFilterTest.RECORD_KEY.getBytes(), FetchResponseTransformationFilterTest.ORIGINAL_RECORD_VALUE.getBytes());
             return builder.build();
         }
     }
