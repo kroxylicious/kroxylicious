@@ -34,7 +34,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
-import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
+import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -90,7 +90,7 @@ public class ProxyDeploymentDependentResource
                     .editOrNewSelector()
                     .withMatchLabels(deploymentSelector(primary))
                     .endSelector()
-                    .withTemplate(podTemplate(primary, kafkaProxyContext, model.ingressModel(), model.clustersWithValidIngresses(), checksum))
+                    .withTemplate(podTemplate(primary, kafkaProxyContext, model.networkingModel(), model.clustersWithValidNetworking(), checksum))
                 .endSpec()
                 .build();
         // @formatter:on
@@ -101,16 +101,12 @@ public class ProxyDeploymentDependentResource
         MetadataChecksumGenerator checksumGenerator = context.managedWorkflowAndDependentResourceContext()
                 .get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)
                 .orElse(new Crc32ChecksumGenerator());
-
-        model.clustersWithValidIngresses().stream().map(ClusterResolutionResult::cluster).forEach(entity -> {
-            LOGGER.info("Adding '{}'-{}@{} to checksum for {}", KubernetesResourceUtil.getName(entity), ResourcesUtil.generation(entity),
-                    ResourcesUtil.generation(entity), KubernetesResourceUtil.getName(primary));
-            checksumGenerator.appendMetadata(entity);
-        });
+        checksumGenerator.appendMetadata(primary);
+        model.clustersWithValidNetworking().stream().map(ClusterResolutionResult::cluster).forEach(checksumGenerator::appendMetadata);
         String encoded = checksumGenerator.encode();
 
-        if (LOGGER.isInfoEnabled()) {
-            LOGGER.info("Checksum: {} generated for KafkaProxy: {}", encoded, KubernetesResourceUtil.getName(primary));
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("Checksum: {} generated for KafkaProxy: {}", encoded, KubernetesResourceUtil.getName(primary));
         }
         return encoded;
     }
@@ -132,7 +128,7 @@ public class ProxyDeploymentDependentResource
 
     private PodTemplateSpec podTemplate(KafkaProxy primary,
                                         KafkaProxyContext kafkaProxyContext,
-                                        ProxyIngressModel ingressModel,
+                                        ProxyNetworkingModel ingressModel,
                                         List<ClusterResolutionResult> clusterResolutionResults,
                                         String checksum) {
         PodTemplateSpecFluent<PodTemplateSpecBuilder>.MetadataNested<PodTemplateSpecBuilder> metadataBuilder = new PodTemplateSpecBuilder()
@@ -166,7 +162,7 @@ public class ProxyDeploymentDependentResource
     }
 
     private Container proxyContainer(KafkaProxyContext kafkaProxyContext,
-                                     ProxyIngressModel ingressModel,
+                                     ProxyNetworkingModel ingressModel,
                                      List<ClusterResolutionResult> clusterResolutionResults) {
         // @formatter:off
          var containerBuilder = new ContainerBuilder()
@@ -206,10 +202,8 @@ public class ProxyDeploymentDependentResource
         // broker ports
         clusterResolutionResults.forEach(resolutionResult -> {
             if (!kafkaProxyContext.isBroken(resolutionResult.cluster())) {
-                ProxyIngressModel.VirtualClusterIngressModel virtualClusterIngressModel = ingressModel.clusterIngressModel(resolutionResult.cluster()).orElseThrow();
-                for (ProxyIngressModel.IngressModel ingress : virtualClusterIngressModel.ingressModels()) {
-                    ingress.proxyContainerPorts().forEach(containerBuilder::addToPorts);
-                }
+                ProxyNetworkingModel.ClusterNetworkingModel clusterNetworkingModel = ingressModel.clusterIngressModel(resolutionResult.cluster()).orElseThrow();
+                clusterNetworkingModel.registerProxyContainerPorts(containerBuilder::addToPorts);
             }
         });
         return containerBuilder.build();

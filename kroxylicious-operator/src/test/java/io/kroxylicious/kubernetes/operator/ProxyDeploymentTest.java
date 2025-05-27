@@ -34,7 +34,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
-import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
+import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 
@@ -59,7 +59,7 @@ class ProxyDeploymentTest {
     @BeforeEach
     void setUp() {
         PodTemplateSpec podTemplate = new PodTemplateSpecBuilder().withNewMetadata().addToLabels("c", "d").addToLabels("a", "b").endMetadata().build();
-        kafkaProxy = new KafkaProxyBuilder().withNewMetadata().withName(PROXY_NAME).endMetadata()
+        kafkaProxy = new KafkaProxyBuilder().withNewMetadata().withName(PROXY_NAME).withUid(UUID.randomUUID().toString()).endMetadata()
                 .withNewSpec().withPodTemplate(podTemplate).endSpec().build();
         kubernetesContext = setupContext();
     }
@@ -117,9 +117,9 @@ class ProxyDeploymentTest {
     }
 
     @Test
-    void shouldNotAddReferentChecksumAnnotationIfThereAreNoDependentResources() {
+    void shouldAddReferentChecksumOfProxy() {
         // Given
-        var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyIngressModel(List.of()), List.of());
+        var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), List.of());
         configureProxyModel(proxyModel);
         ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
 
@@ -128,7 +128,7 @@ class ProxyDeploymentTest {
 
         // Then
         OperatorAssertions.assertThat(actual.getSpec().getTemplate().getMetadata())
-                .doesNotHaveAnnotation(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION);
+                .hasAnnotationSatisfying(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, value -> assertThat(value).isNotBlank());
 
     }
 
@@ -139,7 +139,7 @@ class ProxyDeploymentTest {
                 .withGeneration(3L).endMetadata().build();
         kafkaService = new KafkaServiceBuilder().withNewMetadata().withName(PROXY_NAME).endMetadata().build();
 
-        var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyIngressModel(List.of()), List.of(clusterResolutionResultFor(virtualKafkaCluster)));
+        var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), List.of(clusterResolutionResultFor(virtualKafkaCluster)));
 
         Context<KafkaProxy> context = mock(Context.class);
         resourceContext = new DefaultManagedWorkflowAndDependentResourceContext<>(null, kafkaProxy, context);

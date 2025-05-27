@@ -170,7 +170,7 @@ public class DependencyResolver {
             ResolutionResult<KafkaProxy> kafkaProxyResolutionResult = optionalKafkaProxyIngress
                     .map(i -> resolveProxy(ResourcesUtil.toLocalRef(i), proxies, i.getSpec().getProxyRef()))
                     .orElse(null);
-            return new IngressResolutionResult(resolvedIngress, kafkaProxyResolutionResult);
+            return new IngressResolutionResult(resolvedIngress, kafkaProxyResolutionResult, ingress);
         }).toList();
     }
 }
