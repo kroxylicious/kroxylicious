@@ -51,6 +51,7 @@ public class Environment {
     private static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID_ENV = "AWS_KROXYLICIOUS_ACCESS_KEY_ID";
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_ENV = "AWS_KROXYLICIOUS_SECRET_ACCESS_KEY";
     private static final String AWS_REGION_ENV = "AWS_REGION";
+    private static final String KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE_ENV = "KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE";
 
     /**
      * The kafka version default value
@@ -140,6 +141,10 @@ public class Environment {
     public static final String KROXYLICIOUS_OPERATOR_ORG = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_ORG_ENV, KROXYLICIOUS_OPERATOR_ORG_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_REGISTRY = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_REGISTRY_ENV,
             KROXYLICIOUS_OPERATOR_REGISTRY_DEFAULT);
+
+    public static final String KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(
+            KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE_ENV,
+            "registry-proxy.engineering.redhat.com/rh-osbs/amq-streams-proxy-operator-bundle:amqstreams-3.0-rhel-9-containers-candidate-67318-20250521194131");
 
     private static String readMetadataProperty(String property) {
         var p = new Properties();

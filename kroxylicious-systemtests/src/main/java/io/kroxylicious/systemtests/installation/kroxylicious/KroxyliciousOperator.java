@@ -11,7 +11,8 @@ import io.skodjob.testframe.installation.InstallationMethod;
 
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.exception.UnsupportedInstallationType;
-import io.kroxylicious.systemtests.resources.operator.KroxyliciousOperatorBundleInstaller;
+import io.kroxylicious.systemtests.resources.operator.KroxyliciousOperatorOlmBundleInstaller;
+import io.kroxylicious.systemtests.resources.operator.KroxyliciousOperatorYamlInstaller;
 
 /**
  * The type Kroxylicious operator.
@@ -45,9 +46,14 @@ public class KroxyliciousOperator {
     }
 
     private InstallationMethod getInstallationMethod() {
-        if (Environment.INSTALL_TYPE != InstallType.Yaml) {
+        if (Environment.INSTALL_TYPE == InstallType.Yaml) {
+            return new KroxyliciousOperatorYamlInstaller(installationNamespace);
+        }
+        else if (Environment.INSTALL_TYPE == InstallType.Olm) {
+            return new KroxyliciousOperatorOlmBundleInstaller(installationNamespace);
+        }
+        else {
             throw new UnsupportedInstallationType("Installation type " + Environment.INSTALL_TYPE + " not supported");
         }
-        return new KroxyliciousOperatorBundleInstaller(installationNamespace);
     }
 }

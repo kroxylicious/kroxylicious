@@ -42,13 +42,13 @@ import io.kroxylicious.systemtests.utils.NamespaceUtils;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
- * KroxyliciousOperatorBundleInstaller encapsulates the whole installation process of Kroxylicious Operator (i.e., RoleBinding, ClusterRoleBinding,
+ * KroxyliciousOperatorYamlInstaller encapsulates the whole installation process of Kroxylicious Operator (i.e., RoleBinding, ClusterRoleBinding,
  * ConfigMap, Deployment, CustomResourceDefinition, preparation of the Namespace). Based on the @code{Environment}
  * values, this class installs Kroxylicious Operator using bundle yamls.
  */
-public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
+public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
 
-    private static final Logger LOGGER = LogManager.getLogger(KroxyliciousOperatorBundleInstaller.class);
+    private static final Logger LOGGER = LogManager.getLogger(KroxyliciousOperatorYamlInstaller.class);
     private static final String SEPARATOR = String.join("", Collections.nCopies(76, "="));
 
     private static final KubeClusterResource cluster = KubeClusterResource.getInstance();
@@ -65,13 +65,13 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
     // by default, we expect at least empty method name in order to collect logs correctly
     private String testMethodName = "";
 
-    private static final Predicate<KroxyliciousOperatorBundleInstaller> IS_EMPTY = ko -> ko.extensionContext == null && ko.kroxyliciousOperatorName == null
+    private static final Predicate<KroxyliciousOperatorYamlInstaller> IS_EMPTY = ko -> ko.extensionContext == null && ko.kroxyliciousOperatorName == null
             && ko.namespaceInstallTo == null
             && ko.testClassName == null && ko.testMethodName == null;
 
     private static final Predicate<File> deploymentFiles = file -> file.getName().contains("Deployment");
 
-    public KroxyliciousOperatorBundleInstaller(String namespaceInstallTo) {
+    public KroxyliciousOperatorYamlInstaller(String namespaceInstallTo) {
         this.namespaceInstallTo = namespaceInstallTo;
         this.replicas = 1;
         this.extensionContext = KubeResourceManager.get().getTestContext();
@@ -180,7 +180,7 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
         if (other == null || getClass() != other.getClass()) {
             return false;
         }
-        KroxyliciousOperatorBundleInstaller otherInstallation = (KroxyliciousOperatorBundleInstaller) other;
+        KroxyliciousOperatorYamlInstaller otherInstallation = (KroxyliciousOperatorYamlInstaller) other;
 
         return Objects.equals(kroxyliciousOperatorName, otherInstallation.kroxyliciousOperatorName) &&
                 Objects.equals(namespaceInstallTo, otherInstallation.namespaceInstallTo) &&
@@ -194,8 +194,8 @@ public class KroxyliciousOperatorBundleInstaller implements InstallationMethod {
 
     @Override
     public String toString() {
-        return "KroxyliciousOperatorBundleInstaller{" +
-                "cluster=" + KroxyliciousOperatorBundleInstaller.cluster +
+        return "KroxyliciousOperatorYamlInstaller{" +
+                "cluster=" + KroxyliciousOperatorYamlInstaller.cluster +
                 ", extensionContext=" + extensionContext +
                 ", kroxyliciousOperatorName='" + kroxyliciousOperatorName + '\'' +
                 ", namespaceInstallTo='" + namespaceInstallTo + '\'' +
