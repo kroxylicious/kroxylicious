@@ -7,6 +7,7 @@
 package io.kroxylicious.systemtests.resources.manager;
 
 import java.util.Arrays;
+import java.util.function.Consumer;
 
 import org.junit.jupiter.api.extension.ExtensionContext;
 
@@ -128,5 +129,9 @@ public class ResourceManager {
     @SafeVarargs
     public final void createOrUpdateResourceWithWait(Builder<? extends HasMetadata>... resources) {
         KubeResourceManager.get().createOrUpdateResourceWithWait(Arrays.stream(resources).map(Builder::build).toList().toArray(new HasMetadata[0]));
+    }
+
+    public <T extends HasMetadata> void replaceResourceWithRetries(T resource, Consumer<T> editor) {
+        KubeResourceManager.get().replaceResourceWithRetries(resource, editor, 3);
     }
 }
