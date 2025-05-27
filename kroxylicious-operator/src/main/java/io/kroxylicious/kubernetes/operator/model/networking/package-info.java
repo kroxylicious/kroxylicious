@@ -5,12 +5,12 @@
  */
 
 /**
- * Classes comprising the operator's configuration model.
+ * Classes comprising the operator's logical networking model.
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)
-package io.kroxylicious.kubernetes.operator.model.ingress;
+package io.kroxylicious.kubernetes.operator.model.networking;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
 import edu.umd.cs.findbugs.annotations.DefaultAnnotationForParameters;

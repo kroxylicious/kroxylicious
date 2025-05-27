@@ -50,7 +50,9 @@ spec:
               type: object
             spec:
               type: object
-              required: ["proxyRef", "clusterIP"]
+              oneOf:
+              - required: ["proxyRef", "clusterIP"]
+              - required: ["proxyRef", "loadBalancer"]
               properties:
                 proxyRef:
                   # Mapped to Java type io.kroxylicious.kubernetes.api. io.kroxylicious.kubernetes.api.common.common.ProxyRef
@@ -74,6 +76,33 @@ spec:
                       description: "Protocol specifies the network protocol this ingress expects to receive."
                       type: string
                       enum: ["TCP", "TLS"]
+                loadBalancer:
+                  type: object
+                  description: |-
+                    clusterIP specifies that this ingress is for access within the same Kubernetes cluster using 
+                    ClusterIP Kubernetes Services.
+                  required: [ "bootstrapAddress", "advertisedBrokerAddressPattern"]
+                  x-kubernetes-validations:
+                    - rule: "self.advertisedBrokerAddressPattern.contains('$(nodeId)')"
+                      message: "advertisedBrokerAddressPattern must contain '$(nodeId)'"
+                    - rule: "self.advertisedBrokerAddressPattern.find('^.*:[0-9]+$') == ''"
+                      message: "advertisedBrokerAddressPattern must not end with a port specifier"
+                    - rule: "self.bootstrapAddress.find('^.*:[0-9]+$') == ''"
+                      message: "bootstrapAddress must not end with a port specifier"
+                  properties:
+                    bootstrapAddress:
+                      description:  "The address clients will bootstrap with. Should contain a $(virtualClusterName) 
+                      replacement token if this ingress is to be shared across multiple virtual clusters. Responsibility
+                      for configuring DNS to resolve to this LoadBalancer Service IP is on the user. Must not end with
+                      a port specifier."
+                      type: string
+                    advertisedBrokerAddressPattern:
+                      description: "The advertised broker address pattern that will be used to generate broker addresses
+                      presented to the client. Must contain a $(nodeId) replacement token. Should contain 
+                      a $(virtualClusterName) replacement token if this ingress is to be shared across multiple virtual 
+                      clusters. Responsibility for configuring DNS to resolve these addresses to the LoadBalancer Service 
+                      IP is on the user. Must not end with a port specifier."
+                      type: string
             status:
               type: object
               properties:

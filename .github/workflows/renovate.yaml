@@ -35,7 +35,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
       - name: Renovate
-        uses: renovatebot/github-action@v42.0.2
+        uses: renovatebot/github-action@v42.0.4
         with:
           configurationFile: .github/renovate.json
           token: ${{ secrets.KROXYLICIOUS_GITHUB_READWRITE_TOKEN || secrets.GITHUB_TOKEN}}

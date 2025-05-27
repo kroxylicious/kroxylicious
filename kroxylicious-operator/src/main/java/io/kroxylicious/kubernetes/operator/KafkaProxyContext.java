@@ -63,7 +63,7 @@ public record KafkaProxyContext(VirtualKafkaClusterStatusFactory virtualKafkaClu
     boolean isBroken(VirtualKafkaCluster cluster) {
         var fullyResolved = model().resolutionResult().fullyResolvedClustersInNameOrder().stream().map(ResourcesUtil::name).collect(Collectors.toSet());
         return !fullyResolved.contains(ResourcesUtil.name(cluster))
-                || !model().ingressModel().clusterIngressModel(cluster).stream()
+                || !model().networkingModel().clusterIngressModel(cluster).stream()
                         .allMatch(ingressModel -> ingressModel.ingressExceptions().isEmpty());
 
     }

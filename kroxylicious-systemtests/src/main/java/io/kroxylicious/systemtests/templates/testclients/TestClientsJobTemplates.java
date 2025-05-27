@@ -15,6 +15,7 @@ import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.templates.ContainerTemplates;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -75,7 +76,7 @@ public class TestClientsJobTemplates {
                 .editSpec()
                 .editTemplate()
                 .editSpec()
-                .withContainers(ContainerTemplates.baseImageBuilder("admin", Constants.TEST_CLIENTS_IMAGE)
+                .withContainers(ContainerTemplates.baseImageBuilder("admin", Environment.TEST_CLIENTS_IMAGE)
                         .withCommand("admin-client")
                         .withArgs(args)
                         .build())
@@ -99,7 +100,7 @@ public class TestClientsJobTemplates {
                                                           @Nullable String messageKey) {
         return newJobForContainer(jobName,
                 "test-client-producer",
-                Constants.TEST_CLIENTS_IMAGE,
+                Environment.TEST_CLIENTS_IMAGE,
                 testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey));
     }
 
@@ -128,7 +129,7 @@ public class TestClientsJobTemplates {
     public static JobBuilder defaultTestClientConsumerJob(String jobName, String bootstrap, String topicName, int numOfMessages) {
         return newJobForContainer(jobName,
                 "test-client-consumer",
-                Constants.TEST_CLIENTS_IMAGE,
+                Environment.TEST_CLIENTS_IMAGE,
                 testClientsConsumerEnvVars(bootstrap, topicName, numOfMessages));
     }
 
