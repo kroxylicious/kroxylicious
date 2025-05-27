@@ -6,6 +6,7 @@
 
 package io.kroxylicious.systemtests;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.certmanager.api.model.v1.CertificateBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
@@ -27,7 +29,6 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
-import io.skodjob.testframe.resources.KubeResourceManager;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
@@ -39,6 +40,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
+import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.k8s.KubeClient;
@@ -96,15 +98,56 @@ class OperatorChangeDetectionST extends AbstractST {
 
         String originalChecksum = getInitialChecksum(namespace, kubeClient);
 
+        FilterRef filterRef = new FilterRefBuilder().withName("arbitrary-filter").build();
         VirtualKafkaCluster virtualKafkaCluster = kubeClient.getClient().resources(VirtualKafkaCluster.class).inNamespace(namespace)
                 .withName("test-vkc").get();
 
-        FilterRef filterRef = new FilterRefBuilder().withName("arbitrary-filter").build();
-        VirtualKafkaCluster updatedVirtualCluster = virtualKafkaCluster.edit().editSpec().withFilterRefs(filterRef).endSpec().build();
+        // When
+        resourceManager.replaceResourceWithRetries(virtualKafkaCluster, vkc -> vkc.getSpec().getFilterRefs().add(filterRef));
+        LOGGER.info("virtual cluster edited");
+
+        // Then
+        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+    }
+
+    @Test
+    void shouldUpdateDeploymentWhenDownstreamTlsCertUpdated(String namespace) throws IOException {
+        // Given
+        CertManager certManager = new CertManager();
+        certManager.deploy();
+        //@formatter:off
+        CertificateBuilder cert = new CertificateBuilder()
+                .withNewMetadata()
+                    .withName("server-certificate")
+                    .withNamespace(namespace)
+                .endMetadata()
+                .withNewSpec()
+                    .withCommonName("my-cluster-cluster-ip.my-proxy.svc.cluster.local")
+                    .withSecretName("server-certificate")
+                    .withNewPrivateKey()
+                        .withAlgorithm("RSA")
+                        .withEncoding("PKCS8")
+                        .withSize(4096)
+                    .endPrivateKey()
+                    .withDnsNames("my-cluster-cluster-ip.my-proxy.svc.cluster.local")
+                    .withUsages("server auth")
+                    .withNewIssuerRef()
+                        .withName("selfsinged-issuer")
+                        .withKind("Issuer")
+                        .withGroup("cert-manager.io")
+                    .endIssuerRef()
+                .endSpec();
+        //@formatter:on
+        resourceManager.createOrUpdateResourceWithWait(cert);
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters("test-vkc");
+        KubeClient kubeClient = kubeClient(namespace);
+
+        String originalChecksum = getInitialChecksum(namespace, kubeClient);
 
         // When
-        KubeResourceManager.get().createOrUpdateResourceWithWait(updatedVirtualCluster);
-        LOGGER.info("virtual cluster edited");
+        resourceManager.replaceResourceWithRetries(cert.build(),
+                certToPatch -> certToPatch.getSpec().getDnsNames().add("test-vkc-cluster-ip.my-proxy.svc.cluster.local"));
+        LOGGER.info("SAN added to downstream tls cert");
 
         // Then
         assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
