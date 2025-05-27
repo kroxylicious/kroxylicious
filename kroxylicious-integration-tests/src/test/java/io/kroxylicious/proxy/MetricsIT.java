@@ -5,51 +5,90 @@
  */
 package io.kroxylicious.proxy;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
+import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.DescribeClusterOptions;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.micrometer.core.instrument.Metrics;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
+import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.config.MicrometerDefinitionBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.micrometer.CommonTagsHook;
 import io.kroxylicious.proxy.micrometer.StandardBindersHook;
+import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.test.tester.SimpleMetric;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
+import static org.awaitility.Awaitility.await;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
 class MetricsIT {
 
+    @TempDir
+    private static Path certsDirectory;
+
+    private static final HostPort PORT_IDENTIFIES_BROKER_BOOTSTRAP = new HostPort("localhost", 9092);
+    private static final String SNI_IDENTIFIES_BROKER_BASE_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("sni");
+
+    private static final HostPort SNI_IDENTIFIES_BROKER_BOOTSTRAP = new HostPort("bootstrap." + SNI_IDENTIFIES_BROKER_BASE_ADDRESS, 9192);
+    private static final String SNI_IDENTIFIES_BROKER_ADDRESS_PATTERN = "broker-$(nodeId)." + SNI_IDENTIFIES_BROKER_BASE_ADDRESS;
+
+    private KeytoolCertificateGenerator downstreamCertificateGenerator;
+    private Path clientTrustStore;
+
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() throws Exception {
         assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
+
     }
 
     @AfterEach
-    public void afterEach() {
+    void afterEach() {
         assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
     }
 
@@ -258,6 +297,130 @@ class MetricsIT {
             var updatedMetricsList = managementClient.scrapeMetrics();
             assertMetricsWithValue(updatedMetricsList, "kroxylicious_downstream_connections_total", null);
             assertMetricsWithValue(updatedMetricsList, "kroxylicious_upstream_connections_total", null);
+        }
+    }
+
+    static Stream<Arguments> createDownstreamConnectionError() throws Exception {
+        var failQuickDescribeCluster = new DescribeClusterOptions().timeoutMs(2_000);
+        // Note that the KeytoolCertificateGenerator generates key stores that are PKCS12 format.
+        var downstreamCertificateGenerator = new KeytoolCertificateGenerator();
+        downstreamCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", "localhost", "KI", "RedHat", null, null, "US");
+        var clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
+        downstreamCertificateGenerator.generateTrustStore(downstreamCertificateGenerator.getCertFilePath(), "client",
+                clientTrustStore.toAbsolutePath().toString());
+
+        var list = new ArrayList<Arguments>();
+
+        {
+            list.add(Arguments.argumentSet("gateway is tcp, client sends malformed kafka",
+                    (Supplier<VirtualClusterGateway>) () -> defaultPortIdentifiesNodeGatewayBuilder(PORT_IDENTIFIES_BROKER_BOOTSTRAP)
+                            .withName("default")
+                            .build(),
+                    (Consumer<KroxyliciousTester>) kroxyliciousTester -> {
+                        var hostPort = HostPort.parse(kroxyliciousTester.getBootstrapAddress());
+                        try (var sock = new Socket(hostPort.host(), hostPort.port());
+                                var output = sock.getOutputStream();
+                                var input = sock.getInputStream()) {
+                            output.write("This ain't Kafka!".getBytes(StandardCharsets.UTF_8));
+                            var ignore = input.readAllBytes();
+                        }
+                        catch (IOException e) {
+                            throw new UncheckedIOException(e);
+                        }
+                    }));
+        }
+
+        {
+
+            list.add(Arguments.argumentSet("gateway is tls, client connects using plain",
+                    (Supplier<VirtualClusterGateway>) () -> defaultSniHostIdentifiesNodeGatewayBuilder(SNI_IDENTIFIES_BROKER_BOOTSTRAP,
+                            SNI_IDENTIFIES_BROKER_ADDRESS_PATTERN)
+                            .withName("default")
+                            .withNewTls()
+                            .withNewKeyStoreKey()
+                            .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                            .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                            .endKeyStoreKey()
+                            .endTls()
+
+                            .build(),
+                    (Consumer<KroxyliciousTester>) kroxyliciousTester -> {
+                        try (var admin = kroxyliciousTester.admin(Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "PLAINTEXT"))) {
+                            assertThat(admin.describeCluster(failQuickDescribeCluster).clusterId())
+                                    .failsWithin(Duration.ofSeconds(5))
+                                    .withThrowableThat()
+                                    .withCauseInstanceOf(TimeoutException.class)
+                                    .havingCause()
+                                    .withMessageStartingWith("Timed out waiting for a node assignment.");
+                        }
+                    }));
+        }
+
+        {
+            var unrecognisedSni = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("unrecognised");
+
+            list.add(Arguments.argumentSet("gateway is tls/sni, unrecognised SNI name",
+                    (Supplier<VirtualClusterGateway>) () -> defaultSniHostIdentifiesNodeGatewayBuilder(SNI_IDENTIFIES_BROKER_BOOTSTRAP,
+                            SNI_IDENTIFIES_BROKER_ADDRESS_PATTERN)
+                            .withName("default")
+                            .withNewTls()
+                            .withNewKeyStoreKey()
+                            .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                            .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                            .endKeyStoreKey()
+                            .endTls()
+                            .build(),
+                    (Consumer<KroxyliciousTester>) kroxyliciousTester -> {
+                        var hostPort = HostPort.parse(kroxyliciousTester.getBootstrapAddress());
+                        var unrecognisedHostPort = unrecognisedSni + ":" + hostPort.port();
+
+                        try (var admin = kroxyliciousTester.admin(
+                                Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, unrecognisedHostPort,
+                                        SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                        SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+                            assertThat(admin.describeCluster(failQuickDescribeCluster).clusterId())
+                                    .failsWithin(Duration.ofSeconds(5))
+                                    .withThrowableThat()
+                                    .withCauseInstanceOf(TimeoutException.class)
+                                    .havingCause()
+                                    .withMessageStartingWith("Timed out waiting for a node assignment.");
+                        }
+                    }));
+        }
+        return list.stream();
+
+    }
+
+    @ParameterizedTest
+    @MethodSource(value = "createDownstreamConnectionError")
+    void shouldIncrementDownstreamErrorOnConnectionError(Supplier<VirtualClusterGateway> gatewaySupplier, Consumer<KroxyliciousTester> causeConnectionError,
+                                                         KafkaCluster cluster) {
+        var config = proxy(cluster)
+                .withNewManagement()
+                .withNewEndpoints()
+                .withNewPrometheus()
+                .endPrometheus()
+                .endEndpoints()
+                .endManagement()
+                .editFirstVirtualCluster()
+                .withGateways(List.of(gatewaySupplier.get()))
+                .endVirtualCluster();
+
+        // Given
+        try (var tester = kroxyliciousTester(config);
+                var managementClient = tester.getManagementClient()) {
+            var metricsList = managementClient.scrapeMetrics();
+            assertMetricsDoesNotExist(metricsList, "kroxylicious_downstream_error_total", null);
+
+            // When
+            causeConnectionError.accept(tester);
+
+            // Then
+            await().atMost(Duration.ofSeconds(30))
+                    .untilAsserted(() -> {
+                        var updatedMetricsList = managementClient.scrapeMetrics();
+                        assertMetricsWithValue(updatedMetricsList, "kroxylicious_downstream_errors_total", null);
+                    });
         }
     }
 
