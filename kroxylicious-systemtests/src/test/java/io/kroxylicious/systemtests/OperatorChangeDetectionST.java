@@ -42,6 +42,7 @@ import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.k8s.KubeClient;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
 
 import static io.kroxylicious.systemtests.TestTags.OPERATOR;
@@ -77,13 +78,6 @@ class OperatorChangeDetectionST extends AbstractST {
 
         // Then
         assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
-    }
-
-    private static void updateIngresProtocol(ClusterIP.Protocol protocol, KubeClient kubeClient, String namespace) {
-        KafkaProxyIngress kafkaProxyIngress = kubeClient.getClient().resources(KafkaProxyIngress.class).inNamespace(namespace)
-                .withName(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP).get();
-        KafkaProxyIngress updatedIngress = kafkaProxyIngress.edit().editSpec().editClusterIP().withProtocol(protocol).endClusterIP().endSpec().build();
-        KubeResourceManager.get().createOrUpdateResourceWithWait(updatedIngress);
     }
 
     @Test
@@ -259,5 +253,17 @@ class OperatorChangeDetectionST extends AbstractST {
 
     private String getChecksumFromAnnotation(HasMetadata entity) {
         return KubernetesResourceUtil.getOrCreateAnnotations(entity).get("kroxylicious.io/referent-checksum");
+    }
+
+    private static void updateIngresProtocol(ClusterIP.Protocol protocol, KubeClient kubeClient, String namespace) {
+        KafkaProxyIngress existingIngress = kubeClient.getClient()
+                .resources(KafkaProxyIngress.class)
+                .inNamespace(namespace)
+                .withName(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP)
+                .get();
+
+        ResourceManager.getInstance()
+                .replaceResourceWithRetries(existingIngress,
+                        ingress -> ingress.getSpec().getClusterIP().setProtocol(protocol));
     }
 }
