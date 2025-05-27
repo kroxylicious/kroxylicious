@@ -30,7 +30,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
-import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
+import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 
@@ -67,7 +67,7 @@ class ProxyDeploymentDependentResourceTest {
         kafkaService = new KafkaServiceBuilder().withNewMetadata().withName(PROXY_NAME).endMetadata().build();
         virtualKafkaCluster = new VirtualKafkaClusterBuilder().build();
 
-        proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyIngressModel(List.of()), List.of(clusterResolutionResultFor(virtualKafkaCluster)));
+        proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), List.of(clusterResolutionResultFor(virtualKafkaCluster)));
 
         var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext<>(null, kafkaProxy, kubernetesContext);
         resourceContext.put(Crc32ChecksumGenerator.CHECKSUM_CONTEXT_KEY, metadataChecksumGenerator);
@@ -105,7 +105,7 @@ class ProxyDeploymentDependentResourceTest {
         List<ClusterResolutionResult> clusterResolutionResults = List.of(
                 clusterResolutionResultFor(virtualKafkaCluster),
                 clusterResolutionResultFor(virtualKafkaClusterB));
-        proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyIngressModel(List.of()), clusterResolutionResults);
+        proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), clusterResolutionResults);
         ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
 
         // When

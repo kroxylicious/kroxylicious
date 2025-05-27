@@ -15,8 +15,8 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.StaleReferentStatusException;
-import io.kroxylicious.kubernetes.operator.model.ingress.IngressAllocator;
-import io.kroxylicious.kubernetes.operator.model.ingress.ProxyIngressModel;
+import io.kroxylicious.kubernetes.operator.model.networking.NetworkingPlanner;
+import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
@@ -43,7 +43,7 @@ public class ProxyModelBuilder {
         }
         // to try and produce the most stable allocation of ports we can, we attempt to consider all clusters in the ingress allocation, even those
         // that we know are unacceptable due to unresolved dependencies.
-        ProxyIngressModel ingressModel = IngressAllocator.allocateProxyIngressModel(primary, resolutionResult);
+        ProxyNetworkingModel ingressModel = NetworkingPlanner.planNetworking(primary, resolutionResult);
         List<ClusterResolutionResult> clustersWithValidIngresses = resolutionResult.allResolutionResultsInClusterNameOrder()
                 .filter(clusterResolutionResult -> clusterResolutionResult.allReferentsFullyResolved() && !ResourcesUtil.hasFreshResolvedRefsFalseCondition(
                         clusterResolutionResult.cluster()))
