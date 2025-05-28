@@ -17,6 +17,7 @@ import io.fabric8.certmanager.api.model.v1.CertificateBuilder;
 import io.fabric8.certmanager.api.model.v1.IssuerBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.dsl.NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable;
+import io.skodjob.testframe.resources.KubeResourceManager;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
@@ -101,6 +102,7 @@ public class CertManager {
         if (isDeployed()) {
             LOGGER.warn("Skipping cert manager deployment. It is already deployed!");
             deleteCertManager = false;
+            var list = kubeClient().getClient().apps().deployments().inAnyNamespace().withLabelSelector("app=cert-manager").list().getItems();
             return;
         }
         deployment.create();
