@@ -10,9 +10,11 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
@@ -27,6 +29,9 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
+import io.skodjob.testframe.resources.KubeResourceManager;
+import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.KafkaStatus;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
@@ -34,6 +39,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
@@ -42,6 +48,7 @@ import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.k8s.KubeClient;
+import io.kroxylicious.systemtests.resources.kroxylicious.KroxyliciousResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousFilterTemplates;
 
@@ -58,6 +65,7 @@ class OperatorChangeDetectionST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorChangeDetectionST.class);
     private static Kroxylicious kroxylicious;
+    private static CertManager certManager;
     private final String kafkaClusterName = "my-cluster";
     private KroxyliciousOperator kroxyliciousOperator;
 
@@ -101,7 +109,7 @@ class OperatorChangeDetectionST extends AbstractST {
                 .withName("test-vkc").get();
 
         // When
-        resourceManager.replaceResourceWithRetries(virtualKafkaCluster, vkc -> vkc.getSpec().getFilterRefs().add(filterRef));
+        resourceManager.replaceResourceWithRetries(virtualKafkaCluster, vkc -> vkc.getSpec().setFilterRefs(List.of(filterRef)));
         LOGGER.info("virtual cluster edited");
 
         // Then
@@ -111,7 +119,7 @@ class OperatorChangeDetectionST extends AbstractST {
     @Test
     void shouldUpdateDeploymentWhenDownstreamTlsCertUpdated(String namespace) throws IOException {
         // Given
-        CertManager certManager = new CertManager();
+        certManager = new CertManager();
         certManager.deploy();
 
         var issuer = certManager.issuer(namespace);
@@ -227,17 +235,30 @@ class OperatorChangeDetectionST extends AbstractST {
     }
 
     private static void assertDeploymentUpdated(String namespace, KubeClient kubeClient, String originalChecksum) {
+        AtomicReference<String> newChecksumFromAnnotation = new AtomicReference<>();
         await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
             Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
             assertThat(proxyDeployment).isNotNull();
             OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
-                    value -> assertThat(value).isNotEqualTo(originalChecksum));
+                    value -> {
+                        newChecksumFromAnnotation.set(value);
+                        assertThat(value).isNotEqualTo(originalChecksum);
+                    });
         });
+        LOGGER.info("New checksum: {}", newChecksumFromAnnotation);
     }
 
     @BeforeEach
     void setUp(String namespace) {
         kroxylicious = new Kroxylicious(namespace);
+    }
+
+    @AfterEach
+    void cleanAfterEach() {
+        if (certManager != null) {
+            certManager.delete();
+        }
+        KubeResourceManager.get().deleteResources(true);
     }
 
     @AfterAll
