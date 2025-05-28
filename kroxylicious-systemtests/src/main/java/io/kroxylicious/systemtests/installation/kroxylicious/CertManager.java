@@ -109,15 +109,15 @@ public class CertManager {
 
     /**
      * Delete cert manager.
-     * @throws IOException the io exception
      */
-    public void delete() throws IOException {
+    public void delete() {
         if (!deleteCertManager) {
             LOGGER.warn("Skipping cert manager deletion. It was previously installed");
             return;
         }
         LOGGER.info("Deleting Cert Manager in {} namespace", Constants.CERT_MANAGER_NAMESPACE);
         deployment.withGracePeriod(0).delete();
+        DeploymentUtils.waitForDeploymentDeletion(Constants.CERT_MANAGER_NAMESPACE, "cert-manager-webhook");
         NamespaceUtils.deleteNamespaceWithWait(Constants.CERT_MANAGER_NAMESPACE);
     }
 }
