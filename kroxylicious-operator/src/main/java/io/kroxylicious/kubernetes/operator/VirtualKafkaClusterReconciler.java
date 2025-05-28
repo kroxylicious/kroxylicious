@@ -466,6 +466,7 @@ public final class VirtualKafkaClusterReconciler implements
                 cluster.getSpec().getIngresses().stream()
                         .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
                         .map(Tls::getTrustAnchorRef)
+                        .filter(Objects::nonNull)
                         .map(TrustAnchorRef::getRef)
                         .toList());
     }
@@ -478,6 +479,7 @@ public final class VirtualKafkaClusterReconciler implements
                 cluster -> cluster.getSpec().getIngresses().stream()
                         .flatMap(ingress -> Optional.ofNullable(ingress.getTls()).stream())
                         .map(Tls::getTrustAnchorRef)
+                        .filter(Objects::nonNull)
                         .map(TrustAnchorRef::getRef)
                         .toList());
     }
