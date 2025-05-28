@@ -7,10 +7,14 @@
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.certmanager.api.model.v1.CertificateBuilder;
+import io.fabric8.certmanager.api.model.v1.IssuerBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.dsl.NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable;
 
@@ -25,6 +29,7 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
  */
 public class CertManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(CertManager.class);
+    public static final String SELF_SINGED_ISSUER_NAME = "self-signed-issuer";
 
     private final NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable<HasMetadata> deployment;
     private boolean deleteCertManager = true;
@@ -37,6 +42,49 @@ public class CertManager {
     public CertManager() throws IOException {
         deployment = kubeClient().getClient()
                 .load(DeploymentUtils.getDeploymentFileFromURL(Constants.CERT_MANAGER_URL));
+    }
+
+    public IssuerBuilder issuer(String namespace) {
+        return new IssuerBuilder()
+                .withNewMetadata()
+                    .withName(SELF_SINGED_ISSUER_NAME)
+                    .withNamespace(namespace)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewSelfSigned()
+                .endSelfSigned()
+                .endSpec();
+    }
+
+    public CertificateBuilder certFor(String namespace, String commonName, String... dnsNames) {
+        List<String> dnsAliases = new ArrayList<>(List.of(dnsNames));
+        if (!dnsAliases.contains(commonName)) {
+            dnsAliases.add(0, commonName);
+        }
+
+        //@formatter:off
+        return new CertificateBuilder()
+                .withNewMetadata()
+                    .withName("server-certificate")
+                    .withNamespace(namespace)
+                .endMetadata()
+                .withNewSpec()
+                    .withCommonName(commonName)
+                    .withSecretName("server-certificate")
+                    .withNewPrivateKey()
+                        .withAlgorithm("RSA")
+                        .withEncoding("PKCS8")
+                        .withSize(4096)
+                    .endPrivateKey()
+                    .withDnsNames(dnsAliases)
+                    .withUsages("server auth")
+                    .withNewIssuerRef()
+                        .withName(SELF_SINGED_ISSUER_NAME)
+                        .withKind("Issuer")
+                        .withGroup("cert-manager.io")
+                    .endIssuerRef()
+                .endSpec();
+        //@formatter:on
     }
 
     private boolean isDeployed() {
