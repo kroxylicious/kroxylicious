@@ -111,7 +111,7 @@ public class Kroxylicious {
                 KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
                 KroxyliciousKafkaProxyIngressTemplates.tlsKafkaProxyIngressCR(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
                         Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
-                KroxyliciousKafkaClusterRefTemplates.kafkaClusterRefCRWithTls(deploymentNamespace, clusterName, tls),
+                KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(deploymentNamespace, clusterName),
                 KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterWithTlsCR(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
                         clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, tls));
     }
