@@ -106,7 +106,7 @@ public class CertManager {
         }
         deployment.create();
         DeploymentUtils.waitForDeploymentReady(Constants.CERT_MANAGER_NAMESPACE, "cert-manager-webhook");
-        NamespaceUtils.addNamespaceToSet(Constants.CERT_MANAGER_NAMESPACE, ResourceManager.getTestContext().getTestClass().get().getName());
+        NamespaceUtils.addNamespaceToSet(Constants.CERT_MANAGER_NAMESPACE, ResourceManager.getTestContext().getRequiredTestClass().getName());
     }
 
     /**
@@ -120,6 +120,6 @@ public class CertManager {
         LOGGER.info("Deleting Cert Manager in {} namespace", Constants.CERT_MANAGER_NAMESPACE);
         deployment.withGracePeriod(0).delete();
         DeploymentUtils.waitForDeploymentDeletion(Constants.CERT_MANAGER_NAMESPACE, "cert-manager-webhook");
-        NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(Constants.CERT_MANAGER_NAMESPACE, ResourceManager.getTestContext().getTestClass().get().getName());
+        NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(Constants.CERT_MANAGER_NAMESPACE, ResourceManager.getTestContext().getRequiredTestClass().getName());
     }
 }
