@@ -19,6 +19,7 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.client.dsl.NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
@@ -105,6 +106,7 @@ public class CertManager {
         }
         deployment.create();
         DeploymentUtils.waitForDeploymentReady(Constants.CERT_MANAGER_NAMESPACE, "cert-manager-webhook");
+        NamespaceUtils.addNamespaceToSet(Constants.CERT_MANAGER_NAMESPACE, ResourceManager.getTestContext().getTestClass().get().getName());
     }
 
     /**
@@ -118,6 +120,6 @@ public class CertManager {
         LOGGER.info("Deleting Cert Manager in {} namespace", Constants.CERT_MANAGER_NAMESPACE);
         deployment.withGracePeriod(0).delete();
         DeploymentUtils.waitForDeploymentDeletion(Constants.CERT_MANAGER_NAMESPACE, "cert-manager-webhook");
-        NamespaceUtils.deleteNamespaceWithWait(Constants.CERT_MANAGER_NAMESPACE);
+        NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(Constants.CERT_MANAGER_NAMESPACE, ResourceManager.getTestContext().getTestClass().get().getName());
     }
 }
