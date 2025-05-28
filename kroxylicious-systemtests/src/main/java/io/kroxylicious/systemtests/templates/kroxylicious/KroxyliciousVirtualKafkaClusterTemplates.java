@@ -14,6 +14,7 @@ import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 
 public class KroxyliciousVirtualKafkaClusterTemplates {
 
@@ -57,6 +58,29 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
     public static VirtualKafkaClusterBuilder defaultVirtualKafkaClusterCR(String namespaceName, String clusterName, String proxyName, String clusterRefName,
                                                                           String ingressName) {
         return baseVirtualKafkaClusterCR(namespaceName, clusterName, proxyName, clusterRefName, ingressName);
+    }
+
+    /**
+     * Default virtual kafka cluster CR.
+     *
+     * @param namespaceName the namespace name
+     * @param clusterName the cluster name
+     * @param proxyName the proxy name
+     * @param clusterRefName the cluster ref name
+     * @param ingressName the ingress name
+     * @param tls
+     * @return the virtual kafka cluster builder
+     */
+    public static VirtualKafkaClusterBuilder defaultVirtualKafkaClusterWithTlsCR(String namespaceName, String clusterName, String proxyName, String clusterRefName,
+                                                                                 String ingressName, Tls tls) {
+        return baseVirtualKafkaClusterCR(namespaceName, clusterName, proxyName, clusterRefName, ingressName)
+                .editSpec()
+                    .editIngress(0)
+                        .withNewTls()
+                            .withCertificateRef(tls.getCertificateRef())
+                        .endTls()
+                    .endIngress()
+                .endSpec();
     }
 
     /**

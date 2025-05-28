@@ -16,8 +16,12 @@ import org.slf4j.LoggerFactory;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
+import io.kroxylicious.kubernetes.api.common.CertificateRefBuilder;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.TlsBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
@@ -92,17 +96,27 @@ public class Kroxylicious {
      * @param clusterName the cluster name
      */
     public void deployPortIdentifiesNodeWithTlsAndNoFilters(String clusterName) {
-        createCertificateConfigMap(deploymentNamespace);
+        Tls tls = createCertificateConfigMapFromListener(deploymentNamespace);
         resourceManager.createResourceFromBuilder(
                 KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
                 KroxyliciousKafkaProxyIngressTemplates.defaultKafkaProxyIngressCR(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
                         Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
-                KroxyliciousKafkaClusterRefTemplates.kafkaClusterRefCRWithTls(deploymentNamespace, clusterName),
+                KroxyliciousKafkaClusterRefTemplates.kafkaClusterRefCRWithTls(deploymentNamespace, clusterName, tls),
                 KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterCR(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
                         clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP));
     }
 
-    private void createCertificateConfigMap(String namespace) {
+    public void deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters(String clusterName, Tls tls) {
+        resourceManager.createResourceFromBuilder(
+                KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
+                KroxyliciousKafkaProxyIngressTemplates.tlsKafkaProxyIngressCR(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
+                        Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
+                KroxyliciousKafkaClusterRefTemplates.kafkaClusterRefCRWithTls(deploymentNamespace, clusterName, tls),
+                KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterWithTlsCR(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
+                        clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, tls));
+    }
+
+    public Tls createCertificateConfigMapFromListener(String namespace) {
         // wait for listeners to contain data
         var tlsListenerStatus = KafkaUtils.getKafkaListenerStatus("tls");
 
@@ -112,6 +126,30 @@ public class Kroxylicious {
 
         resourceManager.createResourceFromBuilder(KroxyliciousConfigMapTemplates.getClusterCaConfigMap(namespace, Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT,
                 cert.get(0)));
+        //@formatter:off
+        return new TlsBuilder()
+                .withTrustAnchorRef(
+                    new TrustAnchorRefBuilder()
+                        .withNewRef()
+                            .withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT)
+                            .withKind(Constants.CONFIG_MAP)
+                        .endRef()
+                        .withKey(Constants.KROXYLICIOUS_TLS_CA_NAME)
+                        .build())
+                .build();
+        //@formatter:on
+    }
+
+    public Tls tlsConfigFromCert(String certNane) {
+        //@formatter:off
+        return new TlsBuilder()
+                .withCertificateRef(
+                    new CertificateRefBuilder()
+                        .withName(certNane)
+                        .withKind("Secret")
+                    .build())
+                .build();
+        //@formatter:on
     }
 
     /**

@@ -69,7 +69,7 @@
         <dependency>
             <groupId>io.fabric8</groupId>
             <artifactId>certmanager-model</artifactId>
-            <scope>test</scope>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.fabric8</groupId>
