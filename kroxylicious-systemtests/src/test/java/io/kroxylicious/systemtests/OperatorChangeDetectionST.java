@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.certmanager.api.model.v1.Certificate;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
@@ -193,7 +194,6 @@ class OperatorChangeDetectionST extends AbstractST {
                 .editOrNewSpec()
                 .withPodTemplate(new PodTemplateSpecBuilder().build())
                 .endSpec();
-
         // @formatter:on
 
         // When
@@ -258,7 +258,6 @@ class OperatorChangeDetectionST extends AbstractST {
         if (certManager != null) {
             certManager.delete();
         }
-        KubeResourceManager.get().deleteResources(true);
     }
 
     @AfterAll
