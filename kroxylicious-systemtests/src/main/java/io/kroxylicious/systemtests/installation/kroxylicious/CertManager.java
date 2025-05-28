@@ -45,6 +45,7 @@ public class CertManager {
     }
 
     public IssuerBuilder issuer(String namespace) {
+        //@formatter:off
         return new IssuerBuilder()
                 .withNewMetadata()
                     .withName(SELF_SINGED_ISSUER_NAME)
@@ -54,6 +55,7 @@ public class CertManager {
                     .withNewSelfSigned()
                 .endSelfSigned()
                 .endSpec();
+        //@formatter:on
     }
 
     public CertificateBuilder certFor(String namespace, String commonName, String... dnsNames) {

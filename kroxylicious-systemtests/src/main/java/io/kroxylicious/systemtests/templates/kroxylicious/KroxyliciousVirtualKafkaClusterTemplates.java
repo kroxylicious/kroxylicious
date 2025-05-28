@@ -68,11 +68,12 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
      * @param proxyName the proxy name
      * @param clusterRefName the cluster ref name
      * @param ingressName the ingress name
-     * @param tls
+     * @param tls the TLS config with a certificate references
      * @return the virtual kafka cluster builder
      */
     public static VirtualKafkaClusterBuilder defaultVirtualKafkaClusterWithTlsCR(String namespaceName, String clusterName, String proxyName, String clusterRefName,
                                                                                  String ingressName, Tls tls) {
+        //@formatter:off
         return baseVirtualKafkaClusterCR(namespaceName, clusterName, proxyName, clusterRefName, ingressName)
                 .editSpec()
                     .editIngress(0)
@@ -81,6 +82,7 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
                         .endTls()
                     .endIngress()
                 .endSpec();
+        //@formatter:on
     }
 
     /**
