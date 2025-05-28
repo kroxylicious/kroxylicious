@@ -246,17 +246,13 @@ class OperatorChangeDetectionST extends AbstractST {
         kroxylicious = new Kroxylicious(namespace);
     }
 
-    @AfterEach
-    void cleanAfterEach() {
-        if (certManager != null) {
-            certManager.delete();
-        }
-    }
-
     @AfterAll
     void cleanUp() {
         if (kroxyliciousOperator != null) {
             kroxyliciousOperator.delete();
+        }
+        if (certManager != null) {
+            certManager.delete();
         }
     }
 
