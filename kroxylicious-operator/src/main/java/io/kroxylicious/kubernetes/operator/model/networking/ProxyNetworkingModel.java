@@ -18,6 +18,7 @@ import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.operator.model.networking.allocation.Allocation;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -34,7 +35,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
  * required clashing resources.
  * @param clusterNetworkingModels the list of cluster models, note that we do not consider if the clusters are broken yet
  */
-public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkingModels) {
+public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkingModels, List<Allocation> portAllocations) {
 
     public Optional<ClusterNetworkingModel> clusterIngressModel(VirtualKafkaCluster cluster) {
         return clusterNetworkingModels.stream()

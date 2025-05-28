@@ -12,36 +12,33 @@ metadata:
     app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/instance: "twocluster"
+    app.kubernetes.io/instance: "example"
     app.kubernetes.io/component: "proxy"
-  name: "twocluster-proxy-config"
+  name: "example-proxy-config"
   namespace: "proxy-ns"
   ownerReferences:
-  - apiVersion: "kroxylicious.io/v1alpha1"
-    kind: "KafkaProxy"
-    name: "twocluster"
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxy"
+      name: "example"
 data:
   proxy-config.yaml: |-
     ---
     management:
       endpoints:
         prometheus: {}
+    filterDefinitions:
+    - name: "filter-one.KafkaProtocolFilter.filter.kroxylicious.io"
+      type: "org.example.some.java.Class"
+      config:
+        filterOneConfig: true
+    - name: "filter-two.KafkaProtocolFilter.filter.kroxylicious.io"
+      type: "com.example.what.Ever"
+      config:
+        filterTwoConfig: 42
     virtualClusters:
-    - name: "bar"
-      targetCluster:
-        bootstrapServers: "first-kafka.kafka1.svc.cluster.local:9092"
-      gateways:
-      - name: "cluster-ip-bar"
-        portIdentifiesNode:
-          bootstrapAddress: "localhost:9292"
-          advertisedBrokerAddressPattern: "bar-cluster-ip-bar.proxy-ns.svc.cluster.local"
-          nodeIdRanges:
-          - name: "default"
-            start: 0
-            end: 2
     - name: "foo"
       targetCluster:
-        bootstrapServers: "second-kafka.kafka2.svc.cluster.local:9092"
+        bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
       gateways:
       - name: "default"
         portIdentifiesNode:
@@ -51,3 +48,6 @@ data:
           - name: "default"
             start: 0
             end: 2
+      filters:
+      - "filter-one.KafkaProtocolFilter.filter.kroxylicious.io"
+      - "filter-two.KafkaProtocolFilter.filter.kroxylicious.io"

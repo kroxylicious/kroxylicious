@@ -47,9 +47,12 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder
 import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
+import io.kroxylicious.kubernetes.operator.model.ProxyModel;
+import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.kubernetes.operator.KafkaProxyContext.KEY_CTX;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -67,6 +70,12 @@ class KafkaProxyReconcilerTest {
 
     @Mock
     ManagedWorkflowAndDependentResourceContext mdrc;
+
+    @Mock
+    KafkaProxyContext kafkaProxyContext;
+
+    @Mock
+    ProxyModel proxyModel;
 
     private AutoCloseable closeable;
 
@@ -94,6 +103,7 @@ class KafkaProxyReconcilerTest {
                 .endMetadata()
                 .build();
         // @formatter:on
+        givenMockNetworkModelInContext();
 
         // When
         var updateControl = newKafkaProxyReconciler(TEST_CLOCK).reconcile(primary, context);
@@ -108,9 +118,16 @@ class KafkaProxyReconcilerTest {
                 .containsOnlyTypes(Condition.Type.Ready)
                 .singleOfType(Condition.Type.Ready)
                 .isReadyTrue();
-        assertThat(updateControl.isPatchResource()).isFalse();
+        assertThat(updateControl.isPatchResourceAndStatus()).isTrue();
         assertThat(updateControl.getResource().get())
                 .satisfies(kp -> OperatorAssertions.assertThat(kp).doesNotHaveAnnotation(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION));
+    }
+
+    private void givenMockNetworkModelInContext() {
+        when(context.managedWorkflowAndDependentResourceContext()).thenReturn(mdrc);
+        when(mdrc.getMandatory(KEY_CTX, KafkaProxyContext.class)).thenReturn(kafkaProxyContext);
+        when(kafkaProxyContext.model()).thenReturn(proxyModel);
+        when(proxyModel.networkingModel()).thenReturn(new ProxyNetworkingModel(List.of(), List.of()));
     }
 
     @Test
@@ -168,6 +185,7 @@ class KafkaProxyReconcilerTest {
                 .endStatus()
                 .build();
         // @formatter:on
+        givenMockNetworkModelInContext();
 
         Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
 
@@ -363,6 +381,7 @@ class KafkaProxyReconcilerTest {
                 .build();
         // @formatter:on
         Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
+        givenMockNetworkModelInContext();
 
         // When
         var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(proxy, context);
@@ -410,6 +429,8 @@ class KafkaProxyReconcilerTest {
         doReturn(mdrc).when(context).managedWorkflowAndDependentResourceContext();
         doReturn(Set.of(new VirtualKafkaClusterBuilder().withNewMetadata().withName("my-cluster").withNamespace("my-ns").endMetadata().withNewSpec().withNewProxyRef()
                 .withName("my-proxy").endProxyRef().endSpec().build())).when(context).getSecondaryResources(VirtualKafkaCluster.class);
+
+        givenMockNetworkModelInContext();
 
         // When
         var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(primary, context);
