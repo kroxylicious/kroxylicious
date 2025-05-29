@@ -418,15 +418,12 @@ public final class VirtualKafkaClusterReconciler implements
                 Service.class,
                 VirtualKafkaCluster.class)
                 .withName(KUBERNETES_SERVICES_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> {
-                    var name = cluster.getMetadata().getName();
-                    return cluster.getSpec().getIngresses()
-                            .stream()
-                            .map(Ingresses::getIngressRef)
-                            .flatMap(ir -> ResourcesUtil
-                                    .localRefAsResourceId(cluster, new AnyLocalRefBuilder().withName(bootstrapServiceName(cluster, ir.getName())).build()).stream())
-                            .collect(Collectors.toSet());
-                })
+                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> cluster.getSpec().getIngresses()
+                        .stream()
+                        .map(Ingresses::getIngressRef)
+                        .flatMap(ir -> ResourcesUtil
+                                .localRefAsResourceId(cluster, new AnyLocalRefBuilder().withName(bootstrapServiceName(cluster, ir.getName())).build()).stream())
+                        .collect(Collectors.toSet()))
                 .withSecondaryToPrimaryMapper(kubenetesService -> Optional.of(kubenetesService)
                         .flatMap(service -> extractOwnerRefFromKubernetesService(service, VIRTUAL_KAFKA_CLUSTER_KIND))
                         .map(ownerRef -> new ResourceID(ownerRef.getName(), kubenetesService.getMetadata().getNamespace()))
