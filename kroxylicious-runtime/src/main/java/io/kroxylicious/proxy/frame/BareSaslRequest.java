@@ -38,6 +38,21 @@ public class BareSaslRequest implements RequestFrame {
     }
 
     @Override
+    public short apiKeyId() {
+        return -1;
+    }
+
+    @Override
+    public short apiVersion() {
+        return 0;
+    }
+
+    @Override
+    public boolean isDecoded() {
+        return true;
+    }
+
+    @Override
     public boolean decodeResponse() {
         return decodeResponse;
     }

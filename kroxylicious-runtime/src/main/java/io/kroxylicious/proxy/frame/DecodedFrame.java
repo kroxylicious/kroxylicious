@@ -60,6 +60,22 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         return correlationId;
     }
 
+    public short apiKeyId() {
+        return body.apiKey();
+    }
+
+    public ApiKeys apiKey() {
+        return ApiKeys.forId(apiKeyId());
+    }
+
+    public short apiVersion() {
+        return apiVersion;
+    }
+
+    public boolean isDecoded() {
+        return true;
+    }
+
     protected abstract short headerVersion();
 
     public H header() {
@@ -68,14 +84,6 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
 
     public B body() {
         return body;
-    }
-
-    public ApiKeys apiKey() {
-        return ApiKeys.forId(body.apiKey());
-    }
-
-    public short apiVersion() {
-        return apiVersion;
     }
 
     @Override
@@ -140,4 +148,5 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
         frame.buffers.addAll(this.buffers);
         this.buffers.clear();
     }
+
 }

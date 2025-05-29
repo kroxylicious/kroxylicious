@@ -21,7 +21,6 @@ import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.frame.OpaqueFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.internal.InternalResponseFrame;
-import io.kroxylicious.proxy.internal.util.Metrics;
 
 public class KafkaResponseDecoder extends KafkaMessageDecoder {
 
@@ -72,7 +71,6 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
             log().trace("{}: Body: {}", ctx, body);
             Filter recipient = correlation.recipient();
-            Metrics.payloadSizeBytesDownstreamSummary(apiKey, apiVersion, clusterName).record(length);
             if (recipient == null) {
                 frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
             }
@@ -81,14 +79,14 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             }
         }
         else {
-            frame = opaqueFrame(in, correlationId, length);
+            frame = opaqueFrame(correlation.apiKey(), correlation.apiVersion(), in, correlationId, length);
         }
         log().trace("{}: Frame: {}", ctx, frame);
         return frame;
     }
 
-    private OpaqueFrame opaqueFrame(ByteBuf in, int correlationId, int length) {
-        return new OpaqueResponseFrame(in.readSlice(length).retain(), correlationId, length);
+    private OpaqueFrame opaqueFrame(short apiKeyId, short apiVersion, ByteBuf in, int correlationId, int length) {
+        return new OpaqueResponseFrame(apiKeyId, apiVersion, in.readSlice(length).retain(), correlationId, length);
     }
 
     private ResponseHeaderData readHeader(short headerVersion, Readable accessor) {
