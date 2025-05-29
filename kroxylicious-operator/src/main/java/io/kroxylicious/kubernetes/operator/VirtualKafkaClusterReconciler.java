@@ -61,6 +61,7 @@ import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult.Dang
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.fabric8.kubernetes.api.model.HasMetadata.getKind;
@@ -113,8 +114,13 @@ public final class VirtualKafkaClusterReconciler implements
             VirtualKafkaCluster updatedCluster = checkClusterIngressTlsSettings(cluster, context);
             if (updatedCluster == null) {
                 updatedCluster = maybeCombineStatusWithClusterConfigMap(cluster, context);
-                Crc32ChecksumGenerator checksumGenerator = new Crc32ChecksumGenerator();
+                MetadataChecksumGenerator checksumGenerator = context.managedWorkflowAndDependentResourceContext()
+                        .get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)
+                        .orElse(new Crc32ChecksumGenerator());
                 clusterResolutionResult.allResolvedReferents().forEach(checksumGenerator::appendMetadata);
+
+                appendSecretsFromCertificateRefs(context, cluster, checksumGenerator);
+
                 KubernetesResourceUtil.getOrCreateAnnotations(updatedCluster)
                         .put(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
                                 checksumGenerator.encode());
@@ -131,6 +137,19 @@ public final class VirtualKafkaClusterReconciler implements
             LOGGER.info("Completed reconciliation of {}/{}", namespace(cluster), name(cluster));
         }
         return reconciliationResult;
+    }
+
+    private static void appendSecretsFromCertificateRefs(Context<VirtualKafkaCluster> context, VirtualKafkaCluster updatedCluster,
+                                                         @NonNull MetadataChecksumGenerator checksumGenerator) {
+        LOGGER.debug("Including secrets from ingress TLS in checksum");
+        updatedCluster.getSpec().getIngresses().stream()
+                .map(Ingresses::getTls)
+                .filter(Objects::nonNull)
+                .map(Tls::getCertificateRef)
+                .flatMap(certificateRef -> context.getSecondaryResourcesAsStream(Secret.class)
+                        .filter(secret -> secret.getMetadata().getName().equals(certificateRef.getName())))
+
+                .forEach(checksumGenerator::appendMetadata);
     }
 
     /**
