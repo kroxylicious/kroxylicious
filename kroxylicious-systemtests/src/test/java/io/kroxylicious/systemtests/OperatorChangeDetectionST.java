@@ -8,8 +8,10 @@ package io.kroxylicious.systemtests;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterAll;
@@ -102,7 +104,12 @@ class OperatorChangeDetectionST extends AbstractST {
                 .withName("test-vkc").get();
 
         // When
-        resourceManager.replaceResourceWithRetries(virtualKafkaCluster, vkc -> vkc.getSpec().setFilterRefs(List.of(filterRef)));
+        resourceManager.replaceResourceWithRetries(virtualKafkaCluster, vkc -> {
+            var filterRefs = Optional.ofNullable(vkc.getSpec().getFilterRefs()).orElse(new ArrayList<>());
+            filterRefs.add(filterRef);
+            vkc.getSpec().setFilterRefs(filterRefs);
+
+        });
         LOGGER.info("virtual cluster edited");
 
         // Then
@@ -128,7 +135,11 @@ class OperatorChangeDetectionST extends AbstractST {
 
         // When
         resourceManager.replaceResourceWithRetries(cert.build(),
-                certToPatch -> certToPatch.getSpec().getDnsNames().add("test-vkc-cluster-ip.my-proxy.svc.cluster.local"));
+                certToPatch -> {
+                    var dnsNames = Optional.ofNullable(certToPatch.getSpec().getDnsNames()).orElse(new ArrayList<>());
+                    dnsNames.add("test-vkc-cluster-ip.my-proxy.svc.cluster.local");
+                    certToPatch.getSpec().setDnsNames(dnsNames);
+                });
         LOGGER.info("SAN added to downstream tls cert");
 
         // Then
