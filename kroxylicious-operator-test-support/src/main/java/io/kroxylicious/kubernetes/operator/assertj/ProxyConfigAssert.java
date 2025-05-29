@@ -16,6 +16,7 @@ import org.assertj.core.api.Assertions;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
@@ -69,6 +70,29 @@ public class ProxyConfigAssert extends AbstractObjectAssert<ProxyConfigAssert, C
             return new ProxyConfigPortIdentifiesNodeGatewayAssert(actual.portIdentifiesNode());
         }
 
+        public ProxyConfigSniHostIdentifiesNodeGatewayAssert sniHostIdentifiesNode() {
+            Assertions.assertThat(actual.sniHostIdentifiesNode()).isNotNull();
+            return new ProxyConfigSniHostIdentifiesNodeGatewayAssert(actual.sniHostIdentifiesNode());
+        }
+
+    }
+
+    public static class ProxyConfigSniHostIdentifiesNodeGatewayAssert
+            extends AbstractObjectAssert<ProxyConfigSniHostIdentifiesNodeGatewayAssert, SniHostIdentifiesNodeIdentificationStrategy> {
+
+        public ProxyConfigSniHostIdentifiesNodeGatewayAssert(SniHostIdentifiesNodeIdentificationStrategy sniHostIdentifiesNodeIdentificationStrategy) {
+            super(sniHostIdentifiesNodeIdentificationStrategy, ProxyConfigSniHostIdentifiesNodeGatewayAssert.class);
+        }
+
+        public ProxyConfigSniHostIdentifiesNodeGatewayAssert hasBootstrapAddress(String bootstrapAddress) {
+            Assertions.assertThat(actual.bootstrapAddress()).isEqualTo(bootstrapAddress);
+            return this;
+        }
+
+        public ProxyConfigSniHostIdentifiesNodeGatewayAssert hasAdvertisedBrokerAddressPattern(String advertisedBrokerAddressPattern) {
+            Assertions.assertThat(actual.advertisedBrokerAddressPattern()).isEqualTo(advertisedBrokerAddressPattern);
+            return this;
+        }
     }
 
     public static class ProxyConfigPortIdentifiesNodeGatewayAssert

@@ -67,4 +67,18 @@ public interface ClusterIngressNetworkingModel {
      * The downstream TLS to be injected into the Proxy Config for this model, if available
      */
     Optional<Tls> downstreamTls();
+
+    /**
+     * @return true if this cluster ingress requires a shared SNI port in the proxy container to be provided
+     */
+    default boolean requiresSharedSniContainerPort() {
+        return false;
+    }
+
+    /**
+     * @return the client facing ports that should be exposed on the shared SNI loadbalancer service
+     */
+    default Stream<Integer> requiredSniLoadBalancerServicePorts() {
+        return Stream.empty();
+    }
 }

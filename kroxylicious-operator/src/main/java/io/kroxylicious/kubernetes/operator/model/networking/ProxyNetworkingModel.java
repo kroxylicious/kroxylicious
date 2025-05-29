@@ -69,6 +69,16 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
                 result.proxyContainerPorts().forEach(portConsumer);
             });
         }
+
+        public boolean anyIngressRequiresSharedSniPort() {
+            return clusterIngressNetworkingModelResults.stream()
+                    .anyMatch(ingressModelResult -> ingressModelResult.clusterIngressNetworkingModel().requiresSharedSniContainerPort());
+        }
+
+        public Stream<Integer> requiredSniLoadbalancerPorts() {
+            return clusterIngressNetworkingModelResults.stream()
+                    .flatMap(ingressModelResult -> ingressModelResult.clusterIngressNetworkingModel().requiredSniLoadBalancerServicePorts());
+        }
     }
 
     /**

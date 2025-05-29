@@ -75,6 +75,7 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatusBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import io.kroxylicious.kubernetes.operator.assertj.ProxyConfigAssert;
+import io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.service.HostPort;
@@ -104,6 +105,7 @@ class KafkaProxyReconcilerIT {
     private static final String CLUSTER_BAR_REF = "barref";
     private static final String CLUSTER_BAR = "bar";
     private static final String CLUSTER_BAR_CLUSTERIP_INGRESS = "bar-cluster-ip";
+    private static final String CLUSTER_BAR_LOADBALANCER_INGRESS = "bar-load-balancer";
     private static final String CLUSTER_BAR_BOOTSTRAP = "my-cluster-kafka-bootstrap.bar.svc.cluster.local:9092";
     private static final String NEW_BOOTSTRAP = "new-bootstrap:9092";
 
@@ -231,6 +233,81 @@ class KafkaProxyReconcilerIT {
     }
 
     @Test
+    void loadBalancerIngress() {
+        KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
+        KafkaService kafkaService = testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP));
+        kafkaService = updateStatusObservedGeneration(kafkaService);
+        String loadbalancerBootstrap = "bootstrap.kafka";
+        String loadbalancerBrokerAddressPattern = "broker-$(nodeId).kafka";
+        KafkaProxyIngress loadBalancer = testActor.create(loadBalancerIngress(CLUSTER_BAR_LOADBALANCER_INGRESS, proxy, loadbalancerBootstrap,
+                loadbalancerBrokerAddressPattern));
+        KafkaProxyIngress ingress = updateStatusObservedGeneration(loadBalancer);
+
+        Secret tlsServerCert = testActor.create(tlsKeyAndCertSecret("downstream-tls-certificate"));
+        String downstreamTrustAnchorName = "downstream-tls-trust-anchor";
+        ConfigMap trustAnchor = testActor.create(trustAnchorConfigMap(downstreamTrustAnchorName, "tls.pem"));
+
+        Ingresses clusterIngress = new IngressesBuilder()
+                .withIngressRef(toIngressRef(ingress))
+                .withNewTls()
+                .withCertificateRef(toCertificateRef(tlsServerCert))
+                .withTrustAnchorRef(toTrustAnchorRef(trustAnchor))
+                .endTls()
+                .build();
+        VirtualKafkaCluster cluster = virtualKafkaCluster(CLUSTER_BAR, proxy, kafkaService, List.of(clusterIngress), Optional.empty());
+
+        // when
+        updateStatusObservedGeneration(testActor.create(cluster));
+
+        int clientFacingPort = LoadBalancerClusterIngressNetworkingModel.DEFAULT_LOADBALANCER_PORT;
+        int proxyListenPort = ProxyDeploymentDependentResource.SHARED_SNI_PORT;
+
+        AWAIT.alias("shared sni service manifested").untilAsserted(() -> {
+            String serviceName = name(proxy) + "-sni";
+            var service = testActor.get(Service.class, serviceName);
+            assertThat(service).isNotNull()
+                    .describedAs(
+                            "Expect shared SNI Service for proxy '" + name(proxy) + " to exist")
+                    .extracting(svc -> svc.getSpec().getSelector())
+                    .describedAs("Service's selector should select proxy pods")
+                    .isEqualTo(ProxyDeploymentDependentResource.podLabels(proxy));
+            assertThat(service.getSpec().getType()).isEqualTo("LoadBalancer");
+            // cannot use equality because the ServicePort has a random nodePort assigned to it
+            assertThat(service.getSpec().getPorts()).singleElement().satisfies(onlyPort -> {
+                String expectedName = "sni-" + clientFacingPort;
+                assertThat(onlyPort.getName()).isEqualTo(expectedName);
+                assertThat(onlyPort.getProtocol()).isEqualTo("TCP");
+                assertThat(onlyPort.getPort()).isEqualTo(clientFacingPort);
+                assertThat(onlyPort.getTargetPort()).isEqualTo(new IntOrString(proxyListenPort));
+            });
+        });
+
+        AWAIT.alias("proxy deployment exposes shared sni port").untilAsserted(() -> {
+            var deployment = testActor.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy));
+            assertThat(deployment).isNotNull();
+            List<Container> containers = deployment.getSpec().getTemplate().getSpec().getContainers();
+            assertThat(containers).hasSize(1).singleElement().satisfies(container -> {
+                assertThat(container.getName()).isEqualTo("proxy");
+                ContainerPort metricsPort = new ContainerPortBuilder().withContainerPort(9190).withName("management").withProtocol("TCP").build();
+                ContainerPort bootstrapContainerPort = createContainerPort(proxyListenPort, "shared-sni-port");
+                assertThat(container.getPorts())
+                        .containsExactlyInAnyOrder(
+                                metricsPort,
+                                bootstrapContainerPort);
+            });
+        });
+
+        AWAIT.alias("proxy config - gateway configured for SNI loadbalancer ingress").untilAsserted(() -> {
+            assertProxyConfigInConfigMap(proxy)
+                    .cluster(name(cluster))
+                    .gateway(name(ingress))
+                    .sniHostIdentifiesNode()
+                    .hasBootstrapAddress(new HostPort(loadbalancerBootstrap, proxyListenPort).toString())
+                    .hasAdvertisedBrokerAddressPattern(new HostPort(loadbalancerBrokerAddressPattern, clientFacingPort).toString());
+        });
+    }
+
+    @Test
     void clusterIpIngressUsesDeclaredNodeIdsOfService() {
         KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
         KafkaProtocolFilter filter = testActor.create(filter(FILTER_NAME));
@@ -314,7 +391,7 @@ class KafkaProxyReconcilerIT {
     }
 
     private static @NonNull ServicePort clusterIpServicePort(String clusterName, int port) {
-        return createServicePort(clusterName + "-" + port, port);
+        return createServicePort(clusterName + "-" + port, port, port);
     }
 
     private static ContainerPort createContainerPort(int port, String name) {
@@ -325,8 +402,8 @@ class KafkaProxyReconcilerIT {
         return new NodeIdRangesBuilder().withName(brokers).withStart(start).withEnd(end).build();
     }
 
-    private static ServicePort createServicePort(String name, int port) {
-        return new ServicePortBuilder().withName(name).withPort(port).withProtocol("TCP").withTargetPort(new IntOrString(port)).build();
+    private static ServicePort createServicePort(String name, int port, int targetPort) {
+        return new ServicePortBuilder().withName(name).withPort(port).withProtocol("TCP").withTargetPort(new IntOrString(targetPort)).build();
     }
 
     private record CreatedResources(KafkaProxy proxy, Set<VirtualKafkaCluster> clusters, Set<KafkaService> services, Set<KafkaProxyIngress> ingresses) {
@@ -413,6 +490,28 @@ class KafkaProxyReconcilerIT {
                     .withNewClusterIP()
                         .withProtocol(protocol)
                     .endClusterIP()
+                    .withNewProxyRef()
+                        .withName(name(proxy))
+                    .endProxyRef()
+                .endSpec()
+                .build();
+        // @formatter:on
+    }
+
+    private KafkaProxyIngress loadBalancerIngress(String ingressName,
+                                                  KafkaProxy proxy,
+                                                  String bootstrapAddress,
+                                                  String advertisedBrokerAddressPattern) {
+        // @formatter:off
+        return new KafkaProxyIngressBuilder()
+                .withNewMetadata()
+                    .withName(ingressName)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewLoadBalancer()
+                        .withBootstrapAddress(bootstrapAddress)
+                        .withAdvertisedBrokerAddressPattern(advertisedBrokerAddressPattern)
+                    .endLoadBalancer()
                     .withNewProxyRef()
                         .withName(name(proxy))
                     .endProxyRef()
