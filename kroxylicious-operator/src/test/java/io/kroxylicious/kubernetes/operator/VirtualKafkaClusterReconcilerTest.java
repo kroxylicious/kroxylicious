@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.BeforeEach;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.Mock;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
@@ -39,6 +41,7 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
+import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkflowAndDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 
@@ -62,6 +65,7 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
+import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -70,6 +74,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class VirtualKafkaClusterReconcilerTest {
@@ -242,21 +247,23 @@ class VirtualKafkaClusterReconcilerTest {
             .endMetadata()
             .addToData("ca-bundle.pem", "value")
             .build();
-
     // @formatter:on
-
+    @Mock
+    private static ManagedWorkflowAndDependentResourceContext workflowContext;
     private VirtualKafkaClusterReconciler virtualKafkaClusterReconciler;
 
     @BeforeEach
     void setUp() {
         virtualKafkaClusterReconciler = new VirtualKafkaClusterReconciler(Clock.systemUTC(), DependencyResolver.create());
+        workflowContext = mock(ManagedWorkflowAndDependentResourceContext.class);
     }
 
     static List<Arguments> shouldSetResolvedRefs() {
         List<Arguments> result = new ArrayList<>();
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
+
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS));
             when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
@@ -271,7 +278,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS));
             when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
@@ -289,7 +296,7 @@ class VirtualKafkaClusterReconcilerTest {
 
         {
 
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS));
             when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
@@ -308,7 +315,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS));
             when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
             result.add(Arguments.argumentSet("proxy not found",
@@ -322,7 +329,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS));
             result.add(Arguments.argumentSet("service not found",
@@ -336,7 +343,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(
                     Set.of(INGRESS.edit().editSpec().withNewProxyRef().withName("not-my-proxy").endProxyRef().endSpec().build()));
@@ -352,7 +359,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS));
             when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(new KafkaServiceBuilder(SERVICE).withNewStatus().addNewCondition()
@@ -374,7 +381,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
             result.add(Arguments.argumentSet("ingress not found",
@@ -388,7 +395,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(
@@ -411,7 +418,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS));
             when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
@@ -426,7 +433,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS));
             when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
@@ -451,7 +458,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
             mockGetSecret(context, Optional.of(KUBE_TLS_CERT_SECRET));
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS_WITH_TLS));
@@ -467,7 +474,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
 
             mockGetSecret(context, Optional.empty());
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
@@ -484,7 +491,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
 
             mockGetSecret(context, Optional.of(NON_KUBE_TLS_CERT_SECRET));
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
@@ -501,7 +508,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
 
             mockGetSecret(context, Optional.empty());
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
@@ -518,7 +525,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
             mockGetSecret(context, Optional.of(KUBE_TLS_CERT_SECRET));
             mockGetConfigMap(context, Optional.of(PEM_CONFIG_MAP));
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
@@ -535,7 +542,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
 
             mockGetSecret(context, Optional.of(KUBE_TLS_CERT_SECRET));
             mockGetConfigMap(context, Optional.empty());
@@ -553,7 +560,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
 
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS));
@@ -569,7 +576,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<? extends CustomResource<?, ?>> context = mock();
+            Context<? extends CustomResource<?, ?>> context = mockContext();
 
             when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
             when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS_WITH_TLS));
@@ -585,6 +592,13 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         return result;
+    }
+
+    @NonNull
+    private static Context<? extends CustomResource<?, ?>> mockContext() {
+        Context<? extends CustomResource<?, ?>> context = mock();
+        when(context.managedWorkflowAndDependentResourceContext()).thenReturn(workflowContext);
+        return context;
     }
 
     @NonNull
@@ -645,6 +659,8 @@ class VirtualKafkaClusterReconcilerTest {
         var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
 
         Context<VirtualKafkaCluster> context = mock();
+        ManagedWorkflowAndDependentResourceContext workflowContext = mock(ManagedWorkflowAndDependentResourceContext.class);
+        when(context.managedWorkflowAndDependentResourceContext()).thenReturn(workflowContext);
 
         when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
         when(context.getSecondaryResource(ConfigMap.class)).thenReturn(Optional.of(buildProxyConfigMapWithPatch(CLUSTER_NO_FILTERS)));
@@ -679,6 +695,8 @@ class VirtualKafkaClusterReconcilerTest {
         var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
 
         Context<VirtualKafkaCluster> context = mock();
+        ManagedWorkflowAndDependentResourceContext workflowContext = mock(ManagedWorkflowAndDependentResourceContext.class);
+        when(context.managedWorkflowAndDependentResourceContext()).thenReturn(workflowContext);
 
         when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
         when(context.getSecondaryResource(ConfigMap.class)).thenReturn(Optional.of(buildProxyConfigMapWithPatch(CLUSTER_NO_FILTERS)));
@@ -979,6 +997,29 @@ class VirtualKafkaClusterReconcilerTest {
 
         // then
         assertThat(primaryResourceIDs).isEmpty();
+    }
+
+    @Test
+    void shouldIncludeDownstreamTlsSecretInChecksum() {
+        // Given
+        Context<VirtualKafkaCluster> context = mock();
+        MetadataChecksumGenerator checksumGenerator = mock(MetadataChecksumGenerator.class);
+        when(workflowContext.get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)).thenReturn(Optional.of(checksumGenerator));
+        when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
+        when(context.getSecondaryResource(ConfigMap.class)).thenReturn(Optional.of(buildProxyConfigMapWithPatch(CLUSTER_TLS_NO_FILTERS)));
+        when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
+        when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS_WITH_TLS));
+        when(context.getSecondaryResources(KafkaProtocolFilter.class)).thenReturn(Set.of());
+        when(context.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
+        when(context.getSecondaryResource(Secret.class, "secrets")).thenReturn(Optional.of(KUBE_TLS_CERT_SECRET));
+        when(context.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(KUBE_TLS_CERT_SECRET));
+        when(context.managedWorkflowAndDependentResourceContext()).thenReturn(workflowContext);
+
+        // When
+        virtualKafkaClusterReconciler.reconcile(CLUSTER_TLS_NO_FILTERS, context);
+
+        // Then
+        verify(checksumGenerator).appendMetadata(KUBE_TLS_CERT_SECRET);
     }
 
     private static EventSourceContext<VirtualKafkaCluster> mockContextContaining(VirtualKafkaCluster cluster) {
