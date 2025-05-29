@@ -28,4 +28,12 @@ public interface Frame {
      */
     int correlationId();
 
+    /** Api key id of this frame. */
+    short apiKeyId();
+
+    /** Api version of this frame. */
+    short apiVersion();
+
+    /** true if this frame is decoded, false otherwise */
+    boolean isDecoded();
 }

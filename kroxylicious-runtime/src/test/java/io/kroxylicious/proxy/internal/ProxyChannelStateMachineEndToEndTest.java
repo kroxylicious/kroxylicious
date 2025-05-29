@@ -61,6 +61,7 @@ import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -96,7 +97,7 @@ class ProxyChannelStateMachineEndToEndTest {
     private EmbeddedChannel outboundChannel;
     private final AtomicBoolean outboundClosed = new AtomicBoolean(false);
 
-    int correlectionId = 0;
+    int correlationId = 0;
     private ProxyChannelStateMachine proxyChannelStateMachine;
     private KafkaProxyFrontendHandler handler;
     private KafkaProxyBackendHandler backendHandler;
@@ -613,7 +614,7 @@ class ProxyChannelStateMachineEndToEndTest {
     }
 
     private int writeRequest(short apiVersion, ApiMessage body) {
-        int downstreamCorrelationId = correlectionId++;
+        int downstreamCorrelationId = correlationId++;
 
         DecodedRequestFrame<ApiMessage> apiMessageDecodedRequestFrame = decodedRequestFrame(apiVersion, body, downstreamCorrelationId);
         inboundChannel.writeInbound(apiMessageDecodedRequestFrame);
@@ -643,8 +644,8 @@ class ProxyChannelStateMachineEndToEndTest {
     private KafkaProxyFrontendHandler handler(
                                               NetFilter filter,
                                               SaslDecodePredicate dp,
-                                              EndpointGateway endpointGateway) {
-        return new KafkaProxyFrontendHandler(filter, dp, endpointGateway, proxyChannelStateMachine) {
+                                              EndpointBinding endpointBinding) {
+        return new KafkaProxyFrontendHandler(filter, dp, endpointBinding, proxyChannelStateMachine) {
             @NonNull
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler capturedBackendHandler, Channel inboundChannel) {
@@ -679,14 +680,17 @@ class ProxyChannelStateMachineEndToEndTest {
                               boolean tlsConfigured,
                               Answer<Void> filterSelectServerBehaviour) {
         this.inboundChannel = new EmbeddedChannel();
-        this.correlectionId = 0;
+        this.correlationId = 0;
 
         var dp = new SaslDecodePredicate(saslOffloadConfigured);
         NetFilter filter = mock(NetFilter.class);
         doAnswer(filterSelectServerBehaviour).when(filter).selectServer(any());
         VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
+        when(virtualClusterModel.getClusterName()).thenReturn("cluster");
+        EndpointBinding endpointBinding = mock(EndpointBinding.class);
         EndpointGateway endpointGateway = mock(EndpointGateway.class);
         when(endpointGateway.virtualCluster()).thenReturn(virtualClusterModel);
+        when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         final Optional<SslContext> sslContext;
         try {
             sslContext = Optional.ofNullable(tlsConfigured ? SslContextBuilder.forClient().build() : null);
@@ -696,7 +700,7 @@ class ProxyChannelStateMachineEndToEndTest {
         }
         when(virtualClusterModel.getUpstreamSslContext()).thenReturn(sslContext);
 
-        this.handler = handler(filter, dp, endpointGateway);
+        this.handler = handler(filter, dp, endpointBinding);
         this.inboundCtx = mock(ChannelHandlerContext.class);
         when(inboundCtx.channel()).thenReturn(inboundChannel);
         when(inboundCtx.pipeline()).thenReturn(inboundChannel.pipeline());
@@ -993,12 +997,12 @@ class ProxyChannelStateMachineEndToEndTest {
         return switch (firstMessage) {
             case API_VERSIONS -> decodedRequestFrame(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsRequestData()
                     .setClientSoftwareName(CLIENT_SOFTWARE_NAME)
-                    .setClientSoftwareVersion(CLIENT_SOFTWARE_VERSION), correlectionId++);
+                    .setClientSoftwareVersion(CLIENT_SOFTWARE_VERSION), correlationId++);
             case SASL_HANDSHAKE -> decodedRequestFrame(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new SaslHandshakeRequestData()
-                    .setMechanism(KafkaAuthnHandler.SaslMechanism.PLAIN.mechanismName()), correlectionId++);
+                    .setMechanism(KafkaAuthnHandler.SaslMechanism.PLAIN.mechanismName()), correlationId++);
             case SASL_AUTHENTICATE -> decodedRequestFrame(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new SaslAuthenticateRequestData()
-                    .setAuthBytes("pa55word".getBytes(StandardCharsets.UTF_8)), correlectionId++);
-            case METADATA -> decodedRequestFrame(MetadataRequestData.HIGHEST_SUPPORTED_VERSION, new MetadataRequestData(), correlectionId++);
+                    .setAuthBytes("pa55word".getBytes(StandardCharsets.UTF_8)), correlationId++);
+            case METADATA -> decodedRequestFrame(MetadataRequestData.HIGHEST_SUPPORTED_VERSION, new MetadataRequestData(), correlationId++);
             default -> throw new IllegalArgumentException();
         };
     }
@@ -1009,7 +1013,7 @@ class ProxyChannelStateMachineEndToEndTest {
             case SASL_HANDSHAKE -> assertNextClientResponseIsSaslHandshakeError(requestFrame.correlationId());
             case SASL_AUTHENTICATE -> assertNextClientResponseIsSaslAuthenticateError(requestFrame.correlationId());
             case METADATA -> assertNextClientResponseIsMetadataError(requestFrame.correlationId());
-            default -> throw new UnsupportedOperationException("unsupported apiKey: " + requestFrame.apiKey());
+            default -> throw new UnsupportedOperationException("unsupported apiKey: " + requestFrame.apiKeyId());
         }
     }
 

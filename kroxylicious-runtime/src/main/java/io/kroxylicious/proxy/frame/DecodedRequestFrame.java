@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.frame;
 
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import static org.apache.kafka.common.protocol.ApiKeys.PRODUCE;
@@ -31,7 +32,7 @@ public class DecodedRequestFrame<B extends ApiMessage>
 
     @Override
     public short headerVersion() {
-        return apiKey().messageType.requestHeaderVersion(apiVersion);
+        return ApiKeys.forId(apiKeyId()).messageType.requestHeaderVersion(apiVersion);
     }
 
     @Override
@@ -45,7 +46,7 @@ public class DecodedRequestFrame<B extends ApiMessage>
     }
 
     private boolean isZeroAcksProduceRequest() {
-        return apiKey() == PRODUCE && ((ProduceRequestData) body).acks() == 0;
+        return apiKeyId() == PRODUCE.id && ((ProduceRequestData) body).acks() == 0;
     }
 
 }
