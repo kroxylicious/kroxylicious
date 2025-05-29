@@ -27,7 +27,6 @@ import org.mockito.Mock;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
@@ -270,11 +269,9 @@ class VirtualKafkaClusterReconcilerTest {
             result.add(Arguments.argumentSet("no filter",
                     CLUSTER_NO_FILTERS,
                     context,
-                    (Consumer<ConditionListAssert>) conditionList -> {
-                        conditionList
-                                .singleElement()
-                                .isResolvedRefsTrue();
-                    }));
+                    (Consumer<ConditionListAssert>) conditionList -> conditionList
+                            .singleElement()
+                            .isResolvedRefsTrue()));
         }
 
         {
@@ -287,11 +284,9 @@ class VirtualKafkaClusterReconcilerTest {
             result.add(Arguments.argumentSet("one filter",
                     CLUSTER_ONE_FILTER,
                     context,
-                    (Consumer<ConditionListAssert>) conditionList -> {
-                        conditionList
-                                .singleElement()
-                                .isResolvedRefsTrue();
-                    }));
+                    (Consumer<ConditionListAssert>) conditionList -> conditionList
+                            .singleElement()
+                            .isResolvedRefsTrue()));
         }
 
         {
@@ -307,11 +302,9 @@ class VirtualKafkaClusterReconcilerTest {
                     new VirtualKafkaClusterBuilder(CLUSTER_ONE_FILTER).editOrNewStatus().withObservedGeneration(ResourcesUtil.generation(CLUSTER_NO_FILTERS))
                             .endStatus().build(),
                     context,
-                    (Consumer<ConditionListAssert>) conditionList -> {
-                        conditionList
-                                .singleElement()
-                                .isResolvedRefsTrue();
-                    }));
+                    (Consumer<ConditionListAssert>) conditionList -> conditionList
+                            .singleElement()
+                            .isResolvedRefsTrue()));
         }
 
         {
@@ -466,11 +459,9 @@ class VirtualKafkaClusterReconcilerTest {
             result.add(Arguments.argumentSet("cluster with tls",
                     CLUSTER_TLS_NO_FILTERS,
                     context,
-                    (Consumer<ConditionListAssert>) conditionList -> {
-                        conditionList
-                                .singleElement()
-                                .isResolvedRefsTrue();
-                    }));
+                    (Consumer<ConditionListAssert>) conditionList -> conditionList
+                            .singleElement()
+                            .isResolvedRefsTrue()));
         }
 
         {
@@ -534,11 +525,9 @@ class VirtualKafkaClusterReconcilerTest {
             result.add(Arguments.argumentSet("cluster with tls with trust anchor",
                     CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR,
                     context,
-                    (Consumer<ConditionListAssert>) conditionList -> {
-                        conditionList
-                                .singleElement()
-                                .isResolvedRefsTrue();
-                    }));
+                    (Consumer<ConditionListAssert>) conditionList -> conditionList
+                            .singleElement()
+                            .isResolvedRefsTrue()));
         }
 
         {
@@ -1026,15 +1015,15 @@ class VirtualKafkaClusterReconcilerTest {
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = mock();
         KubernetesClient client = mock();
         when(eventSourceContext.getClient()).thenReturn(client);
-        KubernetesResourceList<VirtualKafkaCluster> mockList = mockListOperation(client, VirtualKafkaCluster.class);
+        KubernetesResourceList<VirtualKafkaCluster> mockList = mockListVirtualClustersOperation(client);
         when(mockList.getItems()).thenReturn(List.of(cluster));
         return eventSourceContext;
     }
 
-    private static <T extends HasMetadata> KubernetesResourceList<T> mockListOperation(KubernetesClient client, Class<T> clazz) {
-        MixedOperation<T, KubernetesResourceList<T>, Resource<T>> mockOperation = mock();
-        when(client.resources(clazz)).thenReturn(mockOperation);
-        KubernetesResourceList<T> mockList = mock();
+    private static KubernetesResourceList<VirtualKafkaCluster> mockListVirtualClustersOperation(KubernetesClient client) {
+        MixedOperation<VirtualKafkaCluster, KubernetesResourceList<VirtualKafkaCluster>, Resource<VirtualKafkaCluster>> mockOperation = mock();
+        when(client.resources(VirtualKafkaCluster.class)).thenReturn(mockOperation);
+        KubernetesResourceList<VirtualKafkaCluster> mockList = mock();
         when(mockOperation.list()).thenReturn(mockList);
         when(mockOperation.inNamespace(any())).thenReturn(mockOperation);
         return mockList;
