@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -37,7 +38,13 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
     private final DecodePredicate decodePredicate;
 
     private final ApiVersionsServiceImpl apiVersionsService;
+
+    private final Counter clientToProxyCounter;
+
+    @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter inboundMessageCounter;
+
+    @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter decodedMessagesCounter;
     private final String clusterName;
 
@@ -74,13 +81,16 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         int correlationId = in.readInt();
         LOGGER.debug("{}: {} downstream correlation id: {}", ctx, apiKey, correlationId);
         RequestHeaderData header = null;
-        final ByteBufAccessorImpl accessor;
+
         inboundMessageCounter.increment();
         var decodeRequest = decodePredicate.shouldDecodeRequest(apiKey, apiVersion);
+        Metrics.KROXYLICIOUS_CLIENT_TO_PROXY_REQUEST_TOTAL_METER_PROVIDER.withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, Metrics.DECODED_LABEL, Boolean.toString(decodeRequest), Metrics.API_KEY_LABEL, apiKey.name(), Metrics.API_VERSION_LABEL, Short.toString(apiVersion), Metrics.NODE_ID_LABEL, null).increment();
+
         LOGGER.debug("Decode {}/v{} request? {}, Predicate {} ", apiKey, apiVersion, decodeRequest, decodePredicate);
         boolean decodeResponse = decodePredicate.shouldDecodeResponse(apiKey, apiVersion);
         LOGGER.debug("Decode {}/v{} response? {}, Predicate {}", apiKey, apiVersion, decodeResponse, decodePredicate);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
+        final ByteBufAccessorImpl accessor;
         if (decodeRequest) {
             decodedMessagesCounter.increment();
             Metrics.payloadSizeBytesUpstreamSummary(apiKey, apiVersion, clusterName).record(length);

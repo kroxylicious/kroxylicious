@@ -57,6 +57,7 @@ public class Metrics {
 
     // Common Labels
     public static final String VIRTUAL_CLUSTER_LABEL = "virtual_cluster";
+    public static final String NODE_ID_LABEL = "virtual_cluster";
     public static final String API_KEY_LABEL = "api_key";
     public static final String API_VERSION_LABEL = "api_version";
     public static final String DECODED_LABEL = "decoded";
