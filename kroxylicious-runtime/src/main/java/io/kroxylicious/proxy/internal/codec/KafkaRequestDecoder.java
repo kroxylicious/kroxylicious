@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal.codec;
 
 import java.util.List;
 
+import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -16,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Tag;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -37,18 +39,32 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
     private final DecodePredicate decodePredicate;
 
     private final ApiVersionsServiceImpl apiVersionsService;
+
+    private final Meter.MeterProvider<Counter> clientToProxyCounterProvider;
+
+    @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter inboundMessageCounter;
+
+    @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter decodedMessagesCounter;
     private final String clusterName;
+    private final Integer nodeId;
 
-    public KafkaRequestDecoder(DecodePredicate decodePredicate, int socketFrameMaxSize, ApiVersionsServiceImpl apiVersionsService, String clusterName) {
+    public KafkaRequestDecoder(DecodePredicate decodePredicate, int socketFrameMaxSize, ApiVersionsServiceImpl apiVersionsService, String clusterName, Integer nodeId
+    ) {
         super(socketFrameMaxSize);
         this.decodePredicate = decodePredicate;
         this.apiVersionsService = apiVersionsService;
         this.clusterName = clusterName;
+        this.nodeId = nodeId;
         List<Tag> tags = Metrics.tags(Metrics.FLOWING_TAG, Metrics.DOWNSTREAM, Metrics.VIRTUAL_CLUSTER_TAG, clusterName);
         inboundMessageCounter = Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, tags);
         decodedMessagesCounter = Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, tags);
+        clientToProxyCounterProvider = Metrics.KROXYLICIOUS_CLIENT_TO_PROXY_REQUEST_TOTAL_METER_PROVIDER.apply(clusterName);
+
+        // init - move me
+        clientToProxyCounterProvider.withTags(Metrics.DECODED_LABEL, Boolean.toString(false), Metrics.API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(), Metrics.API_VERSION_LABEL, Short.toString(
+                ApiMessageType.CREATE_TOPICS.highestSupportedVersion(false)), Metrics.NODE_ID_LABEL, nodeId == null ? "bootstrap" : nodeId.toString());
     }
 
     @Override
@@ -74,13 +90,16 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         int correlationId = in.readInt();
         LOGGER.debug("{}: {} downstream correlation id: {}", ctx, apiKey, correlationId);
         RequestHeaderData header = null;
-        final ByteBufAccessorImpl accessor;
+
         inboundMessageCounter.increment();
         var decodeRequest = decodePredicate.shouldDecodeRequest(apiKey, apiVersion);
+        clientToProxyCounterProvider.withTags(Metrics.DECODED_LABEL, Boolean.toString(decodeRequest), Metrics.API_KEY_LABEL, apiKey.name(), Metrics.API_VERSION_LABEL, Short.toString(apiVersion), Metrics.NODE_ID_LABEL, nodeId == null ? "bootstrap" : nodeId.toString()).increment();
+
         LOGGER.debug("Decode {}/v{} request? {}, Predicate {} ", apiKey, apiVersion, decodeRequest, decodePredicate);
         boolean decodeResponse = decodePredicate.shouldDecodeResponse(apiKey, apiVersion);
         LOGGER.debug("Decode {}/v{} response? {}, Predicate {}", apiKey, apiVersion, decodeResponse, decodePredicate);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
+        final ByteBufAccessorImpl accessor;
         if (decodeRequest) {
             decodedMessagesCounter.increment();
             Metrics.payloadSizeBytesUpstreamSummary(apiKey, apiVersion, clusterName).record(length);

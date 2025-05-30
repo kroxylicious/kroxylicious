@@ -153,12 +153,7 @@ public final class KafkaProxy implements AutoCloseable {
                             .toArray(CompletableFuture[]::new))
                     .join();
 
-            // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
-            virtualClusterModels.forEach(virtualClusterModel -> {
-                List<Tag> tags = Metrics.tags(Metrics.FLOWING_TAG, Metrics.DOWNSTREAM, Metrics.VIRTUAL_CLUSTER_TAG, virtualClusterModel.getClusterName());
-                Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, tags);
-                Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, tags);
-            });
+            initDeprecatedMetrics();
             STARTUP_SHUTDOWN_LOGGER.info("Kroxylicious is started");
             return this;
         }
@@ -166,6 +161,16 @@ public final class KafkaProxy implements AutoCloseable {
             shutdown();
             throw e;
         }
+    }
+
+    @Deprecated(forRemoval = true, since = "0.13.0")
+    private void initDeprecatedMetrics() {
+        // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
+        virtualClusterModels.forEach(virtualClusterModel -> {
+            List<Tag> tags = Metrics.tags(Metrics.FLOWING_TAG, Metrics.DOWNSTREAM, Metrics.VIRTUAL_CLUSTER_TAG, virtualClusterModel.getClusterName());
+            Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, tags);
+            Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, tags);
+        });
     }
 
     private Map<ApiKeys, Short> getApiKeyMaxVersionOverride(Configuration config) {

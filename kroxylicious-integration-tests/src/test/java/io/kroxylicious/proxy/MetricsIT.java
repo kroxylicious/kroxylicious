@@ -5,23 +5,35 @@
  */
 package io.kroxylicious.proxy;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Consumer;
+import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
 
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.micrometer.core.instrument.Metrics;
 import io.netty.handler.codec.http.HttpResponseStatus;
 
+import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.MicrometerDefinitionBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
@@ -34,8 +46,12 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.proxy.internal.util.Metrics.API_KEY_LABEL;
+import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.test.tester.SimpleMetricAssert.assertThat;
+import static io.kroxylicious.test.tester.SimpleMetricAssert.assertThat;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
@@ -44,12 +60,12 @@ import static org.assertj.core.api.Assertions.tuple;
 class MetricsIT {
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
     }
 
     @AfterEach
-    public void afterEach() {
+    void afterEach() {
         assertThat(Metrics.globalRegistry.getMeters()).isEmpty();
     }
 
@@ -106,7 +122,7 @@ class MetricsIT {
             var counterName = getRandomCounterName();
             Metrics.counter(counterName).increment();
             var metrics = ahc.scrapeMetrics();
-            assertThat(metrics)
+            Assertions.assertThat(metrics)
                     .hasSizeGreaterThan(0)
                     .extracting(SimpleMetric::name, SimpleMetric::value)
                     .contains(tuple(counterName, 1.0));
@@ -127,7 +143,7 @@ class MetricsIT {
 
         try (var tester = kroxyliciousTester(config);
                 var ahc = tester.getManagementClient()) {
-            assertThat(ahc.scrapeMetrics())
+            Assertions.assertThat(ahc.scrapeMetrics())
                     .hasSizeGreaterThan(0)
                     .extracting(SimpleMetric::name)
                     .contains("jvm_gc_memory_allocated_bytes_total");
@@ -151,7 +167,7 @@ class MetricsIT {
             Metrics.counter(counterName).increment();
 
             var metrics = ahc.scrapeMetrics();
-            assertThat(metrics)
+            Assertions.assertThat(metrics)
                     .filteredOn("name", counterName)
                     .singleElement()
                     .extracting(SimpleMetric::labels)
@@ -159,7 +175,77 @@ class MetricsIT {
         }
     }
 
+    static Stream<Arguments> requestCounting() {
+        return Stream.of(
+                Arguments.argumentSet("counts requests from client",
+                        (UnaryOperator<ConfigurationBuilder>) builder -> builder,
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .filterByName("kroxylicious_client_to_proxy_request_total")
+                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
+                                .filterByTag(NODE_ID_LABEL, "0")
+                                .singleElement()
+                                .value()
+                                .isZero(),
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .filterByName("kroxylicious_client_to_proxy_request_total")
+                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
+                                .filterByTag(NODE_ID_LABEL, "0")
+                                .singleElement()
+                                .value()
+                                .isEqualTo(1.0)
+                ),
+                Arguments.argumentSet("counts requests to server",
+                        (UnaryOperator<ConfigurationBuilder>) builder -> builder,
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .filterByName("kroxylicious_proxy_to_server_request_total")
+                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
+                                .filterByTag(NODE_ID_LABEL, "0")
+                                .singleElement()
+                                .value()
+                                .isZero(),
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .filterByName("kroxylicious_proxy_to_server_request_total")
+                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
+                                .filterByTag(NODE_ID_LABEL, "0")
+                                .singleElement()
+                                .value()
+                                .isEqualTo(1.0)
+                )
+        );
+    }
+    @ParameterizedTest
+    @MethodSource("requestCounting")
+    void shouldCountRequests(UnaryOperator<ConfigurationBuilder> builder, Consumer<List<SimpleMetric>> beforeAssertion, Consumer<List<SimpleMetric>> afterAssertion, KafkaCluster cluster) {
+        var config = proxy(cluster)
+                .withNewManagement()
+                .withNewEndpoints()
+                .withNewPrometheus()
+                .endPrometheus()
+                .endEndpoints()
+                .endManagement();
+
+        // Given
+        try (var tester = kroxyliciousTester(builder.apply(config));
+                var managementClient = tester.getManagementClient();
+                var admin = tester.admin()) {
+            assertThat(admin.describeCluster().clusterId()).succeedsWithin(Duration.ofSeconds(5));
+
+            var metricList = managementClient.scrapeMetrics();
+            beforeAssertion.accept(metricList);
+
+
+            // When
+            var future = admin.createTopics(List.of(new NewTopic(UUID.randomUUID().toString(), Optional.empty(), Optional.empty()))).all();
+
+            // Then
+            assertThat(future).succeedsWithin(Duration.ofSeconds(5));
+            metricList = managementClient.scrapeMetrics();
+            afterAssertion.accept(metricList);
+        }
+    }
+
     @Test
+    @Deprecated(since = "0.13.0", forRemoval = true)
     void shouldIncrementDownstreamMessagesOnProduceRequestWithoutFilter(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
         var config = proxy(cluster)
                 .withNewManagement()
@@ -191,6 +277,7 @@ class MetricsIT {
     }
 
     @Test
+    @Deprecated(since = "0.13.0", forRemoval = true)
     void shouldIncrementDownstreamMessagesOnProduceRequestWithFilter(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
 
         // the downstream messages and decoded messages is not yet differentiated by ApiKey
@@ -214,8 +301,8 @@ class MetricsIT {
                 var managementClient = tester.getManagementClient();
                 var producer = tester.producer()) {
             var metricList = managementClient.scrapeMetrics();
-            var inboundDownstreamMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_messages_total", null);
-            var inboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_decoded_messages_total", null);
+            var inboundDownstreamMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_messages_total");
+            var inboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_decoded_messages_total");
 
             // When
             producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
@@ -223,12 +310,13 @@ class MetricsIT {
             // Then
             // updated metrics after some message were produced
             var updatedMetricsList = managementClient.scrapeMetrics();
-            var updatedInboundDownstreamMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_messages_total", null);
-            var updatedInboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_decoded_messages_total", null);
+            var updatedInboundDownstreamMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_messages_total");
+            var updatedInboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_decoded_messages_total");
             assertThat(updatedInboundDownstreamMessagesMetricsValue).isGreaterThan(inboundDownstreamMessagesMetricsValue);
             assertThat(updatedInboundDownstreamDecodedMessagesMetricsValue).isGreaterThan(inboundDownstreamDecodedMessagesMetricsValue);
         }
     }
+
 
     @Test
     void shouldIncrementConnectionMetrics(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
@@ -294,7 +382,7 @@ class MetricsIT {
     }
 
     void assertMetricsDoesNotExist(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
-        assertThat(metricList)
+        Assertions.assertThat(metricList)
                 .hasSizeGreaterThan(0)
                 .noneSatisfy(simpleMetric -> {
                     assertThat(simpleMetric.name()).isEqualTo(metricsName);
@@ -305,7 +393,7 @@ class MetricsIT {
     }
 
     void assertMetricsWithValue(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
-        assertThat(metricList)
+        Assertions.assertThat(metricList)
                 .hasSizeGreaterThan(0)
                 .anySatisfy(simpleMetric -> {
                     assertThat(simpleMetric.name()).isEqualTo(metricsName);
@@ -316,14 +404,21 @@ class MetricsIT {
                 });
     }
 
-    double getMetricsValue(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
-        if (apiKey != null) {
-            return metricList.stream().filter(simpleMetric -> simpleMetric.name().equals(metricsName)
-                    && simpleMetric.labels().containsValue(apiKey.toString())).findFirst().get().value();
-        }
-        else {
-            return metricList.stream().filter(simpleMetric -> simpleMetric.name().equals(metricsName)).findFirst().get().value();
-        }
+    double getMetricsValue(List<SimpleMetric> metricList, String metricsName) {
+        return getMetricsValue(metricList, metricsName, labels -> true);
+    }
+
+    double getMetricsValue(List<SimpleMetric> metricList, String metricsName, Predicate<Map<String, String>> labelPredicate) {
+        return getMetric(metricList, metricsName, labelPredicate)
+                .orElseThrow().value();
+    }
+
+    @NonNull
+    private Optional<SimpleMetric> getMetric(List<SimpleMetric> metricList, String metricsName, Predicate<Map<String, String>> labelPredicate) {
+        return metricList.stream()
+                .filter(simpleMetric -> simpleMetric.name().equals(metricsName))
+                .filter(simpleMetric -> labelPredicate.test(simpleMetric.labels()))
+                .findFirst();
     }
 
     @NonNull

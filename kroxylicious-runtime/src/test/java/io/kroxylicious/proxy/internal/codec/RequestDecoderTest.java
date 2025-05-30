@@ -95,7 +95,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         new KafkaRequestDecoder(
                                 DecodePredicate
                                         .forFilters(FilterAndInvoker.build(filter.getClass().getSimpleName(), filter)),
-                                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), CLUSTER_NAME),
+                                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), CLUSTER_NAME, null),
                         DecodedRequestFrame.class,
                         (RequestHeaderData header) -> header, true),
                 "Unexpected correlation id");
@@ -178,7 +178,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         AbstractCodecTest::exampleApiVersionsRequest,
                         new KafkaRequestDecoder(DecodePredicate.forFilters(
                                 FilterAndInvoker.build(filter.getClass().getSimpleName(), filter)), DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(),
-                                CLUSTER_NAME),
+                                CLUSTER_NAME, null),
                         OpaqueRequestFrame.class, true),
                 "Unexpected correlation id");
     }
@@ -200,7 +200,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
         new KafkaRequestDecoder(
                 DecodePredicate.forFilters(
                         FilterAndInvoker.build(filter.getClass().getSimpleName(), filter)),
-                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), CLUSTER_NAME)
+                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), CLUSTER_NAME, null)
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
@@ -232,7 +232,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
     private static KafkaRequestDecoder getKafkaRequestDecoder(DecodePredicate predicate, int socketFrameMaxSizeBytes) {
         return new KafkaRequestDecoder(
                 predicate,
-                socketFrameMaxSizeBytes, new ApiVersionsServiceImpl(), CLUSTER_NAME);
+                socketFrameMaxSizeBytes, new ApiVersionsServiceImpl(), CLUSTER_NAME, null);
     }
 
     @ParameterizedTest
@@ -274,7 +274,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
         new KafkaRequestDecoder(
                 DecodePredicate.forFilters(
                         FilterAndInvoker.build(filter.getClass().getSimpleName(), filter)),
-                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), CLUSTER_NAME)
+                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), CLUSTER_NAME, null)
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(DecodedRequestFrame.class, DecodedRequestFrame.class), messageClasses(messages));

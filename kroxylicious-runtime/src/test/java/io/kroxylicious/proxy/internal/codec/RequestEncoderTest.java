@@ -50,7 +50,7 @@ public class RequestEncoderTest extends AbstractCodecTest {
         ByteBuffer expected = serializeUsingKafkaApis(headerVersion, exampleHeader, apiVersion, exampleBody);
 
         CorrelationManager correlationManager = new CorrelationManager(exampleHeader.correlationId());
-        var encoder = new KafkaRequestEncoder(correlationManager);
+        var encoder = new KafkaRequestEncoder(correlationManager, "cluster", null);
         testEncode(expected, new DecodedRequestFrame<ApiVersionsRequestData>(apiVersion, exampleHeader.correlationId(), true, exampleHeader, exampleBody), encoder);
         var corr = correlationManager.getBrokerCorrelation(exampleHeader.correlationId());
         assertEquals(ApiKeys.API_VERSIONS.id, corr.apiKey());
@@ -95,7 +95,7 @@ public class RequestEncoderTest extends AbstractCodecTest {
 
     private static void whenRequestEncoded(givenRequestFrame result, CorrelationManager correlationManager) throws Exception {
         ByteBuf out = Unpooled.buffer(result.byteBuffer().capacity() + 4);
-        new KafkaRequestEncoder(correlationManager).encode(null, result.frame(), out);
+        new KafkaRequestEncoder(correlationManager, "cluster", null).encode(null, result.frame(), out);
     }
 
     @NonNull
