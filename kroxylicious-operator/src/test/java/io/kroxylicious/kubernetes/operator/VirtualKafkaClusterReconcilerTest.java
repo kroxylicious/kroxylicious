@@ -764,12 +764,24 @@ class VirtualKafkaClusterReconcilerTest {
     }
 
     @Test
-    void canMapFromVirtualKafkaClusterWithoutTrustAnchorToConfigMap() {
+    void canMapFromVirtualKafkaClusterWithTlsToConfigMap() {
         // Given
         var mapper = VirtualKafkaClusterReconciler.virtualKafkaClusterToConfigMap();
 
         // When
         var secondaryResourceIDs = mapper.toSecondaryResourceIDs(CLUSTER_NO_FILTERS);
+
+        // Then
+        assertThat(secondaryResourceIDs).isEmpty();
+    }
+
+    @Test
+    void canMapFromVirtualKafkaClusterWithoutTrustAnchorToConfigMap() {
+        // Given
+        var mapper = VirtualKafkaClusterReconciler.virtualKafkaClusterToConfigMap();
+
+        // When
+        var secondaryResourceIDs = mapper.toSecondaryResourceIDs(CLUSTER_TLS_NO_FILTERS);
 
         // Then
         assertThat(secondaryResourceIDs).isEmpty();
@@ -792,6 +804,19 @@ class VirtualKafkaClusterReconcilerTest {
     void canMapFromConfigMapToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTls() {
         // Given
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_NO_FILTERS);
+
+        // When
+        var mapper = VirtualKafkaClusterReconciler.configMapToVirtualKafkaCluster(eventSourceContext);
+
+        // Then
+        var primaryResourceIDs = mapper.toPrimaryResourceIDs(PEM_CONFIG_MAP);
+        assertThat(primaryResourceIDs).isEmpty();
+    }
+
+    @Test
+    void canMapFromConfigMapToVirtualKafkaClusterToleratesVirtualKafkaClusterWithoutTrustAnchor() {
+        // Given
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(CLUSTER_TLS_NO_FILTERS);
 
         // When
         var mapper = VirtualKafkaClusterReconciler.configMapToVirtualKafkaCluster(eventSourceContext);
