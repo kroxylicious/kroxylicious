@@ -410,7 +410,6 @@ class MetricsIT {
         try (var tester = kroxyliciousTester(config);
                 var managementClient = tester.getManagementClient()) {
             var metricsList = managementClient.scrapeMetrics();
-            assertMetricsDoesNotExist(metricsList, "kroxylicious_downstream_error_total", null);
 
             // When
             causeConnectionError.accept(tester);
@@ -419,7 +418,8 @@ class MetricsIT {
             await().atMost(Duration.ofSeconds(30))
                     .untilAsserted(() -> {
                         var updatedMetricsList = managementClient.scrapeMetrics();
-                        assertMetricsWithValue(updatedMetricsList, "kroxylicious_downstream_errors_total", null);
+                        System.out.println(updatedMetricsList);
+                        assertMetricsWithValue(updatedMetricsList, "kroxylicious_client_to_proxy_errors_total", null);
                     });
         }
     }

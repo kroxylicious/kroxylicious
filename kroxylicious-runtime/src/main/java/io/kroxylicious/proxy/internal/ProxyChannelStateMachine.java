@@ -38,12 +38,15 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_STATE;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_DOWNSTREAM_CONNECTIONS;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_DOWNSTREAM_ERRORS;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTIONS;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_ERRORS;
+import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
+import static io.kroxylicious.proxy.internal.util.Metrics.VIRTUAL_CLUSTER_LABEL;
 import static io.kroxylicious.proxy.internal.util.Metrics.taggedCounter;
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -111,11 +114,15 @@ public class ProxyChannelStateMachine {
     private final Counter upstreamErrorCounter;
     private final Counter connectionAttemptsCounter;
     private final Counter upstreamConnectionFailureCounter;
+    private final Counter clientToProxyErrorCounter;
 
-    public ProxyChannelStateMachine(String clusterName) {
-        List<Tag> tags = Metrics.tags(Metrics.VIRTUAL_CLUSTER_TAG, clusterName);
+
+    public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
+        List<Tag> tags = Metrics.tags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName);
         downstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_CONNECTIONS, tags);
         downstreamErrorCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_ERRORS, tags);
+        List<Tag> newTags = Metrics.tags(VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null? nodeId.toString() : "null");
+        clientToProxyErrorCounter = KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER.withTags(newTags);
         upstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTIONS, tags);
         connectionAttemptsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS, tags);
         upstreamErrorCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_ERRORS, tags);
@@ -426,6 +433,7 @@ public class ProxyChannelStateMachine {
             errorCodeEx = Errors.UNKNOWN_SERVER_ERROR.exception();
         }
         downstreamErrorCounter.increment();
+        clientToProxyErrorCounter.increment();
         toClosed(errorCodeEx);
     }
 

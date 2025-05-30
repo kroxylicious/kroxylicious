@@ -155,7 +155,7 @@ public final class KafkaProxy implements AutoCloseable {
 
             // Pre-register counters/summaries to avoid creating them on first request and thus skewing the request latency
             virtualClusterModels.forEach(virtualClusterModel -> {
-                List<Tag> tags = Metrics.tags(Metrics.FLOWING_TAG, Metrics.DOWNSTREAM, Metrics.VIRTUAL_CLUSTER_TAG, virtualClusterModel.getClusterName());
+                List<Tag> tags = Metrics.tags(Metrics.FLOWING_TAG, Metrics.DOWNSTREAM, Metrics.VIRTUAL_CLUSTER_LABEL, virtualClusterModel.getClusterName());
                 Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, tags);
                 Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, tags);
             });
