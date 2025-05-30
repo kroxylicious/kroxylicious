@@ -44,6 +44,7 @@ import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.micrometer.DownstreamMetricHandler;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
@@ -196,7 +197,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         Integer nodeId = binding instanceof BrokerEndpointBinding brokerEndpointBinding ? brokerEndpointBinding.nodeId() : null;
         KafkaRequestDecoder decoder = new KafkaRequestDecoder(dp, virtualCluster.socketFrameMaxSizeBytes(), apiVersionsService, virtualCluster.getClusterName(), nodeId);
         pipeline.addLast("requestDecoder", decoder);
+
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder(virtualCluster.getClusterName(), nodeId));
+        pipeline.addLast("downstreamMetric", new DownstreamMetricHandler(binding));
         pipeline.addLast("responseOrderer", new ResponseOrderer());
         if (virtualCluster.isLogFrames()) {
             pipeline.addLast("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger", LogLevel.INFO));

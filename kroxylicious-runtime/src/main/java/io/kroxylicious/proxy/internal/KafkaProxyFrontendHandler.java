@@ -50,6 +50,7 @@ import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
 import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.micrometer.UpstreamMetricHandler;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -480,6 +481,7 @@ public class KafkaProxyFrontendHandler
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger"));
         }
         addFiltersToPipeline(filters, pipeline, inboundChannel);
+        pipeline.addFirst("upstreamMetrics", new UpstreamMetricHandler(endpointBinding));
         pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager, virtualClusterModel.socketFrameMaxSizeBytes(),
                 virtualClusterModel.getClusterName()));
         pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager, this.virtualClusterModel.getClusterName(), endpointBinding instanceof BrokerEndpointBinding brokerEndpointBinding ? brokerEndpointBinding.nodeId() : null));

@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.internal.codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
