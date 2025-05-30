@@ -98,12 +98,12 @@ public class CertManager {
      * Deploy cert manager.
      */
     public void deploy() {
-        LOGGER.info("Deploy cert manager in {} namespace", Constants.CERT_MANAGER_NAMESPACE);
         if (isDeployed()) {
             LOGGER.warn("Skipping cert manager deployment. It is already deployed!");
             deleteCertManager = false;
             return;
         }
+        LOGGER.info("Deploy cert manager in {} namespace", Constants.CERT_MANAGER_NAMESPACE);
         deployment.create();
         DeploymentUtils.waitForDeploymentReady(Constants.CERT_MANAGER_NAMESPACE, "cert-manager-webhook");
         NamespaceUtils.addNamespaceToSet(Constants.CERT_MANAGER_NAMESPACE, ResourceManager.getTestContext().getRequiredTestClass().getName());
