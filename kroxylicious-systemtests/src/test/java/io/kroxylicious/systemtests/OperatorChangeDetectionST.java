@@ -22,6 +22,8 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
@@ -141,6 +143,36 @@ class OperatorChangeDetectionST extends AbstractST {
                     certToPatch.getSpec().setDnsNames(dnsNames);
                 });
         LOGGER.info("SAN added to downstream tls cert");
+
+        // Then
+        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+    }
+
+    @Test
+    void shouldUpdateDeploymentWhenDownstreamTrustUpdated(String namespace) throws IOException {
+        // Given
+        certManager = new CertManager();
+        certManager.deploy();
+
+        var issuer = certManager.issuer(namespace);
+        var cert = certManager.certFor(namespace, "my-cluster-cluster-ip." + namespace + ".svc.cluster.local");
+
+        resourceManager.createOrUpdateResourceWithWait(issuer, cert);
+
+        var tls = kroxylicious.tlsConfigFromCert("server-certificate");
+
+        kroxylicious.deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters("test-vkc", tls);
+        KubeClient kubeClient = kubeClient(namespace);
+
+        String originalChecksum = getInitialChecksum(namespace, kubeClient);
+        ConfigMap trustAnchorConfig = new ConfigMapBuilder().withNewMetadata().withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT).withNamespace(namespace).endMetadata()
+                .build();
+        // When
+        resourceManager.replaceResourceWithRetries(trustAnchorConfig,
+                trustConfigMap -> {
+                    trustAnchorConfig.setData(Map.of(Constants.KROXYLICIOUS_TLS_CA_NAME, "server-certificate"));
+                });
+        LOGGER.info("Downstream trust updated");
 
         // Then
         assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
