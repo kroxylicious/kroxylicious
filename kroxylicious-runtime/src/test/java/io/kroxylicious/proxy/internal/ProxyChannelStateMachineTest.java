@@ -92,7 +92,7 @@ class ProxyChannelStateMachineTest {
 
     @BeforeEach
     void setUp() {
-        proxyChannelStateMachine = new ProxyChannelStateMachine(CLUSTER_NAME);
+        proxyChannelStateMachine = new ProxyChannelStateMachine(CLUSTER_NAME, null);
         backendHandler = mock(KafkaProxyBackendHandler.class);
         frontendHandler = mock(KafkaProxyFrontendHandler.class);
         simpleMeterRegistry = new SimpleMeterRegistry();

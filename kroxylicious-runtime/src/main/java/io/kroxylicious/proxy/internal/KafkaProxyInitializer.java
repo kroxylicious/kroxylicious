@@ -14,6 +14,8 @@ import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Tag;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
@@ -38,12 +40,18 @@ import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
+import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
+import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER;
+import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
+import static io.kroxylicious.proxy.internal.util.Metrics.VIRTUAL_CLUSTER_LABEL;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
@@ -61,6 +69,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     private final PluginFactoryRegistry pfr;
     private final FilterChainFactory filterChainFactory;
     private final ApiVersionsServiceImpl apiVersionsService;
+    private final Counter clientToProxyErrorCounter;
 
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
                                  PluginFactoryRegistry pfr,
@@ -78,6 +87,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         this.bindingResolver = bindingResolver;
         this.filterChainFactory = filterChainFactory;
         this.apiVersionsService = apiVersionsService;
+        List<Tag> newTags = Metrics.tags(VIRTUAL_CLUSTER_LABEL, "null", NODE_ID_LABEL, "null");
+        clientToProxyErrorCounter = KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER.withTags(newTags);
     }
 
     @Override
@@ -140,13 +151,17 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                     try {
                         if (t != null) {
                             LOGGER.warn("Exception resolving Virtual Cluster Binding for endpoint {} and sniHostname {}: {}", endpoint, sniHostname, t.getMessage());
+                            clientToProxyErrorCounter.increment();
                             promise.setFailure(t);
+                            ch.close(); // KW TODO - check right way to handle terminal errors within the SNIHandler.
                             return null;
                         }
                         var gateway = binding.endpointGateway();
                         var sslContext = gateway.getDownstreamSslContext();
                         if (sslContext.isEmpty()) {
+                            clientToProxyErrorCounter.increment();
                             promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(gateway)));
+                            // close here too?
                         }
                         else {
                             KafkaProxyInitializer.this.addHandlers(ch, binding);
@@ -154,7 +169,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                         }
                     }
                     catch (Throwable t1) {
+                        clientToProxyErrorCounter.increment();
                         promise.setFailure(t1);
+                        // and close here too?
                     }
                     return null;
                 });
@@ -214,7 +231,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                 endpointReconciler,
                 new ApiVersionsIntersectFilter(apiVersionsService),
                 new ApiVersionsDowngradeFilter(apiVersionsService));
-        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, binding.endpointGateway(), virtualCluster.getClusterName());
+
+        Integer nodeId = binding instanceof BrokerEndpointBinding? ((BrokerEndpointBinding) binding).nodeId(): null;
+        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, binding.endpointGateway(), virtualCluster.getClusterName(), nodeId);
 
         pipeline.addLast("netHandler", frontendHandler);
         addLoggingErrorHandler(pipeline);

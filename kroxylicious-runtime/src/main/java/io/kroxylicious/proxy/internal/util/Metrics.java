@@ -15,21 +15,38 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Meter.MeterProvider;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.micrometer.core.instrument.Metrics.counter;
+import static io.micrometer.core.instrument.Metrics.globalRegistry;
 import static io.micrometer.core.instrument.Metrics.summary;
 
 public class Metrics {
 
     // creating a constant for all Metrics in the one place so we can easily see what metrics there are
 
+    static final String KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_BASE_METER_NAME = "kroxylicious_client_to_proxy_errors_total";
+
+    public static MeterProvider<Counter> KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER =  Counter.builder(
+                    KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_BASE_METER_NAME)
+            .description("Incremented by one every time a connection is closed due to any downstream error.")
+            .withRegistry(globalRegistry);
+
+    // Common Labels
+    public static final String VIRTUAL_CLUSTER_LABEL = "virtual_cluster";
+    public static final String NODE_ID_LABEL = "node_id";
+
+
     private static final String KROXYLICIOUS_DOWNSTREAM = "kroxylicious_downstream_";
     private static final String KROXYLICIOUS_UPSTREAM = "kroxylicious_upstream_";
 
     public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES = "kroxylicious_inbound_downstream_messages";
+
     public static final String KROXYLICIOUS_DOWNSTREAM_CONNECTIONS = KROXYLICIOUS_DOWNSTREAM + "connections";
+
+    @Deprecated(since = "0.13.0", forRemoval = true)
     public static final String KROXYLICIOUS_DOWNSTREAM_ERRORS = KROXYLICIOUS_DOWNSTREAM + "errors";
 
     public static final String KROXYLICIOUS_UPSTREAM_CONNECTIONS = KROXYLICIOUS_UPSTREAM + "connections";
@@ -42,8 +59,6 @@ public class Metrics {
     public static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES = "kroxylicious_payload_size_bytes";
 
     public static final String FLOWING_TAG = "flowing";
-    public static final String VIRTUAL_CLUSTER_TAG = "virtualCluster";
-
     public static final String DOWNSTREAM = "downstream";
     public static final String UPSTREAM = "upstream";
 
@@ -65,7 +80,7 @@ public class Metrics {
                 "ApiKey", apiKey.name(),
                 "ApiVersion", String.valueOf(apiVersion),
                 FLOWING_TAG, flowing,
-                VIRTUAL_CLUSTER_TAG, virtualCluster);
+                VIRTUAL_CLUSTER_LABEL, virtualCluster);
         return summary(KROXYLICIOUS_PAYLOAD_SIZE_BYTES, tags);
     }
 
