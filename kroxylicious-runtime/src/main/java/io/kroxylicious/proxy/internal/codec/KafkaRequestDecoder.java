@@ -48,12 +48,15 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
     @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter decodedMessagesCounter;
     private final String clusterName;
+    private final Integer nodeId;
 
-    public KafkaRequestDecoder(DecodePredicate decodePredicate, int socketFrameMaxSize, ApiVersionsServiceImpl apiVersionsService, String clusterName) {
+    public KafkaRequestDecoder(DecodePredicate decodePredicate, int socketFrameMaxSize, ApiVersionsServiceImpl apiVersionsService, String clusterName, Integer nodeId
+    ) {
         super(socketFrameMaxSize);
         this.decodePredicate = decodePredicate;
         this.apiVersionsService = apiVersionsService;
         this.clusterName = clusterName;
+        this.nodeId = nodeId;
         List<Tag> tags = Metrics.tags(Metrics.FLOWING_TAG, Metrics.DOWNSTREAM, Metrics.VIRTUAL_CLUSTER_TAG, clusterName);
         inboundMessageCounter = Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, tags);
         decodedMessagesCounter = Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, tags);
@@ -61,7 +64,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
         // init - move me
         clientToProxyCounterProvider.withTags(Metrics.DECODED_LABEL, Boolean.toString(false), Metrics.API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(), Metrics.API_VERSION_LABEL, Short.toString(
-                ApiMessageType.CREATE_TOPICS.highestSupportedVersion(false)), Metrics.NODE_ID_LABEL, "");
+                ApiMessageType.CREATE_TOPICS.highestSupportedVersion(false)), Metrics.NODE_ID_LABEL, nodeId == null ? "bootstrap" : nodeId.toString());
     }
 
     @Override
@@ -90,7 +93,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
         inboundMessageCounter.increment();
         var decodeRequest = decodePredicate.shouldDecodeRequest(apiKey, apiVersion);
-        clientToProxyCounterProvider.withTags(Metrics.DECODED_LABEL, Boolean.toString(decodeRequest), Metrics.API_KEY_LABEL, apiKey.name(), Metrics.API_VERSION_LABEL, Short.toString(apiVersion), Metrics.NODE_ID_LABEL, "").increment();
+        clientToProxyCounterProvider.withTags(Metrics.DECODED_LABEL, Boolean.toString(decodeRequest), Metrics.API_KEY_LABEL, apiKey.name(), Metrics.API_VERSION_LABEL, Short.toString(apiVersion), Metrics.NODE_ID_LABEL, nodeId == null ? "bootstrap" : nodeId.toString()).increment();
 
         LOGGER.debug("Decode {}/v{} request? {}, Predicate {} ", apiKey, apiVersion, decodeRequest, decodePredicate);
         boolean decodeResponse = decodePredicate.shouldDecodeResponse(apiKey, apiVersion);

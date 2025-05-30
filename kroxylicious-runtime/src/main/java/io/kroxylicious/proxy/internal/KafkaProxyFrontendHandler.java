@@ -47,6 +47,8 @@ import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
+import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
+import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -72,7 +74,7 @@ public class KafkaProxyFrontendHandler
     private final boolean logNetwork;
     private final boolean logFrames;
     private final VirtualClusterModel virtualClusterModel;
-    private final EndpointGateway endpointGateway;
+    private final EndpointBinding endpointBinding;
     private final NetFilter netFilter;
     private final SaslDecodePredicate dp;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
@@ -103,23 +105,23 @@ public class KafkaProxyFrontendHandler
     }
 
     KafkaProxyFrontendHandler(
-                              @NonNull NetFilter netFilter,
-                              @NonNull SaslDecodePredicate dp,
-                              EndpointGateway endpointGateway,
-                              @NonNull String clusterName) {
-        this(netFilter, dp, endpointGateway, new ProxyChannelStateMachine(clusterName));
+            @NonNull NetFilter netFilter,
+            @NonNull SaslDecodePredicate dp,
+            @NonNull EndpointBinding endpointBinding,
+            @NonNull String clusterName) {
+        this(netFilter, dp, endpointBinding, new ProxyChannelStateMachine(clusterName));
     }
 
     @VisibleForTesting
     KafkaProxyFrontendHandler(
                               @NonNull NetFilter netFilter,
                               @NonNull SaslDecodePredicate dp,
-                              @NonNull EndpointGateway endpointGateway,
+                              @NonNull EndpointBinding endpointBinding,
                               @NonNull ProxyChannelStateMachine proxyChannelStateMachine) {
         this.netFilter = netFilter;
         this.dp = dp;
-        this.endpointGateway = endpointGateway;
-        this.virtualClusterModel = endpointGateway.virtualCluster();
+        this.endpointBinding = endpointBinding;
+        this.virtualClusterModel = endpointBinding.endpointGateway().virtualCluster();
         this.proxyChannelStateMachine = proxyChannelStateMachine;
         this.logNetwork = virtualClusterModel.isLogNetwork();
         this.logFrames = virtualClusterModel.isLogFrames();
@@ -310,7 +312,7 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-        proxyChannelStateMachine.onClientException(cause, endpointGateway.getDownstreamSslContext().isPresent());
+        proxyChannelStateMachine.onClientException(cause, endpointBinding.endpointGateway().getDownstreamSslContext().isPresent());
     }
 
     /**
@@ -480,7 +482,7 @@ public class KafkaProxyFrontendHandler
         addFiltersToPipeline(filters, pipeline, inboundChannel);
         pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager, virtualClusterModel.socketFrameMaxSizeBytes(),
                 virtualClusterModel.getClusterName()));
-        pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager));
+        pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager, this.virtualClusterModel.getClusterName(), endpointBinding instanceof BrokerEndpointBinding brokerEndpointBinding ? brokerEndpointBinding.nodeId() : null));
         if (logNetwork) {
             pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger"));
         }

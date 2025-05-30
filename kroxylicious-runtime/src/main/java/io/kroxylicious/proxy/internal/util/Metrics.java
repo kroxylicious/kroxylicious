@@ -49,9 +49,10 @@ public class Metrics {
             .tag(VIRTUAL_CLUSTER_LABEL, virtualClusterName)
             .withRegistry(globalRegistry);
 
-    public static final MeterProvider<Counter> KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_TOTAL_METER_PROVIDER =  Counter.builder(
+    public static final Function<String, MeterProvider<Counter>> KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_TOTAL_METER_PROVIDER =  (virtualClusterName) -> Counter.builder(
                     KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_BASE_METER_NAME)
             .description("Incremented by one every time a request (#1) goes from the proxy to the upstream (server).")
+            .tag(VIRTUAL_CLUSTER_LABEL, virtualClusterName)
             .withRegistry(globalRegistry);
 
     public static final MeterProvider<Counter> KROXYLICIOUS_SERVER_TO_PROXY_RESPONSE_TOTAL_METER_PROVIDER =  Counter.builder(

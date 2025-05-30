@@ -5,15 +5,23 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
+import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
+import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.InternalRequestFrame;
+import io.kroxylicious.proxy.internal.util.Metrics;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
 
@@ -23,9 +31,20 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
     public static final int API_KEY = 2;
     public static final int API_VERSION = 2;
     private final CorrelationManager correlationManager;
+    private final String clusterName;
+    private final Integer nodeId;
+    private final MeterProvider<Counter> proxyToClientCounterProvider;
 
-    public KafkaRequestEncoder(CorrelationManager correlationManager) {
+    public KafkaRequestEncoder(CorrelationManager correlationManager, String clusterName, @Nullable Integer nodeId) {
         this.correlationManager = correlationManager;
+        this.clusterName = clusterName;
+        this.nodeId = nodeId;
+
+        this.proxyToClientCounterProvider = Metrics.KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_TOTAL_METER_PROVIDER.apply(clusterName);
+        // init - move me
+        proxyToClientCounterProvider.withTags(Metrics.DECODED_LABEL, Boolean.toString(false), Metrics.API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(), Metrics.API_VERSION_LABEL, Short.toString(
+                ApiMessageType.CREATE_TOPICS.highestSupportedVersion(false)), Metrics.NODE_ID_LABEL, nodeId == null ? "bootstrap" : nodeId.toString());
+
     }
 
     @Override
@@ -45,6 +64,11 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
         short apiVersion = out.readShort();
         boolean hasResponse = frame.hasResponse();
         boolean decodeResponse = frame.decodeResponse();
+        proxyToClientCounterProvider.withTags(Metrics.DECODED_LABEL, Boolean.toString(!(frame instanceof OpaqueRequestFrame)),
+                Metrics.API_KEY_LABEL, ApiKeys.forId(apiKey).name(),
+                Metrics.API_VERSION_LABEL, Short.toString(apiVersion),
+                Metrics.NODE_ID_LABEL, nodeId == null ? "bootstrap" : nodeId.toString()).increment();
+
         int downstreamCorrelationId = frame.correlationId();
         int upstreamCorrelationId = correlationManager.putBrokerRequest(apiKey,
                 apiVersion,
