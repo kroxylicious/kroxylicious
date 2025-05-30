@@ -79,6 +79,7 @@ public class KroxyliciousVirtualKafkaClusterTemplates {
                     .editIngress(0)
                         .withNewTls()
                             .withCertificateRef(tls.getCertificateRef())
+                            .withTrustAnchorRef(tls.getTrustAnchorRef())
                         .endTls()
                     .endIngress()
                 .endSpec();

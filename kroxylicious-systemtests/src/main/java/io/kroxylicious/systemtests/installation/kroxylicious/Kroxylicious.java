@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
-import io.kroxylicious.kubernetes.api.common.CertificateRefBuilder;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
@@ -33,6 +33,8 @@ import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxy
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousKafkaProxyTemplates;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousVirtualKafkaClusterTemplates;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.awaitility.Awaitility.await;
@@ -129,27 +131,37 @@ public class Kroxylicious {
         //@formatter:off
         return new TlsBuilder()
                 .withTrustAnchorRef(
-                    new TrustAnchorRefBuilder()
-                        .withNewRef()
-                            .withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT)
-                            .withKind(Constants.CONFIG_MAP)
-                        .endRef()
-                        .withKey(Constants.KROXYLICIOUS_TLS_CA_NAME)
-                        .build())
+                    buildTrustAnchorRef())
                 .build();
         //@formatter:on
     }
 
-    public Tls tlsConfigFromCert(String certNane) {
-        //@formatter:off
-        return new TlsBuilder()
-                .withCertificateRef(
-                    new CertificateRefBuilder()
-                        .withName(certNane)
-                        .withKind("Secret")
-                    .build())
+    @NonNull
+    private static TrustAnchorRef buildTrustAnchorRef() {
+        //formatter:off
+        return new TrustAnchorRefBuilder()
+                .withNewRef()
+                    .withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT)
+                    .withKind(Constants.CONFIG_MAP)
+                .endRef()
+                .withKey(Constants.KROXYLICIOUS_TLS_CA_NAME)
                 .build();
-        //@formatter:on
+        //formatter:on
+    }
+
+    public Tls tlsConfigFromCert(String certNane) {
+        TlsBuilder tlsBuilder = new TlsBuilder();
+        if (certNane != null) {
+            //formatter:off
+            tlsBuilder
+                .withNewCertificateRef()
+                    .withName(certNane)
+                    .withKind("Secret")
+                .endCertificateRef();
+            //formatter:on
+        }
+        tlsBuilder.withTrustAnchorRef(buildTrustAnchorRef());
+        return tlsBuilder.build();
     }
 
     /**
