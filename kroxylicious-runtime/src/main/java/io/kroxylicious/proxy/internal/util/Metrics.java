@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.internal.util;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 
@@ -25,6 +26,13 @@ import static io.micrometer.core.instrument.Metrics.summary;
 
 public class Metrics {
 
+    // Common Labels
+    public static final String VIRTUAL_CLUSTER_LABEL = "virtual_cluster";
+    public static final String NODE_ID_LABEL = "node_id";
+    public static final String API_KEY_LABEL = "api_key";
+    public static final String API_VERSION_LABEL = "api_version";
+    public static final String DECODED_LABEL = "decoded";
+
     // Base Metric Names
     private static final String KROXYLICIOUS_PROXY_TO_SERVER = "kroxylicious_proxy_to_server";
 
@@ -35,9 +43,10 @@ public class Metrics {
 
     // Meter Providers
     // (Callers use the providers to create the meters they need, augmenting with any tags).
-    public static final MeterProvider<Counter> KROXYLICIOUS_CLIENT_TO_PROXY_REQUEST_TOTAL_METER_PROVIDER =  Counter.builder(
+    public static final Function<String, MeterProvider<Counter>> KROXYLICIOUS_CLIENT_TO_PROXY_REQUEST_TOTAL_METER_PROVIDER =  (virtualClusterName) -> Counter.builder(
                     KROXYLICIOUS_CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME)
             .description("Incremented by one every time a request arrives at the proxy from the downstream (client).")
+            .tag(VIRTUAL_CLUSTER_LABEL, virtualClusterName)
             .withRegistry(globalRegistry);
 
     public static final MeterProvider<Counter> KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_TOTAL_METER_PROVIDER =  Counter.builder(
@@ -55,12 +64,6 @@ public class Metrics {
             .description("Incremented by one every time a response goes from the proxy to the downstream (client).")
             .withRegistry(globalRegistry);
 
-    // Common Labels
-    public static final String VIRTUAL_CLUSTER_LABEL = "virtual_cluster";
-    public static final String NODE_ID_LABEL = "virtual_cluster";
-    public static final String API_KEY_LABEL = "api_key";
-    public static final String API_VERSION_LABEL = "api_version";
-    public static final String DECODED_LABEL = "decoded";
 
     @Deprecated(since = "0.13.0", forRemoval = true)
     public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES = "kroxylicious_inbound_downstream_messages";

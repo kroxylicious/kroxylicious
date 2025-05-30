@@ -5,14 +5,19 @@
  */
 package io.kroxylicious.proxy;
 
+import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.function.Predicate;
 
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,6 +39,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.proxy.internal.util.Metrics.*;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -160,6 +166,7 @@ class MetricsIT {
     }
 
     @Test
+    @Deprecated(since = "0.13.0", forRemoval = true)
     void shouldIncrementDownstreamMessagesOnProduceRequestWithoutFilter(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
         var config = proxy(cluster)
                 .withNewManagement()
@@ -191,6 +198,7 @@ class MetricsIT {
     }
 
     @Test
+    @Deprecated(since = "0.13.0", forRemoval = true)
     void shouldIncrementDownstreamMessagesOnProduceRequestWithFilter(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
 
         // the downstream messages and decoded messages is not yet differentiated by ApiKey
@@ -214,8 +222,8 @@ class MetricsIT {
                 var managementClient = tester.getManagementClient();
                 var producer = tester.producer()) {
             var metricList = managementClient.scrapeMetrics();
-            var inboundDownstreamMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_messages_total", null);
-            var inboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_decoded_messages_total", null);
+            var inboundDownstreamMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_messages_total");
+            var inboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_decoded_messages_total");
 
             // When
             producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
@@ -223,12 +231,55 @@ class MetricsIT {
             // Then
             // updated metrics after some message were produced
             var updatedMetricsList = managementClient.scrapeMetrics();
-            var updatedInboundDownstreamMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_messages_total", null);
-            var updatedInboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_decoded_messages_total", null);
+            var updatedInboundDownstreamMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_messages_total");
+            var updatedInboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_decoded_messages_total");
             assertThat(updatedInboundDownstreamMessagesMetricsValue).isGreaterThan(inboundDownstreamMessagesMetricsValue);
             assertThat(updatedInboundDownstreamDecodedMessagesMetricsValue).isGreaterThan(inboundDownstreamDecodedMessagesMetricsValue);
         }
     }
+
+    @Test
+    void shouldCountRequests(KafkaCluster cluster) {
+        var config = proxy(cluster)
+                .withNewManagement()
+                .withNewEndpoints()
+                .withNewPrometheus()
+                .endPrometheus()
+                .endEndpoints()
+                .endManagement();
+
+        // Given
+        try (var tester = kroxyliciousTester(config);
+                var managementClient = tester.getManagementClient();
+                var admin = tester.admin()) {
+            var metricList = managementClient.scrapeMetrics();
+            var countBeforeCreateTopic = getMetricsValue(metricList, "kroxylicious_client_to_proxy_request_total",
+                    labels -> labels.get(API_KEY_LABEL).equals(ApiKeys.CREATE_TOPICS.name()));
+
+            assertThat(countBeforeCreateTopic).isZero();
+
+            // When
+            var future = admin.createTopics(List.of(new NewTopic(UUID.randomUUID().toString(), Optional.empty(), Optional.empty()))).all();
+
+            // Then
+            assertThat(future).succeedsWithin(Duration.ofSeconds(5));
+            metricList = managementClient.scrapeMetrics();
+            var countAfterCreateTopic = getSimpleMetric(metricList, "kroxylicious_client_to_proxy_request_total",
+                    labels -> labels.get(API_KEY_LABEL).equals(ApiKeys.CREATE_TOPICS.name()));
+
+            assertThat(countAfterCreateTopic)
+                    .isPresent()
+                    .hasValueSatisfying(v -> {
+                        assertThat(v)
+                                .extracting(SimpleMetric::value)
+                                .isEqualTo(1.0);
+                        assertThat(v)
+                                .extracting(SimpleMetric::labels, InstanceOfAssertFactories.map(String.class, String.class))
+                                .containsEntry(DECODED_LABEL, Boolean.FALSE.toString());
+                    });
+        }
+    }
+
 
     @Test
     void shouldIncrementConnectionMetrics(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
@@ -316,14 +367,21 @@ class MetricsIT {
                 });
     }
 
-    double getMetricsValue(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
-        if (apiKey != null) {
-            return metricList.stream().filter(simpleMetric -> simpleMetric.name().equals(metricsName)
-                    && simpleMetric.labels().containsValue(apiKey.toString())).findFirst().get().value();
-        }
-        else {
-            return metricList.stream().filter(simpleMetric -> simpleMetric.name().equals(metricsName)).findFirst().get().value();
-        }
+    double getMetricsValue(List<SimpleMetric> metricList, String metricsName) {
+        return getMetricsValue(metricList, metricsName, labels -> true);
+    }
+
+    double getMetricsValue(List<SimpleMetric> metricList, String metricsName, Predicate<Map<String, String>> labelPredicate) {
+        return getSimpleMetric(metricList, metricsName, labelPredicate)
+                .orElseThrow().value();
+    }
+
+    @NonNull
+    private Optional<SimpleMetric> getSimpleMetric(List<SimpleMetric> metricList, String metricsName, Predicate<Map<String, String>> labelPredicate) {
+        return metricList.stream()
+                .filter(simpleMetric -> simpleMetric.name().equals(metricsName))
+                .filter(simpleMetric -> labelPredicate.test(simpleMetric.labels()))
+                .findFirst();
     }
 
     @NonNull
