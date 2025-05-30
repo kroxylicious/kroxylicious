@@ -304,9 +304,20 @@ public class ResourcesUtil {
         return slug(ref) + " in namespace '" + namespace(resource) + "'";
     }
 
+    public static String namespacedSlug(HasMetadata resource) {
+        return slug(resource) + " in namespace '" + namespace(resource) + "'";
+    }
+
     private static String slug(LocalRef<?> ref) {
         String group = ref.getGroup();
         String name = ref.getName();
+        String groupString = group.isEmpty() ? "" : "." + group;
+        return ref.getKind().toLowerCase(Locale.ROOT) + groupString + "/" + name;
+    }
+
+    private static String slug(HasMetadata ref) {
+        String group = group(ref);
+        String name = name(ref);
         String groupString = group.isEmpty() ? "" : "." + group;
         return ref.getKind().toLowerCase(Locale.ROOT) + groupString + "/" + name;
     }
