@@ -648,7 +648,6 @@ class VirtualKafkaClusterReconcilerTest {
         var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
 
         Context<VirtualKafkaCluster> context = mock();
-        ManagedWorkflowAndDependentResourceContext workflowContext = mock(ManagedWorkflowAndDependentResourceContext.class);
         when(context.managedWorkflowAndDependentResourceContext()).thenReturn(workflowContext);
 
         when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
@@ -684,7 +683,6 @@ class VirtualKafkaClusterReconcilerTest {
         var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
 
         Context<VirtualKafkaCluster> context = mock();
-        ManagedWorkflowAndDependentResourceContext workflowContext = mock(ManagedWorkflowAndDependentResourceContext.class);
         when(context.managedWorkflowAndDependentResourceContext()).thenReturn(workflowContext);
 
         when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
