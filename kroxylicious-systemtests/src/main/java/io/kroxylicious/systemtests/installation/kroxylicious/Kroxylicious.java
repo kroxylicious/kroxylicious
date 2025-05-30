@@ -114,6 +114,7 @@ public class Kroxylicious {
                 KroxyliciousKafkaProxyIngressTemplates.tlsKafkaProxyIngressCR(deploymentNamespace, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP,
                         Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME),
                 KroxyliciousKafkaClusterRefTemplates.defaultKafkaClusterRefCR(deploymentNamespace, clusterName),
+                KroxyliciousConfigMapTemplates.getClusterCaConfigMap(deploymentNamespace, Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT, tls),
                 KroxyliciousVirtualKafkaClusterTemplates.defaultVirtualKafkaClusterWithTlsCR(deploymentNamespace, clusterName, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME,
                         clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, tls));
     }
@@ -138,27 +139,27 @@ public class Kroxylicious {
 
     @NonNull
     private static TrustAnchorRef buildTrustAnchorRef() {
-        //formatter:off
+        // formatter:off
         return new TrustAnchorRefBuilder()
                 .withNewRef()
-                    .withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT)
-                    .withKind(Constants.CONFIG_MAP)
+                .withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT)
+                .withKind(Constants.CONFIG_MAP)
                 .endRef()
                 .withKey(Constants.KROXYLICIOUS_TLS_CA_NAME)
                 .build();
-        //formatter:on
+        // formatter:on
     }
 
     public Tls tlsConfigFromCert(String certNane) {
         TlsBuilder tlsBuilder = new TlsBuilder();
         if (certNane != null) {
-            //formatter:off
+            // formatter:off
             tlsBuilder
-                .withNewCertificateRef()
+                    .withNewCertificateRef()
                     .withName(certNane)
                     .withKind("Secret")
-                .endCertificateRef();
-            //formatter:on
+                    .endCertificateRef();
+            // formatter:on
         }
         tlsBuilder.withTrustAnchorRef(buildTrustAnchorRef());
         return tlsBuilder.build();

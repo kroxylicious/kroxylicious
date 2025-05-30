@@ -141,14 +141,26 @@ public final class VirtualKafkaClusterReconciler implements
 
     private static void appendSecretsFromCertificateRefs(Context<VirtualKafkaCluster> context, VirtualKafkaCluster updatedCluster,
                                                          @NonNull MetadataChecksumGenerator checksumGenerator) {
-        LOGGER.debug("Including secrets from ingress TLS in checksum");
-        updatedCluster.getSpec().getIngresses().stream()
+        LOGGER.info("Including secrets from ingress TLS in checksum");
+        updatedCluster.getSpec()
+                .getIngresses()
+                .stream()
                 .map(Ingresses::getTls)
                 .filter(Objects::nonNull)
                 .map(Tls::getCertificateRef)
                 .flatMap(certificateRef -> context.getSecondaryResourcesAsStream(Secret.class)
-                        .filter(secret -> secret.getMetadata().getName().equals(certificateRef.getName())))
+                        .filter(secret -> KubernetesResourceUtil.getName(secret).equals(certificateRef.getName())))
+                .forEach(checksumGenerator::appendMetadata);
 
+        LOGGER.info("Including TrustAnchors from ingress TLS in checksum");
+        updatedCluster.getSpec()
+                .getIngresses()
+                .stream()
+                .map(Ingresses::getTls)
+                .filter(Objects::nonNull)
+                .map(Tls::getTrustAnchorRef)
+                .flatMap(trustAnchorRef -> context.getSecondaryResourcesAsStream(ConfigMap.class)
+                        .filter(cm -> KubernetesResourceUtil.getName(cm).equals(trustAnchorRef.getRef().getName())))
                 .forEach(checksumGenerator::appendMetadata);
     }
 

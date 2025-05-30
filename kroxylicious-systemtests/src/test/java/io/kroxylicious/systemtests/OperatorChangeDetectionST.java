@@ -167,11 +167,10 @@ class OperatorChangeDetectionST extends AbstractST {
         String originalChecksum = getInitialChecksum(namespace, kubeClient);
         ConfigMap trustAnchorConfig = new ConfigMapBuilder().withNewMetadata().withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT).withNamespace(namespace).endMetadata()
                 .build();
+
         // When
         resourceManager.replaceResourceWithRetries(trustAnchorConfig,
-                trustConfigMap -> {
-                    trustAnchorConfig.setData(Map.of(Constants.KROXYLICIOUS_TLS_CA_NAME, "server-certificate"));
-                });
+                trustConfigMap -> trustAnchorConfig.setData(Map.of(Constants.KROXYLICIOUS_TLS_CA_NAME, "server-certificate1")));
         LOGGER.info("Downstream trust updated");
 
         // Then

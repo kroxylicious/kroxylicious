@@ -1009,6 +1009,31 @@ class VirtualKafkaClusterReconcilerTest {
         verify(checksumGenerator).appendMetadata(KUBE_TLS_CERT_SECRET);
     }
 
+    @Test
+    void shouldIncludeDownstreamTlsTrustAnchorInChecksum() {
+        // Given
+        Context<VirtualKafkaCluster> context = mock();
+        MetadataChecksumGenerator checksumGenerator = mock(MetadataChecksumGenerator.class);
+        when(workflowContext.get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)).thenReturn(Optional.of(checksumGenerator));
+        when(context.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
+        when(context.getSecondaryResource(ConfigMap.class)).thenReturn(Optional.of(buildProxyConfigMapWithPatch(CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR)));
+        when(context.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
+        when(context.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS_WITH_TLS));
+        when(context.getSecondaryResources(KafkaProtocolFilter.class)).thenReturn(Set.of());
+        when(context.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
+        when(context.getSecondaryResource(Secret.class, "secrets")).thenReturn(Optional.of(KUBE_TLS_CERT_SECRET));
+        when(context.getSecondaryResource(ConfigMap.class, "configmaps")).thenReturn(Optional.of(PEM_CONFIG_MAP));
+        when(context.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(KUBE_TLS_CERT_SECRET));
+        when(context.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of(PEM_CONFIG_MAP));
+        when(context.managedWorkflowAndDependentResourceContext()).thenReturn(workflowContext);
+
+        // When
+        virtualKafkaClusterReconciler.reconcile(CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR, context);
+
+        // Then
+        verify(checksumGenerator).appendMetadata(PEM_CONFIG_MAP);
+    }
+
     private static EventSourceContext<VirtualKafkaCluster> mockContextContaining(VirtualKafkaCluster cluster) {
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = mock();
         KubernetesClient client = mock();
