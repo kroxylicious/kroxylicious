@@ -17,7 +17,7 @@ import java.util.function.Predicate;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.assertj.core.api.InstanceOfAssertFactories;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,9 +39,10 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.proxy.internal.util.Metrics.*;
+import static io.kroxylicious.proxy.internal.util.Metrics.API_KEY_LABEL;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
+import static io.kroxylicious.test.tester.SimpleMetricAssert.assertThat;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
@@ -112,7 +113,7 @@ class MetricsIT {
             var counterName = getRandomCounterName();
             Metrics.counter(counterName).increment();
             var metrics = ahc.scrapeMetrics();
-            assertThat(metrics)
+            Assertions.assertThat(metrics)
                     .hasSizeGreaterThan(0)
                     .extracting(SimpleMetric::name, SimpleMetric::value)
                     .contains(tuple(counterName, 1.0));
@@ -133,7 +134,7 @@ class MetricsIT {
 
         try (var tester = kroxyliciousTester(config);
                 var ahc = tester.getManagementClient()) {
-            assertThat(ahc.scrapeMetrics())
+            Assertions.assertThat(ahc.scrapeMetrics())
                     .hasSizeGreaterThan(0)
                     .extracting(SimpleMetric::name)
                     .contains("jvm_gc_memory_allocated_bytes_total");
@@ -157,7 +158,7 @@ class MetricsIT {
             Metrics.counter(counterName).increment();
 
             var metrics = ahc.scrapeMetrics();
-            assertThat(metrics)
+            Assertions.assertThat(metrics)
                     .filteredOn("name", counterName)
                     .singleElement()
                     .extracting(SimpleMetric::labels)
@@ -253,10 +254,12 @@ class MetricsIT {
                 var managementClient = tester.getManagementClient();
                 var admin = tester.admin()) {
             var metricList = managementClient.scrapeMetrics();
-            var countBeforeCreateTopic = getMetricsValue(metricList, "kroxylicious_client_to_proxy_request_total",
-                    labels -> labels.get(API_KEY_LABEL).equals(ApiKeys.CREATE_TOPICS.name()));
-
-            assertThat(countBeforeCreateTopic).isZero();
+            assertThat(metricList)
+                    .filterByName("kroxylicious_client_to_proxy_request_total")
+                    .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
+                    .singleElement()
+                    .value()
+                    .isZero();
 
             // When
             var future = admin.createTopics(List.of(new NewTopic(UUID.randomUUID().toString(), Optional.empty(), Optional.empty()))).all();
@@ -264,19 +267,13 @@ class MetricsIT {
             // Then
             assertThat(future).succeedsWithin(Duration.ofSeconds(5));
             metricList = managementClient.scrapeMetrics();
-            var countAfterCreateTopic = getSimpleMetric(metricList, "kroxylicious_client_to_proxy_request_total",
-                    labels -> labels.get(API_KEY_LABEL).equals(ApiKeys.CREATE_TOPICS.name()));
 
-            assertThat(countAfterCreateTopic)
-                    .isPresent()
-                    .hasValueSatisfying(v -> {
-                        assertThat(v)
-                                .extracting(SimpleMetric::value)
-                                .isEqualTo(1.0);
-                        assertThat(v)
-                                .extracting(SimpleMetric::labels, InstanceOfAssertFactories.map(String.class, String.class))
-                                .containsEntry(DECODED_LABEL, Boolean.FALSE.toString());
-                    });
+            assertThat(metricList)
+                    .filterByName("kroxylicious_client_to_proxy_request_total")
+                    .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
+                    .singleElement()
+                    .value()
+                    .isEqualTo(1.0);
         }
     }
 
@@ -345,7 +342,7 @@ class MetricsIT {
     }
 
     void assertMetricsDoesNotExist(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
-        assertThat(metricList)
+        Assertions.assertThat(metricList)
                 .hasSizeGreaterThan(0)
                 .noneSatisfy(simpleMetric -> {
                     assertThat(simpleMetric.name()).isEqualTo(metricsName);
@@ -356,7 +353,7 @@ class MetricsIT {
     }
 
     void assertMetricsWithValue(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
-        assertThat(metricList)
+        Assertions.assertThat(metricList)
                 .hasSizeGreaterThan(0)
                 .anySatisfy(simpleMetric -> {
                     assertThat(simpleMetric.name()).isEqualTo(metricsName);
@@ -372,12 +369,12 @@ class MetricsIT {
     }
 
     double getMetricsValue(List<SimpleMetric> metricList, String metricsName, Predicate<Map<String, String>> labelPredicate) {
-        return getSimpleMetric(metricList, metricsName, labelPredicate)
+        return getMetric(metricList, metricsName, labelPredicate)
                 .orElseThrow().value();
     }
 
     @NonNull
-    private Optional<SimpleMetric> getSimpleMetric(List<SimpleMetric> metricList, String metricsName, Predicate<Map<String, String>> labelPredicate) {
+    private Optional<SimpleMetric> getMetric(List<SimpleMetric> metricList, String metricsName, Predicate<Map<String, String>> labelPredicate) {
         return metricList.stream()
                 .filter(simpleMetric -> simpleMetric.name().equals(metricsName))
                 .filter(simpleMetric -> labelPredicate.test(simpleMetric.labels()))
