@@ -159,6 +159,7 @@ public final class VirtualKafkaClusterReconciler implements
                 .map(Ingresses::getTls)
                 .filter(Objects::nonNull)
                 .map(Tls::getTrustAnchorRef)
+                .filter(Objects::nonNull)
                 .flatMap(trustAnchorRef -> context.getSecondaryResourcesAsStream(ConfigMap.class)
                         .filter(cm -> KubernetesResourceUtil.getName(cm).equals(trustAnchorRef.getRef().getName())))
                 .forEach(checksumGenerator::appendMetadata);
