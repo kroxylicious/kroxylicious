@@ -59,7 +59,7 @@ public final class KroxyliciousConfigMapTemplates {
         // @formatter:on
     }
 
-    public static Builder<? extends HasMetadata> getClusterCaConfigMap(String namespace, String name, Tls tls) {
+    public static ConfigMapBuilder getClusterCaConfigMap(String namespace, String name, Tls tls) {
         if (tls.getTrustAnchorRef() != null) {
             // @formatter:off
             return new ConfigMapBuilder()
