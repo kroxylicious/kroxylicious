@@ -27,12 +27,10 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaResponseDecoder.class);
 
     private final CorrelationManager correlationManager;
-    private final String clusterName;
 
-    public KafkaResponseDecoder(CorrelationManager correlationManager, int socketRequestMaxSizeBytes, String clusterName) {
+    public KafkaResponseDecoder(CorrelationManager correlationManager, int socketRequestMaxSizeBytes) {
         super(socketRequestMaxSizeBytes);
         this.correlationManager = correlationManager;
-        this.clusterName = clusterName;
     }
 
     @Override
