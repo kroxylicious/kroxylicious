@@ -42,6 +42,9 @@ public interface FilterContext {
     @Nullable
     String sniHostname();
 
+    @Nullable
+    String downStreamCertificatePrincipal();
+
     /**
      * Creates a builder for a request filter result objects.  This object encapsulates
      * the request to forward and optionally orders for actions such as closing
