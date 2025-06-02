@@ -1,0 +1,79 @@
+// file included in the following:
+//
+// assembly-proxy-monitoring.adoc
+
+[id='con-proxy-setting-log-levels-{context}']
+= Setting logs
+
+[role="_abstract"]
+
+You can independently control the logging level of both the Operator and the Proxy.
+
+In both cases, logging levels are controlled using two environment variables:
+
+* `KROXYLICIOUS_APP_LOG_LEVEL` controls the logging of the application (`io.kroxylicious` loggers). It defaults to `INFO`.
+* `KROXYLICIOUS_ROOT_LOG_LEVEL` controls the logging level at the root. It defaults to `WARN`.
+
+When trying to diagnose a problem, start first by raising the logging level of `KROXYLICIOUS_APP_LOG_LEVEL`.
+If more detailed diagnostics are required, try raising the `KROXYLICIOUS_ROOT_LOG_LEVEL`. Both the Proxy and Operator
+use Apache Log4J2 and use logging levels understood by it: `TRACE`, `DEBUG`, `INFO`, `WARN`, and `ERROR`.
+
+WARNING: Running either the Operator or the Proxy at elevated logging levels can generate significant amount of logs, which may consume significant storage.
+Minimise the length of time the system is run in this state.
+
+== Proxy
+
+To override the logging level of the Proxy, apply the environment variable to the Kubernetes `Deployment` that corresponds to the proxy instance in question.
+The `Deployment` resource will have the same name as the `KafkaProxy`.
+
+[source,bash]
+----
+kubectl set env -n <namespace> deployment <deployment_name> KROXYLICIOUS_APP_LOG_LEVEL=DEBUG
+----
+
+The pods will roll and the new logging level will take effect thereafter.  Confirm that is the case by tailing the log.
+
+[source,bash]
+----
+kubectl logs -f -n <namespace> deployment/<deployment_name>
+----
+
+To revert the log level back to default settings:
+
+[source,bash]
+----
+kubectl set env -n <namespace> deployment <deployment_name> KROXYLICIOUS_APP_LOG_LEVEL-
+----
+
+== Operator
+
+To override the logging level of the Operator, the procedure differs depending on how the Operator was installed.
+
+ifdef::include-olm[]
+=== Operator Lifecycle Management (OLM)
+
+If you have deployed the Operator using OLM, update the logging level by patching the `Subscription` resource.
+
+(TODO - how to find the subscription)
+
+[source,bash]
+----
+kubectl patch subscription <subscription_name> -p '{"spec":{"config":{"env":{"KROXYLICIOUS_APP_LOG_LEVEL":"DEBUG}}}}' --type=merge
+----
+endif::[]
+
+=== YAML bundle
+
+If you have deployed the Operator from a YAML bundle, apply the environment variable to the Kubernetes `Deployment` that corresponds to the operator.
+
+[source,bash]
+----
+kubectl set env -n <namespace> deployment <deployment_name> KROXYLICIOUS_APP_LOG_LEVEL=DEBUG
+----
+
+To revert the log level back to default settings:
+
+[source,bash]
+----
+kubectl set env -n <namespace> deployment <deployment_name> KROXYLICIOUS_APP_LOG_LEVEL-
+----

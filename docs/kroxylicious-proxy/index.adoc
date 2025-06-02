@@ -24,7 +24,7 @@ include::assemblies/assembly-built-in-filters.adoc[leveloffset=+1]
 include::modules/con-community-filters.adoc[leveloffset=+1]
 
 //monitoring
-include::assemblies/assembly-monitoring-proxy.adoc[leveloffset=+1]
+include::assemblies/assembly-{guide}-monitoring.adoc[leveloffset=+1]
 
 //trademark notices
 include::_assets/trademarks.adoc[leveloffset=+1]
