@@ -5,12 +5,17 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Stream;
+
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLSession;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
@@ -43,6 +48,8 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedFrame;
@@ -76,9 +83,12 @@ class KafkaProxyFrontendHandlerTest {
 
     public static final String SNI_HOSTNAME = "external.example.com";
     public static final String CLUSTER_HOST = "internal.example.org";
+    public static final String CLIENT_PRINCIPAL = "CN=client,O=example";
     public static final int CLUSTER_PORT = 9092;
     EmbeddedChannel inboundChannel;
     EmbeddedChannel outboundChannel;
+    SSLSession sslSession = mock(SSLSession.class);
+    Principal mockPrincipal = mock(Principal.class);
 
     int corrId = 0;
     private final AtomicReference<NetFilter.NetFilterContext> connectContext = new AtomicReference<>();
@@ -123,12 +133,14 @@ class KafkaProxyFrontendHandlerTest {
     public static List<Arguments> provideArgsForExpectedFlow() {
         var result = new ArrayList<Arguments>();
         boolean[] tf = { true, false };
-        for (boolean sslConfigured : tf) {
-            for (boolean haProxyConfigured : tf) {
-                for (boolean saslOffloadConfigured : tf) {
-                    for (boolean sendApiVersions : tf) {
-                        for (boolean sendSasl : tf) {
-                            result.add(Arguments.of(sslConfigured, haProxyConfigured, saslOffloadConfigured, sendApiVersions, sendSasl));
+        for (boolean clientAuthConfigured : tf) {
+            for (boolean sslConfigured : tf) {
+                for (boolean haProxyConfigured : tf) {
+                    for (boolean saslOffloadConfigured : tf) {
+                        for (boolean sendApiVersions : tf) {
+                            for (boolean sendSasl : tf) {
+                                result.add(Arguments.of(clientAuthConfigured, sslConfigured, haProxyConfigured, saslOffloadConfigured, sendApiVersions, sendSasl));
+                            }
                         }
                     }
                 }
@@ -310,12 +322,29 @@ class KafkaProxyFrontendHandlerTest {
                 outboundChannel.pipeline().fireChannelRegistered();
                 return outboundChannel.newPromise();
             }
+
+            @Override
+            SslHandler getSslHandler(ChannelHandlerContext ctx) {
+                // We don't need to test SSL here, so just return a mock
+                SSLEngine sslEngine = mock(SSLEngine.class);
+                when(sslEngine.getSession()).thenReturn(sslSession);
+                when(mockPrincipal.toString()).thenReturn(CLIENT_PRINCIPAL);
+                return new SslHandler(sslEngine) {
+                    @Override
+                    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
+                        if (evt instanceof SniCompletionEvent) {
+                            ctx.fireUserEventTriggered(evt);
+                        }
+                    }
+                };
+            }
         };
     }
 
     /**
      * Test the normal flow, in a number of configurations.
      *
+     * @param clientAuthConfigured
      * @param sslConfigured         Whether SSL is configured
      * @param haProxyConfigured
      * @param saslOffloadConfigured
@@ -324,7 +353,8 @@ class KafkaProxyFrontendHandlerTest {
      */
     @ParameterizedTest
     @MethodSource("provideArgsForExpectedFlow")
-    void expectedFlow(boolean sslConfigured,
+    void expectedFlow(boolean clientAuthConfigured,
+                      boolean sslConfigured,
                       boolean haProxyConfigured,
                       boolean saslOffloadConfigured,
                       boolean sendApiVersions,
@@ -379,11 +409,41 @@ class KafkaProxyFrontendHandlerTest {
         var handler = handler(filter, dp, endpointBinding);
         initialiseInboundChannel(handler);
 
+        if (clientAuthConfigured){
+            try {
+                when(sslSession.getPeerPrincipal()).thenReturn(mockPrincipal);
+            }
+            catch (SSLPeerUnverifiedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        else {
+            try {
+                when(sslSession.getPeerPrincipal()).thenThrow(new SSLPeerUnverifiedException("No peer certificate"));
+            }
+            catch (SSLPeerUnverifiedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+
         if (sslConfigured) {
             // Simulate the SSL handler
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
+            inboundChannel.pipeline().fireUserEventTriggered(SslHandshakeCompletionEvent.SUCCESS);
+            if (clientAuthConfigured) {
+                inboundChannel.pipeline().fireUserEventTriggered(SslHandshakeCompletionEvent.SUCCESS);
+            }
         }
 
+        if (sslConfigured) {
+            if (clientAuthConfigured) {
+                assertEquals(CLIENT_PRINCIPAL, handler.getDownStreamCertificatePrincipal());
+            }
+            else {
+                assertEquals("ANONYMOUS", handler.getDownStreamCertificatePrincipal());
+            }
+        }
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
 
         if (haProxyConfigured) {
