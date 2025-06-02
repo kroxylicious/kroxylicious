@@ -36,7 +36,9 @@ public interface MetadataChecksumGenerator {
     }
 
     default void appendMetadata(HasMetadata entity) {
-        LOGGER.debug("appendMetadata for: {}", ResourcesUtil.namespacedSlug(entity));
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("appendMetadata for: {}", ResourcesUtil.namespacedSlug(entity));
+        }
         appendMetadata(entity.getMetadata());
     }
 
