@@ -48,7 +48,7 @@ public class DeprecatedDownstreamMessageMetrics extends ChannelInboundHandlerAda
                 // so this avoids caching the size prematurely
                 int size = new DecodedRequestFrame<>(decodedRequestFrame.apiVersion(), decodedRequestFrame.correlationId(), decodedRequestFrame.decodeResponse(),
                         decodedRequestFrame.header(), decodedRequestFrame.body()).estimateEncodedSize();
-                Metrics.payloadSizeBytesDownstreamSummary(decodedRequestFrame.apiKey(), decodedRequestFrame.apiVersion(), clusterName).record(size);
+                Metrics.payloadSizeBytesUpstreamSummary(decodedRequestFrame.apiKey(), decodedRequestFrame.apiVersion(), clusterName).record(size);
             }
         }
         finally {

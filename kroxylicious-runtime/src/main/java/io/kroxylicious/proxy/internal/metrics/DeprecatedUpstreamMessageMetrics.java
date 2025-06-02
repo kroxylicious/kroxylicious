@@ -35,7 +35,7 @@ public class DeprecatedUpstreamMessageMetrics extends ChannelInboundHandlerAdapt
                 // so this avoids caching the size prematurely
                 int size = new DecodedResponseFrame<>(decodedResponseFrame.apiVersion(), decodedResponseFrame.correlationId(), decodedResponseFrame.header(),
                         decodedResponseFrame.body()).estimateEncodedSize();
-                Metrics.payloadSizeBytesUpstreamSummary(decodedResponseFrame.apiKey(), decodedResponseFrame.apiVersion(), clusterName)
+                Metrics.payloadSizeBytesDownstreamSummary(decodedResponseFrame.apiKey(), decodedResponseFrame.apiVersion(), clusterName)
                         .record(size);
             }
         }
