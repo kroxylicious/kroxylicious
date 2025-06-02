@@ -1,0 +1,79 @@
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+[id='assembly-prometheus-metrics-proxy-{context}']
+= Proxy Metrics
+
+[role="_abstract"]
+
+The proxy provides *connections metrics* and *message metrics*.
+
+Connection metrics allow the connections made from the clients to the proxy (the downstream) and the connection made by the proxy to the kafka cluster (the upstream) to be understood.
+
+Message metrics allow the kafka protocol messages that flow through the proxy to be understood.
+
+== Connection Metrics
+
+The connection metrics counts connection made to the proxy from the clients, and by the proxy to the brokers.
+
+Connection metrics are discriminated by the virtual cluster's name and the broker's node ID.  When the client
+connects to boostrap a node ID value of `bootstrap` is recorded.
+
+|===
+|Metric Name |Type |Labels|Description
+
+|kroxylicious_client_to_proxy_connection_total
+|Counter
+|`virtual_cluster`, `node_id`
+|Incremented by one every time a connection is accepted from a downstream client by the proxy.
+
+|kroxylicious_client_to_proxy_errors_total
+|Counter
+|`virtual_cluster`, `node_id`
+|Incremented by one every time a connection is closed due to any downstream error.
+
+|kroxylicious_proxy_to_server_connections_total
+|Counter
+|`virtual_cluster`, `node_id`
+|Incremented by one every time a connection is made upstream to the server from the proxy.
+
+|kroxylicious_proxy_to_server_errors_total
+|Counter
+|`virtual_cluster`, `node_id`
+|Incremented by one every time a connection is closed due to any upstream error. #3
+|===
+
+== Message Metrics
+
+The message metrics count the kafka protocol messages that flow through the proxy.  The metrics
+differentiate between the requests that flow from client towards the brokers, and the response
+that flow from the brokers towards the clients.
+
+Like the connection metrics, messages messages are discriminated by `virtual_cluster` and `node_id`.
+They are also discriminated by API key name (e.g. PRODUCE) and the API version. 
+
+|===
+|Metric Name |Type |Labels|Description
+
+|kroxylicious_client_to_proxy_request_total
+|Counter
+|`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
+|Incremented by one every time a request arrives at the proxy from the downstream (client).
+
+|kroxylicious_proxy_to_server_request_total
+|Counter
+|`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
+|Incremented by one every time a request (#1) goes from the proxy to the upstream (server).
+
+|kroxylicious_server_to_proxy_response_total
+|Counter
+|`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
+|Incremented by one every time a response (#1) arrives at the proxy from the upstream (server).
+
+|kroxylicious_proxy_to_client_response_total
+|Counter
+|`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
+|Incremented by one every time a response goes from the proxy to the downstream (client).
+
+|===

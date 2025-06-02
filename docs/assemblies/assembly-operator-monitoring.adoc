@@ -1,0 +1,13 @@
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+[id='assembly-operating-{context}']
+= Monitoring
+
+[role="_abstract"]
+
+Monitoring data allows you to monitor the performance and health of proxy operations.
+Both the Proxy and the Operator write a log and both emit metrics in Prometheus format.
+
+include::assembly-prometheus-metrics-proxy.adoc[leveloffset=+1]

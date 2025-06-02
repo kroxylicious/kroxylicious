@@ -2,7 +2,7 @@
 //
 // kroxylicious-proxy/index.adoc
 
-[id='con-operating-{context}']
+[id='assembly-operating-{context}']
 = Monitoring proxies
 
 [role="_abstract"]
