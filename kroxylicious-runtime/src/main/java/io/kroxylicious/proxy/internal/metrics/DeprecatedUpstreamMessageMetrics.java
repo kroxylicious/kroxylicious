@@ -12,6 +12,11 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.internal.util.Metrics;
 
+/**
+ * Emits the deprecated upstream metric kroxylicious_payload_size_bytes
+ *
+ * @deprecated use metrics emitted by {@link MessageMetrics} instead.
+ */
 @Deprecated(since = "0.13.0", forRemoval = true)
 public class DeprecatedUpstreamMessageMetrics extends ChannelInboundHandlerAdapter {
     private final String clusterName;

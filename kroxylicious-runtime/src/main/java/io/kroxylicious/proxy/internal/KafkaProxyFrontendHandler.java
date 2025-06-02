@@ -489,8 +489,7 @@ public class KafkaProxyFrontendHandler
 
         pipeline.addFirst("upstreamMetrics", new MessageMetrics(serverToProxyCounterProvider, proxyToServerCounterProvider));
         pipeline.addFirst("deprecatedUpstreamMetrics", getDeprecatedUpstreamMessageMetrics(this.virtualClusterModel.getClusterName()));
-        pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager, virtualClusterModel.socketFrameMaxSizeBytes(),
-                virtualClusterModel.getClusterName()));
+        pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager, virtualClusterModel.socketFrameMaxSizeBytes()));
         pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager));
         if (logNetwork) {
             pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger"));
