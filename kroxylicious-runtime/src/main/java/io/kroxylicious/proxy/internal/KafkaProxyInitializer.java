@@ -40,7 +40,6 @@ import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
 import io.kroxylicious.proxy.internal.metrics.DeprecatedDownstreamMessageMetrics;
 import io.kroxylicious.proxy.internal.metrics.MessageMetrics;
-import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
@@ -197,14 +196,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         var dp = new SaslDecodePredicate(!authnHandlers.isEmpty());
         // The decoder, this only cares about the filters
         // because it needs to know whether to decode requests
-        Integer nodeId = binding instanceof BrokerEndpointBinding brokerEndpointBinding ? brokerEndpointBinding.nodeId() : null;
         KafkaRequestDecoder decoder = new KafkaRequestDecoder(dp, virtualCluster.socketFrameMaxSizeBytes(), apiVersionsService);
         pipeline.addLast("requestDecoder", decoder);
 
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder());
 
-        var clientToProxyCounterProvider = Metrics.KROXYLICIOUS_CLIENT_TO_PROXY_REQUEST_TOTAL_METER_PROVIDER.create(virtualCluster.getClusterName(), nodeId);
-        var proxyToClientCounterProvider = Metrics.KROXYLICIOUS_PROXY_TO_CLIENT_RESPONSE_TOTAL_METER_PROVIDER.create(virtualCluster.getClusterName(), nodeId);
+        var clientToProxyCounterProvider = Metrics.KROXYLICIOUS_CLIENT_TO_PROXY_REQUEST_TOTAL_METER_PROVIDER.create(virtualCluster.getClusterName(), binding.nodeId());
+        var proxyToClientCounterProvider = Metrics.KROXYLICIOUS_PROXY_TO_CLIENT_RESPONSE_TOTAL_METER_PROVIDER.create(virtualCluster.getClusterName(), binding.nodeId());
 
         pipeline.addLast("downstreamMetrics", new MessageMetrics(clientToProxyCounterProvider, proxyToClientCounterProvider));
         pipeline.addLast("deprecatedDownstreamMetrics", deprecatedMessageMetricHandler(virtualCluster));

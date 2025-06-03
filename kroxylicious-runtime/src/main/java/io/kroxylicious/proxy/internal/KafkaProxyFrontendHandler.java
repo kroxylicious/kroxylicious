@@ -49,7 +49,6 @@ import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
 import io.kroxylicious.proxy.internal.metrics.DeprecatedUpstreamMessageMetrics;
 import io.kroxylicious.proxy.internal.metrics.MessageMetrics;
-import io.kroxylicious.proxy.internal.net.BrokerEndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -482,10 +481,10 @@ public class KafkaProxyFrontendHandler
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger"));
         }
         addFiltersToPipeline(filters, pipeline, inboundChannel);
-        Integer nodeId = endpointBinding instanceof BrokerEndpointBinding brokerEndpointBinding ? brokerEndpointBinding.nodeId() : null;
         var proxyToServerCounterProvider = Metrics.KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_TOTAL_METER_PROVIDER
-                .create(this.virtualClusterModel.getClusterName(), nodeId);
-        var serverToProxyCounterProvider = Metrics.KROXYLICIOUS_SERVER_TO_PROXY_RESPONSE_TOTAL_METER_PROVIDER.create(virtualClusterModel.getClusterName(), nodeId);
+                .create(this.virtualClusterModel.getClusterName(), endpointBinding.nodeId());
+        var serverToProxyCounterProvider = Metrics.KROXYLICIOUS_SERVER_TO_PROXY_RESPONSE_TOTAL_METER_PROVIDER.create(virtualClusterModel.getClusterName(),
+                endpointBinding.nodeId());
 
         pipeline.addFirst("upstreamMetrics", new MessageMetrics(serverToProxyCounterProvider, proxyToServerCounterProvider));
         pipeline.addFirst("deprecatedUpstreamMetrics", getDeprecatedUpstreamMessageMetrics(this.virtualClusterModel.getClusterName()));
