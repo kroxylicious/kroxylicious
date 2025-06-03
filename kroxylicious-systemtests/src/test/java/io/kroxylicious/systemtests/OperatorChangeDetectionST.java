@@ -170,7 +170,7 @@ class OperatorChangeDetectionST extends AbstractST {
 
         // When
         resourceManager.replaceResourceWithRetries(trustAnchorConfig,
-                trustConfigMap -> trustAnchorConfig.setData(Map.of(Constants.KROXYLICIOUS_TLS_CA_NAME, "server-certificate1")));
+                trustConfigMap -> trustConfigMap.getData().put(Constants.KROXYLICIOUS_TLS_CA_NAME, "server-certificate1"));
         LOGGER.info("Downstream trust updated");
 
         // Then
