@@ -6,7 +6,9 @@
 
 package io.kroxylicious.kubernetes.operator;
 
+import java.time.Clock;
 import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -14,9 +16,11 @@ import java.util.Set;
 import java.util.stream.Collector;
 import java.util.stream.Stream;
 
+import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
@@ -30,9 +34,11 @@ import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.NonNamespaceOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
+import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
+import io.kroxylicious.kubernetes.api.common.AnyLocalRef;
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
@@ -40,6 +46,8 @@ import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
 import io.kroxylicious.kubernetes.api.common.ProxyRefBuilder;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
+import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -48,10 +56,14 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
+import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.findOnlyResourceNamed;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toByNameMap;
@@ -65,6 +77,8 @@ import static org.mockito.Mockito.when;
 class ResourcesUtilTest {
 
     public static final String RESOURCE_NAME = "name";
+    public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
+    protected static final ConfigMap EMPTY_CONFIG_NMAP = new ConfigMapBuilder().withData(Map.of()).build();
 
     @Test
     void rfc1035DnsLabel() {
@@ -346,6 +360,14 @@ class ResourcesUtilTest {
         assertThat(ResourcesUtil.namespacedSlug(ResourcesUtil.toLocalRef(secret), secret)).isEqualTo("kafkaproxy.kroxylicious.io/secreto in namespace 'my-ns'");
     }
 
+    @SuppressWarnings("DataFlowIssue")
+    @Test
+    void slugWithNamespaceEmptyKind() {
+        Secret secret = new SecretBuilder().withNewMetadata().withNamespace("my-ns").withName("secreto").endMetadata().build();
+        AnyLocalRef ref = new AnyLocalRefBuilder().withName("secreto").withKind(null).withName(ResourcesUtil.name(secret)).build();
+        assertThat(ResourcesUtil.namespacedSlug(ref, secret)).isEqualTo("/secreto in namespace 'my-ns'");
+    }
+
     @Test
     void toLocalRef() {
         assertThat(ResourcesUtil.toLocalRef(new KafkaProxyBuilder().withNewMetadata().withName("foo").endMetadata().build()))
@@ -499,7 +521,8 @@ class ResourcesUtilTest {
 
     @Test
     void hasResolvedRefsFalseThrowsWhenResourceDoesntUseResolveRefs() {
-        assertThatThrownBy(() -> ResourcesUtil.hasFreshResolvedRefsFalseCondition(new KafkaProxy())).isInstanceOf(IllegalArgumentException.class)
+        KafkaProxy kafkaProxy = new KafkaProxy();
+        assertThatThrownBy(() -> ResourcesUtil.hasFreshResolvedRefsFalseCondition(kafkaProxy)).isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Resource kind 'KafkaProxy' does not use ResolveRefs conditions");
     }
 
@@ -658,5 +681,107 @@ class ResourcesUtilTest {
         EventSourceContext<?> eventSourceContext = mock();
         when(eventSourceContext.getClient()).thenReturn(client);
         return eventSourceContext;
+    }
+
+    @ParameterizedTest
+    @MethodSource("invalidTrustAnchorRefs")
+    void shouldReturnResolvedRefsFalseStatusCondition(TrustAnchorRef trustAnchorRef,
+                                                      @Nullable ConfigMap targetedConfigMap,
+                                                      String expectedCondition,
+                                                      ThrowingConsumer<String> stringThrowingConsumer) {
+        // Given
+        Ingresses ingress = new IngressesBuilder().withNewTls().withTrustAnchorRef(trustAnchorRef).endTls().build();
+        VirtualKafkaCluster vkc = new VirtualKafkaClusterBuilder().withNewSpec().withIngresses(List.of(ingress)).endSpec().build();
+        @SuppressWarnings("unchecked")
+        Context<VirtualKafkaCluster> reconcilerContext = mock(Context.class);
+        when(reconcilerContext.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.CONFIGMAPS_EVENT_SOURCE_NAME))
+                .thenReturn(Optional.ofNullable(targetedConfigMap));
+
+        // When
+        ResourceCheckResult<VirtualKafkaCluster> actual = ResourcesUtil.checkTrustAnchorRef(vkc, reconcilerContext,
+                VirtualKafkaClusterReconciler.CONFIGMAPS_EVENT_SOURCE_NAME, trustAnchorRef,
+                "spec.ingresses[].tls.trustAnchor", new VirtualKafkaClusterStatusFactory(TEST_CLOCK));
+
+        // Then
+        assertThat(actual)
+                .isNotNull()
+                .satisfies(virtualKafkaClusterResourceCheckResult -> assertThat(virtualKafkaClusterResourceCheckResult.resource())
+                        .isNotNull()
+                        .satisfies(actualVkc -> VirtualKafkaClusterStatusAssert.assertThat(actualVkc.getStatus())
+                                .singleCondition()
+                                .isResolvedRefsFalse(expectedCondition, stringThrowingConsumer)));
+
+    }
+
+    @ParameterizedTest
+    @CsvSource({ "key.pem", "key.p12", "key.jks" })
+    void shouldAcceptSupportedKeyfileExtensions(String key) {
+        // Given
+        TrustAnchorRef trustAnchorRef = new TrustAnchorRefBuilder().withKey(key).withNewRef().withName("configmap").endRef().build();
+        Ingresses ingress = new IngressesBuilder().withNewTls().withTrustAnchorRef(trustAnchorRef).endTls().build();
+        VirtualKafkaCluster vkc = new VirtualKafkaClusterBuilder().withNewSpec().withIngresses(List.of(ingress)).endSpec().build();
+        @SuppressWarnings("unchecked")
+        Context<VirtualKafkaCluster> reconcilerContext = mock(Context.class);
+        when(reconcilerContext.getSecondaryResource(ConfigMap.class, VirtualKafkaClusterReconciler.CONFIGMAPS_EVENT_SOURCE_NAME))
+                .thenReturn(Optional.ofNullable(
+                        new ConfigMapBuilder().withNewMetadata().withName("configmap").endMetadata().withData(Map.of(key, "I'm a key honnest")).build()));
+
+        // When
+        ResourceCheckResult<VirtualKafkaCluster> actual = ResourcesUtil.checkTrustAnchorRef(vkc, reconcilerContext,
+                VirtualKafkaClusterReconciler.CONFIGMAPS_EVENT_SOURCE_NAME, trustAnchorRef,
+                "spec.ingresses[].tls.trustAnchor", new VirtualKafkaClusterStatusFactory(TEST_CLOCK));
+
+        // Then
+        assertThat(actual).isNotNull()
+                .satisfies(virtualKafkaClusterResourceCheckResult -> assertThat(virtualKafkaClusterResourceCheckResult.resource()).isNull());
+    }
+
+    static Stream<Arguments> invalidTrustAnchorRefs() {
+        return Stream.of(
+                argumentSet("Invalid reference to config map invalid kind.",
+                        new TrustAnchorRefBuilder().withKey("key.pem").withNewRef().withKind("custom").withName("configmap").endRef().build(),
+                        null,
+                        Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("supports referents: configmaps")),
+                argumentSet("Invalid reference to config map invalid group.",
+                        new TrustAnchorRefBuilder().withKey("key.pem").withNewRef().withGroup("custom").withName("configmap").endRef().build(),
+                        null,
+                        Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("supports referents: configmaps")),
+                argumentSet("Empty target config map.",
+                        new TrustAnchorRefBuilder().withKey("key.pem").withNewRef().withName("configmap").endRef().build(),
+                        null,
+                        Condition.REASON_REFS_NOT_FOUND,
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced resource not found")),
+                argumentSet("Empty target config map.",
+                        new TrustAnchorRefBuilder().withKey("key.pem").withNewRef().withName("configmap").endRef().build(),
+                        null,
+                        Condition.REASON_REFS_NOT_FOUND,
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced resource not found")),
+                argumentSet("ConfigMap not found",
+                        new TrustAnchorRefBuilder().withNewRef().withName("unknown_config_map").endRef().build(),
+                        null,
+                        Condition.REASON_REFS_NOT_FOUND,
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced resource not found")),
+                argumentSet("null key",
+                        new TrustAnchorRefBuilder().withKey(null).withNewRef().withName("configmap").endRef().build(),
+                        EMPTY_CONFIG_NMAP,
+                        Condition.REASON_INVALID,
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("must specify 'key'")),
+                argumentSet("blank key",
+                        new TrustAnchorRefBuilder().withKey("").withNewRef().withName("configmap").endRef().build(),
+                        EMPTY_CONFIG_NMAP,
+                        Condition.REASON_INVALID,
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith(".key should end with .pem, .p12 or .jks")),
+                argumentSet("unsupported key file extension",
+                        new TrustAnchorRefBuilder().withKey("/path/to/random.key").withNewRef().withName("configmap").endRef().build(),
+                        EMPTY_CONFIG_NMAP,
+                        Condition.REASON_INVALID,
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith(".key should end with .pem, .p12 or .jks")),
+                argumentSet("Config map does not contain key",
+                        new TrustAnchorRefBuilder().withKey("key.p12").withNewRef().withName("configmap").endRef().build(),
+                        EMPTY_CONFIG_NMAP,
+                        Condition.REASON_INVALID_REFERENCED_RESOURCE,
+                        (ThrowingConsumer<String>) message -> assertThat(message).contains("referenced resource does not contain key")));
     }
 }
