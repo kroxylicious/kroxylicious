@@ -94,7 +94,7 @@ To test things properly you'll need to point your virtual clusters at a running 
 
 ## System Tests
 
-THe Kroxylicious system test suite has been updated to use the operator to deploy resources, so tests can be written in
+The Kroxylicious system test suite uses the operator to deploy resources, so tests can be written in
 java and executed locally in one's IDE. They do however require access to a Kubernetes clusters (usually minikube) and
 helm, with the appropriate RBAC permissions to install operators and provision resources.
 
