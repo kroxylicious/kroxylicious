@@ -23,19 +23,21 @@ import io.kroxylicious.proxy.internal.util.Metrics;
  * Responsible for emitting message metrics.
  */
 public class MessageMetrics extends ChannelDuplexHandler {
-    private final MeterProvider<Counter> readCounterProvider;
-    private final MeterProvider<Counter> writeCounterProvider;
+
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private final Optional<MeterProvider<Counter>> readCounterProvider;
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+    private final Optional<MeterProvider<Counter>> writeCounterProvider;
 
     public MessageMetrics(MeterProvider<Counter> readCounterProvider, MeterProvider<Counter> writeCounterProvider) {
-        this.readCounterProvider = readCounterProvider;
-        this.writeCounterProvider = writeCounterProvider;
+        this.readCounterProvider = Optional.ofNullable(readCounterProvider);
+        this.writeCounterProvider = Optional.ofNullable(writeCounterProvider);
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         try {
-            Optional.ofNullable(readCounterProvider)
-                    .ifPresent(counter -> count(msg, counter));
+            readCounterProvider.ifPresent(provider -> count(msg, provider));
         }
         finally {
             super.channelRead(ctx, msg);
@@ -46,8 +48,7 @@ public class MessageMetrics extends ChannelDuplexHandler {
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         try {
-            Optional.ofNullable(writeCounterProvider)
-                    .ifPresent(counter -> count(msg, counter));
+            writeCounterProvider.ifPresent(provider -> count(msg, provider));
         }
         finally {
             super.write(ctx, msg, promise);
