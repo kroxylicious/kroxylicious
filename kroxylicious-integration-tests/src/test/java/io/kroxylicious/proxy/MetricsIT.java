@@ -19,6 +19,8 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.Node;
+import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterEach;
@@ -41,8 +43,10 @@ import io.kroxylicious.proxy.micrometer.CommonTagsHook;
 import io.kroxylicious.proxy.micrometer.StandardBindersHook;
 import io.kroxylicious.test.tester.SimpleMetric;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
+import io.kroxylicious.testing.kafka.junit5ext.TopicPartitions;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -321,6 +325,54 @@ class MetricsIT {
     }
 
     @Test
+    void countMetricsShouldBeDiscriminatedByNodeId(@BrokerCluster(numBrokers = 2) KafkaCluster cluster, @TopicPartitions(2) Topic topic)
+            throws ExecutionException, InterruptedException {
+        var config = configWithMetrics(cluster);
+
+        try (var tester = kroxyliciousTester(config);
+                var managementClient = tester.getManagementClient();
+                var producer = tester.producer();
+                var admin = tester.admin()) {
+
+            // Given
+            var describeFuture = admin.describeTopics(List.of(topic.name())).allTopicNames();
+            assertThat(describeFuture).succeedsWithin(Duration.ofSeconds(5));
+
+            var partitions = describeFuture.get().get(topic.name()).partitions();
+            var partitionZeroNodeId = getNodeIdForPartition(partitions, 0);
+            var partitionOneNodeId = getNodeIdForPartition(partitions, 1);
+            assertThat(partitionZeroNodeId)
+                    .describedAs("expecting topic partitions to be distributed amongst brokers")
+                    .isNotEqualTo(partitionOneNodeId);
+
+            // When
+            List.of(new ProducerRecord<>(topic.name(), 0, "my-key", "0-1"),
+                    new ProducerRecord<>(topic.name(), 0, "my-key", "0-2"),
+                    new ProducerRecord<>(topic.name(), 1, "my-key", "0-2"))
+                    .forEach(pr -> assertThat(producer.send(pr)).succeedsWithin(Duration.ofSeconds(5)));
+
+            // Then
+            var metricList = managementClient.scrapeMetrics();
+
+            assertThat(metricList)
+                    .filterByName("kroxylicious_client_to_proxy_request_total")
+                    .filterByTag(API_KEY_LABEL, ApiKeys.PRODUCE.name())
+                    .filterByTag(NODE_ID_LABEL, "" + partitionZeroNodeId)
+                    .singleElement()
+                    .value()
+                    .isEqualTo(2.0);
+
+            assertThat(metricList)
+                    .filterByName("kroxylicious_client_to_proxy_request_total")
+                    .filterByTag(API_KEY_LABEL, ApiKeys.PRODUCE.name())
+                    .filterByTag(NODE_ID_LABEL, "" + partitionOneNodeId)
+                    .singleElement()
+                    .value()
+                    .isEqualTo(1.0);
+        }
+    }
+
+    @Test
     @Deprecated(since = "0.13.0", forRemoval = true)
     void shouldIncrementDownstreamMessagesOnProduceRequestWithoutFilter(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
         var config = configWithMetrics(cluster);
@@ -424,6 +476,10 @@ class MetricsIT {
             assertMetricsWithValue(updatedMetricList, "kroxylicious_payload_size_bytes_count", ApiKeys.PRODUCE);
             assertMetricsWithValue(updatedMetricList, "kroxylicious_payload_size_bytes_sum", ApiKeys.PRODUCE);
         }
+    }
+
+    private int getNodeIdForPartition(List<TopicPartitionInfo> partitions, int partitionId) {
+        return partitions.stream().filter(p -> p.partition() == partitionId).map(TopicPartitionInfo::leader).map(Node::id).findFirst().orElseThrow();
     }
 
     void assertMetricsDoesNotExist(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
