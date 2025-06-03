@@ -71,13 +71,7 @@ class MetricsIT {
 
     @Test
     void nonexistentEndpointGives404(KafkaCluster cluster) {
-        var config = proxy(cluster)
-                .withNewManagement()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endManagement();
+        var config = configWithMetrics(cluster);
 
         try (var tester = kroxyliciousTester(config);
                 var ahc = tester.getManagementClient()) {
@@ -89,13 +83,7 @@ class MetricsIT {
 
     @Test
     void scrapeEndpointExists(KafkaCluster cluster) {
-        var config = proxy(cluster)
-                .withNewManagement()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endManagement();
+        var config = configWithMetrics(cluster);
 
         try (var tester = kroxyliciousTester(config);
                 var ahc = tester.getManagementClient()) {
@@ -109,13 +97,7 @@ class MetricsIT {
 
     @Test
     void knownPrometheusMetricPresent(KafkaCluster cluster) {
-        var config = proxy(cluster)
-                .withNewManagement()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endManagement();
+        var config = configWithMetrics(cluster);
 
         try (var tester = kroxyliciousTester(config);
                 var ahc = tester.getManagementClient()) {
@@ -132,15 +114,9 @@ class MetricsIT {
 
     @Test
     void prometheusMetricFromNamedBinder(KafkaCluster cluster) {
-        var config = proxy(cluster)
+        var config = configWithMetrics(cluster)
                 .addToMicrometer(
-                        new MicrometerDefinitionBuilder(StandardBindersHook.class.getName()).withConfig("binderNames", List.of("JvmGcMetrics")).build())
-                .withNewManagement()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endManagement();
+                        new MicrometerDefinitionBuilder(StandardBindersHook.class.getName()).withConfig("binderNames", List.of("JvmGcMetrics")).build());
 
         try (var tester = kroxyliciousTester(config);
                 var ahc = tester.getManagementClient()) {
@@ -153,14 +129,8 @@ class MetricsIT {
 
     @Test
     void prometheusMetricsWithCommonTags(KafkaCluster cluster) {
-        var config = proxy(cluster)
-                .addToMicrometer(new MicrometerDefinitionBuilder(CommonTagsHook.class.getName()).withConfig("commonTags", Map.of("a", "b")).build())
-                .withNewManagement()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endManagement();
+        var config = configWithMetrics(cluster)
+                .addToMicrometer(new MicrometerDefinitionBuilder(CommonTagsHook.class.getName()).withConfig("commonTags", Map.of("a", "b")).build());
 
         try (var tester = kroxyliciousTester(config);
                 var ahc = tester.getManagementClient()) {
@@ -323,25 +293,13 @@ class MetricsIT {
         );
     }
 
-    private static ConfigurationBuilder addFilterToConfig(ConfigurationBuilder builder, NamedFilterDefinition filterDefinition) {
-        return builder
-                .addToFilterDefinitions(filterDefinition)
-                .addToDefaultFilters(filterDefinition.name());
-    }
-
     @ParameterizedTest
     @MethodSource("transitScenarios")
     void shouldIncrementCountOnMessageTransit(UnaryOperator<ConfigurationBuilder> builder,
                                               Consumer<List<SimpleMetric>> beforeAssertion,
                                               Consumer<List<SimpleMetric>> afterAssertion,
                                               KafkaCluster cluster) {
-        var config = proxy(cluster)
-                .withNewManagement()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endManagement();
+        var config = configWithMetrics(cluster);
 
         // Given
         try (var tester = kroxyliciousTester(builder.apply(config));
@@ -365,13 +323,7 @@ class MetricsIT {
     @Test
     @Deprecated(since = "0.13.0", forRemoval = true)
     void shouldIncrementDownstreamMessagesOnProduceRequestWithoutFilter(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
-        var config = proxy(cluster)
-                .withNewManagement()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endManagement();
+        var config = configWithMetrics(cluster);
 
         // Given
         try (var tester = kroxyliciousTester(config);
@@ -404,15 +356,7 @@ class MetricsIT {
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder("filter",
                 CreateTopicRequest.class.getName()).withConfig("configInstanceId", configInstance).build();
 
-        var config = proxy(cluster)
-                .addToFilterDefinitions(namedFilterDefinition)
-                .addToDefaultFilters(namedFilterDefinition.name())
-                .withNewManagement()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endManagement();
+        var config = addFilterToConfig(configWithMetrics(cluster), namedFilterDefinition);
 
         // Given
         try (var tester = kroxyliciousTester(config);
@@ -437,15 +381,7 @@ class MetricsIT {
 
     @Test
     void shouldIncrementConnectionMetrics(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
-        var config = proxy(cluster)
-                .addToFilterDefinitions()
-                .addToDefaultFilters()
-                .withNewManagement()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endManagement();
+        var config = configWithMetrics(cluster);
 
         // Given
         try (var tester = kroxyliciousTester(config);
@@ -468,15 +404,7 @@ class MetricsIT {
 
     @Test
     void shouldIncrementPayloadSizeBytesMetricsOnProduceRequest(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
-        var config = proxy(cluster)
-                .addToFilterDefinitions()
-                .addToDefaultFilters()
-                .withNewManagement()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endManagement();
+        var config = configWithMetrics(cluster);
 
         // Given
         try (var tester = kroxyliciousTester(config);
@@ -536,5 +464,21 @@ class MetricsIT {
     @NonNull
     private String getRandomCounterName() {
         return "test_metric_" + Math.abs(new Random().nextLong()) + "_total";
+    }
+
+    private ConfigurationBuilder configWithMetrics(KafkaCluster cluster) {
+        return proxy(cluster)
+                .withNewManagement()
+                .withNewEndpoints()
+                .withNewPrometheus()
+                .endPrometheus()
+                .endEndpoints()
+                .endManagement();
+    }
+
+    private static ConfigurationBuilder addFilterToConfig(ConfigurationBuilder builder, NamedFilterDefinition filterDefinition) {
+        return builder
+                .addToFilterDefinitions(filterDefinition)
+                .addToDefaultFilters(filterDefinition.name());
     }
 }
