@@ -312,8 +312,9 @@ public class ResourcesUtil {
     private static String slug(LocalRef<?> ref) {
         String group = ref.getGroup();
         String name = ref.getName();
-        String groupString = group.isEmpty() ? "" : "." + group;
-        return ref.getKind().toLowerCase(Locale.ROOT) + groupString + "/" + name;
+        String kind = ref.getKind() == null || ref.getKind().isEmpty() ? "" : ref.getKind().toLowerCase(Locale.ROOT);
+        String groupString = group == null || group.isEmpty() ? "" : "." + group;
+        return kind + groupString + "/" + name;
     }
 
     private static String slug(HasMetadata ref) {

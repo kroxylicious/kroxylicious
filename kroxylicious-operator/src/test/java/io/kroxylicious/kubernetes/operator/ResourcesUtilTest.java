@@ -38,6 +38,7 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 
+import io.kroxylicious.kubernetes.api.common.AnyLocalRef;
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
@@ -357,6 +358,14 @@ class ResourcesUtilTest {
     void slugWithNamespaceNonEmptyGroup() {
         KafkaProxy secret = new KafkaProxyBuilder().withNewMetadata().withNamespace("my-ns").withName("secreto").endMetadata().build();
         assertThat(ResourcesUtil.namespacedSlug(ResourcesUtil.toLocalRef(secret), secret)).isEqualTo("kafkaproxy.kroxylicious.io/secreto in namespace 'my-ns'");
+    }
+
+    @SuppressWarnings("DataFlowIssue")
+    @Test
+    void slugWithNamespaceEmptyKind() {
+        Secret secret = new SecretBuilder().withNewMetadata().withNamespace("my-ns").withName("secreto").endMetadata().build();
+        AnyLocalRef ref = new AnyLocalRefBuilder().withName("secreto").withKind(null).withName(ResourcesUtil.name(secret)).build();
+        assertThat(ResourcesUtil.namespacedSlug(ref, secret)).isEqualTo("/secreto in namespace 'my-ns'");
     }
 
     @Test
