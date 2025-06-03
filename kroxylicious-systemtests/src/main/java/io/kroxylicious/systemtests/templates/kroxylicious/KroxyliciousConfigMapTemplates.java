@@ -8,9 +8,7 @@ package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import java.util.Map;
 
-import io.fabric8.kubernetes.api.builder.Builder;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
-import io.fabric8.kubernetes.api.model.HasMetadata;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.systemtests.Constants;
