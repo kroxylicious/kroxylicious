@@ -31,8 +31,8 @@ public class DeprecatedUpstreamMessageMetrics extends ChannelInboundHandlerAdapt
 
         try {
             if (msg instanceof DecodedResponseFrame<?> decodedResponseFrame) {
-                // TODO the request might be updated as it travels through the proxy
-                // so this avoids caching the size prematurely
+                // TODO the response might be updated as it travels through the proxy
+                // so this avoids causing the size to be cached prematurely
                 int size = new DecodedResponseFrame<>(decodedResponseFrame.apiVersion(), decodedResponseFrame.correlationId(), decodedResponseFrame.header(),
                         decodedResponseFrame.body()).estimateEncodedSize();
                 Metrics.payloadSizeBytesDownstreamSummary(decodedResponseFrame.apiKey(), decodedResponseFrame.apiVersion(), clusterName)
