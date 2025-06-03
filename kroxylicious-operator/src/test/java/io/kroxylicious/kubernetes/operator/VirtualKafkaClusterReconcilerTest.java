@@ -1067,7 +1067,7 @@ class VirtualKafkaClusterReconcilerTest {
                 .get(InstanceOfAssertFactories.type(VirtualKafkaCluster.class))
                 .satisfies(virtualKafkaCluster -> MetadataAssert.assertThat(virtualKafkaCluster)
                         .hasAnnotationSatisfying(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
-                                (value) -> assertThat(value).isBase64()));
+                                value -> assertThat(value).isBase64()));
     }
 
     private static EventSourceContext<VirtualKafkaCluster> mockContextContaining(VirtualKafkaCluster cluster) {
