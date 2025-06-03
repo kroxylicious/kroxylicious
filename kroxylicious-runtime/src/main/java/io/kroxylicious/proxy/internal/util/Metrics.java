@@ -95,9 +95,15 @@ public class Metrics {
                                                                                                                                                 .withRegistry(
                                                                                                                                                         globalRegistry);
 
+    /**
+     * @deprecated use kroxylicious_client_to_proxy_request_count instead.
+     */
     @Deprecated(since = "0.13.0", forRemoval = true)
     public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES = "kroxylicious_inbound_downstream_messages";
 
+    /**
+     * @deprecated use kroxylicious_client_to_proxy_request_count instead.
+     */
     @Deprecated(since = "0.13.0", forRemoval = true)
     public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES = "kroxylicious_inbound_downstream_decoded_messages";
 
