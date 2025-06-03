@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.filter;
 
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.CreateTopicsRequestData;
@@ -26,12 +27,14 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     private final ForwardingStyle forwardingStyle;
     private final boolean withCloseConnection;
     private final FilterFactoryContext constructionContext;
+    private final Boolean respondWithError;
 
     public RejectingCreateTopicFilter(FilterFactoryContext constructionContext, RejectingCreateTopicFilterConfig config) {
         this.constructionContext = constructionContext;
-        config = config == null ? new RejectingCreateTopicFilterConfig(false, ForwardingStyle.SYNCHRONOUS) : config;
+        config = config == null ? new RejectingCreateTopicFilterConfig(false, ForwardingStyle.SYNCHRONOUS, true) : config;
         this.withCloseConnection = config.withCloseConnection();
         this.forwardingStyle = config.forwardingStyle();
+        this.respondWithError = config.respondWithError;
     }
 
     @Override
@@ -44,7 +47,9 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
                     allocateByteBufToTestKroxyliciousReleasesIt(context);
                     request.topics().forEach(creatableTopic -> {
                         CreateTopicsResponseData.CreatableTopicResult result = new CreateTopicsResponseData.CreatableTopicResult();
-                        result.setErrorCode(Errors.INVALID_TOPIC_EXCEPTION.code()).setErrorMessage(ERROR_MESSAGE);
+                        if (respondWithError) {
+                            result.setErrorCode(Errors.INVALID_TOPIC_EXCEPTION.code()).setErrorMessage(ERROR_MESSAGE);
+                        }
                         result.setName(creatableTopic.name());
                         topics.add(result);
                     });
@@ -63,15 +68,20 @@ public class RejectingCreateTopicFilter implements CreateTopicsRequestFilter {
     }
 
     /**
-     * @param withCloseConnection
-     * If true, rejection will also close the connection */
-    public record RejectingCreateTopicFilterConfig(boolean withCloseConnection, ForwardingStyle forwardingStyle) {
+     * @param withCloseConnection If true, rejection will also close the connection
+     * @param forwardingStyle forward style to use, allows the response to be delayed
+     * @param respondWithError if true, a response containing an error will be returned to the client, otherwise
+     *                         the client will receive an apparent success.
+     */
+    public record RejectingCreateTopicFilterConfig(boolean withCloseConnection, ForwardingStyle forwardingStyle, Boolean respondWithError) {
 
         @JsonCreator
         public RejectingCreateTopicFilterConfig(@JsonProperty(value = "withCloseConnection") boolean withCloseConnection,
-                                                @JsonProperty(value = "forwardingStyle") ForwardingStyle forwardingStyle) {
+                                                @JsonProperty(value = "forwardingStyle") ForwardingStyle forwardingStyle,
+                                                @JsonProperty(value = "respondWithError") Boolean respondWithError) {
             this.withCloseConnection = withCloseConnection;
-            this.forwardingStyle = forwardingStyle == null ? ForwardingStyle.SYNCHRONOUS : forwardingStyle;
+            this.forwardingStyle = Optional.ofNullable(forwardingStyle).orElse(ForwardingStyle.SYNCHRONOUS);
+            this.respondWithError = Optional.ofNullable(respondWithError).orElse(true);
         }
     }
 }

@@ -178,6 +178,8 @@ class MetricsIT {
 
     static Stream<Arguments> transitScenarios() {
         var decodeAll = new NamedFilterDefinitionBuilder("decodeAll", "DecodeAll").build();
+        var rejectCreateTopic = new NamedFilterDefinitionBuilder("rejectCreateTopic", "RejectingCreateTopicFilterFactory").withConfig("respondWithError", Boolean.FALSE)
+                .build();
         return Stream.of(
                 argumentSet("counts opaque requests from client",
                         (UnaryOperator<ConfigurationBuilder>) builder -> builder,
@@ -196,9 +198,7 @@ class MetricsIT {
                                 .value()
                                 .isEqualTo(1.0)),
                 argumentSet("counts decoded requests from client",
-                        (UnaryOperator<ConfigurationBuilder>) builder -> builder
-                                .addToFilterDefinitions(decodeAll)
-                                .addToDefaultFilters(decodeAll.name()),
+                        (UnaryOperator<ConfigurationBuilder>) builder -> addFilterToConfig(builder, decodeAll),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
                                 .filterByName("kroxylicious_client_to_proxy_request_total")
                                 .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
@@ -229,9 +229,7 @@ class MetricsIT {
                                 .value()
                                 .isEqualTo(1.0)),
                 argumentSet("counts decoded requests to server",
-                        (UnaryOperator<ConfigurationBuilder>) builder -> builder
-                                .addToFilterDefinitions(decodeAll)
-                                .addToDefaultFilters(decodeAll.name()),
+                        (UnaryOperator<ConfigurationBuilder>) builder -> addFilterToConfig(builder, decodeAll),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
                                 .filterByName("kroxylicious_proxy_to_server_request_total")
                                 .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
@@ -283,9 +281,7 @@ class MetricsIT {
                                 .value()
                                 .isEqualTo(1.0)),
                 argumentSet("counts decoded responses to client",
-                        (UnaryOperator<ConfigurationBuilder>) builder -> builder
-                                .addToFilterDefinitions(decodeAll)
-                                .addToDefaultFilters(decodeAll.name()),
+                        (UnaryOperator<ConfigurationBuilder>) builder -> addFilterToConfig(builder, decodeAll),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
                                 .filterByName("kroxylicious_proxy_to_client_response_total")
                                 .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
@@ -299,7 +295,38 @@ class MetricsIT {
                                 .filterByTag(DECODED_LABEL, "true")
                                 .singleElement()
                                 .value()
-                                .isEqualTo(1.0)));
+                                .isEqualTo(1.0)),
+                argumentSet("short circuited request does not tick upstream",
+                        (UnaryOperator<ConfigurationBuilder>) builder -> addFilterToConfig(builder, rejectCreateTopic),
+                        (Consumer<List<SimpleMetric>>) metricList -> {
+                        },
+                        (Consumer<List<SimpleMetric>>) metricList -> {
+                            assertThat(metricList)
+                                    .filterByName("kroxylicious_client_to_proxy_request_total")
+                                    .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
+                                    .singleElement()
+                                    .value()
+                                    .isEqualTo(1.0);
+                            assertThat(metricList)
+                                    .filterByName("kroxylicious_proxy_to_client_response_total")
+                                    .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
+                                    .singleElement()
+                                    .value()
+                                    .isEqualTo(1.0);
+                            assertThat(metricList)
+                                    .describedAs("create topic should not have gone upstream")
+                                    .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
+                                    .extracting(SimpleMetric::name)
+                                    .doesNotContain("kroxylicious_proxy_to_server_request_total", "kroxylicious_server_to_proxy_response_total");
+                        })
+
+        );
+    }
+
+    private static ConfigurationBuilder addFilterToConfig(ConfigurationBuilder builder, NamedFilterDefinition filterDefinition) {
+        return builder
+                .addToFilterDefinitions(filterDefinition)
+                .addToDefaultFilters(filterDefinition.name());
     }
 
     @ParameterizedTest
