@@ -46,6 +46,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatus;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 
 public class ResourcesUtil {
@@ -96,9 +98,8 @@ public class ResourcesUtil {
     static String volumeName(String group, String plural, String resourceName) {
         String volumeNamePrefix = group.isEmpty() ? plural : group + "." + plural;
         String volumeName = volumeNamePrefix + "-" + resourceName;
-        ResourcesUtil.requireIsDnsLabel(volumeName, true,
+        return ResourcesUtil.requireIsDnsLabel(volumeName, true,
                 "volume name would not be a DNS label: " + volumeName);
-        return volumeName;
     }
 
     static boolean isSecret(LocalRef<?> ref) {
@@ -497,15 +498,7 @@ public class ResourcesUtil {
                             path + ".key should end with .pem, .p12 or .jks"), List.of());
                 }
                 else {
-                    ConfigMap configMap = configMapOpt.get();
-                    if (keyIsMissingFromConfigMap(trustAnchorRef, configMap)) {
-                        return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
-                                Condition.REASON_INVALID_REFERENCED_RESOURCE,
-                                path + ": referenced resource does not contain key " + trustAnchorRef.getKey()), List.of());
-                    }
-                    else {
-                        return new ResourceCheckResult<>(null, List.of(configMap));
-                    }
+                    return handleSupportedFileExtension(resource, trustAnchorRef, path, statusFactory, configMapOpt.get());
                 }
             }
         }
@@ -513,6 +506,18 @@ public class ResourcesUtil {
             return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
                     path + " supports referents: configmaps"), List.of());
+        }
+    }
+
+    private static <T extends CustomResource<?, ?>> @NonNull ResourceCheckResult<T> handleSupportedFileExtension(T resource, TrustAnchorRef trustAnchorRef, String path,
+                                                                                                                 StatusFactory<T> statusFactory, ConfigMap configMap) {
+        if (keyIsMissingFromConfigMap(trustAnchorRef, configMap)) {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_INVALID_REFERENCED_RESOURCE,
+                    path + ": referenced resource does not contain key " + trustAnchorRef.getKey()), List.of());
+        }
+        else {
+            return new ResourceCheckResult<>(null, List.of(configMap));
         }
     }
 
