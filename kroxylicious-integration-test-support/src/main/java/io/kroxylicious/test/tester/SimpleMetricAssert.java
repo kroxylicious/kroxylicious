@@ -8,7 +8,6 @@ package io.kroxylicious.test.tester;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.AbstractDoubleAssert;
@@ -29,21 +28,19 @@ public class SimpleMetricAssert extends AbstractAssert<SimpleMetricAssert, Simpl
         return new SimpleMetricListAssert(actual);
     }
 
-    public static SimpleMetricAssert assertThat(Optional<SimpleMetric> actual) {
-        return new SimpleMetricAssert(actual.orElse(null));
-    }
-
     private SimpleMetricAssert(SimpleMetric simpleMetric) {
         super(simpleMetric, SimpleMetricAssert.class);
         describedAs(simpleMetric == null ? "null metric" : "metric");
     }
 
+    @SuppressWarnings("java:S1452")
     public AbstractDoubleAssert<?> value() {
         isNotNull();
         return Assertions.assertThat(actual.value())
                 .describedAs("metric value");
     }
 
+    @SuppressWarnings("java:S1452")
     public AbstractStringAssert<?> name() {
         isNotNull();
         return Assertions.assertThat(actual.name())
@@ -56,8 +53,9 @@ public class SimpleMetricAssert extends AbstractAssert<SimpleMetricAssert, Simpl
                 .describedAs("metric labels");
     }
 
+    @SuppressWarnings("java:S110") // Ignoring "This class has 6 parents which is greater than 5 authorized" as this is the Assert-J public API.
     public static class SimpleMetricListAssert extends FactoryBasedNavigableListAssert<SimpleMetricListAssert, List<SimpleMetric>, SimpleMetric, SimpleMetricAssert> {
-        SimpleMetricListAssert(List<SimpleMetric> simpleMetrics) {
+        private SimpleMetricListAssert(List<SimpleMetric> simpleMetrics) {
             super(simpleMetrics, SimpleMetricListAssert.class, SimpleMetricAssert::new);
             describedAs(simpleMetrics == null ? "empty metric list" : "metrics");
 

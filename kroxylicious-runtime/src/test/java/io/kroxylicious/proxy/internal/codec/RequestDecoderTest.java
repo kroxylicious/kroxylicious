@@ -66,7 +66,6 @@ public class RequestDecoderTest extends AbstractCodecTest {
         }
     };
     public static final KafkaRequestDecoder MAX_FRAME_SIZE_10_BYTES_DECODER = getKafkaRequestDecoder(DECODE_EVERYTHING, 10);
-    private static final String CLUSTER_NAME = "randomVCluster";
 
     static List<Object[]> produceRequestApiVersions() {
         List<Short> produceVersions = requestApiVersions(ApiMessageType.PRODUCE).toList();
