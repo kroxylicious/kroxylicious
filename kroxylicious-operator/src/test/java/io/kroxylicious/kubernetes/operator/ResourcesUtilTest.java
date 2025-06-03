@@ -512,7 +512,8 @@ class ResourcesUtilTest {
 
     @Test
     void hasResolvedRefsFalseThrowsWhenResourceDoesntUseResolveRefs() {
-        assertThatThrownBy(() -> ResourcesUtil.hasFreshResolvedRefsFalseCondition(new KafkaProxy())).isInstanceOf(IllegalArgumentException.class)
+        KafkaProxy kafkaProxy = new KafkaProxy();
+        assertThatThrownBy(() -> ResourcesUtil.hasFreshResolvedRefsFalseCondition(kafkaProxy)).isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Resource kind 'KafkaProxy' does not use ResolveRefs conditions");
     }
 
