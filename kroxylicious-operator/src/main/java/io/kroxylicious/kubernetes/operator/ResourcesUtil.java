@@ -491,16 +491,14 @@ public class ResourcesUtil {
                             Condition.REASON_INVALID,
                             path + " must specify 'key'"), List.of());
                 }
-                if (!key.endsWith(".pem")
-                        && !key.endsWith(".p12")
-                        && !key.endsWith(".jks")) {
+                if (isSupportedFileType(key)) {
                     return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                             Condition.REASON_INVALID,
                             path + ".key should end with .pem, .p12 or .jks"), List.of());
                 }
                 else {
                     ConfigMap configMap = configMapOpt.get();
-                    if (!configMap.getData().containsKey(trustAnchorRef.getKey())) {
+                    if (keyIsMissingFromConfigMap(trustAnchorRef, configMap)) {
                         return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                                 Condition.REASON_INVALID_REFERENCED_RESOURCE,
                                 path + ": referenced resource does not contain key " + trustAnchorRef.getKey()), List.of());
@@ -516,5 +514,15 @@ public class ResourcesUtil {
                     Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
                     path + " supports referents: configmaps"), List.of());
         }
+    }
+
+    private static boolean keyIsMissingFromConfigMap(TrustAnchorRef trustAnchorRef, ConfigMap configMap) {
+        return !configMap.getData().containsKey(trustAnchorRef.getKey());
+    }
+
+    private static boolean isSupportedFileType(String key) {
+        return !key.endsWith(".pem")
+                && !key.endsWith(".p12")
+                && !key.endsWith(".jks");
     }
 }
