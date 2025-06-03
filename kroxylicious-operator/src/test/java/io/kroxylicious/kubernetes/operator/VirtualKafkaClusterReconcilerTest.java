@@ -63,6 +63,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingress
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
+import io.kroxylicious.kubernetes.operator.assertj.MetadataAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
@@ -71,6 +72,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.OPTIONAL;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -221,6 +223,7 @@ class VirtualKafkaClusterReconcilerTest {
             .withNewMetadata()
                 .withName(SERVER_CERT_SECRET_NAME)
                 .withNamespace(NAMESPACE)
+                .withUid(UUID.randomUUID().toString())
                 .withGeneration(42L)
             .endMetadata()
             .withType("kubernetes.io/tls")
@@ -231,6 +234,7 @@ class VirtualKafkaClusterReconcilerTest {
             .withNewMetadata()
                 .withName(SERVER_CERT_SECRET_NAME)
                 .withNamespace(NAMESPACE)
+                .withUid(UUID.randomUUID().toString())
                 .withGeneration(42L)
             .endMetadata()
             .withType("example.com/nottls")  // unexpected type value
@@ -243,6 +247,7 @@ class VirtualKafkaClusterReconcilerTest {
                 .withName(TRUST_ANCHOR_CERT_CONFIGMAP_NAME)
                 .withNamespace(NAMESPACE)
                 .withGeneration(42L)
+                .withUid(UUID.randomUUID().toString())
             .endMetadata()
             .addToData("ca-bundle.pem", "value")
             .build();
@@ -1032,6 +1037,37 @@ class VirtualKafkaClusterReconcilerTest {
 
         // Then
         verify(checksumGenerator).appendMetadata(PEM_CONFIG_MAP);
+    }
+
+    @Test
+    void shouldCreateChecksumGeneratorIfNotPresentInReconcilerContext() {
+        // Given
+        Context<VirtualKafkaCluster> reconcilerContext = mock();
+        when(workflowContext.get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)).thenReturn(Optional.empty());
+        when(reconcilerContext.getSecondaryResources(KafkaProxy.class)).thenReturn(Set.of(PROXY));
+        when(reconcilerContext.getSecondaryResource(ConfigMap.class)).thenReturn(Optional.of(buildProxyConfigMapWithPatch(CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR)));
+        when(reconcilerContext.getSecondaryResources(KafkaService.class)).thenReturn(Set.of(SERVICE));
+        when(reconcilerContext.getSecondaryResources(KafkaProxyIngress.class)).thenReturn(Set.of(INGRESS_WITH_TLS));
+        when(reconcilerContext.getSecondaryResources(KafkaProtocolFilter.class)).thenReturn(Set.of());
+        when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
+        when(reconcilerContext.getSecondaryResource(Secret.class, "secrets")).thenReturn(Optional.of(KUBE_TLS_CERT_SECRET));
+        when(reconcilerContext.getSecondaryResource(ConfigMap.class, "configmaps")).thenReturn(Optional.of(PEM_CONFIG_MAP));
+        when(reconcilerContext.getSecondaryResourcesAsStream(Secret.class)).thenReturn(Stream.of(KUBE_TLS_CERT_SECRET));
+        when(reconcilerContext.getSecondaryResourcesAsStream(ConfigMap.class)).thenReturn(Stream.of(PEM_CONFIG_MAP));
+        when(reconcilerContext.managedWorkflowAndDependentResourceContext()).thenReturn(workflowContext);
+
+        // When
+        var actualUpdate = virtualKafkaClusterReconciler.reconcile(CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR, reconcilerContext);
+
+        // Then
+        assertThat(actualUpdate)
+                .isNotNull()
+                .extracting(UpdateControl::getResource).asInstanceOf(OPTIONAL)
+                .isPresent()
+                .get(InstanceOfAssertFactories.type(VirtualKafkaCluster.class))
+                .satisfies(virtualKafkaCluster -> MetadataAssert.assertThat(virtualKafkaCluster)
+                        .hasAnnotationSatisfying(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
+                                (value) -> assertThat(value).isBase64()));
     }
 
     private static EventSourceContext<VirtualKafkaCluster> mockContextContaining(VirtualKafkaCluster cluster) {
