@@ -19,13 +19,16 @@ import io.netty.channel.ChannelPromise;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.internal.util.Metrics;
 
+/**
+ * Responsible for emitting message metrics.
+ */
 public class MessageMetrics extends ChannelDuplexHandler {
     private final MeterProvider<Counter> readCounterProvider;
     private final MeterProvider<Counter> writeCounterProvider;
 
-    public MessageMetrics(MeterProvider<Counter> requestCounterProvider, MeterProvider<Counter> responseCounterProvider) {
-        this.readCounterProvider = requestCounterProvider;
-        this.writeCounterProvider = responseCounterProvider;
+    public MessageMetrics(MeterProvider<Counter> readCounterProvider, MeterProvider<Counter> writeCounterProvider) {
+        this.readCounterProvider = readCounterProvider;
+        this.writeCounterProvider = writeCounterProvider;
     }
 
     @Override
@@ -42,7 +45,6 @@ public class MessageMetrics extends ChannelDuplexHandler {
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-
         try {
             Optional.ofNullable(writeCounterProvider)
                     .ifPresent(counter -> count(msg, counter));

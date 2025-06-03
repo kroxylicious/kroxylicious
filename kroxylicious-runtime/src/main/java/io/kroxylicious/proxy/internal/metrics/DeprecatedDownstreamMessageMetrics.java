@@ -44,7 +44,7 @@ public class DeprecatedDownstreamMessageMetrics extends ChannelInboundHandlerAda
             inboundMessageCounter.increment();
             if (msg instanceof DecodedRequestFrame<?> decodedRequestFrame) {
                 decodedMessagesCounter.increment();
-                // TODO the request might be updated as it travels through the proxy
+                // The request might be updated by the filters as it travels through the proxy
                 // so this avoids causing the size to be cached prematurely
                 int size = new DecodedRequestFrame<>(decodedRequestFrame.apiVersion(), decodedRequestFrame.correlationId(), decodedRequestFrame.decodeResponse(),
                         decodedRequestFrame.header(), decodedRequestFrame.body()).estimateEncodedSize();
