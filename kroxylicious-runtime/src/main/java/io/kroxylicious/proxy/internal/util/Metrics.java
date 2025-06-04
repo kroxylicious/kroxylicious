@@ -232,7 +232,7 @@ public class Metrics {
 
     @NonNull
     private static String required(String value) {
-        if ((Objects.isNull(value))) {
+        if ((Objects.isNull(value) || value.trim().isEmpty())) {
             throw new IllegalArgumentException("tag value supplied without a value");
         }
         return value;
