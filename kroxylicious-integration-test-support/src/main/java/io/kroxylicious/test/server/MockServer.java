@@ -19,6 +19,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
+import io.netty.handler.ssl.SslContext;
 
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.ResponsePayload;
@@ -40,8 +41,8 @@ public final class MockServer implements AutoCloseable {
     private final int port;
     private MockHandler serverHandler;
 
-    private MockServer(ResponsePayload response, int port) {
-        this.port = start(port, response);
+    private MockServer(ResponsePayload response, int port, SslContext serverSslContext) {
+        this.port = start(port, response, serverSslContext);
     }
 
     /**
@@ -86,7 +87,7 @@ public final class MockServer implements AutoCloseable {
      * @return the created server
      */
     public static MockServer startOnRandomPort() {
-        return new MockServer(null, 0);
+        return new MockServer(null, 0, null);
     }
 
     /**
@@ -95,16 +96,31 @@ public final class MockServer implements AutoCloseable {
      * @return the created server
      */
     public static MockServer startOnRandomPort(ResponsePayload response) {
-        return new MockServer(response, 0);
+        return new MockServer(response, 0, null);
+    }
+
+    /**
+     * Start mock server on a random port and serve this response
+     * @param response response to serve
+     * @param serverSslContext server ssl context, if null server will be plain.
+     * @return the created server
+     */
+    public static MockServer startOnRandomPort(ResponsePayload response, SslContext serverSslContext) {
+        return new MockServer(response, 0, serverSslContext);
     }
 
     /**
      * Start the server
+     *
      * @param port port to bind to (0 to bind to an ephemeral)
      * @param response response to serve (nullable)
+     * @param serverSslContext server ssl context, if null server will be plain.
      * @return the port bound to
      */
-    public int start(int port, ResponsePayload response) {
+    public int start(int port, ResponsePayload response, SslContext serverSslContext) {
+        if (serverSslContext != null && !serverSslContext.isServer()) {
+            throw new IllegalArgumentException("if using SSL, a SslContext configured for server required.");
+        }
         // Configure the server.
         final EventGroupConfig eventGroupConfig = EventGroupConfig.create();
         bossGroup = eventGroupConfig.newBossGroup();
@@ -118,6 +134,9 @@ public final class MockServer implements AutoCloseable {
                     @Override
                     public void initChannel(SocketChannel ch) {
                         ChannelPipeline p = ch.pipeline();
+                        if (serverSslContext != null) {
+                            p.addLast(serverSslContext.newHandler(ch.alloc()));
+                        }
                         p.addLast(new KafkaRequestDecoder());
                         p.addLast(new KafkaResponseEncoder());
                         p.addLast(serverHandler);

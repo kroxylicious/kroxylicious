@@ -21,6 +21,7 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
@@ -94,8 +95,17 @@ class KroxyliciousClients implements Closeable {
     }
 
     public KafkaClient simpleTestClient() {
-        String[] hostPort = defaultClientConfiguration.get(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG).toString().split(":");
-        return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]));
+        var bootstrap = defaultClientConfiguration.get(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG).toString();
+        var securityProtocol = SecurityProtocol
+                .forName(String.valueOf(defaultClientConfiguration.getOrDefault(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.PLAINTEXT)));
+        boolean useTls = securityProtocol != SecurityProtocol.PLAINTEXT && securityProtocol != SecurityProtocol.SASL_PLAINTEXT;
+        return simpleTestClient(bootstrap, useTls);
+    }
+
+    public KafkaClient simpleTestClient(String address, boolean useTls) {
+        var hostPort = address.split(":", 2);
+        var clientSslContext = useTls ? KafkaClient.TRUST_ALL_CLIENT_SSL_CONTEXT : null;
+        return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]), clientSslContext);
     }
 
     public void close() {

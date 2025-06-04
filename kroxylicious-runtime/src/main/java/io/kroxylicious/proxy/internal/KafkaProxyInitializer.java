@@ -171,8 +171,17 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
             @Override
             protected void onLookupComplete(ChannelHandlerContext ctx, Future<SslContext> future) throws Exception {
-                super.onLookupComplete(ctx, future);
-                ctx.fireChannelActive();
+                if (future.isSuccess()) {
+                    super.onLookupComplete(ctx, future);
+                    ctx.fireChannelActive();
+                }
+                else {
+                    // We've failed to look up the SslContext - this indicates that the SNI hostname was unrecognized
+                    // or that the virtual cluster is somehow not configured for TLS. All we can do is close the
+                    // connection.
+                    ctx.close();
+                }
+
             }
         });
     }
