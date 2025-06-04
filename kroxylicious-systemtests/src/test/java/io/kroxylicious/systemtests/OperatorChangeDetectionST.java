@@ -37,7 +37,9 @@ import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
@@ -70,19 +72,18 @@ class OperatorChangeDetectionST extends AbstractST {
     void shouldUpdateDeploymentWhenKafkaProxyIngressChanges(String namespace) {
         // Given
         kroxylicious.deployPortIdentifiesNodeWithNoFilters(kafkaClusterName);
-        KubeClient kubeClient = kubeClient(namespace);
 
-        String originalChecksum = getInitialChecksum(namespace, kubeClient);
+        String originalChecksum = getInitialChecksum(namespace);
 
-        updateIngresProtocol(ClusterIP.Protocol.TLS, kubeClient, namespace); // move to TLS but this is invalid
+        updateIngresProtocol(ClusterIP.Protocol.TLS, namespace); // move to TLS but this is invalid
 
         // When
         // So move back to TCP and check things get updated.
-        updateIngresProtocol(ClusterIP.Protocol.TCP, kubeClient, namespace);
+        updateIngresProtocol(ClusterIP.Protocol.TCP, namespace);
         LOGGER.info("Kafka proxy ingress edited");
 
         // Then
-        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+        assertDeploymentUpdated(namespace, originalChecksum);
     }
 
     @Test
@@ -97,13 +98,15 @@ class OperatorChangeDetectionST extends AbstractST {
         // @formatter:on
         resourceManager.createOrUpdateResourceWithWait(arbitraryFilter);
         kroxylicious.deployPortIdentifiesNodeWithNoFilters("test-vkc");
-        KubeClient kubeClient = kubeClient(namespace);
 
-        String originalChecksum = getInitialChecksum(namespace, kubeClient);
+        String originalChecksum = getInitialChecksum(namespace);
 
         FilterRef filterRef = new FilterRefBuilder().withName("arbitrary-filter").build();
-        VirtualKafkaCluster virtualKafkaCluster = kubeClient.getClient().resources(VirtualKafkaCluster.class).inNamespace(namespace)
-                .withName("test-vkc").get();
+        VirtualKafkaCluster virtualKafkaCluster = new VirtualKafkaClusterBuilder().withNewMetadata()
+                .withName("test-vkc")
+                .withNamespace(namespace)
+                .and()
+                .build();
 
         // When
         resourceManager.replaceResourceWithRetries(virtualKafkaCluster, vkc -> {
@@ -115,7 +118,7 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("virtual cluster edited");
 
         // Then
-        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+        assertDeploymentUpdated(namespace, originalChecksum);
     }
 
     @Test
@@ -131,9 +134,8 @@ class OperatorChangeDetectionST extends AbstractST {
 
         var tls = kroxylicious.tlsConfigFromCert("server-certificate");
         kroxylicious.deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters("test-vkc", tls);
-        KubeClient kubeClient = kubeClient(namespace);
 
-        String originalChecksum = getInitialChecksum(namespace, kubeClient);
+        String originalChecksum = getInitialChecksum(namespace);
 
         // When
         resourceManager.replaceResourceWithRetries(cert.build(),
@@ -145,7 +147,7 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("SAN added to downstream tls cert");
 
         // Then
-        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+        assertDeploymentUpdated(namespace, originalChecksum);
     }
 
     @Test
@@ -162,9 +164,8 @@ class OperatorChangeDetectionST extends AbstractST {
         var tls = kroxylicious.tlsConfigFromCert("server-certificate");
 
         kroxylicious.deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters("test-vkc", tls);
-        KubeClient kubeClient = kubeClient(namespace);
 
-        String originalChecksum = getInitialChecksum(namespace, kubeClient);
+        String originalChecksum = getInitialChecksum(namespace);
         ConfigMap trustAnchorConfig = new ConfigMapBuilder().withNewMetadata().withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT).withNamespace(namespace).endMetadata()
                 .build();
 
@@ -174,7 +175,7 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("Downstream trust updated");
 
         // Then
-        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+        assertDeploymentUpdated(namespace, originalChecksum);
     }
 
     @Test
@@ -191,7 +192,7 @@ class OperatorChangeDetectionST extends AbstractST {
         resourceManager.createOrUpdateResourceWithWait(arbitraryFilter);
         kroxylicious.deployPortIdentifiesNodeWithFilters(kafkaClusterName, List.of("arbitrary-filter"));
 
-        String originalChecksum = getInitialChecksum(namespace, kubeClient);
+        String originalChecksum = getInitialChecksum(namespace);
 
         // @formatter:off
         KafkaProtocolFilterBuilder updatedProtocolFilter = kubeClient.getClient().resources(KafkaProtocolFilter.class)
@@ -209,7 +210,7 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("Kafka proxy filter updated");
 
         // Then
-        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+        assertDeploymentUpdated(namespace, originalChecksum);
     }
 
     @Test
@@ -218,7 +219,7 @@ class OperatorChangeDetectionST extends AbstractST {
         KubeClient kubeClient = kubeClient(namespace);
         kroxylicious.deployPortIdentifiesNodeWithNoFilters(kafkaClusterName);
 
-        String originalChecksum = getInitialChecksum(namespace, kubeClient);
+        String originalChecksum = getInitialChecksum(namespace);
 
         KafkaProxy kafkaProxy = kubeClient.getClient().resources(KafkaProxy.class).inNamespace(namespace)
                 .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).get();
@@ -235,7 +236,7 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("Kafka proxy updated");
 
         // Then
-        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+        assertDeploymentUpdated(namespace, originalChecksum);
     }
 
     @Test
@@ -255,7 +256,7 @@ class OperatorChangeDetectionST extends AbstractST {
         kroxylicious.deployPortIdentifiesNodeWithFilters(kafkaClusterName, List.of("arbitrary-filter"));
         LOGGER.info("Kroxylicious deployed");
 
-        String originalChecksum = getInitialChecksum(namespace, kubeClient);
+        String originalChecksum = getInitialChecksum(namespace);
 
         Secret existingSecret = kubeClient.getClient().resources(Secret.class).inNamespace(namespace)
                 .withName("kilted-kiwi").get();
@@ -265,10 +266,11 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("secret: kilted-kiwi updated");
 
         // Then
-        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+        assertDeploymentUpdated(namespace, originalChecksum);
     }
 
-    private static void assertDeploymentUpdated(String namespace, KubeClient kubeClient, String originalChecksum) {
+    private static void assertDeploymentUpdated(String namespace, String originalChecksum) {
+        var kubeClient = kubeClient(namespace);
         AtomicReference<String> newChecksumFromAnnotation = new AtomicReference<>();
         await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
             Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
@@ -303,7 +305,8 @@ class OperatorChangeDetectionST extends AbstractST {
         kroxyliciousOperator.deploy();
     }
 
-    private String getInitialChecksum(String namespace, KubeClient kubeClient) {
+    private String getInitialChecksum(String namespace) {
+        var kubeClient = kubeClient(namespace);
         AtomicReference<String> checksumFromAnnotation = new AtomicReference<>();
         await().atMost(Duration.ofSeconds(90))
                 .untilAsserted(() -> kubeClient.listPods(namespace, "app.kubernetes.io/name", "kroxylicious-proxy"),
@@ -330,15 +333,16 @@ class OperatorChangeDetectionST extends AbstractST {
         return KubernetesResourceUtil.getOrCreateAnnotations(entity).get("kroxylicious.io/referent-checksum");
     }
 
-    private static void updateIngresProtocol(ClusterIP.Protocol protocol, KubeClient kubeClient, String namespace) {
-        KafkaProxyIngress existingIngress = kubeClient.getClient()
-                .resources(KafkaProxyIngress.class)
-                .inNamespace(namespace)
+    private static void updateIngresProtocol(ClusterIP.Protocol protocol, String namespace) {
+        KafkaProxyIngress resolver = new KafkaProxyIngressBuilder()
+                .withNewMetadata()
+                .withNamespace(namespace)
                 .withName(Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP)
-                .get();
+                .endMetadata()
+                .build();
 
         ResourceManager.getInstance()
-                .replaceResourceWithRetries(existingIngress,
+                .replaceResourceWithRetries(resolver,
                         ingress -> ingress.getSpec().getClusterIP().setProtocol(protocol));
     }
 }
