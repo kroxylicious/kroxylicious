@@ -98,4 +98,36 @@ class MetricsTest {
         assertThatThrownBy(() -> Metrics.tags("TagA", "value1", "TagB", "value2", "TagC", "value3", "TagD"))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void shouldThrowIfTagNameHasEmptyValue() {
+        // Given
+
+        // When
+        // Then
+        assertThatThrownBy(() -> Metrics.tags("TagA", " "))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldThrowIfOneOfTwoTagNameHasEmptyValue() {
+        // Given
+
+        // When
+        // Then
+        assertThatThrownBy(() -> Metrics.tags("TagA", "value1", "TagB", ""))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void shouldThrowIfOneOfSeveralTagsNameHasEmptyValue() {
+        // Given
+
+        // When
+        // Then
+        assertThatThrownBy(() -> Metrics.tags("TagA", "value1", "TagB", "value2", "TagC", "value3", "TagD", "   "))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }
+
+
