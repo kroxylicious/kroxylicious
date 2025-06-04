@@ -85,6 +85,22 @@ jobs:
           echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_ENV"
           # make sure everything is built and compiles
           mvn -B install -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} -pl ':kroxylicious-operator' -am
+      - name: 'Set up Docker Buildx'
+        uses: docker/setup-buildx-action@v3
+      - name: 'Build tagged Docker image'
+        uses: docker/build-push-action@v6
+        with:
+          file: Dockerfile
+          context: .
+          build-args:
+            KROXYLICIOUS_VERSION=${{ env.KROXYLICIOUS_VERSION }}
+          tags: ${{ env.KROXYLICIOUS_IMAGE }}
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,compression=zstd
+          load: 'true'
+      - name: 'Load Kroxylicious Image in Minikube'
+        run: minikube image load  ${{ env.KROXYLICIOUS_IMAGE }}
       - name: 'Build Kroxylicious maven project on main with Sonar'
         if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
         env:
