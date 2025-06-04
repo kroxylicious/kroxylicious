@@ -68,6 +68,7 @@ public class KafkaProxyFrontendHandler
 
     private static final String NET_FILTER_INVOKED_IN_WRONG_STATE = "NetFilterContext invoked in wrong session state";
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
+    private static final String ANONYMOUS = "ANONYMOUS";
 
     /** Cache ApiVersions response which we use when returning ApiVersions ourselves */
     private static final ApiVersionsResponseData API_VERSIONS_RESPONSE;
@@ -87,13 +88,12 @@ public class KafkaProxyFrontendHandler
     private boolean pendingClientFlushes;
     private @Nullable AuthenticationEvent authentication;
     private @Nullable String sniHostname;
+    private @Nullable String downstreamCertificatePrincipal;
 
     @Nullable
-    public String getDownStreamCertificatePrincipal() {
-        return downStreamCertificatePrincipal;
+    public String getDownstreamCertificatePrincipal() {
+        return downstreamCertificatePrincipal;
     }
-
-    private @Nullable String downStreamCertificatePrincipal;
 
     @VisibleForTesting
     SslHandler getSslHandler(ChannelHandlerContext ctx) {
@@ -191,10 +191,11 @@ public class KafkaProxyFrontendHandler
             if (sslHandshakeCompletionEvent.isSuccess()) {
                 SslHandler sslHandler = getSslHandler(ctx);
                 try {
-                    downStreamCertificatePrincipal = sslHandler.engine().getSession().getPeerPrincipal().toString();
-                } catch (SSLPeerUnverifiedException e) {
+                    downstreamCertificatePrincipal = sslHandler.engine().getSession().getPeerPrincipal().toString();
+                }
+                catch (SSLPeerUnverifiedException e) {
                     LOGGER.debug("No client principal received, setting principal as ANONYMOUS");
-                    downStreamCertificatePrincipal = "ANONYMOUS";
+                    downstreamCertificatePrincipal = ANONYMOUS;
                 }
             }
         }
@@ -655,7 +656,7 @@ public class KafkaProxyFrontendHandler
                             protocolFilter,
                             20000,
                             sniHostname,
-                            downStreamCertificatePrincipal,
+                            downstreamCertificatePrincipal,
                             virtualClusterModel,
                             inboundChannel));
         }

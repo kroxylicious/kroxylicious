@@ -68,7 +68,8 @@ public class FilterHandler extends ChannelDuplexHandler {
     private ChannelHandlerContext ctx;
     private PromiseFactory promiseFactory;
 
-    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, String downStreamCertificatePrincipal, VirtualClusterModel virtualClusterModel, Channel inboundChannel) {
+    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, String downStreamCertificatePrincipal,
+                         VirtualClusterModel virtualClusterModel, Channel inboundChannel) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
@@ -479,7 +480,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Nullable
         @Override
-        public String downStreamCertificatePrincipal() {
+        public String downstreamCertificatePrincipal() {
             return downStreamCertificatePrincipal;
         }
 
