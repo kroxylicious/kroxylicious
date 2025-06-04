@@ -344,7 +344,7 @@ class KafkaProxyFrontendHandlerTest {
     /**
      * Test the normal flow, in a number of configurations.
      *
-     * @param clientAuthConfigured
+     * @param clientAuthConfigured  whether mTLS is configured
      * @param sslConfigured         Whether SSL is configured
      * @param haProxyConfigured
      * @param saslOffloadConfigured
@@ -409,7 +409,7 @@ class KafkaProxyFrontendHandlerTest {
         var handler = handler(filter, dp, endpointBinding);
         initialiseInboundChannel(handler);
 
-        if (clientAuthConfigured){
+        if (clientAuthConfigured) {
             try {
                 when(sslSession.getPeerPrincipal()).thenReturn(mockPrincipal);
             }
@@ -426,22 +426,18 @@ class KafkaProxyFrontendHandlerTest {
             }
         }
 
-
         if (sslConfigured) {
             // Simulate the SSL handler
             inboundChannel.pipeline().fireUserEventTriggered(new SniCompletionEvent(SNI_HOSTNAME));
             inboundChannel.pipeline().fireUserEventTriggered(SslHandshakeCompletionEvent.SUCCESS);
-            if (clientAuthConfigured) {
-                inboundChannel.pipeline().fireUserEventTriggered(SslHandshakeCompletionEvent.SUCCESS);
-            }
         }
 
         if (sslConfigured) {
             if (clientAuthConfigured) {
-                assertEquals(CLIENT_PRINCIPAL, handler.getDownStreamCertificatePrincipal());
+                assertEquals(CLIENT_PRINCIPAL, handler.getDownstreamCertificatePrincipal());
             }
             else {
-                assertEquals("ANONYMOUS", handler.getDownStreamCertificatePrincipal());
+                assertEquals("ANONYMOUS", handler.getDownstreamCertificatePrincipal());
             }
         }
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
