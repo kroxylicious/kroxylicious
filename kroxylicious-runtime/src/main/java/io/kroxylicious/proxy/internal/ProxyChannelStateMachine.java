@@ -533,7 +533,7 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    @SuppressWarnings({"java:S1172", "java:S1135"})
+    @SuppressWarnings({ "java:S1172", "java:S1135" })
     // We keep dp as we should need it and it gives consistency with the other onClientRequestIn methods (sue me)
     private boolean onClientRequestInApiVersionsState(@NonNull SaslDecodePredicate dp, Object msg, ProxyChannelState.ApiVersions apiVersions) {
         if (msg instanceof RequestFrame) {

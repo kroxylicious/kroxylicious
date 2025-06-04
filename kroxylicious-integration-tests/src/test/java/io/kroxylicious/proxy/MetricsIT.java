@@ -51,15 +51,19 @@ import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.MicrometerDefinitionBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
+import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.micrometer.CommonTagsHook;
 import io.kroxylicious.proxy.micrometer.StandardBindersHook;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.test.tester.SimpleMetric;
+import io.kroxylicious.test.tester.SimpleMetricAssert;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
+import io.kroxylicious.testing.kafka.common.Tls;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 import io.kroxylicious.testing.kafka.junit5ext.TopicPartitions;
@@ -86,6 +90,7 @@ class MetricsIT {
     private static Path certsDirectory;
 
     private static final HostPort PORT_IDENTIFIES_BROKER_BOOTSTRAP = new HostPort("localhost", 9092);
+    private static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
     private static final String SNI_IDENTIFIES_BROKER_BASE_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("sni");
 
     private static final HostPort SNI_IDENTIFIES_BROKER_BOOTSTRAP = new HostPort("bootstrap." + SNI_IDENTIFIES_BROKER_BASE_ADDRESS, 9192);
@@ -403,8 +408,7 @@ class MetricsIT {
                                 .filterByTag(NODE_ID_LABEL, "0")
                                 .singleElement()
                                 .value()
-                                .isGreaterThan(0.0))
-        );
+                                .isGreaterThan(0.0)));
     }
 
     @ParameterizedTest
@@ -412,8 +416,7 @@ class MetricsIT {
     void shouldIncrementCountOnConnectionMetrics(UnaryOperator<ConfigurationBuilder> builder,
                                                  Consumer<List<SimpleMetric>> beforeAssertion,
                                                  Consumer<List<SimpleMetric>> afterAssertion,
-                                                 KafkaCluster cluster)
-            throws Exception {
+                                                 KafkaCluster cluster) {
         var config = configWithMetrics(cluster);
 
         // Given
@@ -427,8 +430,7 @@ class MetricsIT {
             // When
             var producer = tester.producer();
             var future = producer.send(new ProducerRecord<>("my-topic", "key", "value"));
-            cluster.close();
-            assertThat(future).succeedsWithin(Duration.ofSeconds(10));
+            assertThat(future).succeedsWithin(Duration.ofSeconds(5));
 
             // Then
             metricList = managementClient.scrapeMetrics();
@@ -567,38 +569,6 @@ class MetricsIT {
         }
     }
 
-    @Test
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    void shouldIncrementUpstreamConnectionErrorMetrics(KafkaCluster cluster) throws Exception {
-        var config = proxy(cluster)
-                .addToFilterDefinitions()
-                .addToDefaultFilters()
-                .withNewManagement()
-                .withNewEndpoints()
-                .withNewPrometheus()
-                .endPrometheus()
-                .endEndpoints()
-                .endManagement();
-
-        // Given
-        try (var tester = kroxyliciousTester(config);
-                var managementClient = tester.getManagementClient()) {
-            var metricsList = managementClient.scrapeMetrics();
-            assertMetricsDoesNotExist(metricsList, "kroxylicious_upstream_errors_total", null);
-
-            // When
-            var producer = tester.producer();
-            var future = producer.send(new ProducerRecord<>("my-topic", "key", "value"));
-            cluster.close();
-            assertThat(future).succeedsWithin(Duration.ofSeconds(10));
-
-            // Then
-            // updated metrics after some message were produced
-            var updatedMetricsList = managementClient.scrapeMetrics();
-            assertMetricsWithValue(updatedMetricsList, "kroxylicious_upstream_errors_total", null);
-        }
-    }
-
     static Stream<Arguments> createDownstreamConnectionError() throws Exception {
         var failQuickDescribeCluster = new DescribeClusterOptions().timeoutMs(2_000);
         // Note that the KeytoolCertificateGenerator generates key stores that are PKCS12 format.
@@ -715,6 +685,65 @@ class MetricsIT {
                         var updatedMetricsList = managementClient.scrapeMetrics();
                         assertMetricsWithValue(updatedMetricsList, "kroxylicious_client_to_proxy_errors_total", null);
                     });
+        }
+    }
+
+    @Test
+    void shouldIncrementUpstreamErrorOnConnectionError(@Tls KafkaCluster cluster) {
+        var brokerTruststore = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG);
+        var brokerTruststorePassword = (String) cluster.getKafkaClientConfiguration().get(SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG);
+        assertThat(brokerTruststore).isNotEmpty();
+        assertThat(brokerTruststorePassword).isNotEmpty();
+
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters(new VirtualClusterBuilder()
+                        .withName("demo")
+                        .withNewTargetCluster()
+                        .withBootstrapServers("Wrong:9092")
+                        .withNewTls()
+                        .withNewTrustStoreTrust()
+                        .withStoreFile(brokerTruststore)
+                        .withStorePasswordProvider(new InlinePassword(brokerTruststorePassword))
+                        .endTrustStoreTrust()
+                        .endTls()
+                        .endTargetCluster()
+                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS).build())
+                        .build())
+                .withNewManagement()
+                .withNewEndpoints()
+                .withNewPrometheus()
+                .endPrometheus()
+                .endEndpoints()
+                .endManagement();
+
+        // Given
+        try (var tester = kroxyliciousTester(builder);
+                var admin = tester.admin("demo");
+                var managementClient = tester.getManagementClient()) {
+
+            // when
+            assertThat(admin.describeCluster(new DescribeClusterOptions().timeoutMs(2_000)).clusterId())
+                    .failsWithin(Duration.ofSeconds(5))
+                    .withThrowableThat()
+                    .withCauseInstanceOf(TimeoutException.class)
+                    .havingCause()
+                    .withMessageStartingWith("Timed out waiting for a node assignment.");
+
+            // then
+            var metricList = managementClient.scrapeMetrics();
+            SimpleMetricAssert.assertThat(metricList)
+                    .filterByName("kroxylicious_proxy_to_server_connections_total")
+                    .filterByTag(NODE_ID_LABEL, "bootstrap")
+                    .singleElement()
+                    .value()
+                    .isGreaterThan(0.0);
+
+            SimpleMetricAssert.assertThat(metricList)
+                    .filterByName("kroxylicious_proxy_to_server_errors_total")
+                    .filterByTag(NODE_ID_LABEL, "bootstrap")
+                    .singleElement()
+                    .value()
+                    .isGreaterThan(0.0);
         }
     }
 

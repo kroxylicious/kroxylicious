@@ -15,7 +15,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Tag;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
@@ -89,8 +88,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         this.bindingResolver = bindingResolver;
         this.filterChainFactory = filterChainFactory;
         this.apiVersionsService = apiVersionsService;
-        List<Tag> newTags = Metrics.tags(VIRTUAL_CLUSTER_LABEL, "", NODE_ID_LABEL, "bootstrap");
-        clientToProxyErrorCounter = KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER.withTags(newTags);
+        clientToProxyErrorCounter = KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER.withTags(VIRTUAL_CLUSTER_LABEL, "", NODE_ID_LABEL, "bootstrap");
     }
 
     @Override
