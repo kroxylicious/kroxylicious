@@ -26,10 +26,12 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.DefaultChannelId;
 import io.netty.channel.EventLoop;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.channel.socket.ServerSocketChannel;
@@ -38,6 +40,7 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
+import io.netty.util.internal.StringUtil;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.ServiceBasedPluginFactoryRegistry;
@@ -50,6 +53,7 @@ import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
+import io.kroxylicious.proxy.internal.net.EndpointResolutionException;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
@@ -57,6 +61,7 @@ import io.kroxylicious.proxy.service.HostPort;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.proxy.internal.KafkaProxyInitializer.LOGGING_INBOUND_ERROR_HANDLER_NAME;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -289,6 +294,38 @@ class KafkaProxyInitializerTest {
         // Then
         verify(channelPipeline).addLast(anyString(), isA(SniHandler.class));
         assertErrorHandlerAdded();
+    }
+
+    @Test
+    void shouldCloseConnectionOnUnrecognizedSniHostName() {
+        // Given
+        var endpointBindingResolver = mock(EndpointBindingResolver.class);
+        var embeddedChannel = new EmbeddedChannel(serverSocketChannel, DefaultChannelId.newInstance(), true, false);
+        kafkaProxyInitializer = createKafkaProxyInitializer(true, endpointBindingResolver, Map.of());
+        kafkaProxyInitializer.initChannel(embeddedChannel);
+        when(endpointBindingResolver.resolve(any(), eq("chat4.leancloud.cn"))).thenReturn(CompletableFuture.failedStage(new EndpointResolutionException("not resolved")));
+
+        // lifted from the Netty tests
+        // hex dump of a client hello packet, which contains hostname "CHAT4.LEANCLOUD.CN"
+        String tlsHandshakeMessageHex1 = "16030100";
+        // part 2
+        String tlsHandshakeMessageHex = "c6010000c20303bb0855d66532c05a0ef784f7c384feeafa68b3" +
+                "b655ac7288650d5eed4aa3fb52000038c02cc030009fcca9cca8ccaac02b" +
+                "c02f009ec024c028006bc023c0270067c00ac0140039c009c0130033009d" +
+                "009c003d003c0035002f00ff010000610000001700150000124348415434" +
+                "2e4c45414e434c4f55442e434e000b000403000102000a000a0008001d00" +
+                "170019001800230000000d0020001e060106020603050105020503040104" +
+                "0204030301030203030201020202030016000000170000";
+        assertThat(embeddedChannel.isOpen())
+                .isTrue();
+
+        // When
+        embeddedChannel.writeInbound(Unpooled.wrappedBuffer(StringUtil.decodeHexDump(tlsHandshakeMessageHex1)),
+                Unpooled.wrappedBuffer(StringUtil.decodeHexDump(tlsHandshakeMessageHex)));
+
+        // Then
+        assertThat(embeddedChannel.isOpen())
+                .isFalse();
     }
 
     @Test
