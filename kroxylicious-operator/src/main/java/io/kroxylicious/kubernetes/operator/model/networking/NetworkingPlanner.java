@@ -145,7 +145,15 @@ public class NetworkingPlanner {
         ClusterIP clusterIP = ingress.getSpec().getClusterIP();
         LoadBalancer loadBalancer = ingress.getSpec().getLoadBalancer();
         if (clusterIP != null) {
-            return new ClusterIPClusterIngressNetworkingDefinition(ingress, cluster, primary, nodeIdRanges, tls);
+            switch (clusterIP.getProtocol()) {
+                case TCP -> {
+                    return new TcpClusterIPClusterIngressNetworkingDefinition(ingress, cluster, primary, nodeIdRanges);
+                }
+                case TLS -> {
+                    return new TlsClusterIPClusterIngressNetworkingDefinition(ingress, cluster, primary, nodeIdRanges, tls);
+                }
+                default -> throw new IllegalStateException("Unexpected clusterIP protocol: " + clusterIP.getProtocol());
+            }
         }
         else if (loadBalancer != null) {
             return new LoadBalancerClusterIngressNetworkingDefinition(ingress, cluster, loadBalancer, tls);
@@ -199,12 +207,11 @@ public class NetworkingPlanner {
         }
     }
 
-    private record ClusterIPClusterIngressNetworkingDefinition(
-                                                               KafkaProxyIngress ingress,
-                                                               VirtualKafkaCluster cluster,
-                                                               KafkaProxy primary,
-                                                               List<NodeIdRanges> nodeIdRanges,
-                                                               @Nullable Tls tls)
+    private record TcpClusterIPClusterIngressNetworkingDefinition(
+                                                                  KafkaProxyIngress ingress,
+                                                                  VirtualKafkaCluster cluster,
+                                                                  KafkaProxy primary,
+                                                                  List<NodeIdRanges> nodeIdRanges)
             implements ClusterIngressNetworkingDefinition {
 
         @Override
@@ -212,14 +219,36 @@ public class NetworkingPlanner {
                                                                    @Nullable Integer sharedSniPort) {
             validateNotNull(firstIdentifyingPort, "firstIdentifyingPort must be non null for ClusterIP ingress");
             validateNotNull(lastIdentifyingPort, "lastIdentifyingPort must be non null for ClusterIP ingress");
-            return new ClusterIPClusterIngressNetworkingModel(primary, cluster, ingress, nodeIdRanges, tls, firstIdentifyingPort, lastIdentifyingPort);
+            return new TcpClusterIPClusterIngressNetworkingModel(primary, cluster, ingress, nodeIdRanges, firstIdentifyingPort, lastIdentifyingPort);
         }
 
         @Override
         public int numIdentifyingPortsRequired() {
-            return ClusterIPClusterIngressNetworkingModel.numIdentifyingPortsRequired(nodeIdRanges);
+            return TcpClusterIPClusterIngressNetworkingModel.numIdentifyingPortsRequired(nodeIdRanges);
         }
 
+    }
+
+    private record TlsClusterIPClusterIngressNetworkingDefinition(
+                                                                  KafkaProxyIngress ingress,
+                                                                  VirtualKafkaCluster cluster,
+                                                                  KafkaProxy primary,
+                                                                  List<NodeIdRanges> nodeIdRanges,
+                                                                  @Nullable Tls tls)
+            implements ClusterIngressNetworkingDefinition {
+
+        @Override
+        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort,
+                                                                   @Nullable Integer sharedSniPort) {
+            validateNotNull(sharedSniPort, "sharedSniPort must be non null for TLS ClusterIP ingress");
+            validateNotNull(tls, "tls must be non null for TLS ClusterIP ingress");
+            return new TlsClusterIPClusterIngressNetworkingModel(primary, cluster, ingress, nodeIdRanges, tls, sharedSniPort);
+        }
+
+        @Override
+        public boolean requiresSharedSniPort() {
+            return true;
+        }
     }
 
     private record LoadBalancerClusterIngressNetworkingDefinition(

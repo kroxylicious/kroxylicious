@@ -60,14 +60,8 @@ spec:
           ports:
             - containerPort: 9190
               name: "management"
-            - containerPort: 9292
-              name: "9292-bootstrap"
-            - containerPort: 9293
-              name: "9293-node"
-            - containerPort: 9294
-              name: "9294-node"
-            - containerPort: 9295
-              name: "9295-node"
+            - containerPort: 9291
+              name: "shared-sni-port"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
