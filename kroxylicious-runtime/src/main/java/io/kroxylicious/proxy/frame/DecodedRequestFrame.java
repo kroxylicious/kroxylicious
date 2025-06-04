@@ -45,7 +45,7 @@ public class DecodedRequestFrame<B extends ApiMessage>
     }
 
     private boolean isZeroAcksProduceRequest() {
-        return apiKey() == PRODUCE && ((ProduceRequestData) body).acks() == 0;
+        return apiKeyId() == PRODUCE.id && ((ProduceRequestData) body).acks() == 0;
     }
 
 }

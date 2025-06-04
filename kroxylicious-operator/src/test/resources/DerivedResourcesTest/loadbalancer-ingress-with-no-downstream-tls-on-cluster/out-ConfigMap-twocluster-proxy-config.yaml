@@ -1,0 +1,41 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: "v1"
+kind: "ConfigMap"
+metadata:
+  labels:
+    app.kubernetes.io/part-of: "kafka"
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
+    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/instance: "twocluster"
+    app.kubernetes.io/component: "proxy"
+  name: "twocluster-proxy-config"
+  namespace: "proxy-ns"
+  ownerReferences:
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxy"
+      name: "twocluster"
+data:
+  proxy-config.yaml: |-
+    ---
+    management:
+      endpoints:
+        prometheus: {}
+    virtualClusters:
+    - name: "bar"
+      targetCluster:
+        bootstrapServers: "first-kafka.kafka1.svc.cluster.local:9092"
+      gateways:
+      - name: "load-balancer"
+        sniHostIdentifiesNode:
+          bootstrapAddress: "$(virtualClusterName).kafkaproxy:9291"
+          advertisedBrokerAddressPattern: "$(virtualClusterName)-$(nodeId).kafkaproxy:9083"
+        tls:
+          key:
+            privateKeyFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.key"
+            certificateFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.crt"

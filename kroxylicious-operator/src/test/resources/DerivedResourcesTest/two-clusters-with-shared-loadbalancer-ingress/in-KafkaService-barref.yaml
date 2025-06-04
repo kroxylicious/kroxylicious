@@ -1,0 +1,17 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: KafkaService
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: barref
+  namespace: proxy-ns
+  generation: 4
+spec:
+  bootstrapServers: first-kafka.kafka1.svc.cluster.local:9092
+status:
+  observedGeneration: 4

@@ -11,6 +11,7 @@ import java.util.Optional;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 
 import io.kroxylicious.kubernetes.api.common.LocalRef;
+import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -36,5 +37,9 @@ public record ResolutionResult<T extends HasMetadata>(LocalRef<?> referrer, Loca
 
     public Optional<T> maybeReferentResource() {
         return Optional.ofNullable(referentNew);
+    }
+
+    public static <T extends HasMetadata> ResolutionResult<T> resolved(HasMetadata referrer, T referent) {
+        return new ResolutionResult<>(ResourcesUtil.toLocalRef(referrer), ResourcesUtil.toLocalRef(referent), referent);
     }
 }

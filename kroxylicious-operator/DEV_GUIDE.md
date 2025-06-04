@@ -91,3 +91,18 @@ Note that on its own the proxy won't try to connect to the Kafka cluster.
 # Testing
 
 To test things properly you'll need to point your virtual clusters at a running Kafka and also run a Kafka client so the proxy is handling some load.
+
+## System Tests
+
+The Kroxylicious system test suite uses the operator to deploy resources, so tests can be written in
+java and executed locally in one's IDE. They do however require access to a Kubernetes clusters (usually minikube) and
+helm, with the appropriate RBAC permissions to install operators and provision resources.
+
+System tests are slow running things and are often difficult to diagnose issues just from external observation. To
+support developers working with the operator while the tests execute the system test framework will enable remote debug
+connections to the Kroxylicious Operator and create a LoadBalancer service (`debug-kroxylicious-operator`) to expose it.
+Running `minikube tunnel` will make that available to the IDE, thus allowing developers to connect to the operator and
+add breakpoints and step through execution. Note if we find ourselves doing this regularly we should look at improving
+our unit test coverage and logging to make the diagnosis and avoidance of such issues much easier in less accessible
+environments.    
+

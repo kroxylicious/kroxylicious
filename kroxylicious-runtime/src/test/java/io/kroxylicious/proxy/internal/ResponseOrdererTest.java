@@ -39,6 +39,21 @@ class ResponseOrdererTest {
             return correlationId;
         }
 
+        @Override
+        public short apiKeyId() {
+            return 0;
+        }
+
+        @Override
+        public short apiVersion() {
+            return 0;
+        }
+
+        @Override
+        public boolean isDecoded() {
+            return false;
+        }
+
     }
 
     record TestRequestFrame(int correlationId, boolean hasResponse) implements RequestFrame {
@@ -61,6 +76,21 @@ class ResponseOrdererTest {
         @Override
         public boolean hasResponse() {
             return hasResponse;
+        }
+
+        @Override
+        public short apiKeyId() {
+            return 0;
+        }
+
+        @Override
+        public short apiVersion() {
+            return 0;
+        }
+
+        @Override
+        public boolean isDecoded() {
+            return false;
         }
 
         @Override

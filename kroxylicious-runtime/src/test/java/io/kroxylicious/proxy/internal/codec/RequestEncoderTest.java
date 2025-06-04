@@ -69,7 +69,7 @@ public class RequestEncoderTest extends AbstractCodecTest {
     @MethodSource("testResponseFrames")
     void testRequestsWithNoResponseArentStoredInCorrelationManager() throws Exception {
 
-        givenRequestFrame frame = createRequestFrame(false);
+        GivenRequestFrame frame = createRequestFrame(false);
 
         var correlationManager = new CorrelationManager(78);
         whenRequestEncoded(frame, correlationManager);
@@ -82,7 +82,7 @@ public class RequestEncoderTest extends AbstractCodecTest {
     @MethodSource("testResponseFrames")
     void testRequestsWithResponseAreStoredInCorrelationManager() throws Exception {
 
-        givenRequestFrame frame = createRequestFrame(true);
+        GivenRequestFrame frame = createRequestFrame(true);
 
         var correlationManager = new CorrelationManager(78);
         whenRequestEncoded(frame, correlationManager);
@@ -93,19 +93,20 @@ public class RequestEncoderTest extends AbstractCodecTest {
                 "Expect request with response to have a correlation");
     }
 
-    private static void whenRequestEncoded(givenRequestFrame result, CorrelationManager correlationManager) throws Exception {
+    private static void whenRequestEncoded(GivenRequestFrame result, CorrelationManager correlationManager) throws Exception {
         ByteBuf out = Unpooled.buffer(result.byteBuffer().capacity() + 4);
         new KafkaRequestEncoder(correlationManager).encode(null, result.frame(), out);
     }
 
     @NonNull
-    private static givenRequestFrame createRequestFrame(boolean hasResponse) {
-        short produceVersion = ApiKeys.PRODUCE.latestVersion();
+    private static GivenRequestFrame createRequestFrame(boolean hasResponse) {
+        var produceKey = ApiKeys.PRODUCE;
+        short produceVersion = produceKey.latestVersion();
         var header = new RequestHeaderData()
-                .setRequestApiKey(ApiKeys.PRODUCE.id)
+                .setRequestApiKey(produceKey.id)
                 .setRequestApiVersion(produceVersion)
                 .setCorrelationId(45);
-        short headerVersion = ApiKeys.PRODUCE.requestHeaderVersion(produceVersion);
+        short headerVersion = produceKey.requestHeaderVersion(produceVersion);
         if (headerVersion >= 1) {
             header.setClientId("323423");
         }
@@ -120,10 +121,9 @@ public class RequestEncoderTest extends AbstractCodecTest {
 
         ByteBuf buf = Unpooled.copiedBuffer(byteBuffer);
 
-        var frame = new OpaqueRequestFrame(buf, 12, true, frameSize, hasResponse);
-        givenRequestFrame result = new givenRequestFrame(byteBuffer, frame);
-        return result;
+        var frame = new OpaqueRequestFrame(buf, produceKey.id, produceVersion, 12, true, frameSize, hasResponse);
+        return new GivenRequestFrame(byteBuffer, frame);
     }
 
-    private record givenRequestFrame(ByteBuffer byteBuffer, OpaqueRequestFrame frame) {}
+    private record GivenRequestFrame(ByteBuffer byteBuffer, OpaqueRequestFrame frame) {}
 }

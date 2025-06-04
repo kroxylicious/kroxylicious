@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.internal.net;
 
+import javax.annotation.Nullable;
+
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
@@ -34,4 +36,12 @@ public interface EndpointBinding {
     default boolean restrictUpstreamToMetadataDiscovery() {
         return false;
     }
+
+    /**
+     * Returns the broker node id associated with this endpoint.  If the endpoint
+     * is being used for bootstrapping, null will be returned instead.
+     * @return node id or null.
+     */
+    @Nullable
+    Integer nodeId();
 }

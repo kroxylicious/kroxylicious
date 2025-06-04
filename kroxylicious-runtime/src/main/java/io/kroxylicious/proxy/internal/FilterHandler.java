@@ -379,7 +379,7 @@ public class FilterHandler extends ChannelDuplexHandler {
             throw new AssertionError("Filter '" + filterDescriptor() + "': Attempt to use forwardResponse with a non-response: " + name);
         }
         if (decodedFrame instanceof RequestFrame) {
-            if (message.apiKey() != decodedFrame.apiKey().id) {
+            if (message.apiKey() != decodedFrame.apiKeyId()) {
                 throw new AssertionError(
                         "Filter '" + filterDescriptor() + "': Attempt to respond with ApiMessage of type " + ApiKeys.forId(message.apiKey()) + " but request is of type "
                                 + decodedFrame.apiKey());

@@ -74,7 +74,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
 
     @NonNull
     private static KafkaResponseDecoder createResponseDecoder(CorrelationManager mgr, int socketFrameMaxSizeBytes) {
-        return new KafkaResponseDecoder(mgr, socketFrameMaxSizeBytes, "vc");
+        return new KafkaResponseDecoder(mgr, socketFrameMaxSizeBytes);
     }
 
     @Test

@@ -10,6 +10,7 @@ import java.util.Map;
 
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.Tls;
 import io.kroxylicious.systemtests.Constants;
 
 /**
@@ -54,5 +55,21 @@ public final class KroxyliciousConfigMapTemplates {
                 .endMetadata()
                 .withData(Map.of(Constants.KROXYLICIOUS_TLS_CA_NAME, certificate));
         // @formatter:on
+    }
+
+    public static ConfigMapBuilder getClusterCaConfigMap(String namespace, String name, Tls tls) {
+        if (tls.getTrustAnchorRef() != null) {
+            // @formatter:off
+            return new ConfigMapBuilder()
+                    .withNewMetadata()
+                    .withName(name)
+                    .withNamespace(namespace)
+                    .endMetadata()
+                    .withData(Map.of(Constants.KROXYLICIOUS_TLS_CA_NAME, tls.getTrustAnchorRef().getRef().getName()));
+            // @formatter:on
+        }
+        else {
+            return null;
+        }
     }
 }

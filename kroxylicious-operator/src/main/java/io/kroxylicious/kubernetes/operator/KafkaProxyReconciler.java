@@ -71,6 +71,7 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
@@ -287,16 +288,22 @@ public class KafkaProxyReconciler implements
         var volumes = tlsConfigFragment.volumes();
         var mounts = tlsConfigFragment.mounts();
 
+        PortIdentifiesNodeIdentificationStrategy portIdentifiesNode = null;
+        SniHostIdentifiesNodeIdentificationStrategy sniHostIdentifiesNode = null;
         NodeIdentificationStrategy nodeIdentificationStrategy = gateway.nodeIdentificationStrategy();
         if (nodeIdentificationStrategy instanceof PortIdentifiesNodeIdentificationStrategy port) {
-            return new ConfigurationFragment<>(new VirtualClusterGateway(name(gateway.ingress()),
-                    port,
-                    null,
-                    tlsConfigFragment.fragment()), volumes, mounts);
+            portIdentifiesNode = port;
+        }
+        else if (nodeIdentificationStrategy instanceof SniHostIdentifiesNodeIdentificationStrategy sniHost) {
+            sniHostIdentifiesNode = sniHost;
         }
         else {
             throw new IllegalStateException("Unsupported node identification strategy: " + nodeIdentificationStrategy);
         }
+        return new ConfigurationFragment<>(new VirtualClusterGateway(name(gateway.ingress()),
+                portIdentifiesNode,
+                sniHostIdentifiesNode,
+                tlsConfigFragment.fragment()), volumes, mounts);
     }
 
     private static ConfigurationFragment<Optional<Tls>> buildTlsFragment(io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls ingressTls) {

@@ -360,12 +360,12 @@ class ClusterIPClusterIngressNetworkingModelTest {
     }
 
     @Test
-    void proxyContainerPortsSingleRange() {
+    void identifyingProxyContainerPortsSingleRange() {
         ClusterIngressNetworkingModel instance = new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
                 List.of(createNodeIdRange("a", 1, 3)), null, 1, 4);
 
         assertThat(instance).isNotNull();
-        assertThat(instance.proxyContainerPorts())
+        assertThat(instance.identifyingProxyContainerPorts())
                 .containsExactly(createContainerPort(1 + "-bootstrap", 1),
                         createContainerPort(2 + "-node", 2),
                         createContainerPort(3 + "-node", 3),
@@ -373,12 +373,12 @@ class ClusterIPClusterIngressNetworkingModelTest {
     }
 
     @Test
-    void proxyContainerPortsMultipleRanges() {
+    void identifyingProxyContainerPortsMultipleRanges() {
         ClusterIngressNetworkingModel instance = new ClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
                 List.of(createNodeIdRange("a", 1L, 1L), createNodeIdRange("b", 3L, 4L)), null, 1, 4);
 
         assertThat(instance).isNotNull();
-        assertThat(instance.proxyContainerPorts())
+        assertThat(instance.identifyingProxyContainerPorts())
                 .containsExactly(createContainerPort(1 + "-bootstrap", 1),
                         createContainerPort(2 + "-node", 2),
                         createContainerPort(3 + "-node", 3),
