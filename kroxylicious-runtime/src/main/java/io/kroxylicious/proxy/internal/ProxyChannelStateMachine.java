@@ -38,12 +38,17 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_STATE;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_TOTAL_METER_PROVIDER;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_DOWNSTREAM_CONNECTIONS;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_DOWNSTREAM_ERRORS;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_TOTAL_METER_PROVIDER;
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_PROXY_TO_SERVER_ERROR_TOTAL_METER_PROVIDER;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTIONS;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_ERRORS;
+import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
 import static io.kroxylicious.proxy.internal.util.Metrics.taggedCounter;
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -105,17 +110,53 @@ import static org.slf4j.LoggerFactory.getLogger;
 public class ProxyChannelStateMachine {
     private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "NetFilter called NetFilterContext.initiateConnect() more than once";
     private static final Logger LOGGER = getLogger(ProxyChannelStateMachine.class);
+    /**
+     * @deprecated replaced by `clientToProxyConnectionCounter`
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter downstreamConnectionsCounter;
+    /**
+     * @deprecated replaced by `proxyToServerConnectionCounter`
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter upstreamConnectionsCounter;
+    /**
+     * @deprecated replaced by `clientToProxyErrorCounter`
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter downstreamErrorCounter;
+    /**
+     * @deprecated replaced by `proxyToServerErrorCounter`
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter upstreamErrorCounter;
+    /**
+     * @deprecated replaced by `proxyToServerConnectionCounter`
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter connectionAttemptsCounter;
+    /**
+     * @deprecated replaced by `proxyToServerConnectionCounter`
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter upstreamConnectionFailureCounter;
+    private final Counter clientToProxyErrorCounter;
+    private final Counter clientToProxyConnectionCounter;
+    private final Counter proxyToServerConnectionCounter;
+    private final Counter proxyToServerErrorCounter;
 
-    public ProxyChannelStateMachine(String clusterName) {
-        List<Tag> tags = Metrics.tags(Metrics.VIRTUAL_CLUSTER_TAG, clusterName);
+    public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
+        List<Tag> tags = Metrics.tags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName);
         downstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_CONNECTIONS, tags);
+        clientToProxyConnectionCounter = KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_TOTAL_METER_PROVIDER
+                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : "bootstrap");
         downstreamErrorCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_ERRORS, tags);
+        clientToProxyErrorCounter = KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER
+                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : "bootstrap");
+        proxyToServerConnectionCounter = KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_TOTAL_METER_PROVIDER
+                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : "bootstrap");
+        proxyToServerErrorCounter = KROXYLICIOUS_PROXY_TO_SERVER_ERROR_TOTAL_METER_PROVIDER
+                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : "bootstrap");
         upstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTIONS, tags);
         connectionAttemptsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS, tags);
         upstreamErrorCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_ERRORS, tags);
@@ -398,8 +439,10 @@ public class ProxyChannelStateMachine {
                 .log("Exception from the server channel: {}. Increase log level to DEBUG for stacktrace");
         if (state instanceof ProxyChannelState.Connecting) {
             upstreamConnectionFailureCounter.increment();
+            proxyToServerConnectionCounter.increment();
         }
         upstreamErrorCounter.increment();
+        proxyToServerErrorCounter.increment();
         toClosed(cause);
     }
 
@@ -426,6 +469,7 @@ public class ProxyChannelStateMachine {
             errorCodeEx = Errors.UNKNOWN_SERVER_ERROR.exception();
         }
         downstreamErrorCounter.increment();
+        clientToProxyErrorCounter.increment();
         toClosed(errorCodeEx);
     }
 
@@ -435,6 +479,7 @@ public class ProxyChannelStateMachine {
         setState(clientActive);
         frontendHandler.inClientActive();
         downstreamConnectionsCounter.increment();
+        clientToProxyConnectionCounter.increment();
     }
 
     private void toConnecting(
@@ -445,12 +490,14 @@ public class ProxyChannelStateMachine {
         backendHandler = new KafkaProxyBackendHandler(this, virtualClusterModel);
         frontendHandler.inConnecting(connecting.remote(), filters, backendHandler);
         connectionAttemptsCounter.increment();
+        proxyToServerConnectionCounter.increment();
     }
 
     private void toForwarding(Forwarding forwarding) {
         setState(forwarding);
         Objects.requireNonNull(frontendHandler).inForwarding();
         upstreamConnectionsCounter.increment();
+        proxyToServerConnectionCounter.increment();
     }
 
     /**

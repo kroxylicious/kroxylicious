@@ -107,22 +107,59 @@ public class Metrics {
     @Deprecated(since = "0.13.0", forRemoval = true)
     public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES = "kroxylicious_inbound_downstream_decoded_messages";
 
+    static final String KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_BASE_METER_NAME = "kroxylicious_client_to_proxy_errors_total";
+    static final String KROXYLICIOUS_PROXY_TO_SERVER_ERROR_BASE_METER_NAME = "kroxylicious_proxy_to_server_errors_total";
+    static final String KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME = "kroxylicious_client_to_proxy_connections_total";
+    static final String KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME = "kroxylicious_proxy_to_server_connections_total";
+
+    public static MeterProvider<Counter> KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER = Counter.builder(
+            KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_BASE_METER_NAME)
+            .description("Incremented by one every time a connection is closed due to any downstream error.")
+            .withRegistry(globalRegistry);
+
+    public static MeterProvider<Counter> KROXYLICIOUS_PROXY_TO_SERVER_ERROR_TOTAL_METER_PROVIDER = Counter.builder(
+            KROXYLICIOUS_PROXY_TO_SERVER_ERROR_BASE_METER_NAME)
+            .description("Incremented by one every time a connection is closed due to any upstream error.")
+            .withRegistry(globalRegistry);
+
+    public static MeterProvider<Counter> KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_TOTAL_METER_PROVIDER = Counter.builder(
+            KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME)
+            .description("Incremented by one every time a connection is accepted from the downstream the proxy.")
+            .withRegistry(globalRegistry);
+
+    public static MeterProvider<Counter> KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_TOTAL_METER_PROVIDER = Counter.builder(
+            KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME)
+            .description("Incremented by one every time a connection is made to the upstream from the proxy.")
+            .withRegistry(globalRegistry);
+
     private static final String KROXYLICIOUS_DOWNSTREAM = "kroxylicious_downstream_";
 
     private static final String KROXYLICIOUS_UPSTREAM = "kroxylicious_upstream_";
+
+    @Deprecated(since = "0.13.0", forRemoval = true)
     public static final String KROXYLICIOUS_DOWNSTREAM_CONNECTIONS = KROXYLICIOUS_DOWNSTREAM + "connections";
 
+    @Deprecated(since = "0.13.0", forRemoval = true)
     public static final String KROXYLICIOUS_DOWNSTREAM_ERRORS = KROXYLICIOUS_DOWNSTREAM + "errors";
+
+    @Deprecated(since = "0.13.0", forRemoval = true)
     public static final String KROXYLICIOUS_UPSTREAM_CONNECTIONS = KROXYLICIOUS_UPSTREAM + "connections";
 
+    @Deprecated(since = "0.13.0", forRemoval = true)
     public static final String KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS = KROXYLICIOUS_UPSTREAM + "connection_attempts";
+
+    @Deprecated(since = "0.13.0", forRemoval = true)
     public static final String KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES = KROXYLICIOUS_UPSTREAM + "connection_failures";
+
+    @Deprecated(since = "0.13.0", forRemoval = true)
     public static final String KROXYLICIOUS_UPSTREAM_ERRORS = KROXYLICIOUS_UPSTREAM + "errors";
+
     public static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES = "kroxylicious_payload_size_bytes";
 
     public static final String FLOWING_TAG = "flowing";
 
     public static final String VIRTUAL_CLUSTER_TAG = "virtualCluster";
+
     public static final String DOWNSTREAM = "downstream";
 
     public static final String UPSTREAM = "upstream";
@@ -170,7 +207,7 @@ public class Metrics {
 
     @NonNull
     private static String required(String value) {
-        if ((Objects.isNull(value) || value.trim().isEmpty())) {
+        if ((Objects.isNull(value))) {
             throw new IllegalArgumentException("tag value supplied without a value");
         }
         return value;

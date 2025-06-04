@@ -110,7 +110,7 @@ public class KafkaProxyFrontendHandler
                               @NonNull SaslDecodePredicate dp,
                               @NonNull EndpointBinding endpointBinding,
                               @NonNull String clusterName) {
-        this(netFilter, dp, endpointBinding, new ProxyChannelStateMachine(clusterName));
+        this(netFilter, dp, endpointBinding, new ProxyChannelStateMachine(clusterName, endpointBinding.nodeId()));
     }
 
     @VisibleForTesting

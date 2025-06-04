@@ -14,6 +14,8 @@ import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Tag;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
@@ -49,6 +51,10 @@ import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER;
+import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
+import static io.kroxylicious.proxy.internal.util.Metrics.VIRTUAL_CLUSTER_LABEL;
+
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyInitializer.class);
@@ -65,6 +71,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
     private final PluginFactoryRegistry pfr;
     private final FilterChainFactory filterChainFactory;
     private final ApiVersionsServiceImpl apiVersionsService;
+    private final Counter clientToProxyErrorCounter;
 
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
                                  PluginFactoryRegistry pfr,
@@ -82,6 +89,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         this.bindingResolver = bindingResolver;
         this.filterChainFactory = filterChainFactory;
         this.apiVersionsService = apiVersionsService;
+        List<Tag> newTags = Metrics.tags(VIRTUAL_CLUSTER_LABEL, "", NODE_ID_LABEL, "bootstrap");
+        clientToProxyErrorCounter = KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER.withTags(newTags);
     }
 
     @Override
@@ -144,13 +153,17 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                     try {
                         if (t != null) {
                             LOGGER.warn("Exception resolving Virtual Cluster Binding for endpoint {} and sniHostname {}: {}", endpoint, sniHostname, t.getMessage());
+                            clientToProxyErrorCounter.increment();
                             promise.setFailure(t);
+                            ch.close(); // KW TODO - check right way to handle terminal errors within the SNIHandler.
                             return null;
                         }
                         var gateway = binding.endpointGateway();
                         var sslContext = gateway.getDownstreamSslContext();
                         if (sslContext.isEmpty()) {
+                            clientToProxyErrorCounter.increment();
                             promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(gateway)));
+                            // close here too?
                         }
                         else {
                             KafkaProxyInitializer.this.addHandlers(ch, binding);
@@ -158,7 +171,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                         }
                     }
                     catch (Throwable t1) {
+                        clientToProxyErrorCounter.increment();
                         promise.setFailure(t1);
+                        // and close here too?
                     }
                     return null;
                 });
