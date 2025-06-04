@@ -14,12 +14,14 @@ public class OpaqueResponseFrame extends OpaqueFrame implements ResponseFrame {
     /**
      * Creates an opaque response.
      *
+     * @param apiKeyId api key id
+     * @param apiVersion api key version
      * @param buf The message buffer (excluding the frame size)
      * @param correlationId correlation id
      * @param length length of the response
      */
-    public OpaqueResponseFrame(ByteBuf buf, int correlationId, int length) {
-        super(buf, correlationId, length);
+    public OpaqueResponseFrame(short apiKeyId, short apiVersion, ByteBuf buf, int correlationId, int length) {
+        super(apiKeyId, apiVersion, buf, correlationId, length);
     }
 
     @Override

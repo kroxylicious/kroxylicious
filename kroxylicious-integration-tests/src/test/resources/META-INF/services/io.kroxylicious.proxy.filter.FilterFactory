@@ -2,5 +2,6 @@ io.kroxylicious.proxy.filter.FixedClientIdFilterFactory
 io.kroxylicious.proxy.filter.RequestResponseMarkingFilterFactory
 io.kroxylicious.proxy.filter.OutOfBandSendFilterFactory
 io.kroxylicious.proxy.filter.RejectingCreateTopicFilterFactory
+io.kroxylicious.proxy.filter.DecodeAll
 io.kroxylicious.proxy.InvocationCountingFilterFactory
 io.kroxylicious.proxy.CreateTopicRequest

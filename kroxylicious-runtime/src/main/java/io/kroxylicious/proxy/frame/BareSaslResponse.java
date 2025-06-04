@@ -33,6 +33,21 @@ public class BareSaslResponse implements ResponseFrame {
         return 0;
     }
 
+    @Override
+    public short apiKeyId() {
+        return -1;
+    }
+
+    @Override
+    public short apiVersion() {
+        return 0;
+    }
+
+    @Override
+    public boolean isDecoded() {
+        return true;
+    }
+
     public byte[] bytes() {
         return bytes;
     }

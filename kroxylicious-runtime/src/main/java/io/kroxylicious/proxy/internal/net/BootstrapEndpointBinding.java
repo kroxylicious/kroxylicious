@@ -10,6 +10,8 @@ import java.util.Objects;
 
 import io.kroxylicious.proxy.service.HostPort;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * A bootstrap binding.
  *
@@ -23,11 +25,16 @@ public record BootstrapEndpointBinding(EndpointGateway endpointGateway, HostPort
         Objects.requireNonNull(upstreamTarget, "upstreamTarget cannot be null");
     }
 
+    @Nullable
+    @Override
+    public Integer nodeId() {
+        return null;
+    }
+
     @Override
     public String toString() {
         return "BootstrapEndpointBinding[" +
                 "endpointGateway=" + this.endpointGateway() + ", " +
                 "upstreamTarget=" + this.upstreamTarget() + ']';
     }
-
 }

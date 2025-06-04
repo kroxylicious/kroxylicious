@@ -32,10 +32,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KafkaRequestDecoderTest {
 
-    private static final String CLUSTER_NAME = "randomCluster";
-
     @Test
-    void decodeUnknownApiVersionsRespectsOverridenLatestVersion() {
+    void decodeUnknownApiVersionsRespectsOverriddenLatestVersion() {
         short latestSupportedApiVersionsOverride = (short) 2;
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(Map.of(ApiKeys.API_VERSIONS, latestSupportedApiVersionsOverride));
         EmbeddedChannel embeddedChannel = newEmbeddedChannel(apiVersionsService);
@@ -134,7 +132,7 @@ class KafkaRequestDecoderTest {
     @NonNull
     private static EmbeddedChannel newEmbeddedChannel(ApiVersionsServiceImpl apiVersionsService) {
         return new EmbeddedChannel(
-                new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, 1024, apiVersionsService, CLUSTER_NAME));
+                new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, 1024, apiVersionsService));
     }
 
     private static @NonNull RequestHeaderData latestVersionHeaderWithAllFields(ApiKeys requestApiKey, short requestApiVersion) {

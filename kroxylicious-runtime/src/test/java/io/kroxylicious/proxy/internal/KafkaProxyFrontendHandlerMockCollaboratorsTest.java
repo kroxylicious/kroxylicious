@@ -25,6 +25,7 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 
 import io.kroxylicious.proxy.filter.NetFilter;
+import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
@@ -51,6 +52,9 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     VirtualClusterModel virtualCluster;
 
     @Mock
+    EndpointBinding endpointBinding;
+
+    @Mock
     EndpointGateway endpointGateway;
 
     @Mock(answer = Answers.RETURNS_DEEP_STUBS)
@@ -63,10 +67,11 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
     @BeforeEach
     void setUp() {
         when(endpointGateway.virtualCluster()).thenReturn(virtualCluster);
+        when(endpointBinding.endpointGateway()).thenReturn(endpointGateway);
         handler = new KafkaProxyFrontendHandler(
                 netFilter,
                 NO_SASL_DECODE_PREDICATE,
-                endpointGateway,
+                endpointBinding,
                 proxyChannelStateMachine);
     }
 
