@@ -72,7 +72,7 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.hasKind;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
-import static io.kroxylicious.kubernetes.operator.model.networking.ClusterIPClusterIngressNetworkingModel.bootstrapServiceName;
+import static io.kroxylicious.kubernetes.operator.model.networking.TcpClusterIPClusterIngressNetworkingModel.bootstrapServiceName;
 
 /**
  * Reconciles a {@link VirtualKafkaCluster} by checking whether the resources

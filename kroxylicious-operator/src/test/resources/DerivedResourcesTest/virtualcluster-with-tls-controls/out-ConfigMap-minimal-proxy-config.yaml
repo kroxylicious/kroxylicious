@@ -32,13 +32,9 @@ data:
         bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
       gateways:
       - name: "cluster-ip"
-        portIdentifiesNode:
-          bootstrapAddress: "localhost:9292"
-          advertisedBrokerAddressPattern: "one-cluster-ip.proxy-ns.svc.cluster.local"
-          nodeIdRanges:
-          - name: "default"
-            start: 0
-            end: 2
+        sniHostIdentifiesNode:
+          bootstrapAddress: "one-cluster-ip.proxy-ns.svc.cluster.local:9291"
+          advertisedBrokerAddressPattern: "one-cluster-ip-$(nodeId).proxy-ns.svc.cluster.local:9292"
         tls:
           key:
             privateKeyFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.key"
