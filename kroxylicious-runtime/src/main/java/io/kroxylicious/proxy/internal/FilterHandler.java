@@ -59,7 +59,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
     private final long timeoutMs;
     private final String sniHostname;
-    private final String downStreamCertificatePrincipal;
+    private final String downstreamCertificatePrincipal;
     private final VirtualClusterModel virtualClusterModel;
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
@@ -68,12 +68,12 @@ public class FilterHandler extends ChannelDuplexHandler {
     private ChannelHandlerContext ctx;
     private PromiseFactory promiseFactory;
 
-    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, String downStreamCertificatePrincipal,
+    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, String downstreamCertificatePrincipal,
                          VirtualClusterModel virtualClusterModel, Channel inboundChannel) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
-        this.downStreamCertificatePrincipal = downStreamCertificatePrincipal;
+        this.downstreamCertificatePrincipal = downstreamCertificatePrincipal;
         this.virtualClusterModel = virtualClusterModel;
         this.inboundChannel = inboundChannel;
     }
@@ -481,7 +481,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         @Nullable
         @Override
         public String downstreamCertificatePrincipal() {
-            return downStreamCertificatePrincipal;
+            return downstreamCertificatePrincipal;
         }
 
         public String getVirtualClusterName() {
