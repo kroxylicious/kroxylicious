@@ -16,6 +16,7 @@ import org.assertj.core.api.AbstractStringAssert;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.api.ObjectAssert;
+import org.assertj.core.api.ThrowingConsumer;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
 
@@ -66,6 +67,11 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
 
     public ConditionAssert hasMessage(String expected) {
         message().describedAs(actual.toString()).isEqualTo(expected);
+        return this;
+    }
+
+    public ConditionAssert hasMessage(ThrowingConsumer<String> expected) {
+        message().describedAs(actual.toString()).satisfies(expected);
         return this;
     }
 
@@ -126,11 +132,15 @@ public class ConditionAssert extends AbstractObjectAssert<ConditionAssert, Condi
         return this;
     }
 
-    public ConditionAssert isResolvedRefsFalse(String reason, String message) {
+    public ConditionAssert isResolvedRefsFalse(String reason, String expectedMessage) {
+        return isResolvedRefsFalse(reason, (String actualMessage) -> message().describedAs(actualMessage).isEqualTo(expectedMessage));
+    }
+
+    public ConditionAssert isResolvedRefsFalse(String reason, ThrowingConsumer<String> messageAssertion) {
         hasType(Condition.Type.ResolvedRefs);
         hasStatus(Condition.Status.FALSE);
         hasReason(reason);
-        hasMessage(message);
+        hasMessage(messageAssertion);
         return this;
     }
 

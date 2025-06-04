@@ -44,11 +44,11 @@ import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses.Protocol;
@@ -61,6 +61,7 @@ import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult.Dang
 import io.kroxylicious.kubernetes.operator.resolver.DependencyResolver;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.fabric8.kubernetes.api.model.HasMetadata.getKind;
@@ -113,8 +114,13 @@ public final class VirtualKafkaClusterReconciler implements
             VirtualKafkaCluster updatedCluster = checkClusterIngressTlsSettings(cluster, context);
             if (updatedCluster == null) {
                 updatedCluster = maybeCombineStatusWithClusterConfigMap(cluster, context);
-                Crc32ChecksumGenerator checksumGenerator = new Crc32ChecksumGenerator();
+                MetadataChecksumGenerator checksumGenerator = context.managedWorkflowAndDependentResourceContext()
+                        .get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)
+                        .orElse(new Crc32ChecksumGenerator());
                 clusterResolutionResult.allResolvedReferents().forEach(checksumGenerator::appendMetadata);
+
+                appendSecretsFromCertificateRefs(context, cluster, checksumGenerator);
+
                 KubernetesResourceUtil.getOrCreateAnnotations(updatedCluster)
                         .put(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
                                 checksumGenerator.encode());
@@ -131,6 +137,32 @@ public final class VirtualKafkaClusterReconciler implements
             LOGGER.info("Completed reconciliation of {}/{}", namespace(cluster), name(cluster));
         }
         return reconciliationResult;
+    }
+
+    private static void appendSecretsFromCertificateRefs(Context<VirtualKafkaCluster> context, VirtualKafkaCluster updatedCluster,
+                                                         @NonNull MetadataChecksumGenerator checksumGenerator) {
+        LOGGER.debug("Including secrets from ingress TLS in checksum");
+        updatedCluster.getSpec()
+                .getIngresses()
+                .stream()
+                .map(Ingresses::getTls)
+                .filter(Objects::nonNull)
+                .map(Tls::getCertificateRef)
+                .flatMap(certificateRef -> context.getSecondaryResourcesAsStream(Secret.class)
+                        .filter(secret -> KubernetesResourceUtil.getName(secret).equals(certificateRef.getName())))
+                .forEach(checksumGenerator::appendMetadata);
+
+        LOGGER.debug("Including TrustAnchors from ingress TLS in checksum");
+        updatedCluster.getSpec()
+                .getIngresses()
+                .stream()
+                .map(Ingresses::getTls)
+                .filter(Objects::nonNull)
+                .map(Tls::getTrustAnchorRef)
+                .filter(Objects::nonNull)
+                .flatMap(trustAnchorRef -> context.getSecondaryResourcesAsStream(ConfigMap.class)
+                        .filter(cm -> KubernetesResourceUtil.getName(cm).equals(trustAnchorRef.getRef().getName())))
+                .forEach(checksumGenerator::appendMetadata);
     }
 
     /**
@@ -399,15 +431,12 @@ public final class VirtualKafkaClusterReconciler implements
                 Service.class,
                 VirtualKafkaCluster.class)
                 .withName(KUBERNETES_SERVICES_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> {
-                    var name = cluster.getMetadata().getName();
-                    return cluster.getSpec().getIngresses()
-                            .stream()
-                            .map(Ingresses::getIngressRef)
-                            .flatMap(ir -> ResourcesUtil
-                                    .localRefAsResourceId(cluster, new AnyLocalRefBuilder().withName(bootstrapServiceName(cluster, ir.getName())).build()).stream())
-                            .collect(Collectors.toSet());
-                })
+                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> cluster.getSpec().getIngresses()
+                        .stream()
+                        .map(Ingresses::getIngressRef)
+                        .flatMap(ir -> ResourcesUtil
+                                .localRefAsResourceId(cluster, new AnyLocalRefBuilder().withName(bootstrapServiceName(cluster, ir.getName())).build()).stream())
+                        .collect(Collectors.toSet()))
                 .withSecondaryToPrimaryMapper(kubenetesService -> Optional.of(kubenetesService)
                         .flatMap(service -> extractOwnerRefFromKubernetesService(service, VIRTUAL_KAFKA_CLUSTER_KIND))
                         .map(ownerRef -> new ResourceID(ownerRef.getName(), kubenetesService.getMetadata().getNamespace()))
@@ -556,11 +585,7 @@ public final class VirtualKafkaClusterReconciler implements
         if (proxyIngressOpt.isPresent()) {
             KafkaProxyIngress proxyIngress = proxyIngressOpt.get();
 
-            var proxyIngressDefinesTls = proxyIngressOpt
-                    .map(KafkaProxyIngress::getSpec)
-                    .map(KafkaProxyIngressSpec::getClusterIP)
-                    .map(ClusterIP::getProtocol)
-                    .orElse(ClusterIP.Protocol.TCP) == ClusterIP.Protocol.TLS;
+            var proxyIngressDefinesTls = getIngressProtocol(proxyIngress) == ClusterIP.Protocol.TLS;
             var clusterDefinesTls = clusterIngress.getTls() != null;
             if (clusterDefinesTls != proxyIngressDefinesTls) {
                 var slug = ResourcesUtil.namespacedSlug(toLocalRef(proxyIngress), proxyIngress);
@@ -576,6 +601,18 @@ public final class VirtualKafkaClusterReconciler implements
             }
         }
         return null;
+    }
+
+    private static ClusterIP.Protocol getIngressProtocol(KafkaProxyIngress proxyIngress) {
+        ClusterIP clusterIP = proxyIngress.getSpec().getClusterIP();
+        if (clusterIP != null) {
+            return clusterIP.getProtocol();
+        }
+        LoadBalancer loadBalancer = proxyIngress.getSpec().getLoadBalancer();
+        if (loadBalancer != null) {
+            return ClusterIP.Protocol.TLS;
+        }
+        throw new IllegalStateException("No protocol could be determined for " + proxyIngress);
     }
 
 }

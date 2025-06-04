@@ -579,6 +579,21 @@ public class KafkaAuthnHandlerTest {
         }
 
         @Override
+        public short apiKeyId() {
+            return 0;
+        }
+
+        @Override
+        public short apiVersion() {
+            return 0;
+        }
+
+        @Override
+        public boolean isDecoded() {
+            return false;
+        }
+
+        @Override
         public boolean decodeResponse() {
             return false;
         }

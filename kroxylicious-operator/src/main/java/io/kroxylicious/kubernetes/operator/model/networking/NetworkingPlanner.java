@@ -12,22 +12,29 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel.ClusterIngressNetworkingModelResult;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel.ClusterNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
+import io.kroxylicious.kubernetes.operator.resolver.IngressResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.PROXY_PORT_START;
+import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.SHARED_SNI_PORT;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 
 /**
@@ -45,6 +52,8 @@ public class NetworkingPlanner {
     }
 
     private static final List<NodeIdRanges> DEFAULT_NODE_ID_RANGES = List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build());
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(NetworkingPlanner.class);
 
     /**
      * Allocates a ProxyNetworkingModel. The aim is to deterministically produce a model of the ports that will
@@ -74,6 +83,7 @@ public class NetworkingPlanner {
             int toAllocate = networkingDefinition.numIdentifyingPortsRequired();
             Integer firstIdentifyingPort = null;
             Integer lastIdentifyingPort = null;
+            Integer sharedSniPort = null;
             IngressConflictException exception = null;
             if (toAllocate != 0) {
                 if (identifyingPorts.get() != PROXY_PORT_START) {
@@ -84,7 +94,10 @@ public class NetworkingPlanner {
                 firstIdentifyingPort = identifyingPorts.get();
                 lastIdentifyingPort = identifyingPorts.addAndGet(toAllocate) - 1;
             }
-            ClusterIngressNetworkingModel networkingModel = networkingDefinition.createNetworkingModel(firstIdentifyingPort, lastIdentifyingPort);
+            if (networkingDefinition.requiresSharedSniPort()) {
+                sharedSniPort = SHARED_SNI_PORT;
+            }
+            ClusterIngressNetworkingModel networkingModel = networkingDefinition.createNetworkingModel(firstIdentifyingPort, lastIdentifyingPort, sharedSniPort);
             return new ClusterIngressNetworkingModelResult(networkingModel, exception);
         }).toList();
         return new ClusterNetworkingModel(clusterResolutionResult.cluster(), ingressResults);
@@ -97,19 +110,31 @@ public class NetworkingPlanner {
                 .flatMap(
                         ingressResolutionResult -> {
                             Optional<KafkaProxyIngress> maybeIngress = ingressResolutionResult.ingressResolutionResult().maybeReferentResource();
-                            if (maybeIngress.isPresent()) {
-                                Optional<KafkaService> maybeService = clusterResolutionResult.serviceResolutionResult().maybeReferentResource();
-                                // todo, maybe we should not include the case where the service does not resolve, it's optimistic to assume its using the default node id range
-                                List<NodeIdRanges> nodeIdRanges = maybeService.map(s -> s.getSpec().getNodeIdRanges()).orElse(DEFAULT_NODE_ID_RANGES);
-                                return Stream.of(
-                                        clusterIngressNetworkingDefinition(primary, cluster, maybeIngress.get(), nodeIdRanges,
-                                                ingressResolutionResult.ingress().getTls()));
-                            }
-                            else {
-                                // skip unresolved ingresses
-                                return Stream.empty();
-                            }
+                            Optional<KafkaService> maybeService = clusterResolutionResult.serviceResolutionResult().maybeReferentResource();
+                            // skip if ingress or service unresolved
+                            return maybeIngress.map(ingress -> planClusterIngressNetworkingDefinition(primary, ingressResolutionResult, ingress, maybeService, cluster))
+                                    .orElseGet(Stream::empty);
                         });
+    }
+
+    @NonNull
+    private static Stream<ClusterIngressNetworkingDefinition> planClusterIngressNetworkingDefinition(KafkaProxy primary,
+                                                                                                     IngressResolutionResult ingressResolutionResult,
+                                                                                                     KafkaProxyIngress ingress,
+                                                                                                     Optional<KafkaService> service,
+                                                                                                     VirtualKafkaCluster cluster) {
+        // todo we should change this so that we skip if KafkaService is not resolved
+        List<NodeIdRanges> nodeIdRanges = service.map(s -> s.getSpec().getNodeIdRanges()).orElse(DEFAULT_NODE_ID_RANGES);
+        try {
+            ClusterIngressNetworkingDefinition definition = clusterIngressNetworkingDefinition(primary, cluster, ingress, nodeIdRanges,
+                    ingressResolutionResult.ingress().getTls());
+            return Stream.of(
+                    definition);
+        }
+        catch (NetworkPlanningException e) {
+            LOGGER.warn("skipping ingress {} for cluster {} due to planning exception", name(ingress), name(cluster), e);
+            return Stream.empty();
+        }
     }
 
     private static ClusterIngressNetworkingDefinition clusterIngressNetworkingDefinition(KafkaProxy primary,
@@ -118,11 +143,15 @@ public class NetworkingPlanner {
                                                                                          List<NodeIdRanges> nodeIdRanges,
                                                                                          @Nullable Tls tls) {
         ClusterIP clusterIP = ingress.getSpec().getClusterIP();
+        LoadBalancer loadBalancer = ingress.getSpec().getLoadBalancer();
         if (clusterIP != null) {
             return new ClusterIPClusterIngressNetworkingDefinition(ingress, cluster, primary, nodeIdRanges, tls);
         }
+        else if (loadBalancer != null) {
+            return new LoadBalancerClusterIngressNetworkingDefinition(ingress, cluster, loadBalancer, tls);
+        }
         else {
-            throw new IllegalStateException("ingress must have clusterIP specified");
+            throw new NetworkPlanningException("ingress must have clusterIP or loadBalancer specified");
         }
     }
 
@@ -149,9 +178,11 @@ public class NetworkingPlanner {
          *
          * @param firstIdentifyingPort the first identifying port allocated to this Ingress
          * @param lastIdentifyingPort the last identifying port (inclusive) allocated to this Ingress
+         * @param sharedSniPort the shared SNI port (if definition required SNI port)
          * @return a non-null ClusterIngressNetworkingModel
          */
-        ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort);
+        ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort,
+                                                            @Nullable Integer sharedSniPort);
 
         /**
          * Some Ingress strategies require a set of ports in the proxy pod to be unique and exclusive so that the Proxy
@@ -159,7 +190,13 @@ public class NetworkingPlanner {
          *
          * @return the number of identifying ports this ingress requires
          */
-        int numIdentifyingPortsRequired();
+        default int numIdentifyingPortsRequired() {
+            return 0;
+        }
+
+        default boolean requiresSharedSniPort() {
+            return false;
+        }
     }
 
     private record ClusterIPClusterIngressNetworkingDefinition(
@@ -171,9 +208,10 @@ public class NetworkingPlanner {
             implements ClusterIngressNetworkingDefinition {
 
         @Override
-        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort) {
-            Objects.requireNonNull(firstIdentifyingPort);
-            Objects.requireNonNull(lastIdentifyingPort);
+        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort,
+                                                                   @Nullable Integer sharedSniPort) {
+            validateNotNull(firstIdentifyingPort, "firstIdentifyingPort must be non null for ClusterIP ingress");
+            validateNotNull(lastIdentifyingPort, "lastIdentifyingPort must be non null for ClusterIP ingress");
             return new ClusterIPClusterIngressNetworkingModel(primary, cluster, ingress, nodeIdRanges, tls, firstIdentifyingPort, lastIdentifyingPort);
         }
 
@@ -183,4 +221,35 @@ public class NetworkingPlanner {
         }
 
     }
+
+    private record LoadBalancerClusterIngressNetworkingDefinition(
+                                                                  KafkaProxyIngress ingress,
+                                                                  VirtualKafkaCluster cluster,
+                                                                  LoadBalancer loadBalancer,
+                                                                  Tls tls)
+            implements ClusterIngressNetworkingDefinition {
+
+        private LoadBalancerClusterIngressNetworkingDefinition {
+            validateNotNull(tls, "LoadBalancer requires TLS to be provided by the virtualkafkacluster");
+        }
+
+        @Override
+        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort,
+                                                                   @Nullable Integer sharedSniPort) {
+            Objects.requireNonNull(sharedSniPort);
+            return new LoadBalancerClusterIngressNetworkingModel(cluster, ingress, loadBalancer, tls, sharedSniPort);
+        }
+
+        @Override
+        public boolean requiresSharedSniPort() {
+            return true;
+        }
+    }
+
+    private static void validateNotNull(@Nullable Object object, String message) {
+        if (object == null) {
+            throw new NetworkPlanningException(message);
+        }
+    }
+
 }

@@ -52,10 +52,12 @@ public interface ClusterIngressNetworkingModel {
     Stream<ServiceBuilder> services();
 
     /**
-     * ContainerPorts to be added to the proxy for this model
+     * ContainerPorts to be added to the proxy for this model. These ports will be used to uniquely
+     * identify an upstream node, so they cannot be shared with other ClusterIngressNetworkingModel
+     * instances.
      * @return a stream of ContainerPorts
      */
-    Stream<ContainerPort> proxyContainerPorts();
+    Stream<ContainerPort> identifyingProxyContainerPorts();
 
     /**
      * The node identification strategy to be injected into the Proxy Config for this model
@@ -67,4 +69,18 @@ public interface ClusterIngressNetworkingModel {
      * The downstream TLS to be injected into the Proxy Config for this model, if available
      */
     Optional<Tls> downstreamTls();
+
+    /**
+     * @return true if this cluster ingress requires a shared SNI port in the proxy container to be provided
+     */
+    default boolean requiresSharedSniContainerPort() {
+        return false;
+    }
+
+    /**
+     * @return the client facing ports that should be exposed on the shared SNI loadbalancer service
+     */
+    default Stream<Integer> requiredSniLoadBalancerServicePorts() {
+        return Stream.empty();
+    }
 }

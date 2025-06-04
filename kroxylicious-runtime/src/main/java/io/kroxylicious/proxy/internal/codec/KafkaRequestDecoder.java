@@ -5,8 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
-import java.util.List;
-
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
@@ -15,8 +13,6 @@ import org.apache.kafka.common.protocol.Readable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Tag;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 
@@ -26,7 +22,6 @@ import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsDowngradeFilter;
-import io.kroxylicious.proxy.internal.util.Metrics;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -37,18 +32,11 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
     private final DecodePredicate decodePredicate;
 
     private final ApiVersionsServiceImpl apiVersionsService;
-    private final Counter inboundMessageCounter;
-    private final Counter decodedMessagesCounter;
-    private final String clusterName;
 
-    public KafkaRequestDecoder(DecodePredicate decodePredicate, int socketFrameMaxSize, ApiVersionsServiceImpl apiVersionsService, String clusterName) {
+    public KafkaRequestDecoder(DecodePredicate decodePredicate, int socketFrameMaxSize, ApiVersionsServiceImpl apiVersionsService) {
         super(socketFrameMaxSize);
         this.decodePredicate = decodePredicate;
         this.apiVersionsService = apiVersionsService;
-        this.clusterName = clusterName;
-        List<Tag> tags = Metrics.tags(Metrics.FLOWING_TAG, Metrics.DOWNSTREAM, Metrics.VIRTUAL_CLUSTER_TAG, clusterName);
-        inboundMessageCounter = Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, tags);
-        decodedMessagesCounter = Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, tags);
     }
 
     @Override
@@ -73,17 +61,16 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         final int startOfMessage = in.readerIndex();
         int correlationId = in.readInt();
         LOGGER.debug("{}: {} downstream correlation id: {}", ctx, apiKey, correlationId);
-        RequestHeaderData header = null;
-        final ByteBufAccessorImpl accessor;
-        inboundMessageCounter.increment();
+
         var decodeRequest = decodePredicate.shouldDecodeRequest(apiKey, apiVersion);
+
         LOGGER.debug("Decode {}/v{} request? {}, Predicate {} ", apiKey, apiVersion, decodeRequest, decodePredicate);
         boolean decodeResponse = decodePredicate.shouldDecodeResponse(apiKey, apiVersion);
         LOGGER.debug("Decode {}/v{} response? {}, Predicate {}", apiKey, apiVersion, decodeResponse, decodePredicate);
         short headerVersion = apiKey.requestHeaderVersion(apiVersion);
+        RequestHeaderData header = null;
+        final ByteBufAccessorImpl accessor;
         if (decodeRequest) {
-            decodedMessagesCounter.increment();
-            Metrics.payloadSizeBytesUpstreamSummary(apiKey, apiVersion, clusterName).record(length);
             if (log().isTraceEnabled()) { // avoid boxing
                 log().trace("{}: headerVersion {}", ctx, headerVersion);
             }
@@ -131,7 +118,7 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
                 hasResponse = acks != 0;
             }
             in.readerIndex(sof);
-            frame = opaqueFrame(in, correlationId, decodeResponse, length, hasResponse);
+            frame = opaqueFrame(in, apiId, apiVersion, correlationId, decodeResponse, length, hasResponse);
             in.readerIndex(sof + length);
         }
         return frame;
@@ -193,12 +180,16 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
     }
 
     private OpaqueRequestFrame opaqueFrame(ByteBuf in,
+                                           short apiKey,
+                                           short apiVersion,
                                            int correlationId,
                                            boolean decodeResponse,
                                            int length,
                                            boolean hasResponse) {
         return new OpaqueRequestFrame(
                 in.readSlice(length).retain(),
+                apiKey,
+                apiVersion,
                 correlationId,
                 decodeResponse,
                 length,

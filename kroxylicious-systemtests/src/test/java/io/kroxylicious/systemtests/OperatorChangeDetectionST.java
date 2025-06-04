@@ -6,12 +6,14 @@
 
 package io.kroxylicious.systemtests;
 
+import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,6 +22,8 @@ import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
@@ -27,7 +31,6 @@ import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
-import io.skodjob.testframe.resources.KubeResourceManager;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
@@ -39,6 +42,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
+import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
 import io.kroxylicious.systemtests.k8s.KubeClient;
@@ -58,6 +62,7 @@ class OperatorChangeDetectionST extends AbstractST {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OperatorChangeDetectionST.class);
     private static Kroxylicious kroxylicious;
+    private static CertManager certManager;
     private final String kafkaClusterName = "my-cluster";
     private KroxyliciousOperator kroxyliciousOperator;
 
@@ -96,15 +101,77 @@ class OperatorChangeDetectionST extends AbstractST {
 
         String originalChecksum = getInitialChecksum(namespace, kubeClient);
 
+        FilterRef filterRef = new FilterRefBuilder().withName("arbitrary-filter").build();
         VirtualKafkaCluster virtualKafkaCluster = kubeClient.getClient().resources(VirtualKafkaCluster.class).inNamespace(namespace)
                 .withName("test-vkc").get();
 
-        FilterRef filterRef = new FilterRefBuilder().withName("arbitrary-filter").build();
-        VirtualKafkaCluster updatedVirtualCluster = virtualKafkaCluster.edit().editSpec().withFilterRefs(filterRef).endSpec().build();
+        // When
+        resourceManager.replaceResourceWithRetries(virtualKafkaCluster, vkc -> {
+            var filterRefs = Optional.ofNullable(vkc.getSpec().getFilterRefs()).orElse(new ArrayList<>());
+            filterRefs.add(filterRef);
+            vkc.getSpec().setFilterRefs(filterRefs);
+
+        });
+        LOGGER.info("virtual cluster edited");
+
+        // Then
+        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+    }
+
+    @Test
+    void shouldUpdateDeploymentWhenDownstreamTlsCertUpdated(String namespace) throws IOException {
+        // Given
+        certManager = new CertManager();
+        certManager.deploy();
+
+        var issuer = certManager.issuer(namespace);
+        var cert = certManager.certFor(namespace, "my-cluster-cluster-ip." + namespace + ".svc.cluster.local");
+
+        resourceManager.createOrUpdateResourceWithWait(issuer, cert);
+
+        var tls = kroxylicious.tlsConfigFromCert("server-certificate");
+        kroxylicious.deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters("test-vkc", tls);
+        KubeClient kubeClient = kubeClient(namespace);
+
+        String originalChecksum = getInitialChecksum(namespace, kubeClient);
 
         // When
-        KubeResourceManager.get().createOrUpdateResourceWithWait(updatedVirtualCluster);
-        LOGGER.info("virtual cluster edited");
+        resourceManager.replaceResourceWithRetries(cert.build(),
+                certToPatch -> {
+                    var dnsNames = Optional.ofNullable(certToPatch.getSpec().getDnsNames()).orElse(new ArrayList<>());
+                    dnsNames.add("test-vkc-cluster-ip.my-proxy.svc.cluster.local");
+                    certToPatch.getSpec().setDnsNames(dnsNames);
+                });
+        LOGGER.info("SAN added to downstream tls cert");
+
+        // Then
+        assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
+    }
+
+    @Test
+    void shouldUpdateDeploymentWhenDownstreamTrustUpdated(String namespace) throws IOException {
+        // Given
+        certManager = new CertManager();
+        certManager.deploy();
+
+        var issuer = certManager.issuer(namespace);
+        var cert = certManager.certFor(namespace, "my-cluster-cluster-ip." + namespace + ".svc.cluster.local");
+
+        resourceManager.createOrUpdateResourceWithWait(issuer, cert);
+
+        var tls = kroxylicious.tlsConfigFromCert("server-certificate");
+
+        kroxylicious.deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters("test-vkc", tls);
+        KubeClient kubeClient = kubeClient(namespace);
+
+        String originalChecksum = getInitialChecksum(namespace, kubeClient);
+        ConfigMap trustAnchorConfig = new ConfigMapBuilder().withNewMetadata().withName(Constants.KROXYLICIOUS_TLS_CLIENT_CA_CERT).withNamespace(namespace).endMetadata()
+                .build();
+
+        // When
+        resourceManager.replaceResourceWithRetries(trustAnchorConfig,
+                trustConfigMap -> trustConfigMap.getData().put(Constants.KROXYLICIOUS_TLS_CA_NAME, "server-certificate1"));
+        LOGGER.info("Downstream trust updated");
 
         // Then
         assertDeploymentUpdated(namespace, kubeClient, originalChecksum);
@@ -161,7 +228,6 @@ class OperatorChangeDetectionST extends AbstractST {
                 .editOrNewSpec()
                 .withPodTemplate(new PodTemplateSpecBuilder().build())
                 .endSpec();
-
         // @formatter:on
 
         // When
@@ -203,12 +269,17 @@ class OperatorChangeDetectionST extends AbstractST {
     }
 
     private static void assertDeploymentUpdated(String namespace, KubeClient kubeClient, String originalChecksum) {
+        AtomicReference<String> newChecksumFromAnnotation = new AtomicReference<>();
         await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
             Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
-            Assertions.assertThat(proxyDeployment).isNotNull();
+            assertThat(proxyDeployment).isNotNull();
             OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata()).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
-                    value -> assertThat(value).isNotEqualTo(originalChecksum));
+                    value -> {
+                        newChecksumFromAnnotation.set(value);
+                        assertThat(value).isNotEqualTo(originalChecksum);
+                    });
         });
+        LOGGER.info("New checksum: {}", newChecksumFromAnnotation);
     }
 
     @BeforeEach
@@ -220,6 +291,9 @@ class OperatorChangeDetectionST extends AbstractST {
     void cleanUp() {
         if (kroxyliciousOperator != null) {
             kroxyliciousOperator.delete();
+        }
+        if (certManager != null) {
+            certManager.delete();
         }
     }
 
@@ -241,13 +315,14 @@ class OperatorChangeDetectionST extends AbstractST {
                                             .hasAnnotationSatisfying("kroxylicious.io/referent-checksum", value -> assertThat(value).isNotBlank()));
 
                             String checksumFromPod = getChecksumFromAnnotation(proxyPods.get(0));
-                            Deployment proxyDeployment = kubeClient.getDeployment(namespace, "simple");
+                            Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
                             OperatorAssertions.assertThat(proxyDeployment.getSpec().getTemplate().getMetadata())
                                     .hasAnnotationSatisfying(
                                             "kroxylicious.io/referent-checksum",
                                             value -> assertThat(value).isEqualTo(checksumFromPod));
                             checksumFromAnnotation.set(checksumFromPod);
                         });
+        LOGGER.info("initial checksum: '{}'", checksumFromAnnotation);
         return checksumFromAnnotation.get();
     }
 

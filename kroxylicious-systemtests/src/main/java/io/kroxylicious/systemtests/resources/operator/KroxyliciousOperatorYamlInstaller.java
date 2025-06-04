@@ -23,7 +23,13 @@ import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.platform.commons.PreconditionViolationException;
 
+import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
+import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
+import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.kubernetes.api.model.ServicePortBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -52,6 +58,7 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
     private static final String SEPARATOR = String.join("", Collections.nCopies(76, "="));
 
     private static final KubeClusterResource cluster = KubeClusterResource.getInstance();
+    protected static final int DEBUG_PORT_NUMBER = 5005;
 
     private static List<File> operatorFiles;
 
@@ -122,6 +129,8 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
                 .get(0)
                 .getImage();
 
+        String debugPortName = "remote-debug";
+        //@formatter:off
         operatorDeployment = new DeploymentBuilder(operatorDeployment)
                 .editOrNewMetadata()
                 .withName(kroxyliciousOperatorName)
@@ -142,6 +151,9 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
                 .withImage(ImageUtils.changeRegistryOrgImageAndTag(deploymentImage, Environment.KROXYLICIOUS_OPERATOR_REGISTRY,
                         Environment.KROXYLICIOUS_OPERATOR_ORG, Environment.KROXYLICIOUS_OPERATOR_IMAGE, Environment.KROXYLICIOUS_OPERATOR_VERSION))
                 .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
+                .addToEnv(new EnvVarBuilder().withName("JAVA_OPTIONS").withValue("-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:" + DEBUG_PORT_NUMBER)
+                        .build())
+                .addToPorts(new ContainerPortBuilder().withName(debugPortName).withContainerPort(DEBUG_PORT_NUMBER).build())
                 .endContainer()
                 .withImagePullSecrets(new LocalObjectReferenceBuilder()
                         .withName("regcred")
@@ -150,8 +162,25 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
                 .endTemplate()
                 .endSpec()
                 .build();
-
-        KubeResourceManager.get().createOrUpdateResourceWithWait(operatorDeployment);
+        Service debugService = new ServiceBuilder()
+                .editOrNewMetadata()
+                    .withName("debug-" + kroxyliciousOperatorName)
+                    .withNamespace(namespaceInstallTo)
+                .endMetadata()
+                .withNewSpec()
+                .withSelector(Map.of("app", "kroxylicious"))
+                    .withType("LoadBalancer")
+                    .withAllocateLoadBalancerNodePorts()
+                    .addToPorts(new ServicePortBuilder()
+                            .withName(debugPortName)
+                            .withPort(DEBUG_PORT_NUMBER)
+                            .withTargetPort(new IntOrString(debugPortName))
+                            .build())
+                .withExternalIPs()
+                .endSpec()
+                .build();
+        //@formatter:on
+        KubeResourceManager.get().createOrUpdateResourceWithWait(operatorDeployment, debugService);
     }
 
     /**

@@ -10,6 +10,8 @@ import java.util.Objects;
 
 import io.kroxylicious.proxy.service.HostPort;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 /**
  * A broker specific endpoint binding.
  *
@@ -18,11 +20,19 @@ import io.kroxylicious.proxy.service.HostPort;
  * @param nodeId                               kafka nodeId of the target broker
  * @param restrictUpstreamToMetadataDiscovery  true if the upstreamTarget corresponds to a broker, false if it points at a bootstrap.
  */
-public record BrokerEndpointBinding(EndpointGateway endpointGateway, HostPort upstreamTarget, int nodeId, boolean restrictUpstreamToMetadataDiscovery)
+public record BrokerEndpointBinding(EndpointGateway endpointGateway, HostPort upstreamTarget, Integer nodeId, boolean restrictUpstreamToMetadataDiscovery)
         implements EndpointBinding {
     public BrokerEndpointBinding {
         Objects.requireNonNull(endpointGateway, "endpointGateway must not be null");
         Objects.requireNonNull(upstreamTarget, "upstreamTarget must not be null");
+        Objects.requireNonNull(nodeId, "nodeId must not be null");
+    }
+
+    @Override
+    @NonNull
+    @SuppressWarnings("java:S6207") // method's return annotation differs from that of the interface
+    public Integer nodeId() {
+        return nodeId;
     }
 
     @Override
@@ -35,7 +45,7 @@ public record BrokerEndpointBinding(EndpointGateway endpointGateway, HostPort up
     }
 
     public boolean refersToSameVirtualClusterAndNode(BrokerEndpointBinding other) {
-        return other != null && other.nodeId == this.nodeId && Objects.equals(other.endpointGateway, this.endpointGateway);
+        return Objects.equals(other.nodeId, nodeId) && Objects.equals(other.endpointGateway, this.endpointGateway);
     }
 
 }

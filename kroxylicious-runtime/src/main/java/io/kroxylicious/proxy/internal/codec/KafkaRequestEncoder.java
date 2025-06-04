@@ -36,13 +36,9 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
     @Override
     protected void encode(ChannelHandlerContext ctx, RequestFrame frame, ByteBuf out) throws Exception {
         super.encode(ctx, frame, out);
-        // TODO re-reading from the encoded buffer like this is ugly
-        // probably better to just include apiKey and apiVersion in the frame
-        var ri = out.readerIndex();
         var wi = out.writerIndex();
-        out.readerIndex(LENGTH);
-        short apiKey = out.readShort();
-        short apiVersion = out.readShort();
+        short apiKey = frame.apiKeyId();
+        short apiVersion = frame.apiVersion();
         boolean hasResponse = frame.hasResponse();
         boolean decodeResponse = frame.decodeResponse();
         int downstreamCorrelationId = frame.correlationId();
@@ -58,7 +54,6 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
             LOGGER.debug("{}: {} downstream correlation id {} assigned upstream correlation id: {}",
                     ctx, ApiKeys.forId(apiKey), downstreamCorrelationId, upstreamCorrelationId);
         }
-        out.readerIndex(ri);
         out.writerIndex(wi);
     }
 
