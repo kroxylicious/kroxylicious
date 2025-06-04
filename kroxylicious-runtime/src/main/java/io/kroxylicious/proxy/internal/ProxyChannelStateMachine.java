@@ -107,36 +107,37 @@ import static org.slf4j.LoggerFactory.getLogger;
  *     Thus when the proxy is notified that a peer is applying back pressure it results in action on the channel with the opposite peer.
  * </p>
  */
+@SuppressWarnings("java:S1133")
 public class ProxyChannelStateMachine {
     private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "NetFilter called NetFilterContext.initiateConnect() more than once";
     private static final Logger LOGGER = getLogger(ProxyChannelStateMachine.class);
     /**
-     * @deprecated replaced by `clientToProxyConnectionCounter`
+     * @deprecated use `clientToProxyConnectionCounter` instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter downstreamConnectionsCounter;
     /**
-     * @deprecated replaced by `proxyToServerConnectionCounter`
+     * @deprecated use `proxyToServerConnectionCounter` instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter upstreamConnectionsCounter;
     /**
-     * @deprecated replaced by `clientToProxyErrorCounter`
+     * @deprecated use `clientToProxyErrorCounter` instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter downstreamErrorCounter;
     /**
-     * @deprecated replaced by `proxyToServerErrorCounter`
+     * @deprecated use `proxyToServerErrorCounter` instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter upstreamErrorCounter;
     /**
-     * @deprecated replaced by `proxyToServerConnectionCounter`
+     * @deprecated use `proxyToServerConnectionCounter` instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter connectionAttemptsCounter;
     /**
-     * @deprecated replaced by `proxyToServerConnectionCounter`
+     * @deprecated use `proxyToServerConnectionCounter` instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter upstreamConnectionFailureCounter;
@@ -145,18 +146,20 @@ public class ProxyChannelStateMachine {
     private final Counter proxyToServerConnectionCounter;
     private final Counter proxyToServerErrorCounter;
 
+    @SuppressWarnings("java:S5738")
     public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
-        List<Tag> tags = Metrics.tags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName);
+        List<Tag> tags = Metrics.tags(Metrics.VIRTUAL_CLUSTER_TAG, clusterName);
+        String bootstrap = "bootstrap";
         downstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_CONNECTIONS, tags);
         clientToProxyConnectionCounter = KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_TOTAL_METER_PROVIDER
-                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : "bootstrap");
+                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : bootstrap);
         downstreamErrorCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_ERRORS, tags);
         clientToProxyErrorCounter = KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER
-                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : "bootstrap");
+                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : bootstrap);
         proxyToServerConnectionCounter = KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_TOTAL_METER_PROVIDER
-                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : "bootstrap");
+                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : bootstrap);
         proxyToServerErrorCounter = KROXYLICIOUS_PROXY_TO_SERVER_ERROR_TOTAL_METER_PROVIDER
-                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : "bootstrap");
+                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : bootstrap);
         upstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTIONS, tags);
         connectionAttemptsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS, tags);
         upstreamErrorCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_ERRORS, tags);
@@ -432,6 +435,7 @@ public class ProxyChannelStateMachine {
      * Notify the state machine that something exceptional and un-recoverable has happened on the upstream side.
      * @param cause the exception that triggered the issue
      */
+    @SuppressWarnings("java:S5738")
     void onServerException(Throwable cause) {
         LOGGER.atWarn()
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
@@ -450,6 +454,7 @@ public class ProxyChannelStateMachine {
      * Notify the state machine that something exceptional and un-recoverable has happened on the downstream side.
      * @param cause the exception that triggered the issue
      */
+    @SuppressWarnings("java:S5738")
     void onClientException(Throwable cause, boolean tlsEnabled) {
         ApiException errorCodeEx;
         if (cause instanceof DecoderException de
@@ -473,6 +478,7 @@ public class ProxyChannelStateMachine {
         toClosed(errorCodeEx);
     }
 
+    @SuppressWarnings("java:S5738")
     private void toClientActive(
                                 @NonNull ProxyChannelState.ClientActive clientActive,
                                 @NonNull KafkaProxyFrontendHandler frontendHandler) {
@@ -482,6 +488,7 @@ public class ProxyChannelStateMachine {
         clientToProxyConnectionCounter.increment();
     }
 
+    @SuppressWarnings("java:S5738")
     private void toConnecting(
                               ProxyChannelState.Connecting connecting,
                               @NonNull List<FilterAndInvoker> filters,
@@ -493,6 +500,7 @@ public class ProxyChannelStateMachine {
         proxyToServerConnectionCounter.increment();
     }
 
+    @SuppressWarnings("java:S5738")
     private void toForwarding(Forwarding forwarding) {
         setState(forwarding);
         Objects.requireNonNull(frontendHandler).inForwarding();
@@ -525,7 +533,7 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    @SuppressWarnings("java:S1172")
+    @SuppressWarnings({"java:S1172", "java:S1135"})
     // We keep dp as we should need it and it gives consistency with the other onClientRequestIn methods (sue me)
     private boolean onClientRequestInApiVersionsState(@NonNull SaslDecodePredicate dp, Object msg, ProxyChannelState.ApiVersions apiVersions) {
         if (msg instanceof RequestFrame) {
