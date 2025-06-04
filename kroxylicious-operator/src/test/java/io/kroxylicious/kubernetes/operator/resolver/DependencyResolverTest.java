@@ -19,8 +19,12 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.Secret;
+import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
+import io.kroxylicious.kubernetes.api.common.CertificateRef;
+import io.kroxylicious.kubernetes.api.common.CertificateRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.ConditionBuilder;
 import io.kroxylicious.kubernetes.api.common.FilterRef;
@@ -38,6 +42,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
@@ -528,6 +533,44 @@ class DependencyResolverTest {
         assertThat(clusterResolutionResult.allResolvedReferents().filter(ResourcesUtil.hasFreshResolvedRefsFalseCondition().and(ResourcesUtil.hasKind(referentKind))))
                 .containsExactly(ingress);
         assertThat(clusterResolutionResult.allResolvedReferents().anyMatch(ResourcesUtil::hasFreshResolvedRefsFalseCondition)).isTrue();
+    }
+
+    @Test
+    void resolveClusterRefsWithIngressWithTlsSecret() {
+        // given
+        long latestGeneration = 1L;
+        KafkaProtocolFilter filter = protocolFilter("filterName", latestGeneration);
+        givenFiltersInContext(filter);
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
+        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME, 1L).edit().editSpec().withNewClusterIP().withProtocol(ClusterIP.Protocol.TLS).endClusterIP().endSpec()
+                .build();
+        givenIngressesInContext(ingress);
+        CertificateRef certificateRef = new CertificateRefBuilder().withName("downstream-tls-cert").build();
+        Secret theSecret = new SecretBuilder().withNewMetadata().withName(certificateRef.getName()).endMetadata().build();
+        givenSecondaryResourcesInContext(Secret.class, theSecret);
+        Ingresses clusterIngress = ingress("ingress")
+                .edit()
+                .withNewTls()
+                .withCertificateRef(certificateRef)
+                .endTls()
+                .build();
+
+        VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(clusterIngress), getProxyRef(PROXY_NAME));
+        givenVirtualKafkaClustersInContext(cluster);
+        givenProxiesInContext(PROXY);
+
+        // when
+        ClusterResolutionResult clusterResolutionResult = resolveClusterRefs(cluster);
+
+        // then
+        assertThat(clusterResolutionResult.allReferentsFullyResolved()).isTrue();
+        assertThat(clusterResolutionResult.secretResolutionResults()).singleElement()
+                .satisfies(secretResolutionResult -> {
+                            assertThat(secretResolutionResult)
+                                    .isNotNull();
+                            assertThat(secretResolutionResult.referentNew()).isEqualTo(theSecret);
+                        }
+                );
     }
 
     @Test

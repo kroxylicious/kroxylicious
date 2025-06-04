@@ -14,6 +14,7 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.Secret;
 
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -38,7 +39,8 @@ public record ClusterResolutionResult(VirtualKafkaCluster cluster,
                                       ResolutionResult<KafkaProxy> proxyResolutionResult,
                                       List<ResolutionResult<KafkaProtocolFilter>> filterResolutionResults,
                                       ResolutionResult<KafkaService> serviceResolutionResult,
-                                      List<IngressResolutionResult> ingressResolutionResults) {
+                                      List<IngressResolutionResult> ingressResolutionResults,
+                                      List<ResolutionResult<Secret>> secretResolutionResults) {
 
     /**
      * All referents are fully resolved iff

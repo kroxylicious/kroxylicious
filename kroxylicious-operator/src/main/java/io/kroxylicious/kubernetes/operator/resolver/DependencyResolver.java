@@ -13,8 +13,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.Secret;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
+import io.kroxylicious.kubernetes.api.common.CertificateRef;
 import io.kroxylicious.kubernetes.api.common.IngressRef;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRef;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
@@ -25,6 +28,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
 
@@ -87,17 +92,25 @@ public class DependencyResolver {
                 .collect(ResourcesUtil.toByLocalRefMap());
         Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters = context.getSecondaryResources(KafkaProtocolFilter.class).stream()
                 .collect(ResourcesUtil.toByLocalRefMap());
-        return new CommonDependencies(ingresses, clusterRefs, filters);
+        Map<LocalRef<ConfigMap>, ConfigMap> configMaps = context.getSecondaryResources(ConfigMap.class).stream()
+                .collect(ResourcesUtil.toByLocalRefMap());
+        Map<LocalRef<Secret>, Secret> secretes = context.getSecondaryResources(Secret.class).stream()
+                .collect(ResourcesUtil.toByLocalRefMap());
+        return new CommonDependencies(ingresses, clusterRefs, filters, configMaps, secretes);
     }
 
     // dependencies common to VirtualKafkaCluster and KafkaProxy reconciliation
     private record CommonDependencies(Map<LocalRef<KafkaProxyIngress>, KafkaProxyIngress> ingresses,
                                       Map<LocalRef<KafkaService>, KafkaService> kafkaServices,
-                                      Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters) {
+                                      Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters,
+                                      Map<LocalRef<ConfigMap>, ConfigMap> configMaps,
+                                      Map<LocalRef<Secret>, Secret> secretes) {
         private CommonDependencies {
             Objects.requireNonNull(ingresses);
             Objects.requireNonNull(kafkaServices);
             Objects.requireNonNull(filters);
+            Objects.requireNonNull(configMaps);
+            Objects.requireNonNull(secretes);
         }
     }
 
@@ -125,7 +138,9 @@ public class DependencyResolver {
                 resolveProxy(clusterRef, cluster, proxies),
                 resolveFilters(clusterRef, cluster, commonDependencies),
                 resolveService(clusterRef, cluster, commonDependencies),
-                resolveIngresses(clusterRef, cluster, commonDependencies, proxies));
+                resolveIngresses(clusterRef, cluster, commonDependencies, proxies),
+                resolveSecrets(clusterRef, cluster, commonDependencies)
+        );
     }
 
     private ResolutionResult<KafkaProxy> resolveProxy(LocalRef<?> referrer, VirtualKafkaCluster cluster, Set<KafkaProxy> proxies) {
@@ -172,5 +187,19 @@ public class DependencyResolver {
                     .orElse(null);
             return new IngressResolutionResult(resolvedIngress, kafkaProxyResolutionResult, ingress);
         }).toList();
+    }
+
+    private List<ResolutionResult<Secret>> resolveSecrets(LocalRef<VirtualKafkaCluster> clusterRef,
+                                                           VirtualKafkaCluster cluster,
+                                                           CommonDependencies commonDependencies) {
+        return cluster.getSpec().getIngresses().stream()
+                .flatMap(ingress -> {
+                    CertificateRef certificateRef = ingress.getTls().getCertificateRef();
+                    return commonDependencies.secretes()
+                            .values()
+                            .stream()
+                            .filter(s -> s.getMetadata().getName().equals(certificateRef.getName()))
+                            .map(secret -> new ResolutionResult<>(clusterRef, ResourcesUtil.toLocalRef(secret), secret));
+                }).toList();
     }
 }
