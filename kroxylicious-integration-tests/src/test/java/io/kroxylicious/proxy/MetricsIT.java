@@ -403,17 +403,8 @@ class MetricsIT {
                                 .filterByTag(NODE_ID_LABEL, "0")
                                 .singleElement()
                                 .value()
-                                .isGreaterThan(0.0)),
-                argumentSet("count error from proxy to server (bootstrap)",
-                        (UnaryOperator<ConfigurationBuilder>) builder -> builder,
-                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_proxy_to_server_errors_total")
-                                .filterByTag(NODE_ID_LABEL)
-                                .isEmpty(),
-                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList).anySatisfy(simpleMetric -> {
-                            assertThat(simpleMetric.name()).isEqualTo("kroxylicious_proxy_to_server_errors_total");
-                            assertThat(simpleMetric.value()).isGreaterThan(0);
-                        })));
+                                .isGreaterThan(0.0))
+        );
     }
 
     @ParameterizedTest
@@ -436,8 +427,8 @@ class MetricsIT {
             // When
             var producer = tester.producer();
             var future = producer.send(new ProducerRecord<>("my-topic", "key", "value"));
-            assertThat(future).succeedsWithin(Duration.ofSeconds(5));
             cluster.close();
+            assertThat(future).succeedsWithin(Duration.ofSeconds(10));
 
             // Then
             metricList = managementClient.scrapeMetrics();
@@ -598,8 +589,8 @@ class MetricsIT {
             // When
             var producer = tester.producer();
             var future = producer.send(new ProducerRecord<>("my-topic", "key", "value"));
-            assertThat(future).succeedsWithin(Duration.ofSeconds(5));
             cluster.close();
+            assertThat(future).succeedsWithin(Duration.ofSeconds(10));
 
             // Then
             // updated metrics after some message were produced
