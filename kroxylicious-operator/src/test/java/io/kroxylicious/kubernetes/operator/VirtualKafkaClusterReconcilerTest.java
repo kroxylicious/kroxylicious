@@ -111,8 +111,6 @@ class VirtualKafkaClusterReconcilerTest {
             .endSpec()
             .build();
 
-    private static final ConfigMap NO_FILTERS_CONFIG_MAP=buildProxyConfigMapWithPatch(CLUSTER_NO_FILTERS);
-
     private static final VirtualKafkaCluster CLUSTER_TLS_NO_FILTERS = new VirtualKafkaClusterBuilder(CLUSTER_NO_FILTERS)
             .editOrNewSpec()
                 .withIngresses(new IngressesBuilder(CLUSTER_NO_FILTERS.getSpec().getIngresses().get(0))
@@ -256,6 +254,8 @@ class VirtualKafkaClusterReconcilerTest {
             .addToData("ca-bundle.pem", "value")
             .build();
     // @formatter:on
+
+    private static final ConfigMap NO_FILTERS_CONFIG_MAP = buildProxyConfigMapWithPatch(CLUSTER_NO_FILTERS);
 
     private static final ManagedWorkflowAndDependentResourceContext workflowContext = mock(ManagedWorkflowAndDependentResourceContext.class);
     private VirtualKafkaClusterReconciler virtualKafkaClusterReconciler;
