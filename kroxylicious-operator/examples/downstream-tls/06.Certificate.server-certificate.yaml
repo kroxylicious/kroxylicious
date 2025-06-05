@@ -19,6 +19,9 @@ spec:
     size: 4096
   dnsNames:
     - my-cluster-cluster-ip.my-proxy.svc.cluster.local
+    - my-cluster-cluster-ip-0.my-proxy.svc.cluster.local
+    - my-cluster-cluster-ip-1.my-proxy.svc.cluster.local
+    - my-cluster-cluster-ip-2.my-proxy.svc.cluster.local
   usages:
     - server auth
   issuerRef:

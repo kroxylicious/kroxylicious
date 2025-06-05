@@ -531,4 +531,13 @@ public class ResourcesUtil {
                 && !key.endsWith(".p12")
                 && !key.endsWith(".jks");
     }
+
+    /**
+     * @return an address that any pod in the same k8s cluster can use to address the service, regardless of which namespace the pod is in
+     * @param serviceName service name
+     * @param namespacedResource resource in the namespace of the Service
+     */
+    public static String crossNamespaceServiceAddress(String serviceName, HasMetadata namespacedResource) {
+        return serviceName + "." + namespace(namespacedResource) + ".svc.cluster.local";
+    }
 }

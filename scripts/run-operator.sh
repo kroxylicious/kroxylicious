@@ -39,11 +39,13 @@ kubectl apply -n kafka -f https://strimzi.io/examples/latest/kafka/kafka-single-
 kubectl wait -n kafka kafka/my-cluster --for=condition=Ready --timeout=300s
 
 info "deleting example"
+set +e
 kubectl delete -f examples/simple/ --ignore-not-found=true --timeout=30s --grace-period=1
 
 info "deleting kroxylicious-operator installation"
 kubectl delete -n kroxylicious-operator all --all --timeout=30s --grace-period=1
 kubectl delete -f install --ignore-not-found=true --timeout=30s --grace-period=1
+set -e
 
 info "deleting all kroxylicious.io resources and crds"
 for crd in $(kubectl get crds -oname | grep kroxylicious.io | awk -F / '{ print $2 }');
