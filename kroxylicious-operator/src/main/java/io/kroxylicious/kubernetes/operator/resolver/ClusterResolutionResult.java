@@ -14,7 +14,6 @@ import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.Secret;
 
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -31,7 +30,7 @@ import io.kroxylicious.kubernetes.operator.ResourcesUtil;
  * @param cluster the cluster resource that was resolved
  * @param proxyResolutionResult the resolution result for the KafkaProxy resource this cluster references
  * @param filterResolutionResults resolution results for all filters referenced by the cluster, in the same order they are declared in the VirtualKafkaCluster spec,
- * note that the same Filter can be in this list multiple times
+ *         note that the same Filter can be in this list multiple times
  * @param serviceResolutionResult the resolution result for the kafka service referenced by the cluster
  * @param ingressResolutionResults the resolution results for ingresses referenced by the cluster, in the same order they are declared in the VirtualKafkaCluster spec
  */
@@ -39,8 +38,7 @@ public record ClusterResolutionResult(VirtualKafkaCluster cluster,
                                       ResolutionResult<KafkaProxy> proxyResolutionResult,
                                       List<ResolutionResult<KafkaProtocolFilter>> filterResolutionResults,
                                       ResolutionResult<KafkaService> serviceResolutionResult,
-                                      List<IngressResolutionResult> ingressResolutionResults,
-                                      List<ResolutionResult<Secret>> secretResolutionResults) {
+                                      List<IngressResolutionResult> ingressResolutionResults) {
 
     /**
      * All referents are fully resolved iff

@@ -26,6 +26,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
@@ -138,9 +139,7 @@ public class DependencyResolver {
                 resolveProxy(clusterRef, cluster, proxies),
                 resolveFilters(clusterRef, cluster, commonDependencies),
                 resolveService(clusterRef, cluster, commonDependencies),
-                resolveIngresses(clusterRef, cluster, commonDependencies, proxies),
-                resolveSecrets(clusterRef, cluster, commonDependencies)
-        );
+                resolveIngresses(clusterRef, cluster, commonDependencies, proxies));
     }
 
     private ResolutionResult<KafkaProxy> resolveProxy(LocalRef<?> referrer, VirtualKafkaCluster cluster, Set<KafkaProxy> proxies) {
@@ -185,21 +184,23 @@ public class DependencyResolver {
             ResolutionResult<KafkaProxy> kafkaProxyResolutionResult = optionalKafkaProxyIngress
                     .map(i -> resolveProxy(ResourcesUtil.toLocalRef(i), proxies, i.getSpec().getProxyRef()))
                     .orElse(null);
-            return new IngressResolutionResult(resolvedIngress, kafkaProxyResolutionResult, ingress);
+            return new IngressResolutionResult(resolvedIngress, kafkaProxyResolutionResult, ingress, resolveSecrets(ingressRef, ingress.getTls(), commonDependencies));
         }).toList();
     }
 
-    private List<ResolutionResult<Secret>> resolveSecrets(LocalRef<VirtualKafkaCluster> clusterRef,
-                                                           VirtualKafkaCluster cluster,
-                                                           CommonDependencies commonDependencies) {
-        return cluster.getSpec().getIngresses().stream()
-                .flatMap(ingress -> {
-                    CertificateRef certificateRef = ingress.getTls().getCertificateRef();
-                    return commonDependencies.secretes()
-                            .values()
-                            .stream()
-                            .filter(s -> s.getMetadata().getName().equals(certificateRef.getName()))
-                            .map(secret -> new ResolutionResult<>(clusterRef, ResourcesUtil.toLocalRef(secret), secret));
-                }).toList();
+    private List<ResolutionResult<Secret>> resolveSecrets(IngressRef ingressRef,
+                                                          @Nullable Tls ingressTls,
+                                                          CommonDependencies commonDependencies) {
+        if (ingressTls == null) {
+            return List.of();
+        }
+        CertificateRef certificateRef = ingressTls.getCertificateRef();
+        return commonDependencies.secretes()
+                .values()
+                .stream()
+                .filter(s -> s.getMetadata().getName().equals(certificateRef.getName()))
+                .map(secret -> new ResolutionResult<>(ingressRef, ResourcesUtil.toLocalRef(secret), secret))
+                .toList();
+
     }
 }

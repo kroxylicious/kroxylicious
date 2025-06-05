@@ -18,7 +18,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param ingressResolutionResult the resolved KafkaProxyIngress result
  * @param proxyResolutionResult the resolved KafkaProxy result
  * @param ingress the virtual kafka cluster ingress that was being resolved
+ * @param secretResolutionResults
  */
 public record IngressResolutionResult(ResolutionResult<KafkaProxyIngress> ingressResolutionResult,
                                       @Nullable ResolutionResult<KafkaProxy> proxyResolutionResult,
-                                      Ingresses ingress) {}
+                                      Ingresses ingress, java.util.List<ResolutionResult<io.fabric8.kubernetes.api.model.Secret>> secretResolutionResults) {}

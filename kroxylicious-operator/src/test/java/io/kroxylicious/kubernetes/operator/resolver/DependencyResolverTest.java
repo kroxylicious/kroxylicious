@@ -564,13 +564,13 @@ class DependencyResolverTest {
 
         // then
         assertThat(clusterResolutionResult.allReferentsFullyResolved()).isTrue();
-        assertThat(clusterResolutionResult.secretResolutionResults()).singleElement()
-                .satisfies(secretResolutionResult -> {
-                            assertThat(secretResolutionResult)
-                                    .isNotNull();
-                            assertThat(secretResolutionResult.referentNew()).isEqualTo(theSecret);
-                        }
-                );
+        assertThat(clusterResolutionResult.ingressResolutionResults()).singleElement()
+                .satisfies(ingressResolutionResult -> {
+                    assertThat(ingressResolutionResult)
+                            .isNotNull();
+                    assertThat(ingressResolutionResult.secretResolutionResults()).singleElement()
+                            .satisfies(secretResolutionResult -> assertThat(secretResolutionResult.referentNew()).isEqualTo(theSecret));
+                });
     }
 
     @Test
@@ -805,6 +805,26 @@ class DependencyResolverTest {
         ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
         assertThat(onlyResult.allReferentsFullyResolved()).isTrue();
         assertThat(onlyResult.allDanglingReferences()).isEmpty();
+    }
+
+    @Test
+    void shouldResolveProxyRefWithIngressWithoutTls() {
+        // given
+        givenKafkaServicesInContext(kafkaService("clusterRef", 1L));
+        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME, 1L);
+        givenIngressesInContext(ingress);
+        VirtualKafkaCluster cluster = virtualCluster(List.of(), "clusterRef", List.of(ingress("ingress")), getProxyRef(PROXY_NAME));
+        givenVirtualKafkaClustersInContext(cluster);
+
+        // when
+        ProxyResolutionResult resolutionResult = resolveProxyRefs(PROXY);
+
+        // then
+        ClusterResolutionResult onlyResult = assertSingleResult(resolutionResult, cluster);
+        assertThat(onlyResult.allReferentsFullyResolved()).isTrue();
+        assertThat(onlyResult.allDanglingReferences()).isEmpty();
+        assertThat(onlyResult.ingressResolutionResults()).singleElement()
+                .satisfies(ingressResolutionResult -> assertThat(ingressResolutionResult.secretResolutionResults()).isEmpty());
     }
 
     @Test

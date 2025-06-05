@@ -134,7 +134,6 @@ class ProxyDeploymentDependentResourceTest {
                 buildResolutionResultFromCluster(kafkaProxy),
                 List.of(),
                 buildResolutionResultFromCluster(kafkaService),
-                List.of(),
                 List.of());
     }
 

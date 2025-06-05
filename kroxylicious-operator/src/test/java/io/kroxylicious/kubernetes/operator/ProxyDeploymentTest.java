@@ -173,7 +173,6 @@ class ProxyDeploymentTest {
                 buildResolutionResultFromCluster(kafkaProxy),
                 List.of(),
                 buildResolutionResultFromCluster(kafkaService),
-                List.of(),
                 List.of());
     }
 
