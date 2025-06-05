@@ -53,7 +53,7 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
     public KroxyliciousOperatorOlmBundleInstaller(String operatorNamespace) {
         this.operatorNamespace = operatorNamespace;
         this.extensionContext = KubeResourceManager.get().getTestContext();
-        this.kroxyliciousOperatorName = Constants.KROXYLICIOUS_OPERATOR_OLM_DEPLOYMENT_NAME;
+        this.kroxyliciousOperatorName = Environment.KROXYLICIOUS_OLM_DEPLOYMENT_NAME;
         this.bundleImageRef = Environment.KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE;
     }
 

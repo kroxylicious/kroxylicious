@@ -55,6 +55,7 @@ public class Environment {
     private static final String TEST_CLIENTS_IMAGE_ENV = "TEST_CLIENTS_IMAGE";
     private static final String OLM_OPERATOR_CHANNEL_ENV = "OLM_OPERATOR_CHANNEL";
     private static final String CATALOG_SOURCE_NAME_ENV = "CATALOG_SOURCE_NAME";
+    private static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME_ENV = "KROXYLICIOUS_OLM_DEPLOYMENT_NAME";
 
     /**
      * The kafka version default value
@@ -108,6 +109,7 @@ public class Environment {
     private static final String TEST_CLIENTS_IMAGE_DEFAULT = "quay.io/strimzi-test-clients/test-clients:latest-kafka-" + KAFKA_VERSION_DEFAULT;
     private static final String OLM_OPERATOR_CHANNEL_DEFAULT = "alpha";
     private static final String CATALOG_SOURCE_NAME_DEFAULT = "strimzi-source";
+    private static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME_DEFAULT = "amq-streams-proxy";
 
     public static final String KAFKA_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KAFKA_VERSION_ENV, KAFKA_VERSION_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_VERSION_ENV, KROXYLICIOUS_VERSION_DEFAULT);
@@ -153,6 +155,8 @@ public class Environment {
     public static final String TEST_CLIENTS_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(TEST_CLIENTS_IMAGE_ENV, TEST_CLIENTS_IMAGE_DEFAULT);
     public static final String OLM_OPERATOR_CHANNEL = ENVIRONMENT_VARIABLES.getOrDefault(OLM_OPERATOR_CHANNEL_ENV, OLM_OPERATOR_CHANNEL_DEFAULT);
     public static final String CATALOG_SOURCE_NAME = ENVIRONMENT_VARIABLES.getOrDefault(CATALOG_SOURCE_NAME_ENV, CATALOG_SOURCE_NAME_DEFAULT);
+    public static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OLM_DEPLOYMENT_NAME_ENV,
+            KROXYLICIOUS_OLM_DEPLOYMENT_NAME_DEFAULT);
 
     private static String readMetadataProperty(String property) {
         var p = new Properties();
