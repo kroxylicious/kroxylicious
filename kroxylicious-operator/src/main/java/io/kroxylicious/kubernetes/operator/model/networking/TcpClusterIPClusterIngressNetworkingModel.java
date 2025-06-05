@@ -95,21 +95,17 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     ObjectMeta serviceMetadata(String name) {
-        return new ObjectMetaBuilder()
+        Set<BootstrapServersAnnotation.BootstrapServer> clientFacingBootstrap = Set.of(
+                new BootstrapServersAnnotation.BootstrapServer(name(cluster), name(ingress), bootstrapServers()));
+        ObjectMetaBuilder builder = new ObjectMetaBuilder()
                 .withName(name)
                 .withNamespace(namespace(cluster))
                 .addToLabels(standardLabels(proxy))
-                .addToAnnotations(BootstrapServersAnnotation.BOOTSTRAP_SERVERS_ANNOTATION_KEY, bootstrapServersAnnotation())
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(proxy)).endOwnerReference()
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(cluster)).endOwnerReference()
-                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(ingress)).endOwnerReference()
-                .build();
-    }
-
-    @NonNull
-    private String bootstrapServersAnnotation() {
-        return BootstrapServersAnnotation.toAnnotation(
-                Set.of(new BootstrapServersAnnotation.BootstrapServer(ResourcesUtil.name(cluster), ResourcesUtil.name(ingress), bootstrapServers())));
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(ingress)).endOwnerReference();
+        BootstrapServersAnnotation.annotate(builder, clientFacingBootstrap);
+        return builder.build();
     }
 
     @Override
