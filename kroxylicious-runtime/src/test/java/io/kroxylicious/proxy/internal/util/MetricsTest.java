@@ -128,5 +128,4 @@ class MetricsTest {
         assertThatThrownBy(() -> Metrics.tags("TagA", "value1", "TagB", "value2", "TagC", "value3", "TagD", "   "))
                 .isInstanceOf(IllegalArgumentException.class);
     }
-
 }
