@@ -149,15 +149,13 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                     try {
                         if (t != null) {
                             LOGGER.warn("Exception resolving Virtual Cluster Binding for endpoint {} and sniHostname {}: {}", endpoint, sniHostname, t.getMessage());
-                            clientToProxyErrorCounter.increment();
                             promise.setFailure(t);
-                            ch.close(); // KW TODO - check right way to handle terminal errors within the SNIHandler.
+                            ch.close();
                             return null;
                         }
                         var gateway = binding.endpointGateway();
                         var sslContext = gateway.getDownstreamSslContext();
                         if (sslContext.isEmpty()) {
-                            clientToProxyErrorCounter.increment();
                             promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(gateway)));
                             // close here too?
                         }
@@ -167,7 +165,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                         }
                     }
                     catch (Throwable t1) {
-                        clientToProxyErrorCounter.increment();
                         promise.setFailure(t1);
                         // and close here too?
                     }
@@ -190,6 +187,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                     // We've failed to look up the SslContext - this indicates that the SNI hostname was unrecognized
                     // or that the virtual cluster is somehow not configured for TLS. All we can do is close the
                     // connection.
+                    clientToProxyErrorCounter.increment();
                     ctx.close();
                 }
 
