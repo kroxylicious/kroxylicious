@@ -48,7 +48,6 @@ import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_ERRORS;
-import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
 import static io.kroxylicious.proxy.internal.util.Metrics.taggedCounter;
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -149,17 +148,16 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
         List<Tag> tags = Metrics.tags(Metrics.VIRTUAL_CLUSTER_TAG, clusterName);
-        String bootstrap = "bootstrap";
         downstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_CONNECTIONS, tags);
         clientToProxyConnectionCounter = KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_TOTAL_METER_PROVIDER
-                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : bootstrap);
+                .create(clusterName, nodeId).withTags();
         downstreamErrorCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_ERRORS, tags);
         clientToProxyErrorCounter = KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER
-                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : bootstrap);
+                .create(clusterName, nodeId).withTags();
         proxyToServerConnectionCounter = KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_TOTAL_METER_PROVIDER
-                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : bootstrap);
+                .create(clusterName, nodeId).withTags();
         proxyToServerErrorCounter = KROXYLICIOUS_PROXY_TO_SERVER_ERROR_TOTAL_METER_PROVIDER
-                .withTags(Metrics.VIRTUAL_CLUSTER_LABEL, clusterName, NODE_ID_LABEL, nodeId != null ? nodeId.toString() : bootstrap);
+                .create(clusterName, nodeId).withTags();
         upstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTIONS, tags);
         connectionAttemptsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS, tags);
         upstreamErrorCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_ERRORS, tags);

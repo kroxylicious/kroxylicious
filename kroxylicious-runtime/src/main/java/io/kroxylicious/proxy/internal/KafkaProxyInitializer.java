@@ -51,8 +51,6 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER;
-import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
-import static io.kroxylicious.proxy.internal.util.Metrics.VIRTUAL_CLUSTER_LABEL;
 
 public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
 
@@ -88,7 +86,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         this.bindingResolver = bindingResolver;
         this.filterChainFactory = filterChainFactory;
         this.apiVersionsService = apiVersionsService;
-        clientToProxyErrorCounter = KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER.withTags(VIRTUAL_CLUSTER_LABEL, "", NODE_ID_LABEL, "bootstrap");
+        clientToProxyErrorCounter = KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER.create("", null).withTags();
     }
 
     @Override
