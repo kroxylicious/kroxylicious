@@ -181,6 +181,11 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     }
 
     @Override
+    public KafkaClient simpleTestClient(String address, boolean useTls) {
+        return clients().simpleTestClient(address, useTls);
+    }
+
+    @Override
     public KafkaClient simpleTestClient(String virtualCluster) {
         return clients(virtualCluster, DEFAULT_GATEWAY_NAME).simpleTestClient();
     }

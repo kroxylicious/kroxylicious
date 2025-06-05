@@ -34,7 +34,10 @@ import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DescribeClusterOptions;
 import org.apache.kafka.common.config.SslConfigs;
+import org.apache.kafka.common.errors.SslAuthenticationException;
 import org.apache.kafka.common.errors.TimeoutException;
+import org.apache.kafka.common.message.ApiVersionsRequestData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.BeforeEach;
@@ -44,6 +47,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.secret.FilePassword;
@@ -52,6 +56,7 @@ import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.test.Request;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.common.KafkaClusterConfig;
@@ -64,6 +69,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.baseVirtualClusterBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
+import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultSniHostIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -77,6 +83,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class TlsIT extends BaseIT {
     private static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
     private static final String TOPIC = "my-test-topic";
+
+    private static final String SNI_BASE_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("sni");
+    private static final String SNI_BROKER_ADDRESS_PATTERN = "broker-$(nodeId)." + SNI_BASE_ADDRESS;
+    private static final HostPort SNI_BOOTSTRAP_ADDRESS = HostPort.parse("bootstrap." + SNI_BASE_ADDRESS + ":9192");
+
     @TempDir
     private Path certsDirectory;
     private KeytoolCertificateGenerator downstreamCertificateGenerator;
@@ -85,17 +96,17 @@ class TlsIT extends BaseIT {
     private Path proxyTrustStore;
 
     @BeforeEach
-    public void beforeEach() throws Exception {
+    void beforeEach() throws Exception {
         // Note that the KeytoolCertificateGenerator generates key stores that are PKCS12 format.
         this.downstreamCertificateGenerator = new KeytoolCertificateGenerator();
-        this.downstreamCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", "localhost", "KI", "RedHat", null, null, "US");
+        this.downstreamCertificateGenerator.generateSelfSignedCertificateEntry("test@kroxylicious.io", "localhost", "KI", "kroxylicious.io", null, null, "US");
         this.clientTrustStore = certsDirectory.resolve("kafka.truststore.jks");
         this.downstreamCertificateGenerator.generateTrustStore(this.downstreamCertificateGenerator.getCertFilePath(), "client",
                 clientTrustStore.toAbsolutePath().toString());
 
         // Generator for certificate that will identify the client
         this.clientCertGenerator = new KeytoolCertificateGenerator();
-        this.clientCertGenerator.generateSelfSignedCertificateEntry("clientTest@kroxylicious.io", "client", "Dev", "Kroxylicious.io", null, null, "US");
+        this.clientCertGenerator.generateSelfSignedCertificateEntry("clientTest@kroxylicious.io", "client", "Dev", "kroxylicious.io", null, null, "US");
         this.proxyTrustStore = certsDirectory.resolve("proxy.truststore.jks");
         this.clientCertGenerator.generateTrustStore(clientCertGenerator.getCertFilePath(), "proxy",
                 proxyTrustStore.toAbsolutePath().toString());
@@ -408,6 +419,62 @@ class TlsIT extends BaseIT {
                                 .isEqualTo("TLSv1.2");
                     });
 
+        }
+    }
+
+    @Test
+    void downstream_UnrecognizedSniHostNameClosesConnection(KafkaCluster cluster) {
+        var duffBootstrap = "bootstrap." + IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("duff") + ":" + SNI_BOOTSTRAP_ADDRESS.port();
+
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters(baseVirtualClusterBuilder(cluster, "demo")
+                        .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(SNI_BOOTSTRAP_ADDRESS, SNI_BROKER_ADDRESS_PATTERN)
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                                .endTls()
+                                .build())
+                        .build());
+
+        try (var tester = kroxyliciousTester(builder);
+                var testClient = tester.simpleTestClient(duffBootstrap, true)) {
+
+            // The request itself is unimportant, it won't actually reach the server
+            var request = new Request(ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.latestVersion(), null, new ApiVersionsRequestData());
+            var response = testClient.get(request);
+            assertThat(response)
+                    .failsWithin(Duration.ofSeconds(5))
+                    .withThrowableThat()
+                    .withMessageContaining("channel closed before response received!");
+        }
+    }
+
+    @Test
+    void downstream_UntrustedCertificateClosesConnection(KafkaCluster cluster) {
+
+        var builder = new ConfigurationBuilder()
+                .addToVirtualClusters(baseVirtualClusterBuilder(cluster, "demo")
+                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                                .endTls()
+                                .build())
+                        .build());
+
+        try (var tester = kroxyliciousTester(builder);
+                // admin won't trust the self signed cert of the broker.
+                var admin = tester.admin(Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name))) {
+
+            assertThat(admin.describeCluster().clusterId())
+                    .failsWithin(Duration.ofSeconds(10))
+                    .withThrowableThat()
+                    .withCauseInstanceOf(SslAuthenticationException.class)
+                    .withMessageContaining("SSL handshake failed");
         }
     }
 
@@ -744,7 +811,7 @@ class TlsIT extends BaseIT {
     }
 
     @Test
-    void downstreamMutualTls_SuccessfulTlsClientAuthRequiredByDefault(KafkaCluster cluster) throws Exception {
+    void downstreamMutualTls_SuccessfulTlsClientAuthRequiredByDefault(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, null));
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
@@ -760,7 +827,7 @@ class TlsIT extends BaseIT {
     }
 
     @Test
-    void downstreamMutualTls_UnsuccessfulTlsClientAuthRequiredByDefault(KafkaCluster cluster) throws Exception {
+    void downstreamMutualTls_UnsuccessfulTlsClientAuthRequiredByDefault(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, null));
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
@@ -774,7 +841,7 @@ class TlsIT extends BaseIT {
     }
 
     @Test
-    void downstreamMutualTls_SuccessfulTlsClientAuthRequired(KafkaCluster cluster) throws Exception {
+    void downstreamMutualTls_SuccessfulTlsClientAuthRequired(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.REQUIRED));
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
@@ -790,7 +857,7 @@ class TlsIT extends BaseIT {
     }
 
     @Test
-    void downstreamMutualTls_UnsuccessfulTlsClientAuthRequired(KafkaCluster cluster) throws Exception {
+    void downstreamMutualTls_UnsuccessfulTlsClientAuthRequired(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.REQUIRED));
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
@@ -804,7 +871,7 @@ class TlsIT extends BaseIT {
     }
 
     @Test
-    void downstreamMutualTls_SuccessfulTlsClientAuthRequestedAndProvided(KafkaCluster cluster) throws Exception {
+    void downstreamMutualTls_SuccessfulTlsClientAuthRequestedAndProvided(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.REQUESTED));
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
@@ -834,7 +901,7 @@ class TlsIT extends BaseIT {
     }
 
     @Test
-    void downstreamMutualTls_SuccessfulTlsClientAuthNoneAndProvided(KafkaCluster cluster) throws Exception {
+    void downstreamMutualTls_SuccessfulTlsClientAuthNoneAndProvided(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.NONE));
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
@@ -850,7 +917,7 @@ class TlsIT extends BaseIT {
     }
 
     @Test
-    void downstreamMutualTls_SuccessfulTlsClientAuthNoneAndNotProvided(KafkaCluster cluster) throws Exception {
+    void downstreamMutualTls_SuccessfulTlsClientAuthNoneAndNotProvided(KafkaCluster cluster) {
         try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, TlsClientAuth.NONE));
                 var admin = tester.admin("demo",
                         Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
@@ -904,7 +971,6 @@ class TlsIT extends BaseIT {
             File tmp = File.createTempFile("password", ".txt");
             tmp.deleteOnExit();
             makeFileOwnerReadWriteOnly(tmp);
-            boolean ignore;
             Files.writeString(tmp.toPath(), password);
             // remove write from owner
             assertThat(tmp.setWritable(false, true)).isTrue();
