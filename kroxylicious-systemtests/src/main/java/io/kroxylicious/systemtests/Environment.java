@@ -27,7 +27,7 @@ public class Environment {
     // ---------------------------------------
     // Env variables initialization
     // ---------------------------------------
-    private static final String INSTALL_TYPE_ENV = "INSTALL_TYPE";
+    private static final String INSTALL_TYPE_ENV = "CLUSTER_OPERATOR_INSTALL_TYPE";
     public static final InstallType INSTALL_TYPE = ENVIRONMENT_VARIABLES.getOrDefault(INSTALL_TYPE_ENV, InstallType::fromString, InstallType.Yaml);
 
     /**
