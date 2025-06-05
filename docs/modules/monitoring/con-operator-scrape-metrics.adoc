@@ -1,0 +1,44 @@
+// file included in the following:
+//
+// assembly-operator-monitoring.adoc
+
+[id='con-operator-scrape-metrics-{context}']
+= Scraping metrics
+
+[role="_abstract"]
+Metrics from the Proxy and Operator can be ingested into your Prometheus instance.
+
+This guide assumes you are using the https://prometheus-operator.dev/[Prometheus Operator] to
+configure Prometheus.
+
+.Example `PodMonitor` resource configuration to scrape the Proxy metrics
+[source,yaml]
+----
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: proxy
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: kroxylicious
+  podMetricsEndpoints:
+  - path: /metrics
+    port: management
+----
+
+.Example `PodMonitor` resource configuration scrape the Operator metrics
+[source,yaml]
+----
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: proxy
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: kroxylicious
+  podMetricsEndpoints:
+  - path: /metrics
+    port: http
+----
