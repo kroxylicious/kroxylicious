@@ -74,8 +74,7 @@ public record ClusterResolutionResult(VirtualKafkaCluster cluster,
         Stream<ResolutionResult<? extends HasMetadata>> proxyResults = Stream.of(proxyResolutionResult);
         Stream<ResolutionResult<? extends HasMetadata>> filterResults = filterResolutionResults.stream().map(Function.identity());
         Stream<ResolutionResult<? extends HasMetadata>> serviceResults = Stream.of(serviceResolutionResult);
-        Stream<ResolutionResult<? extends HasMetadata>> ingressResults = ingressResolutionResults.stream()
-                .flatMap(i -> Stream.concat(Stream.of(i.ingressResolutionResult()), Optional.ofNullable(i.proxyResolutionResult()).stream()));
+        Stream<ResolutionResult<? extends HasMetadata>> ingressResults = ingressResolutionResults.stream().flatMap(IngressResolutionResult::allResolutionResults);
         return Stream.of(proxyResults, filterResults, serviceResults, ingressResults).flatMap(Function.identity());
     }
 

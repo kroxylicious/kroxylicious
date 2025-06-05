@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.api.common;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.KubernetesResource;
 
 /**
@@ -27,7 +28,7 @@ import io.fabric8.kubernetes.api.model.KubernetesResource;
         @io.sundr.builder.annotations.BuildableReference(io.fabric8.kubernetes.api.model.VolumeMount.class)
 })
 public class CertificateRef
-        extends AbstractLocalRef
+        extends AbstractLocalRef<HasMetadata>
         implements io.fabric8.kubernetes.api.builder.Editable<CertificateRefBuilder>,
         KubernetesResource {
 

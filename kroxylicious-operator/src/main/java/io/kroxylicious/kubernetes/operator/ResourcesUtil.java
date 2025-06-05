@@ -375,6 +375,9 @@ public class ResourcesUtil {
         else if (hasMetadata instanceof KafkaProxyIngress ingress) {
             conditions = Optional.ofNullable(ingress.getStatus()).map(KafkaProxyIngressStatus::getConditions).orElse(List.of());
         }
+        else if (hasMetadata instanceof Secret) {
+            conditions = List.of();
+        }
         else {
             throw new IllegalArgumentException("Resource kind '" + HasMetadata.getKind(hasMetadata.getClass()) + "' does not use ResolveRefs conditions");
         }

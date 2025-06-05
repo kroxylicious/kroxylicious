@@ -14,6 +14,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
+import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 
@@ -105,13 +106,13 @@ public class DependencyResolver {
                                       Map<LocalRef<KafkaService>, KafkaService> kafkaServices,
                                       Map<LocalRef<KafkaProtocolFilter>, KafkaProtocolFilter> filters,
                                       Map<LocalRef<ConfigMap>, ConfigMap> configMaps,
-                                      Map<LocalRef<Secret>, Secret> secretes) {
+                                      Map<LocalRef<Secret>, Secret> secrets) {
         private CommonDependencies {
             Objects.requireNonNull(ingresses);
             Objects.requireNonNull(kafkaServices);
             Objects.requireNonNull(filters);
             Objects.requireNonNull(configMaps);
-            Objects.requireNonNull(secretes);
+            Objects.requireNonNull(secrets);
         }
     }
 
@@ -184,23 +185,26 @@ public class DependencyResolver {
             ResolutionResult<KafkaProxy> kafkaProxyResolutionResult = optionalKafkaProxyIngress
                     .map(i -> resolveProxy(ResourcesUtil.toLocalRef(i), proxies, i.getSpec().getProxyRef()))
                     .orElse(null);
-            return new IngressResolutionResult(resolvedIngress, kafkaProxyResolutionResult, ingress, resolveSecrets(ingressRef, ingress.getTls(), commonDependencies));
+            return new IngressResolutionResult(resolvedIngress, kafkaProxyResolutionResult, ingress,
+                    resolveCertificateRefs(clusterRef, ingress.getTls(), commonDependencies));
         }).toList();
     }
 
-    private List<ResolutionResult<Secret>> resolveSecrets(IngressRef ingressRef,
-                                                          @Nullable Tls ingressTls,
-                                                          CommonDependencies commonDependencies) {
+    private List<ResolutionResult<? extends HasMetadata>> resolveCertificateRefs(LocalRef<VirtualKafkaCluster> clusterRef,
+                                                                                 @Nullable Tls ingressTls,
+                                                                                 CommonDependencies commonDependencies) {
         if (ingressTls == null) {
             return List.of();
         }
         CertificateRef certificateRef = ingressTls.getCertificateRef();
-        return commonDependencies.secretes()
-                .values()
-                .stream()
-                .filter(s -> s.getMetadata().getName().equals(certificateRef.getName()))
-                .map(secret -> new ResolutionResult<>(ingressRef, ResourcesUtil.toLocalRef(secret), secret))
-                .toList();
-
+        if ("Secret".equals(certificateRef.getKind())) {
+            LocalRef<Secret> secretRef = certificateRef.asRefToKind(Secret.class);
+            Map<LocalRef<Secret>, Secret> secrets = commonDependencies.secrets();
+            return List.of(new ResolutionResult<>(clusterRef, secretRef, secrets.getOrDefault(secretRef, null)));
+        }
+        else {
+            throw new UnsupportedOperationException(
+                    "Only CertificateRefs pointing at secrets are supported. Ref:" + certificateRef.getName() + " is pointing at a:" + certificateRef.getKind());
+        }
     }
 }

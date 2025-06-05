@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kubernetes.api.common;
 
+import io.fabric8.kubernetes.api.model.HasMetadata;
+
 /**
  * A reference, used in a kubernetes resource, to some kubernetes resource in the same namespace.
  * This is used for references where the kind and group are not known statically.
@@ -26,7 +28,7 @@ package io.kroxylicious.kubernetes.api.common;
         @io.sundr.builder.annotations.BuildableReference(io.fabric8.kubernetes.api.model.VolumeMount.class)
 })
 public class AnyLocalRef
-        extends AbstractLocalRef
+        extends AbstractLocalRef<HasMetadata>
         implements io.fabric8.kubernetes.api.builder.Editable<AnyLocalRefBuilder> {
 
     @java.lang.Override

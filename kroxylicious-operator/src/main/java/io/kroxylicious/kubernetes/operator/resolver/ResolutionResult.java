@@ -22,13 +22,13 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param referrer the referring resource represented as a LocalRef
  * @param reference the reference we attempted to resolve
  */
-public record ResolutionResult<T extends HasMetadata>(LocalRef<?> referrer, LocalRef<T> reference, @Nullable T referentNew) {
+public record ResolutionResult<T extends HasMetadata>(LocalRef<?> referrer, LocalRef<?> reference, @Nullable T target) {
     /**
      * If the resolution fails because we cannot locate a referent for a reference, we call this a dangling reference
      * @return true iff no referent was found for this reference
      */
     boolean dangling() {
-        return referentNew == null;
+        return target == null;
     }
 
     public T referentResource() {
@@ -36,7 +36,7 @@ public record ResolutionResult<T extends HasMetadata>(LocalRef<?> referrer, Loca
     }
 
     public Optional<T> maybeReferentResource() {
-        return Optional.ofNullable(referentNew);
+        return Optional.ofNullable(target);
     }
 
     public static <T extends HasMetadata> ResolutionResult<T> resolved(HasMetadata referrer, T referent) {

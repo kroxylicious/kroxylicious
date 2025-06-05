@@ -161,7 +161,7 @@ class OperatorChangeDetectionST extends AbstractST {
 
         resourceManager.createOrUpdateResourceWithWait(issuer, cert);
 
-        var tls = kroxylicious.tlsConfigFromCert("server-certificate");
+        var tls = kroxylicious.tlsConfigFromCert(cert.build().getMetadata().getName());
 
         kroxylicious.deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters("test-vkc", tls);
 

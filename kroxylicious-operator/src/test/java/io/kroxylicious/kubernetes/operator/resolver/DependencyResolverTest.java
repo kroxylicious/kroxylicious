@@ -53,6 +53,7 @@ import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult.Dang
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.when;
 
@@ -537,15 +538,14 @@ class DependencyResolverTest {
 
     @Test
     void resolveClusterRefsWithIngressWithTlsSecret() {
-        // given
+        // Given
         long latestGeneration = 1L;
         KafkaProtocolFilter filter = protocolFilter("filterName", latestGeneration);
         givenFiltersInContext(filter);
         givenKafkaServicesInContext(kafkaService("cluster", 1L));
-        KafkaProxyIngress ingress = ingress("ingress", PROXY_NAME, 1L).edit().editSpec().withNewClusterIP().withProtocol(ClusterIP.Protocol.TLS).endClusterIP().endSpec()
-                .build();
+        KafkaProxyIngress ingress = givenTlsEnabledProxyIngres();
         givenIngressesInContext(ingress);
-        CertificateRef certificateRef = new CertificateRefBuilder().withName("downstream-tls-cert").build();
+        CertificateRef certificateRef = new CertificateRefBuilder().withGroup("").withName("downstream-tls-cert").withKind("Secret").build();
         Secret theSecret = new SecretBuilder().withNewMetadata().withName(certificateRef.getName()).endMetadata().build();
         givenSecondaryResourcesInContext(Secret.class, theSecret);
         Ingresses clusterIngress = ingress("ingress")
@@ -559,18 +559,91 @@ class DependencyResolverTest {
         givenVirtualKafkaClustersInContext(cluster);
         givenProxiesInContext(PROXY);
 
-        // when
+        // When
         ClusterResolutionResult clusterResolutionResult = resolveClusterRefs(cluster);
 
-        // then
+        // Then
         assertThat(clusterResolutionResult.allReferentsFullyResolved()).isTrue();
         assertThat(clusterResolutionResult.ingressResolutionResults()).singleElement()
                 .satisfies(ingressResolutionResult -> {
                     assertThat(ingressResolutionResult)
                             .isNotNull();
                     assertThat(ingressResolutionResult.secretResolutionResults()).singleElement()
-                            .satisfies(secretResolutionResult -> assertThat(secretResolutionResult.referentNew()).isEqualTo(theSecret));
+                            .satisfies(secretResolutionResult -> {
+                                assertThat(secretResolutionResult.dangling()).isFalse();
+                                assertThat(secretResolutionResult.target()).isEqualTo(theSecret);
+                            });
                 });
+    }
+
+    @Test
+    void shouldErrorIfTlsCertificateIsNotASecret() {
+        // Given
+        long latestGeneration = 1L;
+        KafkaProtocolFilter filter = protocolFilter("filterName", latestGeneration);
+        givenFiltersInContext(filter);
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
+        KafkaProxyIngress ingress = givenTlsEnabledProxyIngres();
+        givenIngressesInContext(ingress);
+        CertificateRef certificateRef = new CertificateRefBuilder().withGroup("").withName("downstream-tls-cert").withKind("CustomSecret").build();
+        Secret theSecret = new SecretBuilder().withNewMetadata().withName(certificateRef.getName()).endMetadata().build();
+        givenSecondaryResourcesInContext(Secret.class, theSecret);
+        Ingresses clusterIngress = ingress("ingress")
+                .edit()
+                .withNewTls()
+                .withCertificateRef(certificateRef)
+                .endTls()
+                .build();
+
+        VirtualKafkaCluster cluster = virtualCluster(List.of(filterRef("filterName")), "cluster", List.of(clusterIngress), getProxyRef(PROXY_NAME));
+        givenVirtualKafkaClustersInContext(cluster);
+        givenProxiesInContext(PROXY);
+
+        // When
+        assertThatThrownBy(() -> resolveClusterRefs(cluster))
+                //Then
+                .isInstanceOf(UnsupportedOperationException.class)
+                .hasMessageContaining("Only CertificateRefs pointing at secrets are supported.");
+    }
+
+    @Test
+    void markDanglingSecretReferences() {
+        // given
+        givenKafkaServicesInContext(kafkaService("cluster", 1L));
+        CertificateRef certificateRef = new CertificateRefBuilder().withGroup("").withName("topSecret").withKind("Secret").build();
+        KafkaProxyIngress proxyIngres = givenTlsEnabledProxyIngres();
+        givenIngressesInContext(proxyIngres);
+
+        givenProxiesInContext(PROXY);
+        Ingresses clusterIngress = ingress("ingress")
+                .edit()
+                    .withNewTls()
+                    .withCertificateRef(certificateRef)
+                .endTls()
+                .build();
+
+        VirtualKafkaCluster cluster = virtualCluster(List.of(), "cluster", List.of(clusterIngress), getProxyRef(PROXY_NAME));
+        givenVirtualKafkaClustersInContext(cluster);
+
+        // when
+        ClusterResolutionResult clusterResolutionResult = resolveClusterRefs(cluster);
+
+        // then
+        assertThat(clusterResolutionResult.allReferentsFullyResolved()).isFalse();
+        assertThat(clusterResolutionResult.allDanglingReferences()).singleElement().isEqualTo(danglingReference(cluster, certificateRef));
+    }
+
+    private static KafkaProxyIngress givenTlsEnabledProxyIngres() {
+        //@formatter:off
+        return ingress("ingress", PROXY_NAME, 1L)
+                .edit()
+                .editSpec()
+                    .withNewClusterIP()
+                        .withProtocol(ClusterIP.Protocol.TLS)
+                .endClusterIP()
+                .endSpec()
+                .build();
+        //@formatter:on
     }
 
     @Test
