@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.IntOrString;
@@ -26,6 +27,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 
+import static io.kroxylicious.kubernetes.operator.BootstrapServersAnnotation.BOOTSTRAP_SERVERS_ANNOTATION_KEY;
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.SHARED_SNI_PORT;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
@@ -72,28 +74,40 @@ public class ClusterServiceDependentResource
                 .flatMap(ProxyNetworkingModel.ClusterNetworkingModel::requiredSniLoadbalancerPorts)
                 .distinct().sorted().toList();
 
-        var sniServiceStream = sniLoadbalancerServices(primary, sharedSniLoadbalancerPorts);
+        Set<BootstrapServersAnnotation.BootstrapServer> bootstraps = clusterNetworkingModels.stream()
+                .flatMap(networking -> {
+                    return networking.clusterIngressNetworkingModelResults().stream()
+                            .map(ProxyNetworkingModel.ClusterIngressNetworkingModelResult::clusterIngressNetworkingModel)
+                            .filter(clusterIngressModel -> clusterIngressModel.requiredSniLoadBalancerServicePorts()
+                                    .findAny().isPresent())
+                            .map(clusterIngressModel -> new BootstrapServersAnnotation.BootstrapServer(ResourcesUtil.name(clusterIngressModel.cluster()),
+                                    ResourcesUtil.name(clusterIngressModel.ingress()), clusterIngressModel.bootstrapServers()));
+                })
+                .collect(Collectors.toSet());
+
+        var sniServiceStream = sniLoadbalancerServices(primary, sharedSniLoadbalancerPorts, bootstraps);
 
         return Stream.concat(serviceStream, sniServiceStream).collect(toByNameMap());
     }
 
-    private ObjectMeta serviceMetadata(KafkaProxy primary, String name) {
+    private ObjectMeta serviceMetadata(KafkaProxy primary, String name, Set<BootstrapServersAnnotation.BootstrapServer> bootstraps) {
         return new ObjectMetaBuilder()
                 .withName(name)
                 .withNamespace(namespace(primary))
                 .addToLabels(standardLabels(primary))
+                .addToAnnotations(BOOTSTRAP_SERVERS_ANNOTATION_KEY, BootstrapServersAnnotation.toAnnotation(bootstraps))
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
                 .build();
     }
 
-    private Stream<Service> sniLoadbalancerServices(KafkaProxy primary, List<Integer> loadBalancerPorts) {
+    private Stream<Service> sniLoadbalancerServices(KafkaProxy primary, List<Integer> loadBalancerPorts, Set<BootstrapServersAnnotation.BootstrapServer> bootstraps) {
         if (loadBalancerPorts.isEmpty()) {
             return Stream.empty();
         }
         else {
             String serviceName = ResourcesUtil.name(primary) + "-sni";
             var serviceSpecBuilder = new ServiceBuilder()
-                    .withMetadata(serviceMetadata(primary, serviceName))
+                    .withMetadata(serviceMetadata(primary, serviceName, bootstraps))
                     .withNewSpec()
                     .withType("LoadBalancer")
                     .withSelector(ProxyDeploymentDependentResource.podLabels(primary));
