@@ -23,7 +23,6 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
-import io.fabric8.kubernetes.api.model.ServicePort;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -39,7 +38,6 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
-import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
@@ -257,50 +255,25 @@ public final class VirtualKafkaClusterReconciler implements
 
     private List<io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses> buildIngressStatus(VirtualKafkaCluster cluster,
                                                                                                                  Context<VirtualKafkaCluster> context) {
-        var existingKubernetesServices = context.getSecondaryResources(Service.class)
+        var bootstraps = context.getSecondaryResources(Service.class).stream()
+                .flatMap(service -> BootstrapServersAnnotation.bootstrapServersFrom(service.getMetadata()).stream()).toList();
+        return cluster.getSpec().getIngresses()
                 .stream()
-                .collect(Collectors.toMap(ref -> {
-                    var kubeServiceIngressOwner = Optional.ofNullable(ref)
-                            .flatMap(service -> extractOwnerRefFromKubernetesService(service, KAFKA_PROXY_INGRESS_KIND))
-                            .orElseThrow();
-                    return new IngressRefBuilder().withName(kubeServiceIngressOwner.getName()).build();
-                }, Function.identity()));
-
-        var ingressServiceMap = cluster.getSpec().getIngresses()
-                .stream()
-                .collect(Collectors.toMap(Function.identity(),
-                        ingress -> Optional.ofNullable(existingKubernetesServices.get(ingress.getIngressRef()))));
-
-        return ingressServiceMap.entrySet()
-                .stream()
-                .filter(entry -> entry.getValue().isPresent())
-                .map(entry -> {
-                    var ingress = entry.getKey();
-                    var kubernetesService = entry.getValue().get();
-                    var serverCert = Optional.ofNullable(ingress.getTls()).map(Tls::getCertificateRef);
-                    var builder = new IngressesBuilder()
-                            .withName(ingress.getIngressRef().getName())
-                            .withBootstrapServer(getBootstrapServer(kubernetesService))
-                            .withProtocol(serverCert.isEmpty() ? Protocol.TCP : Protocol.TLS);
-                    return builder.build();
-                }).toList();
-    }
-
-    private String getBootstrapServer(Service kubenetesService) {
-        var metadata = kubenetesService.getMetadata();
-        var bootstrapPort = kubenetesService.getSpec().getPorts().stream()
-                .map(ServicePort::getPort)
-                .findFirst()
-                .orElseThrow();
-        return metadata.getName() + "." + metadata.getNamespace() + ".svc.cluster.local:" + bootstrapPort;
-    }
-
-    private Optional<OwnerReference> extractOwnerRefFromKubernetesService(Service service, String ownerKind) {
-        return service.getMetadata()
-                .getOwnerReferences()
-                .stream()
-                .filter(or -> ownerKind.equals(or.getKind()))
-                .findFirst();
+                .flatMap(
+                        ingress -> {
+                            Optional<BootstrapServersAnnotation.BootstrapServer> bootstrap = bootstraps.stream().filter(
+                                    b -> b.ingressName().equals(ingress.getIngressRef().getName()) && b.clusterName().equals(name(cluster))).findFirst();
+                            if (bootstrap.isEmpty()) {
+                                return Stream.empty();
+                            }
+                            var serverCert = Optional.ofNullable(ingress.getTls()).map(Tls::getCertificateRef);
+                            var builder = new IngressesBuilder()
+                                    .withName(ingress.getIngressRef().getName())
+                                    .withBootstrapServer(bootstrap.get().bootstrapServers())
+                                    .withProtocol(serverCert.isEmpty() ? Protocol.TCP : Protocol.TLS);
+                            return Stream.of(builder.build());
+                        })
+                .toList();
     }
 
     private VirtualKafkaCluster handleResolutionProblems(VirtualKafkaCluster cluster,
@@ -431,16 +404,8 @@ public final class VirtualKafkaClusterReconciler implements
                 Service.class,
                 VirtualKafkaCluster.class)
                 .withName(KUBERNETES_SERVICES_EVENT_SOURCE_NAME)
-                .withPrimaryToSecondaryMapper((VirtualKafkaCluster cluster) -> cluster.getSpec().getIngresses()
-                        .stream()
-                        .map(Ingresses::getIngressRef)
-                        .flatMap(ir -> ResourcesUtil
-                                .localRefAsResourceId(cluster, new AnyLocalRefBuilder().withName(bootstrapServiceName(cluster, ir.getName())).build()).stream())
-                        .collect(Collectors.toSet()))
-                .withSecondaryToPrimaryMapper(kubenetesService -> Optional.of(kubenetesService)
-                        .flatMap(service -> extractOwnerRefFromKubernetesService(service, VIRTUAL_KAFKA_CLUSTER_KIND))
-                        .map(ownerRef -> new ResourceID(ownerRef.getName(), kubenetesService.getMetadata().getNamespace()))
-                        .map(Set::of).orElse(Set.of()))
+                .withPrimaryToSecondaryMapper(kubernetesServicesPrimaryToSecondaryMapper())
+                .withSecondaryToPrimaryMapper(kubernetesServicesSecondaryToPrimaryMapper(context))
                 .build();
 
         InformerEventSourceConfiguration<Secret> clusterToSecret = InformerEventSourceConfiguration.from(
@@ -468,6 +433,68 @@ public final class VirtualKafkaClusterReconciler implements
                 new InformerEventSource<>(clusterToKubeService, context),
                 new InformerEventSource<>(clusterToSecret, context),
                 new InformerEventSource<>(clusterToConfigMap, context));
+    }
+
+    /**
+     * We use data from manifested kubernetes Services to populate the ingress statuses, so we want to trigger
+     * reconciliation when those Services change.
+     * <ol>
+     *     <li>If the Service has a VKC OwnerReference, we want to reconcile that VKC</li>
+     *     <li>If the Service has no VKC OwnerReference but has a KafkaProxy OwnerReference, we want to reconcile
+     *     all the VKCs referencing that KafkaProxy</li>
+     * </ol>
+     */
+    @NonNull
+    @VisibleForTesting
+    static SecondaryToPrimaryMapper<Service> kubernetesServicesSecondaryToPrimaryMapper(EventSourceContext<VirtualKafkaCluster> context) {
+        return kubernetesService -> {
+            Optional<OwnerReference> clusterOwner = extractOwnerRefFromKubernetesService(kubernetesService, VIRTUAL_KAFKA_CLUSTER_KIND);
+            if (clusterOwner.isPresent()) {
+                return clusterOwner
+                        .map(ownerRef -> new ResourceID(ownerRef.getName(), kubernetesService.getMetadata().getNamespace()))
+                        .map(Set::of).orElse(Set.of());
+            }
+            Optional<OwnerReference> proxyOwner = extractOwnerRefFromKubernetesService(kubernetesService, KAFKA_PROXY_KIND);
+            if (proxyOwner.isPresent()) {
+                return ResourcesUtil.findReferrers(context, proxyOwner.get(), kubernetesService, VirtualKafkaCluster.class,
+                        cluster -> Optional.of(cluster.getSpec().getProxyRef()));
+            }
+            else {
+                return Set.of();
+            }
+        };
+    }
+
+    private static Optional<OwnerReference> extractOwnerRefFromKubernetesService(Service service, String ownerKind) {
+        return service.getMetadata()
+                .getOwnerReferences()
+                .stream()
+                .filter(or -> ownerKind.equals(or.getKind()))
+                .findFirst();
+    }
+
+    /**
+     * The VirtualKafkaClusterReconciler wants to extract some data from the Services manifested by various KafkaProxyIngress
+     * implementations and present them on the VirtualKafkaCluster status. For example a bootstrap servers for each ingress in
+     * `spec.ingresses`, if the Service is ready to be accessed. We want to load:
+     * <ol>
+     *     <li>ClusterIP Bootstrap Services, if they exist</li>
+     *     <li>A shared LoadBalancer Service for the KafkaProxy this VirtualKafkaCluster references</li>
+     * </ol>
+     */
+    @NonNull
+    @VisibleForTesting
+    static PrimaryToSecondaryMapper<VirtualKafkaCluster> kubernetesServicesPrimaryToSecondaryMapper() {
+        return (VirtualKafkaCluster cluster) -> {
+            Stream<ResourceID> clusterIpServices = cluster.getSpec().getIngresses()
+                    .stream()
+                    .map(Ingresses::getIngressRef)
+                    .flatMap(ir -> ResourcesUtil
+                            .localRefAsResourceId(cluster, new AnyLocalRefBuilder().withName(bootstrapServiceName(cluster, ir.getName())).build()).stream());
+            Stream<ResourceID> loadbalancerService = ResourcesUtil.localRefAsResourceId(cluster,
+                    new AnyLocalRefBuilder().withName(cluster.getSpec().getProxyRef().getName() + "-sni").build()).stream();
+            return Stream.concat(clusterIpServices, loadbalancerService).collect(Collectors.toSet());
+        };
     }
 
     @VisibleForTesting

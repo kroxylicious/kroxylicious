@@ -9,9 +9,9 @@ apiVersion: "v1"
 kind: "Service"
 metadata:
   annotations:
-    kroxylicious.io/bootstrap-servers: "[{\"clusterName\":\"bar\",\"ingressName\"\
-      :\"cluster-ip-bar\",\"bootstrapServers\":\"bar-cluster-ip-bar.proxy-ns.svc.cluster.local:9292\"\
-      }]"
+    kroxylicious.io/bootstrap-servers: "{\"version\":\"0.13.0\",\"bootstrapServers\":[{\"clusterName\":\"bar\",\"ingressName\"\
+      :\"cluster-ip-bar\",\"bootstrapServers\":\"bar-cluster-ip-bar-bootstrap.proxy-ns.svc.cluster.local:9292\"\
+      }]}"
   labels:
     app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"

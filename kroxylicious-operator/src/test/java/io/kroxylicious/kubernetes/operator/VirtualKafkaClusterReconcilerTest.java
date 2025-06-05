@@ -10,6 +10,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -27,6 +28,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
+import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
@@ -181,7 +183,7 @@ class VirtualKafkaClusterReconcilerTest {
             .endSpec()
             .build();
 
-    public static final KafkaProxyIngress INGRESS = new KafkaProxyIngressBuilder()
+    public static final KafkaProxyIngress CLUSTERIP_INGRESS = new KafkaProxyIngressBuilder()
             .withNewMetadata()
                 .withName("my-ingress")
                 .withUid(UUID.randomUUID().toString())
@@ -192,7 +194,23 @@ class VirtualKafkaClusterReconcilerTest {
              .withNewClusterIP().withProtocol(ClusterIP.Protocol.TCP).endClusterIP()
             .endSpec()
             .build();
-    public static final KafkaProxyIngress INGRESS_WITH_TLS = new KafkaProxyIngressBuilder(INGRESS)
+
+    public static final KafkaProxyIngress LOADBALANCER_INGRESS = new KafkaProxyIngressBuilder()
+            .withNewMetadata()
+                .withName("my-ingress")
+                .withUid(UUID.randomUUID().toString())
+             .withGeneration(301L)
+            .endMetadata()
+            .withNewSpec()
+             .withNewProxyRef().withName(PROXY_NAME).endProxyRef()
+             .withNewLoadBalancer()
+            .withBootstrapAddress("bootstrap.kafka")
+            .withAdvertisedBrokerAddressPattern("broker-$(nodeId).kafka")
+            .endLoadBalancer()
+            .endSpec()
+            .build();
+
+    public static final KafkaProxyIngress INGRESS_WITH_TLS = new KafkaProxyIngressBuilder(CLUSTERIP_INGRESS)
             .editOrNewSpec()
                 .withNewClusterIP()
                     .withProtocol(ClusterIP.Protocol.TLS)
@@ -209,17 +227,44 @@ class VirtualKafkaClusterReconcilerTest {
             .withNewSpec()
             .endSpec()
             .build();
-    public static final Service KUBERNETES_INGRESS_SERVICES = new ServiceBuilder().
-            withNewMetadata()
-                .withName(name(CLUSTER_NO_FILTERS) + "-" + name(INGRESS))
+
+
+    public static final String CLUSTERIP_BOOTSTRAP = "clusterip-bootstrap:1234";
+
+    public static final Service KUBERNETES_INGRESS_SERVICES;
+    static {
+        var serviceBuilderMetadataNested = new ServiceBuilder().withNewMetadata();
+        BootstrapServersAnnotation.BootstrapServer bootstrap = new BootstrapServersAnnotation.BootstrapServer(name(CLUSTER_NO_FILTERS), name(LOADBALANCER_INGRESS), CLUSTERIP_BOOTSTRAP);
+        BootstrapServersAnnotation.annotate(serviceBuilderMetadataNested, Set.of(bootstrap));
+        KUBERNETES_INGRESS_SERVICES=serviceBuilderMetadataNested
+                    .withName(name(CLUSTER_NO_FILTERS) + "-" + name(CLUSTERIP_INGRESS))
+                    .withNamespace(NAMESPACE)
+                    .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(CLUSTER_NO_FILTERS)).endOwnerReference()
+                    .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(CLUSTERIP_INGRESS)).endOwnerReference()
+                .endMetadata()
+                .withNewSpec()
+                    .addToPorts(new ServicePortBuilder().withName("port").withPort(9082).build())
+                .endSpec()
+                .build();
+    }
+
+    public static final String LOADBALANCER_BOOTSTRAP = "loadbalancer.bootstrap:123";
+
+    public static final Service KUBERNETES_SHARED_SNI_SERVICE;
+    static {
+        var metadataBuilder = new ServiceBuilder().withNewMetadata();
+        BootstrapServersAnnotation.BootstrapServer bootstrap = new BootstrapServersAnnotation.BootstrapServer(name(CLUSTER_NO_FILTERS), name(LOADBALANCER_INGRESS), LOADBALANCER_BOOTSTRAP);
+        BootstrapServersAnnotation.annotate(metadataBuilder, Set.of(bootstrap));
+        KUBERNETES_SHARED_SNI_SERVICE=metadataBuilder
+                .withName(PROXY_NAME + "-sni")
                 .withNamespace(NAMESPACE)
-                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(CLUSTER_NO_FILTERS)).endOwnerReference()
-                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(INGRESS)).endOwnerReference()
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(PROXY)).endOwnerReference()
             .endMetadata()
             .withNewSpec()
                 .addToPorts(new ServicePortBuilder().withName("port").withPort(9082).build())
             .endSpec()
             .build();
+    }
 
     private static final Secret KUBE_TLS_CERT_SECRET = new SecretBuilder()
             .withNewMetadata()
@@ -232,6 +277,7 @@ class VirtualKafkaClusterReconcilerTest {
             .addToData("tls.crt", "value")
             .addToData("tls.key", "value")
             .build();
+
     private static final Secret NON_KUBE_TLS_CERT_SECRET = new SecretBuilder()
             .withNewMetadata()
                 .withName(SERVER_CERT_SECRET_NAME)
@@ -270,7 +316,7 @@ class VirtualKafkaClusterReconcilerTest {
         List<Arguments> result = new ArrayList<>();
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, null, Set.of());
 
             result.add(Arguments.argumentSet("no filter",
                     CLUSTER_NO_FILTERS,
@@ -284,7 +330,7 @@ class VirtualKafkaClusterReconcilerTest {
             ConfigMap proxyConfigMap = buildProxyConfigMapWithPatch(CLUSTER_ONE_FILTER);
             Set<KafkaProtocolFilter> filters = Set.of(FILTER_MY_FILTER);
 
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS, SERVICE, proxyConfigMap, filters);
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, proxyConfigMap, filters);
 
             result.add(Arguments.argumentSet("one filter",
                     CLUSTER_ONE_FILTER,
@@ -300,7 +346,7 @@ class VirtualKafkaClusterReconcilerTest {
                     new VirtualKafkaClusterBuilder(CLUSTER_ONE_FILTER).editMetadata().withGeneration(40L).endMetadata().build());
             Set<KafkaProtocolFilter> filters = Set.of(FILTER_MY_FILTER);
 
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS, SERVICE, proxyConfigMap, filters);
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, proxyConfigMap, filters);
 
             result.add(Arguments.argumentSet("one filter with stale configmap",
                     new VirtualKafkaClusterBuilder(CLUSTER_ONE_FILTER).editOrNewStatus().withObservedGeneration(ResourcesUtil.generation(CLUSTER_NO_FILTERS))
@@ -312,7 +358,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(null, INGRESS, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(null, CLUSTERIP_INGRESS, SERVICE, null, Set.of());
 
             result.add(Arguments.argumentSet("proxy not found",
                     CLUSTER_NO_FILTERS,
@@ -325,7 +371,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS, null, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, null, null, Set.of());
             result.add(Arguments.argumentSet("service not found",
                     CLUSTER_NO_FILTERS,
                     reconcilerContext,
@@ -338,7 +384,7 @@ class VirtualKafkaClusterReconcilerTest {
 
         {
 
-            KafkaProxyIngress ingress = INGRESS.edit().editSpec().withNewProxyRef().withName("not-my-proxy").endProxyRef().endSpec().build();
+            KafkaProxyIngress ingress = CLUSTERIP_INGRESS.edit().editSpec().withNewProxyRef().withName("not-my-proxy").endProxyRef().endSpec().build();
             Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, ingress, SERVICE, null, Set.of());
 
             result.add(Arguments.argumentSet("ingress refers to a different proxy than virtual cluster",
@@ -360,7 +406,7 @@ class VirtualKafkaClusterReconcilerTest {
                     .withReason("NO_FILTERS")
                     .withMessage("no filters found")
                     .endCondition().endStatus().build();
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS, service, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, service, null, Set.of());
 
             result.add(Arguments.argumentSet("service has ResolvedRefs=False condition",
                     CLUSTER_NO_FILTERS,
@@ -386,10 +432,10 @@ class VirtualKafkaClusterReconcilerTest {
 
         {
 
-            KafkaProxyIngress ingress = new KafkaProxyIngressBuilder(INGRESS).withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
+            KafkaProxyIngress ingress = new KafkaProxyIngressBuilder(CLUSTERIP_INGRESS).withNewStatus().addNewCondition().withType(Condition.Type.ResolvedRefs)
                     .withStatus(Condition.Status.FALSE)
                     .withLastTransitionTime(Instant.now())
-                    .withObservedGeneration(INGRESS.getMetadata().getGeneration())
+                    .withObservedGeneration(CLUSTERIP_INGRESS.getMetadata().getGeneration())
                     .withReason("NO_FILTERS")
                     .withMessage("no filters found")
                     .endCondition().endStatus().build();
@@ -407,7 +453,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, null, Set.of());
 
             result.add(Arguments.argumentSet("filter not found",
                     CLUSTER_ONE_FILTER,
@@ -429,7 +475,7 @@ class VirtualKafkaClusterReconcilerTest {
                     .withReason("RESOLVE_FAILURE")
                     .withMessage("failed to resolve")
                     .endCondition().endStatus().build());
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS, SERVICE, null, filters);
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, null, filters);
 
             result.add(Arguments.argumentSet("filter has ResolvedRefs=False condition",
                     CLUSTER_ONE_FILTER,
@@ -529,7 +575,7 @@ class VirtualKafkaClusterReconcilerTest {
         }
 
         {
-            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS, SERVICE, null, Set.of());
+            Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, null, Set.of());
 
             result.add(Arguments.argumentSet("cluster defines tls, ingress does not",
                     CLUSTER_TLS_NO_FILTERS,
@@ -629,10 +675,38 @@ class VirtualKafkaClusterReconcilerTest {
     }
 
     @Test
+    void shouldSetIngressStatusForLoadBalancerIngress() {
+        // given
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
+        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, LOADBALANCER_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP, Set.of());
+        mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
+        when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_SHARED_SNI_SERVICE));
+
+        // when
+        var update = reconciler.reconcile(CLUSTER_TLS_NO_FILTERS, reconcilerContext);
+
+        // then
+        assertThat(update).isNotNull();
+        assertThat(update.isPatchStatus()).isTrue();
+        assertThat(update.getResource())
+                .isPresent()
+                .get()
+                .satisfies(r -> assertThat(r.getStatus())
+                        .extracting(VirtualKafkaClusterStatus::getIngresses, InstanceOfAssertFactories.list(Ingresses.class))
+                        .singleElement()
+                        .satisfies(ingress -> {
+                            assertThat(ingress.getName()).isEqualTo(CLUSTERIP_INGRESS.getMetadata().getName());
+                            assertThat(ingress.getBootstrapServer()).isEqualTo(LOADBALANCER_BOOTSTRAP);
+                            assertThat(ingress.getProtocol()).isEqualTo(Protocol.TLS);
+                        }));
+
+    }
+
+    @Test
     void shouldSetIngressStatusForClusterIPIngress() {
         // given
         var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
-        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP, Set.of());
+        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP, Set.of());
 
         when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
 
@@ -649,8 +723,8 @@ class VirtualKafkaClusterReconcilerTest {
                         .extracting(VirtualKafkaClusterStatus::getIngresses, InstanceOfAssertFactories.list(Ingresses.class))
                         .singleElement()
                         .satisfies(ingress -> {
-                            assertThat(ingress.getName()).isEqualTo(INGRESS.getMetadata().getName());
-                            assertThat(ingress.getBootstrapServer()).isEqualTo("foo-my-ingress.my-namespace.svc.cluster.local:9082");
+                            assertThat(ingress.getName()).isEqualTo(CLUSTERIP_INGRESS.getMetadata().getName());
+                            assertThat(ingress.getBootstrapServer()).isEqualTo(CLUSTERIP_BOOTSTRAP);
                             assertThat(ingress.getProtocol()).isEqualTo(Protocol.TCP);
                         }));
 
@@ -661,7 +735,7 @@ class VirtualKafkaClusterReconcilerTest {
         // given
         var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
 
-        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP, Set.of());
+        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, CLUSTERIP_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP, Set.of());
         when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of());
 
         // when
@@ -821,6 +895,160 @@ class VirtualKafkaClusterReconcilerTest {
 
         // then
         assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(cluster));
+    }
+
+    @Test
+    void kubernetesServicesPrimaryToSecondaryMapper() {
+        // given
+        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata()
+                .withName("cluster").withNamespace("namespace").endMetadata().withNewSpec()
+                .withIngresses(new IngressesBuilder()
+                        .withNewIngressRef().withName("ingress").endIngressRef().build())
+                .withNewProxyRef().withName("proxy").endProxyRef()
+                .endSpec().build();
+
+        // when
+        Set<ResourceID> secondaryResourceIDs = VirtualKafkaClusterReconciler.kubernetesServicesPrimaryToSecondaryMapper().toSecondaryResourceIDs(cluster);
+
+        // then
+        ResourceID clusterIpBootstrapServiceId = new ResourceID("cluster-ingress-bootstrap", "namespace");
+        ResourceID proxyLoadbalancerServiceId = new ResourceID("proxy-sni", "namespace");
+        assertThat(secondaryResourceIDs).containsExactlyInAnyOrder(clusterIpBootstrapServiceId, proxyLoadbalancerServiceId);
+    }
+
+    @Test
+    void kubernetesServicesPrimaryToSecondaryMapperMultipleIngresses() {
+        // given
+        String clusterName = "cluster";
+        String ingressName = "ingress";
+        String ingressName2 = "ingress2";
+        String proxyName = "proxy";
+        String namespace = "namespace";
+        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata()
+                .withName(clusterName).withNamespace(namespace).endMetadata().withNewSpec()
+                .withIngresses(new IngressesBuilder()
+                        .withNewIngressRef().withName(ingressName).endIngressRef().build(),
+                        new IngressesBuilder()
+                                .withNewIngressRef().withName(ingressName2).endIngressRef().build())
+                .withNewProxyRef().withName(proxyName).endProxyRef()
+                .endSpec().build();
+
+        // when
+        Set<ResourceID> secondaryResourceIDs = VirtualKafkaClusterReconciler.kubernetesServicesPrimaryToSecondaryMapper().toSecondaryResourceIDs(cluster);
+
+        // then
+        ResourceID clusterIpBootstrapServiceId = new ResourceID(clusterName + "-" + ingressName + "-bootstrap", namespace);
+        ResourceID clusterIpBootstrapServiceId2 = new ResourceID(clusterName + "-" + ingressName2 + "-bootstrap", namespace);
+        ResourceID proxyLoadbalancerServiceId = new ResourceID(proxyName + "-sni", namespace);
+        assertThat(secondaryResourceIDs).containsExactlyInAnyOrder(clusterIpBootstrapServiceId, clusterIpBootstrapServiceId2, proxyLoadbalancerServiceId);
+    }
+
+    @Test
+    void kubernetesServicesSecondaryToPrimaryMapperServiceOwnedByCluster() {
+        // given
+        KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("proxy").endMetadata().build();
+        // even though the Service is owned by a KafkaProxy that is referenced by this Cluster, it is irrelevant as
+        // this cluster does not own the Service. This is here to check that this cluster is not included in the primary resource ids.
+        VirtualKafkaCluster irrelevantCluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster2").endMetadata().withNewSpec()
+                .withIngresses(new IngressesBuilder()
+                        .withNewIngressRef().withName("ingress").endIngressRef().build())
+                .withNewProxyRef().withName("proxy").endProxyRef()
+                .endSpec().build();
+
+        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec()
+                .withIngresses(new IngressesBuilder()
+                        .withNewIngressRef().withName("ingress").endIngressRef().build())
+                .withNewProxyRef().withName("proxy").endProxyRef()
+                .endSpec().build();
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(cluster, irrelevantCluster);
+        SecondaryToPrimaryMapper<Service> mapper = VirtualKafkaClusterReconciler.kubernetesServicesSecondaryToPrimaryMapper(eventSourceContext);
+        OwnerReference clusterOwner = ResourcesUtil.newOwnerReferenceTo(cluster);
+        OwnerReference proxyOwner = ResourcesUtil.newOwnerReferenceTo(proxy);
+        Service service = new ServiceBuilder().withNewMetadata().withOwnerReferences(clusterOwner, proxyOwner).endMetadata().build();
+
+        // when
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(service);
+
+        // then
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(cluster));
+    }
+
+    @Test
+    void kubernetesServicesSecondaryToPrimaryMapperServiceOwnedByProxy() {
+        // given
+        KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("proxy").endMetadata().build();
+        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec()
+                .withIngresses(new IngressesBuilder()
+                        .withNewIngressRef().withName("ingress").endIngressRef().build())
+                .withNewProxyRef().withName("proxy").endProxyRef()
+                .endSpec().build();
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(cluster);
+        SecondaryToPrimaryMapper<Service> mapper = VirtualKafkaClusterReconciler.kubernetesServicesSecondaryToPrimaryMapper(eventSourceContext);
+        OwnerReference clusterOwner = ResourcesUtil.newOwnerReferenceTo(proxy);
+        Service service = new ServiceBuilder().withNewMetadata().withOwnerReferences(clusterOwner).endMetadata().build();
+
+        // when
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(service);
+
+        // then
+        assertThat(primaryResourceIDs).containsExactly(ResourceID.fromResource(cluster));
+    }
+
+    @Test
+    void kubernetesServicesSecondaryToPrimaryMapperServiceOwnedByProxy_NoClustersRefProxy() {
+        // given
+        KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("proxy").endMetadata().build();
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining();
+        SecondaryToPrimaryMapper<Service> mapper = VirtualKafkaClusterReconciler.kubernetesServicesSecondaryToPrimaryMapper(eventSourceContext);
+        OwnerReference clusterOwner = ResourcesUtil.newOwnerReferenceTo(proxy);
+        Service service = new ServiceBuilder().withNewMetadata().withOwnerReferences(clusterOwner).endMetadata().build();
+
+        // when
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(service);
+
+        // then
+        assertThat(primaryResourceIDs).isEmpty();
+    }
+
+    @Test
+    void kubernetesServicesSecondaryToPrimaryMapperServiceNotOwnedByProxyOrCluster() {
+        // given
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mock();
+
+        SecondaryToPrimaryMapper<Service> mapper = VirtualKafkaClusterReconciler.kubernetesServicesSecondaryToPrimaryMapper(eventSourceContext);
+        Service service = new ServiceBuilder().withNewMetadata().withName("service").endMetadata().build();
+
+        // when
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(service);
+
+        // then
+        assertThat(primaryResourceIDs).isEmpty();
+    }
+
+    @Test
+    void kubernetesServicesSecondaryToPrimaryMapperServiceOwnedByProxy_ManyClustersRefProxy() {
+        // given
+        KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName("proxy").endMetadata().build();
+        VirtualKafkaCluster cluster = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster").endMetadata().withNewSpec()
+                .withIngresses(new IngressesBuilder()
+                        .withNewIngressRef().withName("ingress").endIngressRef().build())
+                .withNewProxyRef().withName("proxy").endProxyRef()
+                .endSpec().build();
+        VirtualKafkaCluster cluster2 = new VirtualKafkaClusterBuilder().withNewMetadata().withName("cluster2").endMetadata().withNewSpec()
+                .withIngresses(new IngressesBuilder()
+                        .withNewIngressRef().withName("ingress").endIngressRef().build())
+                .withNewProxyRef().withName("proxy").endProxyRef()
+                .endSpec().build();
+        EventSourceContext<VirtualKafkaCluster> eventSourceContext = mockContextContaining(cluster, cluster2);
+        SecondaryToPrimaryMapper<Service> mapper = VirtualKafkaClusterReconciler.kubernetesServicesSecondaryToPrimaryMapper(eventSourceContext);
+        OwnerReference clusterOwner = ResourcesUtil.newOwnerReferenceTo(proxy);
+        Service service = new ServiceBuilder().withNewMetadata().withOwnerReferences(clusterOwner).endMetadata().build();
+
+        // when
+        Set<ResourceID> primaryResourceIDs = mapper.toPrimaryResourceIDs(service);
+
+        // then
+        assertThat(primaryResourceIDs).containsExactlyInAnyOrder(ResourceID.fromResource(cluster), ResourceID.fromResource(cluster2));
     }
 
     @Test
@@ -1027,12 +1255,12 @@ class VirtualKafkaClusterReconcilerTest {
                                 value -> assertThat(value).isBase64()));
     }
 
-    private static EventSourceContext<VirtualKafkaCluster> mockContextContaining(VirtualKafkaCluster cluster) {
+    private static EventSourceContext<VirtualKafkaCluster> mockContextContaining(VirtualKafkaCluster... clusters) {
         EventSourceContext<VirtualKafkaCluster> eventSourceContext = mock();
         KubernetesClient client = mock();
         when(eventSourceContext.getClient()).thenReturn(client);
         KubernetesResourceList<VirtualKafkaCluster> mockList = mockListVirtualClustersOperation(client);
-        when(mockList.getItems()).thenReturn(List.of(cluster));
+        when(mockList.getItems()).thenReturn(Arrays.asList(clusters));
         return eventSourceContext;
     }
 

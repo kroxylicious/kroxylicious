@@ -115,7 +115,7 @@ class TcpClusterIPClusterIngressNetworkingModelTest {
         // when
         String bootstrapServers = model.bootstrapServers();
         // then
-        assertThat(bootstrapServers).isEqualTo(new HostPort("my-cluster-my-ingress.my-namespace.svc.cluster.local", firstIdentifyingPort).toString());
+        assertThat(bootstrapServers).isEqualTo(new HostPort("my-cluster-my-ingress-bootstrap.my-namespace.svc.cluster.local", firstIdentifyingPort).toString());
     }
 
     @Test

@@ -74,7 +74,6 @@ class LoadBalancerClusterIngressNetworkingModelTest {
             .endSpec()
             .build();
     // @formatter:on
-    private static final String PROXY_UID = "my-proxy-uid";
 
     @Test
     void createInstancesWithExpectedSniPort() {

@@ -107,7 +107,7 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
         TlsClusterIPClusterIngressNetworkingModel model = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
                 nodeIdRange, TLS, 1);
         // then
-        assertThat(model.bootstrapServers()).isEqualTo("my-cluster-my-ingress.my-namespace.svc.cluster.local:9292");
+        assertThat(model.bootstrapServers()).isEqualTo("my-cluster-my-ingress-bootstrap.my-namespace.svc.cluster.local:9292");
     }
 
     @Test

@@ -62,6 +62,8 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     public Stream<ServiceBuilder> services() {
         String serviceName = bootstrapServiceName();
         ObjectMetaBuilder metadataBuilder = baseServiceMetadataBuilder(serviceName);
+        BootstrapServersAnnotation.annotate(metadataBuilder,
+                Set.of(new BootstrapServersAnnotation.BootstrapServer(ResourcesUtil.name(cluster), ResourcesUtil.name(ingress), bootstrapServers())));
         var bootstrapService = createService(metadataBuilder);
         var nodeServices = getNodeServices();
         return Stream.concat(Stream.of(bootstrapService), nodeServices);
@@ -103,11 +105,6 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(proxy)).endOwnerReference()
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(cluster)).endOwnerReference()
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(ingress)).endOwnerReference();
-    }
-
-    private String bootstrapServersAnnotation() {
-        return BootstrapServersAnnotation.toAnnotation(
-                Set.of(new BootstrapServersAnnotation.BootstrapServer(ResourcesUtil.name(cluster), ResourcesUtil.name(ingress), bootstrapServers())));
     }
 
     @Override
