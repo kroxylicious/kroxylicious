@@ -8,9 +8,9 @@
 [role="_abstract"]
 
 Monitoring data allows you to monitor the performance and health of proxy operations.
-Both the Proxy and the Operator write a log and both emit metrics in Prometheus format.
+Both the Proxy and the Operator emit metrics in Prometheus format and both write a log.
 
 include::assembly-prometheus-metrics-proxy.adoc[leveloffset=+1]
 include::assembly-prometheus-metrics-operator.adoc[leveloffset=+1]
-include::../modules/monitoring/con-operator-scraping-metrics.adoc[leveloffset=+1]
-//include::../modules/monitoring/con-operator-setting-logs.adoc[leveloffset=+1]
+include::../modules/monitoring/con-operator-scrape-metrics.adoc[leveloffset=+1]
+include::../modules/monitoring/con-operator-setting-logs.adoc[leveloffset=+1]

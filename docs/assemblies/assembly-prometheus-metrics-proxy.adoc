@@ -11,7 +11,7 @@ The proxy provides *connections metrics* and *message metrics*.
 
 Connection metrics allow the connections made from the clients to the proxy (the downstream) and the connection made by the proxy to the kafka cluster (the upstream) to be understood.
 
-Message metrics allow the {kafka-protocol}#protocol_messages[Kafka protocol messages] that flow through the proxy to be understood.
+Message metrics allow the number of {kafka-protocol}#protocol_messages[Kafka protocol messages] that flow through the proxy to be understood.
 
 == Connection Metrics
 

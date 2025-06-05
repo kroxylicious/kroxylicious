@@ -27,7 +27,7 @@ spec:
     port: management
 ----
 
-.Example `PodMonitor` resource configuration scrape the Operator metrics
+.Example `PodMonitor` resource configuration to scrape the Operator metrics
 [source,yaml]
 ----
 apiVersion: monitoring.coreos.com/v1

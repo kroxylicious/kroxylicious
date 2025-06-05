@@ -62,7 +62,7 @@
 :include-fortanix-dsm-kms: 1
 :include-aws-kms-service-config-identity-ec2-metadata: 1
 :include-platform-bare-metal: 1
-:include-platform-kubernetes: 1
+:include-olm: 0
 
 //API stability markers.
 :unstable-api-version: denoted by a major version 0
