@@ -53,6 +53,9 @@ public class Environment {
     private static final String AWS_REGION_ENV = "AWS_REGION";
     private static final String KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE_ENV = "KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE";
     private static final String TEST_CLIENTS_IMAGE_ENV = "TEST_CLIENTS_IMAGE";
+    private static final String OLM_OPERATOR_CHANNEL_ENV = "OLM_OPERATOR_CHANNEL";
+    private static final String CATALOG_SOURCE_NAME_ENV = "CATALOG_SOURCE_NAME";
+    private static final String OLM_OPERATOR_VERSION_ENV = "OLM_OPERATOR_VERSION";
 
     /**
      * The kafka version default value
@@ -144,11 +147,15 @@ public class Environment {
     public static final String KROXYLICIOUS_OPERATOR_REGISTRY = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_REGISTRY_ENV,
             KROXYLICIOUS_OPERATOR_REGISTRY_DEFAULT);
 
+    String temp = "registry-proxy.engineering.redhat.com/rh-osbs/amq-streams-proxy-operator-bundle:amqstreams-3.0-rhel-9-containers-candidate-85453-20250530150637";
+
     public static final String KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(
             KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE_ENV,
-            "registry-proxy.engineering.redhat.com/rh-osbs/amq-streams-proxy-operator-bundle:amqstreams-3.0-rhel-9-containers-candidate-67318-20250521194131");
+            "");
 
     public static final String TEST_CLIENTS_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(TEST_CLIENTS_IMAGE_ENV, TEST_CLIENTS_IMAGE_DEFAULT);
+    public static final String OLM_OPERATOR_CHANNEL = ENVIRONMENT_VARIABLES.getOrDefault(OLM_OPERATOR_CHANNEL_ENV, "amq-streams-3.0.x");
+    public static final String CATALOG_SOURCE_NAME = ENVIRONMENT_VARIABLES.getOrDefault(CATALOG_SOURCE_NAME_ENV, "strimzi-source");
 
     private static String readMetadataProperty(String property) {
         var p = new Properties();
