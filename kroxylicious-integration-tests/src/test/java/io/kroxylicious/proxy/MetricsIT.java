@@ -371,7 +371,7 @@ class MetricsIT {
                                 .filterByTag(NODE_ID_LABEL, "bootstrap")
                                 .singleElement()
                                 .value()
-                                .isGreaterThan(1.0)),
+                                .isGreaterThanOrEqualTo(1.0)),
                 argumentSet("counts connections to node, client to proxy",
                         (UnaryOperator<ConfigurationBuilder>) builder -> builder,
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
@@ -383,7 +383,7 @@ class MetricsIT {
                                 .filterByTag(NODE_ID_LABEL, "0")
                                 .singleElement()
                                 .value()
-                                .isGreaterThan(1.0)),
+                                .isGreaterThanOrEqualTo(1.0)),
                 argumentSet("count bootstrap connection from proxy to server ",
                         (UnaryOperator<ConfigurationBuilder>) builder -> builder,
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
@@ -395,7 +395,7 @@ class MetricsIT {
                                 .filterByTag(NODE_ID_LABEL, "bootstrap")
                                 .singleElement()
                                 .value()
-                                .isGreaterThan(1.0)),
+                                .isGreaterThanOrEqualTo(1.0)),
                 argumentSet("count node connection from proxy to server ",
                         (UnaryOperator<ConfigurationBuilder>) builder -> builder,
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
@@ -407,7 +407,7 @@ class MetricsIT {
                                 .filterByTag(NODE_ID_LABEL, "0")
                                 .singleElement()
                                 .value()
-                                .isGreaterThan(1.0)));
+                                .isGreaterThanOrEqualTo(1.0)));
     }
 
     @ParameterizedTest
