@@ -40,6 +40,10 @@ public class Metrics {
     private static final String KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_BASE_METER_NAME = "kroxylicious_proxy_to_server_request";
     private static final String KROXYLICIOUS_SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME = "kroxylicious_server_to_proxy_response";
     private static final String KROXYLICIOUS_PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME = "kroxylicious_proxy_to_client_response";
+    private static final String KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_BASE_METER_NAME = "kroxylicious_client_to_proxy_errors_total";
+    private static final String KROXYLICIOUS_PROXY_TO_SERVER_ERROR_BASE_METER_NAME = "kroxylicious_proxy_to_server_errors_total";
+    private static final String KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME = "kroxylicious_client_to_proxy_connections_total";
+    private static final String KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME = "kroxylicious_proxy_to_server_connections_total";
 
     // Meter Providers
     // (Callers use the providers to create the meters they need, augmenting with any tags).
@@ -95,34 +99,124 @@ public class Metrics {
                                                                                                                                                 .withRegistry(
                                                                                                                                                         globalRegistry);
 
+    public static final ClusterNodeSpecificMetricProviderCreator<Counter> KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER = (virtualClusterName,
+                                                                                                                                     nodeId) -> Counter.builder(
+                                                                                                                                             KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_BASE_METER_NAME)
+                                                                                                                                             .description(
+                                                                                                                                                     "Incremented by one every time a connection is closed due to any downstream error.")
+                                                                                                                                             .tag(VIRTUAL_CLUSTER_LABEL,
+                                                                                                                                                     virtualClusterName)
+                                                                                                                                             .tag(NODE_ID_LABEL,
+                                                                                                                                                     nodeIdToLabelValue(
+                                                                                                                                                             nodeId))
+                                                                                                                                             .withRegistry(
+                                                                                                                                                     globalRegistry);
+
+    public static final ClusterNodeSpecificMetricProviderCreator<Counter> KROXYLICIOUS_PROXY_TO_SERVER_ERROR_TOTAL_METER_PROVIDER = (virtualClusterName,
+                                                                                                                                     nodeId) -> Counter.builder(
+                                                                                                                                             KROXYLICIOUS_PROXY_TO_SERVER_ERROR_BASE_METER_NAME)
+                                                                                                                                             .description(
+                                                                                                                                                     "Incremented by one every time a connection is closed due to any upstream error.")
+                                                                                                                                             .tag(VIRTUAL_CLUSTER_LABEL,
+                                                                                                                                                     virtualClusterName)
+                                                                                                                                             .tag(NODE_ID_LABEL,
+                                                                                                                                                     nodeIdToLabelValue(
+                                                                                                                                                             nodeId))
+                                                                                                                                             .withRegistry(
+                                                                                                                                                     globalRegistry);
+
+    public static final ClusterNodeSpecificMetricProviderCreator<Counter> KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_TOTAL_METER_PROVIDER = (virtualClusterName,
+                                                                                                                                          nodeId) -> Counter.builder(
+                                                                                                                                                  KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME)
+                                                                                                                                                  .description(
+                                                                                                                                                          "Incremented by one every time a connection is accepted from the downstream the proxy.")
+                                                                                                                                                  .tag(VIRTUAL_CLUSTER_LABEL,
+                                                                                                                                                          virtualClusterName)
+                                                                                                                                                  .tag(NODE_ID_LABEL,
+                                                                                                                                                          nodeIdToLabelValue(
+                                                                                                                                                                  nodeId))
+                                                                                                                                                  .withRegistry(
+                                                                                                                                                          globalRegistry);
+
+    public static final ClusterNodeSpecificMetricProviderCreator<Counter> KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_TOTAL_METER_PROVIDER = (virtualClusterName,
+                                                                                                                                          nodeId) -> Counter.builder(
+                                                                                                                                                  KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME)
+                                                                                                                                                  .description(
+                                                                                                                                                          "Incremented by one every time a connection is made to the upstream from the proxy.")
+                                                                                                                                                  .tag(VIRTUAL_CLUSTER_LABEL,
+                                                                                                                                                          virtualClusterName)
+                                                                                                                                                  .tag(NODE_ID_LABEL,
+                                                                                                                                                          nodeIdToLabelValue(
+                                                                                                                                                                  nodeId))
+                                                                                                                                                  .withRegistry(
+                                                                                                                                                          globalRegistry);
+
     /**
      * @deprecated use kroxylicious_client_to_proxy_request_count instead.
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES = "kroxylicious_inbound_downstream_messages";
 
     /**
      * @deprecated use kroxylicious_client_to_proxy_request_count instead.
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES = "kroxylicious_inbound_downstream_decoded_messages";
 
     private static final String KROXYLICIOUS_DOWNSTREAM = "kroxylicious_downstream_";
 
     private static final String KROXYLICIOUS_UPSTREAM = "kroxylicious_upstream_";
+
+    /**
+     * @deprecated use `clientToProxyConnectionCounter` instead
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_DOWNSTREAM_CONNECTIONS = KROXYLICIOUS_DOWNSTREAM + "connections";
 
+    /**
+     * @deprecated use `clientToProxyErrorCounter` instead
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_DOWNSTREAM_ERRORS = KROXYLICIOUS_DOWNSTREAM + "errors";
+
+    /**
+     * @deprecated use `proxyToServerConnectionCounter` instead
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_UPSTREAM_CONNECTIONS = KROXYLICIOUS_UPSTREAM + "connections";
 
+    /**
+     * @deprecated use `proxyToServerConnectionCounter` instead
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS = KROXYLICIOUS_UPSTREAM + "connection_attempts";
+
+    /**
+     * @deprecated use `proxyToServerConnectionCounter` instead
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES = KROXYLICIOUS_UPSTREAM + "connection_failures";
+
+    /**
+     * @deprecated use `proxyToServerErrorCounter` instead
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_UPSTREAM_ERRORS = KROXYLICIOUS_UPSTREAM + "errors";
+
     public static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES = "kroxylicious_payload_size_bytes";
 
     public static final String FLOWING_TAG = "flowing";
 
     public static final String VIRTUAL_CLUSTER_TAG = "virtualCluster";
+
     public static final String DOWNSTREAM = "downstream";
 
     public static final String UPSTREAM = "upstream";
