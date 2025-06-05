@@ -27,7 +27,8 @@ public final class Constants {
     public static final String KROXYLICIOUS_ENCRYPTION_FILTER_NAME = "encryption";
     public static final String KROXYLICIOUS_TLS_CLIENT_CA_CERT = "my-cluster-clients-ca-cert";
     public static final String KROXYLICIOUS_TLS_CA_NAME = "ca.pem";
-    public static final String KROXYLICIOUS_OPERATOR_SUBSCRIPTION_NAME = Environment.KROXYLICIOUS_OLM_DEPLOYMENT_NAME + "-v" + Environment.KROXYLICIOUS_OPERATOR_VERSION + "-sub";
+    public static final String KROXYLICIOUS_OPERATOR_SUBSCRIPTION_NAME = Environment.KROXYLICIOUS_OLM_DEPLOYMENT_NAME + "-v" + Environment.KROXYLICIOUS_OPERATOR_VERSION
+            + "-sub";
     public static final String KROXYLICIOUS_OPERATOR_OLM_LABEL = Environment.KROXYLICIOUS_OLM_DEPLOYMENT_NAME + "-operator-v" + Environment.KROXYLICIOUS_OPERATOR_VERSION;
 
     /**

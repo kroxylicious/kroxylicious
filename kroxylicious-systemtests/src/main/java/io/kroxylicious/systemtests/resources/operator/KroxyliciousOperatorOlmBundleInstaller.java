@@ -91,7 +91,7 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
     @Override
     public void install() {
         LOGGER.info("Setup Kroxylicious Operator using OLM");
-        if(bundleImageRef != null && !bundleImageRef.isEmpty()) {
+        if (bundleImageRef != null && !bundleImageRef.isEmpty()) {
             CompletableFuture.completedFuture(install(kroxyliciousOperatorName, operatorNamespace, bundleImageRef));
         }
         else {
@@ -115,7 +115,7 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
                                            String channel, String source, String catalogNs) {
         // Create ns for the operator
         NamespaceUtils.createNamespaceAndPrepare(operatorNamespace);
-        //Create operator group for the operator
+        // Create operator group for the operator
         if (KubeResourceManager.get().kubeClient().getOpenShiftClient().operatorHub().operatorGroups()
                 .inNamespace(operatorNamespace).list().getItems().isEmpty()) {
             OperatorGroupBuilder operatorGroup = new OperatorGroupBuilder()
@@ -124,7 +124,8 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
                     .withNamespace(operatorNamespace)
                     .endMetadata();
             ResourceManager.getInstance().createResourceFromBuilderWithWait(operatorGroup);
-        } else {
+        }
+        else {
             LOGGER.info("OperatorGroup already exists.");
         }
 
@@ -168,11 +169,12 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
     private boolean isOperatorReady(String ns) {
         try {
             PodUtils.waitForPodsReadyWithRestart(ns, new LabelSelectorBuilder()
-                            .withMatchLabels(Map.of("app.kubernetes.io/instance", Constants.KROXYLICIOUS_OPERATOR_OLM_LABEL)).build(),
+                    .withMatchLabels(Map.of("app.kubernetes.io/instance", Constants.KROXYLICIOUS_OPERATOR_OLM_LABEL)).build(),
                     1, true);
             LOGGER.info("Kroxylicious operator in namespace {} is ready", ns);
             return true;
-        } catch (Exception ex) {
+        }
+        catch (Exception ex) {
             return false;
         }
     }
