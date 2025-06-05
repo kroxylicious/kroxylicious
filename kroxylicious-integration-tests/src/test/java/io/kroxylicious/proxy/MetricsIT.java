@@ -10,7 +10,6 @@ import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -372,7 +371,7 @@ class MetricsIT {
                                 .filterByTag(NODE_ID_LABEL, "bootstrap")
                                 .singleElement()
                                 .value()
-                                .isGreaterThan(0.0)),
+                                .isGreaterThan(1.0)),
                 argumentSet("counts connections to node, client to proxy",
                         (UnaryOperator<ConfigurationBuilder>) builder -> builder,
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
@@ -384,7 +383,7 @@ class MetricsIT {
                                 .filterByTag(NODE_ID_LABEL, "0")
                                 .singleElement()
                                 .value()
-                                .isGreaterThan(0.0)),
+                                .isGreaterThan(1.0)),
                 argumentSet("count bootstrap connection from proxy to server ",
                         (UnaryOperator<ConfigurationBuilder>) builder -> builder,
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
@@ -396,7 +395,7 @@ class MetricsIT {
                                 .filterByTag(NODE_ID_LABEL, "bootstrap")
                                 .singleElement()
                                 .value()
-                                .isGreaterThan(0.0)),
+                                .isGreaterThan(1.0)),
                 argumentSet("count node connection from proxy to server ",
                         (UnaryOperator<ConfigurationBuilder>) builder -> builder,
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
@@ -408,7 +407,7 @@ class MetricsIT {
                                 .filterByTag(NODE_ID_LABEL, "0")
                                 .singleElement()
                                 .value()
-                                .isGreaterThan(0.0)));
+                                .isGreaterThan(1.0)));
     }
 
     @ParameterizedTest
@@ -578,83 +577,72 @@ class MetricsIT {
         downstreamCertificateGenerator.generateTrustStore(downstreamCertificateGenerator.getCertFilePath(), "client",
                 clientTrustStore.toAbsolutePath().toString());
 
-        var list = new ArrayList<Arguments>();
+        return Stream.of(
+                argumentSet("gateway is tcp, client sends malformed kafka",
+                        (Supplier<VirtualClusterGateway>) () -> defaultPortIdentifiesNodeGatewayBuilder(PORT_IDENTIFIES_BROKER_BOOTSTRAP)
+                                .withName("default")
+                                .build(),
+                        (Consumer<KroxyliciousTester>) kroxyliciousTester -> {
+                            var hostPort = HostPort.parse(kroxyliciousTester.getBootstrapAddress());
+                            try (var sock = new Socket(hostPort.host(), hostPort.port());
+                                    var output = sock.getOutputStream()) {
+                                output.write("This ain't Kafka!".getBytes(StandardCharsets.UTF_8));
+                            }
+                            catch (IOException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }),
 
-        {
-            list.add(argumentSet("gateway is tcp, client sends malformed kafka",
-                    (Supplier<VirtualClusterGateway>) () -> defaultPortIdentifiesNodeGatewayBuilder(PORT_IDENTIFIES_BROKER_BOOTSTRAP)
-                            .withName("default")
-                            .build(),
-                    (Consumer<KroxyliciousTester>) kroxyliciousTester -> {
-                        var hostPort = HostPort.parse(kroxyliciousTester.getBootstrapAddress());
-                        try (var sock = new Socket(hostPort.host(), hostPort.port());
-                                var output = sock.getOutputStream()) {
-                            output.write("This ain't Kafka!".getBytes(StandardCharsets.UTF_8));
-                        }
-                        catch (IOException e) {
-                            throw new RuntimeException(e);
-                        }
-                    }));
-        }
+                argumentSet("gateway is tls, client connects using plain",
+                        (Supplier<VirtualClusterGateway>) () -> defaultSniHostIdentifiesNodeGatewayBuilder(SNI_IDENTIFIES_BROKER_BOOTSTRAP,
+                                SNI_IDENTIFIES_BROKER_ADDRESS_PATTERN)
+                                .withName("default")
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                                .endTls()
+                                .build(),
+                        (Consumer<KroxyliciousTester>) kroxyliciousTester -> {
+                            try (var admin = kroxyliciousTester.admin(Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "PLAINTEXT"))) {
+                                assertThat(admin.describeCluster(failQuickDescribeCluster).clusterId())
+                                        .failsWithin(Duration.ofSeconds(5))
+                                        .withThrowableThat()
+                                        .withCauseInstanceOf(TimeoutException.class)
+                                        .havingCause()
+                                        .withMessageStartingWith("Timed out waiting for a node assignment.");
+                            }
+                        }),
 
-        {
+                argumentSet("gateway is tls/sni, unrecognised SNI name",
+                        (Supplier<VirtualClusterGateway>) () -> defaultSniHostIdentifiesNodeGatewayBuilder(SNI_IDENTIFIES_BROKER_BOOTSTRAP,
+                                SNI_IDENTIFIES_BROKER_ADDRESS_PATTERN)
+                                .withName("default")
+                                .withNewTls()
+                                .withNewKeyStoreKey()
+                                .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
+                                .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
+                                .endKeyStoreKey()
+                                .endTls()
+                                .build(),
+                        (Consumer<KroxyliciousTester>) kroxyliciousTester -> {
+                            var hostPort = HostPort.parse(kroxyliciousTester.getBootstrapAddress());
+                            var unrecognisedSni = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("unrecognised");
+                            var unrecognisedHostPort = unrecognisedSni + ":" + hostPort.port();
 
-            list.add(argumentSet("gateway is tls, client connects using plain",
-                    (Supplier<VirtualClusterGateway>) () -> defaultSniHostIdentifiesNodeGatewayBuilder(SNI_IDENTIFIES_BROKER_BOOTSTRAP,
-                            SNI_IDENTIFIES_BROKER_ADDRESS_PATTERN)
-                            .withName("default")
-                            .withNewTls()
-                            .withNewKeyStoreKey()
-                            .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                            .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                            .endKeyStoreKey()
-                            .endTls()
-                            .build(),
-                    (Consumer<KroxyliciousTester>) kroxyliciousTester -> {
-                        try (var admin = kroxyliciousTester.admin(Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "PLAINTEXT"))) {
-                            assertThat(admin.describeCluster(failQuickDescribeCluster).clusterId())
-                                    .failsWithin(Duration.ofSeconds(5))
-                                    .withThrowableThat()
-                                    .withCauseInstanceOf(TimeoutException.class)
-                                    .havingCause()
-                                    .withMessageStartingWith("Timed out waiting for a node assignment.");
-                        }
-                    }));
-        }
-
-        {
-            var unrecognisedSni = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("unrecognised");
-
-            list.add(argumentSet("gateway is tls/sni, unrecognised SNI name",
-                    (Supplier<VirtualClusterGateway>) () -> defaultSniHostIdentifiesNodeGatewayBuilder(SNI_IDENTIFIES_BROKER_BOOTSTRAP,
-                            SNI_IDENTIFIES_BROKER_ADDRESS_PATTERN)
-                            .withName("default")
-                            .withNewTls()
-                            .withNewKeyStoreKey()
-                            .withStoreFile(downstreamCertificateGenerator.getKeyStoreLocation())
-                            .withNewInlinePasswordStoreProvider(downstreamCertificateGenerator.getPassword())
-                            .endKeyStoreKey()
-                            .endTls()
-                            .build(),
-                    (Consumer<KroxyliciousTester>) kroxyliciousTester -> {
-                        var hostPort = HostPort.parse(kroxyliciousTester.getBootstrapAddress());
-                        var unrecognisedHostPort = unrecognisedSni + ":" + hostPort.port();
-
-                        try (var admin = kroxyliciousTester.admin(
-                                Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, unrecognisedHostPort,
-                                        SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
-                                        SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
-                            assertThat(admin.describeCluster(failQuickDescribeCluster).clusterId())
-                                    .failsWithin(Duration.ofSeconds(5))
-                                    .withThrowableThat()
-                                    .withCauseInstanceOf(TimeoutException.class)
-                                    .havingCause()
-                                    .withMessageStartingWith("Timed out waiting for a node assignment.");
-                        }
-                    }));
-        }
-        return list.stream();
-
+                            try (var admin = kroxyliciousTester.admin(
+                                    Map.of(CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, unrecognisedHostPort,
+                                            SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                            SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+                                assertThat(admin.describeCluster(failQuickDescribeCluster).clusterId())
+                                        .failsWithin(Duration.ofSeconds(5))
+                                        .withThrowableThat()
+                                        .withCauseInstanceOf(TimeoutException.class)
+                                        .havingCause()
+                                        .withMessageStartingWith("Timed out waiting for a node assignment.");
+                            }
+                        }));
     }
 
     @ParameterizedTest
@@ -736,14 +724,14 @@ class MetricsIT {
                     .filterByTag(NODE_ID_LABEL, "bootstrap")
                     .singleElement()
                     .value()
-                    .isGreaterThan(0.0);
+                    .isGreaterThan(1.0);
 
             SimpleMetricAssert.assertThat(metricList)
                     .filterByName("kroxylicious_proxy_to_server_errors_total")
                     .filterByTag(NODE_ID_LABEL, "bootstrap")
                     .singleElement()
                     .value()
-                    .isGreaterThan(0.0);
+                    .isGreaterThan(1.0);
         }
     }
 
