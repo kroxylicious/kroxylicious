@@ -242,6 +242,8 @@ public interface KroxyliciousTester extends Closeable {
      */
     KafkaClient simpleTestClient();
 
+    KafkaClient simpleTestClient(String address, boolean useTls);
+
     /**
      * Creates a Mock Request client configured with the kroxylicious bootstrap server
      * for a specific virtual cluster. This client can be used to send multiple
