@@ -150,14 +150,12 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                         if (t != null) {
                             LOGGER.warn("Exception resolving Virtual Cluster Binding for endpoint {} and sniHostname {}: {}", endpoint, sniHostname, t.getMessage());
                             promise.setFailure(t);
-                            ch.close();
                             return null;
                         }
                         var gateway = binding.endpointGateway();
                         var sslContext = gateway.getDownstreamSslContext();
                         if (sslContext.isEmpty()) {
                             promise.setFailure(new IllegalStateException("Virtual cluster %s does not provide SSL context".formatted(gateway)));
-                            // close here too?
                         }
                         else {
                             KafkaProxyInitializer.this.addHandlers(ch, binding);
@@ -166,7 +164,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                     }
                     catch (Throwable t1) {
                         promise.setFailure(t1);
-                        // and close here too?
                     }
                     return null;
                 });

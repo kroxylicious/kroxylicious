@@ -140,6 +140,8 @@ public class ProxyChannelStateMachine {
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     private final Counter upstreamConnectionFailureCounter;
+
+    // New connection metrics
     private final Counter clientToProxyErrorCounter;
     private final Counter clientToProxyConnectionCounter;
     private final Counter proxyToServerConnectionCounter;
@@ -147,17 +149,20 @@ public class ProxyChannelStateMachine {
 
     @SuppressWarnings("java:S5738")
     public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
-        List<Tag> tags = Metrics.tags(Metrics.VIRTUAL_CLUSTER_TAG, clusterName);
-        downstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_CONNECTIONS, tags);
+        // New connection metrics
         clientToProxyConnectionCounter = KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_TOTAL_METER_PROVIDER
                 .create(clusterName, nodeId).withTags();
-        downstreamErrorCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_ERRORS, tags);
         clientToProxyErrorCounter = KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER
                 .create(clusterName, nodeId).withTags();
         proxyToServerConnectionCounter = KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_TOTAL_METER_PROVIDER
                 .create(clusterName, nodeId).withTags();
         proxyToServerErrorCounter = KROXYLICIOUS_PROXY_TO_SERVER_ERROR_TOTAL_METER_PROVIDER
                 .create(clusterName, nodeId).withTags();
+
+        // These connections metrics are deprecated and are replaced by the metrics mentioned above
+        List<Tag> tags = Metrics.tags(Metrics.VIRTUAL_CLUSTER_TAG, clusterName);
+        downstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_CONNECTIONS, tags);
+        downstreamErrorCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_ERRORS, tags);
         upstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTIONS, tags);
         connectionAttemptsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS, tags);
         upstreamErrorCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_ERRORS, tags);
@@ -441,7 +446,6 @@ public class ProxyChannelStateMachine {
                 .log("Exception from the server channel: {}. Increase log level to DEBUG for stacktrace");
         if (state instanceof ProxyChannelState.Connecting) {
             upstreamConnectionFailureCounter.increment();
-            proxyToServerConnectionCounter.increment();
         }
         upstreamErrorCounter.increment();
         proxyToServerErrorCounter.increment();
@@ -503,7 +507,6 @@ public class ProxyChannelStateMachine {
         setState(forwarding);
         Objects.requireNonNull(frontendHandler).inForwarding();
         upstreamConnectionsCounter.increment();
-        proxyToServerConnectionCounter.increment();
     }
 
     /**
