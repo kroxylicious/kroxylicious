@@ -21,6 +21,10 @@ import io.kroxylicious.proxy.config.NodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.service.HostPort;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
+
 public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster cluster,
                                                         KafkaProxyIngress ingress,
                                                         LoadBalancer loadBalancer,
@@ -35,7 +39,7 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
         Objects.requireNonNull(tls);
     }
 
-    public static final int DEFAULT_LOADBALANCER_PORT = 9083;
+    public static final int DEFAULT_CLIENT_FACING_LOADBALANCER_PORT = 9083;
 
     @Override
     public Stream<ServiceBuilder> services() {
@@ -50,7 +54,12 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
     @Override
     public NodeIdentificationStrategy nodeIdentificationStrategy() {
         return new SniHostIdentifiesNodeIdentificationStrategy(new HostPort(loadBalancer.getBootstrapAddress(), sharedSniPort).toString(),
-                new HostPort(loadBalancer.getAdvertisedBrokerAddressPattern(), DEFAULT_LOADBALANCER_PORT).toString());
+                new HostPort(loadBalancer.getAdvertisedBrokerAddressPattern(), DEFAULT_CLIENT_FACING_LOADBALANCER_PORT).toString());
+    }
+
+    @NonNull
+    private String getBootstrapAddress() {
+        return new HostPort(loadBalancer.getBootstrapAddress(), sharedSniPort).toString();
     }
 
     @Override
@@ -65,6 +74,11 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
 
     @Override
     public Stream<Integer> requiredSniLoadBalancerServicePorts() {
-        return Stream.of(DEFAULT_LOADBALANCER_PORT);
+        return Stream.of(DEFAULT_CLIENT_FACING_LOADBALANCER_PORT);
+    }
+
+    @Override
+    public String bootstrapServers() {
+        return new HostPort(loadBalancer.getBootstrapAddress(), DEFAULT_CLIENT_FACING_LOADBALANCER_PORT).toString().replace("$(virtualClusterName)", name(cluster));
     }
 }

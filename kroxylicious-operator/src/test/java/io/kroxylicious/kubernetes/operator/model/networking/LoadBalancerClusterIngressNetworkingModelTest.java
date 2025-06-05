@@ -28,6 +28,7 @@ import io.kroxylicious.kubernetes.operator.KafkaProxyReconciler;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
 
+import static io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel.DEFAULT_CLIENT_FACING_LOADBALANCER_PORT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
@@ -145,6 +146,19 @@ class LoadBalancerClusterIngressNetworkingModelTest {
 
         // then
         assertThat(requiresSharedSniPort).isTrue();
+    }
+
+    @Test
+    void bootstrapServers() {
+        // given
+        LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, INGRESS, LOAD_BALANCER, TLS,
+                9093);
+
+        // when
+        String bootstrapServers = model.bootstrapServers();
+
+        // then
+        assertThat(bootstrapServers).isEqualTo(new HostPort("my-cluster.kafkaproxy", DEFAULT_CLIENT_FACING_LOADBALANCER_PORT).toString());
     }
 
     public static Stream<Arguments> constructorArgsMustBeNonNull() {

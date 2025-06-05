@@ -9,12 +9,12 @@ package io.kroxylicious.kubernetes.operator.model.networking;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.IntOrString;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.ObjectMetaBuilder;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
@@ -24,6 +24,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
+import io.kroxylicious.kubernetes.operator.BootstrapServersAnnotation;
 import io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategy;
@@ -59,7 +60,9 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
 
     @Override
     public Stream<ServiceBuilder> services() {
-        var bootstrapService = createService(bootstrapServiceName());
+        String serviceName = bootstrapServiceName();
+        ObjectMetaBuilder metadataBuilder = baseServiceMetadataBuilder(serviceName);
+        var bootstrapService = createService(metadataBuilder);
         var nodeServices = getNodeServices();
         return Stream.concat(Stream.of(bootstrapService), nodeServices);
     }
@@ -67,16 +70,19 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     private Stream<ServiceBuilder> getNodeServices() {
         return nodeIdRanges.stream()
                 .flatMapToInt(nodeIdRange -> IntStream.rangeClosed(toIntExact(nodeIdRange.getStart()), toIntExact(nodeIdRange.getEnd())))
-                .mapToObj(upstreamNodeId -> createService(suffixedServiceName(String.valueOf(upstreamNodeId))));
+                .mapToObj(upstreamNodeId -> {
+                    ObjectMetaBuilder metadataBuilder = baseServiceMetadataBuilder(suffixedServiceName(String.valueOf(upstreamNodeId)));
+                    return createService(metadataBuilder);
+                });
     }
 
     private String suffixedServiceName(String suffix) {
         return name(cluster) + "-" + name(ingress) + "-" + suffix;
     }
 
-    private ServiceBuilder createService(String serviceName) {
+    private ServiceBuilder createService(ObjectMetaBuilder metadataBuilder) {
         return new ServiceBuilder()
-                .withMetadata(serviceMetadata(serviceName))
+                .withMetadata(metadataBuilder.build())
                 .withNewSpec()
                 .withSelector(ProxyDeploymentDependentResource.podLabels(proxy))
                 .withPorts(new ServicePortBuilder().withProtocol("TCP").withPort(CLIENT_FACING_PORT).withTargetPort(new IntOrString(sharedSniPort)).build())
@@ -89,15 +95,19 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
         return TcpClusterIPClusterIngressNetworkingModel.bootstrapServiceName(cluster, name(ingress));
     }
 
-    ObjectMeta serviceMetadata(String name) {
+    private ObjectMetaBuilder baseServiceMetadataBuilder(String name) {
         return new ObjectMetaBuilder()
                 .withName(name)
                 .withNamespace(namespace(cluster))
                 .addToLabels(standardLabels(proxy))
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(proxy)).endOwnerReference()
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(cluster)).endOwnerReference()
-                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(ingress)).endOwnerReference()
-                .build();
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(ingress)).endOwnerReference();
+    }
+
+    private String bootstrapServersAnnotation() {
+        return BootstrapServersAnnotation.toAnnotation(
+                Set.of(new BootstrapServersAnnotation.BootstrapServer(ResourcesUtil.name(cluster), ResourcesUtil.name(ingress), bootstrapServers())));
     }
 
     @Override
@@ -111,11 +121,20 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     @Override
+    public String bootstrapServers() {
+        return new HostPort(getCrossNamespaceServiceAddress(), CLIENT_FACING_PORT).toString();
+    }
+
+    @Override
     public NodeIdentificationStrategy nodeIdentificationStrategy() {
-        HostPort bootstrapAddress = new HostPort(crossNamespaceServiceAddress(bootstrapServiceName(), proxy), sharedSniPort);
+        HostPort bootstrapAddress = new HostPort(getCrossNamespaceServiceAddress(), sharedSniPort);
         HostPort advertisedBrokerAddressPattern = new HostPort(crossNamespaceServiceAddress(suffixedServiceName("$(nodeId)"), proxy), CLIENT_FACING_PORT);
         return new SniHostIdentifiesNodeIdentificationStrategy(bootstrapAddress.toString(),
                 advertisedBrokerAddressPattern.toString());
+    }
+
+    private String getCrossNamespaceServiceAddress() {
+        return crossNamespaceServiceAddress(bootstrapServiceName(), proxy);
     }
 
     @Override
