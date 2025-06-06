@@ -302,6 +302,7 @@ class DerivedResourcesTest {
         }
     }
 
+    @SuppressWarnings("unchecked")
     @NonNull
     private static Context<KafkaProxy> buildContext(Path testDir,
                                                     KafkaProxy kafkaProxy,
@@ -315,26 +316,27 @@ class DerivedResourcesTest {
                     Collectors.joining(", "));
             throw new RuntimeException("Unmocked method: " + invocation.getMethod() + "(" + stringifiedArgs + ")");
         };
-        Context<KafkaProxy> context = mock(Context.class);
+        Context<KafkaProxy> reconclerContext = mock(Context.class, throwOnUnmockedInvocation);
 
-        var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext(null, null, context);
+        var resourceContext = new DefaultManagedWorkflowAndDependentResourceContext<>(null, null, reconclerContext);
         resourceContext.put(Crc32ChecksumGenerator.CHECKSUM_CONTEXT_KEY, new FixedChecksumGenerator(123654L));
-        doReturn(resourceContext).when(context).managedWorkflowAndDependentResourceContext();
+        doReturn(resourceContext).when(reconclerContext).managedWorkflowAndDependentResourceContext();
 
         Set<KafkaProtocolFilter> filterInstances = Set.copyOf(resourcesFromFiles(TestFiles.childFilesMatching(testDir,
                 "in-" + HasMetadata.getKind(KafkaProtocolFilter.class) + "-*.yaml"), KafkaProtocolFilter.class));
 
-        doReturn(filterInstances).when(context).getSecondaryResources(KafkaProtocolFilter.class);
-        doReturn(Set.copyOf(virtualKafkaClusters)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
-        doReturn(Set.copyOf(kafkaServiceRefs)).when(context).getSecondaryResources(KafkaService.class);
-        doReturn(Set.copyOf(ingresses)).when(context).getSecondaryResources(KafkaProxyIngress.class);
-        doReturn(Set.copyOf(secrets)).when(context).getSecondaryResources(Secret.class);
-        doReturn(secrets.stream()).when(context).getSecondaryResourcesAsStream(Secret.class);
+        doReturn(filterInstances).when(reconclerContext).getSecondaryResources(KafkaProtocolFilter.class);
+        doReturn(Set.copyOf(virtualKafkaClusters)).when(reconclerContext).getSecondaryResources(VirtualKafkaCluster.class);
+        doReturn(Set.copyOf(kafkaServiceRefs)).when(reconclerContext).getSecondaryResources(KafkaService.class);
+        doReturn(Set.copyOf(ingresses)).when(reconclerContext).getSecondaryResources(KafkaProxyIngress.class);
+        doReturn(Set.copyOf(secrets)).when(reconclerContext).getSecondaryResources(Secret.class);
+        doReturn(secrets.stream()).when(reconclerContext).getSecondaryResourcesAsStream(Secret.class);
+        doReturn(Set.of()).when(reconclerContext).getSecondaryResources(ConfigMap.class);
 
         new KafkaProxyReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR)
-                .initContext(kafkaProxy, context);
+                .initContext(kafkaProxy, reconclerContext);
 
-        return context;
+        return reconclerContext;
     }
 
     private static String fileName(Path testDir) {
