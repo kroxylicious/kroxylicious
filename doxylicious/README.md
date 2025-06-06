@@ -10,7 +10,7 @@ Procedures have a prescriptive structure, which includes:
 * the steps to be taken in this procedure,
 * optionally, steps to be taken to verify that this procedure worked.
 
-Procedures need to be tested to confirm that the documented steps actually work with (a release of) the software they're describing.
+Procedures need to be tested to confirm that the documented steps actually work.
 
 This module enables defining a procedure in a form which can be used both
 * to generate the procedure documentation, in AsciiDoc 
@@ -47,8 +47,8 @@ intro:
 procedure:
   - step: # <5>
       - adoc: Execute `true`.
-      - exec: true
-      - adoc: It is expect that this command returns without any output.
+      - exec: /usr/bin/true
+      - adoc: It is expected that this command returns without any output.
   - step:
       - adoc: Drink some coffee.
 verification:
@@ -57,13 +57,13 @@ verification:
           - exec: true
 ```
 
-1. Each procedure must have a unique `id`.
+1. Each procedure must have an `id`. This id needs to be unique within all the procedures defined in both `src/main/proc` and `src/test/proc`.
 2. Published procedures¹ must have an AsciiDoc `title`.
 3. Published procedures may have an AsciiDoc `abstract`.
 4. Published procedures may have an AsciiDoc `intro`.
 5. This procedure has two steps, the first of which has three substeps. A substep:
     * either specifies some words, using `adoc`,
-    * or specifies a command to be executed, using `exec`.
+    * or specifies a command to be executed, using `exec`. If the process running the tests has a sensible `$PATH` there's no need to use absolute paths in the command of an `exec` substep.
 6. Optionally, procedures may have `verification` steps.
 
 <small>¹ See the section on generating documentation for what 'published' means.</small>
