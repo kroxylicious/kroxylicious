@@ -54,11 +54,15 @@
 :KubernetesSite: https://kubernetes.io/
 :OperatorPattern: https://kubernetes.io/docs/concepts/extend-kubernetes/operator/
 
+// Java Operator SDK links
+:josdk: https://javaoperatorsdk.io/
+:josdk-metrics: https://github.com/operator-framework/java-operator-sdk/blob/v5.0.4/docs/content/en/docs/features/_index.md#operator-sdk-metrics
+
 // Conditional inclusion flags
 :include-fortanix-dsm-kms: 1
 :include-aws-kms-service-config-identity-ec2-metadata: 1
 :include-platform-bare-metal: 1
-:include-platform-kubernetes: 1
+:include-olm: 0
 
 //API stability markers.
 :unstable-api-version: denoted by a major version 0

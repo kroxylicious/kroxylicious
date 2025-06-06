@@ -2,7 +2,7 @@
 //
 // kroxylicious-proxy/index.adoc
 
-[id='con-operating-{context}']
+[id='assembly-operating-{context}']
 = Monitoring proxies
 
 [role="_abstract"]
@@ -14,6 +14,7 @@ You can configure your deployment to capture metrics data for analysis and notif
 * Integrate Micrometer for enhanced observability.
 * Configure common tags and standard binders for JVM and system metrics to ensure comprehensive monitoring and efficient proxy operation.
 
-include::../modules/monitoring/proc-introducing-metrics.adoc[leveloffset=+1]
-include::../modules/monitoring/con-setting-logs.adoc[leveloffset=+1]
-include::../modules/monitoring/con-integrating-micrometer.adoc[leveloffset=+1]
+include::../modules/monitoring/proc-proxy-introducing-metrics.adoc[leveloffset=+1]
+include::assembly-prometheus-metrics-proxy.adoc[leveloffset=+1]
+include::../modules/monitoring/con-proxy-setting-logs.adoc[leveloffset=+1]
+include::../modules/monitoring/con-proxy-integrating-micrometer.adoc[leveloffset=+1]

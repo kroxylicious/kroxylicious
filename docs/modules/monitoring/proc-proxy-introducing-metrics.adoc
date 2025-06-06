@@ -2,7 +2,7 @@
 //
 // assembly-monitoring-proxy.adoc
 
-[id='proc-introducing-metrics-{context}']
+[id='proc-proxy-introducing-metrics-{context}']
 = Introducing metrics
 
 [role="_abstract"]
@@ -31,26 +31,3 @@ management:
     prometheus: {}
 ----
 
-The example files provided with the proxy include a `PodMonitor` resource.
-If you have enabled monitoring in OpenShift for user-defined projects, you can use a `PodMonitor` resource to ingest the proxy metrics.
-
-.Example `PodMonitor` resource configuration
-[source,yaml]
-----
-apiVersion: monitoring.coreos.com/v1
-kind: PodMonitor
-metadata:
-  name: proxy
-  labels:
-    app: proxy
-spec:
-  selector:
-    matchLabels:
-      app: proxy
-  namespaceSelector:
-    matchNames:
-      - proxy
-  podMetricsEndpoints:
-  - path: /metrics
-    port: management
-----
