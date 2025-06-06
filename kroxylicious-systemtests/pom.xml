@@ -109,6 +109,10 @@
             <artifactId>kubernetes-model-common</artifactId>
         </dependency>
         <dependency>
+            <groupId>io.fabric8</groupId>
+            <artifactId>openshift-model-operatorhub</artifactId>
+        </dependency>
+        <dependency>
             <groupId>io.strimzi</groupId>
             <artifactId>api</artifactId>
         </dependency>
@@ -211,6 +215,10 @@
         <dependency>
             <groupId>io.skodjob</groupId>
             <artifactId>test-frame-kubernetes</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.skodjob</groupId>
+            <artifactId>test-frame-openshift</artifactId>
         </dependency>
         <dependency>
             <groupId>io.skodjob</groupId>
