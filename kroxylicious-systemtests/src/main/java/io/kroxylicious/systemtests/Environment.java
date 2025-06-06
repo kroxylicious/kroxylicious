@@ -27,7 +27,7 @@ public class Environment {
     // ---------------------------------------
     // Env variables initialization
     // ---------------------------------------
-    private static final String INSTALL_TYPE_ENV = "INSTALL_TYPE";
+    private static final String INSTALL_TYPE_ENV = "CLUSTER_OPERATOR_INSTALL_TYPE";
     public static final InstallType INSTALL_TYPE = ENVIRONMENT_VARIABLES.getOrDefault(INSTALL_TYPE_ENV, InstallType::fromString, InstallType.Yaml);
 
     /**
@@ -51,7 +51,12 @@ public class Environment {
     private static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID_ENV = "AWS_KROXYLICIOUS_ACCESS_KEY_ID";
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_ENV = "AWS_KROXYLICIOUS_SECRET_ACCESS_KEY";
     private static final String AWS_REGION_ENV = "AWS_REGION";
+    private static final String KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE_ENV = "KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE";
     private static final String TEST_CLIENTS_IMAGE_ENV = "TEST_CLIENTS_IMAGE";
+    private static final String OLM_OPERATOR_CHANNEL_ENV = "OLM_OPERATOR_CHANNEL";
+    private static final String CATALOG_SOURCE_NAME_ENV = "CATALOG_SOURCE_NAME";
+    private static final String CATALOG_NAMESPACE_ENV = "CATALOG_NAMESPACE";
+    private static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME_ENV = "KROXYLICIOUS_OLM_DEPLOYMENT_NAME";
 
     /**
      * The kafka version default value
@@ -103,6 +108,10 @@ public class Environment {
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_DEFAULT = AWS_SECRET_ACCESS_KEY_DEFAULT;
     public static final String AWS_REGION_DEFAULT = "us-east-2";
     private static final String TEST_CLIENTS_IMAGE_DEFAULT = "quay.io/strimzi-test-clients/test-clients:latest-kafka-" + KAFKA_VERSION_DEFAULT;
+    private static final String OLM_OPERATOR_CHANNEL_DEFAULT = "alpha";
+    private static final String CATALOG_SOURCE_NAME_DEFAULT = "kroxylicious-source";
+    private static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME_DEFAULT = "kroxylicious-operator";
+    private static final String CATALOG_NAMESPACE_DEFAULT = "openshift-marketplace";
 
     public static final String KAFKA_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KAFKA_VERSION_ENV, KAFKA_VERSION_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_VERSION_ENV, KROXYLICIOUS_VERSION_DEFAULT);
@@ -143,7 +152,14 @@ public class Environment {
     public static final String KROXYLICIOUS_OPERATOR_REGISTRY = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_REGISTRY_ENV,
             KROXYLICIOUS_OPERATOR_REGISTRY_DEFAULT);
 
+    public static final String KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE_ENV, "");
+
     public static final String TEST_CLIENTS_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(TEST_CLIENTS_IMAGE_ENV, TEST_CLIENTS_IMAGE_DEFAULT);
+    public static final String OLM_OPERATOR_CHANNEL = ENVIRONMENT_VARIABLES.getOrDefault(OLM_OPERATOR_CHANNEL_ENV, OLM_OPERATOR_CHANNEL_DEFAULT);
+    public static final String CATALOG_SOURCE_NAME = ENVIRONMENT_VARIABLES.getOrDefault(CATALOG_SOURCE_NAME_ENV, CATALOG_SOURCE_NAME_DEFAULT);
+    public static final String CATALOG_NAMESPACE = ENVIRONMENT_VARIABLES.getOrDefault(CATALOG_NAMESPACE_ENV, CATALOG_NAMESPACE_DEFAULT);
+    public static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OLM_DEPLOYMENT_NAME_ENV,
+            KROXYLICIOUS_OLM_DEPLOYMENT_NAME_DEFAULT);
 
     private static String readMetadataProperty(String property) {
         var p = new Properties();
