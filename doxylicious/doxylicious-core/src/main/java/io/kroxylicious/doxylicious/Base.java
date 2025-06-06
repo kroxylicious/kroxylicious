@@ -31,6 +31,9 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import io.kroxylicious.doxylicious.model.ProcDecl;
 import io.kroxylicious.doxylicious.model.Unit;
 
+/**
+ * A read-only database of {@code ProcDecl} instances, typically read from files.
+ */
 public class Base {
 
     private static final YAMLMapper YAML_MAPPER = new YAMLMapper();

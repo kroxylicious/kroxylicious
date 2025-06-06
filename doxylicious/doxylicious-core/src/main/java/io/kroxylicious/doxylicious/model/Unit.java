@@ -9,7 +9,7 @@ package io.kroxylicious.doxylicious.model;
 import java.util.List;
 
 /**
- * Represents an identifiable container (such as a file) of {@link ProcDecl}s.
+ * Represents an identifiable container of {@link ProcDecl}s (such as a file).
  * @param sourceName The name of the container (e.g. the file name)
  * @param procs The procs in this container.
  */
