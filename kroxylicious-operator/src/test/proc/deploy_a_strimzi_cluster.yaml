@@ -10,9 +10,9 @@ prereqs:
   - ref: have_a_kubectl
   - ref: deploy_strimzi_operator
 procedure:
-  - exec: kubectl apply -n kafka -f https://strimzi.io/examples/latest/kafka/kafka-single-node.yaml
+  - exec:
+      command: kubectl apply -n kafka -f https://strimzi.io/examples/latest/kafka/kafka-single-node.yaml
+      undo: kubectl delete -n kafka -f https://strimzi.io/examples/latest/kafka/kafka-single-node.yaml
   - exec:
       command: kubectl wait -n kafka kafka/my-cluster --for=condition=Ready --timeout=300s
       timeout: 305s
-tearDown:
-  - exec: kubectl delete -n kafka -f https://strimzi.io/examples/latest/kafka/kafka-single-node.yaml

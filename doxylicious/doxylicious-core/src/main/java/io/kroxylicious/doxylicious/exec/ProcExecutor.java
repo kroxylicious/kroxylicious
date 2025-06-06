@@ -57,42 +57,66 @@ public class ProcExecutor {
 
     public void executeProcedure(ProcDecl procDecl) throws ExecException {
         LOGGER.atInfo().log("Executing procedure '{}'", procDecl.id());
-        execList(procDecl.id() + "/procedure", procDecl.procedure());
+        execList(procDecl.id() + "/procedure", procDecl.procedure(), false);
         LOGGER.atInfo().log("Executed procedure '{}'", procDecl.id());
+    }
+
+    public void executeUndoProcedure(ProcDecl procDecl) throws ExecException {
+        LOGGER.atInfo().log("Undoing procedure '{}'", procDecl.id());
+        execList(procDecl.id() + "/procedure", procDecl.procedure(), true);
+        LOGGER.atInfo().log("Undone procedure '{}'", procDecl.id());
     }
 
     public void executeVerification(ProcDecl procDecl) throws ExecException {
         LOGGER.atInfo().log("Executing verification '{}'", procDecl.id());
-        execList(procDecl.id() + "/verification", procDecl.verification());
+        execList(procDecl.id() + "/verification", procDecl.verification(), false);
         LOGGER.atInfo().log("Executed verification '{}'", procDecl.id());
     }
 
-    public void executeTearDown(ProcDecl procDecl) throws ExecException {
-        LOGGER.atInfo().log("Executing tearDown '{}'", procDecl.id());
-        execList(procDecl.id() + "/tearDown", procDecl.tearDown());
-        LOGGER.atInfo().log("Executed tearDown '{}'", procDecl.id());
+    public void executeUndoVerification(ProcDecl procDecl) throws ExecException {
+        LOGGER.atInfo().log("Undoing verification '{}'", procDecl.id());
+        execList(procDecl.id() + "/verification", procDecl.verification(), true);
+        LOGGER.atInfo().log("Undone verification '{}'", procDecl.id());
     }
 
-    private void execList(String path, List<StepDecl> steps) throws ExecException {
+    private void execList(String path, List<StepDecl> steps, boolean undo) throws ExecException {
         if (steps.isEmpty()) {
             LOGGER.atInfo().log("Nothing to execute for {}", path);
         }
         else {
-            for (int i = 0; i < steps.size(); i++) {
-                StepDecl step = steps.get(i);
-                execStep(path + "/" + i, step);
+            if (undo) {
+                for (int i = steps.size() - 1; i >= 0; i--) {
+                    StepDecl step = steps.get(i);
+                    execStep(path + "/" + i, step, undo);
+                }
             }
+            else {
+                for (int i = 0; i < steps.size(); i++) {
+                    StepDecl step = steps.get(i);
+                    execStep(path + "/" + i, step, undo);
+                }
+            }
+
         }
     }
 
-    private void execStep(String path, StepDecl step) throws ExecException {
+    private void execStep(String path, StepDecl step, boolean undo) throws ExecException {
         if (step.substeps() != null) {
-            execList(path + "/steps", step.substeps());
+            execList(path + "/steps", step.substeps(), undo);
         }
         else if (step.exec() != null) {
-            String arg = path + "/exec";
-            LOGGER.atInfo().log("Executing {}", arg);
-            exec(arg, step.exec());
+            if (undo) {
+                if (step.exec().undo() != null) {
+                    String arg = path + "/exec/undo";
+                    LOGGER.atInfo().log("Executing {}", arg);
+                    exec(arg, step.exec().undo());
+                }
+            }
+            else {
+                String arg = path + "/exec";
+                LOGGER.atInfo().log("Executing {}", arg);
+                exec(arg, step.exec());
+            }
         }
         else if (step.adoc() != null) {
             LOGGER.atInfo().log("Skipping non-executable step {}/adoc: {}", path, step.adoc());

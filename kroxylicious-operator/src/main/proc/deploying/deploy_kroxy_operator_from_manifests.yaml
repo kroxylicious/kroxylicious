@@ -14,6 +14,6 @@ prereqs:
 procedure:
   - step:
       - adoc: Apply the installation manifests
-      - exec: kubectl apply -f install
-tearDown:
-  - exec: kubectl delete -f install
+      - exec:
+          command: kubectl apply -f install
+          undo: kubectl delete -f install

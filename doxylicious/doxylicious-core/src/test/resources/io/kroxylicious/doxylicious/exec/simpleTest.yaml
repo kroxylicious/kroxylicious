@@ -20,9 +20,9 @@ satisfies: deploy_kroxy_operator
 prereqs:
   - ref: have_a_kubectl
 procedure:
-  - exec: true
-tearDown:
-  - exec: true
+  - exec:
+      command: true
+      undo: false
 ---
 id: have_a_target_kafka_cluster
 notional: true
@@ -36,8 +36,6 @@ prereqs:
   - ref: have_a_kubectl
 procedure:
   - exec: true
-tearDown:
-  - exec: true
 ---
 id: deploy_a_strimzi_cluster
 satisfies: have_a_target_kafka_cluster
@@ -45,8 +43,6 @@ prereqs:
   - ref: have_a_kubectl
   - ref: deploy_strimzi_operator
 procedure:
-  - exec: true
-tearDown:
   - exec: true
 ---
 id: create_minimal_proxy
@@ -57,5 +53,3 @@ prereqs:
 procedure:
   - step:
     - exec: true
-tearDown:
-  - exec: true

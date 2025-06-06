@@ -52,7 +52,7 @@ class ProcedureTestTemplateInvocationContext implements TestTemplateInvocationCo
                     @Override
                     public void afterTestExecution(ExtensionContext context) throws Exception {
                         try {
-                            procedure.executeTeardown(); // TODO only execute this is we executed the
+                            procedure.executeTeardown();
                         }
                         finally {
                             procedure.executePrereqsTeardown();

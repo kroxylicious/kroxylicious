@@ -21,7 +21,9 @@ prereqs:
 procedure:
   - step:
       - adoc: Install the examples
-      - exec: kubectl apply -f examples/simple/
+      - exec:
+          command: kubectl apply -f examples/simple/
+          undo: kubectl delete -f examples/simple/
       - adoc: That ought to do it
   - step:
       - adoc: Drink some coffee

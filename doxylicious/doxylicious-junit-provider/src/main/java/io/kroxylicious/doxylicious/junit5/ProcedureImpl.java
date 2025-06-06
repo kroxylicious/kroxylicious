@@ -13,6 +13,7 @@ import org.opentest4j.AssertionFailedError;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.doxylicious.exec.ExecException;
 import io.kroxylicious.doxylicious.exec.ProcExecutor;
 import io.kroxylicious.doxylicious.model.ProcDecl;
 
@@ -20,17 +21,18 @@ class ProcedureImpl implements Procedure {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcedureImpl.class);
 
     private final List<ProcDecl> caseProcs;
-    private final ProcExecutor exec;
+    private final ProcExecutor executor;
     private final String procId;
-    private int tearDownFrom = -1;
+    private int undoProcedureFrom = -1;
+    private int undoVerificationFrom = -1;
 
-    ProcedureImpl(String procId, List<ProcDecl> caseProcs, ProcExecutor exec) {
+    ProcedureImpl(String procId, List<ProcDecl> caseProcs, ProcExecutor executor) {
         if (caseProcs.isEmpty()) {
             throw new IllegalArgumentException();
         }
         this.procId = procId;
         this.caseProcs = caseProcs;
-        this.exec = exec;
+        this.executor = executor;
     }
 
     List<ProcDecl> caseProcs() {
@@ -50,9 +52,9 @@ class ProcedureImpl implements Procedure {
     public void executeProcedure() {
         ProcDecl procDecl = testProcedure();
         try {
-            tearDownFrom++;
+            undoProcedureFrom++;
             LOGGER.info("Executing test proc {}", procDecl);
-            exec.executeProcedure(procDecl);
+            executor.executeProcedure(procDecl);
         }
         catch (Exception e) {
             throw new AssertionFailedError("Test procedure '%s' failed during execution".formatted(procDecl.id()), e);
@@ -63,11 +65,18 @@ class ProcedureImpl implements Procedure {
     public void assertVerification() {
         ProcDecl procDecl = testProcedure();
         try {
+            undoVerificationFrom++;
             LOGGER.info("Verifying test proc {}", procDecl);
-            exec.executeVerification(procDecl);
+            executor.executeVerification(procDecl);
         }
         catch (Exception e) {
             throw new AssertionFailedError("Test procedure '%s' failed during verification".formatted(procDecl.id()), e);
+        }
+        try {
+            executor.executeUndoVerification(procDecl);
+        }
+        catch (ExecException e) {
+            throw new AssertionFailedError("Test procedure '%s' failed during verification undo".formatted(procDecl.id()), e);
         }
     }
 
@@ -75,48 +84,43 @@ class ProcedureImpl implements Procedure {
         for (int i = 0; i < caseProcs.size() - 1; i++) {
             ProcDecl prereqProcDecl = caseProcs.get(i);
             try {
-                tearDownFrom++;
+                undoProcedureFrom++;
                 LOGGER.info("Executing prerequisite {}", prereqProcDecl);
-                exec.executeProcedure(prereqProcDecl);
+                executor.executeProcedure(prereqProcDecl);
             }
             catch (Exception e) {
                 throw new AssertionFailedError("Prereq '%s' of test procedure '%s' failed during execution".formatted(prereqProcDecl.id(), testProcedure().id()), e);
-            }
-            try {
-                LOGGER.info("Verifying prerequisite {}", prereqProcDecl);
-                exec.executeVerification(prereqProcDecl);
-            }
-            catch (Exception e) {
-                throw new AssertionFailedError("Prereq '%s' of test procedure '%s' failed during verification".formatted(prereqProcDecl.id(), testProcedure().id()), e);
             }
         }
     }
 
     void executeTeardown() {
-        if (tearDownFrom < caseProcs.size() - 1) {
-            LOGGER.info("Skipping tearingDown of test procedure (never executed procedure)");
+
+        if (undoProcedureFrom < caseProcs.size() - 1) {
+            LOGGER.info("Skipping undo of test procedure (never executed procedure)");
             return;
         }
         ProcDecl procDecl = testProcedure();
         try {
-            tearDownFrom--;
-            LOGGER.info("tearingDown proc {}", procDecl);
-            exec.executeTearDown(procDecl);
+            undoProcedureFrom--;
+            LOGGER.info("Undoing proc {}", procDecl);
+            executor.executeUndoProcedure(procDecl);
         }
         catch (Exception e) {
-            throw new AssertionFailedError("Test procedure '%s' errored during tearDown".formatted(procDecl.id()), e);
+            throw new AssertionFailedError("Test procedure '%s' errored while undoing procedure".formatted(procDecl.id()), e);
         }
     }
 
     void executePrereqsTeardown() {
-        for (int i = tearDownFrom; i >= 0; i--) {
+        for (int i = undoProcedureFrom; i >= 0; i--) {
             ProcDecl prereqProcDecl = caseProcs.get(i);
             try {
-                LOGGER.info("tearingDown prerequisite {}", prereqProcDecl);
-                exec.executeTearDown(prereqProcDecl);
+                LOGGER.info("Undoing prerequisite procedure {}", prereqProcDecl);
+                executor.executeUndoProcedure(prereqProcDecl);
             }
             catch (Exception e) {
-                throw new AssertionFailedError("Prereq '%s' of test procedure '%s' errored during tearDown".formatted(prereqProcDecl.id(), testProcedure().id()), e);
+                throw new AssertionFailedError("Prereq '%s' of test procedure '%s' errored while undoing procedure".formatted(prereqProcDecl.id(), testProcedure().id()),
+                        e);
             }
         }
     }

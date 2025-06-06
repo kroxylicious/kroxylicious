@@ -29,7 +29,9 @@ prereqs:
 procedure:
   - step:
       - adoc: Install the `simple` example.
-      - exec: kubectl apply -f examples/simple/
+      - exec:
+          command: kubectl apply -f examples/simple/
+          undo: kubectl delete --ignore-not-found=true -f examples/simple/
   - step:
       - adoc: Wait for the proxy to become `Ready`.
       - exec:
@@ -38,7 +40,9 @@ procedure:
 verification:
   - step:
       - adoc: Create a namespace to run the clients in
-      - exec: kubectl create namespace kafka-client
+      - exec:
+          command: kubectl create namespace kafka-client
+          undo: kubectl delete namespace kafka-client
   - step:
       - adoc: Run a producer to send some records through the proxy to the Kafka cluster
       - exec:
@@ -79,6 +83,3 @@ verification:
           --topic=test-topic 
           --reset-policy=earliest 
           --max-messages=10
-tearDown:
-  - exec: kubectl delete namespace kafka-client --ignore-not-found=true
-  - exec: kubectl delete --ignore-not-found=true -f examples/simple/

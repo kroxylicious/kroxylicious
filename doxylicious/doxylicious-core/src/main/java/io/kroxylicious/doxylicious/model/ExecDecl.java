@@ -32,7 +32,8 @@ public record ExecDecl(
                        @JsonDeserialize(using = DurationDeserializer.class) @Nullable Duration timeout,
                        @JsonDeserialize(using = DurationDeserializer.class) @Nullable Duration destroyTimeout,
                        @Nullable OutputFileAssertion standardOutput,
-                       @Nullable OutputFileAssertion standardError) {
+                       @Nullable OutputFileAssertion standardError,
+                       @Nullable @JsonDeserialize(using = ExecDecl.Deserializer.class) ExecDecl undo) {
 
     public ExecDecl {
         if ((command == null) == (args == null)) {
@@ -47,7 +48,7 @@ public record ExecDecl(
                     @Nullable Duration destroyTimeout,
                     @Nullable OutputFileAssertion standardOutput,
                     @Nullable OutputFileAssertion standardError) {
-        this(null, null, command, args, exitCodes, timeout, destroyTimeout, standardOutput, standardError);
+        this(null, null, command, args, exitCodes, timeout, destroyTimeout, standardOutput, standardError, null);
     }
 
     public @NonNull List<String> args() {

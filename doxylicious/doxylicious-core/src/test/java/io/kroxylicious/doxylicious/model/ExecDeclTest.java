@@ -42,8 +42,8 @@ class ExecDeclTest {
     @Test
     void shouldRequireOneOfCommandOrArgs() {
         List<String> empty = List.of();
-        assertThatThrownBy(() -> new ExecDecl(null, null, "", empty, null, null, null, null, null)).isExactlyInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new ExecDecl(null, null, null, null, null, null, null, null, null)).isExactlyInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ExecDecl(null, null, "", empty, null, null, null, null, null, null)).isExactlyInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new ExecDecl(null, null, null, null, null, null, null, null, null, null)).isExactlyInstanceOf(IllegalArgumentException.class);
 
     }
 

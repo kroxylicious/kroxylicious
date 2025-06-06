@@ -33,7 +33,6 @@ public record ProcDecl(
                        @JsonSetter(nulls = Nulls.AS_EMPTY) List<Prereq> prereqs,
                        @JsonSetter(nulls = Nulls.AS_EMPTY) List<StepDecl> procedure,
                        @JsonSetter(nulls = Nulls.AS_EMPTY) List<StepDecl> verification,
-                       @JsonSetter(nulls = Nulls.AS_EMPTY) List<StepDecl> tearDown,
                        @JsonProperty(required = false) @Nullable DocContent additionalResources) {
 
     public ProcDecl(
@@ -50,7 +49,6 @@ public record ProcDecl(
                 satisfies,
                 prepreqs.stream().map(ref -> new Prereq("", ref)).toList(),
                 steps,
-                List.of(),
                 List.of(),
                 null);
     }

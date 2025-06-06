@@ -32,7 +32,8 @@ class ProcDeclTest {
         assertThat(proc.procedure()).isEqualTo(List.of(
                 new StepDecl(null, null, List.of(
                         new StepDecl("Install the examples", null),
-                        new StepDecl(null, "kubectl apply -f examples/simple/"),
+                        new StepDecl(null, new ExecDecl(null, null, "kubectl apply -f examples/simple/", null, null, null, null, null, null,
+                                new ExecDecl("kubectl delete -f examples/simple/", null, null, null, null, null, null)), null),
                         new StepDecl("That ought to do it", null))),
                 new StepDecl(null, null, List.of(
                         new StepDecl("Drink some coffee", null)))));
