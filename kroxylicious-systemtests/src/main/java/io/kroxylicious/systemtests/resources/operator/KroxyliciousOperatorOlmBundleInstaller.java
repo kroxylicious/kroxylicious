@@ -92,11 +92,10 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
     public void install() {
         LOGGER.info("Setup Kroxylicious Operator using OLM");
         if (bundleImageRef != null && !bundleImageRef.isEmpty()) {
-            CompletableFuture.completedFuture(install(kroxyliciousOperatorName, operatorNamespace, bundleImageRef));
+            install(kroxyliciousOperatorName, operatorNamespace, bundleImageRef).join();
         }
         else {
-            CompletableFuture.completedFuture(install(kroxyliciousOperatorName, operatorNamespace,
-                    Environment.OLM_OPERATOR_CHANNEL, Environment.CATALOG_SOURCE_NAME, "openshift-marketplace"));
+            install(kroxyliciousOperatorName, operatorNamespace, Environment.OLM_OPERATOR_CHANNEL, Environment.CATALOG_SOURCE_NAME, Environment.CATALOG_NAMESPACE).join();
         }
     }
 
@@ -120,7 +119,7 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
                 .inNamespace(operatorNamespace).list().getItems().isEmpty()) {
             OperatorGroupBuilder operatorGroup = new OperatorGroupBuilder()
                     .editOrNewMetadata()
-                    .withName("amq-streams-proxy-operator-group")
+                    .withName(Environment.KROXYLICIOUS_OLM_DEPLOYMENT_NAME + "-operator-group")
                     .withNamespace(operatorNamespace)
                     .endMetadata();
             ResourceManager.getInstance().createResourceFromBuilderWithWait(operatorGroup);
