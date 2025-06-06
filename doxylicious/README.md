@@ -54,7 +54,7 @@ procedure:
 verification:
     - step: # <6>
           - adoc: Check that coffee was drunk.
-          - exec: true
+          - exec: /usr/bin/true
 ```
 
 1. Each procedure must have an `id`. This id needs to be unique within all the procedures defined in both `src/main/proc` and `src/test/proc`.
@@ -159,7 +159,7 @@ an argument for test method parameters with type `Procedure`.
 The extension knows about all the procedures defined in `src/main/proc` and `src/test/proc`.
 Those procedures will be validated by the extension to detect things like procedures with cyclic definitions.
 The method must also be annotated with `@TestProcedure` so the extension knows  which procedure is being tested.
-The extension will arrange for the execution of the test procedure's transitive `prerequisites` before entry to the test method, and also for the execution of `tearDown` steps of the test procedure and its transitive prerequisites. 
+The extension will arrange for the execution of the test procedure's transitive `prerequisites` before entry to the test method, and also for the execution of `undo` steps of the test procedure and its transitive prerequisites. 
 
 The test method will be invoked multiple times, once for each of the possible ways the test procedure and its prerequisites can be satisfied. 
 
