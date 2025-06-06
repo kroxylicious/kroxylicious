@@ -68,7 +68,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.DOUBLE;
 @RestoreSystemProperties
 class OauthBearerValidationIT {
 
-    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:2.1.11");
+    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:2.2.1");
 
     private static final int OAUTH_SERVER_PORT = 28089;
     private static final String JWKS_ENDPOINT_URL = "http://localhost:" + OAUTH_SERVER_PORT + "/default/jwks";
