@@ -43,6 +43,20 @@ public interface FilterContext {
     String sniHostname();
 
     /**
+     * Returns the principal name from the client's TLS certificate.
+     * <p>
+     * For X.509 certificates, this is typically the Distinguished Name (DN) in format
+     * such as "CN=clientName, O=organizationName, C=US". This information can be used
+     * by filters for client authentication, authorization decisions, or audit logging.
+     *
+     * @return the client certificate principal as a string
+     */
+    @Nullable
+    default String downstreamCertificatePrincipal() {
+        return null;
+    }
+
+    /**
      * Creates a builder for a request filter result objects.  This object encapsulates
      * the request to forward and optionally orders for actions such as closing
      * the connection or dropping the request.

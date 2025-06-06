@@ -13,6 +13,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import javax.net.ssl.SSLPeerUnverifiedException;
+
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseDataJsonConverter;
@@ -34,6 +36,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
@@ -68,6 +71,7 @@ public class KafkaProxyFrontendHandler
 
     private static final String NET_FILTER_INVOKED_IN_WRONG_STATE = "NetFilterContext invoked in wrong session state";
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
+    private static final String ANONYMOUS = "ANONYMOUS";
 
     /** Cache ApiVersions response which we use when returning ApiVersions ourselves */
     private static final ApiVersionsResponseData API_VERSIONS_RESPONSE;
@@ -87,6 +91,21 @@ public class KafkaProxyFrontendHandler
     private boolean pendingClientFlushes;
     private @Nullable AuthenticationEvent authentication;
     private @Nullable String sniHostname;
+    private @Nullable String downstreamCertificatePrincipal;
+
+    @Nullable
+    public String getDownstreamCertificatePrincipal() {
+        return downstreamCertificatePrincipal;
+    }
+
+    @VisibleForTesting
+    SslHandler getSslHandler(ChannelHandlerContext ctx) {
+        if (ctx == null) {
+            throw new IllegalStateException("No context available");
+        }
+        SslHandler sslHandler = ctx.pipeline().get(SslHandler.class);
+        return sslHandler;
+    }
 
     // Flag if we receive a channelReadComplete() prior to outbound connection activation
     // so we can perform the channelReadComplete()/outbound flush & auto_read
@@ -170,6 +189,18 @@ public class KafkaProxyFrontendHandler
         }
         else if (event instanceof AuthenticationEvent authenticationEvent) {
             this.authentication = authenticationEvent;
+        }
+        else if (event instanceof SslHandshakeCompletionEvent sslHandshakeCompletionEvent) {
+            if (sslHandshakeCompletionEvent.isSuccess()) {
+                SslHandler sslHandler = getSslHandler(ctx);
+                try {
+                    downstreamCertificatePrincipal = sslHandler.engine().getSession().getPeerPrincipal().toString();
+                }
+                catch (SSLPeerUnverifiedException e) {
+                    LOGGER.debug("No client principal received, setting principal as ANONYMOUS");
+                    downstreamCertificatePrincipal = ANONYMOUS;
+                }
+            }
         }
         super.userEventTriggered(ctx, event);
     }
@@ -640,6 +671,7 @@ public class KafkaProxyFrontendHandler
                             protocolFilter,
                             20000,
                             sniHostname,
+                            downstreamCertificatePrincipal,
                             virtualClusterModel,
                             inboundChannel));
         }
