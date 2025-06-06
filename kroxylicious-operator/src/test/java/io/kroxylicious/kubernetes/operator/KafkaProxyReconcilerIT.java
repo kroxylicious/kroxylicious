@@ -375,7 +375,7 @@ class KafkaProxyReconcilerIT {
         // when
         updateStatusObservedGeneration(testActor.create(cluster));
 
-        int clientFacingPort = LoadBalancerClusterIngressNetworkingModel.DEFAULT_LOADBALANCER_PORT;
+        int clientFacingPort = LoadBalancerClusterIngressNetworkingModel.DEFAULT_CLIENT_FACING_LOADBALANCER_PORT;
         int proxyListenPort = ProxyDeploymentDependentResource.SHARED_SNI_PORT;
 
         AWAIT.alias("shared sni service manifested").untilAsserted(() -> {

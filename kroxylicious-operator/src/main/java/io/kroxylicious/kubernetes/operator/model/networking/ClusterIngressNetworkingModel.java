@@ -83,4 +83,9 @@ public interface ClusterIngressNetworkingModel {
     default Stream<Integer> requiredSniLoadBalancerServicePorts() {
         return Stream.empty();
     }
+
+    /**
+     * @return the bootstrap servers that clients will connect to
+     */
+    String bootstrapServers();
 }

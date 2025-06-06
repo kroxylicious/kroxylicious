@@ -106,6 +106,19 @@ class TcpClusterIPClusterIngressNetworkingModelTest {
     }
 
     @Test
+    void bootstrapServers() {
+        // given
+        List<NodeIdRanges> nodeIdRange = List.of(createNodeIdRange("a", 1L, 3L));
+        int firstIdentifyingPort = 1;
+        TcpClusterIPClusterIngressNetworkingModel model = new TcpClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
+                nodeIdRange, firstIdentifyingPort, 4);
+        // when
+        String bootstrapServers = model.bootstrapServers();
+        // then
+        assertThat(bootstrapServers).isEqualTo(new HostPort("my-cluster-my-ingress.my-namespace.svc.cluster.local", firstIdentifyingPort).toString());
+    }
+
+    @Test
     void createInstancesWithTooManyPorts() {
         // given
         List<NodeIdRanges> nodeIdRange = List.of(createNodeIdRange("a", 1L, 3L));
