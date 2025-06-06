@@ -32,23 +32,21 @@ import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.service.HostPort;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 import static java.lang.Math.toIntExact;
 
-public record ClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
-                                                     VirtualKafkaCluster cluster,
-                                                     KafkaProxyIngress ingress,
-                                                     List<NodeIdRanges> nodeIdRanges,
-                                                     @Nullable Tls tls,
-                                                     int firstIdentifyingPort,
-                                                     int lastIdentifyingPort)
+public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
+                                                        VirtualKafkaCluster cluster,
+                                                        KafkaProxyIngress ingress,
+                                                        List<NodeIdRanges> nodeIdRanges,
+                                                        int firstIdentifyingPort,
+                                                        int lastIdentifyingPort)
         implements ClusterIngressNetworkingModel {
 
-    public ClusterIPClusterIngressNetworkingModel {
+    public TcpClusterIPClusterIngressNetworkingModel {
         Objects.requireNonNull(proxy);
         Objects.requireNonNull(cluster);
         Objects.requireNonNull(ingress);
@@ -127,21 +125,14 @@ public record ClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
             return new NamedRange(name, toIntExact(range.getStart()), toIntExact(range.getEnd()));
         }).toList();
         return new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", firstIdentifyingPort()),
-                crossNamespaceServiceAddress(),
+                ResourcesUtil.crossNamespaceServiceAddress(bootstrapServiceName(), cluster),
                 null,
                 portRanges);
     }
 
-    /**
-     * @return an address that any pod in the same k8s cluster can use to address the service, regardless of which namespace the pod is in
-     */
-    private String crossNamespaceServiceAddress() {
-        return bootstrapServiceName() + "." + namespace(cluster) + ".svc.cluster.local";
-    }
-
     @Override
     public Optional<Tls> downstreamTls() {
-        return Optional.ofNullable(tls);
+        return Optional.empty();
     }
 
     public static int numIdentifyingPortsRequired(List<NodeIdRanges> nodeIdRanges) {

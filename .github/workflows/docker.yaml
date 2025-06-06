@@ -63,7 +63,7 @@ jobs:
           context: .
           file: ./Dockerfile.operator
           platforms: linux/amd64,linux/arm64
-          push: ${{ endsWith(env.RELEASE_VERSION, 'SNAPSHOT') }}
+          push: true
           build-args: |
             KROXYLICIOUS_VERSION=${{ env.RELEASE_VERSION }}
           tags: ${{ env.OPERATOR_IMAGE }}:${{ env.RELEASE_VERSION }},${{ env.OPERATOR_IMAGE }}:latest

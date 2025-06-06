@@ -76,6 +76,7 @@ import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterStatusB
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import io.kroxylicious.kubernetes.operator.assertj.ProxyConfigAssert;
 import io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel;
+import io.kroxylicious.kubernetes.operator.model.networking.TlsClusterIPClusterIngressNetworkingModel;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.VirtualCluster;
@@ -232,8 +233,119 @@ class KafkaProxyReconcilerIT {
         updateStatusObservedGeneration(testActor.create(resource));
 
         // Then
+        int clientFacingPort = TlsClusterIPClusterIngressNetworkingModel.CLIENT_FACING_PORT;
+        int proxyListenPort = ProxyDeploymentDependentResource.SHARED_SNI_PORT;
         assertProxyConfigContents(proxy, Set.of(downstreamTrustAnchorName), Set.of());
+        String baseServiceName = name(resource) + "-" + name(ingress);
+
+        String expectedBootstrapHost = baseServiceName + "." + extension.getNamespace() + ".svc.cluster.local";
+        String expectedAdvertisedBrokerAddressPattern = baseServiceName + "-$(nodeId)." + extension.getNamespace() + ".svc.cluster.local";
+        AWAIT.alias("proxy config - gateway configured for clusterIP SNI ingress").untilAsserted(() -> {
+            assertProxyConfigInConfigMap(proxy)
+                    .cluster(name(resource))
+                    .gateway(name(ingress))
+                    .sniHostIdentifiesNode()
+                    .hasBootstrapAddress(new HostPort(expectedBootstrapHost, proxyListenPort).toString())
+                    .hasAdvertisedBrokerAddressPattern(new HostPort(expectedAdvertisedBrokerAddressPattern, clientFacingPort).toString());
+        });
+
         assertDeploymentMountsConfigMap(proxy, downstreamTrustAnchorName);
+        assertSharedSniPortExposedOnProxyDeployment(proxy, proxyListenPort);
+        AWAIT.alias("SNI clusterIp services manifested").untilAsserted(() -> {
+            assertTlsClusterIpServiceManifested(baseServiceName, proxy, clientFacingPort, proxyListenPort);
+            assertTlsClusterIpServiceManifested(baseServiceName + "-0", proxy, clientFacingPort, proxyListenPort);
+            assertTlsClusterIpServiceManifested(baseServiceName + "-1", proxy, clientFacingPort, proxyListenPort);
+            assertTlsClusterIpServiceManifested(baseServiceName + "-2", proxy, clientFacingPort, proxyListenPort);
+        });
+    }
+
+    @Test
+    void virtualClusterWithMultipleClusterIpIngressWithTrustAnchor() {
+        // Given
+        KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
+
+        KafkaService kafkaService = updateStatusObservedGeneration(testActor.create(kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP)));
+
+        KafkaProxyIngress ingress = updateStatusObservedGeneration(testActor.create(clusterIpIngress(CLUSTER_BAR_CLUSTERIP_INGRESS, proxy, TLS)));
+        KafkaProxyIngress ingress2 = updateStatusObservedGeneration(testActor.create(clusterIpIngress("another-cluster-ip", proxy, TLS)));
+
+        Secret tlsServerCert = testActor.create(tlsKeyAndCertSecret("downstream-tls-certificate"));
+        String downstreamTrustAnchorName = "downstream-tls-trust-anchor";
+        ConfigMap trustAnchor = testActor.create(trustAnchorConfigMap(downstreamTrustAnchorName, "tls.pem"));
+
+        Ingresses clusterIngress = new IngressesBuilder()
+                .withIngressRef(toIngressRef(ingress))
+                .withNewTls()
+                .withCertificateRef(toCertificateRef(tlsServerCert))
+                .withTrustAnchorRef(toTrustAnchorRef(trustAnchor))
+                .endTls()
+                .build();
+
+        Ingresses clusterIngress2 = new IngressesBuilder()
+                .withIngressRef(toIngressRef(ingress2))
+                .withNewTls()
+                .withCertificateRef(toCertificateRef(tlsServerCert))
+                .withTrustAnchorRef(toTrustAnchorRef(trustAnchor))
+                .endTls()
+                .build();
+
+        VirtualKafkaCluster resource = virtualKafkaCluster(CLUSTER_BAR, proxy, kafkaService, List.of(clusterIngress, clusterIngress2), Optional.empty());
+
+        // When
+        updateStatusObservedGeneration(testActor.create(resource));
+
+        // Then
+        int clientFacingPort = TlsClusterIPClusterIngressNetworkingModel.CLIENT_FACING_PORT;
+        int proxyListenPort = ProxyDeploymentDependentResource.SHARED_SNI_PORT;
+        assertProxyConfigContents(proxy, Set.of(downstreamTrustAnchorName), Set.of());
+        String baseServiceName = name(resource) + "-" + name(ingress);
+        String baseServiceName2 = name(resource) + "-" + name(ingress2);
+
+        assertProxyGatewayConfiguredForTlsClusterIP(baseServiceName, proxy, resource, ingress, proxyListenPort, clientFacingPort);
+        assertProxyGatewayConfiguredForTlsClusterIP(baseServiceName2, proxy, resource, ingress2, proxyListenPort, clientFacingPort);
+
+        assertDeploymentMountsConfigMap(proxy, downstreamTrustAnchorName);
+        assertSharedSniPortExposedOnProxyDeployment(proxy, proxyListenPort);
+        AWAIT.alias("SNI clusterIp services manifested").untilAsserted(() -> {
+            assertTlsClusterIpServiceManifested(baseServiceName, proxy, clientFacingPort, proxyListenPort);
+            assertTlsClusterIpServiceManifested(baseServiceName + "-0", proxy, clientFacingPort, proxyListenPort);
+            assertTlsClusterIpServiceManifested(baseServiceName + "-1", proxy, clientFacingPort, proxyListenPort);
+            assertTlsClusterIpServiceManifested(baseServiceName + "-2", proxy, clientFacingPort, proxyListenPort);
+            assertTlsClusterIpServiceManifested(baseServiceName2, proxy, clientFacingPort, proxyListenPort);
+            assertTlsClusterIpServiceManifested(baseServiceName2 + "-0", proxy, clientFacingPort, proxyListenPort);
+            assertTlsClusterIpServiceManifested(baseServiceName2 + "-1", proxy, clientFacingPort, proxyListenPort);
+            assertTlsClusterIpServiceManifested(baseServiceName2 + "-2", proxy, clientFacingPort, proxyListenPort);
+        });
+    }
+
+    private void assertProxyGatewayConfiguredForTlsClusterIP(String baseServiceName, KafkaProxy proxy, VirtualKafkaCluster resource, KafkaProxyIngress ingress,
+                                                             int proxyListenPort, int clientFacingPort) {
+        String expectedBootstrapHost = baseServiceName + "." + extension.getNamespace() + ".svc.cluster.local";
+        String expectedAdvertisedBrokerAddressPattern = baseServiceName + "-$(nodeId)." + extension.getNamespace() + ".svc.cluster.local";
+        AWAIT.alias("proxy config - gateway configured for clusterIP SNI ingress").untilAsserted(() -> {
+            assertProxyConfigInConfigMap(proxy)
+                    .cluster(name(resource))
+                    .gateway(name(ingress))
+                    .sniHostIdentifiesNode()
+                    .hasBootstrapAddress(new HostPort(expectedBootstrapHost, proxyListenPort).toString())
+                    .hasAdvertisedBrokerAddressPattern(new HostPort(expectedAdvertisedBrokerAddressPattern, clientFacingPort).toString());
+        });
+    }
+
+    private void assertTlsClusterIpServiceManifested(String serviceName, KafkaProxy proxy, int clientFacingPort, int proxyListenPort) {
+        var service = testActor.get(Service.class, serviceName);
+        assertThat(service).isNotNull()
+                .describedAs(
+                        "Expect Service '" + serviceName + " to exist")
+                .extracting(svc -> svc.getSpec().getSelector())
+                .describedAs("Service's selector should select proxy pods")
+                .isEqualTo(ProxyDeploymentDependentResource.podLabels(proxy));
+        assertThat(service.getSpec().getType()).isEqualTo("ClusterIP");
+        assertThat(service.getSpec().getPorts()).singleElement().satisfies(onlyPort -> {
+            assertThat(onlyPort.getProtocol()).isEqualTo("TCP");
+            assertThat(onlyPort.getPort()).isEqualTo(clientFacingPort);
+            assertThat(onlyPort.getTargetPort()).isEqualTo(new IntOrString(proxyListenPort));
+        });
     }
 
     @Test
@@ -286,6 +398,19 @@ class KafkaProxyReconcilerIT {
             });
         });
 
+        assertSharedSniPortExposedOnProxyDeployment(proxy, proxyListenPort);
+
+        AWAIT.alias("proxy config - gateway configured for SNI loadbalancer ingress").untilAsserted(() -> {
+            assertProxyConfigInConfigMap(proxy)
+                    .cluster(name(cluster))
+                    .gateway(name(loadBalancerIngress))
+                    .sniHostIdentifiesNode()
+                    .hasBootstrapAddress(new HostPort(loadbalancerBootstrap, proxyListenPort).toString())
+                    .hasAdvertisedBrokerAddressPattern(new HostPort(loadbalancerBrokerAddressPattern, clientFacingPort).toString());
+        });
+    }
+
+    private void assertSharedSniPortExposedOnProxyDeployment(KafkaProxy proxy, int proxyListenPort) {
         AWAIT.alias("proxy deployment exposes shared sni port").untilAsserted(() -> {
             var deployment = testActor.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy));
             assertThat(deployment).isNotNull();
@@ -299,15 +424,6 @@ class KafkaProxyReconcilerIT {
                                 metricsPort,
                                 bootstrapContainerPort);
             });
-        });
-
-        AWAIT.alias("proxy config - gateway configured for SNI loadbalancer ingress").untilAsserted(() -> {
-            assertProxyConfigInConfigMap(proxy)
-                    .cluster(name(cluster))
-                    .gateway(name(loadBalancerIngress))
-                    .sniHostIdentifiesNode()
-                    .hasBootstrapAddress(new HostPort(loadbalancerBootstrap, proxyListenPort).toString())
-                    .hasAdvertisedBrokerAddressPattern(new HostPort(loadbalancerBrokerAddressPattern, clientFacingPort).toString());
         });
     }
 

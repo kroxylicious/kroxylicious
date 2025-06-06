@@ -46,7 +46,7 @@ spec:
               properties:
                 name:
                   type: string
-                  maxLength: 63
+                  maxLength: 50
                   pattern: "[a-z0-9]([a-z0-9-]*[a-z0-9])?"
             spec:
               type: object

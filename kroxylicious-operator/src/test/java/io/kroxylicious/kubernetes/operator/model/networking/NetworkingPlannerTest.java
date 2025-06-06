@@ -38,6 +38,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class NetworkingPlannerTest {
     private static final String PROXY_NAME = "my-proxy";
     private static final String CLUSTER_IP_INGRESS_NAME = "my-cluster-ip-ingress";
+    private static final String TLS_CLUSTER_IP_INGRESS_NAME = "my-tls-cluster-ip-ingress";
+    private static final String TLS_CLUSTER_IP_2_INGRESS_NAME = "my-tls-cluster-ip-ingress-2";
     private static final String CLUSTER_IP_2_INGRESS_NAME = "my-cluster-ip-ingress-2";
     private static final String LOAD_BALANCER_INGRESS_NAME = "my-load-balancer-ingress";
     private static final String LOAD_BALANCER_INGRESS_2_NAME = "my-load-balancer-ingress-2";
@@ -62,6 +64,34 @@ class NetworkingPlannerTest {
             .withNewSpec()
                 .withNewClusterIP()
                     .withProtocol(ClusterIP.Protocol.TCP)
+                .endClusterIP()
+            .endSpec()
+            .build();
+    // @formatter:on
+
+    // @formatter:off
+    private static final KafkaProxyIngress TLS_CLUSTER_IP_INGRESS = new KafkaProxyIngressBuilder()
+            .withNewMetadata()
+                .withName(TLS_CLUSTER_IP_INGRESS_NAME)
+                .withNamespace(NAMESPACE)
+            .endMetadata()
+            .withNewSpec()
+                .withNewClusterIP()
+                    .withProtocol(ClusterIP.Protocol.TLS)
+                .endClusterIP()
+            .endSpec()
+            .build();
+    // @formatter:on
+
+    // @formatter:off
+    private static final KafkaProxyIngress TLS_CLUSTER_IP_2_INGRESS = new KafkaProxyIngressBuilder()
+            .withNewMetadata()
+                .withName(TLS_CLUSTER_IP_2_INGRESS_NAME)
+                .withNamespace(NAMESPACE)
+            .endMetadata()
+            .withNewSpec()
+                .withNewClusterIP()
+                    .withProtocol(ClusterIP.Protocol.TLS)
                 .endClusterIP()
             .endSpec()
             .build();
@@ -109,6 +139,10 @@ class NetworkingPlannerTest {
     // @formatter:on
 
     public static final Ingresses CLUSTER_IP_CLUSTER_INGRESSES = new IngressesBuilder().withNewIngressRef().withName(CLUSTER_IP_INGRESS_NAME).endIngressRef().build();
+    public static final Ingresses TLS_CLUSTER_IP_CLUSTER_INGRESSES = new IngressesBuilder().withTls(TLS).withNewIngressRef().withName(TLS_CLUSTER_IP_INGRESS_NAME)
+            .endIngressRef().build();
+    public static final Ingresses TLS_CLUSTER_IP_CLUSTER_2_INGRESSES = new IngressesBuilder().withTls(TLS_2).withNewIngressRef().withName(TLS_CLUSTER_IP_2_INGRESS_NAME)
+            .endIngressRef().build();
 
     public static final Ingresses CLUSTER_IP_2_CLUSTER_INGRESSES = new IngressesBuilder().withNewIngressRef().withName(CLUSTER_IP_2_INGRESS_NAME).endIngressRef().build();
     public static final Ingresses LOAD_BALANCER_INGRESSES = new IngressesBuilder().withTls(TLS).withNewIngressRef().withName(LOAD_BALANCER_INGRESS_NAME).endIngressRef()
@@ -146,13 +180,13 @@ class NetworkingPlannerTest {
     // @formatter:on
 
     @Test
-    public void noClustersResolved() {
+    void noClustersResolved() {
         ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of()));
         assertThat(networkingModel.clusterNetworkingModels()).isEmpty();
     }
 
     @Test
-    public void clusterIpIngress() {
+    void clusterIpIngress() {
         VirtualKafkaCluster virtualKafkaCluster = clusterWithIngress(CLUSTER_NAME, CLUSTER_IP_CLUSTER_INGRESSES);
         ClusterResolutionResult clusterResolutionResult = new ClusterResolutionResult(virtualKafkaCluster, ResolutionResult.resolved(virtualKafkaCluster, PROXY),
                 List.of(), ResolutionResult.resolved(virtualKafkaCluster, KAFKA_SERVICE),
@@ -166,15 +200,68 @@ class NetworkingPlannerTest {
             assertThat(clusterNetworkingModel.ingressExceptions()).isEmpty();
             assertThat(clusterNetworkingModel.clusterIngressNetworkingModelResults()).singleElement().satisfies(model -> {
                 assertThat(model.exception()).isNull();
-                assertThat(model.clusterIngressNetworkingModel()).isEqualTo(new ClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, CLUSTER_IP_INGRESS,
-                        List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), null, FIRST_IDENTIFYING_PORT,
+                assertThat(model.clusterIngressNetworkingModel()).isEqualTo(new TcpClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, CLUSTER_IP_INGRESS,
+                        List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), FIRST_IDENTIFYING_PORT,
                         FIRST_IDENTIFYING_PORT + 3));
             });
         });
     }
 
     @Test
-    public void loadBalancerIngress() {
+    void tlsClusterIpIngress() {
+        VirtualKafkaCluster virtualKafkaCluster = clusterWithIngress(CLUSTER_NAME, TLS_CLUSTER_IP_CLUSTER_INGRESSES);
+        ClusterResolutionResult clusterResolutionResult = new ClusterResolutionResult(virtualKafkaCluster, ResolutionResult.resolved(virtualKafkaCluster, PROXY),
+                List.of(), ResolutionResult.resolved(virtualKafkaCluster, KAFKA_SERVICE),
+                List.of(new IngressResolutionResult(ResolutionResult.resolved(virtualKafkaCluster, TLS_CLUSTER_IP_INGRESS),
+                        ResolutionResult.resolved(TLS_CLUSTER_IP_INGRESS, PROXY), TLS_CLUSTER_IP_CLUSTER_INGRESSES)));
+        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)));
+        assertThat(networkingModel.clusterIngressModel(virtualKafkaCluster)).isNotNull();
+
+        assertThat(networkingModel.clusterNetworkingModels()).singleElement().satisfies(clusterNetworkingModel -> {
+            assertThat(clusterNetworkingModel.cluster()).isEqualTo(virtualKafkaCluster);
+            assertThat(clusterNetworkingModel.ingressExceptions()).isEmpty();
+            assertThat(clusterNetworkingModel.clusterIngressNetworkingModelResults()).singleElement().satisfies(model -> {
+                assertThat(model.exception()).isNull();
+                assertThat(model.clusterIngressNetworkingModel())
+                        .isEqualTo(new TlsClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, TLS_CLUSTER_IP_INGRESS,
+                                List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), TLS, 9291));
+            });
+        });
+    }
+
+    @Test
+    void mulipleTlsClusterIpIngress() {
+        VirtualKafkaCluster virtualKafkaCluster = clusterWithIngress(CLUSTER_NAME, TLS_CLUSTER_IP_CLUSTER_INGRESSES, TLS_CLUSTER_IP_CLUSTER_2_INGRESSES);
+        ClusterResolutionResult clusterResolutionResult = new ClusterResolutionResult(virtualKafkaCluster, ResolutionResult.resolved(virtualKafkaCluster, PROXY),
+                List.of(), ResolutionResult.resolved(virtualKafkaCluster, KAFKA_SERVICE),
+                List.of(new IngressResolutionResult(ResolutionResult.resolved(virtualKafkaCluster, TLS_CLUSTER_IP_INGRESS),
+                        ResolutionResult.resolved(TLS_CLUSTER_IP_INGRESS, PROXY), TLS_CLUSTER_IP_CLUSTER_INGRESSES),
+                        new IngressResolutionResult(ResolutionResult.resolved(virtualKafkaCluster, TLS_CLUSTER_IP_2_INGRESS),
+                                ResolutionResult.resolved(TLS_CLUSTER_IP_2_INGRESS, PROXY), TLS_CLUSTER_IP_CLUSTER_2_INGRESSES)));
+        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)));
+        assertThat(networkingModel.clusterIngressModel(virtualKafkaCluster)).isNotNull();
+
+        assertThat(networkingModel.clusterNetworkingModels()).singleElement().satisfies(clusterNetworkingModel -> {
+            assertThat(clusterNetworkingModel.cluster()).isEqualTo(virtualKafkaCluster);
+            assertThat(clusterNetworkingModel.ingressExceptions()).isEmpty();
+            var listAssert = assertThat(clusterNetworkingModel.clusterIngressNetworkingModelResults()).hasSize(2);
+            listAssert.element(0).satisfies(model -> {
+                assertThat(model.exception()).isNull();
+                assertThat(model.clusterIngressNetworkingModel())
+                        .isEqualTo(new TlsClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, TLS_CLUSTER_IP_INGRESS,
+                                List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), TLS, 9291));
+            });
+            listAssert.element(1).satisfies(model -> {
+                assertThat(model.exception()).isNull();
+                assertThat(model.clusterIngressNetworkingModel())
+                        .isEqualTo(new TlsClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, TLS_CLUSTER_IP_2_INGRESS,
+                                List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), TLS_2, 9291));
+            });
+        });
+    }
+
+    @Test
+    void loadBalancerIngress() {
         VirtualKafkaCluster virtualKafkaCluster = clusterWithIngress(CLUSTER_NAME, LOAD_BALANCER_INGRESSES);
         ClusterResolutionResult clusterResolutionResult = new ClusterResolutionResult(virtualKafkaCluster, ResolutionResult.resolved(virtualKafkaCluster, PROXY),
                 List.of(), ResolutionResult.resolved(virtualKafkaCluster, KAFKA_SERVICE),
@@ -195,7 +282,7 @@ class NetworkingPlannerTest {
     }
 
     @Test
-    public void clusterIpAndLoadBalancerIngress() {
+    void clusterIpAndLoadBalancerIngress() {
         VirtualKafkaCluster virtualKafkaCluster = clusterWithIngress(CLUSTER_NAME, CLUSTER_IP_CLUSTER_INGRESSES, LOAD_BALANCER_INGRESSES);
         ClusterResolutionResult clusterResolutionResult = new ClusterResolutionResult(virtualKafkaCluster, ResolutionResult.resolved(virtualKafkaCluster, PROXY),
                 List.of(), ResolutionResult.resolved(virtualKafkaCluster, KAFKA_SERVICE),
@@ -212,8 +299,8 @@ class NetworkingPlannerTest {
             var listAssert = assertThat(clusterNetworkingModel.clusterIngressNetworkingModelResults()).hasSize(2);
             listAssert.element(0).satisfies(model -> {
                 assertThat(model.exception()).isNull();
-                assertThat(model.clusterIngressNetworkingModel()).isEqualTo(new ClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, CLUSTER_IP_INGRESS,
-                        List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), null, FIRST_IDENTIFYING_PORT,
+                assertThat(model.clusterIngressNetworkingModel()).isEqualTo(new TcpClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, CLUSTER_IP_INGRESS,
+                        List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), FIRST_IDENTIFYING_PORT,
                         FIRST_IDENTIFYING_PORT + 3));
             });
             listAssert.element(1).satisfies(model -> {
@@ -226,7 +313,7 @@ class NetworkingPlannerTest {
     }
 
     @Test
-    public void multipleLoadBalancerIngress() {
+    void multipleLoadBalancerIngress() {
         VirtualKafkaCluster virtualKafkaCluster = clusterWithIngress(CLUSTER_NAME, LOAD_BALANCER_INGRESSES, LOAD_BALANCER_2_INGRESSES);
         ClusterResolutionResult clusterResolutionResult = new ClusterResolutionResult(virtualKafkaCluster, ResolutionResult.resolved(virtualKafkaCluster, PROXY),
                 List.of(), ResolutionResult.resolved(virtualKafkaCluster, KAFKA_SERVICE),
@@ -255,7 +342,7 @@ class NetworkingPlannerTest {
     }
 
     @Test
-    public void multipleClustersWithLoadBalancerIngress() {
+    void multipleClustersWithLoadBalancerIngress() {
         VirtualKafkaCluster virtualKafkaCluster = clusterWithIngress(CLUSTER_NAME, LOAD_BALANCER_INGRESSES);
         VirtualKafkaCluster virtualKafkaCluster2 = clusterWithIngress(CLUSTER_NAME_2, LOAD_BALANCER_2_INGRESSES);
         ClusterResolutionResult clusterResolutionResult = new ClusterResolutionResult(virtualKafkaCluster, ResolutionResult.resolved(virtualKafkaCluster, PROXY),
@@ -294,7 +381,7 @@ class NetworkingPlannerTest {
     }
 
     @Test
-    public void multipleClusterIpIngresses() {
+    void multipleClusterIpIngresses() {
         VirtualKafkaCluster virtualKafkaCluster = clusterWithIngress(CLUSTER_NAME, CLUSTER_IP_CLUSTER_INGRESSES, CLUSTER_IP_2_CLUSTER_INGRESSES);
         ClusterResolutionResult clusterResolutionResult = new ClusterResolutionResult(virtualKafkaCluster, ResolutionResult.resolved(virtualKafkaCluster, PROXY),
                 List.of(), ResolutionResult.resolved(virtualKafkaCluster, KAFKA_SERVICE),
@@ -314,8 +401,8 @@ class NetworkingPlannerTest {
             var listAssert = assertThat(clusterNetworkingModel.clusterIngressNetworkingModelResults()).hasSize(2);
             listAssert.element(0).satisfies(model -> {
                 assertThat(model.exception()).isNull();
-                assertThat(model.clusterIngressNetworkingModel()).isEqualTo(new ClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, CLUSTER_IP_INGRESS,
-                        List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), null, FIRST_IDENTIFYING_PORT,
+                assertThat(model.clusterIngressNetworkingModel()).isEqualTo(new TcpClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, CLUSTER_IP_INGRESS,
+                        List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), FIRST_IDENTIFYING_PORT,
                         FIRST_IDENTIFYING_PORT + 3));
             });
             listAssert.element(1).satisfies(model -> {
@@ -323,15 +410,16 @@ class NetworkingPlannerTest {
                         "Currently we do not support a virtual cluster with multiple ingresses that need unique ports to"
                                 + " identify which node the client is connecting to");
                 // ports are still allocated to try and keep the model stable
-                assertThat(model.clusterIngressNetworkingModel()).isEqualTo(new ClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, CLUSTER_IP_INGRESS_2,
-                        List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), null, FIRST_IDENTIFYING_PORT + 4,
-                        FIRST_IDENTIFYING_PORT + 7));
+                assertThat(model.clusterIngressNetworkingModel())
+                        .isEqualTo(new TcpClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, CLUSTER_IP_INGRESS_2,
+                                List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), FIRST_IDENTIFYING_PORT + 4,
+                                FIRST_IDENTIFYING_PORT + 7));
             });
         });
     }
 
     @Test
-    public void multipleClustersWithClusterIpIngress() {
+    void multipleClustersWithClusterIpIngress() {
         VirtualKafkaCluster virtualKafkaCluster = clusterWithIngress(CLUSTER_NAME, CLUSTER_IP_CLUSTER_INGRESSES);
         ClusterResolutionResult clusterResolutionResult = new ClusterResolutionResult(virtualKafkaCluster, ResolutionResult.resolved(virtualKafkaCluster, PROXY),
                 List.of(), ResolutionResult.resolved(virtualKafkaCluster, KAFKA_SERVICE),
@@ -354,8 +442,8 @@ class NetworkingPlannerTest {
             assertThat(clusterNetworkingModel.ingressExceptions()).isEmpty();
             assertThat(clusterNetworkingModel.clusterIngressNetworkingModelResults()).singleElement().satisfies(model -> {
                 assertThat(model.exception()).isNull();
-                assertThat(model.clusterIngressNetworkingModel()).isEqualTo(new ClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, CLUSTER_IP_INGRESS,
-                        List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), null, FIRST_IDENTIFYING_PORT,
+                assertThat(model.clusterIngressNetworkingModel()).isEqualTo(new TcpClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster, CLUSTER_IP_INGRESS,
+                        List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), FIRST_IDENTIFYING_PORT,
                         FIRST_IDENTIFYING_PORT + 3));
 
             });
@@ -371,9 +459,10 @@ class NetworkingPlannerTest {
                 assertThat(model.exception()).isNotNull().hasMessageContaining(
                         "Currently we do not support a virtual cluster with multiple ingresses that need unique ports to"
                                 + " identify which node the client is connecting to");
-                assertThat(model.clusterIngressNetworkingModel()).isEqualTo(new ClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster2, CLUSTER_IP_INGRESS_2,
-                        List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), null, FIRST_IDENTIFYING_PORT + 4,
-                        FIRST_IDENTIFYING_PORT + 7));
+                assertThat(model.clusterIngressNetworkingModel())
+                        .isEqualTo(new TcpClusterIPClusterIngressNetworkingModel(PROXY, virtualKafkaCluster2, CLUSTER_IP_INGRESS_2,
+                                List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), FIRST_IDENTIFYING_PORT + 4,
+                                FIRST_IDENTIFYING_PORT + 7));
 
             });
         });
