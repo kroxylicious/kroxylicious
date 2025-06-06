@@ -230,7 +230,7 @@ class NetworkingPlannerTest {
     }
 
     @Test
-    void mulipleTlsClusterIpIngress() {
+    void multipleTlsClusterIpIngress() {
         VirtualKafkaCluster virtualKafkaCluster = clusterWithIngress(CLUSTER_NAME, TLS_CLUSTER_IP_CLUSTER_INGRESSES, TLS_CLUSTER_IP_CLUSTER_2_INGRESSES);
         ClusterResolutionResult clusterResolutionResult = new ClusterResolutionResult(virtualKafkaCluster, ResolutionResult.resolved(virtualKafkaCluster, PROXY),
                 List.of(), ResolutionResult.resolved(virtualKafkaCluster, KAFKA_SERVICE),
