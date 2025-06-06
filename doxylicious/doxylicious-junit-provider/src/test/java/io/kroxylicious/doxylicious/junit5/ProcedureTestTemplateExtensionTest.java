@@ -6,17 +6,12 @@
 
 package io.kroxylicious.doxylicious.junit5;
 
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
-
 import io.kroxylicious.doxylicious.exec.ExecException;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class ProcedureTestTemplateExtensionTest {
 
-    @TestTemplate
-    @ExtendWith(ProcedureTestTemplateExtension.class)
     @TestProcedure("notional_proc")
     void test(Procedure procedure) {
         // when
@@ -26,8 +21,6 @@ class ProcedureTestTemplateExtensionTest {
         procedure.assertVerification();
     }
 
-    @TestTemplate
-    @ExtendWith(ProcedureTestTemplateExtension.class)
     @TestProcedure("failing_procedure")
     void failingProcedureShouldThrow(Procedure procedure) {
         assertThatThrownBy(procedure::executeProcedure)
@@ -39,8 +32,6 @@ class ProcedureTestTemplateExtensionTest {
 
     }
 
-    @TestTemplate
-    @ExtendWith(ProcedureTestTemplateExtension.class)
     @TestProcedure("failing_verification")
     void failingVerificationShouldThrow(Procedure procedure) {
         // given

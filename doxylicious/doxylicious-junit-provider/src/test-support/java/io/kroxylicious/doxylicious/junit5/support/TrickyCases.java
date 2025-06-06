@@ -6,8 +6,6 @@
 
 package io.kroxylicious.doxylicious.junit5.support;
 
-import org.junit.jupiter.api.TestTemplate;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.opentest4j.AssertionFailedError;
 
 import io.kroxylicious.doxylicious.junit5.Expect;
@@ -28,8 +26,6 @@ import io.kroxylicious.doxylicious.junit5.TrickTestCasesTest;
 @SuppressWarnings("java:S3577")
 public class TrickyCases {
 
-    @TestTemplate
-    @ExtendWith(ProcedureTestTemplateExtension.class)
     @TestProcedure("failing_teardown")
     @Expect(value = AssertionFailedError.class,
             message="Test procedure 'failing_teardown' errored during tearDown")
@@ -40,8 +36,6 @@ public class TrickyCases {
         procedure.assertVerification();
     }
 
-    @TestTemplate
-    @ExtendWith(ProcedureTestTemplateExtension.class)
     @TestProcedure("prereq_failing_procedure")
     @Expect(value = AssertionFailedError.class,
             message="Prereq 'failing_procedure' of test procedure 'prereq_failing_procedure' failed during execution")
@@ -52,8 +46,6 @@ public class TrickyCases {
         procedure.assertVerification();
     }
 
-    @TestTemplate
-    @ExtendWith(ProcedureTestTemplateExtension.class)
     @TestProcedure("prereq_failing_verification")
     @Expect(value = AssertionFailedError.class,
             message="Prereq 'failing_verification' of test procedure 'prereq_failing_verification' failed during verification")
@@ -64,8 +56,6 @@ public class TrickyCases {
         procedure.assertVerification();
     }
 
-    @TestTemplate
-    @ExtendWith(ProcedureTestTemplateExtension.class)
     @TestProcedure("prereq_failing_teardown")
     @Expect(value = AssertionFailedError.class,
             message="Prereq 'failing_teardown' of test procedure 'prereq_failing_teardown' errored during tearDown")

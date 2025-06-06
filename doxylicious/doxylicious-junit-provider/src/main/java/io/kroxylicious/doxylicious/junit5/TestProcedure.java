@@ -11,11 +11,16 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import org.junit.jupiter.api.TestTemplate;
+import org.junit.jupiter.api.extension.ExtendWith;
+
 /**
  * Annotation for specifying a procedure to be tested.
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
+@TestTemplate
+@ExtendWith(ProcedureTestTemplateExtension.class)
 public @interface TestProcedure {
     /**
      * @return The id of the procedure

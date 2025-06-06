@@ -175,8 +175,6 @@ import io.kroxylicious.doxylicious.junit5.*;
 
 class ExampleTest {
 
-    @TestTemplate
-    @ExtendWith(ProcedureTestTemplateExtension.class)
     @TestProcedure("notional_proc")
     void test(Procedure procedure) {
         // when
