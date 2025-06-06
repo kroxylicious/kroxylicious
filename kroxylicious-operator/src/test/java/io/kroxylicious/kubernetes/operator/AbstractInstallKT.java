@@ -21,6 +21,9 @@ import org.opentest4j.TestAbortedException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.doxylicious.junit5.Procedure;
+import io.kroxylicious.doxylicious.junit5.TestProcedure;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.assertj.core.api.Assumptions.assumeThatCode;
@@ -127,6 +130,12 @@ abstract class AbstractInstallKT {
                     "-f",
                     "target/packaged/install");
         }
+    }
+
+    @TestProcedure(value = "deploy_minimal_proxy", assuming = "have_a_kubectl", workingDir = "target/packaged")
+    void testProcedures(Procedure procedure) {
+        procedure.executeProcedure();
+        procedure.assertVerification();
     }
 
     static boolean validateToolsOnPath(String... additionalTools) {

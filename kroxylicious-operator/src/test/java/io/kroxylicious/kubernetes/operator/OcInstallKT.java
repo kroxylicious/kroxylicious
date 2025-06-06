@@ -66,7 +66,8 @@ class OcInstallKT extends AbstractInstallKT {
     }
 
     public static boolean isEnvironmentValid() throws IOException, InterruptedException {
-        return validateToolsOnPath("oc") && execValidate(OcInstallKT::checkKubeContext, ALWAYS_VALID, "oc", "whoami", "-c")
+        return validateToolsOnPath("oc")
+                && execValidate(OcInstallKT::checkKubeContext, ALWAYS_VALID, "oc", "whoami", "-c")
                 && testImageAvailable();
     }
 

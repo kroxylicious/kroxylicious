@@ -1,0 +1,19 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+id: deploy_kroxy_operator
+notional: true
+verification:
+  - exec:
+      command: kubectl api-resources --api-group=kroxylicious.io
+      standardOutput:
+        containsAll:
+          - kafkaproxies
+          - kafkaproxyingresses
+          - virtualkafkaclusters
+          - kafkaservices
+          # - kafkaprotocolfilters
+
