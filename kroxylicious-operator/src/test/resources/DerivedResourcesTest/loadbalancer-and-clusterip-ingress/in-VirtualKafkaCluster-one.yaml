@@ -21,11 +21,13 @@ spec:
         name: load-balancer
       tls:
         certificateRef:
+          kind: Secret
           name: downstream-tls-cert
     - ingressRef:
         name: cluster-ip
       tls:
         certificateRef:
+          kind: Secret
           name: downstream-tls-cert
 status:
   observedGeneration: 4

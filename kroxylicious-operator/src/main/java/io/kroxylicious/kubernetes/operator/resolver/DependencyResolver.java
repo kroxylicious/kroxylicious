@@ -96,7 +96,7 @@ public class DependencyResolver {
                 .collect(ResourcesUtil.toByLocalRefMap());
         Map<LocalRef<ConfigMap>, ConfigMap> configMaps = context.getSecondaryResources(ConfigMap.class).stream()
                 .collect(ResourcesUtil.toByLocalRefMap());
-        Map<LocalRef<Secret>, Secret> secretes = context.getSecondaryResources(Secret.class).stream()
+        Map<LocalRef<Secret>, Secret> secretes = context.getSecondaryResourcesAsStream(Secret.class)
                 .collect(ResourcesUtil.toByLocalRefMap());
         return new CommonDependencies(ingresses, clusterRefs, filters, configMaps, secretes);
     }
@@ -197,14 +197,8 @@ public class DependencyResolver {
             return List.of();
         }
         CertificateRef certificateRef = ingressTls.getCertificateRef();
-        if ("Secret".equals(certificateRef.getKind())) {
-            LocalRef<Secret> secretRef = certificateRef.asRefToKind(Secret.class);
-            Map<LocalRef<Secret>, Secret> secrets = commonDependencies.secrets();
-            return List.of(new ResolutionResult<>(clusterRef, secretRef, secrets.getOrDefault(secretRef, null)));
-        }
-        else {
-            throw new UnsupportedOperationException(
-                    "Only CertificateRefs pointing at secrets are supported. Ref:" + certificateRef.getName() + " is pointing at a:" + certificateRef.getKind());
-        }
+        LocalRef<Secret> secretRef = certificateRef.asRefToKind(Secret.class);
+        Map<LocalRef<Secret>, Secret> secrets = commonDependencies.secrets();
+        return List.of(new ResolutionResult<>(clusterRef, secretRef, secrets.getOrDefault(secretRef, null)));
     }
 }

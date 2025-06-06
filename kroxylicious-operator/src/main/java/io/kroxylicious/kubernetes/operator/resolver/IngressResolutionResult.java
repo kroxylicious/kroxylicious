@@ -7,11 +7,9 @@
 package io.kroxylicious.kubernetes.operator.resolver;
 
 import java.util.List;
-import java.util.function.Function;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.Secret;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;

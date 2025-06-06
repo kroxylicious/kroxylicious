@@ -40,6 +40,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.fabric8.kubernetes.api.model.Secret;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedWorkflowAndDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.dependent.BulkDependentResource;
@@ -212,13 +213,14 @@ class DerivedResourcesTest {
                     VirtualKafkaCluster.class);
             List<KafkaService> kafkaServiceRefs = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-KafkaService-*"), KafkaService.class);
             List<KafkaProxyIngress> ingresses = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-KafkaProxyIngress-*"), KafkaProxyIngress.class);
+            List<Secret> secrets = resourcesFromFiles(TestFiles.childFilesMatching(testDir, "in-Secret-*"), Secret.class);
 
             unusedFiles.remove(input);
             unusedFiles.removeAll(TestFiles.childFilesMatching(testDir, "in-*"));
 
             Context<KafkaProxy> context;
             try {
-                context = buildContext(testDir, kafkaProxy, virtualKafkaClusters, kafkaServiceRefs, ingresses);
+                context = buildContext(testDir, kafkaProxy, virtualKafkaClusters, kafkaServiceRefs, ingresses, secrets);
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -305,7 +307,8 @@ class DerivedResourcesTest {
                                                     KafkaProxy kafkaProxy,
                                                     List<VirtualKafkaCluster> virtualKafkaClusters,
                                                     List<KafkaService> kafkaServiceRefs,
-                                                    List<KafkaProxyIngress> ingresses)
+                                                    List<KafkaProxyIngress> ingresses,
+                                                    List<Secret> secrets)
             throws IOException {
         Answer<?> throwOnUnmockedInvocation = invocation -> {
             var stringifiedArgs = Arrays.stream(invocation.getArguments()).map(String::valueOf).collect(
@@ -325,6 +328,8 @@ class DerivedResourcesTest {
         doReturn(Set.copyOf(virtualKafkaClusters)).when(context).getSecondaryResources(VirtualKafkaCluster.class);
         doReturn(Set.copyOf(kafkaServiceRefs)).when(context).getSecondaryResources(KafkaService.class);
         doReturn(Set.copyOf(ingresses)).when(context).getSecondaryResources(KafkaProxyIngress.class);
+        doReturn(Set.copyOf(secrets)).when(context).getSecondaryResources(Secret.class);
+        doReturn(secrets.stream()).when(context).getSecondaryResourcesAsStream(Secret.class);
 
         new KafkaProxyReconciler(TEST_CLOCK, SecureConfigInterpolator.DEFAULT_INTERPOLATOR)
                 .initContext(kafkaProxy, context);

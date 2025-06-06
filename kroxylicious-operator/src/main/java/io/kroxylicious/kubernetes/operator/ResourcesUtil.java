@@ -102,7 +102,7 @@ public class ResourcesUtil {
                 "volume name would not be a DNS label: " + volumeName);
     }
 
-    static boolean isSecret(LocalRef<?> ref) {
+    public static boolean isSecret(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "Secret".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
     }
@@ -347,6 +347,10 @@ public class ResourcesUtil {
         }
         else if (hasMetadata instanceof KafkaProxy kafkaProxy) {
             return isStatusFresh(kafkaProxy, i -> Optional.ofNullable(i.getStatus()).map(KafkaProxyStatus::getObservedGeneration).orElse(null));
+        }
+        else if (hasMetadata instanceof Secret || hasMetadata instanceof ConfigMap) {
+            // Secretes and ConfigMaps represent actual state and thus are fresh by definition.
+            return true;
         }
         else {
             throw new IllegalArgumentException("Unknown resource type: " + hasMetadata.getClass().getName());

@@ -28,7 +28,7 @@ abstract class AbstractLocalRef<T extends HasMetadata> extends LocalRef<T> imple
     @Override
     @Nullable
     public String getGroup() {
-        return group;
+        return group == null ? "" : group;
     }
 
     public void setGroup(String group) {
@@ -55,10 +55,12 @@ abstract class AbstractLocalRef<T extends HasMetadata> extends LocalRef<T> imple
     }
 
     public <R extends HasMetadata> LocalRef<R> asRefToKind(Class<R> target) {
-        if (HasMetadata.getKind(target).equals(kind)) {
+        if (HasMetadata.getKind(target).equals(kind) || this.kind == null || this.kind.isEmpty()) {
             return (LocalRef<R>) new AnyLocalRefBuilder().withGroup(this.getGroup()).withKind(this.getKind()).withName(this.getName()).build();
-        } else {
-            throw new IllegalArgumentException("Cannot construct ref from" + this.getName() + " as a " + HasMetadata.getKind(target) + " because " + this.getKind() + " is not a " + HasMetadata.getKind(target));
+        }
+        else {
+            throw new IllegalArgumentException("Cannot construct ref from: " + this.getName() + " as a: " + HasMetadata.getKind(target) + " because: " + this.getKind()
+                    + " is not a: " + HasMetadata.getKind(target));
         }
     }
 

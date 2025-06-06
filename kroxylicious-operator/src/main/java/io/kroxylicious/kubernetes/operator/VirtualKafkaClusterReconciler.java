@@ -96,6 +96,7 @@ public final class VirtualKafkaClusterReconciler implements
     private static final String KAFKA_PROXY_KIND = getKind(KafkaProxy.class);
     private static final String VIRTUAL_KAFKA_CLUSTER_KIND = getKind(VirtualKafkaCluster.class);
     private static final String KAFKA_SERVICE_KIND = getKind(KafkaService.class);
+    private static final String K8s_SECRET_KIND = getKind(Secret.class);
     private static final String KAFKA_PROTOCOL_FILTER_KIND = getKind(KafkaProtocolFilter.class);
     private final VirtualKafkaClusterStatusFactory statusFactory;
     private final DependencyResolver resolver;
@@ -141,17 +142,6 @@ public final class VirtualKafkaClusterReconciler implements
 
     private static void appendSecretsFromCertificateRefs(Context<VirtualKafkaCluster> context, VirtualKafkaCluster updatedCluster,
                                                          @NonNull MetadataChecksumGenerator checksumGenerator) {
-        LOGGER.debug("Including secrets from ingress TLS in checksum");
-        updatedCluster.getSpec()
-                .getIngresses()
-                .stream()
-                .map(Ingresses::getTls)
-                .filter(Objects::nonNull)
-                .map(Tls::getCertificateRef)
-                .flatMap(certificateRef -> context.getSecondaryResourcesAsStream(Secret.class)
-                        .filter(secret -> KubernetesResourceUtil.getName(secret).equals(certificateRef.getName())))
-                .forEach(checksumGenerator::appendMetadata);
-
         LOGGER.debug("Including TrustAnchors from ingress TLS in checksum");
         updatedCluster.getSpec()
                 .getIngresses()
@@ -321,12 +311,16 @@ public final class VirtualKafkaClusterReconciler implements
                     clusterResolutionResult.allDanglingReferences()
                             .filter(DanglingReference.hasReferrer(clusterRef).and(DanglingReference.hasReferentKind(KAFKA_PROXY_INGRESS_KIND)))
                             .map(DanglingReference::absentRef));
+            Stream<String> secretMsg = refsMessage("spec.ingresses[].tls.certificateRef ", cluster,
+                    clusterResolutionResult.allDanglingReferences()
+                            .filter(DanglingReference.hasReferrer(clusterRef).and(DanglingReference.hasReferentKind(K8s_SECRET_KIND)))
+                            .map(DanglingReference::absentRef));
             Stream<String> filterMsg = refsMessage("spec.filterRefs references ", cluster,
                     clusterResolutionResult.allDanglingReferences()
                             .filter(DanglingReference.hasReferrer(clusterRef).and(DanglingReference.hasReferentKind(KAFKA_PROTOCOL_FILTER_KIND)))
                             .map(DanglingReference::absentRef));
             return statusFactory.newFalseConditionStatusPatch(cluster, Condition.Type.ResolvedRefs, Condition.REASON_REFS_NOT_FOUND,
-                    joiningMessages(proxyMsg, serviceMsg, ingressMsg, filterMsg));
+                    joiningMessages(proxyMsg, serviceMsg, ingressMsg, secretMsg, filterMsg));
         }
         else if (clusterResolutionResult.allResolvedReferents().anyMatch(ResourcesUtil::hasFreshResolvedRefsFalseCondition) || !unresolvedIngressProxies.isEmpty()) {
             Stream<String> serviceMsg = refsMessage("spec.targetKafkaServiceRef references ", cluster,
