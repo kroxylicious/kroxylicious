@@ -11,7 +11,7 @@ import io.fabric8.kubernetes.api.model.KubernetesResource;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-abstract class AbstractLocalRef extends LocalRef<HasMetadata> implements KubernetesResource {
+abstract class AbstractLocalRef<T extends HasMetadata> extends LocalRef<T> implements KubernetesResource {
     @com.fasterxml.jackson.annotation.JsonProperty("group")
     @io.fabric8.generator.annotation.Pattern("^$|^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$")
     @com.fasterxml.jackson.annotation.JsonSetter(nulls = com.fasterxml.jackson.annotation.Nulls.SKIP)
@@ -28,7 +28,7 @@ abstract class AbstractLocalRef extends LocalRef<HasMetadata> implements Kuberne
     @Override
     @Nullable
     public String getGroup() {
-        return group;
+        return group == null ? "" : group;
     }
 
     public void setGroup(String group) {
@@ -52,6 +52,16 @@ abstract class AbstractLocalRef extends LocalRef<HasMetadata> implements Kuberne
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public <R extends HasMetadata> LocalRef<R> asRefToKind(Class<R> target) {
+        if (HasMetadata.getKind(target).equals(kind) || this.kind == null || this.kind.isEmpty()) {
+            return (LocalRef<R>) new AnyLocalRefBuilder().withGroup(this.getGroup()).withKind(this.getKind()).withName(this.getName()).build();
+        }
+        else {
+            throw new IllegalArgumentException("Cannot construct ref from: " + this.getName() + " as a: " + HasMetadata.getKind(target) + " because: " + this.getKind()
+                    + " is not a: " + HasMetadata.getKind(target));
+        }
     }
 
     public String toString() {

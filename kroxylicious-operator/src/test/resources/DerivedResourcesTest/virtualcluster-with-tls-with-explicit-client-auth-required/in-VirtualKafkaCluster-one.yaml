@@ -21,6 +21,7 @@ spec:
         name: cluster-ip
       tls:
         certificateRef:
+          kind: Secret
           name: downstream-tls-cert
         trustAnchorRef:
           name: downstream-ca
