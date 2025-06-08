@@ -28,8 +28,8 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.KafkaProtocolFilterStatusAssert;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 

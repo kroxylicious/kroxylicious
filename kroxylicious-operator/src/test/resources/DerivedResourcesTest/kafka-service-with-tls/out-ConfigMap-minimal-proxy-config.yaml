@@ -27,7 +27,7 @@ data:
       endpoints:
         prometheus: {}
     filterDefinitions:
-    - name: "filter-one.KafkaProtocolFilter.filter.kroxylicious.io"
+    - name: "filter-one.KafkaProtocolFilter.kroxylicious.io"
       type: "org.example.some.java.Class"
       config:
         filterOneConfig: true
@@ -60,4 +60,4 @@ data:
             start: 0
             end: 2
       filters:
-      - "filter-one.KafkaProtocolFilter.filter.kroxylicious.io"
+      - "filter-one.KafkaProtocolFilter.kroxylicious.io"

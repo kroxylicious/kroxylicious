@@ -48,6 +48,8 @@ import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
 import io.kroxylicious.kubernetes.api.common.ProxyRefBuilder;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -58,8 +60,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -381,7 +381,7 @@ class ResourcesUtilTest {
 
         assertThat(ResourcesUtil.toLocalRef(new GenericKubernetesResourceBuilder()
                 .withKind("KafkaProtocolFilter")
-                .withApiVersion("filter.kroxylicious.io/v1alpha1")
+                .withApiVersion("kroxylicious.io/v1alpha1")
                 .withNewMetadata().withName("foo").endMetadata().build()))
                 .isEqualTo(new FilterRefBuilder().withName("foo").build());
     }

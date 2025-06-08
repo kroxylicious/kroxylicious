@@ -27,14 +27,14 @@ data:
       endpoints:
         prometheus: {}
     filterDefinitions:
-    - name: "filter-one.KafkaProtocolFilter.filter.kroxylicious.io"
+    - name: "filter-one.KafkaProtocolFilter.kroxylicious.io"
       type: "org.example.some.java.Class"
       config:
         interpolation1: "/opt/kroxylicious/secure/secret/foo/secret1"
         interpolation2: "/opt/kroxylicious/secure/secret/foo/secret2"
         interpolation3: "/opt/kroxylicious/secure/secret/bar/secret1"
         interpolation4: "/opt/kroxylicious/secure/secret/bar/secret1"
-    - name: "filter-two.KafkaProtocolFilter.filter.kroxylicious.io"
+    - name: "filter-two.KafkaProtocolFilter.kroxylicious.io"
       type: "org.example.some.java.Class"
       config:
         interpolation1: "/opt/kroxylicious/secure/secret/foo/secret1"
@@ -59,6 +59,6 @@ data:
             start: 0
             end: 2
       filters:
-      - "filter-one.KafkaProtocolFilter.filter.kroxylicious.io"
-      - "filter-two.KafkaProtocolFilter.filter.kroxylicious.io"
-      - "filter-one.KafkaProtocolFilter.filter.kroxylicious.io"
+      - "filter-one.KafkaProtocolFilter.kroxylicious.io"
+      - "filter-two.KafkaProtocolFilter.kroxylicious.io"
+      - "filter-one.KafkaProtocolFilter.kroxylicious.io"

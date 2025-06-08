@@ -30,6 +30,8 @@ import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
 import io.kroxylicious.kubernetes.api.common.ProxyRef;
 import io.kroxylicious.kubernetes.api.common.ProxyRefBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -40,8 +42,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult.DanglingReference;
 
@@ -979,7 +979,7 @@ class DependencyResolverTest {
     private static KafkaProtocolFilter protocolFilter(String name, long generation, long observedGeneration) {
         // @formatter:off
         return new KafkaProtocolFilterBuilder()
-                .withApiVersion("filter.kroxylicious.io/v1alpha")
+                .withApiVersion("kroxylicious.io/v1alpha")
                 .withKind("KafkaProtocolFilter")
                 .withNewMetadata()
                     .withName(name)
