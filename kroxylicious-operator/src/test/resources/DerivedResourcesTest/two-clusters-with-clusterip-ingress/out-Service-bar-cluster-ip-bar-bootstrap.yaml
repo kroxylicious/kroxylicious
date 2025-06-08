@@ -12,44 +12,42 @@ metadata:
     app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/instance: "use-pod-template-spec"
+    app.kubernetes.io/instance: "twocluster"
     app.kubernetes.io/component: "proxy"
-  name: "one-cluster-ip"
-  namespace: proxy-ns
+  name: "bar-cluster-ip-bar-bootstrap"
+  namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "use-pod-template-spec"
+      name: "twocluster"
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "VirtualKafkaCluster"
-      name: "one"
+      name: "bar"
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxyIngress"
-      name: "cluster-ip"
+      name: "cluster-ip-bar"
 spec:
   ports:
-    - name: "one-9292"
+    - name: "bar-9292"
       port: 9292
       protocol: "TCP"
       targetPort: 9292
-    - name: "one-9293"
+    - name: "bar-9293"
       port: 9293
       protocol: "TCP"
       targetPort: 9293
-    - name: "one-9294"
+    - name: "bar-9294"
       port: 9294
       protocol: "TCP"
       targetPort: 9294
-    - name: "one-9295"
+    - name: "bar-9295"
       port: 9295
       protocol: "TCP"
       targetPort: 9295
   selector:
     app: "kroxylicious"
     app.kubernetes.io/part-of: "kafka"
-    environment: "production-from-podTemplate"
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/instance: "use-pod-template-spec"
+    app.kubernetes.io/instance: "twocluster"
     app.kubernetes.io/component: "proxy"

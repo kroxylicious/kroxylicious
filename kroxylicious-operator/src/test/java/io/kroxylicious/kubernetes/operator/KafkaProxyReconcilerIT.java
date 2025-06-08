@@ -238,7 +238,7 @@ class KafkaProxyReconcilerIT {
         assertProxyConfigContents(proxy, Set.of(downstreamTrustAnchorName), Set.of());
         String baseServiceName = name(resource) + "-" + name(ingress);
 
-        String expectedBootstrapHost = baseServiceName + "." + extension.getNamespace() + ".svc.cluster.local";
+        String expectedBootstrapHost = baseServiceName + "-bootstrap." + extension.getNamespace() + ".svc.cluster.local";
         String expectedAdvertisedBrokerAddressPattern = baseServiceName + "-$(nodeId)." + extension.getNamespace() + ".svc.cluster.local";
         AWAIT.alias("proxy config - gateway configured for clusterIP SNI ingress").untilAsserted(() -> {
             assertProxyConfigInConfigMap(proxy)
@@ -252,7 +252,7 @@ class KafkaProxyReconcilerIT {
         assertDeploymentMountsConfigMap(proxy, downstreamTrustAnchorName);
         assertSharedSniPortExposedOnProxyDeployment(proxy, proxyListenPort);
         AWAIT.alias("SNI clusterIp services manifested").untilAsserted(() -> {
-            assertTlsClusterIpServiceManifested(baseServiceName, proxy, clientFacingPort, proxyListenPort);
+            assertTlsClusterIpServiceManifested(baseServiceName + "-bootstrap", proxy, clientFacingPort, proxyListenPort);
             assertTlsClusterIpServiceManifested(baseServiceName + "-0", proxy, clientFacingPort, proxyListenPort);
             assertTlsClusterIpServiceManifested(baseServiceName + "-1", proxy, clientFacingPort, proxyListenPort);
             assertTlsClusterIpServiceManifested(baseServiceName + "-2", proxy, clientFacingPort, proxyListenPort);
@@ -307,11 +307,11 @@ class KafkaProxyReconcilerIT {
         assertDeploymentMountsConfigMap(proxy, downstreamTrustAnchorName);
         assertSharedSniPortExposedOnProxyDeployment(proxy, proxyListenPort);
         AWAIT.alias("SNI clusterIp services manifested").untilAsserted(() -> {
-            assertTlsClusterIpServiceManifested(baseServiceName, proxy, clientFacingPort, proxyListenPort);
+            assertTlsClusterIpServiceManifested(baseServiceName + "-bootstrap", proxy, clientFacingPort, proxyListenPort);
             assertTlsClusterIpServiceManifested(baseServiceName + "-0", proxy, clientFacingPort, proxyListenPort);
             assertTlsClusterIpServiceManifested(baseServiceName + "-1", proxy, clientFacingPort, proxyListenPort);
             assertTlsClusterIpServiceManifested(baseServiceName + "-2", proxy, clientFacingPort, proxyListenPort);
-            assertTlsClusterIpServiceManifested(baseServiceName2, proxy, clientFacingPort, proxyListenPort);
+            assertTlsClusterIpServiceManifested(baseServiceName2 + "-bootstrap", proxy, clientFacingPort, proxyListenPort);
             assertTlsClusterIpServiceManifested(baseServiceName2 + "-0", proxy, clientFacingPort, proxyListenPort);
             assertTlsClusterIpServiceManifested(baseServiceName2 + "-1", proxy, clientFacingPort, proxyListenPort);
             assertTlsClusterIpServiceManifested(baseServiceName2 + "-2", proxy, clientFacingPort, proxyListenPort);
@@ -320,7 +320,7 @@ class KafkaProxyReconcilerIT {
 
     private void assertProxyGatewayConfiguredForTlsClusterIP(String baseServiceName, KafkaProxy proxy, VirtualKafkaCluster resource, KafkaProxyIngress ingress,
                                                              int proxyListenPort, int clientFacingPort) {
-        String expectedBootstrapHost = baseServiceName + "." + extension.getNamespace() + ".svc.cluster.local";
+        String expectedBootstrapHost = baseServiceName + "-bootstrap." + extension.getNamespace() + ".svc.cluster.local";
         String expectedAdvertisedBrokerAddressPattern = baseServiceName + "-$(nodeId)." + extension.getNamespace() + ".svc.cluster.local";
         AWAIT.alias("proxy config - gateway configured for clusterIP SNI ingress").untilAsserted(() -> {
             assertProxyConfigInConfigMap(proxy)
@@ -464,7 +464,7 @@ class KafkaProxyReconcilerIT {
         // then
         AWAIT.alias("services manifested").untilAsserted(() -> {
             String sharedSniServiceName = name(proxy) + "-sni";
-            String clusterIpServiceName = CLUSTER_BAR + "-" + clusterIpIngress.getMetadata().getName();
+            String clusterIpServiceName = CLUSTER_BAR + "-" + clusterIpIngress.getMetadata().getName() + "-bootstrap";
             var services = testActor.resources(Service.class).list().getItems();
             assertThat(services)
                     .extracting(service -> service.getMetadata().getName())
@@ -561,7 +561,7 @@ class KafkaProxyReconcilerIT {
         AWAIT.alias("service configured with a port per node id from the KafkaService, plus a bootstrap port").untilAsserted(() -> {
             String clusterName = name(clusterBar);
             String ingressName = name(ingressBar);
-            String serviceName = clusterName + "-" + ingressName;
+            String serviceName = clusterName + "-" + ingressName + "-bootstrap";
             var service = testActor.get(Service.class, serviceName);
             assertThat(service).isNotNull()
                     .describedAs(
@@ -767,7 +767,7 @@ class KafkaProxyReconcilerIT {
         AWAIT.alias("cluster Services as expected").untilAsserted(() -> {
             String clusterName = name(cluster);
             String ingressName = name(ingress);
-            String serviceName = clusterName + "-" + ingressName;
+            String serviceName = clusterName + "-" + ingressName + "-bootstrap";
             var service = testActor.get(Service.class, serviceName);
             assertThat(service).isNotNull()
                     .describedAs(
