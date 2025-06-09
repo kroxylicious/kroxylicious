@@ -16,6 +16,7 @@ spec:
   tls:
     certificateRef:
       name: upstream-tls-cert
+      kind: Secret
     trustAnchorRef:
       name: upstream-ca
       key: cas.pem

@@ -8,7 +8,6 @@ package io.kroxylicious.kubernetes.operator.resolver;
 
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -30,7 +29,7 @@ import io.kroxylicious.kubernetes.operator.ResourcesUtil;
  * @param cluster the cluster resource that was resolved
  * @param proxyResolutionResult the resolution result for the KafkaProxy resource this cluster references
  * @param filterResolutionResults resolution results for all filters referenced by the cluster, in the same order they are declared in the VirtualKafkaCluster spec,
- * note that the same Filter can be in this list multiple times
+ *         note that the same Filter can be in this list multiple times
  * @param serviceResolutionResult the resolution result for the kafka service referenced by the cluster
  * @param ingressResolutionResults the resolution results for ingresses referenced by the cluster, in the same order they are declared in the VirtualKafkaCluster spec
  */
@@ -74,8 +73,7 @@ public record ClusterResolutionResult(VirtualKafkaCluster cluster,
         Stream<ResolutionResult<? extends HasMetadata>> proxyResults = Stream.of(proxyResolutionResult);
         Stream<ResolutionResult<? extends HasMetadata>> filterResults = filterResolutionResults.stream().map(Function.identity());
         Stream<ResolutionResult<? extends HasMetadata>> serviceResults = Stream.of(serviceResolutionResult);
-        Stream<ResolutionResult<? extends HasMetadata>> ingressResults = ingressResolutionResults.stream()
-                .flatMap(i -> Stream.concat(Stream.of(i.ingressResolutionResult()), Optional.ofNullable(i.proxyResolutionResult()).stream()));
+        Stream<ResolutionResult<? extends HasMetadata>> ingressResults = ingressResolutionResults.stream().flatMap(IngressResolutionResult::allResolutionResults);
         return Stream.of(proxyResults, filterResults, serviceResults, ingressResults).flatMap(Function.identity());
     }
 
