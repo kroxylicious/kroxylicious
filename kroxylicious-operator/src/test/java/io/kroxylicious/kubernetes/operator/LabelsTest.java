@@ -26,11 +26,10 @@ class LabelsTest {
         KafkaProxy proxy = new KafkaProxyBuilder().withNewMetadata().withName(PROXY_NAME).endMetadata().build();
         Map<String, String> labels = Labels.standardLabels(proxy);
         LinkedHashMap<String, String> expected = new LinkedHashMap<>();
-        expected.put("app.kubernetes.io/part-of", "kafka");
         expected.put("app.kubernetes.io/managed-by", "kroxylicious-operator");
-        expected.put("app.kubernetes.io/name", "kroxylicious-proxy");
-        expected.put("app.kubernetes.io/instance", PROXY_NAME);
+        expected.put("app.kubernetes.io/name", "kroxylicious");
         expected.put("app.kubernetes.io/component", "proxy");
+        expected.put("app.kubernetes.io/instance", PROXY_NAME);
         assertThat(labels).containsExactlyEntriesOf(expected);
     }
 

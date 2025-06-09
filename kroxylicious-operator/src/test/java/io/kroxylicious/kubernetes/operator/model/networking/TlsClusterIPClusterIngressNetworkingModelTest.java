@@ -177,9 +177,7 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
         assertThat(serviceBuilders).isNotNull().isNotEmpty().allSatisfy(serviceBuild -> {
             Service build = serviceBuild.build();
             assertThat(build.getSpec()).isNotNull().satisfies(serviceSpec -> {
-                LinkedHashMap<String, String> orderedSelectorLabels = new LinkedHashMap<>();
-                orderedSelectorLabels.put("app", "kroxylicious");
-                orderedSelectorLabels.putAll(commonLabels(PROXY_NAME));
+                LinkedHashMap<String, String> orderedSelectorLabels = new LinkedHashMap<>(commonLabels(PROXY_NAME));
                 assertThat(serviceSpec.getSelector()).containsExactlyEntriesOf(orderedSelectorLabels);
             });
         });
@@ -305,11 +303,10 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
 
     private static @NonNull Map<String, String> commonLabels(String proxyName) {
         Map<String, String> orderedLabels = new LinkedHashMap<>();
-        orderedLabels.put("app.kubernetes.io/part-of", "kafka");
         orderedLabels.put("app.kubernetes.io/managed-by", "kroxylicious-operator");
-        orderedLabels.put("app.kubernetes.io/name", "kroxylicious-proxy");
-        orderedLabels.put("app.kubernetes.io/instance", proxyName);
+        orderedLabels.put("app.kubernetes.io/name", "kroxylicious");
         orderedLabels.put("app.kubernetes.io/component", "proxy");
+        orderedLabels.put("app.kubernetes.io/instance", proxyName);
         return orderedLabels;
     }
 

@@ -13,9 +13,8 @@ metadata:
       :\"cluster-ip-bar\",\"bootstrapServers\":\"bar-cluster-ip-bar-bootstrap.proxy-ns.svc.cluster.local:9292\"\
       }]}"
   labels:
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
-    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/name: "kroxylicious"
     app.kubernetes.io/instance: "twocluster"
     app.kubernetes.io/component: "proxy"
   name: "bar-cluster-ip-bar-bootstrap"
@@ -49,9 +48,7 @@ spec:
       protocol: "TCP"
       targetPort: 9295
   selector:
-    app: "kroxylicious"
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
-    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/name: "kroxylicious"
     app.kubernetes.io/instance: "twocluster"
     app.kubernetes.io/component: "proxy"

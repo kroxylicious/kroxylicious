@@ -13,9 +13,8 @@ metadata:
         :\"cluster-ip\",\"bootstrapServers\":\"one-cluster-ip-bootstrap.proxy-ns.svc.cluster.local:9292\"\
         }]}"
   labels:
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
-    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/name: "kroxylicious"
     app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"
   name: "one-cluster-ip-bootstrap"
@@ -36,9 +35,7 @@ spec:
       protocol: "TCP"
       targetPort: 9291
   selector:
-    app: "kroxylicious"
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
-    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/name: "kroxylicious"
     app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"

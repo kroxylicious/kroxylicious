@@ -52,7 +52,6 @@ public class ProxyDeploymentDependentResource
     private static final Logger LOGGER = LoggerFactory.getLogger(ProxyDeploymentDependentResource.class);
     public static final String CONFIG_VOLUME = "config-volume";
     public static final String CONFIG_PATH_IN_CONTAINER = "/opt/kroxylicious/config/" + ProxyConfigDependentResource.CONFIG_YAML_KEY;
-    public static final Map<String, String> APP_KROXY = Map.of("app", "kroxylicious");
     private static final int MANAGEMENT_PORT = 9190;
     private static final String MANAGEMENT_PORT_NAME = "management";
     public static final int PROXY_PORT_START = 9292;
@@ -84,7 +83,6 @@ public class ProxyDeploymentDependentResource
                     .withName(deploymentName(primary))
                     .withNamespace(namespace(primary))
                     .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
-                    .addToLabels(APP_KROXY)
                     .addToLabels(standardLabels(primary))
                 .endMetadata()
                 .editOrNewSpec()
@@ -122,8 +120,7 @@ public class ProxyDeploymentDependentResource
                 .map(PodTemplateSpec::getMetadata)
                 .map(ObjectMeta::getLabels)
                 .orElse(Map.of());
-        Map<String, String> result = new LinkedHashMap<>(APP_KROXY);
-        result.putAll(labelsFromSpec);
+        Map<String, String> result = new LinkedHashMap<>(labelsFromSpec);
         result.putAll(standardLabels(primary));
         return result;
     }
