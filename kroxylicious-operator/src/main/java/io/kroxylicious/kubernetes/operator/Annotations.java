@@ -46,15 +46,15 @@ public class Annotations {
     /**
      * Adds a `kroxylicious.io/bootstrap-servers`annotation to the supplied metadata fluent
      * @param meta the Metadata fluent builder to add the annotation to
-     * @param bootstrapServers the bootstrap servers to serialize into the annotation value
+     * @param clusterIngressBootstrapServers the bootstrap servers to serialize into the annotation value
      */
-    public static void annotateWithBootstrapServers(ObjectMetaFluent<?> meta, Set<BootstrapServer> bootstrapServers) {
+    public static void annotateWithBootstrapServers(ObjectMetaFluent<?> meta, Set<ClusterIngressBootstrapServers> clusterIngressBootstrapServers) {
         Objects.requireNonNull(meta);
-        Objects.requireNonNull(bootstrapServers);
-        if (bootstrapServers.isEmpty()) {
+        Objects.requireNonNull(clusterIngressBootstrapServers);
+        if (clusterIngressBootstrapServers.isEmpty()) {
             return;
         }
-        meta.addToAnnotations(BOOTSTRAP_SERVERS_ANNOTATION_KEY, toAnnotation(bootstrapServers));
+        meta.addToAnnotations(BOOTSTRAP_SERVERS_ANNOTATION_KEY, toAnnotation(clusterIngressBootstrapServers));
     }
 
     /**
@@ -93,7 +93,7 @@ public class Annotations {
      * @param hasMetadata the resource to extract the bootstrap servers from
      * @return the bootstrap servers from the metadata if the annotation is present, else an empty Set
      */
-    public static Set<BootstrapServer> readBootstrapServersFrom(HasMetadata hasMetadata) {
+    public static Set<ClusterIngressBootstrapServers> readBootstrapServersFrom(HasMetadata hasMetadata) {
         Map<String, String> annotations = annotations(hasMetadata);
         if (!annotations.containsKey(BOOTSTRAP_SERVERS_ANNOTATION_KEY)) {
             return Set.of();
@@ -122,9 +122,16 @@ public class Annotations {
                 .orElse(Map.of());
     }
 
+    /**
+     * Describes a bootstrapServers string that we expect clients to use to connect with for a specific VirtualKafkaCluster
+     * and KafkaProxyIngress combination.
+     * @param clusterName VirtualKafkaCluster name
+     * @param ingressName KafkaProxyIngress name
+     * @param bootstrapServers client facing bootstrap servers
+     */
     @JsonPropertyOrder({ "clusterName", "ingressName", "bootstrapServers" })
-    public record BootstrapServer(String clusterName, String ingressName, String bootstrapServers) {
-        public BootstrapServer {
+    public record ClusterIngressBootstrapServers(String clusterName, String ingressName, String bootstrapServers) {
+        public ClusterIngressBootstrapServers {
             Objects.requireNonNull(clusterName);
             Objects.requireNonNull(ingressName);
             Objects.requireNonNull(bootstrapServers);
@@ -135,16 +142,17 @@ public class Annotations {
 
     @VisibleForTesting
     @JsonPropertyOrder({ "version", "bootstrapServers" })
-    record Wrapper(String version, List<BootstrapServer> bootstrapServers) {
+    record Wrapper(String version, List<ClusterIngressBootstrapServers> bootstrapServers) {
         Wrapper {
             Objects.requireNonNull(version);
             Objects.requireNonNull(bootstrapServers);
         }
     }
 
-    private static String toAnnotation(Set<BootstrapServer> bootstrapServers) {
-        List<BootstrapServer> list = bootstrapServers.stream()
-                .sorted(Comparator.comparing(BootstrapServer::clusterName).thenComparing(BootstrapServer::ingressName).thenComparing(BootstrapServer::bootstrapServers))
+    private static String toAnnotation(Set<ClusterIngressBootstrapServers> clusterIngressBootstrapServers) {
+        List<ClusterIngressBootstrapServers> list = clusterIngressBootstrapServers.stream()
+                .sorted(Comparator.comparing(ClusterIngressBootstrapServers::clusterName).thenComparing(ClusterIngressBootstrapServers::ingressName).thenComparing(
+                        ClusterIngressBootstrapServers::bootstrapServers))
                 .toList();
         Wrapper wrapper = new Wrapper("0.13.0", list);
         try {
@@ -155,7 +163,7 @@ public class Annotations {
         }
     }
 
-    private static Set<BootstrapServer> fromAnnotation(String bootstrapServers) {
+    private static Set<ClusterIngressBootstrapServers> fromAnnotation(String bootstrapServers) {
         try {
             Wrapper wrapper = OBJECT_MAPPER.readValue(bootstrapServers, Wrapper.class);
             return new HashSet<>(wrapper.bootstrapServers());

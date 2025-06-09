@@ -63,7 +63,7 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
         String serviceName = bootstrapServiceName();
         ObjectMetaBuilder metadataBuilder = baseServiceMetadataBuilder(serviceName);
         Annotations.annotateWithBootstrapServers(metadataBuilder,
-                Set.of(new Annotations.BootstrapServer(ResourcesUtil.name(cluster), ResourcesUtil.name(ingress), bootstrapServers())));
+                Set.of(new Annotations.ClusterIngressBootstrapServers(ResourcesUtil.name(cluster), ResourcesUtil.name(ingress), bootstrapServers())));
         var bootstrapService = createService(metadataBuilder);
         var nodeServices = getNodeServices();
         return Stream.concat(Stream.of(bootstrapService), nodeServices);

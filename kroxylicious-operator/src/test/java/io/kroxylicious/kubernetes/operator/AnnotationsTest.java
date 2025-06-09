@@ -33,7 +33,7 @@ class AnnotationsTest {
     @Test
     void annotateWithBootstrapServers() {
         ObjectMetaFluent<?> meta = new ObjectMetaFluent<>();
-        Annotations.annotateWithBootstrapServers(meta, Set.of(new Annotations.BootstrapServer("a", "b", BOOTSTRAP_SERVERS)));
+        Annotations.annotateWithBootstrapServers(meta, Set.of(new Annotations.ClusterIngressBootstrapServers("a", "b", BOOTSTRAP_SERVERS)));
         String expectedValue = "{\"version\":\"0.13.0\",\"bootstrapServers\":[{\"clusterName\":\"a\",\"ingressName\":\"b\",\"bootstrapServers\":\"" + BOOTSTRAP_SERVERS
                 + "\"}]}";
         assertThat(meta.getAnnotations()).containsEntry(Annotations.BOOTSTRAP_SERVERS_ANNOTATION_KEY, expectedValue);
@@ -132,42 +132,42 @@ class AnnotationsTest {
     @Test
     void readBootstrapServersFromEmptyMetadata() {
         HasMetadata resource = new ServiceBuilder().withNewMetadata().endMetadata().build();
-        Set<Annotations.BootstrapServer> bootstrapServers = Annotations.readBootstrapServersFrom(resource);
-        assertThat(bootstrapServers).isEmpty();
+        Set<Annotations.ClusterIngressBootstrapServers> clusterIngressBootstrapServers = Annotations.readBootstrapServersFrom(resource);
+        assertThat(clusterIngressBootstrapServers).isEmpty();
     }
 
     @Test
     void readBootstrapServersFromNullMetadata() {
         HasMetadata resource = new ServiceBuilder().build();
-        Set<Annotations.BootstrapServer> bootstrapServers = Annotations.readBootstrapServersFrom(resource);
-        assertThat(bootstrapServers).isEmpty();
+        Set<Annotations.ClusterIngressBootstrapServers> clusterIngressBootstrapServers = Annotations.readBootstrapServersFrom(resource);
+        assertThat(clusterIngressBootstrapServers).isEmpty();
     }
 
     @Test
     void readBootstrapServersFromAnnotationContainingBootstrapServers() {
         String value = "{\"version\":\"0.13.0\",\"bootstrapServers\":[{\"clusterName\":\"a\",\"ingressName\":\"b\",\"bootstrapServers\":\"" + BOOTSTRAP_SERVERS + "\"}]}";
         HasMetadata resource = new ServiceBuilder().withNewMetadata().withAnnotations(Map.of(Annotations.BOOTSTRAP_SERVERS_ANNOTATION_KEY, value)).endMetadata().build();
-        Set<Annotations.BootstrapServer> bootstrapServers = Annotations.readBootstrapServersFrom(resource);
-        assertThat(bootstrapServers).contains(new Annotations.BootstrapServer("a", "b", BOOTSTRAP_SERVERS));
+        Set<Annotations.ClusterIngressBootstrapServers> clusterIngressBootstrapServers = Annotations.readBootstrapServersFrom(resource);
+        assertThat(clusterIngressBootstrapServers).contains(new Annotations.ClusterIngressBootstrapServers("a", "b", BOOTSTRAP_SERVERS));
     }
 
     @Test
     void annotateWithBootstrapServersOrderIsStable() throws JsonProcessingException {
         ObjectMetaFluent<?> meta = new ObjectMetaFluent<>();
-        List<Annotations.BootstrapServer> bootstrapServersInExpectedOrder = new ArrayList<>();
-        bootstrapServersInExpectedOrder.add(new Annotations.BootstrapServer("a", "a", "a"));
-        bootstrapServersInExpectedOrder.add(new Annotations.BootstrapServer("a", "a", "b"));
-        bootstrapServersInExpectedOrder.add(new Annotations.BootstrapServer("a", "b", "a"));
-        bootstrapServersInExpectedOrder.add(new Annotations.BootstrapServer("a", "b", "b"));
-        bootstrapServersInExpectedOrder.add(new Annotations.BootstrapServer("b", "a", "a"));
-        bootstrapServersInExpectedOrder.add(new Annotations.BootstrapServer("b", "a", "b"));
-        bootstrapServersInExpectedOrder.add(new Annotations.BootstrapServer("b", "b", "a"));
-        bootstrapServersInExpectedOrder.add(new Annotations.BootstrapServer("b", "b", "b"));
-        HashSet<Annotations.BootstrapServer> unsorted = new HashSet<>(bootstrapServersInExpectedOrder);
+        List<Annotations.ClusterIngressBootstrapServers> clusterIngressBootstrapServersInExpectedOrder = new ArrayList<>();
+        clusterIngressBootstrapServersInExpectedOrder.add(new Annotations.ClusterIngressBootstrapServers("a", "a", "a"));
+        clusterIngressBootstrapServersInExpectedOrder.add(new Annotations.ClusterIngressBootstrapServers("a", "a", "b"));
+        clusterIngressBootstrapServersInExpectedOrder.add(new Annotations.ClusterIngressBootstrapServers("a", "b", "a"));
+        clusterIngressBootstrapServersInExpectedOrder.add(new Annotations.ClusterIngressBootstrapServers("a", "b", "b"));
+        clusterIngressBootstrapServersInExpectedOrder.add(new Annotations.ClusterIngressBootstrapServers("b", "a", "a"));
+        clusterIngressBootstrapServersInExpectedOrder.add(new Annotations.ClusterIngressBootstrapServers("b", "a", "b"));
+        clusterIngressBootstrapServersInExpectedOrder.add(new Annotations.ClusterIngressBootstrapServers("b", "b", "a"));
+        clusterIngressBootstrapServersInExpectedOrder.add(new Annotations.ClusterIngressBootstrapServers("b", "b", "b"));
+        HashSet<Annotations.ClusterIngressBootstrapServers> unsorted = new HashSet<>(clusterIngressBootstrapServersInExpectedOrder);
         Annotations.annotateWithBootstrapServers(meta, unsorted);
         assertThat(meta.getAnnotations()).containsKey(Annotations.BOOTSTRAP_SERVERS_ANNOTATION_KEY);
         String annotationValue = meta.getAnnotations().remove(Annotations.BOOTSTRAP_SERVERS_ANNOTATION_KEY);
         Annotations.Wrapper decoded = new ObjectMapper().readValue(annotationValue, Annotations.Wrapper.class);
-        assertThat(decoded.bootstrapServers()).containsExactlyElementsOf(bootstrapServersInExpectedOrder);
+        assertThat(decoded.bootstrapServers()).containsExactlyElementsOf(clusterIngressBootstrapServersInExpectedOrder);
     }
 }

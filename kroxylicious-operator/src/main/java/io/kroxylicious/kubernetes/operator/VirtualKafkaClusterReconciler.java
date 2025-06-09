@@ -259,7 +259,7 @@ public final class VirtualKafkaClusterReconciler implements
                 .stream()
                 .flatMap(
                         ingress -> {
-                            Optional<Annotations.BootstrapServer> bootstrap = bootstraps.stream().filter(
+                            Optional<Annotations.ClusterIngressBootstrapServers> bootstrap = bootstraps.stream().filter(
                                     b -> b.ingressName().equals(ingress.getIngressRef().getName()) && b.clusterName().equals(name(cluster))).findFirst();
                             if (bootstrap.isEmpty()) {
                                 return Stream.empty();

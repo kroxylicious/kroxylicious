@@ -95,8 +95,8 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     ObjectMeta serviceMetadata(String name) {
-        Set<Annotations.BootstrapServer> clientFacingBootstrap = Set.of(
-                new Annotations.BootstrapServer(name(cluster), name(ingress), bootstrapServers()));
+        Set<Annotations.ClusterIngressBootstrapServers> clientFacingBootstrap = Set.of(
+                new Annotations.ClusterIngressBootstrapServers(name(cluster), name(ingress), bootstrapServers()));
         ObjectMetaBuilder builder = new ObjectMetaBuilder()
                 .withName(name)
                 .withNamespace(namespace(cluster))

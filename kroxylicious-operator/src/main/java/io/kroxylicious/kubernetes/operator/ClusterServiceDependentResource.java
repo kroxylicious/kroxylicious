@@ -73,7 +73,7 @@ public class ClusterServiceDependentResource
                 .flatMap(ProxyNetworkingModel.ClusterNetworkingModel::requiredSniLoadbalancerPorts)
                 .distinct().sorted().toList();
 
-        Set<Annotations.BootstrapServer> bootstraps = getLoadBalancerServiceBootstrapServers(clusterNetworkingModels);
+        Set<Annotations.ClusterIngressBootstrapServers> bootstraps = getLoadBalancerServiceBootstrapServers(clusterNetworkingModels);
 
         var sniServiceStream = sniLoadbalancerServices(primary, sharedSniLoadbalancerPorts, bootstraps);
 
@@ -83,22 +83,22 @@ public class ClusterServiceDependentResource
     /**
      * Get the bootstrap servers hosted by the shared LoadBalancer Service
      */
-    private static Set<Annotations.BootstrapServer> getLoadBalancerServiceBootstrapServers(List<ProxyNetworkingModel.ClusterNetworkingModel> clusterNetworkingModels) {
+    private static Set<Annotations.ClusterIngressBootstrapServers> getLoadBalancerServiceBootstrapServers(List<ProxyNetworkingModel.ClusterNetworkingModel> clusterNetworkingModels) {
         return clusterNetworkingModels.stream()
                 .flatMap(ClusterServiceDependentResource::getBootstrapServers)
                 .collect(Collectors.toSet());
     }
 
-    private static Stream<Annotations.BootstrapServer> getBootstrapServers(ProxyNetworkingModel.ClusterNetworkingModel networking) {
+    private static Stream<Annotations.ClusterIngressBootstrapServers> getBootstrapServers(ProxyNetworkingModel.ClusterNetworkingModel networking) {
         return networking.clusterIngressNetworkingModelResults().stream()
                 .map(ProxyNetworkingModel.ClusterIngressNetworkingModelResult::clusterIngressNetworkingModel)
                 .filter(clusterIngressModel -> clusterIngressModel.requiredSniLoadBalancerServicePorts()
                         .findAny().isPresent())
-                .map(clusterIngressModel -> new Annotations.BootstrapServer(ResourcesUtil.name(clusterIngressModel.cluster()),
+                .map(clusterIngressModel -> new Annotations.ClusterIngressBootstrapServers(ResourcesUtil.name(clusterIngressModel.cluster()),
                         ResourcesUtil.name(clusterIngressModel.ingress()), clusterIngressModel.bootstrapServers()));
     }
 
-    private ObjectMeta sniLoadbalancerServiceMetadata(KafkaProxy primary, String name, Set<Annotations.BootstrapServer> bootstraps) {
+    private ObjectMeta sniLoadbalancerServiceMetadata(KafkaProxy primary, String name, Set<Annotations.ClusterIngressBootstrapServers> bootstraps) {
         ObjectMetaBuilder builder = new ObjectMetaBuilder()
                 .withName(name)
                 .withNamespace(namespace(primary))
@@ -108,7 +108,7 @@ public class ClusterServiceDependentResource
         return builder.build();
     }
 
-    private Stream<Service> sniLoadbalancerServices(KafkaProxy primary, List<Integer> loadBalancerPorts, Set<Annotations.BootstrapServer> bootstraps) {
+    private Stream<Service> sniLoadbalancerServices(KafkaProxy primary, List<Integer> loadBalancerPorts, Set<Annotations.ClusterIngressBootstrapServers> bootstraps) {
         if (loadBalancerPorts.isEmpty()) {
             return Stream.empty();
         }

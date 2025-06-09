@@ -234,7 +234,7 @@ class VirtualKafkaClusterReconcilerTest {
     public static final Service KUBERNETES_INGRESS_SERVICES;
     static {
         var serviceBuilderMetadataNested = new ServiceBuilder().withNewMetadata();
-        Annotations.BootstrapServer bootstrap = new Annotations.BootstrapServer(name(CLUSTER_NO_FILTERS), name(LOADBALANCER_INGRESS), CLUSTERIP_BOOTSTRAP);
+        Annotations.ClusterIngressBootstrapServers bootstrap = new Annotations.ClusterIngressBootstrapServers(name(CLUSTER_NO_FILTERS), name(LOADBALANCER_INGRESS), CLUSTERIP_BOOTSTRAP);
         Annotations.annotateWithBootstrapServers(serviceBuilderMetadataNested, Set.of(bootstrap));
         KUBERNETES_INGRESS_SERVICES=serviceBuilderMetadataNested
                     .withName(name(CLUSTER_NO_FILTERS) + "-" + name(CLUSTERIP_INGRESS))
@@ -253,7 +253,7 @@ class VirtualKafkaClusterReconcilerTest {
     public static final Service KUBERNETES_SHARED_SNI_SERVICE;
     static {
         var metadataBuilder = new ServiceBuilder().withNewMetadata();
-        Annotations.BootstrapServer bootstrap = new Annotations.BootstrapServer(name(CLUSTER_NO_FILTERS), name(LOADBALANCER_INGRESS), LOADBALANCER_BOOTSTRAP);
+        Annotations.ClusterIngressBootstrapServers bootstrap = new Annotations.ClusterIngressBootstrapServers(name(CLUSTER_NO_FILTERS), name(LOADBALANCER_INGRESS), LOADBALANCER_BOOTSTRAP);
         Annotations.annotateWithBootstrapServers(metadataBuilder, Set.of(bootstrap));
         KUBERNETES_SHARED_SNI_SERVICE=metadataBuilder
                 .withName(PROXY_NAME + "-sni")
