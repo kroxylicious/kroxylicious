@@ -327,7 +327,7 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(cluster);
 
         // Then
-        assertClusterIngressStatusPopulated(clusterBar, ingress, "bar-cluster-ingress-d.%s.svc.cluster.local:9292", Protocol.TLS);
+        assertClusterIngressStatusPopulated(clusterBar, ingress, "bar-cluster-ingress-d-bootstrap.%s.svc.cluster.local:9292", Protocol.TLS);
     }
 
     @Test

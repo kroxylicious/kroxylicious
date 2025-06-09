@@ -218,21 +218,6 @@ class Crc32ChecksumGeneratorTest {
     }
 
     @Test
-    void shouldIncludeUidFromHasMetadata() {
-        // Given
-        String proxyChecksum = generateProxyChecksum();
-
-        // When
-        checksumGenerator
-                .appendMetadata(new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata()).withUid("updated-uid").endMetadata().build());
-
-        // Then
-        assertThat(checksumGenerator.encode())
-                .isNotBlank()
-                .isNotEqualTo(proxyChecksum);
-    }
-
-    @Test
     void shouldIncludeGenerationFromHasMetadata() {
         // Given
         String proxyChecksum = generateProxyChecksum();

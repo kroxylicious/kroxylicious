@@ -124,4 +124,8 @@ public final class HostPort {
             throw new IllegalArgumentException(exceptionText, nfe);
         }
     }
+
+    public static String asString(String host, int port) {
+        return new HostPort(host, port).toString();
+    }
 }

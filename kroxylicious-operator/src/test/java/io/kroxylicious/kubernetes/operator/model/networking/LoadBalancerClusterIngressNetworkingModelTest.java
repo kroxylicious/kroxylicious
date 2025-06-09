@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator.model.networking;
 
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.ThrowableAssert;
@@ -149,16 +150,21 @@ class LoadBalancerClusterIngressNetworkingModelTest {
     }
 
     @Test
-    void bootstrapServers() {
+    void sharedLoadBalancerServiceBootstrapServers() {
         // given
         LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, INGRESS, LOAD_BALANCER, TLS,
                 9093);
 
         // when
-        String bootstrapServers = model.bootstrapServers();
+        Optional<SharedLoadBalancerServiceRequirements> requirements = model.sharedLoadBalancerServiceRequirements();
 
         // then
-        assertThat(bootstrapServers).isEqualTo(new HostPort("my-cluster.kafkaproxy", DEFAULT_CLIENT_FACING_LOADBALANCER_PORT).toString());
+        assertThat(requirements).isPresent();
+        assertThat(requirements.get().bootstrapServersToAnnotate()).satisfies(bootstrapServers -> {
+            assertThat(bootstrapServers.clusterName()).isEqualTo(CLUSTER_NAME);
+            assertThat(bootstrapServers.ingressName()).isEqualTo(INGRESS_NAME);
+            assertThat(bootstrapServers.bootstrapServers()).isEqualTo("my-cluster.kafkaproxy:" + DEFAULT_CLIENT_FACING_LOADBALANCER_PORT);
+        });
     }
 
     public static Stream<Arguments> constructorArgsMustBeNonNull() {

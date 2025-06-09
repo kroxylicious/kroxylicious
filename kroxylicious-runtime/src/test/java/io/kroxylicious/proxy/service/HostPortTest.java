@@ -25,6 +25,12 @@ class HostPortTest {
     }
 
     @Test
+    void asString() {
+        var hp = HostPort.asString("localhost", 12345);
+        assertThat(hp).isEqualTo("localhost:12345");
+    }
+
+    @Test
     void validFQDN() {
         var hp = HostPort.parse("kafka.example.com:12345");
         assertThat(hp.host()).isEqualTo("kafka.example.com");

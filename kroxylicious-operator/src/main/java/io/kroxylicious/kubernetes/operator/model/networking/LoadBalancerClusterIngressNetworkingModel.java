@@ -52,8 +52,9 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
 
     @Override
     public NodeIdentificationStrategy nodeIdentificationStrategy() {
-        return new SniHostIdentifiesNodeIdentificationStrategy(new HostPort(loadBalancer.getBootstrapAddress(), sharedSniPort).toString(),
-                new HostPort(loadBalancer.getAdvertisedBrokerAddressPattern(), DEFAULT_CLIENT_FACING_LOADBALANCER_PORT).toString());
+        String bootstrapAddress = HostPort.asString(loadBalancer.getBootstrapAddress(), sharedSniPort);
+        String advertisedBrokerAddressPattern = HostPort.asString(loadBalancer.getAdvertisedBrokerAddressPattern(), DEFAULT_CLIENT_FACING_LOADBALANCER_PORT);
+        return new SniHostIdentifiesNodeIdentificationStrategy(bootstrapAddress, advertisedBrokerAddressPattern);
     }
 
     @Override
@@ -77,7 +78,7 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
     }
 
     public String bootstrapServers() {
-        return new HostPort(loadBalancer.getBootstrapAddress(), DEFAULT_CLIENT_FACING_LOADBALANCER_PORT).toString().replace("$(virtualClusterName)", name(cluster));
+        return HostPort.asString(loadBalancer.getBootstrapAddress(), DEFAULT_CLIENT_FACING_LOADBALANCER_PORT).replace("$(virtualClusterName)", name(cluster));
     }
 
     @Override
