@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import io.fabric8.kubernetes.api.model.KubernetesResource;
 
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -46,7 +46,7 @@ public class FilterRef
     @NonNull
     @Override
     public String getGroup() {
-        return "filter.kroxylicious.io";
+        return "kroxylicious.io";
     }
 
     @JsonIgnore

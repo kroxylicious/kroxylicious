@@ -46,6 +46,8 @@ import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMap
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -59,8 +61,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses.Protocol;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilter;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.MetadataAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
@@ -416,7 +416,7 @@ class VirtualKafkaClusterReconcilerTest {
                             .singleElement()
                             .isResolvedRefsFalse(
                                     Condition.REASON_REFS_NOT_FOUND,
-                                    "spec.filterRefs references kafkaprotocolfilter.filter.kroxylicious.io/my-filter in namespace 'my-namespace'")));
+                                    "spec.filterRefs references kafkaprotocolfilter.kroxylicious.io/my-filter in namespace 'my-namespace'")));
         }
 
         {
@@ -438,7 +438,7 @@ class VirtualKafkaClusterReconcilerTest {
                             .singleElement()
                             .isResolvedRefsFalse(
                                     Condition.REASON_TRANSITIVE_REFS_NOT_FOUND,
-                                    "spec.filterRefs references kafkaprotocolfilter.filter.kroxylicious.io/my-filter in namespace 'my-namespace'")));
+                                    "spec.filterRefs references kafkaprotocolfilter.kroxylicious.io/my-filter in namespace 'my-namespace'")));
         }
 
         {

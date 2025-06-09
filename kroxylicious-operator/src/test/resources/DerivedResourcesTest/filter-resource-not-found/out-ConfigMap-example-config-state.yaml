@@ -34,8 +34,8 @@ data:
         status: "False"
         lastTransitionTime: "1970-01-01T00:00:00Z"
         reason: "Invalid"
-        message: "Resource kafkaprotocolfilter.filter.kroxylicious.io/missing in namespace\
-          \ 'proxy-ns' was not found."
+        message: "Resource kafkaprotocolfilter.kroxylicious.io/missing in namespace 'proxy-ns'\
+          \ was not found."
       ingresses: []
       observedGeneration: 4
   cluster-foo: |-

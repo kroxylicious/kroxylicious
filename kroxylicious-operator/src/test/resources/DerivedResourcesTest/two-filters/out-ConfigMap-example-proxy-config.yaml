@@ -27,12 +27,12 @@ data:
       endpoints:
         prometheus: {}
     filterDefinitions:
-    - name: "filter-one.KafkaProtocolFilter.filter.kroxylicious.io"
+    - name: "filter-one.KafkaProtocolFilter.kroxylicious.io"
       type: "org.example.some.java.Class"
       config:
         filterOneConfig: true
         password: "/opt/kroxylicious/secure/secret/my-secret/filter-one"
-    - name: "filter-two.KafkaProtocolFilter.filter.kroxylicious.io"
+    - name: "filter-two.KafkaProtocolFilter.kroxylicious.io"
       type: "com.example.what.Ever"
       config:
         filterTwoConfig: 42
@@ -51,5 +51,5 @@ data:
             start: 0
             end: 2
       filters:
-      - "filter-one.KafkaProtocolFilter.filter.kroxylicious.io"
-      - "filter-two.KafkaProtocolFilter.filter.kroxylicious.io"
+      - "filter-one.KafkaProtocolFilter.kroxylicious.io"
+      - "filter-two.KafkaProtocolFilter.kroxylicious.io"

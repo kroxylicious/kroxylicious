@@ -22,6 +22,7 @@ rules:
       - virtualkafkaclusters
       - kafkaservices
       - kafkaproxyingresses
+      - kafkaprotocolfilters
     verbs:
       - get
       - list
@@ -36,25 +37,6 @@ rules:
       - virtualkafkaclusters/status
       - kafkaservices/status
       - kafkaproxyingresses/status
-    verbs:
-      - get
-      - patch
-      - update
-  - # The operator needs to know about its own CRs
-    apiGroups:
-      - "filter.kroxylicious.io"
-    resources:
-      - kafkaprotocolfilters
-    verbs:
-      - get
-      - list
-      - watch
-      - patch
-      - update
-  - # The operator needs to update the status on its own CRs
-    apiGroups:
-      - "filter.kroxylicious.io"
-    resources:
       - kafkaprotocolfilters/status
     verbs:
       - get

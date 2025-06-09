@@ -14,7 +14,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.filter.encryption.RecordEncryption;
 import io.kroxylicious.kms.service.TestKmsFacade;
-import io.kroxylicious.kubernetes.filter.api.v1alpha1.KafkaProtocolFilterBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
 
