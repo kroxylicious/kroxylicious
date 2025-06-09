@@ -35,7 +35,7 @@ NOTE: Error communicated from broker to client within the Kafka protocol (such a
 |`kroxylicious_client_to_proxy_connection_total`
 |Counter
 |`virtual_cluster`, `node_id`
-|Incremented by one every time a connection is accepted from a downstream client by the proxy. +
+|Incremented by one every time a connection is accepted from a client by the proxy. +
  This metric counts all connection attempts that reach the proxy, even those that end in error.
 
 |`kroxylicious_client_to_proxy_errors_total`
@@ -46,7 +46,7 @@ NOTE: Error communicated from broker to client within the Kafka protocol (such a
 |`kroxylicious_proxy_to_server_connections_total`
 |Counter
 |`virtual_cluster`, `node_id`
-|Incremented by one every time a connection is made upstream to the server from the proxy. +
+|Incremented by one every time a connection is made to the server from the proxy. +
  This metric counts all connections attempted to the broker, even those that end in error.
 
 |`kroxylicious_proxy_to_server_errors_total`
@@ -68,8 +68,8 @@ whether the Proxy needed to decode the message or not (`decoded`).
 When the client connects to the boostrap endpoint of the virtual cluster, metrics are recorded with a node ID value of `bootstrap`.
 
 NOTE: There are several situations where the metric value recorded at the client end will exceed the value recorded at the broker end.
-This occurs when a filter chooses to send a short-circuit response, or chooses to close the connection. It
-can also occur in some error situations where connectivity to the upstream cluster is lost.
+This occurs when a filter chooses to send a short-circuit response, or chooses to close the connection.
+It can also occur in some error situations where connectivity to the upstream cluster is lost.
 
 |===
 |Metric Name |Type |Labels|Description
@@ -77,21 +77,21 @@ can also occur in some error situations where connectivity to the upstream clust
 |`kroxylicious_client_to_proxy_request_total`
 |Counter
 |`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
-|Incremented by one every time a request arrives at the proxy from a downstream (client).
+|Incremented by one every time a request arrives at the proxy from a client.
 
 |`kroxylicious_proxy_to_server_request_total`
 |Counter
 |`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
-|Incremented by one every time a request  goes from the proxy to an upstream (server).
+|Incremented by one every time a request goes from the proxy to a server.
 
 |`kroxylicious_server_to_proxy_response_total`
 |Counter
 |`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
-|Incremented by one every time a response (#1) arrives at the proxy an upstream (server).
+|Incremented by one every time a response arrives at the proxy from a server.
 
 |`kroxylicious_proxy_to_client_response_total`
 |Counter
 |`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
-|Incremented by one every time a response goes from the proxy to a downstream (client).
+|Incremented by one every time a response goes from the proxy to a client.
 
 |===
