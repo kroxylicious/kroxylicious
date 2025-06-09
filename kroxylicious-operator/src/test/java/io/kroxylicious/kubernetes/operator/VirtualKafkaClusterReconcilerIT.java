@@ -281,7 +281,7 @@ class VirtualKafkaClusterReconcilerIT {
         VirtualKafkaCluster clusterBar = testActor.create(cluster);
 
         // Then
-        assertClusterIngressStatusPopulated(clusterBar, ingress, "bar-cluster-ingress-d.%s.svc.cluster.local:9292", Protocol.TCP);
+        assertClusterIngressStatusPopulated(clusterBar, ingress, "bar-cluster-ingress-d-bootstrap.%s.svc.cluster.local:9292", Protocol.TCP);
     }
 
     @Test
@@ -308,7 +308,7 @@ class VirtualKafkaClusterReconcilerIT {
         updateStatusObservedGeneration(testActor.create(ingress));
 
         // Then
-        assertClusterIngressStatusPopulated(clusterBar, ingress, "bar-cluster-ingress-d.%s.svc.cluster.local:9292", Protocol.TCP);
+        assertClusterIngressStatusPopulated(clusterBar, ingress, "bar-cluster-ingress-d-bootstrap.%s.svc.cluster.local:9292", Protocol.TCP);
     }
 
     private VirtualKafkaCluster cluster(String clusterName, String proxyName, String ingressName, String serviceName, @Nullable String filterName) {

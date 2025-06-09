@@ -30,8 +30,6 @@ import io.kroxylicious.proxy.config.NodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.service.HostPort;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.crossNamespaceServiceAddress;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
@@ -61,12 +59,19 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
 
     @Override
     public Stream<ServiceBuilder> services() {
-        String serviceName = bootstrapServiceName();
-        var bootstrapService = createService(serviceName);
-        var nodeServices = nodeIdRanges.stream()
-                .flatMapToInt(nodeIdRange -> IntStream.rangeClosed(toIntExact(nodeIdRange.getStart()), toIntExact(nodeIdRange.getEnd())))
-                .mapToObj(upstreamNodeId -> createService(bootstrapServiceName() + "-" + upstreamNodeId));
+        var bootstrapService = createService(bootstrapServiceName());
+        var nodeServices = getNodeServices();
         return Stream.concat(Stream.of(bootstrapService), nodeServices);
+    }
+
+    private Stream<ServiceBuilder> getNodeServices() {
+        return nodeIdRanges.stream()
+                .flatMapToInt(nodeIdRange -> IntStream.rangeClosed(toIntExact(nodeIdRange.getStart()), toIntExact(nodeIdRange.getEnd())))
+                .mapToObj(upstreamNodeId -> createService(suffixedServiceName(String.valueOf(upstreamNodeId))));
+    }
+
+    private String suffixedServiceName(String suffix) {
+        return name(cluster) + "-" + name(ingress) + "-" + suffix;
     }
 
     private ServiceBuilder createService(String serviceName) {
@@ -78,7 +83,6 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
                 .endSpec();
     }
 
-    @NonNull
     private String bootstrapServiceName() {
         // we want to ensure TLS and TCP have the same service name for the service that will be used to bootstrap
         // this is because the VKC reconciler loads the Service by name.
@@ -109,7 +113,7 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     @Override
     public NodeIdentificationStrategy nodeIdentificationStrategy() {
         HostPort bootstrapAddress = new HostPort(crossNamespaceServiceAddress(bootstrapServiceName(), proxy), sharedSniPort);
-        HostPort advertisedBrokerAddressPattern = new HostPort(crossNamespaceServiceAddress(bootstrapServiceName() + "-$(nodeId)", proxy), CLIENT_FACING_PORT);
+        HostPort advertisedBrokerAddressPattern = new HostPort(crossNamespaceServiceAddress(suffixedServiceName("$(nodeId)"), proxy), CLIENT_FACING_PORT);
         return new SniHostIdentifiesNodeIdentificationStrategy(bootstrapAddress.toString(),
                 advertisedBrokerAddressPattern.toString());
     }

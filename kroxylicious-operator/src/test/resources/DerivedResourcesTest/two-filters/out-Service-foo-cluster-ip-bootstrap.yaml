@@ -12,35 +12,35 @@ metadata:
     app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/instance: "minimal"
+    app.kubernetes.io/instance: "example"
     app.kubernetes.io/component: "proxy"
-  name: "one-cluster-ip"
+  name: "foo-cluster-ip-bootstrap"
   namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "minimal"
+      name: "example"
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "VirtualKafkaCluster"
-      name: "one"
+      name: "foo"
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxyIngress"
       name: "cluster-ip"
 spec:
   ports:
-    - name: "one-9292"
+    - name: "foo-9292"
       port: 9292
       protocol: "TCP"
       targetPort: 9292
-    - name: "one-9293"
+    - name: "foo-9293"
       port: 9293
       protocol: "TCP"
       targetPort: 9293
-    - name: "one-9294"
+    - name: "foo-9294"
       port: 9294
       protocol: "TCP"
       targetPort: 9294
-    - name: "one-9295"
+    - name: "foo-9295"
       port: 9295
       protocol: "TCP"
       targetPort: 9295
@@ -49,5 +49,5 @@ spec:
     app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious-proxy"
-    app.kubernetes.io/instance: "minimal"
+    app.kubernetes.io/instance: "example"
     app.kubernetes.io/component: "proxy"
