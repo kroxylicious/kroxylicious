@@ -58,8 +58,8 @@ NOTE: Error communicated from broker to client within the Kafka protocol (such a
 == Message Metrics
 
 The message metrics count the Kafka protocol requests and responses that flow through the proxy.
-Request messages are counted as they flow in from client and as they flow out to the broker.
-On the return path, response messages are counted as they flow in from the broker and as they
+There are two _client end_ counters counting requests as they arrive from the client (`kroxylicious_client_to_proxy_request_total`) and responses as they are returned to the client (`kroxylicious_proxy_to_client_response_total`).
+There are two _broker end_ counters counting requests as they go to the broker (`kroxylicious_proxy_to_server_request_total`) and responses as they returned by the broker (`kroxylicious_proxy_to_server_response_total`).
 
 Messages metrics are discriminated by the virtual cluster's name (`virtual_cluster`), the broker's node ID (`node_id`),
 the API key (`api_key`) which is the type of the message, the API key version (`api_version`) and a flag indicating
@@ -67,9 +67,9 @@ whether the Proxy needed to decode the message or not (`decoded`).
 
 When the client connects to the boostrap endpoint of the virtual cluster, metrics are recorded with a node ID value of `bootstrap`.
 
-NOTE: There are several situations where the metric value recorded at the client end will exceed the value recorded at the broker end.
+NOTE: There are several situations where the metric value recorded by the client end counters (i.e. `kroxylicious_client_to_proxy_&#42;_total`) will exceed the value recorded by the broker end counters (i.e `kroxylicious_proxy_to_server_&#42;_total`).
 This occurs when a filter chooses to send a short-circuit response, or chooses to close the connection.
-It can also occur in some error situations where connectivity to the upstream cluster is lost.
+It can also occur in some error situations where connectivity to the upstream cluster is lost as a message transits the proxy.
 
 |===
 |Metric Name |Type |Labels|Description
