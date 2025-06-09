@@ -27,11 +27,11 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.DefaultChannelId;
 import io.netty.channel.EventLoop;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.channel.socket.ServerSocketChannel;
@@ -90,7 +90,7 @@ class KafkaProxyInitializerTest {
     private EventLoop eventLoop;
 
     @Mock(strictness = Mock.Strictness.LENIENT)
-    private ServerSocketChannel serverSocketChannel;
+    private ServerSocketChannel acceptingSocketChannel;
 
     @Captor
     ArgumentCaptor<ChannelInboundHandlerAdapter> plainChannelResolverCaptor;
@@ -109,11 +109,10 @@ class KafkaProxyInitializerTest {
         filterChainFactory = new FilterChainFactory(pfr, List.of());
         final InetSocketAddress localhost = new InetSocketAddress(0);
         when(channel.pipeline()).thenReturn(channelPipeline);
-        when(channel.parent()).thenReturn(serverSocketChannel);
         when(channel.eventLoop()).thenReturn(eventLoop);
         when(channel.localAddress()).thenReturn(InetSocketAddress.createUnresolved("localhost", 9099));
 
-        when(serverSocketChannel.localAddress()).thenReturn(localhost);
+        when(acceptingSocketChannel.localAddress()).thenReturn(localhost);
         when(vcb.endpointGateway()).thenReturn(virtualClusterModel.gateways().values().iterator().next());
     }
 
@@ -300,12 +299,13 @@ class KafkaProxyInitializerTest {
     void shouldCloseConnectionOnUnrecognizedSniHostName() {
         // Given
         var endpointBindingResolver = mock(EndpointBindingResolver.class);
-        var embeddedChannel = new EmbeddedChannel(serverSocketChannel, DefaultChannelId.newInstance(), true, false);
+        var embeddedChannel = new EmbeddedChannel();
         kafkaProxyInitializer = createKafkaProxyInitializer(true, endpointBindingResolver, Map.of());
         kafkaProxyInitializer.initChannel(embeddedChannel);
         when(endpointBindingResolver.resolve(any(), eq("chat4.leancloud.cn"))).thenReturn(CompletableFuture.failedStage(new EndpointResolutionException("not resolved")));
 
-        // lifted from the Netty tests
+        // Using SNI test data from Netty
+        // https://github.com/netty/netty/blob/57bea3bea22717639ba200432c81b23154e4bbd9/handler/src/test/java/io/netty/handler/ssl/SniHandlerTest.java#L222
         // hex dump of a client hello packet, which contains hostname "CHAT4.LEANCLOUD.CN"
         String tlsHandshakeMessageHex1 = "16030100";
         // part 2
@@ -351,7 +351,13 @@ class KafkaProxyInitializerTest {
                 bindingResolver,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
-                authnMechanismHandlers, new ApiVersionsServiceImpl());
+                authnMechanismHandlers, new ApiVersionsServiceImpl()) {
+
+            @Override
+            protected ServerSocketChannel getAcceptingChannel(Channel ch) {
+                return acceptingSocketChannel;
+            }
+        };
     }
 
     private void assertErrorHandlerAdded() {

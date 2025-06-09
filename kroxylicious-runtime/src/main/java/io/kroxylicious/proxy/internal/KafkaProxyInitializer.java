@@ -97,7 +97,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         ChannelPipeline pipeline = ch.pipeline();
 
-        var serverSocketChannel = (ServerSocketChannel) ch.parent();
+        var serverSocketChannel = getAcceptingChannel(ch);
         var serverSocketAddress = serverSocketChannel.localAddress();
         int targetPort = serverSocketAddress.getPort();
         var bindingAddress = serverSocketAddress.getAddress().isAnyLocalAddress() ? Optional.<String> empty()
@@ -109,6 +109,11 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
             initPlainChannel(ch, pipeline, bindingAddress, targetPort);
         }
         addLoggingErrorHandler(pipeline);
+    }
+
+    @VisibleForTesting
+    protected ServerSocketChannel getAcceptingChannel(Channel ch) {
+        return (ServerSocketChannel) ch.parent();
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
