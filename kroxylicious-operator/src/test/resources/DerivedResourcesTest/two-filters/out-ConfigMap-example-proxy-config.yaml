@@ -45,7 +45,7 @@ data:
       - name: "cluster-ip"
         portIdentifiesNode:
           bootstrapAddress: "localhost:9292"
-          advertisedBrokerAddressPattern: "foo-cluster-ip.proxy-ns.svc.cluster.local"
+          advertisedBrokerAddressPattern: "foo-cluster-ip-bootstrap.proxy-ns.svc.cluster.local"
           nodeIdRanges:
           - name: "default"
             start: 0

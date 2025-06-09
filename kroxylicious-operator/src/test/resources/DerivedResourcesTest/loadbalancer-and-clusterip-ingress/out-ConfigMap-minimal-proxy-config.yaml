@@ -41,7 +41,7 @@ data:
             certificateFile: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert/tls.crt"
       - name: "cluster-ip"
         sniHostIdentifiesNode:
-          bootstrapAddress: "one-cluster-ip.proxy-ns.svc.cluster.local:9291"
+          bootstrapAddress: "one-cluster-ip-bootstrap.proxy-ns.svc.cluster.local:9291"
           advertisedBrokerAddressPattern: "one-cluster-ip-$(nodeId).proxy-ns.svc.cluster.local:9292"
         tls:
           key:

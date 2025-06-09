@@ -11,6 +11,6 @@ To try this example out:
 4. ` kubectl create cm my-cluster-clients-ca-cert -n my-proxy --from-literal=ca.pem="$(oc get kafka --namespace kafka my-cluster -o json | jq -r '.status.listeners[1].certificates[0]')"`
 5. Try producing and consuming some messages with commands like this:
    ```
-   kubectl exec -it my-cluster-dual-role-0 -n kafka -- /bin/bash ./bin/kafka-console-producer.sh --bootstrap-server my-cluster-cluster-ip.my-proxy.svc.cluster.local:9292 --topic mytopic
-   kubectl exec -it my-cluster-dual-role-0 -n kafka -- /bin/bash ./bin/kafka-console-consumer.sh --bootstrap-server my-cluster-cluster-ip.my-proxy.svc.cluster.local:9292 --topic mytopic --from-beginning
+   kubectl exec -it my-cluster-dual-role-0 -n kafka -- /bin/bash ./bin/kafka-console-producer.sh --bootstrap-server my-cluster-cluster-ip-bootstrap.my-proxy.svc.cluster.local:9292 --topic mytopic
+   kubectl exec -it my-cluster-dual-role-0 -n kafka -- /bin/bash ./bin/kafka-console-consumer.sh --bootstrap-server my-cluster-cluster-ip-bootstrap.my-proxy.svc.cluster.local:9292 --topic mytopic --from-beginning
    ```

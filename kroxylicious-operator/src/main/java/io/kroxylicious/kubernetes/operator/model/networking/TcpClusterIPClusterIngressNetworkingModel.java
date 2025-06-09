@@ -65,7 +65,7 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     public static String bootstrapServiceName(VirtualKafkaCluster cluster, String ingressName) {
         Objects.requireNonNull(cluster);
         Objects.requireNonNull(ingressName);
-        return name(cluster) + "-" + ingressName;
+        return name(cluster) + "-" + ingressName + "-bootstrap";
     }
 
     @Override

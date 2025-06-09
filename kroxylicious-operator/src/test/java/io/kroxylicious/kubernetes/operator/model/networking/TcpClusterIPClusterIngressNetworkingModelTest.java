@@ -151,7 +151,7 @@ class TcpClusterIPClusterIngressNetworkingModelTest {
         assertThat(gateway.portIdentifiesNode()).isNotNull().satisfies(portIdentifiesNode -> {
             assertThat(portIdentifiesNode.bootstrapAddress()).isEqualTo(new HostPort("localhost", 1));
             assertThat(portIdentifiesNode.nodeStartPort()).isNull(); // we use the default of bootstrap port + 1
-            String expectedAdvertisedAddress = CLUSTER_NAME + "-" + INGRESS_NAME + "." + NAMESPACE + ".svc.cluster.local";
+            String expectedAdvertisedAddress = CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap." + NAMESPACE + ".svc.cluster.local";
             assertThat(portIdentifiesNode.advertisedBrokerAddressPattern()).isEqualTo(expectedAdvertisedAddress);
             NamedRange expectedRange = new NamedRange(rangeName, rangeStart, rangeEnd);
             assertThat(portIdentifiesNode.nodeIdRanges()).containsExactly(expectedRange);
@@ -175,7 +175,7 @@ class TcpClusterIPClusterIngressNetworkingModelTest {
             Map<String, String> orderedServiceLabels = commonLabels(PROXY_NAME);
             assertThat(build.getMetadata()).isNotNull().satisfies(metadata -> {
                 assertThat(metadata.getNamespace()).isEqualTo(NAMESPACE);
-                assertThat(metadata.getName()).isEqualTo(CLUSTER_NAME + "-" + INGRESS_NAME);
+                assertThat(metadata.getName()).isEqualTo(CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap");
                 assertThat(metadata.getLabels()).containsExactlyEntriesOf(orderedServiceLabels);
                 assertThat(metadata.getOwnerReferences())
                         .satisfiesExactlyInAnyOrder(
@@ -302,7 +302,7 @@ class TcpClusterIPClusterIngressNetworkingModelTest {
         assertThat(gateway.portIdentifiesNode()).isNotNull().satisfies(portIdentifiesNode -> {
             assertThat(portIdentifiesNode.bootstrapAddress()).isEqualTo(new HostPort("localhost", 2));
             assertThat(portIdentifiesNode.nodeStartPort()).isNull(); // we use the default of bootstrap port + 1
-            String expectedAdvertisedAddress = CLUSTER_NAME + "-" + INGRESS_NAME + "." + NAMESPACE + ".svc.cluster.local";
+            String expectedAdvertisedAddress = CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap." + NAMESPACE + ".svc.cluster.local";
             assertThat(portIdentifiesNode.advertisedBrokerAddressPattern()).isEqualTo(expectedAdvertisedAddress);
             NamedRange expectedRange = new NamedRange("range-0", rangeStart, rangeEnd);
             NamedRange expectedRange2 = new NamedRange("range-1", rangeStart2, rangeEnd2);
@@ -337,7 +337,7 @@ class TcpClusterIPClusterIngressNetworkingModelTest {
         assertThat(gateway.portIdentifiesNode()).isNotNull().satisfies(portIdentifiesNode -> {
             assertThat(portIdentifiesNode.bootstrapAddress()).isEqualTo(new HostPort("localhost", 2));
             assertThat(portIdentifiesNode.nodeStartPort()).isNull(); // we use the default of bootstrap port + 1
-            String expectedAdvertisedAddress = CLUSTER_NAME + "-" + INGRESS_NAME + "." + NAMESPACE + ".svc.cluster.local";
+            String expectedAdvertisedAddress = CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap." + NAMESPACE + ".svc.cluster.local";
             assertThat(portIdentifiesNode.advertisedBrokerAddressPattern()).isEqualTo(expectedAdvertisedAddress);
             NamedRange expectedRange = new NamedRange(rangeName, rangeStart, rangeEnd);
             NamedRange expectedRange2 = new NamedRange(rangeName2, rangeStart2, rangeEnd2);
