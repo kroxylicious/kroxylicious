@@ -25,6 +25,7 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
+import io.kroxylicious.kubernetes.operator.model.networking.SharedLoadBalancerServiceRequirements;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
@@ -92,10 +93,8 @@ public class ClusterServiceDependentResource
     private static Stream<Annotations.ClusterIngressBootstrapServers> getBootstrapServers(ProxyNetworkingModel.ClusterNetworkingModel networking) {
         return networking.clusterIngressNetworkingModelResults().stream()
                 .map(ProxyNetworkingModel.ClusterIngressNetworkingModelResult::clusterIngressNetworkingModel)
-                .filter(clusterIngressModel -> clusterIngressModel.requiredSniLoadBalancerServicePorts()
-                        .findAny().isPresent())
-                .map(clusterIngressModel -> new Annotations.ClusterIngressBootstrapServers(ResourcesUtil.name(clusterIngressModel.cluster()),
-                        ResourcesUtil.name(clusterIngressModel.ingress()), clusterIngressModel.bootstrapServers()));
+                .flatMap(networkingModel -> networkingModel.sharedLoadBalancerServiceRequirements().stream())
+                .map(SharedLoadBalancerServiceRequirements::bootstrapServersToAnnotate);
     }
 
     private ObjectMeta sniLoadbalancerServiceMetadata(KafkaProxy primary, String name, Set<Annotations.ClusterIngressBootstrapServers> bootstraps) {

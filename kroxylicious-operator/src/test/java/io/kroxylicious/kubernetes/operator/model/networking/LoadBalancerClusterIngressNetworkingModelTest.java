@@ -128,10 +128,11 @@ class LoadBalancerClusterIngressNetworkingModelTest {
         assertThat(model).isNotNull();
 
         // when
-        Stream<Integer> services = model.requiredSniLoadBalancerServicePorts();
+        var services = model.sharedLoadBalancerServiceRequirements();
 
         // then
-        assertThat(services).containsExactly(9083);
+        assertThat(services).isPresent();
+        assertThat(services.get().requiredClientFacingPorts()).containsExactly(9083);
     }
 
     @Test

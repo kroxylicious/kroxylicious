@@ -100,17 +100,6 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
     }
 
     @Test
-    void bootstrapServers() {
-        // given
-        List<NodeIdRanges> nodeIdRange = List.of(createNodeIdRange("a", 1L, 3L));
-        // when
-        TlsClusterIPClusterIngressNetworkingModel model = new TlsClusterIPClusterIngressNetworkingModel(PROXY, VIRTUAL_KAFKA_CLUSTER, INGRESS,
-                nodeIdRange, TLS, 1);
-        // then
-        assertThat(model.bootstrapServers()).isEqualTo("my-cluster-my-ingress-bootstrap.my-namespace.svc.cluster.local:9292");
-    }
-
-    @Test
     void gatewayConfig() {
         // given
         String rangeName = "a";

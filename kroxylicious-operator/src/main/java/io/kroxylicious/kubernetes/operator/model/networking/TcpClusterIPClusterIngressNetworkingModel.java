@@ -145,8 +145,7 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
         return Optional.empty();
     }
 
-    @Override
-    public String bootstrapServers() {
+    private String bootstrapServers() {
         return new HostPort(crossNamespaceBootstrapServiceAddress(), firstIdentifyingPort()).toString();
     }
 

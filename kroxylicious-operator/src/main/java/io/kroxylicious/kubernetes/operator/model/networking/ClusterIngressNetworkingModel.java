@@ -78,14 +78,10 @@ public interface ClusterIngressNetworkingModel {
     }
 
     /**
-     * @return the client facing ports that should be exposed on the shared SNI loadbalancer service
+     * Describes the requirements this model has for a shared laod balancer service, if any
+     * @return optional completed with the requirements if this model requires ingress via the shared LoadBalancer Service, else empty
      */
-    default Stream<Integer> requiredSniLoadBalancerServicePorts() {
-        return Stream.empty();
+    default Optional<SharedLoadBalancerServiceRequirements> sharedLoadBalancerServiceRequirements() {
+        return Optional.empty();
     }
-
-    /**
-     * @return the bootstrap servers that clients will connect to
-     */
-    String bootstrapServers();
 }

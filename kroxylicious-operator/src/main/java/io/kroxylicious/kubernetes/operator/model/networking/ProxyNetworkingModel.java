@@ -77,7 +77,8 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
 
         public Stream<Integer> requiredSniLoadbalancerPorts() {
             return clusterIngressNetworkingModelResults.stream()
-                    .flatMap(ingressModelResult -> ingressModelResult.clusterIngressNetworkingModel().requiredSniLoadBalancerServicePorts());
+                    .flatMap(ingressModelResult -> ingressModelResult.clusterIngressNetworkingModel().sharedLoadBalancerServiceRequirements().stream())
+                    .flatMap(SharedLoadBalancerServiceRequirements::requiredClientFacingPorts);
         }
     }
 
