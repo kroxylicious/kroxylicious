@@ -119,9 +119,7 @@ public final class VirtualKafkaClusterReconciler implements
 
                 appendSecretsFromCertificateRefs(context, cluster, checksumGenerator);
 
-                KubernetesResourceUtil.getOrCreateAnnotations(updatedCluster)
-                        .put(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
-                                checksumGenerator.encode());
+                Annotations.annotateWithReferentChecksum(updatedCluster, checksumGenerator.encode());
                 reconciliationResult = UpdateControl.patchResourceAndStatus(updatedCluster);
             }
             else {
@@ -256,12 +254,12 @@ public final class VirtualKafkaClusterReconciler implements
     private List<io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses> buildIngressStatus(VirtualKafkaCluster cluster,
                                                                                                                  Context<VirtualKafkaCluster> context) {
         var bootstraps = context.getSecondaryResources(Service.class).stream()
-                .flatMap(service -> BootstrapServersAnnotation.bootstrapServersFrom(service.getMetadata()).stream()).toList();
+                .flatMap(service -> Annotations.readBootstrapServersFrom(service).stream()).toList();
         return cluster.getSpec().getIngresses()
                 .stream()
                 .flatMap(
                         ingress -> {
-                            Optional<BootstrapServersAnnotation.BootstrapServer> bootstrap = bootstraps.stream().filter(
+                            Optional<Annotations.BootstrapServer> bootstrap = bootstraps.stream().filter(
                                     b -> b.ingressName().equals(ingress.getIngressRef().getName()) && b.clusterName().equals(name(cluster))).findFirst();
                             if (bootstrap.isEmpty()) {
                                 return Stream.empty();

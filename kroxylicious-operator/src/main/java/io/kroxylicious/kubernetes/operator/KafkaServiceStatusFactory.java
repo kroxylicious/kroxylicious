@@ -32,7 +32,7 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
                     .withName(ResourcesUtil.name(observedIngress))
                     .withNamespace(ResourcesUtil.namespace(observedIngress));
         if (!checksum.equals(MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED)) {
-            metadataBuilder.addToAnnotations(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, checksum);
+            Annotations.annotateWithReferentChecksum(metadataBuilder, checksum);
         }
         return metadataBuilder
                 .endMetadata()

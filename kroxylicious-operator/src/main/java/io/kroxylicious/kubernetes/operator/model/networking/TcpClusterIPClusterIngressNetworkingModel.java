@@ -25,7 +25,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
-import io.kroxylicious.kubernetes.operator.BootstrapServersAnnotation;
+import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.proxy.config.NamedRange;
@@ -95,8 +95,8 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     ObjectMeta serviceMetadata(String name) {
-        Set<BootstrapServersAnnotation.BootstrapServer> clientFacingBootstrap = Set.of(
-                new BootstrapServersAnnotation.BootstrapServer(name(cluster), name(ingress), bootstrapServers()));
+        Set<Annotations.BootstrapServer> clientFacingBootstrap = Set.of(
+                new Annotations.BootstrapServer(name(cluster), name(ingress), bootstrapServers()));
         ObjectMetaBuilder builder = new ObjectMetaBuilder()
                 .withName(name)
                 .withNamespace(namespace(cluster))
@@ -104,7 +104,7 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(proxy)).endOwnerReference()
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(cluster)).endOwnerReference()
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(ingress)).endOwnerReference();
-        BootstrapServersAnnotation.annotate(builder, clientFacingBootstrap);
+        Annotations.annotateWithBootstrapServers(builder, clientFacingBootstrap);
         return builder.build();
     }
 

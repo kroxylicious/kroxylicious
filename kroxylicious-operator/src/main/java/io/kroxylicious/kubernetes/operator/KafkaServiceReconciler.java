@@ -154,8 +154,7 @@ public final class KafkaServiceReconciler implements
         if (updatedService == null) {
             var checksumGenerator = new Crc32ChecksumGenerator();
             for (HasMetadata metadataSource : referents) {
-                var objectMeta = metadataSource.getMetadata();
-                checksumGenerator.appendMetadata(objectMeta);
+                checksumGenerator.appendMetadata(metadataSource);
             }
 
             updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs,

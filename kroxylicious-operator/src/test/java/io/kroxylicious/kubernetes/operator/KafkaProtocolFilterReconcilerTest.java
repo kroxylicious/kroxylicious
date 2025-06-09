@@ -32,7 +32,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.KafkaProtocolFilterStatusAssert;
 
-import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -245,7 +244,7 @@ class KafkaProtocolFilterReconcilerTest {
         assertThat(update).isNotNull();
         assertThat(update.isPatchResourceAndStatus()).isTrue();
         assertThat(update.getResource()).isPresent();
-        assertThat(update.getResource().get().getMetadata().getAnnotations()).containsEntry(REFERENT_CHECKSUM_ANNOTATION, expectedChecksum);
+        assertThat(update.getResource().get().getMetadata().getAnnotations()).containsEntry(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY, expectedChecksum);
     }
 
     @Test
@@ -263,7 +262,7 @@ class KafkaProtocolFilterReconcilerTest {
         assertThat(update).isNotNull();
         assertThat(update.isPatchResourceAndStatus()).isTrue();
         assertThat(update.getResource()).isPresent();
-        assertThat(update.getResource().get().getMetadata().getAnnotations()).doesNotContainKey(REFERENT_CHECKSUM_ANNOTATION);
+        assertThat(update.getResource().get().getMetadata().getAnnotations()).doesNotContainKey(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
     }
 
     @SuppressWarnings("unchecked")

@@ -18,6 +18,7 @@ import io.fabric8.kubernetes.api.model.SecretBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
+import io.kroxylicious.kubernetes.operator.Annotations;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -217,13 +218,13 @@ class Crc32ChecksumGeneratorTest {
     }
 
     @Test
-    void shouldIncludeUidFromObjectMeta() {
+    void shouldIncludeUidFromHasMetadata() {
         // Given
         String proxyChecksum = generateProxyChecksum();
 
         // When
         checksumGenerator
-                .appendMetadata(new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata()).withUid("updated-uid").endMetadata().build().getMetadata());
+                .appendMetadata(new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata()).withUid("updated-uid").endMetadata().build());
 
         // Then
         assertThat(checksumGenerator.encode())
@@ -246,29 +247,16 @@ class Crc32ChecksumGeneratorTest {
     }
 
     @Test
-    void shouldIncludeGenerationFromObjectMeta() {
-        // Given
-        String proxyChecksum = generateProxyChecksum();
-
-        // When
-        checksumGenerator
-                .appendMetadata(new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata()).withGeneration(3456789L).endMetadata().build().getMetadata());
-
-        // Then
-        assertThat(checksumGenerator.encode())
-                .isNotBlank()
-                .isNotEqualTo(proxyChecksum);
-    }
-
-    @Test
     void shouldIncludeReferentAnnotation() {
         // Given
         String proxyChecksum = generateProxyChecksum();
 
         // When
-        checksumGenerator
-                .appendMetadata(new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata())
-                        .withAnnotations(Map.of(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, "checksumB")).endMetadata().build().getMetadata());
+        var kafkaProxyBuilderMetadataNested = new KafkaProxyBuilder().withNewMetadataLike(
+                PROXY.getMetadata());
+        Annotations.annotateWithReferentChecksum(kafkaProxyBuilderMetadataNested, "checksumB");
+        KafkaProxy build = kafkaProxyBuilderMetadataNested.endMetadata().build();
+        checksumGenerator.appendMetadata(build);
 
         // Then
         assertThat(checksumGenerator.encode())
@@ -284,7 +272,7 @@ class Crc32ChecksumGeneratorTest {
         // When
         checksumGenerator
                 .appendMetadata(new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata())
-                        .withAnnotations(Map.of("annotation1", "value1")).endMetadata().build().getMetadata());
+                        .withAnnotations(Map.of("annotation1", "value1")).endMetadata().build());
 
         // Then
         assertThat(checksumGenerator.encode())
@@ -300,7 +288,7 @@ class Crc32ChecksumGeneratorTest {
         // When
         checksumGenerator
                 .appendMetadata(new KafkaProxyBuilder().withNewMetadataLike(PROXY.getMetadata())
-                        .withAnnotations(null).endMetadata().build().getMetadata());
+                        .withAnnotations(null).endMetadata().build());
 
         // Then
         assertThat(checksumGenerator.encode())

@@ -234,8 +234,8 @@ class VirtualKafkaClusterReconcilerTest {
     public static final Service KUBERNETES_INGRESS_SERVICES;
     static {
         var serviceBuilderMetadataNested = new ServiceBuilder().withNewMetadata();
-        BootstrapServersAnnotation.BootstrapServer bootstrap = new BootstrapServersAnnotation.BootstrapServer(name(CLUSTER_NO_FILTERS), name(LOADBALANCER_INGRESS), CLUSTERIP_BOOTSTRAP);
-        BootstrapServersAnnotation.annotate(serviceBuilderMetadataNested, Set.of(bootstrap));
+        Annotations.BootstrapServer bootstrap = new Annotations.BootstrapServer(name(CLUSTER_NO_FILTERS), name(LOADBALANCER_INGRESS), CLUSTERIP_BOOTSTRAP);
+        Annotations.annotateWithBootstrapServers(serviceBuilderMetadataNested, Set.of(bootstrap));
         KUBERNETES_INGRESS_SERVICES=serviceBuilderMetadataNested
                     .withName(name(CLUSTER_NO_FILTERS) + "-" + name(CLUSTERIP_INGRESS))
                     .withNamespace(NAMESPACE)
@@ -253,8 +253,8 @@ class VirtualKafkaClusterReconcilerTest {
     public static final Service KUBERNETES_SHARED_SNI_SERVICE;
     static {
         var metadataBuilder = new ServiceBuilder().withNewMetadata();
-        BootstrapServersAnnotation.BootstrapServer bootstrap = new BootstrapServersAnnotation.BootstrapServer(name(CLUSTER_NO_FILTERS), name(LOADBALANCER_INGRESS), LOADBALANCER_BOOTSTRAP);
-        BootstrapServersAnnotation.annotate(metadataBuilder, Set.of(bootstrap));
+        Annotations.BootstrapServer bootstrap = new Annotations.BootstrapServer(name(CLUSTER_NO_FILTERS), name(LOADBALANCER_INGRESS), LOADBALANCER_BOOTSTRAP);
+        Annotations.annotateWithBootstrapServers(metadataBuilder, Set.of(bootstrap));
         KUBERNETES_SHARED_SNI_SERVICE=metadataBuilder
                 .withName(PROXY_NAME + "-sni")
                 .withNamespace(NAMESPACE)
@@ -1193,6 +1193,7 @@ class VirtualKafkaClusterReconcilerTest {
                 Set.of());
 
         MetadataChecksumGenerator checksumGenerator = mock(MetadataChecksumGenerator.class);
+        when(checksumGenerator.encode()).thenReturn("==BaSe64");
         when(workflowContext.get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)).thenReturn(Optional.of(checksumGenerator));
 
         when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
@@ -1212,6 +1213,7 @@ class VirtualKafkaClusterReconcilerTest {
         ConfigMap proxyConfigMap = buildProxyConfigMapWithPatch(CLUSTER_TLS_NO_FILTERS_WITH_TRUST_ANCHOR);
         Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, INGRESS_WITH_TLS, SERVICE, proxyConfigMap, Set.of());
         MetadataChecksumGenerator checksumGenerator = mock(MetadataChecksumGenerator.class);
+        when(checksumGenerator.encode()).thenReturn("==BaSe64");
         when(workflowContext.get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)).thenReturn(Optional.of(checksumGenerator));
 
         when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(KUBERNETES_INGRESS_SERVICES));
@@ -1251,7 +1253,7 @@ class VirtualKafkaClusterReconcilerTest {
                 .isPresent()
                 .get(InstanceOfAssertFactories.type(VirtualKafkaCluster.class))
                 .satisfies(virtualKafkaCluster -> MetadataAssert.assertThat(virtualKafkaCluster)
-                        .hasAnnotationSatisfying(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
+                        .hasAnnotationSatisfying(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY,
                                 value -> assertThat(value).isBase64()));
     }
 

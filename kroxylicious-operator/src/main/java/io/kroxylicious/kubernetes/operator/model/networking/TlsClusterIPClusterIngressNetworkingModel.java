@@ -24,7 +24,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
-import io.kroxylicious.kubernetes.operator.BootstrapServersAnnotation;
+import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategy;
@@ -62,8 +62,8 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     public Stream<ServiceBuilder> services() {
         String serviceName = bootstrapServiceName();
         ObjectMetaBuilder metadataBuilder = baseServiceMetadataBuilder(serviceName);
-        BootstrapServersAnnotation.annotate(metadataBuilder,
-                Set.of(new BootstrapServersAnnotation.BootstrapServer(ResourcesUtil.name(cluster), ResourcesUtil.name(ingress), bootstrapServers())));
+        Annotations.annotateWithBootstrapServers(metadataBuilder,
+                Set.of(new Annotations.BootstrapServer(ResourcesUtil.name(cluster), ResourcesUtil.name(ingress), bootstrapServers())));
         var bootstrapService = createService(metadataBuilder);
         var nodeServices = getNodeServices();
         return Stream.concat(Stream.of(bootstrapService), nodeServices);

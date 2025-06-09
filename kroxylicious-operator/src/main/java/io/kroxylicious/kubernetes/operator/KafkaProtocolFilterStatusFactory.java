@@ -32,8 +32,7 @@ public class KafkaProtocolFilterStatusFactory extends StatusFactory<KafkaProtoco
                     .withNamespace(ResourcesUtil.namespace(observedProxy));
         if (!checksum.isBlank()) {
             // In practice this condition means that the existing annotation will be left alone.
-            metadataBuilder
-                    .addToAnnotations(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, checksum);
+            Annotations.annotateWithReferentChecksum(metadataBuilder, checksum);
         }
         return metadataBuilder
                 .endMetadata()

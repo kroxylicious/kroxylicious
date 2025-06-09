@@ -46,7 +46,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
-import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -110,7 +109,7 @@ class KafkaProxyReconcilerTest {
                 .isReadyTrue();
         assertThat(updateControl.isPatchResource()).isFalse();
         assertThat(updateControl.getResource().get())
-                .satisfies(kp -> OperatorAssertions.assertThat(kp).doesNotHaveAnnotation(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION));
+                .satisfies(kp -> OperatorAssertions.assertThat(kp).doesNotHaveAnnotation(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY));
     }
 
     @Test

@@ -32,7 +32,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
-import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
@@ -112,7 +111,7 @@ class ProxyDeploymentTest {
 
         // Then
         OperatorAssertions.assertThat(actual.getSpec().getTemplate().getMetadata())
-                .hasAnnotationSatisfying(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION,
+                .hasAnnotationSatisfying(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY,
                         value -> assertThat(value).isNotBlank());
     }
 
@@ -128,7 +127,7 @@ class ProxyDeploymentTest {
 
         // Then
         OperatorAssertions.assertThat(actual.getSpec().getTemplate().getMetadata())
-                .hasAnnotationSatisfying(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, value -> assertThat(value).isNotBlank());
+                .hasAnnotationSatisfying(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY, value -> assertThat(value).isNotBlank());
 
     }
 
