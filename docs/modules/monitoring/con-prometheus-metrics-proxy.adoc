@@ -2,7 +2,7 @@
 //
 // kroxylicious-operator/index.adoc
 
-[id='assembly-prometheus-metrics-proxy-{context}']
+[id='con-prometheus-metrics-proxy-{context}']
 = Overview of Proxy Metrics
 
 [role="_abstract"]

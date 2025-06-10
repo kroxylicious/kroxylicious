@@ -2,7 +2,7 @@
 //
 // kroxylicious-operator/index.adoc
 
-[id='assembly-prometheus-metrics-operator-{context}']
+[id='con-prometheus-metrics-operator-{context}']
 = Overview of Operator Metrics
 
 [role="_abstract"]
