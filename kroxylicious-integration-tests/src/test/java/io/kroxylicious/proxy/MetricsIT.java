@@ -12,11 +12,11 @@ import java.nio.file.Path;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -27,7 +27,6 @@ import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.DescribeClusterOptions;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.SslConfigs;
@@ -340,9 +339,13 @@ class MetricsIT {
     }
 
     static Stream<Arguments> messageSizeMetricScenarios() {
+        // note that produce and fetch responses are always decoded as the responses contain broker host/port info.
         var decodeAll = new NamedFilterDefinitionBuilder("decodeAll", "DecodeAll").build();
-//        var rejectCreateTopic = new NamedFilterDefinitionBuilder("rejectCreateTopic", "RejectingCreateTopicFilterFactory").withConfig("respondWithError", Boolean.FALSE)
-//                .build();
+        var inflatingProduceTransform = new NamedFilterDefinitionBuilder("inflateProduces", "ProduceRequestTransformation")
+                .withConfig("transformation", "Replacing", "transformationConfig", Map.of("targetPattern", "A", "replacementValue", "AA")).build();
+        var deflatingFetchTransform = new NamedFilterDefinitionBuilder("deflateFetches", "FetchResponseTransformation")
+                .withConfig("transformation", "Replacing", "transformationConfig", Map.of("targetPattern", "AA", "replacementValue", "A")).build();
+
         return Stream.of(
                 argumentSet("measures size of opaque requests from client",
                         (UnaryOperator<ConfigurationBuilder>) builder -> builder,
@@ -427,17 +430,44 @@ class MetricsIT {
                                         NODE_ID_LABEL, "0",
                                         DECODED_LABEL, "true"))
                                 .value()
-                                .isGreaterThan(1024.0))
-                );
+                                .isGreaterThan(1024.0)),
+                argumentSet("measures size when filter increases request size",
+                        (UnaryOperator<ConfigurationBuilder>) builder -> addFilterToConfig(builder, inflatingProduceTransform),
+                        (Consumer<List<SimpleMetric>>) metricList -> {
+                        },
+                        (Consumer<List<SimpleMetric>>) metricList -> {
+
+                            var clientToProxy = getSingleMetricsValue(metricList, "kroxylicious_client_to_proxy_request_size_bytes_sum",
+                                    labels -> apiKeyNodeIdDecodePredicate(labels, ApiKeys.PRODUCE, "0", "true"));
+                            var proxyToBroker = getSingleMetricsValue(metricList, "kroxylicious_proxy_to_server_request_size_bytes_sum",
+                                    labels -> apiKeyNodeIdDecodePredicate(labels, ApiKeys.PRODUCE, "0", "true"));
+
+                            assertThat(clientToProxy).isGreaterThan(1024.0);
+                            assertThat(proxyToBroker).isGreaterThanOrEqualTo(clientToProxy + 1024.0);
+                        }),
+                argumentSet("measures size when filter decreases response size",
+                        (UnaryOperator<ConfigurationBuilder>) builder -> addFilterToConfig(builder, deflatingFetchTransform),
+                        (Consumer<List<SimpleMetric>>) metricList -> {
+                        },
+                        (Consumer<List<SimpleMetric>>) metricList -> {
+
+                            var brokerToProxy = getSingleMetricsValue(metricList, "kroxylicious_server_to_proxy_response_size_bytes_sum",
+                                    labels -> apiKeyNodeIdDecodePredicate(labels, ApiKeys.FETCH, "0", "true"));
+                            var proxyToClient = getSingleMetricsValue(metricList, "kroxylicious_proxy_to_client_response_size_bytes_sum",
+                                    labels -> apiKeyNodeIdDecodePredicate(labels, ApiKeys.FETCH, "0", "true"));
+
+                            assertThat(brokerToProxy).isGreaterThan(1024.0);
+                            assertThat(proxyToClient).isGreaterThan(512.0).isLessThanOrEqualTo(brokerToProxy - 512);
+                        }));
     }
 
     @ParameterizedTest
     @MethodSource("messageSizeMetricScenarios")
     void shouldIncrementSizeOnMessageTransit(UnaryOperator<ConfigurationBuilder> builder,
-                                              Consumer<List<SimpleMetric>> beforeAssertion,
-                                              Consumer<List<SimpleMetric>> afterAssertion,
-                                              KafkaCluster cluster,
-                                              Topic topic) {
+                                             Consumer<List<SimpleMetric>> beforeAssertion,
+                                             Consumer<List<SimpleMetric>> afterAssertion,
+                                             KafkaCluster cluster,
+                                             Topic topic) {
         var config = configWithMetrics(cluster);
 
         // Given
@@ -735,8 +765,8 @@ class MetricsIT {
                 var managementClient = tester.getManagementClient();
                 var producer = tester.producer()) {
             var metricList = managementClient.scrapeMetrics();
-            var inboundDownstreamMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_messages_total");
-            var inboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_decoded_messages_total");
+            var inboundDownstreamMessagesMetricsValue = getSingleMetricsValue(metricList, "kroxylicious_inbound_downstream_messages_total");
+            var inboundDownstreamDecodedMessagesMetricsValue = getSingleMetricsValue(metricList, "kroxylicious_inbound_downstream_decoded_messages_total");
 
             // When
             producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
@@ -744,8 +774,8 @@ class MetricsIT {
             // Then
             // updated metrics after some message were produced
             var updatedMetricsList = managementClient.scrapeMetrics();
-            var updatedInboundDownstreamMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_messages_total");
-            var updatedInboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_decoded_messages_total");
+            var updatedInboundDownstreamMessagesMetricsValue = getSingleMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_messages_total");
+            var updatedInboundDownstreamDecodedMessagesMetricsValue = getSingleMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_decoded_messages_total");
             assertThat(updatedInboundDownstreamMessagesMetricsValue).isGreaterThan(inboundDownstreamMessagesMetricsValue);
             assertThat(updatedInboundDownstreamDecodedMessagesMetricsValue).isGreaterThan(inboundDownstreamDecodedMessagesMetricsValue);
         }
@@ -768,8 +798,8 @@ class MetricsIT {
                 var managementClient = tester.getManagementClient();
                 var producer = tester.producer()) {
             var metricList = managementClient.scrapeMetrics();
-            var inboundDownstreamMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_messages_total");
-            var inboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(metricList, "kroxylicious_inbound_downstream_decoded_messages_total");
+            var inboundDownstreamMessagesMetricsValue = getSingleMetricsValue(metricList, "kroxylicious_inbound_downstream_messages_total");
+            var inboundDownstreamDecodedMessagesMetricsValue = getSingleMetricsValue(metricList, "kroxylicious_inbound_downstream_decoded_messages_total");
 
             // When
             producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
@@ -777,8 +807,8 @@ class MetricsIT {
             // Then
             // updated metrics after some message were produced
             var updatedMetricsList = managementClient.scrapeMetrics();
-            var updatedInboundDownstreamMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_messages_total");
-            var updatedInboundDownstreamDecodedMessagesMetricsValue = getMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_decoded_messages_total");
+            var updatedInboundDownstreamMessagesMetricsValue = getSingleMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_messages_total");
+            var updatedInboundDownstreamDecodedMessagesMetricsValue = getSingleMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_decoded_messages_total");
             assertThat(updatedInboundDownstreamMessagesMetricsValue).isGreaterThan(inboundDownstreamMessagesMetricsValue);
             assertThat(updatedInboundDownstreamDecodedMessagesMetricsValue).isGreaterThan(inboundDownstreamDecodedMessagesMetricsValue);
         }
@@ -859,16 +889,22 @@ class MetricsIT {
                 });
     }
 
-    double getMetricsValue(List<SimpleMetric> metricList, String metricsName) {
-        return getMetricsValue(metricList, metricsName, labels -> true);
+    private static double getSingleMetricsValue(List<SimpleMetric> metricList, String metricsName) {
+        return getSingleMetricsValue(metricList, metricsName, labels -> true);
     }
 
-    double getMetricsValue(List<SimpleMetric> metricList, String metricsName, Predicate<Map<String, String>> labelPredicate) {
+    private static double getSingleMetricsValue(List<SimpleMetric> metricList, String metricsName, Predicate<Map<String, String>> labelPredicate) {
         return metricList.stream()
                 .filter(simpleMetric -> simpleMetric.name().equals(metricsName))
                 .filter(simpleMetric -> labelPredicate.test(simpleMetric.labels()))
                 .findFirst()
                 .orElseThrow().value();
+    }
+
+    private static boolean apiKeyNodeIdDecodePredicate(Map<String, String> labels, ApiKeys apiKey, String nodeId, String decoded) {
+        return Objects.equals(labels.get(API_KEY_LABEL), apiKey.name())
+                && Objects.equals(labels.get(NODE_ID_LABEL), nodeId)
+                && Objects.equals(labels.get(DECODED_LABEL), decoded);
     }
 
     @NonNull
