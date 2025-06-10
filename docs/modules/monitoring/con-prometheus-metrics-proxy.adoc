@@ -3,31 +3,33 @@
 // kroxylicious-operator/index.adoc
 
 [id='con-prometheus-metrics-proxy-{context}']
-= Overview of Proxy Metrics
+= Overview of proxy metrics
 
 [role="_abstract"]
 
-The proxy provides *connections metrics* and *message metrics*.
+The proxy provides *connection metrics* and *message metrics*.
 
-Connection metrics allow the connections made from the clients to the proxy (the downstream) and the connection made by the proxy to the kafka cluster (the upstream) to be understood.
+Connection metrics allow the connections made from the clients to the proxy (downstream)
+and the connection made by the proxy to the Kafka cluster (upstream) to be understood.
 
 Message metrics allow the number of {kafka-protocol}#protocol_messages[Kafka protocol request and response messages] that flow through the proxy to be understood.
 
-== Connection Metrics
+== Connection metrics
 
-The connection metrics count the TCP connections made from the client to the proxy (`kroxylicious_client_to_proxy_request_total`) and from the proxy to the broker (`kroxylicious_proxy_to_server_connections_total`).
+Connection metrics count the TCP connections made from the client to the proxy (`kroxylicious_client_to_proxy_request_total`) and from the proxy to the broker (`kroxylicious_proxy_to_server_connections_total`).
 These metrics count connection _attempts_, so the connection count is incremented even if the connection attempt ultimately fails.
 
-In addition to the count metrics there are error metrics.
-If an error occurs whilst the proxy is accepting a connection from the client the `kroxylicious_client_to_proxy_errors_total` is incremented by one.
-If an error occurs whilst the proxy is attempting a connection to a broker the `kroxylicious_proxy_to_server_errors_total` is incremented by one.
+In addition to the count metrics, there are error metrics.
+If an error occurs whilst the proxy is accepting a connection from the client the `kroxylicious_client_to_proxy_errors_total` metric is incremented by one.
+If an error occurs whilst the proxy is attempting a connection to a broker the `kroxylicious_proxy_to_server_errors_total` metric is incremented by one.
 
-Connection and connection error metrics are discriminated by the virtual cluster's name (`virtual_cluster`) and the broker's node ID (`node_id`).
+Connection and connection error metrics include the following labels: `virtual_cluster` (the virtual cluster's name) and `node_id` (the broker's node ID).
 When the client connects to the boostrap endpoint of the virtual cluster, a node ID value of `bootstrap` is recorded.
 
-If a connection error occurs at the client, before the virtual cluster has been identified, the error `kroxylicious_client_to_proxy_errors_total` with the  virtual cluster and node ID labels set to the empty string`""`.
+The `kroxylicious_client_to_proxy_errors_total` metric also counts connection errors that occur before a virtual cluster has been identified.
+For these specific errors, the `virtual_cluster` and `node_id` labels are set to an empty string ("").
 
-NOTE: Error communicated from broker to client within the Kafka protocol (such as `RESOURCE_NOT_FOUND`, `UNKNOWN_TOPIC_ID`, etc.) are not classed as errors by these counters.
+NOTE: Error conditions signaled _within_ the Kafka protocol response (such as `RESOURCE_NOT_FOUND`, `UNKNOWN_TOPIC_ID`, etc.) are not classed as errors by these metrics.
 
 |===
 |Metric Name |Type |Labels|Description
@@ -55,21 +57,23 @@ NOTE: Error communicated from broker to client within the Kafka protocol (such a
 |Incremented by one every time a connection is closed due to any upstream error.
 |===
 
-== Message Metrics
+== Message metrics
 
-The message metrics count the Kafka protocol requests and responses that flow through the proxy.
-There are two _client end_ counters counting requests as they arrive from the client (`kroxylicious_client_to_proxy_request_total`) and responses as they are returned to the client (`kroxylicious_proxy_to_client_response_total`).
-There are two _broker end_ counters counting requests as they go to the broker (`kroxylicious_proxy_to_server_request_total`) and responses as they returned by the broker (`kroxylicious_proxy_to_server_response_total`).
+Message metrics count the Kafka protocol requests and responses that flow through the proxy.
 
-Messages metrics are discriminated by the virtual cluster's name (`virtual_cluster`), the broker's node ID (`node_id`),
-the API key (`api_key`) which is the type of the message, the API key version (`api_version`) and a flag indicating
-whether the Proxy needed to decode the message or not (`decoded`).
+* Client-end counters
+** `kroxylicious_client_to_proxy_request_total` counts requests as they arrive from the client.
+** `kroxylicious_proxy_to_client_response_total` counts responses as they are returned to the client.
+
+* Broker-end counters
+** `kroxylicious_proxy_to_server_request_total` counts requests as they go to the broker.
+** `kroxylicious_proxy_to_server_response_total` counts responses as they are returned by the broker.
+
+Message metrics include the following labels: `virtual_cluster` (the virtual cluster's name), `node_id` (the broker's node ID), `api_key` (the message type), `api_version`, and `decoded` (a flag indicating if the message was decoded by the proxy).
 
 When the client connects to the boostrap endpoint of the virtual cluster, metrics are recorded with a node ID value of `bootstrap`.
 
-NOTE: There are several situations where the metric value recorded by the client end counters (i.e. `kroxylicious_client_to_proxy_&#42;_total`) will exceed the value recorded by the broker end counters (i.e `kroxylicious_proxy_to_server_&#42;_total`).
-This occurs when a filter chooses to send a short-circuit response, or chooses to close the connection.
-It can also occur in some error situations where connectivity to the upstream cluster is lost as a message transits the proxy.
+NOTE: Client-end counters (`kroxylicious_client_to_proxy_&#42;_total`) can exceed broker-end counters (`kroxylicious_proxy_to_server_&#42;_total`) when a filter sends a short-circuit response, closes the connection, or when upstream cluster connectivity is lost during message transit.
 
 |===
 |Metric Name |Type |Labels|Description
