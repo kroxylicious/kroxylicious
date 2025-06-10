@@ -22,14 +22,18 @@ import io.kroxylicious.proxy.frame.OpaqueFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.internal.InternalResponseFrame;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 public class KafkaResponseDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaResponseDecoder.class);
 
     private final CorrelationManager correlationManager;
 
-    public KafkaResponseDecoder(CorrelationManager correlationManager, int socketRequestMaxSizeBytes) {
-        super(socketRequestMaxSizeBytes);
+    public KafkaResponseDecoder(CorrelationManager correlationManager,
+                                int socketRequestMaxSizeBytes,
+                                @Nullable KafkaMessageListener listener) {
+        super(socketRequestMaxSizeBytes, listener);
         this.correlationManager = correlationManager;
     }
 

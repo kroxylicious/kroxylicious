@@ -7,6 +7,9 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2240](https://github.com/kroxylicious/kroxylicious/issues/2240) Implement new message size distribution tracking metrics
+* [#2241](https://github.com/kroxylicious/kroxylicious/issues/2241) Implement new connection counting metrics
+* [#2239](https://github.com/kroxylicious/kroxylicious/issues/2239) Implement new message counting metrics
 * [#2302](https://github.com/kroxylicious/kroxylicious/issues/2302) add build_info metric to Kroxylicious exposing version information
 * [#2268](https://github.com/kroxylicious/kroxylicious/issues/2268) Ensure downstream connection is closed if proxy cannot match SNI hostname against a virtual cluster
 * [#2185](https://github.com/kroxylicious/kroxylicious/pull/2185) Add $(virtualClusterName) placeholders to SNI bootstrap address and advertised broker address pattern
@@ -35,6 +38,8 @@ Format `<github issue/pr number>: <short description>`.
 When this is present, it will be replaced with the name of that gateway's VirtualCluster.
 * `virtualClusters[].gateways[].sniHostIdentifiesNode.advertisedBrokerAddressPattern` can now contain an optional replacement token `$(virtualClusterName)`.
 When this is present, it will be replaced with the name of that gateway's VirtualCluster.
+* All the existing metrics emitted by the proxy have been deprecated. They have been replaced with connection and message metrics.
+  See the documentation for the details of the new metrics.
 
 ## 0.12.0
 

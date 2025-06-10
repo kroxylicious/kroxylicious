@@ -12,22 +12,20 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Supplier;
 
-import org.apache.kafka.common.protocol.ApiKeys;
-
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Gauge;
-import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.binder.BaseUnits;
 
 import io.kroxylicious.proxy.VersionInfo;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.micrometer.core.instrument.Metrics.counter;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
-import static io.micrometer.core.instrument.Metrics.summary;
 
 public class Metrics {
 
@@ -38,122 +36,35 @@ public class Metrics {
     public static final String API_VERSION_LABEL = "api_version";
     public static final String DECODED_LABEL = "decoded";
 
+    public static final String DEPRECATED_API_KEY_TAG = "ApiKey";
+    public static final String DEPRECATED_API_VERSION_TAG = "ApiVersion";
+    public static final String DEPRECATED_FLOWING_TAG = "flowing";
+
+    public static final String DEPRECATED_VIRTUAL_CLUSTER_TAG = "virtualCluster";
+
+    public static final String DOWNSTREAM_FLOWING_VALUE = "downstream";
+
+    public static final String UPSTREAM_FLOWING_VALUE = "upstream";
+
     // Base Metric Names
 
-    private static final String KROXYLICIOUS_CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME = "kroxylicious_client_to_proxy_request";
-    private static final String KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_BASE_METER_NAME = "kroxylicious_proxy_to_server_request";
-    private static final String KROXYLICIOUS_SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME = "kroxylicious_server_to_proxy_response";
-    private static final String KROXYLICIOUS_PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME = "kroxylicious_proxy_to_client_response";
-    private static final String KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_BASE_METER_NAME = "kroxylicious_client_to_proxy_errors_total";
-    private static final String KROXYLICIOUS_PROXY_TO_SERVER_ERROR_BASE_METER_NAME = "kroxylicious_proxy_to_server_errors_total";
-    private static final String KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME = "kroxylicious_client_to_proxy_connections_total";
-    private static final String KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME = "kroxylicious_proxy_to_server_connections_total";
+    private static final String CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME = "kroxylicious_client_to_proxy_request";
+    private static final String PROXY_TO_SERVER_REQUEST_BASE_METER_NAME = "kroxylicious_proxy_to_server_request";
+    private static final String SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME = "kroxylicious_server_to_proxy_response";
+    private static final String PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME = "kroxylicious_proxy_to_client_response";
+    private static final String CLIENT_TO_PROXY_ERROR_BASE_METER_NAME = "kroxylicious_client_to_proxy_errors";
+    private static final String PROXY_TO_SERVER_ERROR_BASE_METER_NAME = "kroxylicious_proxy_to_server_errors";
+    private static final String CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME = "kroxylicious_client_to_proxy_connections";
+    private static final String PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME = "kroxylicious_proxy_to_server_connections";
+    private static final String SIZE_SUFFIX = "_size";
 
-    // Meter Providers
-    // (Callers use the providers to create the meters they need, augmenting with any tags).
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> KROXYLICIOUS_CLIENT_TO_PROXY_REQUEST_TOTAL_METER_PROVIDER = (virtualClusterName,
-                                                                                                                                       nodeId) -> Counter.builder(
-                                                                                                                                               KROXYLICIOUS_CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME)
-                                                                                                                                               .description(
-                                                                                                                                                       "Incremented by one every time a request arrives at the proxy from the downstream (client).")
-                                                                                                                                               .tag(VIRTUAL_CLUSTER_LABEL,
-                                                                                                                                                       virtualClusterName)
-                                                                                                                                               .tag(NODE_ID_LABEL,
-                                                                                                                                                       nodeIdToLabelValue(
-                                                                                                                                                               nodeId))
-                                                                                                                                               .withRegistry(
-                                                                                                                                                       globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_TOTAL_METER_PROVIDER = (virtualClusterName,
-                                                                                                                                       nodeId) -> Counter.builder(
-                                                                                                                                               KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_BASE_METER_NAME)
-                                                                                                                                               .description(
-                                                                                                                                                       "Incremented by one every time a request (#1) goes from the proxy to the upstream (server).")
-                                                                                                                                               .tag(VIRTUAL_CLUSTER_LABEL,
-                                                                                                                                                       virtualClusterName)
-                                                                                                                                               .tag(NODE_ID_LABEL,
-                                                                                                                                                       nodeIdToLabelValue(
-                                                                                                                                                               nodeId))
-                                                                                                                                               .withRegistry(
-                                                                                                                                                       globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> KROXYLICIOUS_SERVER_TO_PROXY_RESPONSE_TOTAL_METER_PROVIDER = (virtualClusterName,
-                                                                                                                                        nodeId) -> Counter.builder(
-                                                                                                                                                KROXYLICIOUS_SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME)
-                                                                                                                                                .description(
-                                                                                                                                                        "Incremented by one every time a response (#1) arrives at the proxy from the upstream (server).")
-                                                                                                                                                .tag(VIRTUAL_CLUSTER_LABEL,
-                                                                                                                                                        virtualClusterName)
-                                                                                                                                                .tag(NODE_ID_LABEL,
-                                                                                                                                                        nodeIdToLabelValue(
-                                                                                                                                                                nodeId))
-                                                                                                                                                .withRegistry(
-                                                                                                                                                        globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> KROXYLICIOUS_PROXY_TO_CLIENT_RESPONSE_TOTAL_METER_PROVIDER = (virtualClusterName,
-                                                                                                                                        nodeId) -> Counter.builder(
-                                                                                                                                                KROXYLICIOUS_PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME)
-                                                                                                                                                .description(
-                                                                                                                                                        "Incremented by one every time a response goes from the proxy to the downstream (client).")
-                                                                                                                                                .tag(VIRTUAL_CLUSTER_LABEL,
-                                                                                                                                                        virtualClusterName)
-                                                                                                                                                .tag(NODE_ID_LABEL,
-                                                                                                                                                        nodeIdToLabelValue(
-                                                                                                                                                                nodeId))
-                                                                                                                                                .withRegistry(
-                                                                                                                                                        globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER = (virtualClusterName,
-                                                                                                                                     nodeId) -> Counter.builder(
-                                                                                                                                             KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_BASE_METER_NAME)
-                                                                                                                                             .description(
-                                                                                                                                                     "Incremented by one every time a connection is closed due to any downstream error.")
-                                                                                                                                             .tag(VIRTUAL_CLUSTER_LABEL,
-                                                                                                                                                     virtualClusterName)
-                                                                                                                                             .tag(NODE_ID_LABEL,
-                                                                                                                                                     nodeIdToLabelValue(
-                                                                                                                                                             nodeId))
-                                                                                                                                             .withRegistry(
-                                                                                                                                                     globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> KROXYLICIOUS_PROXY_TO_SERVER_ERROR_TOTAL_METER_PROVIDER = (virtualClusterName,
-                                                                                                                                     nodeId) -> Counter.builder(
-                                                                                                                                             KROXYLICIOUS_PROXY_TO_SERVER_ERROR_BASE_METER_NAME)
-                                                                                                                                             .description(
-                                                                                                                                                     "Incremented by one every time a connection is closed due to any upstream error.")
-                                                                                                                                             .tag(VIRTUAL_CLUSTER_LABEL,
-                                                                                                                                                     virtualClusterName)
-                                                                                                                                             .tag(NODE_ID_LABEL,
-                                                                                                                                                     nodeIdToLabelValue(
-                                                                                                                                                             nodeId))
-                                                                                                                                             .withRegistry(
-                                                                                                                                                     globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_TOTAL_METER_PROVIDER = (virtualClusterName,
-                                                                                                                                          nodeId) -> Counter.builder(
-                                                                                                                                                  KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME)
-                                                                                                                                                  .description(
-                                                                                                                                                          "Incremented by one every time a connection is accepted from the downstream the proxy.")
-                                                                                                                                                  .tag(VIRTUAL_CLUSTER_LABEL,
-                                                                                                                                                          virtualClusterName)
-                                                                                                                                                  .tag(NODE_ID_LABEL,
-                                                                                                                                                          nodeIdToLabelValue(
-                                                                                                                                                                  nodeId))
-                                                                                                                                                  .withRegistry(
-                                                                                                                                                          globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_TOTAL_METER_PROVIDER = (virtualClusterName,
-                                                                                                                                          nodeId) -> Counter.builder(
-                                                                                                                                                  KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME)
-                                                                                                                                                  .description(
-                                                                                                                                                          "Incremented by one every time a connection is made to the upstream from the proxy.")
-                                                                                                                                                  .tag(VIRTUAL_CLUSTER_LABEL,
-                                                                                                                                                          virtualClusterName)
-                                                                                                                                                  .tag(NODE_ID_LABEL,
-                                                                                                                                                          nodeIdToLabelValue(
-                                                                                                                                                                  nodeId))
-                                                                                                                                                  .withRegistry(
-                                                                                                                                                          globalRegistry);
+    /**
+     * Name of the build_info metric.  Note that the {@code .info} suffix is significant
+     * to Micrometer and is used to indicate an 'info' metric to it.  The metric
+     * name emitted by Prometheus will be called {@code kroxylicious_build.info}
+     */
+    private static final String INFO_METRIC_NAME = "kroxylicious_build.info";
+    private static final Supplier<Double> ONE_SUPPLIER = () -> 1.0;
 
     /**
      * @deprecated use kroxylicious_client_to_proxy_request_count instead.
@@ -174,47 +85,52 @@ public class Metrics {
     private static final String KROXYLICIOUS_UPSTREAM = "kroxylicious_upstream_";
 
     /**
-     * @deprecated use `clientToProxyConnectionCounter` instead
+     * @deprecated use {@link #clientToProxyMessageCounterProvider(String, Integer)} instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_DOWNSTREAM_CONNECTIONS = KROXYLICIOUS_DOWNSTREAM + "connections";
 
     /**
-     * @deprecated use `clientToProxyErrorCounter` instead
+     * @deprecated use {@link #clientToProxyErrorCounter(String, Integer)} instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_DOWNSTREAM_ERRORS = KROXYLICIOUS_DOWNSTREAM + "errors";
 
     /**
-     * @deprecated use `proxyToServerConnectionCounter` instead
+     * @deprecated use {@link #proxyToServerConnectionCounter(String, Integer)} instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_UPSTREAM_CONNECTIONS = KROXYLICIOUS_UPSTREAM + "connections";
 
     /**
-     * @deprecated use `proxyToServerConnectionCounter` instead
+     * @deprecated use {@link #proxyToServerConnectionCounter(String, Integer)} instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS = KROXYLICIOUS_UPSTREAM + "connection_attempts";
 
     /**
-     * @deprecated use `proxyToServerConnectionCounter` instead
+     * @deprecated use {@link #proxyToServerErrorCounter(String, Integer)} instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES = KROXYLICIOUS_UPSTREAM + "connection_failures";
 
     /**
-     * @deprecated use `proxyToServerErrorCounter` instead
+     * @deprecated use {@link #proxyToServerErrorCounter(String, Integer)} instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_UPSTREAM_ERRORS = KROXYLICIOUS_UPSTREAM + "errors";
 
+    /**
+     * @deprecated use {@link #clientToProxyMessageSizeDistributionProvider(String, Integer)} instead
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES = "kroxylicious_payload_size_bytes";
 
     public static final String FLOWING_TAG = "flowing";
@@ -225,34 +141,87 @@ public class Metrics {
 
     public static final String UPSTREAM = "upstream";
 
-    /**
-     * Name of the build_info metric.  Note that the {@code .info} suffix is significant
-     * to Micrometer and is used to indicate an 'info' metric to it.  The metric
-     * name emitted by Prometheus will be called {@code kroxylicious_build.info}
-     */
-    private static final String INFO_METRIC_NAME = "kroxylicious_build.info";
-    private static final Supplier<Double> ONE_SUPPLIER = () -> 1.0;
+    private Metrics() {
+        // unused
+    }
+
+    public static MeterProvider<Counter> clientToProxyMessageCounterProvider(String clusterName, Integer nodeId) {
+        return buildCounterMeterProvider(CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME,
+                "Count of the number of requests received by the proxy from the client.",
+                clusterName, nodeId);
+    }
+
+    public static MeterProvider<DistributionSummary> proxyToClientMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildDistributionSummaryMeterProvider(PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME,
+                "Distribution of the size, in bytes, of responses sent from the proxy to the client.",
+                clusterName, BaseUnits.BYTES, nodeId);
+    }
+
+    public static MeterProvider<Counter> proxyToClientMessageCounterProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME,
+                "Count of the number of responses sent from the proxy to the client.", clusterName,
+                nodeId);
+    }
+
+    public static MeterProvider<DistributionSummary> clientToProxyMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildDistributionSummaryMeterProvider(CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME,
+                "Distribution of the size, in bytes, of the requests received from the client.",
+                clusterName, BaseUnits.BYTES, nodeId);
+    }
+
+    public static MeterProvider<DistributionSummary> serverToProxyMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildDistributionSummaryMeterProvider(SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME,
+                "Distribution of the size, in bytes, of responses received from the server.",
+                clusterName, BaseUnits.BYTES, nodeId);
+    }
+
+    public static MeterProvider<DistributionSummary> proxyToServerMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildDistributionSummaryMeterProvider(PROXY_TO_SERVER_REQUEST_BASE_METER_NAME,
+                "Distribution of size, in bytes, of requests sent to the server",
+                clusterName,
+                BaseUnits.BYTES, nodeId);
+    }
+
+    public static MeterProvider<Counter> serverToProxyMessageCounterProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME,
+                "Count of the number of responses received by the proxy from the server.",
+                clusterName, nodeId);
+    }
+
+    public static MeterProvider<Counter> proxyToServerMessageCounterProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(PROXY_TO_SERVER_REQUEST_BASE_METER_NAME,
+                "Count of the number of requests sent to the server.",
+                clusterName, nodeId);
+    }
+
+    public static MeterProvider<Counter> clientToProxyConnectionCounter(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME,
+                "Count of the number of times a connection is accepted from the clients.", clusterName,
+                nodeId);
+    }
+
+    public static MeterProvider<Counter> clientToProxyErrorCounter(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(CLIENT_TO_PROXY_ERROR_BASE_METER_NAME,
+                "Count of the number of times a connection is closed due to any downstream error.",
+                clusterName, nodeId);
+    }
+
+    public static MeterProvider<Counter> proxyToServerConnectionCounter(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME,
+                "Count of the number of times a connection is made to the server from the proxy.",
+                clusterName,
+                nodeId);
+    }
+
+    public static MeterProvider<Counter> proxyToServerErrorCounter(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(PROXY_TO_SERVER_ERROR_BASE_METER_NAME,
+                "Count of the number of times a connection is closed due to any upstream error.",
+                clusterName, nodeId);
+    }
 
     @NonNull
     public static Counter taggedCounter(String counterName, List<Tag> tags) {
         return counter(counterName, tags);
-    }
-
-    public static DistributionSummary payloadSizeBytesUpstreamSummary(ApiKeys apiKey, short apiVersion, String virtualCluster) {
-        return payloadSizeBytesSummary(apiKey, apiVersion, UPSTREAM, virtualCluster);
-    }
-
-    public static DistributionSummary payloadSizeBytesDownstreamSummary(ApiKeys apiKey, short apiVersion, String virtualCluster) {
-        return payloadSizeBytesSummary(apiKey, apiVersion, DOWNSTREAM, virtualCluster);
-    }
-
-    private static DistributionSummary payloadSizeBytesSummary(ApiKeys apiKey, short apiVersion, String flowing, String virtualCluster) {
-        List<Tag> tags = tags(
-                "ApiKey", apiKey.name(),
-                "ApiVersion", String.valueOf(apiVersion),
-                FLOWING_TAG, flowing,
-                VIRTUAL_CLUSTER_TAG, virtualCluster);
-        return summary(KROXYLICIOUS_PAYLOAD_SIZE_BYTES, tags);
     }
 
     public static List<Tag> tags(@NonNull String name, String value) {
@@ -283,14 +252,89 @@ public class Metrics {
     }
 
     @NonNull
-    private static String nodeIdToLabelValue(Integer nodeId) {
+    private static String nodeIdToLabelValue(@Nullable Integer nodeId) {
         return Optional.ofNullable(nodeId).map(Object::toString).orElse("bootstrap");
     }
 
-    @FunctionalInterface
-    public interface ClusterNodeSpecificMetricProviderCreator<T extends Meter> {
+    @NonNull
+    private static MeterProvider<Counter> buildCounterMeterProvider(String meterName,
+                                                                    String description,
+                                                                    String clusterName,
+                                                                    @Nullable Integer nodeId) {
+        return Counter
+                .builder(meterName)
+                .description(description)
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
+                .withRegistry(globalRegistry);
+    }
 
-        MeterProvider<T> create(String virtualCluster, Integer nodeId);
+    @NonNull
+    private static MeterProvider<DistributionSummary> buildDistributionSummaryMeterProvider(String meterName,
+                                                                                            String description,
+                                                                                            String clusterName,
+                                                                                            String baseUnit,
+                                                                                            @Nullable Integer nodeId) {
+        var name = meterName + SIZE_SUFFIX;
+        return DistributionSummary.builder(name)
+                .baseUnit(baseUnit)
+                .description(description)
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
+                .withRegistry(globalRegistry);
+    }
+
+    /**
+     * @deprecated use {@link #clientToProxyConnectionCounter(String, Integer)} instead
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
+    public static Counter inboundDownstreamDecodedMessageCounter(@NonNull String clusterName) {
+        return Counter
+                .builder(KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES)
+                .withRegistry(globalRegistry)
+                .withTags(DEPRECATED_VIRTUAL_CLUSTER_TAG, clusterName,
+                        DEPRECATED_FLOWING_TAG, DOWNSTREAM_FLOWING_VALUE);
+    }
+
+    /**
+     * @deprecated use {@link #clientToProxyConnectionCounter(String, Integer)} instead
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
+    public static Counter inboundDownstreamMessageCounter(@NonNull String clusterName) {
+        return Counter
+                .builder(KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES)
+                .withRegistry(globalRegistry)
+                .withTags(DEPRECATED_VIRTUAL_CLUSTER_TAG, clusterName,
+                        DEPRECATED_FLOWING_TAG, DOWNSTREAM_FLOWING_VALUE);
+
+    }
+
+    /**
+     * @deprecated use {@link #proxyToClientMessageSizeDistributionProvider(String, Integer)} instead
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
+    public static MeterProvider<DistributionSummary> payloadSizeBytesUpstreamSummary(@NonNull String clusterName) {
+        return DistributionSummary.builder(KROXYLICIOUS_PAYLOAD_SIZE_BYTES)
+                .baseUnit(BaseUnits.BYTES)
+                .tag(DEPRECATED_VIRTUAL_CLUSTER_TAG, clusterName)
+                .tag(DEPRECATED_FLOWING_TAG, UPSTREAM_FLOWING_VALUE)
+                .withRegistry(globalRegistry);
+    }
+
+    /**
+     * @deprecated use {@link #clientToProxyMessageSizeDistributionProvider(String, Integer)}  instead
+     */
+    @Deprecated(since = "0.13.0", forRemoval = true)
+    @SuppressWarnings("java:S1133")
+    public static MeterProvider<DistributionSummary> payloadSizeBytesDownstreamSummary(@NonNull String clusterName) {
+        return DistributionSummary.builder(KROXYLICIOUS_PAYLOAD_SIZE_BYTES)
+                .baseUnit(BaseUnits.BYTES)
+                .tag(DEPRECATED_VIRTUAL_CLUSTER_TAG, clusterName)
+                .tag(DEPRECATED_FLOWING_TAG, DOWNSTREAM_FLOWING_VALUE)
+                .withRegistry(globalRegistry);
     }
 
     /**
@@ -305,5 +349,4 @@ public class Metrics {
                 .tag("commit_id", versionInfo.commitId())
                 .register(globalRegistry);
     }
-
 }
