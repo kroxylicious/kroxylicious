@@ -11,7 +11,7 @@ Both the Proxy and the Operator expose an HTTP scrape endpoint at address (`/met
 The endpoint does not require authentication.
 
 For the Proxy, the port that exposes the scrape endpoint is named `management`.
-For the Operator, the port is name `metrics`.
+For the Operator, the port is named `metrics`.
 
 Prometheus can be configured to ingest the metrics from the scrape endpoints.
 
@@ -27,7 +27,8 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/part-of: kroxylicious
+      app.kubernetes.io/application: kroxylicious
+      app.kubernetes.io/component: proxy
   podMetricsEndpoints:
   - path: /metrics
     port: management
@@ -43,7 +44,8 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/part-of: kroxylicious
+      app.kubernetes.io/application: kroxylicious
+      app.kubernetes.io/component: operator
   podMetricsEndpoints:
   - path: /metrics
     port: http
