@@ -6,8 +6,11 @@
 
 package io.kroxylicious.test.tester;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.AbstractDoubleAssert;
@@ -78,10 +81,43 @@ public class SimpleMetricAssert extends AbstractAssert<SimpleMetricAssert, Simpl
                     .filteredOn(metric -> Objects.equals(metric.labels().get(key), value));
         }
 
+        public SimpleMetricAssert withUniqueMetric(String name, Map<String, String> tags) {
+            isNotNull();
+            Assertions.assertThat(tags).isNotNull();
+            return describedAs("expected metric not present")
+                    .filterByName(name)
+                    .hasSizeGreaterThan(0)
+                    .describedAs("one or more metrics match by name, but none have all of the expected tag names [%s]", String.join(",", tags.keySet()))
+                    .filteredOn(sm -> sm.labels().keySet().containsAll(tags.keySet()))
+                    .hasSizeGreaterThan(0)
+                    .describedAs("one or more metrics match by name, but none have all of the expected tag name/value pairs [%s]",
+                            tags.entrySet().stream().map(e -> e.getKey() + "=" + e.getValue()).collect(
+                                    Collectors.joining(",")))
+                    .filteredOn(sm -> {
+                        var copyTags = new HashMap<>(tags);
+                        var copyMetricLabels = new HashMap<>(sm.labels());
+                        copyMetricLabels.keySet().retainAll(tags.keySet());
+                        return Objects.equals(copyMetricLabels, copyTags);
+                    })
+                    .singleElement();
+        }
+
+        public SimpleMetricListAssert hasNoMetricMatching(String name, Map<String, String> tags) {
+            isNotNull();
+            Assertions.assertThat(tags).isNotNull();
+
+            var smla = describedAs("found unexpected metric")
+                    .filterByName(name);
+            for (Map.Entry<String, String> entry : tags.entrySet()) {
+                smla = smla.filterByTag(entry.getKey(), entry.getValue());
+            }
+            smla.isEmpty();
+            return this;
+        }
+
         @Override
         protected SimpleMetricListAssert newAbstractIterableAssert(Iterable<? extends SimpleMetric> iterable) {
             return new SimpleMetricListAssert(newArrayList(iterable));
         }
-
     }
 }
