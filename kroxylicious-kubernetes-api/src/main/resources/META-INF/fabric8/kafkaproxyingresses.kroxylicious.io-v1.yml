@@ -68,7 +68,7 @@ spec:
                 clusterIP:
                   type: object
                   description: |-
-                    clusterIP specifies that this ingress is for access within the same Kubernetes cluster using 
+                    specifies that this ingress is for access within the same Kubernetes cluster using 
                     ClusterIP Kubernetes Services.
                   required: [ "protocol" ]
                   properties:
@@ -79,8 +79,8 @@ spec:
                 loadBalancer:
                   type: object
                   description: |-
-                    clusterIP specifies that this ingress is for access within the same Kubernetes cluster using 
-                    ClusterIP Kubernetes Services.
+                    specifies that this ingress is for access from outside the Kubernetes cluster
+                    via a LoadBalancer Kubernetes Services.
                   required: [ "bootstrapAddress", "advertisedBrokerAddressPattern"]
                   x-kubernetes-validations:
                     - rule: "self.advertisedBrokerAddressPattern.contains('$(nodeId)')"
