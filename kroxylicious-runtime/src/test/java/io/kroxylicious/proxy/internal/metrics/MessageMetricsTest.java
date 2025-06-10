@@ -43,7 +43,7 @@ class MessageMetricsTest {
         when(provider.withTags(any(String[].class))).thenReturn(counter);
         when(message.apiKeyId()).thenReturn(ApiKeys.PRODUCE.id);
 
-        var messageMetrics = new MessageMetrics(provider, null);
+        var messageMetrics = new MessageMetrics(provider, null, null, null);
         embeddedChannel = new EmbeddedChannel(messageMetrics);
 
         // When
@@ -59,7 +59,7 @@ class MessageMetricsTest {
     @Test
     void shouldNotTickOnNonFrameRead() {
         // Given
-        var messageMetrics = new MessageMetrics(provider, null);
+        var messageMetrics = new MessageMetrics(provider, null, null, null);
         embeddedChannel = new EmbeddedChannel(messageMetrics);
 
         // When
@@ -75,7 +75,7 @@ class MessageMetricsTest {
         when(provider.withTags(any(String[].class))).thenReturn(counter);
         when(message.apiKeyId()).thenReturn(ApiKeys.PRODUCE.id);
 
-        var messageMetrics = new MessageMetrics(null, provider);
+        var messageMetrics = new MessageMetrics(null, provider, null, null);
         embeddedChannel = new EmbeddedChannel(messageMetrics);
 
         // When
@@ -91,7 +91,7 @@ class MessageMetricsTest {
     @Test
     void shouldNotTickOnNonFrameWrite() {
         // Given
-        var messageMetrics = new MessageMetrics(null, provider);
+        var messageMetrics = new MessageMetrics(null, provider, null, null);
         embeddedChannel = new EmbeddedChannel(messageMetrics);
 
         // When

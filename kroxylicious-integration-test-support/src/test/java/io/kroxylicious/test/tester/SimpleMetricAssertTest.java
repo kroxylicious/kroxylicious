@@ -114,7 +114,7 @@ class SimpleMetricAssertTest {
         var listAssert = assertThat(metrics);
         assertThatThrownBy(() -> listAssert.withUniqueMetric("bar", desiredTags))
                 .isInstanceOf(AssertionError.class)
-                .hasMessageContaining("expected metric not present");
+                .hasMessageContaining("no metrics match by name [bar]");
     }
 
     @Test
