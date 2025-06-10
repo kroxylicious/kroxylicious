@@ -7,9 +7,8 @@
 
 [role="_abstract"]
 
-Kroxylicious supports a number of observability features.
-These can help you to understand the performance and health of proxy instances.
-The Proxy writes a log and emits metrics in Prometheus format.
+Kroxylicious supports key observability features to help you understand the performance and health of your proxy instances.
+The Kroxylicious Proxy writes a log and emits metrics in Prometheus format.
 
 * Introduce custom logging configurations using `log4j2` and set appropriate root log levels.
 * Set up an admin HTTP endpoint for Prometheus metrics scraping.

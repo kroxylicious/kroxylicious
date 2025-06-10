@@ -7,7 +7,7 @@
 
 [role="_abstract"]
 
-You can independently control the logging level of both the Operator and the Proxy.
+You can independently control the logging level of both the Kroxylicious Operator and the Kroxylicious Proxy.
 
 In both cases, logging levels are controlled using two environment variables:
 
@@ -15,23 +15,23 @@ In both cases, logging levels are controlled using two environment variables:
 * `KROXYLICIOUS_ROOT_LOG_LEVEL` controls the logging level at the root. It defaults to `WARN`.
 
 When trying to diagnose a problem, start first by raising the logging level of `KROXYLICIOUS_APP_LOG_LEVEL`.
-If more detailed diagnostics are required, try raising the `KROXYLICIOUS_ROOT_LOG_LEVEL`. Both the Proxy and Operator
+If more detailed diagnostics are required, try raising the `KROXYLICIOUS_ROOT_LOG_LEVEL`. Both the proxy and operator
 use Apache Log4J2 and use logging levels understood by it: `TRACE`, `DEBUG`, `INFO`, `WARN`, and `ERROR`.
 
-WARNING: Running either the Operator or the Proxy at elevated logging levels can generate significant amount of logs, which may consume significant storage.
+WARNING: Running either the operator or the proxy at elevated logging levels can generate significant amount of logs, which may consume significant storage.
 Minimise the length of time the system is run in this state.
 
-== Proxy
+== Overriding proxy logging levels
 
-To override the logging level of the Proxy, apply the environment variable to the Kubernetes `Deployment` that corresponds to the proxy instance in question.
-The `Deployment` resource will have the same name as the `KafkaProxy`.
+To override the logging level of a proxy, apply the environment variable to the Kubernetes `Deployment` resource that corresponds to the proxy instance in question.
+The `Deployment` resource has the same name as the `KafkaProxy`.
 
 [source,bash]
 ----
 kubectl set env -n <namespace> deployment <deployment_name> KROXYLICIOUS_APP_LOG_LEVEL=DEBUG
 ----
 
-The pods will roll and the new logging level will take effect thereafter.  Confirm that is the case by tailing the log.
+After the pods have rolled, confirm the new logging level has taken effect by tailing the log:
 
 [source,bash]
 ----
@@ -45,14 +45,14 @@ To revert the log level back to default settings:
 kubectl set env -n <namespace> deployment <deployment_name> KROXYLICIOUS_APP_LOG_LEVEL-
 ----
 
-== Operator
+== Overriding operator logging levels
 
-To override the logging level of the Operator, the procedure differs depending on how the Operator was installed.
+To override the logging level of the Operator, the procedure differs depending on how the operator was installed.
 
 ifdef::include-olm[]
-=== Operator Lifecycle Management (OLM)
+=== Operator Lifecycle Manager (OLM)
 
-If you have deployed the Operator using OLM, update the logging level by patching the `Subscription` resource.
+If you have deployed the operator using OLM, update the logging level by patching the `Subscription` resource.
 
 (TODO - how to find the subscription)
 
@@ -64,7 +64,7 @@ endif::[]
 
 === YAML bundle
 
-If you have deployed the Operator from a YAML bundle, apply the environment variable to the Kubernetes `Deployment` that corresponds to the operator.
+If you have deployed the operator from a YAML bundle, apply the environment variable to the Kubernetes `Deployment` that corresponds to the operator.
 
 [source,bash]
 ----

@@ -18,7 +18,7 @@ When using the `bin/kroxylicious-start.sh` script from the binary distribution, 
 KROXYLICIOUS_LOGGING_OPTIONS="-Dlog4j2.configurationFile=/path/to/custom/log4j2.yaml"
 ----
 
-.Environment variable change root logging level
+.Environment variable to change the root logging level
 [source,properties]
 ----
 KROXYLICIOUS_ROOT_LOG_LEVEL="DEBUG"

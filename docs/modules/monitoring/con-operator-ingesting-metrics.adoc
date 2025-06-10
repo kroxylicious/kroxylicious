@@ -6,8 +6,8 @@
 = Ingesting metrics
 
 [role="_abstract"]
-Metrics from the Proxy and Operator can be ingested into your Prometheus instance.
-Both the Proxy and the Operator expose an HTTP scrape endpoint at address (`/metrics`).
+Metrics from the Kroxylicious Proxy and Kroxylicious Operator can be ingested into your Prometheus instance.
+The proxy and the operator each expose an HTTP endpoint for Prometheus metrics at the `/metrics` address.
 The endpoint does not require authentication.
 
 For the Proxy, the port that exposes the scrape endpoint is named `management`.

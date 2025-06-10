@@ -7,9 +7,8 @@
 
 [role="_abstract"]
 
-Kroxylicious supports a number of observability features.
-These can help you to understand the performance and health of proxy instances.
-The Proxy and the Operator both write logs and both emit metrics in Prometheus format.
+Kroxylicious supports key observability features to help you understand the performance and health of your proxy instances.
+The Kroxylicious Proxy and the Kroxylicious Operator write logs and emit metrics in Prometheus format.
 
 include::../modules/monitoring/con-prometheus-metrics-proxy.adoc[leveloffset=+1]
 include::../modules/monitoring/con-prometheus-metrics-operator.adoc[leveloffset=+1]

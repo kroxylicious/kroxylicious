@@ -6,10 +6,10 @@
 = Ingesting metrics
 
 [role="_abstract"]
-Metrics from the Proxy can be ingested into your Prometheus instance.
+Metrics from the Kroxylicious Proxy can be ingested into your Prometheus instance.
 
-Use a https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config[`scape_configs`] to tell
-Prometheus to scape the monitors from your Proxy instances.
+Configure the https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config[`scrape_configs`] property to enable
+Prometheus to scrape the monitors from your proxy instances.
 
 .Example Prometheus scrape config
 
