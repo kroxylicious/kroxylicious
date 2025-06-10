@@ -481,12 +481,18 @@ public class KafkaProxyFrontendHandler
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger"));
         }
         addFiltersToPipeline(filters, pipeline, inboundChannel);
-        var proxyToServerCounterProvider = Metrics.KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_TOTAL_METER_PROVIDER
+        var proxyToServerMessageCounterProvider = Metrics.KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_TOTAL_METER_PROVIDER
                 .create(this.virtualClusterModel.getClusterName(), endpointBinding.nodeId());
-        var serverToProxyCounterProvider = Metrics.KROXYLICIOUS_SERVER_TO_PROXY_RESPONSE_TOTAL_METER_PROVIDER.create(virtualClusterModel.getClusterName(),
+        var serverToProxyMessageCounterProvider = Metrics.KROXYLICIOUS_SERVER_TO_PROXY_RESPONSE_TOTAL_METER_PROVIDER.create(virtualClusterModel.getClusterName(),
                 endpointBinding.nodeId());
 
-        pipeline.addFirst("upstreamMetrics", new MessageMetrics(serverToProxyCounterProvider, proxyToServerCounterProvider));
+        var proxyToServerMessageSizeDistributionProvider = Metrics.KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_SIZE_METER_PROVIDER
+                .create(this.virtualClusterModel.getClusterName(), endpointBinding.nodeId());
+        var serverToProxyMessageSizeDistributionProvider = Metrics.KROXYLICIOUS_SERVER_TO_PROXY_RESPONSE_SIZE_METER_PROVIDER.create(virtualClusterModel.getClusterName(),
+                endpointBinding.nodeId());
+
+        pipeline.addFirst("upstreamMetrics", new MessageMetrics(serverToProxyMessageCounterProvider, proxyToServerMessageCounterProvider,
+                serverToProxyMessageSizeDistributionProvider, proxyToServerMessageSizeDistributionProvider));
         pipeline.addFirst("deprecatedUpstreamMetrics", getDeprecatedUpstreamMessageMetrics(this.virtualClusterModel.getClusterName()));
         pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager, virtualClusterModel.socketFrameMaxSizeBytes()));
         pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager));

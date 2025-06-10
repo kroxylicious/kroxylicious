@@ -18,6 +18,7 @@ import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.binder.BaseUnits;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -98,6 +99,74 @@ public class Metrics {
                                                                                                                                                                 nodeId))
                                                                                                                                                 .withRegistry(
                                                                                                                                                         globalRegistry);
+
+    public static final ClusterNodeSpecificMetricProviderCreator<DistributionSummary> KROXYLICIOUS_CLIENT_TO_PROXY_REQUEST_SIZE_METER_PROVIDER = (virtualClusterName,
+                                                                                                                                                  nodeId) -> DistributionSummary
+                                                                                                                                                          .builder(
+                                                                                                                                                                  KROXYLICIOUS_CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME
+                                                                                                                                                                          + "_size")
+                                                                                                                                                          .baseUnit(
+                                                                                                                                                                  BaseUnits.BYTES)
+                                                                                                                                                          .description(
+                                                                                                                                                                  "Incremented by one every time a request arrives at the proxy from the downstream (client).")
+                                                                                                                                                          .tag(VIRTUAL_CLUSTER_LABEL,
+                                                                                                                                                                  virtualClusterName)
+                                                                                                                                                          .tag(NODE_ID_LABEL,
+                                                                                                                                                                  nodeIdToLabelValue(
+                                                                                                                                                                          nodeId))
+                                                                                                                                                          .withRegistry(
+                                                                                                                                                                  globalRegistry);
+
+    public static final ClusterNodeSpecificMetricProviderCreator<DistributionSummary> KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_SIZE_METER_PROVIDER = (virtualClusterName,
+                                                                                                                                                  nodeId) -> DistributionSummary
+                                                                                                                                                          .builder(
+                                                                                                                                                                  KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_BASE_METER_NAME
+                                                                                                                                                                          + "_size")
+                                                                                                                                                          .baseUnit(
+                                                                                                                                                                  BaseUnits.BYTES)
+                                                                                                                                                          .description(
+                                                                                                                                                                  "Incremented by one every time a request (#1) goes from the proxy to the upstream (server).")
+                                                                                                                                                          .tag(VIRTUAL_CLUSTER_LABEL,
+                                                                                                                                                                  virtualClusterName)
+                                                                                                                                                          .tag(NODE_ID_LABEL,
+                                                                                                                                                                  nodeIdToLabelValue(
+                                                                                                                                                                          nodeId))
+                                                                                                                                                          .withRegistry(
+                                                                                                                                                                  globalRegistry);
+
+    public static final ClusterNodeSpecificMetricProviderCreator<DistributionSummary> KROXYLICIOUS_SERVER_TO_PROXY_RESPONSE_SIZE_METER_PROVIDER = (virtualClusterName,
+                                                                                                                                                   nodeId) -> DistributionSummary
+                                                                                                                                                           .builder(
+                                                                                                                                                                   KROXYLICIOUS_SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME
+                                                                                                                                                                           + "_size")
+                                                                                                                                                           .baseUnit(
+                                                                                                                                                                   BaseUnits.BYTES)
+                                                                                                                                                           .description(
+                                                                                                                                                                   "Incremented by one every time a response (#1) arrives at the proxy from the upstream (server).")
+                                                                                                                                                           .tag(VIRTUAL_CLUSTER_LABEL,
+                                                                                                                                                                   virtualClusterName)
+                                                                                                                                                           .tag(NODE_ID_LABEL,
+                                                                                                                                                                   nodeIdToLabelValue(
+                                                                                                                                                                           nodeId))
+                                                                                                                                                           .withRegistry(
+                                                                                                                                                                   globalRegistry);
+
+    public static final ClusterNodeSpecificMetricProviderCreator<DistributionSummary> KROXYLICIOUS_PROXY_TO_CLIENT_RESPONSE_SIZE_METER_PROVIDER = (virtualClusterName,
+                                                                                                                                                   nodeId) -> DistributionSummary
+                                                                                                                                                           .builder(
+                                                                                                                                                                   KROXYLICIOUS_PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME
+                                                                                                                                                                           + "_size")
+                                                                                                                                                           .baseUnit(
+                                                                                                                                                                   BaseUnits.BYTES)
+                                                                                                                                                           .description(
+                                                                                                                                                                   "Incremented by one every time a response goes from the proxy to the downstream (client).")
+                                                                                                                                                           .tag(VIRTUAL_CLUSTER_LABEL,
+                                                                                                                                                                   virtualClusterName)
+                                                                                                                                                           .tag(NODE_ID_LABEL,
+                                                                                                                                                                   nodeIdToLabelValue(
+                                                                                                                                                                           nodeId))
+                                                                                                                                                           .withRegistry(
+                                                                                                                                                                   globalRegistry);
 
     public static final ClusterNodeSpecificMetricProviderCreator<Counter> KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER = (virtualClusterName,
                                                                                                                                      nodeId) -> Counter.builder(

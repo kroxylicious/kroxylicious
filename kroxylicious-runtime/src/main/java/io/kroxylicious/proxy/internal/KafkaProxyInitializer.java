@@ -224,10 +224,17 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder());
 
-        var clientToProxyCounterProvider = Metrics.KROXYLICIOUS_CLIENT_TO_PROXY_REQUEST_TOTAL_METER_PROVIDER.create(virtualCluster.getClusterName(), binding.nodeId());
-        var proxyToClientCounterProvider = Metrics.KROXYLICIOUS_PROXY_TO_CLIENT_RESPONSE_TOTAL_METER_PROVIDER.create(virtualCluster.getClusterName(), binding.nodeId());
+        var clientToProxyMessageCounterProvider = Metrics.KROXYLICIOUS_CLIENT_TO_PROXY_REQUEST_TOTAL_METER_PROVIDER.create(virtualCluster.getClusterName(),
+                binding.nodeId());
+        var clientToProxyMessageSizeDistributionProvider = Metrics.KROXYLICIOUS_CLIENT_TO_PROXY_REQUEST_SIZE_METER_PROVIDER.create(virtualCluster.getClusterName(),
+                binding.nodeId());
+        var proxyToClientMessageCounterProvider = Metrics.KROXYLICIOUS_PROXY_TO_CLIENT_RESPONSE_TOTAL_METER_PROVIDER.create(virtualCluster.getClusterName(),
+                binding.nodeId());
+        var proxyToClientMessageSizeDistributionProvider = Metrics.KROXYLICIOUS_PROXY_TO_CLIENT_RESPONSE_SIZE_METER_PROVIDER.create(virtualCluster.getClusterName(),
+                binding.nodeId());
 
-        pipeline.addLast("downstreamMetrics", new MessageMetrics(clientToProxyCounterProvider, proxyToClientCounterProvider));
+        pipeline.addLast("downstreamMetrics", new MessageMetrics(clientToProxyMessageCounterProvider, proxyToClientMessageCounterProvider,
+                clientToProxyMessageSizeDistributionProvider, proxyToClientMessageSizeDistributionProvider));
         pipeline.addLast("deprecatedDownstreamMetrics", deprecatedMessageMetricHandler(virtualCluster));
         pipeline.addLast("responseOrderer", new ResponseOrderer());
         if (virtualCluster.isLogFrames()) {

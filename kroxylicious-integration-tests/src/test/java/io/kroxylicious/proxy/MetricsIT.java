@@ -16,6 +16,7 @@ import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
@@ -26,6 +27,7 @@ import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.DescribeClusterOptions;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.Node;
 import org.apache.kafka.common.TopicPartitionInfo;
 import org.apache.kafka.common.config.SslConfigs;
@@ -178,7 +180,7 @@ class MetricsIT {
         }
     }
 
-    static Stream<Arguments> transitScenarios() {
+    static Stream<Arguments> messageCountMetricScenarios() {
         var decodeAll = new NamedFilterDefinitionBuilder("decodeAll", "DecodeAll").build();
         var rejectCreateTopic = new NamedFilterDefinitionBuilder("rejectCreateTopic", "RejectingCreateTopicFilterFactory").withConfig("respondWithError", Boolean.FALSE)
                 .build();
@@ -203,7 +205,7 @@ class MetricsIT {
                                 .hasNoMetricMatching("kroxylicious_client_to_proxy_request_total", Map.of(
                                         API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(),
                                         NODE_ID_LABEL, "0",
-                                        DECODED_LABEL, "false")),
+                                        DECODED_LABEL, "true")),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
                                 .withUniqueMetric("kroxylicious_client_to_proxy_request_total", Map.of(
                                         API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(),
@@ -311,7 +313,7 @@ class MetricsIT {
     }
 
     @ParameterizedTest
-    @MethodSource("transitScenarios")
+    @MethodSource("messageCountMetricScenarios")
     void shouldIncrementCountOnMessageTransit(UnaryOperator<ConfigurationBuilder> builder,
                                               Consumer<List<SimpleMetric>> beforeAssertion,
                                               Consumer<List<SimpleMetric>> afterAssertion,
@@ -334,6 +336,137 @@ class MetricsIT {
             assertThat(future).succeedsWithin(Duration.ofSeconds(5));
             metricList = managementClient.scrapeMetrics();
             afterAssertion.accept(metricList);
+        }
+    }
+
+    static Stream<Arguments> messageSizeMetricScenarios() {
+        var decodeAll = new NamedFilterDefinitionBuilder("decodeAll", "DecodeAll").build();
+//        var rejectCreateTopic = new NamedFilterDefinitionBuilder("rejectCreateTopic", "RejectingCreateTopicFilterFactory").withConfig("respondWithError", Boolean.FALSE)
+//                .build();
+        return Stream.of(
+                argumentSet("measures size of opaque requests from client",
+                        (UnaryOperator<ConfigurationBuilder>) builder -> builder,
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .hasNoMetricMatching("kroxylicious_client_to_proxy_request_size_bytes_sum", Map.of(
+                                        API_KEY_LABEL, ApiKeys.PRODUCE.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "false")),
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .withUniqueMetric("kroxylicious_client_to_proxy_request_size_bytes_sum", Map.of(
+                                        API_KEY_LABEL, ApiKeys.PRODUCE.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "false"))
+                                .value()
+                                .isGreaterThan(1024.0)),
+                argumentSet("measures size of decoded requests from client",
+                        (UnaryOperator<ConfigurationBuilder>) builder -> addFilterToConfig(builder, decodeAll),
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .hasNoMetricMatching("kroxylicious_client_to_proxy_request_size_bytes_sum", Map.of(
+                                        API_KEY_LABEL, ApiKeys.PRODUCE.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "true")),
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .withUniqueMetric("kroxylicious_client_to_proxy_request_size_bytes_sum", Map.of(
+                                        API_KEY_LABEL, ApiKeys.PRODUCE.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "true"))
+                                .value()
+                                .isGreaterThan(1024.0)),
+                argumentSet("measures size of opaque requests to server",
+                        (UnaryOperator<ConfigurationBuilder>) builder -> builder,
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .hasNoMetricMatching("kroxylicious_proxy_to_server_request_size_bytes_sum", Map.of(
+                                        API_KEY_LABEL, ApiKeys.PRODUCE.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "false")),
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .withUniqueMetric("kroxylicious_proxy_to_server_request_size_bytes_sum", Map.of(
+                                        API_KEY_LABEL, ApiKeys.PRODUCE.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "false"))
+                                .value()
+                                .isGreaterThan(1024.0)),
+                argumentSet("measures size of decoded requests to server",
+                        (UnaryOperator<ConfigurationBuilder>) builder -> addFilterToConfig(builder, decodeAll),
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .hasNoMetricMatching("kroxylicious_proxy_to_server_request_size_bytes_sum", Map.of(
+                                        API_KEY_LABEL, ApiKeys.PRODUCE.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "true")),
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .withUniqueMetric("kroxylicious_proxy_to_server_request_size_bytes_sum", Map.of(
+                                        API_KEY_LABEL, ApiKeys.PRODUCE.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "true"))
+                                .value()
+                                .isGreaterThan(1024.0)),
+                argumentSet("measures size of decoded responses from server",
+                        (UnaryOperator<ConfigurationBuilder>) builder -> builder,
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .hasNoMetricMatching("kroxylicious_server_to_proxy_response_size_bytes_sum", Map.of(
+                                        API_KEY_LABEL, ApiKeys.FETCH.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "true")),
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .withUniqueMetric("kroxylicious_server_to_proxy_response_size_bytes_sum", Map.of(
+                                        API_KEY_LABEL, ApiKeys.FETCH.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "true"))
+                                .value()
+                                .isGreaterThan(1024.0)),
+                argumentSet("measures size of decoded responses to client",
+                        (UnaryOperator<ConfigurationBuilder>) builder -> builder,
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .hasNoMetricMatching("kroxylicious_proxy_to_client_response_size_bytes_sum", Map.of(
+                                        API_KEY_LABEL, ApiKeys.FETCH.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "true")),
+                        (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
+                                .withUniqueMetric("kroxylicious_proxy_to_client_response_size_bytes_sum", Map.of(
+                                        API_KEY_LABEL, ApiKeys.FETCH.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "true"))
+                                .value()
+                                .isGreaterThan(1024.0))
+                );
+    }
+
+    @ParameterizedTest
+    @MethodSource("messageSizeMetricScenarios")
+    void shouldIncrementSizeOnMessageTransit(UnaryOperator<ConfigurationBuilder> builder,
+                                              Consumer<List<SimpleMetric>> beforeAssertion,
+                                              Consumer<List<SimpleMetric>> afterAssertion,
+                                              KafkaCluster cluster,
+                                              Topic topic) {
+        var config = configWithMetrics(cluster);
+
+        // Given
+        try (var tester = kroxyliciousTester(builder.apply(config));
+                var managementClient = tester.getManagementClient()) {
+
+            var metricList = managementClient.scrapeMetrics();
+            beforeAssertion.accept(metricList);
+
+            // When
+            produceAndConsumeOneRecord(tester, topic);
+
+            // Then
+            metricList = managementClient.scrapeMetrics();
+            afterAssertion.accept(metricList);
+        }
+    }
+
+    private static void produceAndConsumeOneRecord(KroxyliciousTester tester, Topic topic) {
+        var payload = "A".repeat(1024);
+
+        try (var producer = tester.producer();
+                var consumer = tester.consumer()) {
+            String topicName = topic.name();
+            var produceFuture = producer.send(new ProducerRecord<>(topicName, payload));
+            assertThat(produceFuture).succeedsWithin(Duration.ofSeconds(5));
+            consumer.subscribe(List.of(topicName));
+            var records = consumer.poll(Duration.ofSeconds(5)).records(topicName);
+            assertThat(records).singleElement().isNotNull();
         }
     }
 
