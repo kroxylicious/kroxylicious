@@ -13,8 +13,6 @@ Prometheus to scrape the monitors from your proxy instances.
 
 .Example Prometheus scrape config
 
-con-operator-ingesting-metrics.adoc
-
 [source]
 ----
 scrape_configs:
