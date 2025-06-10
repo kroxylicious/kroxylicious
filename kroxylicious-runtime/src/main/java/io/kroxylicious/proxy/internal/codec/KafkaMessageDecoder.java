@@ -7,6 +7,8 @@ package io.kroxylicious.proxy.internal.codec;
 
 import java.util.List;
 
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 
 import io.netty.buffer.ByteBuf;
@@ -18,14 +20,17 @@ import io.kroxylicious.proxy.frame.Frame;
 /**
  * Abstraction for request and response decoders.
  */
-public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
+abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
 
     private final int socketFrameMaxSize;
+    private final KafkaMessageListener listener;
 
     protected abstract Logger log();
 
-    protected KafkaMessageDecoder(int socketFrameMaxSize) {
+    KafkaMessageDecoder(int socketFrameMaxSize,
+                        @Nullable KafkaMessageListener listener) {
         this.socketFrameMaxSize = socketFrameMaxSize;
+        this.listener = listener;
     }
 
     @Override
@@ -44,9 +49,13 @@ public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
                 // TODO handle too-large frames
                 if (readable >= frameSize) { // We can read the whole frame
                     var idx = in.readerIndex();
-                    out.add(decodeHeaderAndBody(ctx,
+                    var frame = decodeHeaderAndBody(ctx,
                             in.readSlice(frameSize), // Prevent decodeHeaderAndBody() from reading beyond the frame
-                            frameSize));
+                            frameSize);
+                    out.add(frame);
+                    if (listener != null) {
+                        listener.onMessage(frame, frameSize + Frame.FRAME_SIZE_LENGTH);
+                    }
                     log().trace("{}: readable: {}, having read {}", ctx, in.readableBytes(), in.readerIndex() - idx);
                     if (in.readerIndex() - idx != frameSize) {
                         throw new RuntimeException("decodeHeaderAndBody did not read all of the buffer " + in);

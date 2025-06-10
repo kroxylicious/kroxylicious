@@ -132,7 +132,7 @@ class KafkaRequestDecoderTest {
     @NonNull
     private static EmbeddedChannel newEmbeddedChannel(ApiVersionsServiceImpl apiVersionsService) {
         return new EmbeddedChannel(
-                new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, 1024, apiVersionsService));
+                new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, 1024, apiVersionsService, null));
     }
 
     private static @NonNull RequestHeaderData latestVersionHeaderWithAllFields(ApiKeys requestApiKey, short requestApiVersion) {

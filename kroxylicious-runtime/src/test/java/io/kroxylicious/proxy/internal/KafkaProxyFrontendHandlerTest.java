@@ -106,14 +106,14 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     @BeforeEach
-    public void buildChannel() {
+    void buildChannel() {
         inboundChannel = new EmbeddedChannel();
         corrId = 0;
         proxyChannelStateMachine = new ProxyChannelStateMachine("RandomCluster", null);
     }
 
     @AfterEach
-    public void closeChannel() {
+    void closeChannel() {
         inboundChannel.close();
         if (outboundChannel != null) {
             outboundChannel.close();
@@ -548,7 +548,7 @@ class KafkaProxyFrontendHandlerTest {
         while ((outboundMessage = outboundChannel.readOutbound()) != null) {
             assertThat(outboundMessage).isNotNull();
             ArrayList<Object> objects = new ArrayList<>();
-            new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl())
+            new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), null)
                     .decode(outboundChannel.pipeline().firstContext(), outboundMessage, objects);
             assertThat(objects).hasSize(1);
             if (objects.get(0) instanceof DecodedRequestFrame<?> f) {

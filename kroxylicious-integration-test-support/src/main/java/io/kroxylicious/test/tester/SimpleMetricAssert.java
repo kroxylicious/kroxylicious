@@ -84,7 +84,7 @@ public class SimpleMetricAssert extends AbstractAssert<SimpleMetricAssert, Simpl
         public SimpleMetricAssert withUniqueMetric(String name, Map<String, String> tags) {
             isNotNull();
             Assertions.assertThat(tags).isNotNull();
-            return describedAs("expected metric not present")
+            return describedAs("no metrics match by name [%s]", name)
                     .filterByName(name)
                     .hasSizeGreaterThan(0)
                     .describedAs("one or more metrics match by name, but none have all of the expected tag names [%s]", String.join(",", tags.keySet()))

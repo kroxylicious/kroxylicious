@@ -28,7 +28,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
@@ -387,8 +386,6 @@ class KafkaProxyInitializerTest {
     private void verifyEncoderAndOrdererAdded(InOrder orderedVerifyer) {
         orderedVerifyer.verify(channelPipeline).addLast(eq("requestDecoder"), any(ByteToMessageDecoder.class));
         orderedVerifyer.verify(channelPipeline).addLast(eq("responseEncoder"), any(MessageToByteEncoder.class));
-        orderedVerifyer.verify(channelPipeline).addLast(eq("downstreamMetrics"), any(ChannelHandler.class));
-        orderedVerifyer.verify(channelPipeline).addLast(eq("deprecatedDownstreamMetrics"), any(ChannelHandler.class));
         orderedVerifyer.verify(channelPipeline).addLast(eq("responseOrderer"), any(ResponseOrderer.class));
     }
 }

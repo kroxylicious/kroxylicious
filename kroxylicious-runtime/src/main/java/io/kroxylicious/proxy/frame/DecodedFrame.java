@@ -32,11 +32,6 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DecodedFrame.class);
 
-    /**
-     * Number of bytes required for storing the frame length.
-     */
-    private static final int FRAME_SIZE_LENGTH = Integer.BYTES;
-
     protected final short apiVersion;
     protected final int correlationId;
     protected final H header;
