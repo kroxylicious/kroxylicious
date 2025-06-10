@@ -3,7 +3,7 @@
 //
 // assembly-proxy-monitoring.adoc
 
-[id='con-proxy-setting-log-levels-{context}']
+[id='proc-proxy-setting-log-levels-{context}']
 = Setting log levels
 
 [role="_abstract"]
