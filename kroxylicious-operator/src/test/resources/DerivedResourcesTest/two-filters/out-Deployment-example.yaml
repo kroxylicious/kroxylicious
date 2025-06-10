@@ -9,10 +9,8 @@ apiVersion: "apps/v1"
 kind: "Deployment"
 metadata:
   labels:
-    app: "kroxylicious"
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
-    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/name: "kroxylicious"
     app.kubernetes.io/instance: "example"
     app.kubernetes.io/component: "proxy"
   name: "example"
@@ -25,19 +23,15 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: "kroxylicious"
-      app.kubernetes.io/part-of: "kafka"
       app.kubernetes.io/managed-by: "kroxylicious-operator"
-      app.kubernetes.io/name: "kroxylicious-proxy"
+      app.kubernetes.io/name: "kroxylicious"
       app.kubernetes.io/instance: "example"
       app.kubernetes.io/component: "proxy"
   template:
     metadata:
       labels:
-        app: "kroxylicious"
-        app.kubernetes.io/part-of: "kafka"
         app.kubernetes.io/managed-by: "kroxylicious-operator"
-        app.kubernetes.io/name: "kroxylicious-proxy"
+        app.kubernetes.io/name: "kroxylicious"
         app.kubernetes.io/instance: "example"
         app.kubernetes.io/component: "proxy"
       annotations:

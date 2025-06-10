@@ -12,9 +12,8 @@ metadata:
     kroxylicious.io/bootstrap-servers: "{\"version\":\"0.13.0\",\"bootstrapServers\":[{\"clusterName\":\"one\",\"ingressName\"\
       :\"load-balancer\",\"bootstrapServers\":\"one.kafkaproxy:9083\"}]}"
   labels:
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
-    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/name: "kroxylicious"
     app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"
   name: "minimal-sni"
@@ -30,10 +29,8 @@ spec:
       protocol: "TCP"
       targetPort: 9291
   selector:
-    app: "kroxylicious"
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
-    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/name: "kroxylicious"
     app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"
   type: "LoadBalancer"

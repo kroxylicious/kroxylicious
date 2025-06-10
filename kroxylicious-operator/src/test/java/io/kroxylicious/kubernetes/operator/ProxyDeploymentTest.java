@@ -155,14 +155,12 @@ class ProxyDeploymentTest {
     @NonNull
     private static LinkedHashMap<String, String> expectedLabels() {
         LinkedHashMap<String, String> expected = new LinkedHashMap<>();
-        expected.put("app", "kroxylicious");
         expected.put("c", "d");
         expected.put("a", "b");
-        expected.put("app.kubernetes.io/part-of", "kafka");
         expected.put("app.kubernetes.io/managed-by", "kroxylicious-operator");
-        expected.put("app.kubernetes.io/name", "kroxylicious-proxy");
-        expected.put("app.kubernetes.io/instance", PROXY_NAME);
+        expected.put("app.kubernetes.io/name", "kroxylicious");
         expected.put("app.kubernetes.io/component", "proxy");
+        expected.put("app.kubernetes.io/instance", PROXY_NAME);
         return expected;
     }
 

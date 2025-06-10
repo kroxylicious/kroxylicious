@@ -14,9 +14,8 @@ metadata:
       :\"foo\",\"ingressName\":\"load-balancer\",\"bootstrapServers\":\"foo.kafkaproxy:9083\"\
       }]}"
   labels:
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
-    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/name: "kroxylicious"
     app.kubernetes.io/instance: "twocluster"
     app.kubernetes.io/component: "proxy"
   name: "twocluster-sni"
@@ -32,10 +31,8 @@ spec:
       protocol: "TCP"
       targetPort: 9291
   selector:
-    app: "kroxylicious"
-    app.kubernetes.io/part-of: "kafka"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
-    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/name: "kroxylicious"
     app.kubernetes.io/instance: "twocluster"
     app.kubernetes.io/component: "proxy"
   type: "LoadBalancer"
