@@ -180,7 +180,8 @@ class DerivedResourcesTest {
                 new SingletonDependentResourceDesiredFn<>(new ProxyConfigDependentResource(), "ConfigMap", new ProxyConfigReconcilePrecondition(),
                         ProxyConfigDependentResource::desired),
                 new SingletonDependentResourceDesiredFn<>(new ProxyDeploymentDependentResource(), "Deployment", null, ProxyDeploymentDependentResource::desired),
-                new BulkDependentResourceDesiredFn<>(new ClusterServiceDependentResource(), "Service", ClusterServiceDependentResource::desiredResources));
+                new BulkDependentResourceDesiredFn<>(new ClusterServiceDependentResource(), "Service", ClusterServiceDependentResource::desiredResources),
+                new BulkDependentResourceDesiredFn<>(new OpenShiftRouteDependentResource(), "Route", OpenShiftRouteDependentResource::desiredResources));
         return dependentResourcesShouldEqual(list);
     }
 

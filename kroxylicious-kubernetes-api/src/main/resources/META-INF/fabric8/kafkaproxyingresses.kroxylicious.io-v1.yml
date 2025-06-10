@@ -53,6 +53,7 @@ spec:
               oneOf:
               - required: ["proxyRef", "clusterIP"]
               - required: ["proxyRef", "loadBalancer"]
+              - required: ["proxyRef", "openShiftRoutes"]
               properties:
                 proxyRef:
                   # Mapped to Java type io.kroxylicious.kubernetes.api. io.kroxylicious.kubernetes.api.common.common.ProxyRef
@@ -76,6 +77,16 @@ spec:
                       description: "Protocol specifies the network protocol this ingress expects to receive."
                       type: string
                       enum: ["TCP", "TLS"]
+                openShiftRoutes:
+                  type: object
+                  description: |-
+                    openShiftRoutes specifies that this ingress is for access via OpenShift Routes manifested by the
+                    Operator.
+                  required: [ "ingressDomain" ]
+                  properties:
+                    ingressDomain:
+                      type: string
+                      description: the ingress domain the routes should be created in
                 loadBalancer:
                   type: object
                   description: |-

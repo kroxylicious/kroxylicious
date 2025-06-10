@@ -39,3 +39,16 @@ rules:
       - patch
       - update
       - delete
+  - apiGroups:
+      - "route.openshift.io"
+    resources:
+      - routes
+      - "routes/custom-host"
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - patch
+      - update
+      - delete

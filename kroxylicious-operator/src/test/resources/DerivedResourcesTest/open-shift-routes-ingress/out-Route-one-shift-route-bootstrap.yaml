@@ -1,0 +1,38 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: "route.openshift.io/v1"
+kind: "Route"
+metadata:
+  labels:
+    app.kubernetes.io/part-of: "kafka"
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
+    app.kubernetes.io/name: "kroxylicious-proxy"
+    app.kubernetes.io/instance: "minimal"
+    app.kubernetes.io/component: "proxy"
+  name: "one-shift-route-bootstrap"
+  namespace: "proxy-ns"
+  ownerReferences:
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxy"
+      name: "minimal"
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxyIngress"
+      name: "shift-route"
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "VirtualKafkaCluster"
+      name: "one"
+spec:
+  host: "bootstrap.one-shift-route.myingressdomain.com"
+  port:
+    targetPort: 9291
+  tls:
+    insecureEdgeTerminationPolicy: "None"
+    termination: "passthrough"
+  to:
+    kind: "Service"
+    name: "minimal-sni"

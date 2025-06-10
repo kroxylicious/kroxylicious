@@ -23,6 +23,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancerBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.OpenShiftRoutes;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.OpenShiftRoutesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
@@ -43,6 +45,7 @@ class NetworkingPlannerTest {
     private static final String CLUSTER_IP_2_INGRESS_NAME = "my-cluster-ip-ingress-2";
     private static final String LOAD_BALANCER_INGRESS_NAME = "my-load-balancer-ingress";
     private static final String LOAD_BALANCER_INGRESS_2_NAME = "my-load-balancer-ingress-2";
+    private static final String OPEN_SHIFT_ROUTES_INGRESS_NAME = "my-open-shift-routes-ingress";
     private static final String CLUSTER_NAME = "my-cluster";
     private static final String KAFKA_SERVICE_NAME = "my-kafka-service";
     private static final String NAMESPACE = "ns";
@@ -125,6 +128,12 @@ class NetworkingPlannerTest {
             .build();
     private static final KafkaProxyIngress LOAD_BALANCER_INGRESS_2 = createLoadBalancerIngress(LOAD_BALANCER_INGRESS_2_NAME, LOAD_BALANCER_2);
 
+    private static final String OPENSHIFT_INGRESS_DOMAIN = "my-domain.openshiftapps.com";
+    private static final OpenShiftRoutes OPEN_SHIFT_ROUTES = new OpenShiftRoutesBuilder()
+            .withIngressDomain(OPENSHIFT_INGRESS_DOMAIN)
+            .build();
+    private static final KafkaProxyIngress OPEN_SHIFT_ROUTES_INGRESS = createOpenShiftRoutesIngress(OPENSHIFT_INGRESS_DOMAIN, OPEN_SHIFT_ROUTES);
+
     private static KafkaProxyIngress createLoadBalancerIngress(String name, LoadBalancer loadBalancer) {
         return new KafkaProxyIngressBuilder()
                 .withNewMetadata()
@@ -133,6 +142,18 @@ class NetworkingPlannerTest {
                 .endMetadata()
                 .withNewSpec()
                 .withLoadBalancer(loadBalancer)
+                .endSpec()
+                .build();
+    }
+
+    private static KafkaProxyIngress createOpenShiftRoutesIngress(String name, OpenShiftRoutes openShiftRoutes) {
+        return new KafkaProxyIngressBuilder()
+                .withNewMetadata()
+                .withName(name)
+                .withNamespace(NAMESPACE)
+                .endMetadata()
+                .withNewSpec()
+                .withOpenShiftRoutes(openShiftRoutes)
                 .endSpec()
                 .build();
     }
@@ -146,6 +167,9 @@ class NetworkingPlannerTest {
 
     public static final Ingresses CLUSTER_IP_2_CLUSTER_INGRESSES = new IngressesBuilder().withNewIngressRef().withName(CLUSTER_IP_2_INGRESS_NAME).endIngressRef().build();
     public static final Ingresses LOAD_BALANCER_INGRESSES = new IngressesBuilder().withTls(TLS).withNewIngressRef().withName(LOAD_BALANCER_INGRESS_NAME).endIngressRef()
+            .build();
+    private static final Ingresses OPEN_SHIFT_ROUTES_INGRESSES = new IngressesBuilder().withTls(TLS).withNewIngressRef().withName(OPEN_SHIFT_ROUTES_INGRESS_NAME)
+            .endIngressRef()
             .build();
     public static final Ingresses LOAD_BALANCER_2_INGRESSES = new IngressesBuilder().withTls(TLS_2).withNewIngressRef().withName(LOAD_BALANCER_INGRESS_2_NAME)
             .endIngressRef().build();
@@ -282,6 +306,28 @@ class NetworkingPlannerTest {
     }
 
     @Test
+    void openShiftRoutesIngress() {
+        VirtualKafkaCluster virtualKafkaCluster = clusterWithIngress(CLUSTER_NAME, OPEN_SHIFT_ROUTES_INGRESSES);
+        ClusterResolutionResult clusterResolutionResult = new ClusterResolutionResult(virtualKafkaCluster, ResolutionResult.resolved(virtualKafkaCluster, PROXY),
+                List.of(), ResolutionResult.resolved(virtualKafkaCluster, KAFKA_SERVICE),
+                List.of(new IngressResolutionResult(ResolutionResult.resolved(virtualKafkaCluster, OPEN_SHIFT_ROUTES_INGRESS),
+                        ResolutionResult.resolved(OPEN_SHIFT_ROUTES_INGRESS, PROXY), OPEN_SHIFT_ROUTES_INGRESSES)));
+        ProxyNetworkingModel networkingModel = NetworkingPlanner.planNetworking(PROXY, new ProxyResolutionResult(Set.of(clusterResolutionResult)));
+        assertThat(networkingModel.clusterIngressModel(virtualKafkaCluster)).isNotNull();
+
+        assertThat(networkingModel.clusterNetworkingModels()).singleElement().satisfies(clusterNetworkingModel -> {
+            assertThat(clusterNetworkingModel.cluster()).isEqualTo(virtualKafkaCluster);
+            assertThat(clusterNetworkingModel.ingressExceptions()).isEmpty();
+            assertThat(clusterNetworkingModel.clusterIngressNetworkingModelResults()).singleElement().satisfies(model -> {
+                assertThat(model.exception()).isNull();
+                assertThat(model.clusterIngressNetworkingModel()).isEqualTo(
+                        new OpenShiftRoutesClusterIngressNetworkingModel(virtualKafkaCluster, OPEN_SHIFT_ROUTES_INGRESS, PROXY, OPEN_SHIFT_ROUTES,
+                                List.of(new NodeIdRangesBuilder().withName("default").withStart(0L).withEnd(2L).build()), TLS, 9291));
+            });
+        });
+    }
+
+    @Test
     void clusterIpAndLoadBalancerIngress() {
         VirtualKafkaCluster virtualKafkaCluster = clusterWithIngress(CLUSTER_NAME, CLUSTER_IP_CLUSTER_INGRESSES, LOAD_BALANCER_INGRESSES);
         ClusterResolutionResult clusterResolutionResult = new ClusterResolutionResult(virtualKafkaCluster, ResolutionResult.resolved(virtualKafkaCluster, PROXY),
@@ -308,7 +354,6 @@ class NetworkingPlannerTest {
                 assertThat(model.clusterIngressNetworkingModel()).isEqualTo(
                         new LoadBalancerClusterIngressNetworkingModel(virtualKafkaCluster, LOAD_BALANCER_INGRESS, LOAD_BALANCER, TLS, 9291));
             });
-
         });
     }
 
