@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kubernetes.operator.model.networking;
 
+import java.util.Optional;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.ThrowableAssert;
@@ -28,6 +29,7 @@ import io.kroxylicious.kubernetes.operator.KafkaProxyReconciler;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.service.HostPort;
 
+import static io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel.DEFAULT_CLIENT_FACING_LOADBALANCER_PORT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
@@ -73,7 +75,6 @@ class LoadBalancerClusterIngressNetworkingModelTest {
             .endSpec()
             .build();
     // @formatter:on
-    private static final String PROXY_UID = "my-proxy-uid";
 
     @Test
     void createInstancesWithExpectedSniPort() {
@@ -128,10 +129,11 @@ class LoadBalancerClusterIngressNetworkingModelTest {
         assertThat(model).isNotNull();
 
         // when
-        Stream<Integer> services = model.requiredSniLoadBalancerServicePorts();
+        var services = model.sharedLoadBalancerServiceRequirements();
 
         // then
-        assertThat(services).containsExactly(9083);
+        assertThat(services).isPresent();
+        assertThat(services.get().requiredClientFacingPorts()).containsExactly(9083);
     }
 
     @Test
@@ -145,6 +147,24 @@ class LoadBalancerClusterIngressNetworkingModelTest {
 
         // then
         assertThat(requiresSharedSniPort).isTrue();
+    }
+
+    @Test
+    void sharedLoadBalancerServiceBootstrapServers() {
+        // given
+        LoadBalancerClusterIngressNetworkingModel model = new LoadBalancerClusterIngressNetworkingModel(VIRTUAL_KAFKA_CLUSTER, INGRESS, LOAD_BALANCER, TLS,
+                9093);
+
+        // when
+        Optional<SharedLoadBalancerServiceRequirements> requirements = model.sharedLoadBalancerServiceRequirements();
+
+        // then
+        assertThat(requirements).isPresent();
+        assertThat(requirements.get().bootstrapServersToAnnotate()).satisfies(bootstrapServers -> {
+            assertThat(bootstrapServers.clusterName()).isEqualTo(CLUSTER_NAME);
+            assertThat(bootstrapServers.ingressName()).isEqualTo(INGRESS_NAME);
+            assertThat(bootstrapServers.bootstrapServers()).isEqualTo("my-cluster.kafkaproxy:" + DEFAULT_CLIENT_FACING_LOADBALANCER_PORT);
+        });
     }
 
     public static Stream<Arguments> constructorArgsMustBeNonNull() {

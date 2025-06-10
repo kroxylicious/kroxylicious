@@ -65,9 +65,7 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
          * @param portConsumer consumer that will accept all container ports
          */
         public void registerProxyContainerPorts(Consumer<ContainerPort> portConsumer) {
-            clusterIngressNetworkingModelResults.forEach(result -> {
-                result.proxyContainerPorts().forEach(portConsumer);
-            });
+            clusterIngressNetworkingModelResults.forEach(result -> result.proxyContainerPorts().forEach(portConsumer));
         }
 
         public boolean anyIngressRequiresSharedSniPort() {
@@ -77,7 +75,8 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
 
         public Stream<Integer> requiredSniLoadbalancerPorts() {
             return clusterIngressNetworkingModelResults.stream()
-                    .flatMap(ingressModelResult -> ingressModelResult.clusterIngressNetworkingModel().requiredSniLoadBalancerServicePorts());
+                    .flatMap(ingressModelResult -> ingressModelResult.clusterIngressNetworkingModel().sharedLoadBalancerServiceRequirements().stream())
+                    .flatMap(SharedLoadBalancerServiceRequirements::requiredClientFacingPorts);
         }
     }
 

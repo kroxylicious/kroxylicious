@@ -9,6 +9,7 @@ package io.kroxylicious.kubernetes.operator.model.networking;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -24,6 +25,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
+import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.proxy.config.NamedRange;
@@ -93,14 +95,17 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     ObjectMeta serviceMetadata(String name) {
-        return new ObjectMetaBuilder()
+        Set<Annotations.ClusterIngressBootstrapServers> clientFacingBootstrap = Set.of(
+                new Annotations.ClusterIngressBootstrapServers(name(cluster), name(ingress), bootstrapServers()));
+        ObjectMetaBuilder builder = new ObjectMetaBuilder()
                 .withName(name)
                 .withNamespace(namespace(cluster))
                 .addToLabels(standardLabels(proxy))
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(proxy)).endOwnerReference()
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(cluster)).endOwnerReference()
-                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(ingress)).endOwnerReference()
-                .build();
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(ingress)).endOwnerReference();
+        Annotations.annotateWithBootstrapServers(builder, clientFacingBootstrap);
+        return builder.build();
     }
 
     @Override
@@ -125,14 +130,23 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
             return new NamedRange(name, toIntExact(range.getStart()), toIntExact(range.getEnd()));
         }).toList();
         return new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", firstIdentifyingPort()),
-                ResourcesUtil.crossNamespaceServiceAddress(bootstrapServiceName(), cluster),
+                crossNamespaceBootstrapServiceAddress(),
                 null,
                 portRanges);
+    }
+
+    @NonNull
+    private String crossNamespaceBootstrapServiceAddress() {
+        return ResourcesUtil.crossNamespaceServiceAddress(bootstrapServiceName(), cluster);
     }
 
     @Override
     public Optional<Tls> downstreamTls() {
         return Optional.empty();
+    }
+
+    private String bootstrapServers() {
+        return new HostPort(crossNamespaceBootstrapServiceAddress(), firstIdentifyingPort()).toString();
     }
 
     public static int numIdentifyingPortsRequired(List<NodeIdRanges> nodeIdRanges) {

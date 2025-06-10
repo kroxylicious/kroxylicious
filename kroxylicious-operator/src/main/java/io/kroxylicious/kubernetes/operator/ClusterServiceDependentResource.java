@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.IntOrString;
@@ -24,6 +25,7 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
+import io.kroxylicious.kubernetes.operator.model.networking.SharedLoadBalancerServiceRequirements;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
@@ -72,28 +74,47 @@ public class ClusterServiceDependentResource
                 .flatMap(ProxyNetworkingModel.ClusterNetworkingModel::requiredSniLoadbalancerPorts)
                 .distinct().sorted().toList();
 
-        var sniServiceStream = sniLoadbalancerServices(primary, sharedSniLoadbalancerPorts);
+        Set<Annotations.ClusterIngressBootstrapServers> bootstraps = getLoadBalancerServiceBootstrapServers(clusterNetworkingModels);
+
+        var sniServiceStream = sniLoadbalancerServices(primary, sharedSniLoadbalancerPorts, bootstraps);
 
         return Stream.concat(serviceStream, sniServiceStream).collect(toByNameMap());
     }
 
-    private ObjectMeta serviceMetadata(KafkaProxy primary, String name) {
-        return new ObjectMetaBuilder()
+    /**
+     * Get the bootstrap servers hosted by the shared LoadBalancer Service
+     */
+    private static Set<Annotations.ClusterIngressBootstrapServers> getLoadBalancerServiceBootstrapServers(List<ProxyNetworkingModel.ClusterNetworkingModel> clusterNetworkingModels) {
+        return clusterNetworkingModels.stream()
+                .flatMap(ClusterServiceDependentResource::getBootstrapServers)
+                .collect(Collectors.toSet());
+    }
+
+    private static Stream<Annotations.ClusterIngressBootstrapServers> getBootstrapServers(ProxyNetworkingModel.ClusterNetworkingModel networking) {
+        return networking.clusterIngressNetworkingModelResults().stream()
+                .map(ProxyNetworkingModel.ClusterIngressNetworkingModelResult::clusterIngressNetworkingModel)
+                .flatMap(networkingModel -> networkingModel.sharedLoadBalancerServiceRequirements().stream())
+                .map(SharedLoadBalancerServiceRequirements::bootstrapServersToAnnotate);
+    }
+
+    private ObjectMeta sniLoadbalancerServiceMetadata(KafkaProxy primary, String name, Set<Annotations.ClusterIngressBootstrapServers> bootstraps) {
+        ObjectMetaBuilder builder = new ObjectMetaBuilder()
                 .withName(name)
                 .withNamespace(namespace(primary))
                 .addToLabels(standardLabels(primary))
-                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
-                .build();
+                .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference();
+        Annotations.annotateWithBootstrapServers(builder, bootstraps);
+        return builder.build();
     }
 
-    private Stream<Service> sniLoadbalancerServices(KafkaProxy primary, List<Integer> loadBalancerPorts) {
+    private Stream<Service> sniLoadbalancerServices(KafkaProxy primary, List<Integer> loadBalancerPorts, Set<Annotations.ClusterIngressBootstrapServers> bootstraps) {
         if (loadBalancerPorts.isEmpty()) {
             return Stream.empty();
         }
         else {
             String serviceName = ResourcesUtil.name(primary) + "-sni";
             var serviceSpecBuilder = new ServiceBuilder()
-                    .withMetadata(serviceMetadata(primary, serviceName))
+                    .withMetadata(sniLoadbalancerServiceMetadata(primary, serviceName, bootstraps))
                     .withNewSpec()
                     .withType("LoadBalancer")
                     .withSelector(ProxyDeploymentDependentResource.podLabels(primary));

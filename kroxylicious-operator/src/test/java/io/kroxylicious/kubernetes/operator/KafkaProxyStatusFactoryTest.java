@@ -51,7 +51,7 @@ class KafkaProxyStatusFactoryTest {
         KafkaProxy patchedProxy = kafkaProxyStatusFactory.newTrueConditionStatusPatch(KAFKA_PROXY, Condition.Type.ResolvedRefs, CHECKSUM);
 
         // Then
-        assertThat(patchedProxy).doesNotHaveAnnotation(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION);
+        assertThat(patchedProxy).doesNotHaveAnnotation(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
     }
 
     @Test
@@ -63,7 +63,7 @@ class KafkaProxyStatusFactoryTest {
                 MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED);
 
         // Then
-        assertThat(patchedProxy).doesNotHaveAnnotation(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION);
+        assertThat(patchedProxy).doesNotHaveAnnotation(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
     }
 
     @Test
@@ -74,7 +74,7 @@ class KafkaProxyStatusFactoryTest {
         KafkaProxy patchedProxy = kafkaProxyStatusFactory.newFalseConditionStatusPatch(KAFKA_PROXY, Condition.Type.ResolvedRefs, "reason", "message");
 
         // Then
-        assertThat(patchedProxy).doesNotHaveAnnotation(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION);
+        assertThat(patchedProxy).doesNotHaveAnnotation(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
     }
 
     @Test
@@ -86,7 +86,7 @@ class KafkaProxyStatusFactoryTest {
                 new RuntimeException("whoopsie it broke"));
 
         // Then
-        assertThat(patchedProxy).doesNotHaveAnnotation(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION);
+        assertThat(patchedProxy).doesNotHaveAnnotation(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
     }
 
 }

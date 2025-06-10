@@ -42,7 +42,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
-import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -413,7 +412,7 @@ class KafkaServiceReconcilerTest {
         assertThat(updateControl).isNotNull();
         assertThat(updateControl.isPatchResourceAndStatus()).isTrue();
         assertThat(updateControl.getResource()).isPresent().get().satisfies(kafkaService -> {
-            assertThat(kafkaService.getMetadata().getAnnotations()).containsKey(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION);
+            assertThat(kafkaService.getMetadata().getAnnotations()).containsKey(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
         });
     }
 
@@ -430,7 +429,7 @@ class KafkaServiceReconcilerTest {
         assertThat(updateControl).isNotNull();
         assertThat(updateControl.isPatchResourceAndStatus()).isTrue();
         assertThat(updateControl.getResource()).isPresent().get().satisfies(kafkaService -> {
-            assertThat(kafkaService.getMetadata().getAnnotations()).containsKey(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION);
+            assertThat(kafkaService.getMetadata().getAnnotations()).containsKey(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
         });
     }
 
@@ -445,7 +444,7 @@ class KafkaServiceReconcilerTest {
         assertThat(updateControl).isNotNull();
         assertThat(updateControl.isPatchResourceAndStatus()).isTrue();
         assertThat(updateControl.getResource()).isPresent().get().satisfies(kafkaService -> {
-            assertThat(kafkaService.getMetadata().getAnnotations()).doesNotContainKey(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION);
+            assertThat(kafkaService.getMetadata().getAnnotations()).doesNotContainKey(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
         });
     }
 

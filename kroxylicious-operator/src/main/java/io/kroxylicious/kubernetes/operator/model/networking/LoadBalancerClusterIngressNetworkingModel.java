@@ -17,16 +17,19 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
+import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.proxy.config.NodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.service.HostPort;
+
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 
 public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster cluster,
                                                         KafkaProxyIngress ingress,
                                                         LoadBalancer loadBalancer,
                                                         Tls tls,
                                                         int sharedSniPort)
-        implements ClusterIngressNetworkingModel {
+        implements ClusterIngressNetworkingModel, SharedLoadBalancerServiceRequirements {
 
     public LoadBalancerClusterIngressNetworkingModel {
         Objects.requireNonNull(cluster);
@@ -35,7 +38,7 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
         Objects.requireNonNull(tls);
     }
 
-    public static final int DEFAULT_LOADBALANCER_PORT = 9083;
+    public static final int DEFAULT_CLIENT_FACING_LOADBALANCER_PORT = 9083;
 
     @Override
     public Stream<ServiceBuilder> services() {
@@ -49,8 +52,9 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
 
     @Override
     public NodeIdentificationStrategy nodeIdentificationStrategy() {
-        return new SniHostIdentifiesNodeIdentificationStrategy(new HostPort(loadBalancer.getBootstrapAddress(), sharedSniPort).toString(),
-                new HostPort(loadBalancer.getAdvertisedBrokerAddressPattern(), DEFAULT_LOADBALANCER_PORT).toString());
+        String bootstrapAddress = HostPort.asString(loadBalancer.getBootstrapAddress(), sharedSniPort);
+        String advertisedBrokerAddressPattern = HostPort.asString(loadBalancer.getAdvertisedBrokerAddressPattern(), DEFAULT_CLIENT_FACING_LOADBALANCER_PORT);
+        return new SniHostIdentifiesNodeIdentificationStrategy(bootstrapAddress, advertisedBrokerAddressPattern);
     }
 
     @Override
@@ -64,7 +68,21 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
     }
 
     @Override
-    public Stream<Integer> requiredSniLoadBalancerServicePorts() {
-        return Stream.of(DEFAULT_LOADBALANCER_PORT);
+    public Stream<Integer> requiredClientFacingPorts() {
+        return Stream.of(DEFAULT_CLIENT_FACING_LOADBALANCER_PORT);
+    }
+
+    @Override
+    public Annotations.ClusterIngressBootstrapServers bootstrapServersToAnnotate() {
+        return new Annotations.ClusterIngressBootstrapServers(name(cluster), name(ingress), bootstrapServers());
+    }
+
+    public String bootstrapServers() {
+        return HostPort.asString(loadBalancer.getBootstrapAddress(), DEFAULT_CLIENT_FACING_LOADBALANCER_PORT).replace("$(virtualClusterName)", name(cluster));
+    }
+
+    @Override
+    public Optional<SharedLoadBalancerServiceRequirements> sharedLoadBalancerServiceRequirements() {
+        return Optional.of(this);
     }
 }

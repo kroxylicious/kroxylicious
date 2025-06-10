@@ -275,6 +275,28 @@ public class ResourcesUtil {
     }
 
     /**
+     * Finds the (ids of) the resources which reference the given OwnerReference
+     * @param context The context
+     * @param hasNamespace A resource bearing the namespace we wish to search
+     * @param referent The referent OwnerReference
+     * @param owner The type of the owner of the reference
+     * @param refAccessor A function which returns the reference from a given owner.
+     * @return The ids of reference owners which refer to the referent.
+     * @param <O> The type of the reference owner
+     * @param <R> The type of the referent
+     */
+    static <O extends HasMetadata, R extends HasMetadata> Set<ResourceID> findReferrers(EventSourceContext<?> context,
+                                                                                        OwnerReference referent,
+                                                                                        HasMetadata hasNamespace,
+                                                                                        Class<O> owner,
+                                                                                        Function<O, Optional<LocalRef<R>>> refAccessor) {
+        return ResourcesUtil.filteredResourceIdsInSameNamespace(context,
+                hasNamespace,
+                owner,
+                primary -> refAccessor.apply(primary).map(lr -> referent.getName().equals(lr.getName()) && referent.getKind().equals(lr.getKind())).orElse(false));
+    }
+
+    /**
      * Like {@link #findReferrers(EventSourceContext, HasMetadata, Class, Function)}
      * except for the case where the owner is able to reference multiple referents (i.e. {@code refAccessor} returns a Collection.
      * @param context The context

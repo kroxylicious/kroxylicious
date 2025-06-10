@@ -28,7 +28,6 @@ import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
-import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -288,7 +287,7 @@ class KafkaServiceReconcilerIT {
 
     private static String getReferentChecksum(KafkaService kafkaService) {
         return kafkaService.getMetadata().getAnnotations()
-                .getOrDefault(MetadataChecksumGenerator.REFERENT_CHECKSUM_ANNOTATION, NO_CHECKSUM_SPECIFIED);
+                .getOrDefault(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY, NO_CHECKSUM_SPECIFIED);
     }
 
     private void assertResolvedRefsFalse(KafkaService cr,

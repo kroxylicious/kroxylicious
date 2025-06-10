@@ -6,8 +6,8 @@
 
 package io.kroxylicious.kubernetes.operator.checksum;
 
-import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -16,30 +16,25 @@ import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 
+import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public interface MetadataChecksumGenerator {
     Logger LOGGER = LoggerFactory.getLogger(MetadataChecksumGenerator.class);
-    String REFERENT_CHECKSUM_ANNOTATION = "kroxylicious.io/referent-checksum";
     String CHECKSUM_CONTEXT_KEY = "kroxylicious.io/referent-checksum-generator";
     String NO_CHECKSUM_SPECIFIED = "";
-
-    default void appendMetadata(ObjectMeta objectMeta) {
-        appendString(Objects.requireNonNull(objectMeta.getUid(), KubernetesResourceUtil.getName(objectMeta) + " is missing a UID"));
-        appendVersionSpecifier(objectMeta);
-        Map<String, String> annotations = objectMeta.getAnnotations();
-        if (annotations != null && annotations.containsKey(REFERENT_CHECKSUM_ANNOTATION)) {
-            appendString(annotations.get(REFERENT_CHECKSUM_ANNOTATION));
-        }
-    }
 
     default void appendMetadata(HasMetadata entity) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("appendMetadata for: {}", ResourcesUtil.namespacedSlug(entity));
         }
-        appendMetadata(entity.getMetadata());
+        ObjectMeta objectMeta = entity.getMetadata();
+        appendString(Objects.requireNonNull(objectMeta.getUid(), KubernetesResourceUtil.getName(objectMeta) + " is missing a UID"));
+        appendVersionSpecifier(objectMeta);
+        Optional<String> referentChecksum = Annotations.readReferentChecksumFrom(entity);
+        referentChecksum.ifPresent(this::appendString);
     }
 
     void appendString(@Nullable String value);
