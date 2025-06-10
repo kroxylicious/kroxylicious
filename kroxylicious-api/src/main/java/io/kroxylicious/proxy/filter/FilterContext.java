@@ -12,6 +12,7 @@ import javax.annotation.Nullable;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -49,10 +50,10 @@ public interface FilterContext {
      * such as "CN=clientName, O=organizationName, C=US". This information can be used
      * by filters for client authentication, authorization decisions, or audit logging.
      *
-     * @return the client certificate principal as a string
+     * @return the client certificate principal as a KafkaPrincipal
      */
     @Nullable
-    default String downstreamCertificatePrincipal() {
+    default KafkaPrincipal downstreamCertificatePrincipal() {
         return null;
     }
 

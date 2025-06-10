@@ -328,7 +328,7 @@ class KafkaProxyFrontendHandlerTest {
                 // We don't need to test SSL here, so just return a mock
                 SSLEngine sslEngine = mock(SSLEngine.class);
                 when(sslEngine.getSession()).thenReturn(sslSession);
-                when(mockPrincipal.toString()).thenReturn(CLIENT_PRINCIPAL);
+                when(mockPrincipal.getName()).thenReturn(CLIENT_PRINCIPAL);
                 return new SslHandler(sslEngine) {
                     @Override
                     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) {
@@ -434,10 +434,10 @@ class KafkaProxyFrontendHandlerTest {
 
         if (sslConfigured) {
             if (clientAuthConfigured) {
-                assertEquals(CLIENT_PRINCIPAL, handler.getDownstreamCertificatePrincipal());
+                assertEquals(CLIENT_PRINCIPAL, handler.getDownstreamCertificatePrincipal().getName());
             }
             else {
-                assertEquals("ANONYMOUS", handler.getDownstreamCertificatePrincipal());
+                assertEquals("ANONYMOUS", handler.getDownstreamCertificatePrincipal().getName());
             }
         }
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);

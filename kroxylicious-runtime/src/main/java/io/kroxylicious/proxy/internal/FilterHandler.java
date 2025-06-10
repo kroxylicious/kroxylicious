@@ -15,6 +15,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +60,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
     private final long timeoutMs;
     private final String sniHostname;
-    private final String downstreamCertificatePrincipal;
+    private final KafkaPrincipal downstreamCertificatePrincipal;
     private final VirtualClusterModel virtualClusterModel;
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
@@ -68,7 +69,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private ChannelHandlerContext ctx;
     private PromiseFactory promiseFactory;
 
-    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, String downstreamCertificatePrincipal,
+    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, KafkaPrincipal downstreamCertificatePrincipal,
                          VirtualClusterModel virtualClusterModel, Channel inboundChannel) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
@@ -480,7 +481,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Nullable
         @Override
-        public String downstreamCertificatePrincipal() {
+        public KafkaPrincipal downstreamCertificatePrincipal() {
             return downstreamCertificatePrincipal;
         }
 

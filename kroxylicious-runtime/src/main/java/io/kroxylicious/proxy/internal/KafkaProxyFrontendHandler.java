@@ -19,6 +19,7 @@ import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ApiVersionsResponseDataJsonConverter;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +72,6 @@ public class KafkaProxyFrontendHandler
 
     private static final String NET_FILTER_INVOKED_IN_WRONG_STATE = "NetFilterContext invoked in wrong session state";
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyFrontendHandler.class);
-    private static final String ANONYMOUS = "ANONYMOUS";
 
     /** Cache ApiVersions response which we use when returning ApiVersions ourselves */
     private static final ApiVersionsResponseData API_VERSIONS_RESPONSE;
@@ -91,10 +91,9 @@ public class KafkaProxyFrontendHandler
     private boolean pendingClientFlushes;
     private @Nullable AuthenticationEvent authentication;
     private @Nullable String sniHostname;
-    private @Nullable String downstreamCertificatePrincipal;
+    private KafkaPrincipal downstreamCertificatePrincipal;
 
-    @Nullable
-    public String getDownstreamCertificatePrincipal() {
+    public KafkaPrincipal getDownstreamCertificatePrincipal() {
         return downstreamCertificatePrincipal;
     }
 
@@ -145,6 +144,7 @@ public class KafkaProxyFrontendHandler
         this.proxyChannelStateMachine = proxyChannelStateMachine;
         this.logNetwork = virtualClusterModel.isLogNetwork();
         this.logFrames = virtualClusterModel.isLogFrames();
+        this.downstreamCertificatePrincipal = KafkaPrincipal.ANONYMOUS;
     }
 
     @Override
@@ -194,11 +194,10 @@ public class KafkaProxyFrontendHandler
             if (sslHandshakeCompletionEvent.isSuccess()) {
                 SslHandler sslHandler = getSslHandler(ctx);
                 try {
-                    downstreamCertificatePrincipal = sslHandler.engine().getSession().getPeerPrincipal().toString();
+                    downstreamCertificatePrincipal = new KafkaPrincipal(KafkaPrincipal.USER_TYPE, sslHandler.engine().getSession().getPeerPrincipal().getName());
                 }
                 catch (SSLPeerUnverifiedException e) {
-                    LOGGER.debug("No client principal received, setting principal as ANONYMOUS");
-                    downstreamCertificatePrincipal = ANONYMOUS;
+                    LOGGER.debug("No client principal received, client principal will default to ANONYMOUS");
                 }
             }
         }
