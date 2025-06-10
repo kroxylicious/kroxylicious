@@ -12,6 +12,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import static io.kroxylicious.test.tester.SimpleMetricAssert.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class SimpleMetricAssertTest {
 
@@ -75,6 +76,110 @@ class SimpleMetricAssertTest {
                 .singleElement()
                 .name()
                 .isEqualTo("bar");
+    }
+
+    @Test
+    void uniqueMetricCanExtractByMatchingMetricNameAndTag() {
+        var metric1 = new SimpleMetric("foo", Map.of("animal", "capybara"), 1);
+        var metric2 = new SimpleMetric("foo", Map.of("animal", "squirrel"), 2);
+
+        assertThat(List.of(metric1, metric2))
+                .withUniqueMetric("foo", Map.of("animal", "capybara"))
+                .isEqualTo(metric1);
+    }
+
+    @Test
+    void uniqueMetricIgnoresOtherTags() {
+        var metric = new SimpleMetric("foo", Map.of("animal", "capybara", "domain", "america"), 1);
+
+        assertThat(List.of(metric))
+                .withUniqueMetric("foo", Map.of("animal", "capybara"))
+                .isEqualTo(metric);
+    }
+
+    @Test
+    void uniqueMetricSupportsEmptyDesiredTags() {
+        var metric = new SimpleMetric("foo", Map.of("animal", "capybara", "domain", "america"), 1);
+
+        assertThat(List.of(metric))
+                .withUniqueMetric("foo", Map.of())
+                .isEqualTo(metric);
+    }
+
+    @Test
+    void uniqueMetricShouldFailOnMismatchedMetricName() {
+        var metrics = List.of(new SimpleMetric("foo", Map.of(), 1));
+
+        var desiredTags = Map.of("a", "b");
+        var listAssert = assertThat(metrics);
+        assertThatThrownBy(() -> listAssert.withUniqueMetric("bar", desiredTags))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("expected metric not present");
+    }
+
+    @Test
+    void uniqueMetricShouldFailOnMismatchedMetricTagName() {
+        var metrics = List.of(new SimpleMetric("foo", Map.of("a", "b"), 1));
+
+        var desiredTags = Map.of("A", "B");
+        var listAssert = assertThat(metrics);
+        assertThatThrownBy(() -> listAssert.withUniqueMetric("foo", desiredTags))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("one or more metrics match by name, but none have all of the expected tag names [A]");
+    }
+
+    @Test
+    void uniqueMetricShouldFailOnMismatchedMetricTagNameValue() {
+        var metrics = List.of(new SimpleMetric("foo", Map.of("a", "b"), 1));
+
+        var desiredTags = Map.of("a", "B");
+        var listAssert = assertThat(metrics);
+        assertThatThrownBy(() -> listAssert.withUniqueMetric("foo", desiredTags))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("one or more metrics match by name, but none have all of the expected tag name/value pairs [a=B]");
+    }
+
+    @Test
+    void hasNoMetricMatchingShouldNotFailIfNameAndTagMatches() {
+        var metric1 = new SimpleMetric("foo", Map.of("animal", "capybara"), 1);
+        var metric2 = new SimpleMetric("foo", Map.of("animal", "squirrel"), 2);
+
+        assertThat(List.of(metric1, metric2))
+                .hasNoMetricMatching("foo", Map.of("animal", "aardvark"))
+                .hasSize(2);
+    }
+
+    @Test
+    void hasNoMetricMatchingShouldFailOnUnmatchedMetricName() {
+        var metrics = List.of(new SimpleMetric("foo", Map.of(), 1));
+
+        var emptyTag = Map.<String, String> of();
+        var listAssert = assertThat(metrics);
+        assertThatThrownBy(() -> listAssert.hasNoMetricMatching("foo", emptyTag))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("found unexpected metric");
+    }
+
+    @Test
+    void hasNoMetricMatchingShouldFailOnUnmatchedMetricTag() {
+        var metrics = List.of(new SimpleMetric("foo", Map.of("a", "b"), 1));
+
+        var desiredTags = Map.of("a", "b");
+        var listAssert = assertThat(metrics);
+        assertThatThrownBy(() -> listAssert.hasNoMetricMatching("foo", desiredTags))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("found unexpected metric");
+    }
+
+    @Test
+    void hasNoMetricMatchingShouldIgnoreAdditionalTags() {
+        var metrics = List.of(new SimpleMetric("foo", Map.of("a", "b", "e", "f"), 1));
+
+        var desiredTags = Map.of("a", "b");
+        var listAssert = assertThat(metrics);
+        assertThatThrownBy(() -> listAssert.hasNoMetricMatching("foo", desiredTags))
+                .isInstanceOf(AssertionError.class)
+                .hasMessageContaining("found unexpected metric");
     }
 
 }

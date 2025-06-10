@@ -56,7 +56,6 @@ import io.kroxylicious.proxy.micrometer.StandardBindersHook;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.test.tester.SimpleMetric;
-import io.kroxylicious.test.tester.SimpleMetricAssert;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.api.TerminationStyle;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
@@ -207,64 +206,57 @@ class MetricsIT {
                 argumentSet("counts opaque requests from client",
                         (UnaryOperator<ConfigurationBuilder>) builder -> builder,
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_client_to_proxy_request_total")
-                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .filterByTag(DECODED_LABEL, "false")
-                                .isEmpty(),
+                                .hasNoMetricMatching("kroxylicious_client_to_proxy_request_total", Map.of(
+                                        API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "false")),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_client_to_proxy_request_total")
-                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .filterByTag(DECODED_LABEL, "false")
-                                .singleElement()
+                                .withUniqueMetric("kroxylicious_client_to_proxy_request_total", Map.of(
+                                        API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "false"))
                                 .value()
                                 .isEqualTo(1.0)),
                 argumentSet("counts decoded requests from client",
                         (UnaryOperator<ConfigurationBuilder>) builder -> addFilterToConfig(builder, decodeAll),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_client_to_proxy_request_total")
-                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .isEmpty(),
+                                .hasNoMetricMatching("kroxylicious_client_to_proxy_request_total", Map.of(
+                                        API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "false")),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_client_to_proxy_request_total")
-                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .filterByTag(DECODED_LABEL, "true")
-                                .singleElement()
+                                .withUniqueMetric("kroxylicious_client_to_proxy_request_total", Map.of(
+                                        API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "true"))
                                 .value()
                                 .isEqualTo(1.0)),
                 argumentSet("counts opaque requests to server",
                         (UnaryOperator<ConfigurationBuilder>) builder -> builder,
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_proxy_to_server_request_total")
-                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .filterByTag(DECODED_LABEL, "false")
-                                .isEmpty(),
+                                .hasNoMetricMatching("kroxylicious_proxy_to_server_request_total", Map.of(
+                                        API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "false")),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_proxy_to_server_request_total")
-                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .filterByTag(DECODED_LABEL, "false")
-                                .singleElement()
+                                .withUniqueMetric("kroxylicious_proxy_to_server_request_total", Map.of(
+                                        API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "false"))
                                 .value()
                                 .isEqualTo(1.0)),
                 argumentSet("counts decoded requests to server",
                         (UnaryOperator<ConfigurationBuilder>) builder -> addFilterToConfig(builder, decodeAll),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_proxy_to_server_request_total")
-                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .filterByTag(DECODED_LABEL, "true")
-                                .isEmpty(),
+                                .hasNoMetricMatching("kroxylicious_proxy_to_server_request_total", Map.of(
+                                        API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "true")),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_proxy_to_server_request_total")
-                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .filterByTag(DECODED_LABEL, "true")
-                                .singleElement()
+                                .withUniqueMetric("kroxylicious_proxy_to_server_request_total", Map.of(
+                                        API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "true"))
                                 .value()
                                 .isEqualTo(1.0)),
                 argumentSet("counts bootstrap requests",
@@ -273,50 +265,44 @@ class MetricsIT {
                         },
                         (Consumer<List<SimpleMetric>>) metricList -> {
                             assertThat(metricList)
-                                    .filterByName("kroxylicious_client_to_proxy_request_total")
-                                    .filterByTag(API_KEY_LABEL, ApiKeys.METADATA.name())
-                                    .filterByTag(NODE_ID_LABEL, "bootstrap")
-                                    .singleElement()
+                                    .withUniqueMetric("kroxylicious_client_to_proxy_request_total", Map.of(
+                                            API_KEY_LABEL, ApiKeys.METADATA.name(),
+                                            NODE_ID_LABEL, "bootstrap"))
                                     .value()
                                     .isGreaterThanOrEqualTo(1.0);
                             assertThat(metricList)
-                                    .filterByName("kroxylicious_proxy_to_server_request_total")
-                                    .filterByTag(API_KEY_LABEL, ApiKeys.METADATA.name())
-                                    .filterByTag(NODE_ID_LABEL, "bootstrap")
-                                    .singleElement()
+                                    .withUniqueMetric("kroxylicious_proxy_to_server_request_total", Map.of(
+                                            API_KEY_LABEL, ApiKeys.METADATA.name(),
+                                            NODE_ID_LABEL, "bootstrap"))
                                     .value()
                                     .isGreaterThanOrEqualTo(1.0);
                         }),
                 argumentSet("counts opaque responses from server",
                         (UnaryOperator<ConfigurationBuilder>) builder -> builder,
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_server_to_proxy_response_total")
-                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .filterByTag(DECODED_LABEL, "false")
-                                .isEmpty(),
+                                .hasNoMetricMatching("kroxylicious_server_to_proxy_response_total", Map.of(
+                                        API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "false")),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_server_to_proxy_response_total")
-                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .filterByTag(DECODED_LABEL, "false")
-                                .singleElement()
+                                .withUniqueMetric("kroxylicious_server_to_proxy_response_total", Map.of(
+                                        API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "false"))
                                 .value()
                                 .isEqualTo(1.0)),
                 argumentSet("counts decoded responses to client",
                         (UnaryOperator<ConfigurationBuilder>) builder -> addFilterToConfig(builder, decodeAll),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_proxy_to_client_response_total")
-                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .filterByTag(DECODED_LABEL, "true")
-                                .isEmpty(),
+                                .hasNoMetricMatching("kroxylicious_proxy_to_client_response_total", Map.of(
+                                        API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "true")),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_proxy_to_client_response_total")
-                                .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .filterByTag(DECODED_LABEL, "true")
-                                .singleElement()
+                                .withUniqueMetric("kroxylicious_proxy_to_client_response_total", Map.of(
+                                        API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name(),
+                                        NODE_ID_LABEL, "0",
+                                        DECODED_LABEL, "true"))
                                 .value()
                                 .isEqualTo(1.0)),
                 argumentSet("short circuited request does not tick upstream",
@@ -325,15 +311,13 @@ class MetricsIT {
                         },
                         (Consumer<List<SimpleMetric>>) metricList -> {
                             assertThat(metricList)
-                                    .filterByName("kroxylicious_client_to_proxy_request_total")
-                                    .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
-                                    .singleElement()
+                                    .withUniqueMetric("kroxylicious_client_to_proxy_request_total", Map.of(
+                                            API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name()))
                                     .value()
                                     .isEqualTo(1.0);
                             assertThat(metricList)
-                                    .filterByName("kroxylicious_proxy_to_client_response_total")
-                                    .filterByTag(API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name())
-                                    .singleElement()
+                                    .withUniqueMetric("kroxylicious_proxy_to_client_response_total", Map.of(
+                                            API_KEY_LABEL, ApiKeys.CREATE_TOPICS.name()))
                                     .value()
                                     .isEqualTo(1.0);
                             assertThat(metricList)
@@ -378,46 +362,38 @@ class MetricsIT {
         return Stream.of(
                 argumentSet("counts connection from client to proxy for bootstrap",
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_client_to_proxy_connections_total")
-                                .filterByTag(NODE_ID_LABEL, "bootstrap")
-                                .isEmpty(),
+                                .hasNoMetricMatching("kroxylicious_client_to_proxy_connections_total", Map.of(
+                                        NODE_ID_LABEL, "bootstrap")),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_client_to_proxy_connections_total")
-                                .filterByTag(NODE_ID_LABEL, "bootstrap")
-                                .singleElement()
+                                .withUniqueMetric("kroxylicious_client_to_proxy_connections_total", Map.of(
+                                        NODE_ID_LABEL, "bootstrap"))
                                 .value()
                                 .isGreaterThanOrEqualTo(1.0)),
                 argumentSet("counts connections to node, client to proxy",
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_client_to_proxy_connections_total")
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .isEmpty(),
+                                .hasNoMetricMatching("kroxylicious_client_to_proxy_connections_total", Map.of(
+                                        NODE_ID_LABEL, "0")),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_client_to_proxy_connections_total")
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .singleElement()
+                                .withUniqueMetric("kroxylicious_client_to_proxy_connections_total", Map.of(
+                                        NODE_ID_LABEL, "0"))
                                 .value()
                                 .isGreaterThanOrEqualTo(1.0)),
                 argumentSet("count bootstrap connection from proxy to server ",
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_proxy_to_server_connections_total")
-                                .filterByTag(NODE_ID_LABEL, "bootstrap")
-                                .isEmpty(),
+                                .hasNoMetricMatching("kroxylicious_proxy_to_server_connections_total", Map.of(
+                                        NODE_ID_LABEL, "bootstrap")),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_proxy_to_server_connections_total")
-                                .filterByTag(NODE_ID_LABEL, "bootstrap")
-                                .singleElement()
+                                .withUniqueMetric("kroxylicious_proxy_to_server_connections_total", Map.of(
+                                        NODE_ID_LABEL, "bootstrap"))
                                 .value()
                                 .isGreaterThanOrEqualTo(1.0)),
                 argumentSet("count node connection from proxy to server ",
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_proxy_to_server_connections_total")
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .isEmpty(),
+                                .hasNoMetricMatching("kroxylicious_proxy_to_server_connections_total", Map.of(
+                                        NODE_ID_LABEL, "0")),
                         (Consumer<List<SimpleMetric>>) metricList -> assertThat(metricList)
-                                .filterByName("kroxylicious_proxy_to_server_connections_total")
-                                .filterByTag(NODE_ID_LABEL, "0")
-                                .singleElement()
+                                .withUniqueMetric("kroxylicious_proxy_to_server_connections_total", Map.of(
+                                        NODE_ID_LABEL, "0"))
                                 .value()
                                 .isGreaterThanOrEqualTo(1.0)));
     }
@@ -587,18 +563,16 @@ class MetricsIT {
             var metricList = managementClient.scrapeMetrics();
 
             assertThat(metricList)
-                    .filterByName("kroxylicious_client_to_proxy_request_total")
-                    .filterByTag(API_KEY_LABEL, ApiKeys.PRODUCE.name())
-                    .filterByTag(NODE_ID_LABEL, "" + partitionZeroNodeId)
-                    .singleElement()
+                    .withUniqueMetric("kroxylicious_client_to_proxy_request_total", Map.of(
+                            API_KEY_LABEL, ApiKeys.PRODUCE.name(),
+                            NODE_ID_LABEL, "" + partitionZeroNodeId))
                     .value()
                     .isEqualTo(2.0);
 
             assertThat(metricList)
-                    .filterByName("kroxylicious_client_to_proxy_request_total")
-                    .filterByTag(API_KEY_LABEL, ApiKeys.PRODUCE.name())
-                    .filterByTag(NODE_ID_LABEL, "" + partitionOneNodeId)
-                    .singleElement()
+                    .withUniqueMetric("kroxylicious_client_to_proxy_request_total", Map.of(
+                            API_KEY_LABEL, ApiKeys.PRODUCE.name(),
+                            NODE_ID_LABEL, "" + partitionOneNodeId))
                     .value()
                     .isEqualTo(1.0);
         }
@@ -624,17 +598,15 @@ class MetricsIT {
 
             // then
             var metricList = managementClient.scrapeMetrics();
-            SimpleMetricAssert.assertThat(metricList)
-                    .filterByName("kroxylicious_proxy_to_server_connections_total")
-                    .filterByTag(NODE_ID_LABEL, "bootstrap")
-                    .singleElement()
+            assertThat(metricList)
+                    .withUniqueMetric("kroxylicious_proxy_to_server_connections_total", Map.of(
+                            NODE_ID_LABEL, "bootstrap"))
                     .value()
                     .isGreaterThan(1.0);
 
-            SimpleMetricAssert.assertThat(metricList)
-                    .filterByName("kroxylicious_proxy_to_server_errors_total")
-                    .filterByTag(NODE_ID_LABEL, "bootstrap")
-                    .singleElement()
+            assertThat(metricList)
+                    .withUniqueMetric("kroxylicious_proxy_to_server_errors_total", Map.of(
+                            NODE_ID_LABEL, "bootstrap"))
                     .value()
                     .isGreaterThan(1.0);
         }
