@@ -31,7 +31,7 @@ public interface FilterFactoryContext {
      * @param instanceName The plugin instance name
      * @return The plugin instance
      * @param <P> The plugin manager type
-     * @throws UnknownPluginInstanceException
+     * @throws UnknownPluginInstanceException can be thrown when the requested plugin could not be loaded
      */
     <P> @NonNull P pluginInstance(@NonNull Class<P> pluginClass, @NonNull String instanceName);
 
