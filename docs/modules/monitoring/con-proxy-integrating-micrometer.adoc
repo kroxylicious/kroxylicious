@@ -1,6 +1,6 @@
 // file included in the following:
 //
-// assembly-monitoring-proxy.adoc
+// assembly-proxy-monitoring.adoc
 
 [id='con-proxy-integrating-micrometer-{context}']
 = Integrating Micrometer
