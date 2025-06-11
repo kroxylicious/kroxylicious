@@ -59,10 +59,12 @@
 :josdk-metrics: https://github.com/operator-framework/java-operator-sdk/blob/v5.0.4/docs/content/en/docs/features/_index.md#operator-sdk-metrics
 
 // Conditional inclusion flags
+// (note: we control optional inclusion with ifdefs/ifndefs directives, so the value of the attribute is irrelevant)
 :include-fortanix-dsm-kms: 1
 :include-aws-kms-service-config-identity-ec2-metadata: 1
 :include-platform-bare-metal: 1
-:include-olm: 0
+// We're not ready to enable OLM yet
+//:include-olm: 1
 
 //API stability markers.
 :unstable-api-version: denoted by a major version 0
