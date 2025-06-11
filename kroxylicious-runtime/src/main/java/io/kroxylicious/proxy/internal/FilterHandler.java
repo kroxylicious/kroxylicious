@@ -60,7 +60,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
     private final long timeoutMs;
     private final String sniHostname;
-    private final KafkaPrincipal downstreamCertificatePrincipal;
+    private final KafkaPrincipal clientPrincipal;
     private final VirtualClusterModel virtualClusterModel;
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
@@ -69,12 +69,12 @@ public class FilterHandler extends ChannelDuplexHandler {
     private ChannelHandlerContext ctx;
     private PromiseFactory promiseFactory;
 
-    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, KafkaPrincipal downstreamCertificatePrincipal,
+    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, KafkaPrincipal clientPrincipal,
                          VirtualClusterModel virtualClusterModel, Channel inboundChannel) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
-        this.downstreamCertificatePrincipal = downstreamCertificatePrincipal;
+        this.clientPrincipal = clientPrincipal;
         this.virtualClusterModel = virtualClusterModel;
         this.inboundChannel = inboundChannel;
     }
@@ -481,8 +481,8 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Nullable
         @Override
-        public KafkaPrincipal downstreamCertificatePrincipal() {
-            return downstreamCertificatePrincipal;
+        public KafkaPrincipal clientPrincipal() {
+            return clientPrincipal;
         }
 
         public String getVirtualClusterName() {

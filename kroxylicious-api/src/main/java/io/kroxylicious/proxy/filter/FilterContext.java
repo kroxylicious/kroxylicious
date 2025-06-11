@@ -44,17 +44,14 @@ public interface FilterContext {
     String sniHostname();
 
     /**
-     * Returns the principal name from the client's TLS certificate.
      * <p>
-     * For X.509 certificates, this is typically the Distinguished Name (DN) in format
-     * such as "CN=clientName, O=organizationName, C=US". This information can be used
+     * The authenticated client principal, This information can be used
      * by filters for client authentication, authorization decisions, or audit logging.
      *
-     * @return the client certificate principal as a KafkaPrincipal
+     * @return the authenticated client principal as a KafkaPrincipal otherwise ANONYMOUS
      */
-    @Nullable
-    default KafkaPrincipal downstreamCertificatePrincipal() {
-        return null;
+    default KafkaPrincipal clientPrincipal() {
+        return KafkaPrincipal.ANONYMOUS;
     }
 
     /**

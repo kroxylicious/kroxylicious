@@ -24,6 +24,7 @@ import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -358,7 +359,8 @@ class KafkaProxyFrontendHandlerTest {
                       boolean haProxyConfigured,
                       boolean saslOffloadConfigured,
                       boolean sendApiVersions,
-                      boolean sendSasl) {
+                      boolean sendSasl)
+            throws SSLPeerUnverifiedException {
 
         var dp = new SaslDecodePredicate(saslOffloadConfigured);
         ArgumentCaptor<NetFilter.NetFilterContext> valueCapture = ArgumentCaptor.forClass(NetFilter.NetFilterContext.class);
@@ -410,20 +412,10 @@ class KafkaProxyFrontendHandlerTest {
         initialiseInboundChannel(handler);
 
         if (clientAuthConfigured) {
-            try {
-                when(sslSession.getPeerPrincipal()).thenReturn(mockPrincipal);
-            }
-            catch (SSLPeerUnverifiedException e) {
-                throw new RuntimeException(e);
-            }
+            when(sslSession.getPeerPrincipal()).thenReturn(mockPrincipal);
         }
         else {
-            try {
-                when(sslSession.getPeerPrincipal()).thenThrow(new SSLPeerUnverifiedException("No peer certificate"));
-            }
-            catch (SSLPeerUnverifiedException e) {
-                throw new RuntimeException(e);
-            }
+            when(sslSession.getPeerPrincipal()).thenThrow(new SSLPeerUnverifiedException("No peer certificate"));
         }
 
         if (sslConfigured) {
@@ -434,10 +426,10 @@ class KafkaProxyFrontendHandlerTest {
 
         if (sslConfigured) {
             if (clientAuthConfigured) {
-                assertEquals(CLIENT_PRINCIPAL, handler.getDownstreamCertificatePrincipal().getName());
+                assertThat(handler.getDownstreamCertificatePrincipal().getName()).isEqualTo(CLIENT_PRINCIPAL);
             }
             else {
-                assertEquals("ANONYMOUS", handler.getDownstreamCertificatePrincipal().getName());
+                assertThat(handler.getDownstreamCertificatePrincipal()).isEqualTo(KafkaPrincipal.ANONYMOUS);
             }
         }
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.ClientActive.class);
