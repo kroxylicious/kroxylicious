@@ -5,19 +5,16 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.Filter;
-import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.ApiMessageBasedRequestFrame;
 
-public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFrame<B> {
-
-    private final CompletableFuture<?> promise;
-    private final Filter recipient;
+public class InternalRequestFrame<B extends ApiMessage> extends InternalFrame<RequestHeaderData, B> implements ApiMessageBasedRequestFrame<B> {
+    private final boolean decodeResponse;
 
     public InternalRequestFrame(short apiVersion,
                                 int correlationId,
@@ -26,16 +23,12 @@ public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFr
                                 CompletableFuture<?> promise,
                                 RequestHeaderData header,
                                 B body) {
-        super(apiVersion, correlationId, decodeResponse, header, body);
-        this.promise = promise;
-        this.recipient = Objects.requireNonNull(recipient);
+        super(apiVersion, correlationId, header, body, promise, recipient);
+        this.decodeResponse = decodeResponse;
     }
 
-    public Filter recipient() {
-        return recipient;
-    }
-
-    public CompletableFuture<?> promise() {
-        return promise;
+    @Override
+    public boolean decodeResponse() {
+        return decodeResponse;
     }
 }

@@ -34,6 +34,9 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
+import io.kroxylicious.proxy.frame.ApiMessageBasedFrame;
+import io.kroxylicious.proxy.frame.ApiMessageBasedRequestFrame;
+import io.kroxylicious.proxy.frame.ApiMessageBasedResponseFrame;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -195,7 +198,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
-    private CompletableFuture<Void> readDecodedResponse(DecodedResponseFrame<?> decodedFrame) {
+    private CompletableFuture<Void> readDecodedResponse(ApiMessageBasedResponseFrame<?> decodedFrame) {
         var filterContext = new InternalFilterContext(decodedFrame);
 
         final var future = dispatchDecodedResponseFrame(decodedFrame, filterContext);
@@ -211,7 +214,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
-    private CompletableFuture<ResponseFilterResult> dispatchDecodedResponseFrame(DecodedResponseFrame<?> decodedFrame, InternalFilterContext filterContext) {
+    private CompletableFuture<ResponseFilterResult> dispatchDecodedResponseFrame(ApiMessageBasedResponseFrame<?> decodedFrame, InternalFilterContext filterContext) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Dispatching upstream {} response to filter '{}': {}",
                     channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
@@ -222,13 +225,14 @@ public class FilterHandler extends ChannelDuplexHandler {
                 : stage.toCompletableFuture();
     }
 
-    private CompletableFuture<ResponseFilterResult> configureResponseFilterChain(DecodedResponseFrame<?> decodedFrame, CompletableFuture<ResponseFilterResult> future) {
+    private CompletableFuture<ResponseFilterResult> configureResponseFilterChain(ApiMessageBasedResponseFrame<?> decodedFrame,
+                                                                                 CompletableFuture<ResponseFilterResult> future) {
         return future.thenApply(FilterHandler::validateFilterResultNonNull)
                 .thenApply(fr -> handleResponseFilterResult(decodedFrame, fr))
                 .exceptionally(t -> handleFilteringException(t, decodedFrame));
     }
 
-    private CompletableFuture<Void> writeDecodedRequest(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise) {
+    private CompletableFuture<Void> writeDecodedRequest(ApiMessageBasedRequestFrame decodedFrame, ChannelPromise promise) {
         var filterContext = new InternalFilterContext(decodedFrame);
         final var future = dispatchDecodedRequest(decodedFrame, filterContext);
         boolean defer = !future.isDone();
@@ -243,7 +247,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
-    private CompletableFuture<RequestFilterResult> dispatchDecodedRequest(DecodedRequestFrame<?> decodedFrame, InternalFilterContext filterContext) {
+    private CompletableFuture<RequestFilterResult> dispatchDecodedRequest(ApiMessageBasedRequestFrame<?> decodedFrame, InternalFilterContext filterContext) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Dispatching downstream {} request to filter '{}': {}",
                     channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
@@ -255,14 +259,14 @@ public class FilterHandler extends ChannelDuplexHandler {
                 : stage.toCompletableFuture();
     }
 
-    private CompletableFuture<RequestFilterResult> configureRequestFilterChain(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise,
+    private CompletableFuture<RequestFilterResult> configureRequestFilterChain(ApiMessageBasedRequestFrame decodedFrame, ChannelPromise promise,
                                                                                CompletableFuture<RequestFilterResult> future) {
         return future.thenApply(FilterHandler::validateFilterResultNonNull)
                 .thenApply(fr -> handleRequestFilterResult(decodedFrame, promise, fr))
                 .exceptionally(t -> handleFilteringException(t, decodedFrame));
     }
 
-    private ResponseFilterResult handleResponseFilterResult(DecodedResponseFrame<?> decodedFrame, ResponseFilterResult responseFilterResult) {
+    private ResponseFilterResult handleResponseFilterResult(ApiMessageBasedResponseFrame<?> decodedFrame, ResponseFilterResult responseFilterResult) {
         if (responseFilterResult.drop()) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Filter '{}' drops {} response",
@@ -282,7 +286,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         return responseFilterResult;
     }
 
-    private RequestFilterResult handleRequestFilterResult(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise, RequestFilterResult requestFilterResult) {
+    private RequestFilterResult handleRequestFilterResult(ApiMessageBasedRequestFrame decodedFrame, ChannelPromise promise, RequestFilterResult requestFilterResult) {
         if (requestFilterResult.drop()) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Filter '{}' drops {} request",
@@ -309,7 +313,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         return requestFilterResult;
     }
 
-    private <F extends FilterResult> F handleFilteringException(Throwable t, DecodedFrame<?, ?> decodedFrame) {
+    private <F extends FilterResult> F handleFilteringException(Throwable t, ApiMessageBasedFrame<?, ?> decodedFrame) {
         if (LOGGER.isWarnEnabled()) {
             var direction = decodedFrame.header() instanceof RequestHeaderData ? "request" : "response";
             LOGGER.atWarn().setMessage("{}: Filter '{}' for {} {} ended exceptionally - closing connection. Cause message {}")
@@ -325,7 +329,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         return null;
     }
 
-    private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(DecodedFrame<?, ?> decodedFrame, CompletableFuture<F> future) {
+    private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(ApiMessageBasedFrame<?, ?> decodedFrame, CompletableFuture<F> future) {
         inboundChannel.config().setAutoRead(false);
         promiseFactory.wrapWithTimeLimit(future,
                 () -> "Deferred work for filter '%s' did not complete processing within %s ms %s %s".formatted(filterDescriptor(), timeoutMs,
@@ -348,7 +352,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         inboundChannel.flush();
     }
 
-    private void forwardRequest(DecodedRequestFrame<?> decodedFrame, RequestFilterResult requestFilterResult, ChannelPromise promise) {
+    private void forwardRequest(ApiMessageBasedRequestFrame decodedFrame, RequestFilterResult requestFilterResult, ChannelPromise promise) {
         var header = requestFilterResult.header() == null ? decodedFrame.header() : requestFilterResult.header();
         ApiMessage message = requestFilterResult.message();
         if (decodedFrame.body() != message) {
@@ -369,7 +373,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         ctx.write(decodedFrame, promise);
     }
 
-    private void forwardResponse(DecodedFrame<?, ?> decodedFrame, ResponseHeaderData header, ApiMessage message) {
+    private void forwardResponse(ApiMessageBasedFrame<?, ?> decodedFrame, ResponseHeaderData header, ApiMessage message) {
         // check it's a response
         String name = message.getClass().getName();
         if (!name.endsWith("ResponseData")) {
@@ -405,7 +409,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
-    private void forwardShortCircuitResponse(DecodedRequestFrame<?> decodedFrame, RequestFilterResult requestFilterResult) {
+    private void forwardShortCircuitResponse(ApiMessageBasedRequestFrame decodedFrame, RequestFilterResult requestFilterResult) {
         if (decodedFrame.hasResponse()) {
             var header = requestFilterResult.header() == null ? new ResponseHeaderData() : ((ResponseHeaderData) requestFilterResult.header());
             header.setCorrelationId(decodedFrame.correlationId());
@@ -451,9 +455,9 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     private class InternalFilterContext implements FilterContext {
 
-        private final DecodedFrame<?, ?> decodedFrame;
+        private final ApiMessageBasedFrame<?, ?> decodedFrame;
 
-        InternalFilterContext(DecodedFrame<?, ?> decodedFrame) {
+        InternalFilterContext(ApiMessageBasedFrame<?, ?> decodedFrame) {
             this.decodedFrame = decodedFrame;
         }
 

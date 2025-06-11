@@ -33,6 +33,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.frame.ApiMessageBasedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
@@ -196,7 +197,7 @@ public abstract class FilterHarness {
      * @param data                 The body of the response.
      * @return The frame that was written.
      */
-    protected <B extends ApiMessage> DecodedResponseFrame<B> writeInternalResponse(int requestCorrelationId, B data) {
+    protected <B extends ApiMessage> InternalResponseFrame<B> writeInternalResponse(int requestCorrelationId, B data) {
         var apiKey = ApiKeys.forId(data.apiKey());
         var header = new ResponseHeaderData();
         header.setCorrelationId(requestCorrelationId);
@@ -260,7 +261,7 @@ public abstract class FilterHarness {
     private class CorrelationIdIssuer extends ChannelOutboundHandlerAdapter {
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            if (msg instanceof DecodedRequestFrame<?> drf) {
+            if (msg instanceof ApiMessageBasedRequestFrame<?> drf) {
                 drf.header().setCorrelationId(outboundCorrelationId.getAndIncrement());
             }
             super.write(ctx, msg, promise);

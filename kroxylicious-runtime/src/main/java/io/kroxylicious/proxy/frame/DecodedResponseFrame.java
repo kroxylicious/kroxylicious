@@ -6,21 +6,15 @@
 package io.kroxylicious.proxy.frame;
 
 import org.apache.kafka.common.message.ResponseHeaderData;
-import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 /**
  * A decoded response frame.
  */
 public class DecodedResponseFrame<B extends ApiMessage>
-        extends DecodedFrame<ResponseHeaderData, B>
-        implements ResponseFrame {
+        extends DecodedFrame<ResponseHeaderData, B> implements ApiMessageBasedResponseFrame<B> {
 
     public DecodedResponseFrame(short apiVersion, int correlationId, ResponseHeaderData header, B body) {
         super(apiVersion, correlationId, header, body);
-    }
-
-    public short headerVersion() {
-        return ApiKeys.forId(apiKeyId()).messageType.responseHeaderVersion(apiVersion);
     }
 }
