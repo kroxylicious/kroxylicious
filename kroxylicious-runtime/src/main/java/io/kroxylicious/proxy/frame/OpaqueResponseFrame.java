@@ -10,7 +10,7 @@ import io.netty.buffer.ByteBuf;
 /**
  * Used to represent Kafka responses that the proxy does not need to decode.
  */
-public class OpaqueResponseFrame extends OpaqueFrame implements ResponseFrame {
+public final class OpaqueResponseFrame extends OpaqueFrame implements ResponseFrame {
     /**
      * Creates an opaque response.
      *

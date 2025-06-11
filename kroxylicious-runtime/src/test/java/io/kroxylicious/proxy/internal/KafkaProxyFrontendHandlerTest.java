@@ -102,7 +102,7 @@ class KafkaProxyFrontendHandlerTest {
                 .setClientId("client-id")
                 .setCorrelationId(downstreamCorrelationId);
 
-        return new DecodedRequestFrame<>(apiVersion, corrId, true, header, body);
+        return new DecodedRequestFrame<>(apiVersion, corrId, true, header, body, -1);
     }
 
     @BeforeEach
@@ -459,7 +459,7 @@ class KafkaProxyFrontendHandlerTest {
         final int correlationId = 1234;
         header.setCorrelationId(correlationId);
         final ApiKeys apiKey = ApiKeys.forId(apiMessage.apiKey());
-        inboundChannel.writeInbound(new DecodedRequestFrame<>(version, correlationId, true, header, apiMessage));
+        inboundChannel.writeInbound(new DecodedRequestFrame<>(version, correlationId, true, header, apiMessage, -1));
 
         // When
         inboundChannel.pipeline().fireExceptionCaught(new DecoderException("boom"));
@@ -488,7 +488,7 @@ class KafkaProxyFrontendHandlerTest {
         final int correlationId = 1234;
         header.setCorrelationId(correlationId);
         final ApiKeys apiKey = ApiKeys.forId(apiMessage.apiKey());
-        inboundChannel.writeInbound(new DecodedRequestFrame<>(version, correlationId, true, header, apiMessage));
+        inboundChannel.writeInbound(new DecodedRequestFrame<>(version, correlationId, true, header, apiMessage, -1));
 
         // When
         inboundChannel.pipeline().fireExceptionCaught(new DecoderException(new FrameOversizedException(5, 6)));

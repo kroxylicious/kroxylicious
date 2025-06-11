@@ -18,7 +18,8 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
  * A frame in the Kafka protocol which has not been decoded.
  * The wrapped buffer <strong>does not</strong> include the frame size prefix.
  */
-public abstract class OpaqueFrame implements Frame {
+public abstract sealed class OpaqueFrame implements Frame, NetworkOriginatedFrame
+        permits OpaqueRequestFrame, OpaqueResponseFrame {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OpaqueFrame.class);
 
@@ -27,11 +28,6 @@ public abstract class OpaqueFrame implements Frame {
 
     /* Api Key version */
     private final short apiVersion;
-
-    /**
-     * Number of bytes required for storing the frame length.
-     */
-    private static final int FRAME_SIZE_LENGTH = Integer.BYTES;
 
     protected final int length;
     protected final int correlationId;
@@ -78,8 +74,14 @@ public abstract class OpaqueFrame implements Frame {
     }
 
     @Override
-    public int estimateEncodedSize() {
+    public int originalEncodedSize() {
         return FRAME_SIZE_LENGTH + length;
+    }
+
+    @Override
+    public int estimateEncodedSize() {
+        // Opaque frames are immutable, so their size can never change.
+        return originalEncodedSize();
     }
 
     @Override

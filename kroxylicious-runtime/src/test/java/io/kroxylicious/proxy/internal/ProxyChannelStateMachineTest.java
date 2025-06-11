@@ -818,7 +818,8 @@ class ProxyChannelStateMachineTest {
                 new RequestHeaderData(),
                 new ApiVersionsRequestData()
                         .setClientSoftwareName("mykafkalib")
-                        .setClientSoftwareVersion("1.0.0"));
+                        .setClientSoftwareVersion("1.0.0"),
+                -1);
     }
 
     @NonNull
@@ -828,7 +829,7 @@ class ProxyChannelStateMachineTest {
                 0,
                 false,
                 new RequestHeaderData(),
-                new MetadataRequestData());
+                new MetadataRequestData(), -1);
     }
 
     @NonNull
@@ -837,6 +838,6 @@ class ProxyChannelStateMachineTest {
                 MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
                 0,
                 new ResponseHeaderData(),
-                new MetadataResponseData());
+                new MetadataResponseData(), -1 /* KW FIXME */);
     }
 }

@@ -93,10 +93,11 @@ public class MessageMetrics extends ChannelDuplexHandler {
             // TODO fix me!
             if (frame instanceof DecodedRequestFrame<?> decodedFrame) {
                 size = new DecodedRequestFrame<>(decodedFrame.apiVersion(), decodedFrame.correlationId(), decodedFrame.decodeResponse(),
-                        decodedFrame.header(), decodedFrame.body()).estimateEncodedSize();
+                        decodedFrame.header(), decodedFrame.body(), -1).estimateEncodedSize();
             }
             else if (frame instanceof DecodedResponseFrame<?> decodedFrame) {
-                size = new DecodedResponseFrame<>(decodedFrame.apiVersion(), decodedFrame.correlationId(), decodedFrame.header(), decodedFrame.body())
+                size = new DecodedResponseFrame<>(decodedFrame.apiVersion(), decodedFrame.correlationId(), decodedFrame.header(), decodedFrame.body(),
+                        -1 /* KW FIX ME */)
                         .estimateEncodedSize();
             }
             else {

@@ -11,17 +11,18 @@ import org.apache.kafka.common.protocol.ApiMessage;
 /**
  * A decoded request frame.
  */
-public class DecodedRequestFrame<B extends ApiMessage>
+public final class DecodedRequestFrame<B extends ApiMessage>
         extends DecodedFrame<RequestHeaderData, B> implements ApiMessageBasedRequestFrame<B> {
 
-    protected final boolean decodeResponse;
+    private final boolean decodeResponse;
 
     public DecodedRequestFrame(short apiVersion,
                                int correlationId,
                                boolean decodeResponse,
                                RequestHeaderData header,
-                               B body) {
-        super(apiVersion, correlationId, header, body);
+                               B body,
+                               int originalEncodedSize) {
+        super(apiVersion, correlationId, header, body, originalEncodedSize);
         this.decodeResponse = decodeResponse;
     }
 

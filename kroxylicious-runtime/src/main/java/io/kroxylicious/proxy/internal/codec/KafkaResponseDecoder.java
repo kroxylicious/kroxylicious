@@ -70,7 +70,7 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             log().trace("{}: Body: {}", ctx, body);
             Filter recipient = correlation.recipient();
             if (recipient == null) {
-                frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
+                frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body, length);
             }
             else {
                 frame = new InternalResponseFrame<>(recipient, apiVersion, correlationId, header, body, correlation.promise());

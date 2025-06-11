@@ -46,9 +46,8 @@ public class DeprecatedDownstreamMessageMetrics extends ChannelInboundHandlerAda
                 decodedMessagesCounter.increment();
                 // The request might be updated by the filters as it travels through the proxy
                 // so this avoids causing the size to be cached prematurely
-                int size = new DecodedRequestFrame<>(decodedRequestFrame.apiVersion(), decodedRequestFrame.correlationId(), decodedRequestFrame.decodeResponse(),
-                        decodedRequestFrame.header(), decodedRequestFrame.body()).estimateEncodedSize();
-                Metrics.payloadSizeBytesUpstreamSummary(decodedRequestFrame.apiKey(), decodedRequestFrame.apiVersion(), clusterName).record(size);
+                Metrics.payloadSizeBytesUpstreamSummary(decodedRequestFrame.apiKey(), decodedRequestFrame.apiVersion(), clusterName)
+                        .record(decodedRequestFrame.originalEncodedSize());
             }
         }
         finally {

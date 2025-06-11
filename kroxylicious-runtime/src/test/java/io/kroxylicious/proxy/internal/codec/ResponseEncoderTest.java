@@ -23,7 +23,7 @@ class ResponseEncoderTest extends AbstractCodecTest {
         ApiVersionsResponseData exampleBody = exampleApiVersionsResponse();
         short headerVersion = ApiKeys.API_VERSIONS.responseHeaderVersion(apiVersion);
         ByteBuffer expected = serializeUsingKafkaApis(headerVersion, exampleHeader, apiVersion, exampleBody);
-        testEncode(expected, new DecodedResponseFrame<>(apiVersion, exampleHeader.correlationId(), exampleHeader, exampleBody),
+        testEncode(expected, new DecodedResponseFrame<>(apiVersion, exampleHeader.correlationId(), exampleHeader, exampleBody, -1),
                 new KafkaResponseEncoder());
     }
 }

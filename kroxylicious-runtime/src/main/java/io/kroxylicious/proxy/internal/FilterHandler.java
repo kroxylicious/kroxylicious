@@ -386,7 +386,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                                 + decodedFrame.apiKey());
             }
             DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(decodedFrame.apiVersion(), decodedFrame.correlationId(),
-                    header, message);
+                    header, message, -1 /* KW FIXME */);
             decodedFrame.transferBuffersTo(responseFrame);
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Filter '{}' forwarding response: {}", channelDescriptor(), filterDescriptor(), msgDescriptor(decodedFrame));

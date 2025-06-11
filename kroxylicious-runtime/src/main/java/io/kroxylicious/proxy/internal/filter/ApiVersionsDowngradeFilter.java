@@ -89,7 +89,7 @@ public class ApiVersionsDowngradeFilter implements ApiVersionsRequestFilter {
     public static DecodedRequestFrame<ApiVersionsRequestData> downgradeApiVersionsFrame(int correlationId) {
         RequestHeaderData requestHeaderData = apiVersionsRequestDowngradeHeader(correlationId);
         return new DecodedRequestFrame<>(
-                requestHeaderData.requestApiVersion(), correlationId, true, requestHeaderData, new DowngradeApiVersionsRequestData());
+                requestHeaderData.requestApiVersion(), correlationId, true, requestHeaderData, new DowngradeApiVersionsRequestData(), -1 /* KW FIXME */);
     }
 
     @Override

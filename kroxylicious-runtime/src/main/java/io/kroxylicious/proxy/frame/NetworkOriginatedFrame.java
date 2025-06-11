@@ -7,9 +7,9 @@
 package io.kroxylicious.proxy.frame;
 
 /**
- * Signifies that a frame originated from the network.
+ * Signifies that a frame originated from the network (rather than one originating within the proxy itself).
  */
-public interface NetworkOriginatedFrame {
+public sealed interface NetworkOriginatedFrame permits DecodedFrame, OpaqueFrame {
 
     /**
      * The original encoded size of the frame when it arrived from the network.
@@ -17,5 +17,4 @@ public interface NetworkOriginatedFrame {
      * @return original encoded size.
      */
     int originalEncodedSize();
-
 }

@@ -51,7 +51,8 @@ public class RequestEncoderTest extends AbstractCodecTest {
 
         CorrelationManager correlationManager = new CorrelationManager(exampleHeader.correlationId());
         var encoder = new KafkaRequestEncoder(correlationManager);
-        testEncode(expected, new DecodedRequestFrame<ApiVersionsRequestData>(apiVersion, exampleHeader.correlationId(), true, exampleHeader, exampleBody), encoder);
+        testEncode(expected, new DecodedRequestFrame<ApiVersionsRequestData>(apiVersion, exampleHeader.correlationId(), true, exampleHeader, exampleBody,
+                -1), encoder);
         var corr = correlationManager.getBrokerCorrelation(exampleHeader.correlationId());
         assertEquals(ApiKeys.API_VERSIONS.id, corr.apiKey());
         assertEquals(exampleHeader.requestApiKey(), corr.apiKey());

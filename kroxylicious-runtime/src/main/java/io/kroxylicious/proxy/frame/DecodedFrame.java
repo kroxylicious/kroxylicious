@@ -14,11 +14,20 @@ import org.apache.kafka.common.protocol.ApiMessage;
  * @param <B> The body type
  *
  */
-public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
-        extends AbstractApiMessageBasedFrame<H, B> {
+public abstract sealed class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
+        extends AbstractApiMessageBasedFrame<H, B>
+        implements NetworkOriginatedFrame
+        permits DecodedRequestFrame, DecodedResponseFrame {
 
-    DecodedFrame(short apiVersion, int correlationId, H header, B body) {
+    private final int originalEncodedSize;
+
+    DecodedFrame(short apiVersion, int correlationId, H header, B body, int originalEncodedSize) {
         super(apiVersion, correlationId, header, body);
+        this.originalEncodedSize = originalEncodedSize;
     }
 
+    @Override
+    public int originalEncodedSize() {
+        return originalEncodedSize + FRAME_SIZE_LENGTH;
+    }
 }

@@ -124,7 +124,7 @@ public abstract class FilterHarness {
      * @param <B> The type of the request.
      */
     protected <B extends ApiMessage> DecodedRequestFrame<B> writeRequest(RequestHeaderData headerData, B data) {
-        var frame = new DecodedRequestFrame<>(headerData.requestApiVersion(), headerData.correlationId(), false, headerData, data);
+        var frame = new DecodedRequestFrame<>(headerData.requestApiVersion(), headerData.correlationId(), false, headerData, data, -1);
         return writeRequest(frame);
     }
 
@@ -182,7 +182,7 @@ public abstract class FilterHarness {
         var header = new ResponseHeaderData();
         int correlationId = 42;
         header.setCorrelationId(correlationId);
-        var frame = new DecodedResponseFrame<>(apiKey.latestVersion(), correlationId, header, data);
+        var frame = new DecodedResponseFrame<>(apiKey.latestVersion(), correlationId, header, data, -1);
         channel.writeInbound(frame);
         return frame;
     }

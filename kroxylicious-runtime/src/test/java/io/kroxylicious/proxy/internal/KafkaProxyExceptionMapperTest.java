@@ -78,7 +78,8 @@ class KafkaProxyExceptionMapperTest {
         requestHeaderData.setRequestApiVersion(apiVersion);
         requestHeaderData.setCorrelationId(124);
         final ApiMessage apiMessage = apiMessageAndVersion.apiMessage();
-        return named(ApiKeys.forId(apiMessage.apiKey()) + "-v" + apiVersion, new DecodedRequestFrame<>(apiVersion, 1, false, requestHeaderData, apiMessage));
+        return named(ApiKeys.forId(apiMessage.apiKey()) + "-v" + apiVersion, new DecodedRequestFrame<>(apiVersion, 1, false, requestHeaderData, apiMessage,
+                -1));
     }
 
 }

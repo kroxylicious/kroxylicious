@@ -610,7 +610,7 @@ class ProxyChannelStateMachineEndToEndTest {
                 .setClientId("client-id")
                 .setCorrelationId(downstreamCorrelationId);
 
-        return new DecodedRequestFrame<>(apiVersion, downstreamCorrelationId, true, header, body);
+        return new DecodedRequestFrame<>(apiVersion, downstreamCorrelationId, true, header, body, -1);
     }
 
     private int writeRequest(short apiVersion, ApiMessage body) {
