@@ -1,0 +1,13 @@
+docs:
+  - name: Proxy guide
+    description: Covers using the proxy, including configuration, security and operation.
+    path: kroxylicious-proxy/
+  - name: Kroxylicious Operator for Kubernetes
+    description: Covers using the Kubernetes operator for the proxy, including configuration, security and operation.
+    path: kroxylicious-operator/
+  - name: Record Encryption Guide
+    description: Covers using the record encryption filter, including configuration, security and operation.
+    path: record-encryption-guide/
+  - name: Kroxylicious Developer guide
+    description: Covers writing plugins for the proxy in the Java programming language
+    path: developer-guide/
