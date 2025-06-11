@@ -236,7 +236,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
                 binding,
                 pfr,
                 filterChainFactory,
-                virtualCluster.getFilters(),
+                virtualCluster,
                 endpointReconciler,
                 new ApiVersionsIntersectFilter(apiVersionsService),
                 new ApiVersionsDowngradeFilter(apiVersionsService));
@@ -270,13 +270,14 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
         private final EndpointReconciler endpointReconciler;
         private final ApiVersionsIntersectFilter apiVersionsIntersectFilter;
         private final ApiVersionsDowngradeFilter apiVersionsDowngradeFilter;
+        private final String virtualClusterName;
 
         InitalizerNetFilter(SaslDecodePredicate decodePredicate,
                             SocketChannel ch,
                             EndpointBinding binding,
                             PluginFactoryRegistry pfr,
                             FilterChainFactory filterChainFactory,
-                            List<NamedFilterDefinition> filterDefinitions,
+                            VirtualClusterModel virtualCluster,
                             EndpointReconciler endpointReconciler,
                             ApiVersionsIntersectFilter apiVersionsIntersectFilter,
                             ApiVersionsDowngradeFilter apiVersionsDowngradeFilter) {
@@ -286,7 +287,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             this.binding = binding;
             this.pfr = pfr;
             this.filterChainFactory = filterChainFactory;
-            this.filterDefinitions = filterDefinitions;
+            this.virtualClusterName = virtualCluster.getClusterName();
+            this.filterDefinitions = virtualCluster.getFilters();
             this.endpointReconciler = endpointReconciler;
             this.apiVersionsIntersectFilter = apiVersionsIntersectFilter;
             this.apiVersionsDowngradeFilter = apiVersionsDowngradeFilter;
@@ -297,7 +299,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<SocketChannel> {
             List<FilterAndInvoker> apiVersionFilters = decodePredicate.isAuthenticationOffloadEnabled() ? List.of()
                     : FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
 
-            NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
+            NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr, virtualClusterName);
             List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, filterDefinitions);
             List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)", new BrokerAddressFilter(gateway, endpointReconciler));
             var filters = new ArrayList<>(apiVersionFilters);

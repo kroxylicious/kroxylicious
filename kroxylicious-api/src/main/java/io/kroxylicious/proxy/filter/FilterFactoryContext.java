@@ -34,4 +34,9 @@ public interface FilterFactoryContext {
      * @throws UnknownPluginInstanceException
      */
     <P> @NonNull P pluginInstance(@NonNull Class<P> pluginClass, @NonNull String instanceName);
+
+    @NonNull
+    default String virtualClusterName() {
+        return "NOT_KNOWN";
+    }
 }

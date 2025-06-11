@@ -99,7 +99,7 @@ class FilterChainFactoryTest {
     void testNullFiltersInConfigResultsInEmptyList() {
         EventLoop eventLoop = new DefaultEventLoop();
         FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, null);
-        List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(eventLoop, pfr), null);
+        List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(eventLoop, pfr, "virtualClusterName"), null);
         assertThat(filters)
                 .isNotNull()
                 .isEmpty();
@@ -247,7 +247,7 @@ class FilterChainFactoryTest {
 
     private ListAssert<FilterAndInvoker> assertFiltersCreated(List<NamedFilterDefinition> nameFilterDefinitions) {
         try (FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, nameFilterDefinitions)) {
-            NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
+            NettyFilterContext context = new NettyFilterContext(eventLoop, pfr, "virtualClusterName");
             List<FilterAndInvoker> filters = filterChainFactory.createFilters(context, nameFilterDefinitions);
             return assertThat(filters).hasSameSizeAs(nameFilterDefinitions);
         }
@@ -300,7 +300,7 @@ class FilterChainFactoryTest {
                         onInitialize1::increment, onClose1::increment)),
                 new NamedFilterDefinition("flakyFilterDef2", FlakyFactory.class.getName(), new FlakyConfig(null, "foo", null,
                         onInitialize2::increment, onClose2::increment)));
-        NettyFilterContext context = new NettyFilterContext(eventLoop, pfr);
+        NettyFilterContext context = new NettyFilterContext(eventLoop, pfr, "virtualClusterName");
 
         try (var fcf = new FilterChainFactory(pfr, list)) {
             assertThat(onInitialize1.count).isEqualTo(1);

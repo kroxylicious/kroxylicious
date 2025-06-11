@@ -265,7 +265,7 @@ class KafkaProxyInitializerTest {
                 vcb,
                 pfr,
                 fcf,
-                List.of(),
+                new VirtualClusterModel("my cluster", new TargetCluster("", Optional.empty()), false, false, List.of()),
                 (virtualCluster1, upstreamNodes) -> null,
                 new ApiVersionsIntersectFilter(apiVersionsService),
                 new ApiVersionsDowngradeFilter(apiVersionsService));

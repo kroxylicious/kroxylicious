@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
+import java.util.Objects;
+
 import io.netty.channel.EventLoop;
 
 import io.kroxylicious.proxy.config.PluginFactory;
@@ -19,11 +21,14 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class NettyFilterContext implements FilterFactoryContext {
     private final FilterDispatchExecutor dispatchExecutor;
     private final PluginFactoryRegistry pluginFactoryRegistry;
+    private final String virtualClusterName;
 
     public NettyFilterContext(EventLoop eventLoop,
-                              PluginFactoryRegistry pluginFactoryRegistry) {
+                              PluginFactoryRegistry pluginFactoryRegistry,
+                              String virtualClusterName) {
         this.dispatchExecutor = NettyFilterDispatchExecutor.eventLoopExecutor(eventLoop);
         this.pluginFactoryRegistry = pluginFactoryRegistry;
+        this.virtualClusterName = Objects.requireNonNull(virtualClusterName);
     }
 
     @Override
@@ -38,4 +43,8 @@ public class NettyFilterContext implements FilterFactoryContext {
         return pluginFactory.pluginInstance(instanceName);
     }
 
+    @Override
+    public @NonNull String virtualClusterName() {
+        return virtualClusterName;
+    }
 }
