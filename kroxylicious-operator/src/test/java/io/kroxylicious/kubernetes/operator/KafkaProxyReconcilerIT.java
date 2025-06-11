@@ -145,7 +145,7 @@ class KafkaProxyReconcilerIT {
     private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(extension);
 
     @AfterEach
-    void stopOperator() throws Exception {
+    void stopOperator() {
         extension.getOperator().stop();
         LOGGER.atInfo().log("Test finished");
     }
@@ -775,7 +775,7 @@ class KafkaProxyReconcilerIT {
                     .extracting(svc -> svc.getSpec().getSelector())
                     .describedAs("Service's selector should select proxy pods")
                     .isEqualTo(ProxyDeploymentDependentResource.podLabels(proxy));
-            assertThat(service.getSpec().getPorts().stream().count()).describedAs("number of ports").isEqualTo(4);
+            assertThat(service.getSpec().getPorts().size()).describedAs("number of ports").isEqualTo(4);
         });
     }
 
@@ -799,7 +799,7 @@ class KafkaProxyReconcilerIT {
                     .describedAs("Deployment template should mount the proxy config configmap")
                     .filteredOn(volume -> volumeSourceExtractor.apply(volume) != null)
                     .map(volumeSourceExtractor)
-                    .anyMatch(volumeSourcePredicate::test);
+                    .anyMatch(volumeSourcePredicate);
         });
     }
 
@@ -1020,6 +1020,7 @@ class KafkaProxyReconcilerIT {
                 .extracting(map -> map.get(ProxyConfigDependentResource.CONFIG_YAML_KEY), InstanceOfAssertFactories.STRING);
     }
 
+    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private static VirtualKafkaCluster virtualKafkaCluster(String clusterName, KafkaProxy proxy, KafkaService service,
                                                            List<Ingresses> ingresses, Optional<KafkaProtocolFilter> filter) {
         var filterRefs = filter.map(f -> new FilterRefBuilder().withName(name(f)).build()).stream().toList();
