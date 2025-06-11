@@ -54,12 +54,27 @@ ifdef::include-olm[]
 
 If you have deployed the operator using OLM, update the logging level by patching the `Subscription` resource.
 
-(TODO - how to find the subscription)
+Use the following command to identify the name of the subcription:
 
 [source,bash]
 ----
-kubectl patch subscription <subscription_name> -p '{"spec":{"config":{"env":{"KROXYLICIOUS_APP_LOG_LEVEL":"DEBUG}}}}' --type=merge
+kubectl get subscriptions.operators.coreos.com --all-namespaces | grep kroxylicious
 ----
+
+Then patch the subscription resource like this:
+
+[source,bash]
+----
+kubectl patch subscription <subscription_name> -p '{"spec":{"config":{"env":[{"name":"KROXYLICIOUS_APP_LOG_LEVEL","value":"DEBUG"}]}}}' --type=merge
+----
+
+To revert the logging level back to its default:
+
+[source,bash]
+----
+kubectl patch subscription <subscription_name> -p '{"spec":{"config":{"env":[]}}}' --type=merge
+----
+
 endif::[]
 
 === YAML bundle
