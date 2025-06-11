@@ -61,6 +61,9 @@ NOTE: Error conditions signaled _within_ the Kafka protocol response (such as `R
 
 Message metrics count the Kafka protocol requests and responses that flow through the proxy.
 
+image::../_assets/monitoring-message-counters.svg["Conceptual diagram showing the client-end and broker-end message counters within the proxy, illustrating how they respond to message transit through it."]
+
+
 * Client-end counters
 ** `kroxylicious_client_to_proxy_request_total` counts requests as they arrive from the client.
 ** `kroxylicious_proxy_to_client_response_total` counts responses as they are returned to the client.
