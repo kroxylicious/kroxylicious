@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.ContainerPort;
-import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
@@ -49,8 +48,8 @@ public record ProxyNetworkingModel(List<ClusterNetworkingModel> clusterNetworkin
      */
     public record ClusterNetworkingModel(VirtualKafkaCluster cluster, List<ClusterIngressNetworkingModelResult> clusterIngressNetworkingModelResults) {
 
-        public Stream<Service> services() {
-            return clusterIngressNetworkingModelResults.stream().flatMap(it -> it.clusterIngressNetworkingModel().services()).map(ServiceBuilder::build);
+        public Stream<ServiceBuilder> services() {
+            return clusterIngressNetworkingModelResults.stream().flatMap(it -> it.clusterIngressNetworkingModel().services());
         }
 
         public Set<IngressConflictException> ingressExceptions() {

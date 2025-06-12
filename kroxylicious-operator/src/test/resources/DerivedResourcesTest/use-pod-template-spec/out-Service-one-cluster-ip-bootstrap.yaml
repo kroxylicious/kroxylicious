@@ -17,6 +17,7 @@ metadata:
     app.kubernetes.io/name: "kroxylicious"
     app.kubernetes.io/instance: "use-pod-template-spec"
     app.kubernetes.io/component: "proxy"
+    environment: "production-from-podTemplate"
   name: "one-cluster-ip-bootstrap"
   namespace: proxy-ns
   ownerReferences:
