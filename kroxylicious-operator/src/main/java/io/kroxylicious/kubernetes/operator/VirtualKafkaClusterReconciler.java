@@ -43,11 +43,13 @@ import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterSpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.OpenShiftRoutes;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses.Protocol;
@@ -629,12 +631,14 @@ public final class VirtualKafkaClusterReconciler implements
     }
 
     private static ClusterIP.Protocol getIngressProtocol(KafkaProxyIngress proxyIngress) {
-        ClusterIP clusterIP = proxyIngress.getSpec().getClusterIP();
+        KafkaProxyIngressSpec spec = proxyIngress.getSpec();
+        ClusterIP clusterIP = spec.getClusterIP();
         if (clusterIP != null) {
             return clusterIP.getProtocol();
         }
-        LoadBalancer loadBalancer = proxyIngress.getSpec().getLoadBalancer();
-        if (loadBalancer != null) {
+        LoadBalancer loadBalancer = spec.getLoadBalancer();
+        OpenShiftRoutes openShiftRoutes = spec.getOpenShiftRoutes();
+        if (loadBalancer != null || openShiftRoutes != null) {
             return ClusterIP.Protocol.TLS;
         }
         throw new IllegalStateException("No protocol could be determined for " + proxyIngress);

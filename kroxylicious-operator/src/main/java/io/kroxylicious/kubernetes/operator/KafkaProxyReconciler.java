@@ -116,6 +116,12 @@ import static io.kroxylicious.kubernetes.operator.ResourcesUtil.toLocalRef;
                 name = KafkaProxyReconciler.CLUSTERS_DEP,
                 type = ClusterServiceDependentResource.class,
                 dependsOn = { KafkaProxyReconciler.DEPLOYMENT_DEP }
+        ),
+        @Dependent(
+                name = KafkaProxyReconciler.OPEN_SHIFT_ROUTES_DEP,
+                type = OpenShiftRouteDependentResource.class,
+                activationCondition = RoutesApiGroupPresentCondition.class,
+                dependsOn = { KafkaProxyReconciler.CLUSTERS_DEP }
         )
 })
 // @formatter:on
@@ -129,6 +135,7 @@ public class KafkaProxyReconciler implements
     public static final String CONFIG_DEP = "config";
     public static final String DEPLOYMENT_DEP = "deployment";
     public static final String CLUSTERS_DEP = "clusters";
+    public static final String OPEN_SHIFT_ROUTES_DEP = "routes";
     public static final Path MOUNTS_BASE_DIR = Path.of("/opt/kroxylicious/");
     private static final Path TARGET_CLUSTER_MOUNTS_BASE = MOUNTS_BASE_DIR.resolve("target-cluster");
     private static final Path CLIENT_CERTS_BASE_DIR = TARGET_CLUSTER_MOUNTS_BASE.resolve("client-certs");
