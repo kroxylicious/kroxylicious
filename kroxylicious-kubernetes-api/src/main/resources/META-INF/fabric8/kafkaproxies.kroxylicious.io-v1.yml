@@ -60,16 +60,6 @@ spec:
                       additionalProperties:
                         type: string
                       type: object
-                podTemplate:
-                  type: object
-                  properties:
-                    metadata:
-                      properties:
-                        labels:
-                          additionalProperties:
-                            type: string
-                          type: object
-                      type: object
             status:
               type: object
               properties:
