@@ -1,0 +1,64 @@
+// file included in the following:
+//
+// con-operator-setting-log-levels.adoc
+
+[id='proc-operator-setting-log-levels-operator-olm-{context}']
+
+= Overriding the operator logging level (operator installed by OLM)
+
+[role="_abstract"]
+This procedure describes how to override the logging level of the operator.
+It applies when the operator was installed by OLM.
+
+.Prerequisites
+
+* Kroxylicious Operator installed using OLM.
+
+.Procedure
+
+. Identify the name of the Subscription resource that has installed the operator and its namespace.
++
+[source,bash]
+----
+kubectl get subscriptions.operators.coreos.com --all-namespaces | grep kroxylicious
+----
+
+. Apply either the `KROXYLICIOUS_APP_LOG_LEVEL` or `KROXYLICIOUS_ROOT_LOG_LEVEL` environment variable to the Subscription.
++
+[source,bash]
+----
+kubectl patch subscription -n <namespace> <subscription_name> -p '{"spec":{"config":{"env":[{"name":"KROXYLICIOUS_APP_LOG_LEVEL","value":"DEBUG"}]}}}' --type=merge
+----
+
+. Kubernetes will roll the operator pod.
+. Verify that the new logging level has taken affect.
++
+[source,bash]
+----
+kubectl logs -f -n <namespace> deployment/kroxylicious-operator
+----
+
+== Reverting the operator logging level
+
+This procedure describes how to revert the logging level of the operator back to its defaults.
+
+.Prerequisites
+
+* Kroxylicious Operator installed using OLM.
+
+.Procedure
+
+. Remove either the `KROXYLICIOUS_APP_LOG_LEVEL` or `KROXYLICIOUS_ROOT_LOG_LEVEL` environment variable from the Subcription.
++
+[source,bash]
+----
+kubectl patch subscription <subscription_name> -p '{"spec":{"config":{"env":[]}}}' --type=merge
+----
+
+. Kubernetes will roll the operator pod.
+. Verify that the logging level has reverted to its default.
++
+[source,bash]
+----
+kubectl logs -f -n <namespace> deployment/kroxylicious-operator
+----

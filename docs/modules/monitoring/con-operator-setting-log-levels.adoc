@@ -1,0 +1,28 @@
+// file included in the following:
+//
+// assembly-operator-monitoring.adoc
+
+[id='con-operator-setting-log-levels-{context}']
+= Setting log levels
+
+[role="_abstract"]
+
+You can independently control the logging level of both the Kroxylicious Operator and the Kroxylicious Proxy.
+
+In both cases, logging levels are controlled using two environment variables:
+
+* `KROXYLICIOUS_APP_LOG_LEVEL` controls the logging of the application (`io.kroxylicious` loggers). It defaults to `INFO`.
+* `KROXYLICIOUS_ROOT_LOG_LEVEL` controls the logging level at the root. It defaults to `WARN`.
+
+When trying to diagnose a problem, start first by raising the logging level of `KROXYLICIOUS_APP_LOG_LEVEL`.
+If more detailed diagnostics are required, try raising the `KROXYLICIOUS_ROOT_LOG_LEVEL`. Both the proxy and operator
+use Apache Log4J2 and use logging levels understood by it: `TRACE`, `DEBUG`, `INFO`, `WARN`, and `ERROR`.
+
+WARNING: Running either the operator or the proxy at elevated logging levels can generate significant amount of logs, which may consume significant storage.
+Minimize the length of time the system is run in this state.
+
+include::./proc-operator-setting-log-levels-proxy.adoc[leveloffset=+1]
+ifdef::include-olm[]
+include::./proc-operator-setting-log-levels-operator-olm.adoc[leveloffset=+1]
+endif::[]
+include::./proc-operator-setting-log-levels-operator-bundle.adoc[leveloffset=+1]
