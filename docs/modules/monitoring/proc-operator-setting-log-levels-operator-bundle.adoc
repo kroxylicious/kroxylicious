@@ -22,8 +22,9 @@ It applies when the operator was installed from the YAML bundle.
 ----
 kubectl set env -n kroxylicious-operator deployment kroxylicious-operator KROXYLICIOUS_APP_LOG_LEVEL=DEBUG
 ----
++
+Kubernetes recreates the operator pod automatically.
 
-. Kubernetes will roll the operator pod.
 . Verify that the new logging level has taken affect.
 +
 [source,bash]

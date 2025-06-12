@@ -29,8 +29,9 @@ kubectl get subscriptions.operators.coreos.com --all-namespaces | grep kroxylici
 ----
 kubectl patch subscription -n <namespace> <subscription_name> -p '{"spec":{"config":{"env":[{"name":"KROXYLICIOUS_APP_LOG_LEVEL","value":"DEBUG"}]}}}' --type=merge
 ----
++
+Kubernetes recreates the operator pod automatically.
 
-. Kubernetes will roll the operator pod.
 . Verify that the new logging level has taken affect.
 +
 [source,bash]

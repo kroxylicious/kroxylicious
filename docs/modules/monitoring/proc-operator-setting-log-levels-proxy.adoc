@@ -22,8 +22,9 @@ This procedure describes how to override the logging level of the proxy.
 ----
 kubectl set env -n <namespace> deployment <deployment_name> KROXYLICIOUS_APP_LOG_LEVEL=DEBUG
 ----
++
+Kubernetes recreates the proxy pod automatically.
 
-. Kubernetes will roll the proxy pods.
 . Verify that the new logging level has taken affect.
 +
 [source,bash]
