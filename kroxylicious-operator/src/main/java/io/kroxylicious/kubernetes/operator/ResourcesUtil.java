@@ -40,11 +40,13 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Infrastructure;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -561,5 +563,12 @@ public class ResourcesUtil {
      */
     public static String crossNamespaceServiceAddress(String serviceName, HasMetadata namespacedResource) {
         return serviceName + "." + namespace(namespacedResource) + ".svc.cluster.local";
+    }
+
+    public static Map<String, String> infrastructureLabels(KafkaProxy primary) {
+        return Optional.ofNullable(primary.getSpec())
+                .map(KafkaProxySpec::getInfrastructure)
+                .map(Infrastructure::getLabels)
+                .orElse(Map.of());
     }
 }

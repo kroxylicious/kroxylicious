@@ -19,6 +19,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ProxyConfigStateData.CONFIG_OBJECT_MAPPER;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.infrastructureLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
 /**
@@ -62,6 +63,7 @@ public class ProxyConfigDependentResource extends CRUDKubernetesDependentResourc
                     .withName(configMapName(primary))
                     .withNamespace(namespace(primary))
                     .addToLabels(standardLabels(primary))
+                    .addToLabels(infrastructureLabels(primary))
                     .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
                 .endMetadata()
                 .withData(data)
