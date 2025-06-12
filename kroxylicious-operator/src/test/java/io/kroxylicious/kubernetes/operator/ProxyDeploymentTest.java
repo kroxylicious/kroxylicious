@@ -19,8 +19,6 @@ import org.junitpioneer.jupiter.ClearEnvironmentVariable;
 import org.junitpioneer.jupiter.SetEnvironmentVariable;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.PodTemplateSpec;
-import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -58,9 +56,8 @@ class ProxyDeploymentTest {
 
     @BeforeEach
     void setUp() {
-        PodTemplateSpec podTemplate = new PodTemplateSpecBuilder().withNewMetadata().addToLabels("c", "d").addToLabels("a", "b").endMetadata().build();
         kafkaProxy = new KafkaProxyBuilder().withNewMetadata().withName(PROXY_NAME).withUid(UUID.randomUUID().toString()).endMetadata()
-                .withNewSpec().withPodTemplate(podTemplate).endSpec().build();
+                .withNewSpec().endSpec().build();
         kubernetesContext = setupContext();
     }
 
@@ -178,8 +175,6 @@ class ProxyDeploymentTest {
     @NonNull
     private static LinkedHashMap<String, String> expectedLabels() {
         LinkedHashMap<String, String> expected = new LinkedHashMap<>();
-        expected.put("c", "d");
-        expected.put("a", "b");
         expected.put("app.kubernetes.io/managed-by", "kroxylicious-operator");
         expected.put("app.kubernetes.io/name", "kroxylicious");
         expected.put("app.kubernetes.io/component", "proxy");

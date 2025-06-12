@@ -26,7 +26,8 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -217,11 +218,19 @@ class OperatorChangeDetectionST extends AbstractST {
 
         KafkaProxy kafkaProxy = kubeClient.getClient().resources(KafkaProxy.class).inNamespace(namespace)
                 .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).get();
+        Map<String, Quantity> customResourceRequirements = Map.of("cpu", Quantity.parse("600m"), "memory", Quantity.parse("516Mi"));
 
         // @formatter:off
         KafkaProxyBuilder updatedKafkaProxy = kafkaProxy.edit()
                 .editOrNewSpec()
-                .withPodTemplate(new PodTemplateSpecBuilder().build())
+                .withNewInfrastructure()
+                .withNewProxyContainer()
+                .withResources(new ResourceRequirementsBuilder()
+                        .withLimits(customResourceRequirements)
+                        .withRequests(customResourceRequirements)
+                        .build())
+                .endProxyContainer()
+                .endInfrastructure()
                 .endSpec();
         // @formatter:on
 
