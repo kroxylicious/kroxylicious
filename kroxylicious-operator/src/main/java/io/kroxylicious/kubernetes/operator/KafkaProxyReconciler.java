@@ -30,6 +30,7 @@ import io.fabric8.kubernetes.api.model.Volume;
 import io.fabric8.kubernetes.api.model.VolumeBuilder;
 import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.javaoperatorsdk.operator.OperatorException;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -399,6 +400,11 @@ public class KafkaProxyReconciler implements
     @Override
     public UpdateControl<KafkaProxy> reconcile(KafkaProxy primary,
                                                Context<KafkaProxy> context) {
+        context.getSecondaryResource(Deployment.class, DEPLOYMENT_DEP).ifPresent(deployment -> {
+            Integer readyReplicas = deployment.getStatus().getReadyReplicas();
+            statusFactory.withReplicaCount(Objects.requireNonNullElse(readyReplicas, 0));
+        });
+
         var uc = UpdateControl.patchStatus(statusFactory.newTrueConditionStatusPatch(primary, Condition.Type.Ready, ""));
         if (LOGGER.isInfoEnabled()) {
             LOGGER.info("Completed reconciliation of {}/{}", namespace(primary), name(primary));

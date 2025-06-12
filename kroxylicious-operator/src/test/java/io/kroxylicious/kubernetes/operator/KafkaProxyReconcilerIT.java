@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -153,6 +154,33 @@ class KafkaProxyReconcilerIT {
     @Test
     void testCreate() {
         doCreate();
+    }
+
+    @Test
+    void shouldConfigureReplicaCountOnDeployment() {
+        // given
+        KafkaService kafkaService = kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
+
+        // when
+        var created = doCreate(kafkaService, kafkaProxy(PROXY_A, 3));
+
+        // then
+        assertDeploymentReplicaCount(created.proxy(), 3);
+    }
+
+    @Test
+    void shouldIncludeReplicaCountInKafkaProxyStatus() {
+        // given
+        KafkaService kafkaService = kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
+        var created = doCreate(kafkaService, kafkaProxy(PROXY_A, 3));
+        Deployment deployment = assertDeploymentReplicaCount(created.proxy(), 3);
+        Deployment updatedDeployment = deployment.edit().editStatus().withReadyReplicas(3).endStatus().build();
+
+        // when
+        testActor.patchStatus(updatedDeployment);
+
+        // then
+        assertStausReplicaCount(created.proxy(), 3);
     }
 
     @Test
@@ -661,7 +689,11 @@ class KafkaProxyReconcilerIT {
     }
 
     CreatedResources doCreate(KafkaService kafkaService) {
-        KafkaProxy proxy = testActor.create(kafkaProxy(PROXY_A));
+        return doCreate(kafkaService, kafkaProxy(PROXY_A));
+    }
+
+    CreatedResources doCreate(KafkaService kafkaService, KafkaProxy kafkaProxy) {
+        KafkaProxy proxy = testActor.create(kafkaProxy);
         KafkaProtocolFilter filter = testActor.create(filter(FILTER_NAME));
         filter = updateStatusObservedGeneration(filter);
         KafkaService barService = testActor.create(kafkaService);
@@ -800,6 +832,29 @@ class KafkaProxyReconcilerIT {
                     .filteredOn(volume -> volumeSourceExtractor.apply(volume) != null)
                     .map(volumeSourceExtractor)
                     .anyMatch(volumeSourcePredicate);
+        });
+    }
+
+    private Deployment assertDeploymentReplicaCount(KafkaProxy proxy, int expectedReplicaCount) {
+        AtomicReference<Deployment> actualDeployment = new AtomicReference<>();
+        AWAIT.alias("Deployment as expected").untilAsserted(() -> testActor.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy)),
+                deployment -> {
+                    assertThat(deployment).isNotNull();
+                    assertThat(deployment.getSpec())
+                            .isNotNull()
+                            .satisfies(spec -> assertThat(spec.getReplicas()).isEqualTo(expectedReplicaCount));
+                    actualDeployment.set(deployment);
+                });
+        return actualDeployment.get();
+    }
+
+    private void assertStausReplicaCount(KafkaProxy proxy, int expectedReplicaCount) {
+        AWAIT.alias("Deployment as expected").untilAsserted(() -> {
+            var deployment = testActor.get(KafkaProxy.class, ResourcesUtil.name(proxy));
+            assertThat(deployment).isNotNull()
+                    .satisfies(kafkaProxy -> assertThat(kafkaProxy.getStatus())
+                            .isNotNull()
+                            .satisfies(status -> assertThat(status.getReplicas()).isEqualTo(expectedReplicaCount)));
         });
     }
 
@@ -1083,11 +1138,18 @@ class KafkaProxyReconcilerIT {
     }
 
     KafkaProxy kafkaProxy(String name) {
+        return kafkaProxy(name, 1);
+    }
+
+    KafkaProxy kafkaProxy(String name, int replicaCount) {
         // @formatter:off
         return new KafkaProxyBuilder()
                 .withNewMetadata()
                     .withName(name)
                 .endMetadata()
+                .withNewSpec()
+                    .withReplicas(replicaCount)
+                .endSpec()
                 .build();
         // @formatter:on
     }

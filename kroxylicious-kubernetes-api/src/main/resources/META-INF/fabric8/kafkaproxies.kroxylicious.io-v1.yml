@@ -31,6 +31,9 @@ spec:
       storage: true
       subresources:
         status: { }
+        scale:
+          specReplicasPath: .spec.replicas
+          statusReplicasPath: .status.replicas
       additionalPrinterColumns:
         - name: Ready
           description: Whether the other resources referenced by this proxy can be found.
@@ -61,6 +64,12 @@ spec:
                             type: string
                           type: object
                       type: object
+                replicas:
+                  description: "The number of instances of this proxy to run"
+                  type: integer
+                  format: int32
+                  minimum: 0
+                  default: 1
             status:
               type: object
               properties:
@@ -169,3 +178,7 @@ spec:
                             type:
                               description: type of condition in CamelCase or in foo.example.com/CamelCase.
                               type: string
+                replicas:
+                  description: "The number of instances of the proxy that have been scheduled"
+                  type: integer
+                  format: int32
