@@ -9,7 +9,6 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -30,8 +29,6 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.CRUDKubernete
 import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDependent;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Infrastructure;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
@@ -39,6 +36,7 @@ import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import static io.kroxylicious.kubernetes.operator.Labels.infrastructureLabels;
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
@@ -116,11 +114,9 @@ public class ProxyDeploymentDependentResource
     }
 
     public static Map<String, String> podLabels(KafkaProxy primary) {
-        Map<String, String> labelsFromSpec = Optional.ofNullable(primary.getSpec()).map(KafkaProxySpec::getInfrastructure)
-                .map(Infrastructure::getLabels)
-                .orElse(Map.of());
-        Map<String, String> result = new LinkedHashMap<>(labelsFromSpec);
+        Map<String, String> result = new LinkedHashMap<>();
         result.putAll(standardLabels(primary));
+        result.putAll(infrastructureLabels(primary));
         return result;
     }
 

@@ -17,9 +17,9 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 
+import static io.kroxylicious.kubernetes.operator.Labels.infrastructureLabels;
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ProxyConfigStateData.CONFIG_OBJECT_MAPPER;
-import static io.kroxylicious.kubernetes.operator.ResourcesUtil.infrastructureLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
 /**

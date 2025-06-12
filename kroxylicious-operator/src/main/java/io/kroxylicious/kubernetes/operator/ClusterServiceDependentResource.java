@@ -28,6 +28,7 @@ import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel
 import io.kroxylicious.kubernetes.operator.model.networking.SharedLoadBalancerServiceRequirements;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 
+import static io.kroxylicious.kubernetes.operator.Labels.infrastructureLabels;
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.SHARED_SNI_PORT;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
@@ -79,15 +80,14 @@ public class ClusterServiceDependentResource
         var sniServiceStream = sniLoadbalancerServices(primary, sharedSniLoadbalancerPorts, bootstraps);
 
         return Stream.concat(serviceStream, sniServiceStream)
-                .map(service -> augmentWithInfrastructureLabels(primary, service))
+                .map(service -> augmentWithLabels(primary, service))
                 .map(ServiceBuilder::build).collect(toByNameMap());
     }
 
-    private static ServiceBuilder augmentWithInfrastructureLabels(KafkaProxy primary, ServiceBuilder service) {
-        Map<String, String> labels = ResourcesUtil.infrastructureLabels(primary);
-        if (!labels.isEmpty()) {
-            service.editOrNewMetadata().addToLabels(labels).endMetadata();
-        }
+    private static ServiceBuilder augmentWithLabels(KafkaProxy primary, ServiceBuilder service) {
+        Map<String, String> standard = standardLabels(primary);
+        Map<String, String> infrastructureLabels = infrastructureLabels(primary);
+        service.editOrNewMetadata().addToLabels(standard).addToLabels(infrastructureLabels).endMetadata();
         return service;
     }
 
@@ -111,7 +111,6 @@ public class ClusterServiceDependentResource
         ObjectMetaBuilder builder = new ObjectMetaBuilder()
                 .withName(name)
                 .withNamespace(namespace(primary))
-                .addToLabels(standardLabels(primary))
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference();
         Annotations.annotateWithBootstrapServers(builder, bootstraps);
         return builder.build();
