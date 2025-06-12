@@ -51,6 +51,15 @@ spec:
             spec:
               type: object
               properties:
+                infrastructure:
+                  type: object
+                  properties:
+                    labels:
+                      description:
+                        labels to be added to all resources manifested by the Operator
+                      additionalProperties:
+                        type: string
+                      type: object
                 podTemplate:
                   type: object
                   properties:

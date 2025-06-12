@@ -26,7 +26,6 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
-import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
@@ -227,7 +226,7 @@ class OperatorChangeDetectionST extends AbstractST {
         // @formatter:off
         KafkaProxyBuilder updatedKafkaProxy = kafkaProxy.edit()
                 .editOrNewSpec()
-                .withPodTemplate(new PodTemplateSpecBuilder().build())
+                .withNewInfrastructure().endInfrastructure()
                 .endSpec();
         // @formatter:on
 
