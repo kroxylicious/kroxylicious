@@ -82,6 +82,7 @@ public class ProxyDeploymentDependentResource
                     .withNamespace(namespace(primary))
                     .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
                     .addToLabels(standardLabels(primary))
+                    .addToLabels(infrastructureLabels(primary))
                 .endMetadata()
                 .editOrNewSpec()
                     .withReplicas(1)
