@@ -11,7 +11,7 @@ The proxy and the operator each expose an HTTP endpoint for Prometheus metrics a
 The endpoint does not require authentication.
 
 For the Proxy, the port that exposes the scrape endpoint is named `management`.
-For the Operator, the port is named `metrics`.
+For the Operator, the port is named `http`.
 
 Prometheus can be configured to ingest the metrics from the scrape endpoints.
 
