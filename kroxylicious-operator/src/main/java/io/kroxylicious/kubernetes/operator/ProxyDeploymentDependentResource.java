@@ -77,6 +77,11 @@ public class ProxyDeploymentDependentResource
         var model = kafkaProxyContext.model();
         String checksum = checksumFor(primary, context, model);
 
+        KafkaProxySpec proxySpec = primary.getSpec();
+        Integer replicas = 1;
+        if (proxySpec != null) {
+            replicas = proxySpec.getReplicas();
+        }
         // @formatter:off
         return new DeploymentBuilder()
                 .editOrNewMetadata()
@@ -86,7 +91,7 @@ public class ProxyDeploymentDependentResource
                     .addToLabels(standardLabels(primary))
                 .endMetadata()
                 .editOrNewSpec()
-                    .withReplicas(1)
+                    .withReplicas(replicas)
                     .editOrNewSelector()
                     .withMatchLabels(deploymentSelector(primary))
                     .endSelector()

@@ -18,14 +18,20 @@ import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
 
+    private int replicaCount;
+
     public KafkaProxyStatusFactory(Clock clock) {
         super(clock);
+    }
+
+    public void withReplicaCount(int replicaCount) {
+        this.replicaCount = replicaCount;
     }
 
     private KafkaProxy kafkaProxyStatusPatch(KafkaProxy observedProxy,
                                              Condition condition) {
         // @formatter:off
-        return new KafkaProxyBuilder()
+        KafkaProxyBuilder kafkaProxyBuilder = new KafkaProxyBuilder()
                 .withNewMetadata()
                     .withUid(ResourcesUtil.uid(observedProxy))
                     .withName(ResourcesUtil.name(observedProxy))
@@ -34,9 +40,10 @@ public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
                 .withNewStatus()
                     .withObservedGeneration(ResourcesUtil.generation(observedProxy))
                     .withConditions(ResourceState.newConditions(Optional.ofNullable(observedProxy.getStatus()).map(KafkaProxyStatus::getConditions).orElse(List.of()), ResourceState.of(condition)))
-                .endStatus()
-                .build();
+                    .withReplicas(replicaCount)
+            .endStatus();
         // @formatter:on
+        return kafkaProxyBuilder.build();
     }
 
     @Override
@@ -58,7 +65,8 @@ public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
 
     @Override
     KafkaProxy newTrueConditionStatusPatch(KafkaProxy observedProxy,
-                                           Condition.Type type, String checksum) {
+                                           Condition.Type type,
+                                           String checksum) {
         Condition trueCondition = newTrueCondition(observedProxy, type);
         return kafkaProxyStatusPatch(observedProxy, trueCondition);
     }
