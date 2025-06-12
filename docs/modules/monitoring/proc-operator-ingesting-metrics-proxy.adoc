@@ -1,0 +1,45 @@
+// file included in the following:
+//
+// con-operator-ingesting-metrics.adoc
+
+
+[id='proc-operator-ingesting-metrics-proxy{context}']
+= Ingesting proxy metrics
+
+[role="_abstract"]
+This procedure describes how to ingest metrics from the proxy into Prometheus.
+
+.Prerequisites
+
+* Kroxylicious Operator is installed.
+* https://prometheus-operator.dev/[Prometheus Operator] is installed and a https://prometheus-operator.dev/docs/api-reference/api/#monitoring.coreos.com/v1.Prometheus[Prometheus] deployment has been made.
+* An instance of Kroxylicious deployed by the operator.
+
+.Procedure
+
+.  Apply the PodMonitor configuration:
++
+[source,yaml]
+----
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: proxy
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/application: kroxylicious
+      app.kubernetes.io/component: proxy
+  podMetricsEndpoints:
+  - path: /metrics
+    port: management
+----
++
+The Prometheus Operator reconfigures Prometheus automatically.
+Prometheus begins to regularly to scrape the proxy's metric.
+
+. Check the metrics are being ingested using a PromQL query such as:
+[source]
+----
+kroxylicious_client_to_proxy_errors_total
+----

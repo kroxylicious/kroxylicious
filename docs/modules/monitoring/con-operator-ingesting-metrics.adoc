@@ -17,36 +17,5 @@ Prometheus can be configured to ingest the metrics from the scrape endpoints.
 
 This guide assumes you are using the https://prometheus-operator.dev/[Prometheus Operator] to configure Prometheus.
 
-.Example `PodMonitor` resource configuration to scrape the Proxy metrics
-[source,yaml]
-----
-apiVersion: monitoring.coreos.com/v1
-kind: PodMonitor
-metadata:
-  name: proxy
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/application: kroxylicious
-      app.kubernetes.io/component: proxy
-  podMetricsEndpoints:
-  - path: /metrics
-    port: management
-----
-
-.Example `PodMonitor` resource configuration to scrape the Operator metrics
-[source,yaml]
-----
-apiVersion: monitoring.coreos.com/v1
-kind: PodMonitor
-metadata:
-  name: proxy
-spec:
-  selector:
-    matchLabels:
-      app.kubernetes.io/application: kroxylicious
-      app.kubernetes.io/component: operator
-  podMetricsEndpoints:
-  - path: /metrics
-    port: http
-----
+include::./proc-operator-ingesting-metrics-operator.adoc[leveloffset=+1]
+include::./proc-operator-ingesting-metrics-proxy.adoc[leveloffset=+1]
