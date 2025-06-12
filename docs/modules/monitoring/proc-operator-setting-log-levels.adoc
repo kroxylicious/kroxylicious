@@ -19,11 +19,11 @@ If more detailed diagnostics are required, try raising the `KROXYLICIOUS_ROOT_LO
 use Apache Log4J2 and use logging levels understood by it: `TRACE`, `DEBUG`, `INFO`, `WARN`, and `ERROR`.
 
 WARNING: Running either the operator or the proxy at elevated logging levels can generate significant amount of logs, which may consume significant storage.
-Minimise the length of time the system is run in this state.
+Minimize the length of time the system is run in this state.
 
 == Overriding proxy logging levels
 
-To override the logging level of a proxy, apply the environment variable to the Kubernetes `Deployment` resource that corresponds to the proxy instance in question.
+Apply the environment variable to the proxy's Kubernetes `Deployment` resource to override its logging level.
 The `Deployment` resource has the same name as the `KafkaProxy`.
 
 [source,bash]
@@ -54,14 +54,14 @@ ifdef::include-olm[]
 
 If you have deployed the operator using OLM, update the logging level by patching the `Subscription` resource.
 
-Use the following command to identify the name of the subcription:
+Identify the name of the subscription:
 
 [source,bash]
 ----
 kubectl get subscriptions.operators.coreos.com --all-namespaces | grep kroxylicious
 ----
 
-Then patch the subscription resource like this:
+Patch the `Subscription` resource:
 
 [source,bash]
 ----

@@ -9,9 +9,8 @@
 
 Kroxylicious supports key observability features to help you understand the performance and health of your proxy instances.
 
-The Kroxylicious Proxy has the ability to emit metrics.
-Metrics allow the behaviour to be monitored in real-time and alerts to be generated in the event of an abnormal condition.
-The sections below show you how to configure the metrics within the proxy and how to ingest the metrics into a system like Prometheus.
+The Kroxylicious Proxy supports real-time monitoring and alerting by emitting system metrics. 
+You can configure metric emission within the proxy and integrate it with a monitoring system like Prometheus to ingest and analyze the data.
 
 The Kroxylicious Proxy writes a log so that its actions may be understood in retrospect.
 The sections below show you how to adjust the log levels and use a custom logging configuration.

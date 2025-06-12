@@ -29,7 +29,7 @@ When the client connects to the boostrap endpoint of the virtual cluster, a node
 The `kroxylicious_client_to_proxy_errors_total` metric also counts connection errors that occur before a virtual cluster has been identified.
 For these specific errors, the `virtual_cluster` and `node_id` labels are set to an empty string ("").
 
-NOTE: Error conditions signaled _within_ the Kafka protocol response (such as `RESOURCE_NOT_FOUND`, `UNKNOWN_TOPIC_ID`, etc.) are not classed as errors by these metrics.
+NOTE: Error conditions signaled _within_ the Kafka protocol response (such as `RESOURCE_NOT_FOUND` or `UNKNOWN_TOPIC_ID`) are not classed as errors by these metrics.
 
 |===
 |Metric Name |Type |Labels|Description
