@@ -15,6 +15,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,6 +60,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
     private final long timeoutMs;
     private final String sniHostname;
+    private final KafkaPrincipal clientPrincipal;
     private final VirtualClusterModel virtualClusterModel;
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
@@ -67,10 +69,12 @@ public class FilterHandler extends ChannelDuplexHandler {
     private ChannelHandlerContext ctx;
     private PromiseFactory promiseFactory;
 
-    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, VirtualClusterModel virtualClusterModel, Channel inboundChannel) {
+    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, KafkaPrincipal clientPrincipal,
+                         VirtualClusterModel virtualClusterModel, Channel inboundChannel) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
+        this.clientPrincipal = clientPrincipal;
         this.virtualClusterModel = virtualClusterModel;
         this.inboundChannel = inboundChannel;
     }
@@ -473,6 +477,12 @@ public class FilterHandler extends ChannelDuplexHandler {
         @Override
         public String sniHostname() {
             return sniHostname;
+        }
+
+        @Nullable
+        @Override
+        public KafkaPrincipal clientPrincipal() {
+            return clientPrincipal;
         }
 
         public String getVirtualClusterName() {
