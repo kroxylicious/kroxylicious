@@ -305,7 +305,8 @@ class OperatorChangeDetectionST extends AbstractST {
         var kubeClient = kubeClient(namespace);
         AtomicReference<String> checksumFromAnnotation = new AtomicReference<>();
         await().atMost(Duration.ofSeconds(90))
-                .untilAsserted(() -> kubeClient.listPods(namespace, "app.kubernetes.io/name", "kroxylicious"),
+                .untilAsserted(() -> kubeClient.listPods(namespace, "app.kubernetes.io/name", "kroxylicious")
+                                .stream().filter(p -> p.getMetadata().getLabels().get("app.kubernetes.io/component").equalsIgnoreCase("proxy")).toList(),
                         proxyPods -> {
                             assertThat(proxyPods)
                                     .singleElement()
