@@ -11,18 +11,13 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.UUID;
 
-import org.assertj.core.api.AbstractAssert;
-import org.assertj.core.api.InstanceOfAssertFactories;
-import org.assertj.core.api.InstanceOfAssertFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
-import io.kroxylicious.kubernetes.operator.assertj.KafkaProxyStatusAssert;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
 import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
