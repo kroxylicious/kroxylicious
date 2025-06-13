@@ -122,11 +122,8 @@ class OperatorChangeDetectionST extends AbstractST {
     }
 
     @Test
-    void shouldUpdateDeploymentWhenDownstreamTlsCertUpdated(String namespace) throws IOException {
+    void shouldUpdateDeploymentWhenDownstreamTlsCertUpdated(String namespace) {
         // Given
-        certManager = new CertManager();
-        certManager.deploy();
-
         var issuer = certManager.issuer(namespace);
         var cert = certManager.certFor(namespace, "my-cluster-cluster-ip." + namespace + ".svc.cluster.local");
 
@@ -151,11 +148,8 @@ class OperatorChangeDetectionST extends AbstractST {
     }
 
     @Test
-    void shouldUpdateDeploymentWhenDownstreamTrustUpdated(String namespace) throws IOException {
+    void shouldUpdateDeploymentWhenDownstreamTrustUpdated(String namespace) {
         // Given
-        certManager = new CertManager();
-        certManager.deploy();
-
         var issuer = certManager.issuer(namespace);
         var cert = certManager.certFor(namespace, "my-cluster-cluster-ip." + namespace + ".svc.cluster.local");
 
@@ -285,8 +279,10 @@ class OperatorChangeDetectionST extends AbstractST {
     }
 
     @BeforeEach
-    void setUp(String namespace) {
+    void setUp(String namespace) throws IOException {
         kroxylicious = new Kroxylicious(namespace);
+        certManager = new CertManager();
+        certManager.deploy();
     }
 
     @AfterAll
@@ -309,7 +305,8 @@ class OperatorChangeDetectionST extends AbstractST {
         var kubeClient = kubeClient(namespace);
         AtomicReference<String> checksumFromAnnotation = new AtomicReference<>();
         await().atMost(Duration.ofSeconds(90))
-                .untilAsserted(() -> kubeClient.listPods(namespace, "app.kubernetes.io/name", "kroxylicious-proxy"),
+                .untilAsserted(() -> kubeClient.listPods(namespace, "app.kubernetes.io/name", "kroxylicious")
+                        .stream().filter(p -> p.getMetadata().getLabels().get("app.kubernetes.io/component").equalsIgnoreCase("proxy")).toList(),
                         proxyPods -> {
                             assertThat(proxyPods)
                                     .singleElement()

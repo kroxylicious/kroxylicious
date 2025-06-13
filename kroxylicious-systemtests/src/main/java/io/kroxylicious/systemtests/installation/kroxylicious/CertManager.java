@@ -7,21 +7,22 @@
 package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.certmanager.api.model.v1.CertificateBuilder;
 import io.fabric8.certmanager.api.model.v1.IssuerBuilder;
-import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.client.dsl.NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
-import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
+import io.kroxylicious.systemtests.utils.TestUtils;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
@@ -32,8 +33,13 @@ public class CertManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(CertManager.class);
     public static final String SELF_SINGED_ISSUER_NAME = "self-signed-issuer";
 
-    private final NamespaceListVisitFromServerGetDeleteRecreateWaitApplicable<HasMetadata> deployment;
+    public static final String CERT_MANAGER_SERVICE_NAME = "cert-manager";
+    public static final String CERT_MANAGER_HELM_REPOSITORY_URL = "https://charts.jetstack.io";
+    public static final String CERT_MANAGER_HELM_REPOSITORY_NAME = "jetstack";
+    public static final String CERT_MANAGER_HELM_CHART_NAME = "jetstack/cert-manager";
+
     private boolean deleteCertManager = true;
+    private final String deploymentNamespace;
 
     /**
      * Instantiates a new Cert manager.
@@ -41,8 +47,7 @@ public class CertManager {
      * @throws IOException the io exception
      */
     public CertManager() throws IOException {
-        deployment = kubeClient().getClient()
-                .load(DeploymentUtils.getDeploymentFileFromURL(Constants.CERT_MANAGER_URL));
+        deploymentNamespace = Constants.CERT_MANAGER_NAMESPACE;
     }
 
     public IssuerBuilder issuer(String namespace) {
@@ -103,10 +108,15 @@ public class CertManager {
             deleteCertManager = false;
             return;
         }
+
         LOGGER.info("Deploy cert manager in {} namespace", Constants.CERT_MANAGER_NAMESPACE);
-        deployment.create();
-        DeploymentUtils.waitForDeploymentReady(Constants.CERT_MANAGER_NAMESPACE, "cert-manager-webhook");
-        NamespaceUtils.addNamespaceToSet(Constants.CERT_MANAGER_NAMESPACE, ResourceManager.getTestContext().getRequiredTestClass().getName());
+        NamespaceUtils.createNamespaceAndPrepare(deploymentNamespace);
+        ResourceManager.helmClient().addRepository(CERT_MANAGER_HELM_REPOSITORY_NAME, CERT_MANAGER_HELM_REPOSITORY_URL);
+        ResourceManager.helmClient().namespace(deploymentNamespace).install(CERT_MANAGER_HELM_CHART_NAME, CERT_MANAGER_SERVICE_NAME,
+                Optional.empty(),
+                Optional.of(Path.of(TestUtils.getResourcesURI("helm_cert_manager_overrides.yaml"))),
+                Optional.of(Map.of("crds.enabled", "true",
+                        "crds.keep", "false")));
     }
 
     /**
@@ -118,8 +128,7 @@ public class CertManager {
             return;
         }
         LOGGER.info("Deleting Cert Manager in {} namespace", Constants.CERT_MANAGER_NAMESPACE);
-        deployment.withGracePeriod(0).delete();
-        DeploymentUtils.waitForDeploymentDeletion(Constants.CERT_MANAGER_NAMESPACE, "cert-manager-webhook");
+        ResourceManager.helmClient().delete(deploymentNamespace, CERT_MANAGER_SERVICE_NAME);
         NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(Constants.CERT_MANAGER_NAMESPACE, ResourceManager.getTestContext().getRequiredTestClass().getName());
     }
 }

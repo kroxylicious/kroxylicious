@@ -33,6 +33,17 @@
     {
       "customType": "regex",
       "fileMatch": [
+        "kroxylicious-systemtests/src/main/resources/helm_cert_manager_overrides.yaml"
+      ],
+      "matchStrings": [
+        "tag:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
+      ],
+      "depNameTemplate": "cert-manager/cert-manager",
+      "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": [
         "kroxylicious-kms-provider-aws-kms-test-support/src/main/java/io/kroxylicious/kms/provider/aws/kms/AwsKmsTestKmsFacade.java",
         "kroxylicious-systemtests/src/main/resources/helm_localstack_overrides.yaml"],
       "matchStrings": [
