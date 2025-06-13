@@ -36,6 +36,8 @@ import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
+import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
+
 /**
  * KroxyliciousOperatorOlmBundleInstaller encapsulates the whole OLM installation process of Kroxylicious Operator. Based on the @code{Environment}
  * values, this class installs Kroxylicious Operator using bundle olm.
@@ -167,8 +169,10 @@ public class KroxyliciousOperatorOlmBundleInstaller implements InstallationMetho
     @SuppressFBWarnings("REC_CATCH_EXCEPTION")
     private boolean isOperatorReady(String ns) {
         try {
+            String label = kubeClient().listPodsByPrefixInName(ns, Environment.KROXYLICIOUS_OLM_DEPLOYMENT_NAME).get(0).getMetadata()
+                    .getLabels().get("app.kubernetes.io/instance");
             PodUtils.waitForPodsReadyWithRestart(ns, new LabelSelectorBuilder()
-                    .withMatchLabels(Map.of("app.kubernetes.io/instance", Constants.KROXYLICIOUS_OPERATOR_OLM_LABEL)).build(),
+                    .withMatchLabels(Map.of("app.kubernetes.io/instance", label)).build(),
                     1, true);
             LOGGER.info("Kroxylicious operator in namespace {} is ready", ns);
             return true;
