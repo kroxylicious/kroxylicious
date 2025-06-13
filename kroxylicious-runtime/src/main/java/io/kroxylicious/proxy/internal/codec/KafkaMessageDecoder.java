@@ -20,14 +20,14 @@ import io.kroxylicious.proxy.frame.Frame;
 /**
  * Abstraction for request and response decoders.
  */
-public abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
+abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
 
     private final int socketFrameMaxSize;
     private final KafkaMessageListener listener;
 
     protected abstract Logger log();
 
-    protected KafkaMessageDecoder(int socketFrameMaxSize, @Nullable KafkaMessageListener listener) {
+    KafkaMessageDecoder(int socketFrameMaxSize, @Nullable KafkaMessageListener listener) {
         this.socketFrameMaxSize = socketFrameMaxSize;
         this.listener = listener;
     }

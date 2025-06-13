@@ -7,6 +7,7 @@
 package io.kroxylicious.proxy.internal.metrics;
 
 import java.util.List;
+import java.util.Objects;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Tag;
@@ -33,7 +34,7 @@ public class DownstreamMessageCountingKafkaMessageListener implements KafkaMessa
 
     @SuppressWarnings("removal")
     public DownstreamMessageCountingKafkaMessageListener(@NonNull String clusterName) {
-        this.clusterName = clusterName;
+        this.clusterName = Objects.requireNonNull(clusterName);
         List<Tag> tags = Metrics.tags(Metrics.FLOWING_TAG, Metrics.DOWNSTREAM, Metrics.VIRTUAL_CLUSTER_TAG, clusterName);
         inboundMessageCounter = Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, tags);
         decodedMessagesCounter = Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES, tags);
@@ -44,8 +45,9 @@ public class DownstreamMessageCountingKafkaMessageListener implements KafkaMessa
         inboundMessageCounter.increment();
         if (frame instanceof DecodedRequestFrame<?> decodedRequestFrame) {
             decodedMessagesCounter.increment();
+            int size = wireLength - Frame.FRAME_SIZE_LENGTH;
             Metrics.payloadSizeBytesUpstreamSummary(decodedRequestFrame.apiKey(), decodedRequestFrame.apiVersion(), clusterName)
-                    .record(wireLength - Frame.FRAME_SIZE_LENGTH);
+                    .record(size);
         }
     }
 }

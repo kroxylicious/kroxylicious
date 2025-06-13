@@ -18,11 +18,11 @@ import io.kroxylicious.proxy.frame.Frame;
 /**
  * Abstraction for request and response encoders.
  */
-public abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByteEncoder<F> {
+abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByteEncoder<F> {
     @Nullable
     private final KafkaMessageListener listener;
 
-    public KafkaMessageEncoder(@Nullable KafkaMessageListener listener) {
+    KafkaMessageEncoder(@Nullable KafkaMessageListener listener) {
         this.listener = listener;
     }
 

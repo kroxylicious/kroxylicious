@@ -202,17 +202,22 @@ public class Metrics {
         return counter(counterName, tags);
     }
 
+    /**
+     * @deprecated use {@link #proxyToClientMessageSizeDistributionProvider(String, Integer)} instead
+     */
     @Deprecated(since = "0.13.0", forRemoval = true)
     public static DistributionSummary payloadSizeBytesUpstreamSummary(ApiKeys apiKey, short apiVersion, String virtualCluster) {
         return payloadSizeBytesSummary(apiKey, apiVersion, UPSTREAM, virtualCluster);
     }
 
+    /**
+     * @deprecated use {@link #clientToProxyMessageSizeDistributionProvider(String, Integer)}  instead
+     */
     @Deprecated(since = "0.13.0", forRemoval = true)
     public static DistributionSummary payloadSizeBytesDownstreamSummary(ApiKeys apiKey, short apiVersion, String virtualCluster) {
         return payloadSizeBytesSummary(apiKey, apiVersion, DOWNSTREAM, virtualCluster);
     }
 
-    @Deprecated(since = "0.13.0", forRemoval = true)
     private static DistributionSummary payloadSizeBytesSummary(ApiKeys apiKey, short apiVersion, String flowing, String virtualCluster) {
         List<Tag> tags = tags(
                 "ApiKey", apiKey.name(),
