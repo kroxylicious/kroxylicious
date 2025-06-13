@@ -16,20 +16,17 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 
-public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
+import edu.umd.cs.findbugs.annotations.Nullable;
 
-    private int replicaCount;
+public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
 
     public KafkaProxyStatusFactory(Clock clock) {
         super(clock);
     }
 
-    public void withReplicaCount(int replicaCount) {
-        this.replicaCount = replicaCount;
-    }
-
     private KafkaProxy kafkaProxyStatusPatch(KafkaProxy observedProxy,
-                                             Condition condition) {
+                                             Condition condition,
+                                             @Nullable Integer replicaCount) {
         // @formatter:off
         KafkaProxyBuilder kafkaProxyBuilder = new KafkaProxyBuilder()
                 .withNewMetadata()
@@ -40,9 +37,11 @@ public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
                 .withNewStatus()
                     .withObservedGeneration(ResourcesUtil.generation(observedProxy))
                     .withConditions(ResourceState.newConditions(Optional.ofNullable(observedProxy.getStatus()).map(KafkaProxyStatus::getConditions).orElse(List.of()), ResourceState.of(condition)))
-                    .withReplicas(replicaCount)
-            .endStatus();
+                .endStatus();
         // @formatter:on
+        if (replicaCount != null) {
+            kafkaProxyBuilder.editStatus().withReplicas(replicaCount).endStatus();
+        }
         return kafkaProxyBuilder.build();
     }
 
@@ -51,7 +50,7 @@ public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
                                               Condition.Type type,
                                               Exception e) {
         Condition unknownCondition = newUnknownCondition(observedProxy, type, e);
-        return kafkaProxyStatusPatch(observedProxy, unknownCondition);
+        return kafkaProxyStatusPatch(observedProxy, unknownCondition, null);
     }
 
     @Override
@@ -60,15 +59,21 @@ public class KafkaProxyStatusFactory extends StatusFactory<KafkaProxy> {
                                             String reason,
                                             String message) {
         Condition falseCondition = newFalseCondition(observedProxy, type, reason, message);
-        return kafkaProxyStatusPatch(observedProxy, falseCondition);
+        return kafkaProxyStatusPatch(observedProxy, falseCondition, null);
     }
 
     @Override
     KafkaProxy newTrueConditionStatusPatch(KafkaProxy observedProxy,
                                            Condition.Type type,
                                            String checksum) {
+        return newTrueConditionStatusPatch(observedProxy, type, (Integer) null);
+    }
+
+    KafkaProxy newTrueConditionStatusPatch(KafkaProxy observedProxy,
+                                           Condition.Type type,
+                                           @Nullable Integer replicaCount) {
         Condition trueCondition = newTrueCondition(observedProxy, type);
-        return kafkaProxyStatusPatch(observedProxy, trueCondition);
+        return kafkaProxyStatusPatch(observedProxy, trueCondition, replicaCount);
     }
 
     @SuppressWarnings("removal")
