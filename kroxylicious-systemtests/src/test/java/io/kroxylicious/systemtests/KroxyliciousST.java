@@ -11,7 +11,6 @@ import java.util.List;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -159,7 +158,6 @@ class KroxyliciousST extends AbstractST {
      *
      * @param namespace the namespace
      */
-    @Disabled("Waiting for scalability support in Kroxylicious Proxy")
     @Test
     void kroxyWithReplicas(String namespace) {
         int numberOfMessages = 3;
@@ -168,7 +166,7 @@ class KroxyliciousST extends AbstractST {
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(replicas).log();
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName, replicas);
         String bootstrap = kroxylicious.getBootstrap(clusterName);
         int currentReplicas = kroxylicious.getNumberOfReplicas();
         given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
@@ -189,18 +187,14 @@ class KroxyliciousST extends AbstractST {
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
-    @Disabled("Waiting for scalability support in Kroxylicious Proxy")
     @Test
     void scaleUpKroxylicious(String namespace) {
-        int replicas = 2;
-        scaleKroxylicious(namespace, replicas, replicas + 1);
+        scaleKroxylicious(namespace, 2, 3);
     }
 
-    @Disabled("Waiting for scalability support in Kroxylicious Proxy")
     @Test
     void scaleDownKroxylicious(String namespace) {
-        int replicas = 3;
-        scaleKroxylicious(namespace, replicas, replicas - 1);
+        scaleKroxylicious(namespace, 3, 2);
     }
 
     private void scaleKroxylicious(String namespace, int replicas, int scaleTo) {
@@ -209,7 +203,7 @@ class KroxyliciousST extends AbstractST {
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(replicas).log();
         kroxylicious = new Kroxylicious(namespace);
-        kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName, replicas);
         String bootstrap = kroxylicious.getBootstrap(clusterName);
         int currentReplicas = kroxylicious.getNumberOfReplicas();
         given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
@@ -237,7 +231,9 @@ class KroxyliciousST extends AbstractST {
 
     @AfterAll
     void cleanUp() {
-        kroxyliciousOperator.delete();
+        if (kroxyliciousOperator != null) {
+            kroxyliciousOperator.delete();
+        }
     }
 
     /**
@@ -252,10 +248,11 @@ class KroxyliciousST extends AbstractST {
         else {
             LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
 
-            KafkaBuilder kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, 3);
+            int numberOfBrokers = 1;
+            KafkaBuilder kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, numberOfBrokers);
 
             resourceManager.createResourceFromBuilderWithWait(
-                    KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka.build(), 3),
+                    KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka.build(), numberOfBrokers),
                     kafka);
         }
 
