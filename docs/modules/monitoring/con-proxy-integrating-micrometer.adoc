@@ -1,8 +1,8 @@
 // file included in the following:
 //
-// assembly-monitoring-proxy.adoc
+// assembly-proxy-monitoring.adoc
 
-[id='con-integrating-micrometer-{context}']
+[id='con-proxy-integrating-micrometer-{context}']
 = Integrating Micrometer
 Kroxylicious integrates with https://micrometer.io/docs[Micrometer] for gathering metrics.
 

@@ -1,0 +1,14 @@
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+[id='con-prometheus-metrics-operator-{context}']
+= Overview of operator metrics
+
+[role="_abstract"]
+
+The Kroxylicious Operator is implemented using the {josdk}[Java Operator SDK].
+The Java Operator SDK exposes metrics that allow its behavior to be understood.
+These metrics are enabled by default in the Kroxylicious Operator.
+
+Refer to the {josdk-metrics}[Java Operator SDK metric documentation] to learn more about metrics.

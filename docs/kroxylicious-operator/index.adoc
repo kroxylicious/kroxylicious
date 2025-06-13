@@ -29,7 +29,7 @@ include::assemblies/assembly-operator-deploy-a-proxy.adoc[leveloffset=+1]
 include::assemblies/assembly-operator-secure-proxy.adoc[leveloffset=+1]
 
 // // monitoring proxies
-// include::assemblies/assembly-operator-monitor-proxy.adoc[leveloffset=+1]
+include::assemblies/assembly-operator-monitoring.adoc[leveloffset=+1]
 
 include::modules/ref-glossary.adoc[leveloffset=+1]
 

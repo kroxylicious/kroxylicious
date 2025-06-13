@@ -1,0 +1,21 @@
+// file included in the following:
+//
+// assembly-operator-monitoring.adoc
+
+[id='con-operator-ingesting-metrics-{context}']
+= Ingesting metrics
+
+[role="_abstract"]
+Metrics from the Kroxylicious Proxy and Kroxylicious Operator can be ingested into your Prometheus instance.
+The proxy and the operator each expose an HTTP endpoint for Prometheus metrics at the `/metrics` address.
+The endpoint does not require authentication.
+
+For the Proxy, the port that exposes the scrape endpoint is named `management`.
+For the Operator, the port is named `http`.
+
+Prometheus can be configured to ingest the metrics from the scrape endpoints.
+
+This guide assumes you are using the https://prometheus-operator.dev/[Prometheus Operator] to configure Prometheus.
+
+include::./proc-operator-ingesting-metrics-operator.adoc[leveloffset=+1]
+include::./proc-operator-ingesting-metrics-proxy.adoc[leveloffset=+1]

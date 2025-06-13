@@ -1,0 +1,23 @@
+// file included in the following:
+//
+// assembly-proxy-monitoring.adoc
+
+[id='con-proxy-ingesting-metrics-{context}']
+= Ingesting metrics
+
+[role="_abstract"]
+Metrics from the Kroxylicious Proxy can be ingested into your Prometheus instance.
+
+Configure the https://prometheus.io/docs/prometheus/latest/configuration/configuration/#scrape_config[`scrape_configs`] property to enable
+Prometheus to scrape the monitors from your proxy instances.
+
+.Example Prometheus scrape config
+
+[source]
+----
+scrape_configs:
+  - job_name: 'kroxylicious'
+    static_configs:
+      - targets: ['proxyhost:9190'] # <1>
+----
+<1> The host that is running the kroxylicious instance and the port number assigned to management.
