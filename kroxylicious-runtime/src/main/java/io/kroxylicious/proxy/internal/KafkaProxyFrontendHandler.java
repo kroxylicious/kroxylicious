@@ -482,14 +482,12 @@ public class KafkaProxyFrontendHandler
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger"));
         }
         addFiltersToPipeline(filters, pipeline, inboundChannel);
-        var proxyToServerMessageCounterProvider = Metrics.PROXY_TO_SERVER_REQUEST_TOTAL_METER_PROVIDER
-                .create(this.virtualClusterModel.getClusterName(), endpointBinding.nodeId());
-        var serverToProxyMessageCounterProvider = Metrics.SERVER_TO_PROXY_RESPONSE_TOTAL_METER_PROVIDER.create(virtualClusterModel.getClusterName(),
-                endpointBinding.nodeId());
+        var proxyToServerMessageCounterProvider = Metrics.proxyToServerMessageCounterProvider(this.virtualClusterModel.getClusterName(), endpointBinding.nodeId());
+        var serverToProxyMessageCounterProvider = Metrics.serverToProxyMessageCounterProvider(virtualClusterModel.getClusterName(), endpointBinding.nodeId());
 
-        var proxyToServerMessageSizeDistributionProvider = Metrics.PROXY_TO_SERVER_REQUEST_SIZE_METER_PROVIDER
-                .create(this.virtualClusterModel.getClusterName(), endpointBinding.nodeId());
-        var serverToProxyMessageSizeDistributionProvider = Metrics.SERVER_TO_PROXY_RESPONSE_SIZE_METER_PROVIDER.create(virtualClusterModel.getClusterName(),
+        var proxyToServerMessageSizeDistributionProvider = Metrics.proxyToServerMessageSizeDistributionProvider(this.virtualClusterModel.getClusterName(),
+                endpointBinding.nodeId());
+        var serverToProxyMessageSizeDistributionProvider = Metrics.serverToProxyMessageSizeDistributionProvider(virtualClusterModel.getClusterName(),
                 endpointBinding.nodeId());
 
         var decoderListener = KafkaMessageListener.chainOf(

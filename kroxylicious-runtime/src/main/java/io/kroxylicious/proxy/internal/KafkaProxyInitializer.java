@@ -52,8 +52,6 @@ import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import static io.kroxylicious.proxy.internal.util.Metrics.CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER;
-
 public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyInitializer.class);
@@ -88,7 +86,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.bindingResolver = bindingResolver;
         this.filterChainFactory = filterChainFactory;
         this.apiVersionsService = apiVersionsService;
-        clientToProxyErrorCounter = CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER.create("", null).withTags();
+        this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
     }
 
     @Override
@@ -221,14 +219,10 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         // The decoder, this only cares about the filters
         // because it needs to know whether to decode requests
 
-        var clientToProxyMessageCounterProvider = Metrics.CLIENT_TO_PROXY_REQUEST_TOTAL_METER_PROVIDER.create(virtualCluster.getClusterName(),
-                binding.nodeId());
-        var clientToProxyMessageSizeDistributionProvider = Metrics.CLIENT_TO_PROXY_REQUEST_SIZE_METER_PROVIDER.create(virtualCluster.getClusterName(),
-                binding.nodeId());
-        var proxyToClientMessageCounterProvider = Metrics.PROXY_TO_CLIENT_RESPONSE_TOTAL_METER_PROVIDER.create(virtualCluster.getClusterName(),
-                binding.nodeId());
-        var proxyToClientMessageSizeDistributionProvider = Metrics.PROXY_TO_CLIENT_RESPONSE_SIZE_METER_PROVIDER.create(virtualCluster.getClusterName(),
-                binding.nodeId());
+        var clientToProxyMessageCounterProvider = Metrics.clientToProxyMessageCounterProvider(virtualCluster.getClusterName(), binding.nodeId());
+        var clientToProxyMessageSizeDistributionProvider = Metrics.clientToProxyMessageSizeDistributionProvider(virtualCluster.getClusterName(), binding.nodeId());
+        var proxyToClientMessageCounterProvider = Metrics.proxyToClientMessageCounterProvider(virtualCluster.getClusterName(), binding.nodeId());
+        var proxyToClientMessageSizeDistributionProvider = Metrics.proxyToClientMessageSizeDistributionProvider(virtualCluster.getClusterName(), binding.nodeId());
 
         var decoderListener = KafkaMessageListener.chainOf(
                 new MetricEmittingKafkaMessageListener(clientToProxyMessageCounterProvider, clientToProxyMessageSizeDistributionProvider),

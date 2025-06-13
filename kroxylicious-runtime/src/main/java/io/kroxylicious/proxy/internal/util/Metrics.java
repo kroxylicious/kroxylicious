@@ -15,12 +15,12 @@ import org.apache.kafka.common.protocol.ApiKeys;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
-import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.binder.BaseUnits;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.micrometer.core.instrument.Metrics.counter;
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
@@ -47,133 +47,6 @@ public class Metrics {
     private static final String PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME = "kroxylicious_proxy_to_server_connections_total";
     private static final String SIZE_SUFFIX = "_size";
 
-    // Meter Providers
-    // (Callers use the providers to create the meters they need, augmenting with any tags).
-
-    // Message Counters
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> CLIENT_TO_PROXY_REQUEST_TOTAL_METER_PROVIDER = (virtualClusterName, nodeId) -> Counter.builder(
-            CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME)
-            .description("Incremented by one every time a request arrives at the proxy from the downstream (client).")
-            .tag(VIRTUAL_CLUSTER_LABEL, virtualClusterName)
-            .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
-            .withRegistry(globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> PROXY_TO_SERVER_REQUEST_TOTAL_METER_PROVIDER = (virtualClusterName, nodeId) -> Counter.builder(
-            PROXY_TO_SERVER_REQUEST_BASE_METER_NAME)
-            .description("Incremented by one every time a request (#1) goes from the proxy to the upstream (server).")
-            .tag(VIRTUAL_CLUSTER_LABEL, virtualClusterName)
-            .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
-            .withRegistry(globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> SERVER_TO_PROXY_RESPONSE_TOTAL_METER_PROVIDER = (virtualClusterName, nodeId) -> Counter.builder(
-            SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME)
-            .description("Incremented by one every time a response (#1) arrives at the proxy from the upstream (server).")
-            .tag(VIRTUAL_CLUSTER_LABEL, virtualClusterName)
-            .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
-            .withRegistry(globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> PROXY_TO_CLIENT_RESPONSE_TOTAL_METER_PROVIDER = (virtualClusterName, nodeId) -> Counter.builder(
-            PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME)
-            .description("Incremented by one every time a response goes from the proxy to the downstream (client).")
-            .tag(VIRTUAL_CLUSTER_LABEL, virtualClusterName)
-            .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
-            .withRegistry(globalRegistry);
-
-    // Message Size Distributions
-    public static final ClusterNodeSpecificMetricProviderCreator<DistributionSummary> CLIENT_TO_PROXY_REQUEST_SIZE_METER_PROVIDER = (virtualClusterName,
-                                                                                                                                     nodeId) -> DistributionSummary
-                                                                                                                                             .builder(
-                                                                                                                                                     CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME
-                                                                                                                                                             + SIZE_SUFFIX)
-                                                                                                                                             .baseUnit(BaseUnits.BYTES)
-                                                                                                                                             .description(
-                                                                                                                                                     "Records the message size of every request arriving from the downstream (client)")
-                                                                                                                                             .tag(VIRTUAL_CLUSTER_LABEL,
-                                                                                                                                                     virtualClusterName)
-                                                                                                                                             .tag(NODE_ID_LABEL,
-                                                                                                                                                     nodeIdToLabelValue(
-                                                                                                                                                             nodeId))
-                                                                                                                                             .withRegistry(
-                                                                                                                                                     globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<DistributionSummary> PROXY_TO_SERVER_REQUEST_SIZE_METER_PROVIDER = (virtualClusterName,
-                                                                                                                                     nodeId) -> DistributionSummary
-                                                                                                                                             .builder(
-                                                                                                                                                     PROXY_TO_SERVER_REQUEST_BASE_METER_NAME
-                                                                                                                                                             + SIZE_SUFFIX)
-                                                                                                                                             .baseUnit(BaseUnits.BYTES)
-                                                                                                                                             .description(
-                                                                                                                                                     "Records the message size of every request leaving for the upstream (server)")
-                                                                                                                                             .tag(VIRTUAL_CLUSTER_LABEL,
-                                                                                                                                                     virtualClusterName)
-                                                                                                                                             .tag(NODE_ID_LABEL,
-                                                                                                                                                     nodeIdToLabelValue(
-                                                                                                                                                             nodeId))
-                                                                                                                                             .withRegistry(
-                                                                                                                                                     globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<DistributionSummary> SERVER_TO_PROXY_RESPONSE_SIZE_METER_PROVIDER = (virtualClusterName,
-                                                                                                                                      nodeId) -> DistributionSummary
-                                                                                                                                              .builder(
-                                                                                                                                                      SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME
-                                                                                                                                                              + SIZE_SUFFIX)
-                                                                                                                                              .baseUnit(BaseUnits.BYTES)
-                                                                                                                                              .description(
-                                                                                                                                                      "Records the message size of every response arriving from the upstream (server).")
-                                                                                                                                              .tag(VIRTUAL_CLUSTER_LABEL,
-                                                                                                                                                      virtualClusterName)
-                                                                                                                                              .tag(NODE_ID_LABEL,
-                                                                                                                                                      nodeIdToLabelValue(
-                                                                                                                                                              nodeId))
-                                                                                                                                              .withRegistry(
-                                                                                                                                                      globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<DistributionSummary> PROXY_TO_CLIENT_RESPONSE_SIZE_METER_PROVIDER = (virtualClusterName,
-                                                                                                                                      nodeId) -> DistributionSummary
-                                                                                                                                              .builder(
-                                                                                                                                                      PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME
-                                                                                                                                                              + SIZE_SUFFIX)
-                                                                                                                                              .baseUnit(BaseUnits.BYTES)
-                                                                                                                                              .description(
-                                                                                                                                                      "Records the message size of every response leaving for the downstream (client).")
-                                                                                                                                              .tag(VIRTUAL_CLUSTER_LABEL,
-                                                                                                                                                      virtualClusterName)
-                                                                                                                                              .tag(NODE_ID_LABEL,
-                                                                                                                                                      nodeIdToLabelValue(
-                                                                                                                                                              nodeId))
-                                                                                                                                              .withRegistry(
-                                                                                                                                                      globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER = (virtualClusterName, nodeId) -> Counter.builder(
-            CLIENT_TO_PROXY_ERROR_BASE_METER_NAME)
-            .description("Incremented by one every time a connection is closed due to any downstream error.")
-            .tag(VIRTUAL_CLUSTER_LABEL, virtualClusterName)
-            .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
-            .withRegistry(globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> PROXY_TO_SERVER_ERROR_TOTAL_METER_PROVIDER = (virtualClusterName, nodeId) -> Counter.builder(
-            PROXY_TO_SERVER_ERROR_BASE_METER_NAME)
-            .description("Incremented by one every time a connection is closed due to any upstream error.")
-            .tag(VIRTUAL_CLUSTER_LABEL, virtualClusterName)
-            .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
-            .withRegistry(globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> CLIENT_TO_PROXY_CONNECTION_TOTAL_METER_PROVIDER = (virtualClusterName, nodeId) -> Counter
-            .builder(
-                    CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME)
-            .description("Incremented by one every time a connection is accepted from the downstream the proxy.")
-            .tag(VIRTUAL_CLUSTER_LABEL, virtualClusterName)
-            .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
-            .withRegistry(globalRegistry);
-
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> PROXY_TO_SERVER_CONNECTION_TOTAL_METER_PROVIDER = (virtualClusterName, nodeId) -> Counter
-            .builder(
-                    PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME)
-            .description("Incremented by one every time a connection is made to the upstream from the proxy.")
-            .tag(VIRTUAL_CLUSTER_LABEL, virtualClusterName)
-            .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
-            .withRegistry(globalRegistry);
-
     /**
      * @deprecated use kroxylicious_client_to_proxy_request_count instead.
      */
@@ -193,49 +66,49 @@ public class Metrics {
     private static final String KROXYLICIOUS_UPSTREAM = "kroxylicious_upstream_";
 
     /**
-     * @deprecated use {@link #CLIENT_TO_PROXY_CONNECTION_TOTAL_METER_PROVIDER} instead
+     * @deprecated use {@link #clientToProxyMessageCounterProvider(String, Integer)} instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_DOWNSTREAM_CONNECTIONS = KROXYLICIOUS_DOWNSTREAM + "connections";
 
     /**
-     * @deprecated use {@link #CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER} instead
+     * @deprecated use {@link #clientToProxyErrorCounter(String, Integer)} instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_DOWNSTREAM_ERRORS = KROXYLICIOUS_DOWNSTREAM + "errors";
 
     /**
-     * @deprecated use {@link #PROXY_TO_SERVER_CONNECTION_TOTAL_METER_PROVIDER} instead
+     * @deprecated use {@link #proxyToServerConnectionCounter(String, Integer)} instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_UPSTREAM_CONNECTIONS = KROXYLICIOUS_UPSTREAM + "connections";
 
     /**
-     * @deprecated use {@link #PROXY_TO_SERVER_CONNECTION_TOTAL_METER_PROVIDER} instead
+     * @deprecated use {@link #proxyToServerConnectionCounter(String, Integer)} instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS = KROXYLICIOUS_UPSTREAM + "connection_attempts";
 
     /**
-     * @deprecated use {@link #PROXY_TO_SERVER_ERROR_TOTAL_METER_PROVIDER} instead
+     * @deprecated use {@link #proxyToServerErrorCounter(String, Integer)} instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES = KROXYLICIOUS_UPSTREAM + "connection_failures";
 
     /**
-     * @deprecated use {@link #PROXY_TO_SERVER_ERROR_TOTAL_METER_PROVIDER} instead
+     * @deprecated use {@link #proxyToServerErrorCounter(String, Integer)} instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_UPSTREAM_ERRORS = KROXYLICIOUS_UPSTREAM + "errors";
 
     /**
-     * @deprecated use {@link #CLIENT_TO_PROXY_REQUEST_SIZE_METER_PROVIDER} instead
+     * @deprecated use {@link #clientToProxyMessageSizeDistributionProvider(String, Integer)} instead
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
@@ -248,6 +121,81 @@ public class Metrics {
     public static final String DOWNSTREAM = "downstream";
 
     public static final String UPSTREAM = "upstream";
+
+    private Metrics() {
+        // unused
+    }
+
+    public static MeterProvider<Counter> clientToProxyMessageCounterProvider(String clusterName, Integer nodeId) {
+        return buildCounterMeterProvider(CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME,
+                "Incremented by one every time a request arrives at the proxy from the downstream (client).",
+                clusterName, nodeId);
+    }
+
+    public static MeterProvider<DistributionSummary> proxyToClientMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildDistributionSummaryMeterProvider(PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME,
+                "Records the message size of every response leaving for the downstream (client).",
+                clusterName, BaseUnits.BYTES, nodeId);
+    }
+
+    public static MeterProvider<Counter> proxyToClientMessageCounterProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(PROXY_TO_CLIENT_RESPONSE_BASE_METER_NAME,
+                "Incremented by one every time a response goes from the proxy to the downstream (client).", clusterName,
+                nodeId);
+    }
+
+    public static MeterProvider<DistributionSummary> clientToProxyMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildDistributionSummaryMeterProvider(CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME,
+                "Records the message size of every request arriving from the downstream (client)",
+                clusterName, BaseUnits.BYTES, nodeId);
+    }
+
+    public static MeterProvider<DistributionSummary> serverToProxyMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildDistributionSummaryMeterProvider(SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME,
+                "Records the message size of every response arriving from the upstream (server).",
+                clusterName, BaseUnits.BYTES, nodeId);
+    }
+
+    public static MeterProvider<DistributionSummary> proxyToServerMessageSizeDistributionProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildDistributionSummaryMeterProvider(PROXY_TO_SERVER_REQUEST_BASE_METER_NAME,
+                "Records the message size of every request leaving for the upstream (server)",
+                clusterName,
+                BaseUnits.BYTES, nodeId);
+    }
+
+    public static MeterProvider<Counter> serverToProxyMessageCounterProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(SERVER_TO_PROXY_RESPONSE_BASE_METER_NAME,
+                "Incremented by one every time a response arrives at the proxy from the upstream (server).",
+                clusterName, nodeId);
+    }
+
+    public static MeterProvider<Counter> proxyToServerMessageCounterProvider(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(PROXY_TO_SERVER_REQUEST_BASE_METER_NAME,
+                "Incremented by one every time a request goes from the proxy to the upstream (server).",
+                clusterName, nodeId);
+    }
+
+    public static MeterProvider<Counter> proxyToServerErrorCounter(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(PROXY_TO_SERVER_ERROR_BASE_METER_NAME, "Incremented by one every time a connection is closed due to any upstream error.",
+                clusterName, nodeId);
+    }
+
+    public static MeterProvider<Counter> proxyToServerConnectionCounter(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME, "Incremented by one every time a connection is made to the upstream from the proxy.",
+                clusterName,
+                nodeId);
+    }
+
+    public static MeterProvider<Counter> clientToProxyErrorCounter(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(CLIENT_TO_PROXY_ERROR_BASE_METER_NAME, "Incremented by one every time a connection is closed due to any downstream error.",
+                clusterName, nodeId);
+    }
+
+    public static MeterProvider<Counter> clientToProxyConnectionCounter(String clusterName, @Nullable Integer nodeId) {
+        return buildCounterMeterProvider(CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME,
+                "Incremented by one every time a connection is accepted from the downstream the proxy.", clusterName,
+                nodeId);
+    }
 
     @NonNull
     public static Counter taggedCounter(String counterName, List<Tag> tags) {
@@ -302,13 +250,35 @@ public class Metrics {
     }
 
     @NonNull
-    private static String nodeIdToLabelValue(Integer nodeId) {
+    private static String nodeIdToLabelValue(@Nullable Integer nodeId) {
         return Optional.ofNullable(nodeId).map(Object::toString).orElse("bootstrap");
     }
 
-    @FunctionalInterface
-    public interface ClusterNodeSpecificMetricProviderCreator<T extends Meter> {
+    @NonNull
+    private static MeterProvider<Counter> buildCounterMeterProvider(String meterName,
+                                                                    String description,
+                                                                    String clusterName,
+                                                                    @Nullable Integer nodeId) {
+        return Counter
+                .builder(meterName)
+                .description(description)
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
+                .withRegistry(globalRegistry);
+    }
 
-        MeterProvider<T> create(String virtualCluster, Integer nodeId);
+    @NonNull
+    private static MeterProvider<DistributionSummary> buildDistributionSummaryMeterProvider(String meterName,
+                                                                                            String description,
+                                                                                            String clusterName,
+                                                                                            String baseUnit,
+                                                                                            @Nullable Integer nodeId) {
+        var name = meterName + SIZE_SUFFIX;
+        return DistributionSummary.builder(name)
+                .baseUnit(baseUnit)
+                .description(description)
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
+                .withRegistry(globalRegistry);
     }
 }
