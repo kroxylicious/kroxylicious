@@ -10,27 +10,29 @@ import java.util.List;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Tag;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.Frame;
+import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
 import io.kroxylicious.proxy.internal.util.Metrics;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Emits the deprecated downstream metrics kroxylicious_inbound_downstream_messages,
  * kroxylicious_inbound_downstream_messages,  kroxylicious_inbound_downstream_decoded_messages, and
  * kroxylicious_payload_size_bytes.
  *
- * @deprecated use metrics emitted by {@link MessageMetrics} instead.
+ * @deprecated use metrics emitted by {@link MetricEmittingKafkaMessageListener} instead.
  */
 @Deprecated(since = "0.13.0", forRemoval = true)
-public class DeprecatedDownstreamMessageMetrics extends ChannelInboundHandlerAdapter {
+public class DownstreamMessageCountingKafkaMessageListener implements KafkaMessageListener {
     private final String clusterName;
     private final Counter inboundMessageCounter;
     private final Counter decodedMessagesCounter;
 
     @SuppressWarnings("removal")
-    public DeprecatedDownstreamMessageMetrics(String clusterName) {
+    public DownstreamMessageCountingKafkaMessageListener(@NonNull String clusterName) {
         this.clusterName = clusterName;
         List<Tag> tags = Metrics.tags(Metrics.FLOWING_TAG, Metrics.DOWNSTREAM, Metrics.VIRTUAL_CLUSTER_TAG, clusterName);
         inboundMessageCounter = Metrics.taggedCounter(Metrics.KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES, tags);
@@ -38,21 +40,12 @@ public class DeprecatedDownstreamMessageMetrics extends ChannelInboundHandlerAda
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-
-        try {
-            inboundMessageCounter.increment();
-            if (msg instanceof DecodedRequestFrame<?> decodedRequestFrame) {
-                decodedMessagesCounter.increment();
-                // The request might be updated by the filters as it travels through the proxy
-                // so this avoids causing the size to be cached prematurely
-                int size = new DecodedRequestFrame<>(decodedRequestFrame.apiVersion(), decodedRequestFrame.correlationId(), decodedRequestFrame.decodeResponse(),
-                        decodedRequestFrame.header(), decodedRequestFrame.body()).estimateEncodedSize();
-                Metrics.payloadSizeBytesUpstreamSummary(decodedRequestFrame.apiKey(), decodedRequestFrame.apiVersion(), clusterName).record(size);
-            }
-        }
-        finally {
-            super.channelRead(ctx, msg);
+    public void onMessage(@NonNull Frame frame, int wireLength) {
+        inboundMessageCounter.increment();
+        if (frame instanceof DecodedRequestFrame<?> decodedRequestFrame) {
+            decodedMessagesCounter.increment();
+            Metrics.payloadSizeBytesUpstreamSummary(decodedRequestFrame.apiKey(), decodedRequestFrame.apiVersion(), clusterName)
+                    .record(wireLength - Frame.FRAME_SIZE_LENGTH);
         }
     }
 }

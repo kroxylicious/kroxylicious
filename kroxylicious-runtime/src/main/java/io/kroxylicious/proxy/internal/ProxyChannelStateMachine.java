@@ -38,16 +38,16 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_STATE;
-import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_TOTAL_METER_PROVIDER;
-import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER;
+import static io.kroxylicious.proxy.internal.util.Metrics.CLIENT_TO_PROXY_CONNECTION_TOTAL_METER_PROVIDER;
+import static io.kroxylicious.proxy.internal.util.Metrics.CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_DOWNSTREAM_CONNECTIONS;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_DOWNSTREAM_ERRORS;
-import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_TOTAL_METER_PROVIDER;
-import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_PROXY_TO_SERVER_ERROR_TOTAL_METER_PROVIDER;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTIONS;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES;
 import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_ERRORS;
+import static io.kroxylicious.proxy.internal.util.Metrics.PROXY_TO_SERVER_CONNECTION_TOTAL_METER_PROVIDER;
+import static io.kroxylicious.proxy.internal.util.Metrics.PROXY_TO_SERVER_ERROR_TOTAL_METER_PROVIDER;
 import static io.kroxylicious.proxy.internal.util.Metrics.taggedCounter;
 import static org.slf4j.LoggerFactory.getLogger;
 
@@ -150,13 +150,13 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
         // New connection metrics
-        clientToProxyConnectionCounter = KROXYLICIOUS_CLIENT_TO_PROXY_CONNECTION_TOTAL_METER_PROVIDER
+        clientToProxyConnectionCounter = CLIENT_TO_PROXY_CONNECTION_TOTAL_METER_PROVIDER
                 .create(clusterName, nodeId).withTags();
-        clientToProxyErrorCounter = KROXYLICIOUS_CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER
+        clientToProxyErrorCounter = CLIENT_TO_PROXY_ERROR_TOTAL_METER_PROVIDER
                 .create(clusterName, nodeId).withTags();
-        proxyToServerConnectionCounter = KROXYLICIOUS_PROXY_TO_SERVER_CONNECTION_TOTAL_METER_PROVIDER
+        proxyToServerConnectionCounter = PROXY_TO_SERVER_CONNECTION_TOTAL_METER_PROVIDER
                 .create(clusterName, nodeId).withTags();
-        proxyToServerErrorCounter = KROXYLICIOUS_PROXY_TO_SERVER_ERROR_TOTAL_METER_PROVIDER
+        proxyToServerErrorCounter = PROXY_TO_SERVER_ERROR_TOTAL_METER_PROVIDER
                 .create(clusterName, nodeId).withTags();
 
         // These connections metrics are deprecated and are replaced by the metrics mentioned above

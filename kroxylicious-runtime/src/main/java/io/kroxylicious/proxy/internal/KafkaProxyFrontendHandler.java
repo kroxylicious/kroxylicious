@@ -45,10 +45,11 @@ import io.kroxylicious.proxy.internal.ProxyChannelState.ClientActive;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import io.kroxylicious.proxy.internal.codec.CorrelationManager;
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
+import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
-import io.kroxylicious.proxy.internal.metrics.DeprecatedUpstreamMessageMetrics;
-import io.kroxylicious.proxy.internal.metrics.MessageMetrics;
+import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener;
+import io.kroxylicious.proxy.internal.metrics.UpstreamPayloadSizeMetricRecordingKafkaMessageListener;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -481,21 +482,23 @@ public class KafkaProxyFrontendHandler
             pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger"));
         }
         addFiltersToPipeline(filters, pipeline, inboundChannel);
-        var proxyToServerMessageCounterProvider = Metrics.KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_TOTAL_METER_PROVIDER
+        var proxyToServerMessageCounterProvider = Metrics.PROXY_TO_SERVER_REQUEST_TOTAL_METER_PROVIDER
                 .create(this.virtualClusterModel.getClusterName(), endpointBinding.nodeId());
-        var serverToProxyMessageCounterProvider = Metrics.KROXYLICIOUS_SERVER_TO_PROXY_RESPONSE_TOTAL_METER_PROVIDER.create(virtualClusterModel.getClusterName(),
+        var serverToProxyMessageCounterProvider = Metrics.SERVER_TO_PROXY_RESPONSE_TOTAL_METER_PROVIDER.create(virtualClusterModel.getClusterName(),
                 endpointBinding.nodeId());
 
-        var proxyToServerMessageSizeDistributionProvider = Metrics.KROXYLICIOUS_PROXY_TO_SERVER_REQUEST_SIZE_METER_PROVIDER
+        var proxyToServerMessageSizeDistributionProvider = Metrics.PROXY_TO_SERVER_REQUEST_SIZE_METER_PROVIDER
                 .create(this.virtualClusterModel.getClusterName(), endpointBinding.nodeId());
-        var serverToProxyMessageSizeDistributionProvider = Metrics.KROXYLICIOUS_SERVER_TO_PROXY_RESPONSE_SIZE_METER_PROVIDER.create(virtualClusterModel.getClusterName(),
+        var serverToProxyMessageSizeDistributionProvider = Metrics.SERVER_TO_PROXY_RESPONSE_SIZE_METER_PROVIDER.create(virtualClusterModel.getClusterName(),
                 endpointBinding.nodeId());
 
-        pipeline.addFirst("upstreamMetrics", new MessageMetrics(serverToProxyMessageCounterProvider, proxyToServerMessageCounterProvider,
-                serverToProxyMessageSizeDistributionProvider, proxyToServerMessageSizeDistributionProvider));
-        pipeline.addFirst("deprecatedUpstreamMetrics", getDeprecatedUpstreamMessageMetrics(this.virtualClusterModel.getClusterName()));
-        pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager, virtualClusterModel.socketFrameMaxSizeBytes()));
-        pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager));
+        var decoderListener = KafkaMessageListener.chainOf(
+                new MetricEmittingKafkaMessageListener(serverToProxyMessageCounterProvider, serverToProxyMessageSizeDistributionProvider),
+                getDeprecatedUpstreamMessageMetrics(this.virtualClusterModel.getClusterName()));
+        var encoderListener = new MetricEmittingKafkaMessageListener(proxyToServerMessageCounterProvider, proxyToServerMessageSizeDistributionProvider);
+
+        pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager, virtualClusterModel.socketFrameMaxSizeBytes(), decoderListener));
+        pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager, encoderListener));
         if (logNetwork) {
             pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger"));
         }
@@ -524,8 +527,8 @@ public class KafkaProxyFrontendHandler
 
     @NonNull
     @SuppressWarnings("removal")
-    private DeprecatedUpstreamMessageMetrics getDeprecatedUpstreamMessageMetrics(String clusterName) {
-        return new DeprecatedUpstreamMessageMetrics(clusterName);
+    private KafkaMessageListener getDeprecatedUpstreamMessageMetrics(String clusterName) {
+        return new UpstreamPayloadSizeMetricRecordingKafkaMessageListener(clusterName);
     }
 
     /** Ugly hack used for testing */

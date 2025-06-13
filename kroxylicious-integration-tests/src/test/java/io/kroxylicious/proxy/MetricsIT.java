@@ -443,7 +443,7 @@ class MetricsIT {
                                     labels -> apiKeyNodeIdDecodePredicate(labels, ApiKeys.PRODUCE, "0", "true"));
 
                             assertThat(clientToProxy).isGreaterThan(1024.0);
-                            assertThat(proxyToBroker).isGreaterThanOrEqualTo(clientToProxy + 1024.0);
+                            assertThat(proxyToBroker).isGreaterThan(2048.0);
                         }),
                 argumentSet("measures size when filter decreases response size",
                         (UnaryOperator<ConfigurationBuilder>) builder -> addFilterToConfig(builder, deflatingFetchTransform),
@@ -457,7 +457,7 @@ class MetricsIT {
                                     labels -> apiKeyNodeIdDecodePredicate(labels, ApiKeys.FETCH, "0", "true"));
 
                             assertThat(brokerToProxy).isGreaterThan(1024.0);
-                            assertThat(proxyToClient).isGreaterThan(512.0).isLessThanOrEqualTo(brokerToProxy - 512);
+                            assertThat(proxyToClient).isGreaterThan(512.0).isLessThan(1024);
                         }));
     }
 

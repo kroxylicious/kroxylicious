@@ -24,7 +24,8 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
     public static final int API_VERSION = 2;
     private final CorrelationManager correlationManager;
 
-    public KafkaRequestEncoder(CorrelationManager correlationManager) {
+    public KafkaRequestEncoder(CorrelationManager correlationManager, KafkaMessageListener listener) {
+        super(listener);
         this.correlationManager = correlationManager;
     }
 

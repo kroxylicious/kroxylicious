@@ -28,11 +28,6 @@ public abstract class OpaqueFrame implements Frame {
     /* Api Key version */
     private final short apiVersion;
 
-    /**
-     * Number of bytes required for storing the frame length.
-     */
-    private static final int FRAME_SIZE_LENGTH = Integer.BYTES;
-
     protected final int length;
     protected final int correlationId;
     /** The message buffer excluding the frame size, including the header and body. */
