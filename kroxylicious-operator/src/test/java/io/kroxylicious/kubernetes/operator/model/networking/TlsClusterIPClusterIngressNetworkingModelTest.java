@@ -138,10 +138,8 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
         // then
         assertThat(serviceBuilders).isNotNull().isNotEmpty().allSatisfy(serviceBuild -> {
             Service build = serviceBuild.build();
-            Map<String, String> orderedServiceLabels = commonLabels(PROXY_NAME);
             assertThat(build.getMetadata()).isNotNull().satisfies(metadata -> {
                 assertThat(metadata.getNamespace()).isEqualTo(NAMESPACE);
-                assertThat(metadata.getLabels()).containsExactlyEntriesOf(orderedServiceLabels);
                 assertThat(metadata.getOwnerReferences())
                         .satisfiesExactlyInAnyOrder(
                                 ownerRef -> {

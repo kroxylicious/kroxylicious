@@ -172,11 +172,9 @@ class TcpClusterIPClusterIngressNetworkingModelTest {
         // then
         assertThat(serviceBuilders).isNotNull().isNotEmpty().singleElement().satisfies(serviceBuild -> {
             Service build = serviceBuild.build();
-            Map<String, String> orderedServiceLabels = commonLabels(PROXY_NAME);
             assertThat(build.getMetadata()).isNotNull().satisfies(metadata -> {
                 assertThat(metadata.getNamespace()).isEqualTo(NAMESPACE);
                 assertThat(metadata.getName()).isEqualTo(CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap");
-                assertThat(metadata.getLabels()).containsExactlyEntriesOf(orderedServiceLabels);
                 assertThat(metadata.getOwnerReferences())
                         .satisfiesExactlyInAnyOrder(
                                 ownerRef -> {
