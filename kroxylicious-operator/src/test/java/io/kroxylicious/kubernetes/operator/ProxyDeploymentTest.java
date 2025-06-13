@@ -21,6 +21,8 @@ import org.junitpioneer.jupiter.SetEnvironmentVariable;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedWorkflowAndDependentResourceContext;
@@ -57,9 +59,8 @@ class ProxyDeploymentTest {
 
     @BeforeEach
     void setUp() {
-        PodTemplateSpec podTemplate = new PodTemplateSpecBuilder().withNewMetadata().addToLabels("c", "d").addToLabels("a", "b").endMetadata().build();
         kafkaProxy = new KafkaProxyBuilder().withNewMetadata().withName(PROXY_NAME).withUid(UUID.randomUUID().toString()).endMetadata()
-                .withNewSpec().withPodTemplate(podTemplate).endSpec().build();
+                .withNewSpec().withNewInfrastructure().addToLabels("c", "d").addToLabels("a", "b").endInfrastructure().endSpec().build();
         kubernetesContext = setupContext();
     }
 
@@ -99,6 +100,38 @@ class ProxyDeploymentTest {
 
         // Then
         assertThat(actual.getSpec().getTemplate().getSpec().getSecurityContext().getSeccompProfile().getType()).isEqualTo("RuntimeDefault");
+    }
+
+    @Test
+    void shouldSpecifyDefaultResources() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+
+        // When
+        Deployment actual = proxyDeploymentDependentResource.desired(kafkaProxy, kubernetesContext);
+
+        // Then
+        ResourceRequirements resources = actual.getSpec().getTemplate().getSpec().getContainers().get(0).getResources();
+        assertThat(resources.getRequests()).containsEntry("cpu", Quantity.parse("500m"));
+        assertThat(resources.getRequests()).containsEntry("memory", Quantity.parse("512Mi"));
+        assertThat(resources.getLimits()).containsEntry("cpu", Quantity.parse("500m"));
+        assertThat(resources.getLimits()).containsEntry("memory", Quantity.parse("512Mi"));
+    }
+
+    @Test
+    void userInfrastructureResourcesReplaceDefaults() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+
+        // When
+        PodTemplateSpec proxyPod = new PodTemplateSpecBuilder().editSpec().editResources().addToLimits("cpu", Quantity.parse("200m")).endResources().endSpec().build();
+        KafkaProxy proxy = kafkaProxy.edit().editSpec().editInfrastructure().withProxyPod(proxyPod).endInfrastructure().endSpec().build();
+        Deployment actual = proxyDeploymentDependentResource.desired(proxy, kubernetesContext);
+
+        // Then
+        ResourceRequirements resources = actual.getSpec().getTemplate().getSpec().getContainers().get(0).getResources();
+        assertThat(resources.getRequests()).isEmpty();
+        assertThat(resources.getLimits()).containsExactlyEntriesOf(Map.of("cpu", Quantity.parse("200m")));
     }
 
     @Test

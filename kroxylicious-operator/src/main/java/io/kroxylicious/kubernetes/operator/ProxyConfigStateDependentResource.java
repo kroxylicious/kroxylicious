@@ -23,6 +23,7 @@ import io.kroxylicious.kubernetes.operator.model.networking.IngressConflictExcep
 import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 
+import static io.kroxylicious.kubernetes.operator.Labels.infrastructureLabels;
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
@@ -62,6 +63,7 @@ public class ProxyConfigStateDependentResource
                     .withName(configMapName(primary))
                     .withNamespace(namespace(primary))
                     .addToLabels(standardLabels(primary))
+                    .addToLabels(infrastructureLabels(primary))
                     .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
                 .endMetadata()
                 .withData(data.build())

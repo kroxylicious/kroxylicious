@@ -12,6 +12,6 @@ resource:
     name: use-pod-template-spec
     namespace: proxy-ns
   spec:
-    podTemplate: []
+    infrastructure: []
 expectFailureMessageToContain: |
-  spec.podTemplate: Invalid value: "array"
+  spec.infrastructure: Invalid value: "array"

@@ -54,6 +54,13 @@ spec:
           ports:
             - containerPort: 9190
               name: "management"
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

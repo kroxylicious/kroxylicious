@@ -12,8 +12,7 @@ resource:
     name: use-pod-template-spec
     namespace: proxy-ns
   spec:
-    podTemplate:
-      metadata:
-        labels: []
+    infrastructure:
+      labels: []
 expectFailureMessageToContain: |
-  spec.podTemplate.metadata.labels: Invalid value: "array"
+  spec.infrastructure.labels: Invalid value: "array"

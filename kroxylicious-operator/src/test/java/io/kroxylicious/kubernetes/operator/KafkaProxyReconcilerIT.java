@@ -35,6 +35,9 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.PodTemplateSpec;
+import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
@@ -153,6 +156,31 @@ class KafkaProxyReconcilerIT {
     @Test
     void testCreate() {
         doCreate();
+    }
+
+    @Test
+    void userSuppliesResourcesAndRequests() {
+        // given
+        doCreate();
+        PodTemplateSpec proxyPod = new PodTemplateSpecBuilder().withNewSpec().withNewResources().addToLimits("cpu", Quantity.parse("100m")).endResources().endSpec()
+                .build();
+        KafkaProxy proxy = kafkaProxy(PROXY_A).edit().editSpec().editInfrastructure().withProxyPod(proxyPod).endInfrastructure().endSpec().build();
+        // when
+        testActor.replace(proxy);
+        // then
+
+        AWAIT.alias("Deployment as expected").untilAsserted(() -> {
+            var deployment = testActor.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy));
+            assertThat(deployment).isNotNull();
+            var listAssert = assertThat(deployment.getSpec().getTemplate().getSpec().getContainers()).hasSize(1);
+            listAssert.element(0).satisfies(container -> {
+                assertThat(container).isNotNull();
+                assertThat(container.getResources()).isNotNull().satisfies(resource -> {
+                    assertThat(resource.getLimits()).containsExactlyEntriesOf(Map.of("cpu", Quantity.parse("100m")));
+                    assertThat(resource.getRequests()).isEmpty();
+                });
+            });
+        });
     }
 
     @Test

@@ -28,6 +28,7 @@ import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel
 import io.kroxylicious.kubernetes.operator.model.networking.SharedLoadBalancerServiceRequirements;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 
+import static io.kroxylicious.kubernetes.operator.Labels.infrastructureLabels;
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.SHARED_SNI_PORT;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
@@ -78,7 +79,16 @@ public class ClusterServiceDependentResource
 
         var sniServiceStream = sniLoadbalancerServices(primary, sharedSniLoadbalancerPorts, bootstraps);
 
-        return Stream.concat(serviceStream, sniServiceStream).collect(toByNameMap());
+        return Stream.concat(serviceStream, sniServiceStream)
+                .map(service -> augmentWithLabels(primary, service))
+                .map(ServiceBuilder::build).collect(toByNameMap());
+    }
+
+    private static ServiceBuilder augmentWithLabels(KafkaProxy primary, ServiceBuilder service) {
+        Map<String, String> standard = standardLabels(primary);
+        Map<String, String> infrastructureLabels = infrastructureLabels(primary);
+        service.editOrNewMetadata().addToLabels(standard).addToLabels(infrastructureLabels).endMetadata();
+        return service;
     }
 
     /**
@@ -101,13 +111,13 @@ public class ClusterServiceDependentResource
         ObjectMetaBuilder builder = new ObjectMetaBuilder()
                 .withName(name)
                 .withNamespace(namespace(primary))
-                .addToLabels(standardLabels(primary))
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference();
         Annotations.annotateWithBootstrapServers(builder, bootstraps);
         return builder.build();
     }
 
-    private Stream<Service> sniLoadbalancerServices(KafkaProxy primary, List<Integer> loadBalancerPorts, Set<Annotations.ClusterIngressBootstrapServers> bootstraps) {
+    private Stream<ServiceBuilder> sniLoadbalancerServices(KafkaProxy primary, List<Integer> loadBalancerPorts,
+                                                           Set<Annotations.ClusterIngressBootstrapServers> bootstraps) {
         if (loadBalancerPorts.isEmpty()) {
             return Stream.empty();
         }
@@ -127,7 +137,7 @@ public class ClusterServiceDependentResource
                         .withProtocol("TCP")
                         .endPort();
             }
-            return Stream.of(serviceSpecBuilder.endSpec().build());
+            return Stream.of(serviceSpecBuilder.endSpec());
         }
     }
 

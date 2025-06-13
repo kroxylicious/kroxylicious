@@ -19,10 +19,13 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
+import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecFluent;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
@@ -32,6 +35,7 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Infrastructure;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
@@ -39,6 +43,9 @@ import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+import static io.kroxylicious.kubernetes.operator.Labels.infrastructureLabels;
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
@@ -56,6 +63,11 @@ public class ProxyDeploymentDependentResource
     private static final String MANAGEMENT_PORT_NAME = "management";
     public static final int PROXY_PORT_START = 9292;
     public static final int SHARED_SNI_PORT = 9291;
+    private static final Map<String, Quantity> DEFAULT_RESOURCES = Map.of("cpu", Quantity.parse("500m"), "memory", Quantity.parse("512Mi"));
+    private static final ResourceRequirements DEFAULT_PROXY_RESOURCE_REQUIREMENTS = new ResourceRequirementsBuilder()
+            .withLimits(DEFAULT_RESOURCES)
+            .withRequests(DEFAULT_RESOURCES).build();
+    // @formatter:on
     private final String kroxyliciousImage = getOperandImage();
     static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
 
@@ -84,6 +96,7 @@ public class ProxyDeploymentDependentResource
                     .withNamespace(namespace(primary))
                     .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(primary)).endOwnerReference()
                     .addToLabels(standardLabels(primary))
+                    .addToLabels(infrastructureLabels(primary))
                 .endMetadata()
                 .editOrNewSpec()
                     .withReplicas(1)
@@ -116,11 +129,8 @@ public class ProxyDeploymentDependentResource
     }
 
     public static Map<String, String> podLabels(KafkaProxy primary) {
-        Map<String, String> labelsFromSpec = Optional.ofNullable(primary.getSpec()).map(KafkaProxySpec::getPodTemplate)
-                .map(PodTemplateSpec::getMetadata)
-                .map(ObjectMeta::getLabels)
-                .orElse(Map.of());
-        Map<String, String> result = new LinkedHashMap<>(labelsFromSpec);
+        Map<String, String> result = new LinkedHashMap<>();
+        result.putAll(infrastructureLabels(primary));
         result.putAll(standardLabels(primary));
         return result;
     }
@@ -147,7 +157,7 @@ public class ProxyDeploymentDependentResource
                             .withType("RuntimeDefault")
                         .endSeccompProfile()
                     .endSecurityContext()
-                    .withContainers(proxyContainer(kafkaProxyContext, ingressModel, clusterResolutionResults))
+                    .withContainers(proxyContainer(primary, kafkaProxyContext, ingressModel, clusterResolutionResults))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
                         .withNewConfigMap()
@@ -160,7 +170,16 @@ public class ProxyDeploymentDependentResource
         // @formatter:on
     }
 
-    private Container proxyContainer(KafkaProxyContext kafkaProxyContext,
+    @Nullable
+    private static ResourceRequirements getResources(KafkaProxy primary) {
+        Optional<ResourceRequirements> resources = Optional.ofNullable(primary.getSpec())
+                .map(KafkaProxySpec::getInfrastructure)
+                .map(Infrastructure::getProxyPod)
+                .map(PodTemplateSpec::getSpec).map(PodSpec::getResources);
+        return resources.orElse(DEFAULT_PROXY_RESOURCE_REQUIREMENTS);
+    }
+
+    private Container proxyContainer(KafkaProxy primary, KafkaProxyContext kafkaProxyContext,
                                      ProxyNetworkingModel ingressModel,
                                      List<ClusterResolutionResult> clusterResolutionResults) {
         // @formatter:off
@@ -177,6 +196,7 @@ public class ProxyDeploymentDependentResource
                     .withFailureThreshold(3)
                 .endLivenessProbe()
                 .withImage(kroxyliciousImage)
+                .withResources(getResources(primary))
                 .withNewSecurityContext()
                     .withAllowPrivilegeEscalation(false)
                     .withNewCapabilities()

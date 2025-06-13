@@ -11,28 +11,28 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious"
-    app.kubernetes.io/instance: "twocluster"
+    app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"
-  name: "twocluster"
+  name: "minimal"
   namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "twocluster"
+      name: "minimal"
 spec:
   replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/managed-by: "kroxylicious-operator"
       app.kubernetes.io/name: "kroxylicious"
-      app.kubernetes.io/instance: "twocluster"
+      app.kubernetes.io/instance: "minimal"
       app.kubernetes.io/component: "proxy"
   template:
     metadata:
       labels:
         app.kubernetes.io/managed-by: "kroxylicious-operator"
         app.kubernetes.io/name: "kroxylicious"
-        app.kubernetes.io/instance: "twocluster"
+        app.kubernetes.io/instance: "minimal"
         app.kubernetes.io/component: "proxy"
       annotations:
         kroxylicious.io/referent-checksum: "AAAAAAAB4wY"
@@ -54,13 +54,15 @@ spec:
           ports:
             - containerPort: 9190
               name: "management"
-          resources:
-            limits:
-              cpu: "500m"
-              memory: "512Mi"
-            requests:
-              cpu: "500m"
-              memory: "512Mi"
+            - containerPort: 9292
+              name: "9292-bootstrap"
+            - containerPort: 9293
+              name: "9293-node"
+            - containerPort: 9294
+              name: "9294-node"
+            - containerPort: 9295
+              name: "9295-node"
+          resources: { }
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -78,5 +80,5 @@ spec:
           type: "RuntimeDefault"
       volumes:
         - configMap:
-            name: "twocluster-proxy-config"
+            name: "minimal-proxy-config"
           name: "config-volume"

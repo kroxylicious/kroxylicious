@@ -562,4 +562,5 @@ public class ResourcesUtil {
     public static String crossNamespaceServiceAddress(String serviceName, HasMetadata namespacedResource) {
         return serviceName + "." + namespace(namespacedResource) + ".svc.cluster.local";
     }
+
 }
