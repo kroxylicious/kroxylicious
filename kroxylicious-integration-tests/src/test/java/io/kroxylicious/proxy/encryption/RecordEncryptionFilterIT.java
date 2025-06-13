@@ -67,6 +67,7 @@ import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeInvocationContextProvider;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.test.tester.SimpleMetricAssert;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
 import io.kroxylicious.testing.kafka.common.ClientConfig;
@@ -76,6 +77,7 @@ import io.kroxylicious.testing.kafka.junit5ext.TopicConfig;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.filter.encryption.RecordEncryptionMetrics.TOPIC_NAME;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -666,6 +668,52 @@ class RecordEncryptionFilterIT {
                 .asInstanceOf(InstanceOfAssertFactories.type(InMemoryKms.class))
                 .extracting(InMemoryKms::numDeksGenerated).isEqualTo(1);
 
+    }
+
+    @TestTemplate
+    void checkMetricsIncrementedOnEncryptedAndPlainTopic(KafkaCluster cluster, Topic encryptedTopic, Topic plainTopic, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(encryptedTopic.name());
+
+        var builder = proxy(cluster)
+                .withNewManagement()
+                .withNewEndpoints()
+                .withNewPrometheus()
+                .endPrometheus()
+                .endEndpoints()
+                .endManagement();
+
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(builder);
+                var managementClient = tester.getManagementClient();
+                var producer = tester.producer(Map.of(ProducerConfig.LINGER_MS_CONFIG, 1000, ProducerConfig.BATCH_SIZE_CONFIG, 2));
+                var consumer = tester.consumer()) {
+
+            producer.send(new ProducerRecord<>(encryptedTopic.name(), HELLO_SECRET));
+            producer.send(new ProducerRecord<>(plainTopic.name(), HELLO_WORLD));
+            producer.flush();
+
+            var metricList = managementClient.scrapeMetrics();
+
+            System.out.println(metricList);
+
+            SimpleMetricAssert.assertThat(metricList)
+                    .filterByName("kroxylicious_not_encrypted_records_total")
+                    .filterByTag(TOPIC_NAME, plainTopic.name())
+                    .singleElement()
+                    .value()
+                    .isGreaterThanOrEqualTo(1.0);
+
+            SimpleMetricAssert.assertThat(metricList)
+                    .filterByName("kroxylicious_encrypted_records_total")
+                    .filterByTag(TOPIC_NAME, encryptedTopic.name())
+                    .singleElement()
+                    .value()
+                    .isGreaterThanOrEqualTo(1.0);
+        }
     }
 
     private NamedFilterDefinition buildEncryptionFilterDefinition(TestKmsFacade<?, ?, ?> testKmsFacade, UnresolvedKeyPolicy unresolvedKeyPolicy) {

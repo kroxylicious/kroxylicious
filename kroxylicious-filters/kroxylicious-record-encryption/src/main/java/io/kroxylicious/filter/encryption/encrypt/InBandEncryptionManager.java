@@ -16,6 +16,7 @@ import org.apache.kafka.common.errors.NetworkException;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
+import io.kroxylicious.filter.encryption.RecordEncryptionMetrics;
 import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.common.RecordEncryptionUtil;
@@ -76,7 +77,8 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
 
     @Override
     @NonNull
-    public CompletionStage<MemoryRecords> encrypt(@NonNull String topicName,
+    public CompletionStage<MemoryRecords> encrypt(@NonNull String virtualClusterName,
+                                                  @NonNull String topicName,
                                                   int partition,
                                                   @NonNull EncryptionScheme<K> encryptionScheme,
                                                   @NonNull MemoryRecords records,
@@ -92,7 +94,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
         if (totalRecords == 0) {
             return CompletableFuture.completedFuture(records);
         }
-        return attemptEncrypt(topicName, partition, encryptionScheme, records, 0, bufferAllocator, totalRecords);
+        return attemptEncrypt(virtualClusterName, topicName, partition, encryptionScheme, records, 0, bufferAllocator, totalRecords);
     }
 
     private ByteBufferOutputStream allocateBufferForEncrypt(@NonNull MemoryRecords records,
@@ -102,13 +104,18 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
         return bufferAllocator.apply(sizeEstimate);
     }
 
-    private CompletionStage<MemoryRecords> attemptEncrypt(@NonNull String topicName,
+    private CompletionStage<MemoryRecords> attemptEncrypt(@NonNull String virtualClusterName,
+                                                          @NonNull String topicName,
                                                           int partition,
                                                           @NonNull EncryptionScheme<K> encryptionScheme,
                                                           @NonNull MemoryRecords records,
                                                           int attempt,
                                                           @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator,
                                                           int allRecordsCount) {
+        var encyptedRecordsTotal = RecordEncryptionMetrics.KROXYLICIOUS_ENCRYPTED_RECORDS_BASE_METER_NAME_TOTAL_METER_PROVIDER
+                .create(virtualClusterName, topicName)
+                .withTags();
+
         if (attempt >= MAX_ATTEMPTS) {
             return CompletableFuture.failedFuture(
                     new RequestNotSatisfiable("failed to reserve an EDEK to encrypt " + allRecordsCount + " records for topic " + topicName + " partition "
@@ -126,6 +133,7 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                             records,
                             encryptor,
                             bufferAllocator);
+                    encyptedRecordsTotal.increment(allRecordsCount);
                     return CompletableFuture.completedFuture(encryptedMemoryRecords);
                 }
                 catch (DestroyedDekException | ExhaustedDekException e) {
@@ -137,7 +145,8 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                 }
             }
             // recurse, incrementing the attempt number
-            return attemptEncrypt(topicName,
+            return attemptEncrypt(virtualClusterName,
+                    topicName,
                     partition,
                     encryptionScheme,
                     records,
@@ -145,6 +154,10 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                     bufferAllocator,
                     allRecordsCount);
         });
+    }
+
+    private void initMetrics(String virtualClusterName, String topicName) {
+
     }
 
     @NonNull

@@ -145,7 +145,7 @@ class RecordEncryptionFilterTest {
             return CompletableFuture.completedFuture(new TopicNameKekSelection<>(topicNameToKekId, Set.of(UNRESOLVED_TOPIC)));
         });
 
-        when(encryptionManager.encrypt(any(), anyInt(), any(), any(), any()))
+        when(encryptionManager.encrypt(any(), any(), anyInt(), any(), any(), any()))
                 .thenReturn(CompletableFuture.completedFuture(RecordTestUtils.singleElementMemoryRecords("key", "value")));
 
         when(decryptionManager.decrypt(any(), anyInt(), any(), any()))
@@ -166,7 +166,7 @@ class RecordEncryptionFilterTest {
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        verify(encryptionManager, never()).encrypt(any(), anyInt(), any(), any(), any());
+        verify(encryptionManager, never()).encrypt(any(), any(), anyInt(), any(), any(), any());
     }
 
     @Test
@@ -180,7 +180,7 @@ class RecordEncryptionFilterTest {
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        verify(encryptionManager).encrypt(any(), anyInt(), any(), any(), any());
+        verify(encryptionManager).encrypt(any(), any(), anyInt(), any(), any(), any());
     }
 
     @Test
@@ -197,7 +197,7 @@ class RecordEncryptionFilterTest {
         encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        verify(encryptionManager).encrypt(any(), anyInt(), any(),
+        verify(encryptionManager).encrypt(any(), any(), anyInt(), any(),
                 argThat(records -> assertThat(records.records())
                         .hasSize(1)
                         .allSatisfy(record -> assertThat(record.value()).isEqualTo(ByteBuffer.wrap(HELLO_CIPHER_WORLD)))),
@@ -227,7 +227,7 @@ class RecordEncryptionFilterTest {
                 new RequestHeaderData(), produceRequestData, context);
 
         // Then
-        verify(encryptionManager, never()).encrypt(any(), anyInt(), any(), any(), any());
+        verify(encryptionManager, never()).encrypt(any(), any(), anyInt(), any(), any(), any());
         verify(requestFilterResultBuilder).errorResponse(any(), any(),
                 Mockito.argThat(e -> e instanceof InvalidRecordException && e.getMessage().equals("failed to resolve key for: [unresolved]")));
 
