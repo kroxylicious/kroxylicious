@@ -339,20 +339,34 @@
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-assembly-plugin</artifactId>
-                        <configuration>
-                            <descriptors>
-                                <descriptor>src/assembly/binary-distribution.xml</descriptor>
-                            </descriptors>
-                        </configuration>
                         <executions>
+                            <!-- Create the target/kroxylicious-operator-0.13.0-SNAPSHOT-bin directory -->
                             <execution>
-                                <id>make-assembly</id> <!-- this is used for inheritance merges -->
-                                <phase>package</phase> <!-- bind to the packaging phase -->
+                                <id>app</id>
+                                <phase>package</phase>
                                 <goals>
                                     <goal>single</goal>
                                 </goals>
+                                <configuration>
+                                    <descriptors>
+                                        <descriptor>src/assembly/app.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
+                            </execution>
+                            <!-- Make target/kroxylicious-operator-${version}.zip with the test contents from target/packaged -->
+                            <execution>
+                                <id>operator-asset</id>
+                                <phase>install</phase><!-- Note this execution happens after the following plugins bound to the package phase! -->
+                                <goals>
+                                    <goal>single</goal>
+                                </goals>
+                                <configuration>
+                                    <descriptors>
+                                        <!-- Custom assembly descriptor -->
+                                        <descriptor>src/assembly/asset.xml</descriptor>
+                                    </descriptors>
+                                </configuration>
                             </execution>
                         </executions>
                     </plugin>
@@ -360,14 +374,16 @@
                         <groupId>io.fabric8</groupId>
                         <artifactId>docker-maven-plugin</artifactId>
                         <executions>
+                            <!-- Create the container image, consuming the app from target/kroxylicious-operator-0.13.0-SNAPSHOT-bin directory -->
                             <execution>
                                 <id>default</id>
+                                <phase>package</phase>
                                 <goals>
                                     <goal>build</goal>
                                     <goal>save</goal>
                                 </goals>
-                                <phase>package</phase>
                                 <configuration>
+                                    <!--suppress MavenModelInspection -->
                                     <skip>${skipDocker}</skip>
                                     <images>
                                         <image>
@@ -388,17 +404,15 @@
                         </executions>
                     </plugin>
                     <plugin>
-                        <!-- copy from packaging into target/packaged, interpolating $[ ] (e.g. to use the container image) -->
-                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-resources-plugin</artifactId>
-                        <version>3.3.1</version>
                         <executions>
+                            <!-- Copy from packaging into target/packaged, interpolating $[ ] (e.g. to use the right container image) -->
                             <execution>
                                 <id>copy-operator-install</id>
+                                <phase>package</phase>
                                 <goals>
                                     <goal>copy-resources</goal>
                                 </goals>
-                                <phase>package</phase>
                                 <configuration>
                                     <delimiters>
                                         <delimiter>$[*]</delimiter>
@@ -412,45 +426,56 @@
                                     <outputDirectory>target/packaged</outputDirectory>
                                 </configuration>
                             </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>dev.jbang</groupId>
+                        <artifactId>jbang-maven-plugin</artifactId>
+                        <executions>
+                            <!-- Add the crds to target/packaged/install, renaming the files to match the other YAMLs -->
                             <execution>
-                                <id>copy-crds</id>
-                                <goals><goal>copy-resources</goal></goals>
+                                <id>rename-crds</id>
                                 <phase>package</phase>
+                                <goals>
+                                    <goal>run</goal>
+                                </goals>
                                 <configuration>
-                                    <resources>
-                                        <resource>
-                                            <directory>../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8</directory>
-                                            <filtering>false</filtering>
-                                        </resource>
-                                    </resources>
-                                    <outputDirectory>target/packaged/install</outputDirectory>
+                                    <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
+                                    <jbangarg>--verbose</jbangarg>
+                                    <script>${project.basedir}/package_crds.java</script>
+                                    <args>
+                                        <arg>kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8</arg>
+                                        <arg>${project.basedir}/target/packaged/install</arg>
+                                    </args>
                                 </configuration>
                             </execution>
                         </executions>
                     </plugin>
                     <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-failsafe-plugin</artifactId>
-                        <version>3.5.3</version>
                         <executions>
+                            <!-- run the tests which depend on having an operator image + target/packaged/install -->
                             <execution>
-                                <!-- run the tests which depend on having an operator image + install manifests -->
                                 <id>kube-integration-test</id>
+                                <phase>verify</phase>
                                 <goals>
                                     <goal>integration-test</goal>
                                 </goals>
-                                <phase>verify</phase>
                                 <configuration>
                                     <includes>
                                         <include>**/KT*.java</include>
                                         <include>**/*KT.java</include>
                                         <include>**/*KTCase.java</include>
                                     </includes>
+                                    <!--suppress MavenModelInspection -->
                                     <skipITs>${skipKTs}</skipITs>
+                                    <!--suppress MavenModelInspection -->
                                     <skip>${skipKTs}</skip>
+                                    <!--suppress MavenModelInspection -->
                                     <skipTests>${skipKTs}</skipTests>
                                 </configuration>
                             </execution>
+                            <!-- verify those tests passed -->
                             <execution>
                                 <id>kube-verify</id>
                                 <phase>verify</phase>
@@ -458,8 +483,11 @@
                                     <goal>verify</goal>
                                 </goals>
                                 <configuration>
+                                    <!--suppress MavenModelInspection -->
                                     <skipITs>${skipKTs}</skipITs>
+                                    <!--suppress MavenModelInspection -->
                                     <skip>${skipKTs}</skip>
+                                    <!--suppress MavenModelInspection -->
                                     <skipTests>${skipKTs}</skipTests>
                                 </configuration>
                             </execution>
