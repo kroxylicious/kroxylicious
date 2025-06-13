@@ -116,7 +116,7 @@ public class CertManager {
                 Optional.empty(),
                 Optional.of(Path.of(TestUtils.getResourcesURI("helm_cert_manager_overrides.yaml"))),
                 Optional.of(Map.of("crds.enabled", "true",
-                                    "crds.keep", "false")));
+                        "crds.keep", "false")));
     }
 
     /**
