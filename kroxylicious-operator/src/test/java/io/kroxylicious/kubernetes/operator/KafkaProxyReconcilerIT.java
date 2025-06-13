@@ -174,13 +174,13 @@ class KafkaProxyReconcilerIT {
         KafkaService kafkaService = kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
         var created = doCreate(kafkaService, kafkaProxy(PROXY_A, 3));
         Deployment deployment = assertDeploymentReplicaCount(created.proxy(), 3);
-        Deployment updatedDeployment = deployment.edit().editStatus().withReadyReplicas(3).endStatus().build();
+        Deployment updatedDeployment = deployment.edit().editStatus().withReplicas(3).withReadyReplicas(2).endStatus().build();
 
         // when
         testActor.patchStatus(updatedDeployment);
 
         // then
-        assertStausReplicaCount(created.proxy(), 3);
+        assertStausReplicaCount(created.proxy(), 2);
     }
 
     @Test
