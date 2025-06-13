@@ -121,10 +121,6 @@ public final class Constants {
     public static final String KAF_CLIENT_IMAGE = "quay.io/kroxylicious/kaf:v0.2.7";
 
     /**
-     * The cert manager url to install it on kubernetes
-     */
-    public static final String CERT_MANAGER_URL = "https://github.com/cert-manager/cert-manager/releases/latest/download/cert-manager.yaml";
-    /**
      * the kubernetes labels used to identify the test kafka clients pods
      */
     public static final String KAFKA_CONSUMER_CLIENT_LABEL = "kafka-consumer-client";
