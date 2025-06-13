@@ -58,7 +58,7 @@ class AbstractST {
      */
     @BeforeEach
     void beforeEachTest() {
-        topicName = "my-topic-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
+        topicName = randomTopicName();
     }
 
     /**
@@ -102,5 +102,14 @@ class AbstractST {
     void afterEachTest(TestInfo testInfo) {
         LOGGER.debug(String.join("", Collections.nCopies(76, "=")));
         LOGGER.debug("———————————— {}@After Each - Clean up after test ————————————", testInfo.getTestMethod().get().getName());
+    }
+
+    /**
+     * Random topic name string.
+     *
+     * @return the string
+     */
+    public static String randomTopicName() {
+        return "my-topic-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
     }
 }
