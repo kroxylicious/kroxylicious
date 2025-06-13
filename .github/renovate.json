@@ -38,8 +38,8 @@
       "matchStrings": [
         "tag:.*(?<currentValue>\\d+\\.\\d+.\\d+)"
       ],
-      "depNameTemplate": "jetstack/cert-manager",
-      "datasourceTemplate": "docker"
+      "depNameTemplate": "cert-manager/cert-manager",
+      "datasourceTemplate": "github-releases"
     },
     {
       "customType": "regex",
