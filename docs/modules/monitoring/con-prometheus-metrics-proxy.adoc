@@ -11,9 +11,8 @@ The proxy provides metrics for both connections and messages.
 These metrics are categorized into downstream (client-side) and upstream (broker-side) groups
 They allow users to assess the impact of the proxy and its filters on their Kafka system.
 
-Connection metrics count the connections made from the downstream (incoming connections from the clients) and the connection made by the proxy to upstream (outgoing connections to the Kafka brokers).
-
-Message metrics count the number of {kafka-protocol}#protocol_messages[Kafka protocol request and response messages] that flow through the proxy.
+* Connection metrics count the connections made from the downstream (incoming connections from the clients) and the connection made by the proxy to upstream (outgoing connections to the Kafka brokers).
+* Message metrics count the number of {kafka-protocol}#protocol_messages[Kafka protocol request and response messages] that flow through the proxy.
 
 == Connection metrics
 
@@ -21,8 +20,8 @@ Connection metrics count the TCP connections made from the client to the proxy (
 These metrics count connection _attempts_, so the connection count is incremented even if the connection attempt ultimately fails.
 
 In addition to the count metrics, there are error metrics.
-If an error occurs whilst the proxy is accepting a connection from the client the `kroxylicious_client_to_proxy_errors_total` metric is incremented by one.
-If an error occurs whilst the proxy is attempting a connection to a broker the `kroxylicious_proxy_to_server_errors_total` metric is incremented by one.
+* If an error occurs whilst the proxy is accepting a connection from the client the `kroxylicious_client_to_proxy_errors_total` metric is incremented by one.
+* If an error occurs whilst the proxy is attempting a connection to a broker the `kroxylicious_proxy_to_server_errors_total` metric is incremented by one.
 
 Connection and connection error metrics include the following labels: `virtual_cluster` (the virtual cluster's name) and `node_id` (the broker's node ID).
 When the client connects to the boostrap endpoint of the virtual cluster, a node ID value of `bootstrap` is recorded.
@@ -32,6 +31,7 @@ For these specific errors, the `virtual_cluster` and `node_id` labels are set to
 
 NOTE: Error conditions signaled _within_ the Kafka protocol response (such as `RESOURCE_NOT_FOUND` or `UNKNOWN_TOPIC_ID`) are not classed as errors by these metrics.
 
+.Connection metrics for client and broker interactions
 |===
 |Metric Name |Type |Labels|Description
 
@@ -59,7 +59,6 @@ NOTE: Error conditions signaled _within_ the Kafka protocol response (such as `R
 |===
 
 == Message metrics
-:figure-caption!:
 
 Message metrics count the Kafka protocol requests and responses that flow through the proxy.
 
@@ -80,6 +79,7 @@ When the client connects to the boostrap endpoint of the virtual cluster, metric
 
 NOTE: Downstream counters (`kroxylicious_client_to_proxy_&#42;_total`) can exceed broker-end counters (`kroxylicious_proxy_to_server_&#42;_total`) when a filter sends a short-circuit response, closes the connection, or when upstream cluster connectivity is lost during message transit.
 
+.Kafka message metrics for proxy request and response flow
 |===
 |Metric Name |Type |Labels|Description
 

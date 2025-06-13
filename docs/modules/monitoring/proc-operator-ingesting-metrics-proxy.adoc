@@ -7,12 +7,12 @@
 = Ingesting proxy metrics
 
 [role="_abstract"]
-This procedure describes how to ingest metrics from the proxy into Prometheus.
+This procedure describes how to ingest metrics from the Kroxylicious Proxy into Prometheus.
 
 .Prerequisites
 
 * Kroxylicious Operator is installed.
-* https://prometheus-operator.dev/[Prometheus Operator] is installed and a https://prometheus-operator.dev/docs/api-reference/api/#monitoring.coreos.com/v1.Prometheus[Prometheus] deployment has been made.
+* https://prometheus-operator.dev/[Prometheus Operator] is installed, and a Prometheus instance has been created using the https://prometheus-operator.dev/docs/api-reference/api/#monitoring.coreos.com/v1.Prometheus[`Prometheus` custom resource].
 * An instance of Kroxylicious deployed by the operator.
 
 .Procedure
@@ -39,6 +39,7 @@ The Prometheus Operator reconfigures Prometheus automatically.
 Prometheus begins to regularly to scrape the proxy's metric.
 
 . Check the metrics are being ingested using a PromQL query such as:
++
 [source]
 ----
 kroxylicious_client_to_proxy_errors_total

@@ -7,7 +7,7 @@
 = Overriding the operator logging level (operator installed by bundle)
 
 [role="_abstract"]
-This procedure describes how to override the logging level of the operator.
+This procedure describes how to override the logging level of the Kroxylicious Operator.
 It applies when the operator was installed from the YAML bundle.
 
 .Prerequisites
@@ -16,7 +16,7 @@ It applies when the operator was installed from the YAML bundle.
 
 .Procedure
 
-. Apply either the `KROXYLICIOUS_APP_LOG_LEVEL` or `KROXYLICIOUS_ROOT_LOG_LEVEL` environment variable to the operator's Kubernetes Deployment.
+. Apply the `KROXYLICIOUS_APP_LOG_LEVEL` or `KROXYLICIOUS_ROOT_LOG_LEVEL` environment variable to the operator's Kubernetes Deployment:
 +
 [source,bash]
 ----
@@ -25,16 +25,16 @@ kubectl set env -n kroxylicious-operator deployment kroxylicious-operator KROXYL
 +
 Kubernetes recreates the operator pod automatically.
 
-. Verify that the new logging level has taken affect.
+. Verify that the new logging level has taken affect:
 +
 [source,bash]
 ----
 kubectl logs -f -n kroxylicious-operator deployment/kroxylicious-operator
 ----
 
-== Reverting operator logging level
+== Reverting operator logging levels
 
-This procedure describes how to revert the logging level of the operator back to its defaults.
+This procedure describes how to revert the logging level of the Kroxylicious Operator back to its defaults.
 
 .Prerequisites
 
@@ -42,14 +42,16 @@ This procedure describes how to revert the logging level of the operator back to
 
 .Procedure
 
-. Remove either the `KROXYLICIOUS_APP_LOG_LEVEL` or `KROXYLICIOUS_ROOT_LOG_LEVEL` environment variable from the proxy's Kubernetes Deployment.
+. Remove the `KROXYLICIOUS_APP_LOG_LEVEL` or `KROXYLICIOUS_ROOT_LOG_LEVEL` environment variable from the proxy's Kubernetes Deployment:
 +
 [source,bash]
 ----
 kubectl set env -n kroxylicious-operator deployment kroxylicious-operator KROXYLICIOUS_APP_LOG_LEVEL-
 ----
-. Kubernetes will roll operator pods.
-. Verify that the logging level has reverted to its default.
++
+Kubernetes recreates the operator pod automatically
+
+. Verify that the logging level has reverted to its default:
 +
 [source,bash]
 ----

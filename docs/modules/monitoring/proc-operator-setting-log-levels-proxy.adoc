@@ -7,25 +7,26 @@
 = Overriding proxy logging levels
 
 [role="_abstract"]
-This procedure describes how to override the logging level of the proxy.
+This procedure describes how to override the logging level of the Kroxylicious Proxy.
 
 .Prerequisites
 
-* An instance of Kroxylicious deployed by the operator.
+* An instance of Kroxylicious deployed by the Kroxylicious Operator.
 
 .Procedure
 
-. Apply either the `KROXYLICIOUS_APP_LOG_LEVEL` or `KROXYLICIOUS_ROOT_LOG_LEVEL` environment variable to the proxy's Kubernetes Deployment.
-(The Deployment resource has the same name as the `KafkaProxy`).
+. Apply the `KROXYLICIOUS_APP_LOG_LEVEL` or `KROXYLICIOUS_ROOT_LOG_LEVEL` environment variable to the proxy's Kubernetes `Deployment` resource:
 +
 [source,bash]
 ----
 kubectl set env -n <namespace> deployment <deployment_name> KROXYLICIOUS_APP_LOG_LEVEL=DEBUG
 ----
 +
+The `Deployment` resource has the same name as the `KafkaProxy`.
++
 Kubernetes recreates the proxy pod automatically.
 
-. Verify that the new logging level has taken affect.
+. Verify that the new logging level has taken affect:
 +
 [source,bash]
 ----
@@ -34,22 +35,23 @@ kubectl logs -f -n <namespace> deployment/<deployment_name>
 
 == Reverting proxy logging levels
 
-This procedure describes how to revert the logging level of the proxy back to its defaults.
+This procedure describes how to revert the logging level of the Kroxylicious Proxy back to its defaults.
 
 .Prerequisites
 
-* An instance of Kroxylicious deployed by the operator.
+* An instance of Kroxylicious deployed by the Kroxylicious Operator.
 
 .Procedure
 
-. Remove either the `KROXYLICIOUS_APP_LOG_LEVEL` or `KROXYLICIOUS_ROOT_LOG_LEVEL` environment variable from the proxy's Kubernetes Deployment.
+. Remove the `KROXYLICIOUS_APP_LOG_LEVEL` or `KROXYLICIOUS_ROOT_LOG_LEVEL` environment variable from the proxy's Kubernetes Deployment:
 +
 [source,bash]
 ----
 kubectl set env -n <namespace> deployment <deployment_name> KROXYLICIOUS_APP_LOG_LEVEL-
 ----
-. Kubernetes will roll proxy pods.
-. Verify that the logging level has reverted to its default.
++
+Kubernetes recreates the proxy pod automatically.
+. Verify that the logging level has reverted to its default:
 +
 [source,bash]
 ----

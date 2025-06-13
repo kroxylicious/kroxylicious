@@ -18,8 +18,8 @@ When trying to diagnose a problem, start first by raising the logging level of `
 If more detailed diagnostics are required, try raising the `KROXYLICIOUS_ROOT_LOG_LEVEL`. Both the proxy and operator
 use Apache Log4J2 and use logging levels understood by it: `TRACE`, `DEBUG`, `INFO`, `WARN`, and `ERROR`.
 
-WARNING: Running either the operator or the proxy at elevated logging levels can generate significant amount of logs, which may consume significant storage.
-Minimize the length of time the system is run in this state.
+WARNING: WARNING: Running the operator or the proxy at elevated logging levels, such as `DEBUG` or `TRACE`, can generate a large volume of logs, which may consume significant storage and affect performance.
+Run at these levels only as long as necessary.
 
 include::./proc-operator-setting-log-levels-proxy.adoc[leveloffset=+1]
 ifdef::include-olm[]

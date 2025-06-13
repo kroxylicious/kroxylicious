@@ -6,12 +6,12 @@
 = Ingesting operator metrics
 
 [role="_abstract"]
-This procedure describes how to ingest metrics from the operator into Prometheus.
+This procedure describes how to ingest metrics from the Kroxylicious Operator into Prometheus.
 
 .Prerequisites
 
 * Kroxylicious Operator is installed.
-* https://prometheus-operator.dev/[Prometheus Operator] is installed and a https://prometheus-operator.dev/docs/api-reference/api/#monitoring.coreos.com/v1.Prometheus[Prometheus] deployment has been made.
+* https://prometheus-operator.dev/[Prometheus Operator] is installed, and a Prometheus instance has been created using the https://prometheus-operator.dev/docs/api-reference/api/#monitoring.coreos.com/v1.Prometheus[`Prometheus` custom resource].
 
 .Procedure
 
@@ -37,6 +37,7 @@ The Prometheus Operator reconfigures Prometheus automatically.
 Prometheus begins to regularly to scrape the Kroxylicious Operator's metric.
 
 . Check the metrics are being ingested using a PromQL query such as:
++
 [source]
 ----
 operator_sdk_reconciliations_queue_size_kafkaproxyreconciler{kind="KafkaProxy", group="kroxylicious.io"}
