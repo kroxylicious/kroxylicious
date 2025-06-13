@@ -65,6 +65,13 @@ spec:
               name: "9294-node"
             - containerPort: 9295
               name: "9295-node"
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

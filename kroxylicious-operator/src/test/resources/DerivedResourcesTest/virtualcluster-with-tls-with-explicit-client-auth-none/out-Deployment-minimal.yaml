@@ -56,6 +56,13 @@ spec:
               name: "management"
             - containerPort: 9291
               name: "shared-sni-port"
+          resources:
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

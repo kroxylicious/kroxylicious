@@ -147,10 +147,9 @@
                     <extraAnnotations>true</extraAnnotations>
                     <existingJavaTypes>
                         <!-- From the kubernetes API -->
-                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.PodTemplate>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.ProxyPod>
                             io.fabric8.kubernetes.api.model.PodTemplateSpec
-                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.PodTemplate>
-
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.ProxyPod>
                         <!-- Common types used across our own CRDs -->
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ProxyRef>
                             io.kroxylicious.kubernetes.api.common.ProxyRef

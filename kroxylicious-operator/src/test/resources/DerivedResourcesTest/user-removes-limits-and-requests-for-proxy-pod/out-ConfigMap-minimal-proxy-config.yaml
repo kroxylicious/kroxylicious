@@ -1,0 +1,40 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+apiVersion: "v1"
+kind: "ConfigMap"
+metadata:
+  labels:
+    app.kubernetes.io/managed-by: "kroxylicious-operator"
+    app.kubernetes.io/name: "kroxylicious"
+    app.kubernetes.io/instance: "minimal"
+    app.kubernetes.io/component: "proxy"
+  name: "minimal-proxy-config"
+  namespace: "proxy-ns"
+  ownerReferences:
+    - apiVersion: "kroxylicious.io/v1alpha1"
+      kind: "KafkaProxy"
+      name: "minimal"
+data:
+  proxy-config.yaml: |-
+    ---
+    management:
+      endpoints:
+        prometheus: {}
+    virtualClusters:
+    - name: "one"
+      targetCluster:
+        bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+      gateways:
+      - name: "cluster-ip"
+        portIdentifiesNode:
+          bootstrapAddress: "localhost:9292"
+          advertisedBrokerAddressPattern: "one-cluster-ip-bootstrap.proxy-ns.svc.cluster.local"
+          nodeIdRanges:
+          - name: "default"
+            start: 0
+            end: 2

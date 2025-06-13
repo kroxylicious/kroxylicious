@@ -1,0 +1,55 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  name: use-pod-template-spec
+  namespace: proxy-ns
+spec:
+  infrastructure:
+    proxyPod:
+      spec:
+        resources:
+          requests:
+            "cpu": 1235
+            "memory": 1235
+            "a": "123m"
+            "b": "123Ki"
+            "c": "123Mi"
+            "d": "123Gi"
+            "e": "123Ti"
+            "f": "123Pi"
+            "g": "123Ei"
+            "h": "123n"
+            "i": "123u"
+            "j": "123k"
+            "k": "123M"
+            "l": "123G"
+            "m": "123T"
+            "n": "123P"
+            "o": "123E"
+            "p": "123"
+          limits:
+            "cpu": 1235
+            "memory": 1235
+            "a": "123m"
+            "b": "123Ki"
+            "c": "123Mi"
+            "d": "123Gi"
+            "e": "123Ti"
+            "f": "123Pi"
+            "g": "123Ei"
+            "h": "123n"
+            "i": "123u"
+            "j": "123k"
+            "k": "123M"
+            "l": "123G"
+            "m": "123T"
+            "n": "123P"
+            "o": "123E"
+            "p": "123"
