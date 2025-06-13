@@ -65,7 +65,7 @@ spec:
                           type: object
                       type: object
                 replicas:
-                  description: "The number of instances of this proxy to run"
+                  description: "The number of pods to run."
                   type: integer
                   format: int32
                   minimum: 0
@@ -179,6 +179,6 @@ spec:
                               description: type of condition in CamelCase or in foo.example.com/CamelCase.
                               type: string
                 replicas:
-                  description: "The number of instances of the proxy that have been scheduled"
+                  description: "The number of instances of the proxy pods that have reported ready."
                   type: integer
                   format: int32
