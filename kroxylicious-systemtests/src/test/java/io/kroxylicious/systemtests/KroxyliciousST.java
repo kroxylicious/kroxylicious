@@ -95,8 +95,7 @@ class KroxyliciousST extends AbstractST {
         bootstrap = kroxylicious2.getBootstrap(clusterName);
         assertThat(bootstrap).withFailMessage("bootstrap " + bootstrap + " does not contain the corresponding namespace " + newNamespace)
                 .contains(newNamespace);
-        String newTopicName = randomTopicName();
-        produceAndConsumeMessage(newNamespace, bootstrap, newTopicName);
+        produceAndConsumeMessage(newNamespace, bootstrap, randomTopicName());
     }
 
     private void produceAndConsumeMessage(String namespace, String bootstrap) {
