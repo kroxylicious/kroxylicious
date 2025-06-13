@@ -8,7 +8,6 @@ package io.kroxylicious.systemtests;
 
 import java.time.Duration;
 import java.util.List;
-import java.util.UUID;
 
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -96,11 +95,15 @@ class KroxyliciousST extends AbstractST {
         bootstrap = kroxylicious2.getBootstrap(clusterName);
         assertThat(bootstrap).withFailMessage("bootstrap " + bootstrap + " does not contain the corresponding namespace " + newNamespace)
                 .contains(newNamespace);
-        topicName = "my-topic-" + UUID.randomUUID().toString().replace("-", "").substring(0, 6);
-        produceAndConsumeMessage(newNamespace, bootstrap);
+        String newTopicName = randomTopicName();
+        produceAndConsumeMessage(newNamespace, bootstrap, newTopicName);
     }
 
     private void produceAndConsumeMessage(String namespace, String bootstrap) {
+        produceAndConsumeMessage(namespace, bootstrap, topicName);
+    }
+
+    private void produceAndConsumeMessage(String namespace, String bootstrap, String topicName) {
         int numberOfMessages = 1;
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
