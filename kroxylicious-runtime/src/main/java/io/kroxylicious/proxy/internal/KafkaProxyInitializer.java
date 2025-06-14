@@ -49,7 +49,6 @@ import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
 import io.kroxylicious.proxy.internal.util.Metrics;
-import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
@@ -226,7 +225,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         var decoderListener = KafkaMessageListener.chainOf(
                 new MetricEmittingKafkaMessageListener(clientToProxyMessageCounterProvider, clientToProxyMessageSizeDistributionProvider),
-                deprecatedMessageMetricHandler(virtualCluster));
+                deprecatedMessageMetricHandler(virtualCluster.getClusterName()));
         var encoderListener = new MetricEmittingKafkaMessageListener(proxyToClientMessageCounterProvider,
                 proxyToClientMessageSizeDistributionProvider);
 
@@ -261,8 +260,11 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     }
 
     @SuppressWarnings("removal")
-    private KafkaMessageListener deprecatedMessageMetricHandler(VirtualClusterModel virtualCluster) {
-        return new DownstreamMessageCountingKafkaMessageListener(virtualCluster.getClusterName());
+    private KafkaMessageListener deprecatedMessageMetricHandler(String clusterName) {
+        return new DownstreamMessageCountingKafkaMessageListener(
+                Metrics.inboundDownstreamMessageCounter(clusterName),
+                Metrics.inboundDownstreamDecodedMessageCounter(clusterName),
+                Metrics.payloadSizeBytesUpstreamSummary(clusterName));
     }
 
     private static void addLoggingErrorHandler(ChannelPipeline pipeline) {

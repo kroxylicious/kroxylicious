@@ -106,14 +106,14 @@ class KafkaProxyFrontendHandlerTest {
     }
 
     @BeforeEach
-    public void buildChannel() {
+    void buildChannel() {
         inboundChannel = new EmbeddedChannel();
         corrId = 0;
         proxyChannelStateMachine = new ProxyChannelStateMachine("RandomCluster", null);
     }
 
     @AfterEach
-    public void closeChannel() {
+    void closeChannel() {
         inboundChannel.close();
         if (outboundChannel != null) {
             outboundChannel.close();

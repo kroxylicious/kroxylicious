@@ -526,7 +526,7 @@ public class KafkaProxyFrontendHandler
     @NonNull
     @SuppressWarnings("removal")
     private KafkaMessageListener getDeprecatedUpstreamMessageMetrics(String clusterName) {
-        return new UpstreamPayloadSizeMetricRecordingKafkaMessageListener(clusterName);
+        return new UpstreamPayloadSizeMetricRecordingKafkaMessageListener(Metrics.payloadSizeBytesDownstreamSummary(clusterName));
     }
 
     /** Ugly hack used for testing */

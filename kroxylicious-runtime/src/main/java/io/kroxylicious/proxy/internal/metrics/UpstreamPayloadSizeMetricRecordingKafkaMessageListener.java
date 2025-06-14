@@ -8,6 +8,9 @@ package io.kroxylicious.proxy.internal.metrics;
 
 import java.util.Objects;
 
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Meter.MeterProvider;
+
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
@@ -22,10 +25,10 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  */
 @Deprecated(since = "0.13.0", forRemoval = true)
 public class UpstreamPayloadSizeMetricRecordingKafkaMessageListener implements KafkaMessageListener {
-    private final String clusterName;
+    private final MeterProvider<DistributionSummary> messageSizeDistributionProvider;
 
-    public UpstreamPayloadSizeMetricRecordingKafkaMessageListener(@NonNull String clusterName) {
-        this.clusterName = Objects.requireNonNull(clusterName);
+    public UpstreamPayloadSizeMetricRecordingKafkaMessageListener(MeterProvider<DistributionSummary> messageSizeDistributionProvider) {
+        this.messageSizeDistributionProvider = Objects.requireNonNull(messageSizeDistributionProvider);
     }
 
     @Override
@@ -36,7 +39,9 @@ public class UpstreamPayloadSizeMetricRecordingKafkaMessageListener implements K
             int size = wireLength - Frame.FRAME_SIZE_LENGTH;
             // There was a mistake in the original implementation with upstream/downstream switched about.
             // Maintain the error for compatibility's sake.
-            Metrics.payloadSizeBytesDownstreamSummary(decodedResponseFrame.apiKey(), decodedResponseFrame.apiVersion(), clusterName)
+            messageSizeDistributionProvider
+                    .withTags(Metrics.DEPRECATED_API_KEY_TAG, decodedResponseFrame.apiKey().name(),
+                            Metrics.DEPRECATED_API_VERSION_TAG, String.valueOf(decodedResponseFrame.apiVersion()))
                     .record(size);
         }
 
