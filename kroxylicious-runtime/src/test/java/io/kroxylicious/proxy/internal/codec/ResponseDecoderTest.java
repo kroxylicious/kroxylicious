@@ -5,10 +5,12 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.assertj.core.api.Assertions;
@@ -29,6 +31,12 @@ import static io.kroxylicious.proxy.internal.codec.ByteBufs.writeByteBuf;
 import static io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class ResponseDecoderTest extends AbstractCodecTest {
 
@@ -37,7 +45,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
     private int frameMaxSizeBytes;
 
     @BeforeEach
-    public void setup() {
+    void setup() {
         mgr = new CorrelationManager(12);
         frameMaxSizeBytes = DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
         responseDecoder = createResponseDecoder(mgr, frameMaxSizeBytes);
@@ -72,9 +80,32 @@ class ResponseDecoderTest extends AbstractCodecTest {
                 "Unexpected correlation id");
     }
 
+    @Test
+    void shouldFireListenerOnDecode() {
+        // Given
+        var correlationManager = mock(CorrelationManager.class);
+        when(correlationManager.getBrokerCorrelation(anyInt())).thenReturn(mock());
+
+        KafkaMessageListener listener = mock(KafkaMessageListener.class);
+
+        ResponseHeaderData exampleHeader = exampleResponseHeader();
+        ApiVersionsResponseData exampleBody = exampleApiVersionsResponse();
+        short apiVersion = ApiKeys.API_VERSIONS.latestVersion();
+        short headerVersion = ApiKeys.API_VERSIONS.responseHeaderVersion(apiVersion);
+        ByteBuffer response = serializeUsingKafkaApis(headerVersion, exampleHeader, apiVersion, exampleBody);
+        int expectedSizeIncludingLength = response.remaining();
+        var decoder = new KafkaResponseDecoder(correlationManager, Integer.MAX_VALUE, listener);
+
+        // When
+        decoder.decode(null, Unpooled.wrappedBuffer(response), new ArrayList<>());
+
+        // Then
+        verify(listener).onMessage(isA(OpaqueResponseFrame.class), eq(expectedSizeIncludingLength));
+    }
+
     @NonNull
     private static KafkaResponseDecoder createResponseDecoder(CorrelationManager mgr, int socketFrameMaxSizeBytes) {
-        return new KafkaResponseDecoder(mgr, socketFrameMaxSizeBytes);
+        return new KafkaResponseDecoder(mgr, socketFrameMaxSizeBytes, null);
     }
 
     @Test
