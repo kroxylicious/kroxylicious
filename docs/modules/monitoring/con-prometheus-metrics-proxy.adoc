@@ -60,24 +60,38 @@ NOTE: Error conditions signaled _within_ the Kafka protocol response (such as `R
 
 == Message metrics
 
-Message metrics count the Kafka protocol requests and responses that flow through the proxy.
+Message metrics count, and record the sizes of, the Kafka protocol requests and responses that flow through the proxy.
 
-* Downstream counters
+Use these metrics to help understand:
+* the number of messages flowing through the proxy.
+* the overall volume of data through the proxy.
+* the effect the filters are having on the messages.
+
+* Downstream metrics
 ** `kroxylicious_client_to_proxy_request_total` counts requests as they arrive from the client.
 ** `kroxylicious_proxy_to_client_response_total` counts responses as they are returned to the client.
+** `kroxylicious_client_to_proxy_request_size_bytes` is incremented by the size of each request as it arrives from the client.
+** `kroxylicious_proxy_to_client_response_size_bytes` is incremented by the size of each response as it is returned to the client.
 
-* Upstream counters
+* Upstream metrics
 ** `kroxylicious_proxy_to_server_request_total` counts requests as they go to the broker.
 ** `kroxylicious_proxy_to_server_response_total` counts responses as they are returned by the broker.
+** `kroxylicious_proxy_to_server_request_size_bytes` is incremented by the size of each request as it goes to the broker.
+** `kroxylicious_proxy_to_server_response_size_bytes` is incremented by the size of each response as it is returned by the broker.
 
-.Downstream and upstream message counters in the proxy
-image::../_assets/monitoring-message-counters.svg["Conceptual diagram showing the downstream and upstream message counters within the proxy, illustrating how they respond to message transit through it."]
+The size recorded is encoded size of the protocol message. It includes the 4 byte {kafka-protocol}#protocol_common[message size].
+
+Filters can alter the flow of messages through the proxy or the content of the message.
+This is apparent through the metrics.
+* If a filter sends a short-circuit, or closes a connection the downstream message counters will exceed the upstream counters.
+* If a filter changes the size of the message, the downstream size metrics will be different to the upstream size metrics.
+
+.Downstream and upstream message metrics in the proxy
+image::../_assets/monitoring-message-counters.svg["Conceptual diagram showing the downstream and upstream message metrics within the proxy, illustrating how they respond to message transit through it."]
 
 Message metrics include the following labels: `virtual_cluster` (the virtual cluster's name), `node_id` (the broker's node ID), `api_key` (the message type), `api_version`, and `decoded` (a flag indicating if the message was decoded by the proxy).
 
 When the client connects to the boostrap endpoint of the virtual cluster, metrics are recorded with a node ID value of `bootstrap`.
-
-NOTE: Downstream counters (`kroxylicious_client_to_proxy_&#42;_total`) can exceed broker-end counters (`kroxylicious_proxy_to_server_&#42;_total`) when a filter sends a short-circuit response, closes the connection, or when upstream cluster connectivity is lost during message transit.
 
 .Kafka message metrics for proxy request and response flow
 |===
@@ -102,5 +116,25 @@ NOTE: Downstream counters (`kroxylicious_client_to_proxy_&#42;_total`) can excee
 |Counter
 |`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
 |Incremented by one every time a response goes from the proxy to a client.
+
+|`kroxylicious_client_to_proxy_request_total`
+|Distribution
+|`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
+|Incremented by the size of the message each time a request arrives at the proxy from a client.
+
+|`kroxylicious_proxy_to_server_request_total`
+|Distribution
+|`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
+|Incremented by the size of the message each time a request goes from the proxy to a server.
+
+|`kroxylicious_server_to_proxy_response_total`
+|Distribution
+|`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
+|Incremented by the size of the message each time a response arrives at the proxy from a server.
+
+|`kroxylicious_proxy_to_client_response_total`
+|Distribution
+|`virtual_cluster`, `node_id`, `api_key`, `api_version`, `decoded`
+|Incremented by the size of the message each time a response goes from the proxy to a client.
 
 |===
