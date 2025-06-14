@@ -14,6 +14,7 @@ import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -28,6 +29,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class RequestEncoderTest extends AbstractCodecTest {
 
@@ -91,6 +94,28 @@ public class RequestEncoderTest extends AbstractCodecTest {
                 "Expect request with response to have a correlation stored");
         assertEquals(1, correlationManager.brokerRequests.size(),
                 "Expect request with response to have a correlation");
+    }
+
+    @Test
+    void shouldFireListenerOnEncode() throws Exception {
+        // Given
+        KafkaMessageListener listener = mock(KafkaMessageListener.class);
+        CorrelationManager correlationManager = mock(CorrelationManager.class);
+
+        short apiVersion = ApiKeys.API_VERSIONS.latestVersion();
+        short headerVersion = ApiKeys.API_VERSIONS.requestHeaderVersion(apiVersion);
+        RequestHeaderData exampleHeader = exampleRequestHeader(apiVersion);
+        exampleHeader.setCorrelationId(0);
+        ApiVersionsRequestData exampleBody = exampleApiVersionsRequest();
+        ByteBuffer expected = serializeUsingKafkaApis(headerVersion, exampleHeader, apiVersion, exampleBody);
+        int expectedSizeIncludingLength = expected.remaining();
+        DecodedRequestFrame<ApiVersionsRequestData> toBeEncoded = new DecodedRequestFrame<>(apiVersion, exampleHeader.correlationId(), false, exampleHeader, exampleBody);
+
+        // When
+        testEncode(expected, toBeEncoded, new KafkaRequestEncoder(correlationManager, listener));
+
+        // Then
+        verify(listener).onMessage(toBeEncoded, expectedSizeIncludingLength);
     }
 
     private static void whenRequestEncoded(GivenRequestFrame result, CorrelationManager correlationManager) throws Exception {

@@ -55,7 +55,7 @@ abstract class KafkaMessageEncoder<F extends Frame> extends MessageToByteEncoder
         frame.encode(new ByteBufAccessorImpl(out));
         if (listener != null) {
             var after = out.writerIndex();
-            listener.onMessage(frame, after - before + Frame.FRAME_SIZE_LENGTH);
+            listener.onMessage(frame, after - before);
         }
     }
 }
