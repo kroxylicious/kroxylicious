@@ -30,21 +30,44 @@ public class package_crds {
         var yaml = new Yaml();
 
         try (var stream = Files.list(sourceDir)) {
-            stream.filter(p -> p.toString().endsWith(".yaml") || p.toString().endsWith(".yml"))
-                    .forEach(p -> {
-                        try (var reader = Files.newBufferedReader(p)) {
-                            var data = (Map<?, ?>) yaml.load(reader);
-                            var kind = data.get("kind");
-                            var spec = (Map<?, ?>) data.get("spec");
-                            var names = (Map<?, ?>) spec.get("names");
-                            var singular = names.get("singular");
+            stream.filter(path -> path.toString().endsWith(".yaml") || path.toString().endsWith(".yml"))
+                    .forEach(path -> {
+                        try (var reader = Files.newBufferedReader(path)) {
+                            String singular;
+                            String kind;
+                            if (yaml.load(reader) instanceof Map<?, ?> data) {
+                                kind = kind(data);
+                                singular = singular(data);
+                            } else {
+                                throw new IOException("YAML was not an object");
+                            }
                             var target = targetDir.resolve("00." + kind + "-" + singular + ".yaml");
-                            Files.copy(p, target, StandardCopyOption.REPLACE_EXISTING);
+                            Files.copy(path, target, StandardCopyOption.REPLACE_EXISTING);
                             System.out.println("Copied to " + target);
                         } catch (IOException e) {
-                            throw new UncheckedIOException(e);
+                            throw new UncheckedIOException("With file " + path, e);
                         }
                     });
         }
+    }
+
+    private static String kind(Map<?, ?> data) throws IOException {
+        if (data.get("kind") instanceof String kind) {
+            return kind;
+        }
+        throw new IOException("YAML lacks .kind, or it is not an string");
+    }
+
+    private static String singular(Map<?, ?> data) throws IOException {
+        if (data.get("spec") instanceof Map<?, ?> spec) {
+            if (spec.get("names") instanceof Map<?, ?> names) {
+                if (names.get("singular") instanceof String singular) {
+                    return singular;
+                }
+                throw new IOException("YAML lacks .spec.names.singular, or it is not a string");
+            }
+            throw new IOException("YAML lacks .spec.names, or it is not an object");
+        }
+        throw new IOException("YAML lacks .spec, or it is not an object");
     }
 }
