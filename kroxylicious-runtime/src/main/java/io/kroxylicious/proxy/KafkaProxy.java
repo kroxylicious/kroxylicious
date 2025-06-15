@@ -119,6 +119,7 @@ public final class KafkaProxy implements AutoCloseable {
         }
         try {
             STARTUP_SHUTDOWN_LOGGER.info("Kroxylicious is starting");
+            initVersionInfoMetric();
 
             var portConflictDefector = new PortConflictDetector();
             var managementHostPort = Optional.ofNullable(managementConfiguration)
@@ -161,6 +162,10 @@ public final class KafkaProxy implements AutoCloseable {
             shutdown();
             throw e;
         }
+    }
+
+    private void initVersionInfoMetric() {
+        Metrics.versionInfoMetric(VersionInfo.VERSION_INFO);
     }
 
     @SuppressWarnings("removal")
