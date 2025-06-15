@@ -12,6 +12,7 @@ import javax.annotation.Nullable;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -41,6 +42,17 @@ public interface FilterContext {
      */
     @Nullable
     String sniHostname();
+
+    /**
+     * <p>
+     * The authenticated client principal, This information can be used
+     * by filters for client authentication, authorization decisions, or audit logging.
+     *
+     * @return the authenticated client principal as a KafkaPrincipal otherwise ANONYMOUS
+     */
+    default KafkaPrincipal clientPrincipal() {
+        return KafkaPrincipal.ANONYMOUS;
+    }
 
     /**
      * Creates a builder for a request filter result objects.  This object encapsulates
