@@ -442,10 +442,10 @@
                                 </goals>
                                 <configuration>
                                     <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
-                                    <script>${project.basedir}/package_crds.java</script>
+                                    <script>${rootdir}/kroxylicious-operator/package_crds.java</script>
                                     <args>
-                                        <arg>kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8</arg>
-                                        <arg>${project.basedir}/target/packaged/install</arg>
+                                        <arg>${rootdir}/kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8</arg>
+                                        <arg>${rootdir}/kroxylicious-operator/target/packaged/install</arg>
                                     </args>
                                 </configuration>
                             </execution>
