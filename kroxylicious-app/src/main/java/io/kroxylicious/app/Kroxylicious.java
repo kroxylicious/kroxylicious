@@ -9,13 +9,13 @@ import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.Arrays;
-import java.util.Properties;
 import java.util.concurrent.Callable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.KafkaProxy;
+import io.kroxylicious.proxy.VersionInfo;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
@@ -36,7 +36,6 @@ import picocli.CommandLine.Spec;
 public class Kroxylicious implements Callable<Integer> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
-    private static final String UNKNOWN = "unknown";
     private final KafkaProxyBuilder proxyBuilder;
 
     interface KafkaProxyBuilder {
@@ -127,17 +126,8 @@ public class Kroxylicious implements Callable<Integer> {
     static class VersionProvider implements CommandLine.IVersionProvider {
         @Override
         public String[] getVersion() throws Exception {
-            try (InputStream resource = this.getClass().getClassLoader().getResourceAsStream("META-INF/metadata.properties")) {
-                if (resource != null) {
-                    Properties properties = new Properties();
-                    properties.load(resource);
-                    String version = properties.getProperty("kroxylicious.version", UNKNOWN);
-                    String commitId = properties.getProperty("git.commit.id", UNKNOWN);
-                    String commitMessage = properties.getProperty("git.commit.message.short", UNKNOWN);
-                    return new String[]{ "kroxylicious: " + version, "commit id: " + commitId, "commit message: " + commitMessage };
-                }
-            }
-            return new String[]{ UNKNOWN };
+            var versionInfo = VersionInfo.VERSION_INFO;
+            return new String[]{ "kroxylicious: " + versionInfo.version(), "commit id: " + versionInfo.commitId(), "commit message: " + versionInfo.commitMessage() };
         }
     }
 }
