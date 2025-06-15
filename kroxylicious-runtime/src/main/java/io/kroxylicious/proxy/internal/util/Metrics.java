@@ -15,9 +15,12 @@ import org.apache.kafka.common.protocol.ApiKeys;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.Tag;
+
+import io.kroxylicious.proxy.VersionInfo;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -280,4 +283,17 @@ public class Metrics {
 
         MeterProvider<T> create(String virtualCluster, Integer nodeId);
     }
+
+    public static void versionInfoMetric(VersionInfo versionInfo) {
+        // Something is wrong here
+        // https://github.com/micrometer-metrics/micrometer/wiki/1.13-Migration-Guide#info-vs-gauge-type
+        // says that suffixing .info should cause mircometer to use Prometheus's info type.
+        // but that's no what I'm seeing.
+        Gauge.builder("kroxylicious_build.info", () -> 1.0)
+                .description("reports the version information")
+                .tag("version", versionInfo.version())
+                .tag("commit_id", versionInfo.commitId())
+                .register(globalRegistry);
+    }
+
 }
