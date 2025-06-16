@@ -11,6 +11,7 @@ import java.util.stream.Stream;
 
 import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
+import io.fabric8.openshift.api.model.RouteBuilder;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
@@ -83,5 +84,13 @@ public interface ClusterIngressNetworkingModel {
      */
     default Optional<SharedLoadBalancerServiceRequirements> sharedLoadBalancerServiceRequirements() {
         return Optional.empty();
+    }
+
+    /**
+     * OpenShift Routes to be created for this model
+     * @return a stream of RouteBuilders
+     */
+    default Stream<RouteBuilder> routes() {
+        return Stream.empty();
     }
 }

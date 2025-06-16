@@ -112,7 +112,7 @@ public class ClusterServiceDependentResource
             return Stream.empty();
         }
         else {
-            String serviceName = ResourcesUtil.name(primary) + "-sni";
+            String serviceName = sharedSniLoadbalancerServiceName(primary);
             var serviceSpecBuilder = new ServiceBuilder()
                     .withMetadata(sniLoadbalancerServiceMetadata(primary, serviceName, bootstraps))
                     .withNewSpec()
@@ -129,6 +129,10 @@ public class ClusterServiceDependentResource
             }
             return Stream.of(serviceSpecBuilder.endSpec().build());
         }
+    }
+
+    public static String sharedSniLoadbalancerServiceName(KafkaProxy primary) {
+        return ResourcesUtil.name(primary) + "-sni";
     }
 
     @Override
