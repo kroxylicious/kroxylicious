@@ -23,6 +23,7 @@ import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecFluent;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
@@ -56,6 +57,8 @@ public class ProxyDeploymentDependentResource
     private static final String MANAGEMENT_PORT_NAME = "management";
     public static final int PROXY_PORT_START = 9292;
     public static final int SHARED_SNI_PORT = 9291;
+    private static final Map<String, Quantity> DEFAULT_LIMITS = Map.of("cpu", Quantity.parse("500m"), "memory", Quantity.parse("512Mi"));
+
     private final String kroxyliciousImage = getOperandImage();
     static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
 
@@ -197,6 +200,10 @@ public class ProxyDeploymentDependentResource
                     .withMountPath(ProxyDeploymentDependentResource.CONFIG_PATH_IN_CONTAINER)
                     .withSubPath(ProxyConfigDependentResource.CONFIG_YAML_KEY)
                 .endVolumeMount()
+                .withNewResources()
+                    .withRequests(DEFAULT_LIMITS)
+                    .withLimits(DEFAULT_LIMITS)
+                .endResources()
                 .addAllToVolumeMounts(kafkaProxyContext.mounts())
                 // management port
                 .addNewPort()
@@ -248,4 +255,5 @@ public class ProxyDeploymentDependentResource
         }
 
     }
+
 }

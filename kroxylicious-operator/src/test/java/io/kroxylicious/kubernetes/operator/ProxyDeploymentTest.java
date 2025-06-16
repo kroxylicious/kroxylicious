@@ -21,6 +21,7 @@ import org.junitpioneer.jupiter.SetEnvironmentVariable;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedWorkflowAndDependentResourceContext;
@@ -87,6 +88,28 @@ class ProxyDeploymentTest {
 
         // Then
         assertThat(labels).containsExactlyEntriesOf(expected);
+    }
+
+    @Test
+    void proxyContainerHasDefaultResourceRequirements() {
+        // Given
+        var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), List.of());
+        configureProxyModel(proxyModel);
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+
+        // When
+        Deployment actual = proxyDeploymentDependentResource.desired(kafkaProxy, kubernetesContext);
+
+        // Then
+        assertThat(actual.getSpec().getTemplate().getSpec().getContainers()).singleElement().satisfies(container -> {
+            assertThat(container.getResources()).isNotNull();
+            assertThat(container.getResources().getLimits())
+                    .containsEntry("cpu", Quantity.parse("500m"))
+                    .containsEntry("memory", Quantity.parse("512Mi"));
+            assertThat(container.getResources().getRequests())
+                    .containsEntry("cpu", Quantity.parse("500m"))
+                    .containsEntry("memory", Quantity.parse("512Mi"));
+        });
     }
 
     @Test
