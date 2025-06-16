@@ -65,7 +65,7 @@ spec:
                           type: object
                       type: object
                 replicas:
-                  description: "The number of pods to run."
+                  description: "The number of pods to deploy."
                   type: integer
                   format: int32
                   minimum: 0
