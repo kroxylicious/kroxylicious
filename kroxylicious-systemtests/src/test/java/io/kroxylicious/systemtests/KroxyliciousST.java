@@ -248,7 +248,7 @@ class KroxyliciousST extends AbstractST {
         else {
             LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
 
-            int numberOfBrokers = 1;
+            int numberOfBrokers = 3;
             KafkaBuilder kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, numberOfBrokers);
 
             resourceManager.createResourceFromBuilderWithWait(
