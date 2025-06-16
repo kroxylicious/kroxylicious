@@ -54,6 +54,62 @@ spec:
             spec:
               type: object
               properties:
+                infrastructure:
+                  type: object
+                  description: |
+                    A collection of infrastructure-level settings that may be applied across all (or a subset of) 
+                    manifested resources for a KafkaProxy. This includes settings that affect resource behaviour at
+                    the platform layer, such as:
+                    - Resource limits and requests
+                  properties:
+                    proxyContainer:
+                      description: |
+                        infrastructure-level settings applied to proxy containers
+                      type: object
+                      properties:
+                        resources:
+                          type: object
+                          description: "A specification for the compute/memory requirements of the proxy container."
+                          properties:
+                            limits:
+                              description: "Limits describes the maximum amount of each resource allowed."
+                              properties:
+                                cpu:
+                                  description: "The maximum compute allowed"
+                                  anyOf:
+                                    - type: integer
+                                    - type: string
+                                  pattern: "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
+                                  x-kubernetes-int-or-string: true
+                                memory:
+                                  description: "The maximum memory allowed"
+                                  anyOf:
+                                    - type: integer
+                                    - type: string
+                                  pattern: "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
+                                  x-kubernetes-int-or-string: true
+                              type: object
+                            requests:
+                              type: object
+                              description: |
+                                Requests describes the minimum amount of each resources required. If
+                                Requests is omitted for a container, it defaults to Limits if that is
+                                explicitly specified, otherwise to an implementation-defined value.
+                              properties:
+                                cpu:
+                                  description: "The minimum compute required"
+                                  anyOf:
+                                    - type: integer
+                                    - type: string
+                                  pattern: "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
+                                  x-kubernetes-int-or-string: true
+                                memory:
+                                  description: "The minimum memory required"
+                                  anyOf:
+                                    - type: integer
+                                    - type: string
+                                  pattern: "^(\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\\+|-)?(([0-9]+(\\.[0-9]*)?)|(\\.[0-9]+))))?$"
+                                  x-kubernetes-int-or-string: true
                 podTemplate:
                   type: object
                   properties:

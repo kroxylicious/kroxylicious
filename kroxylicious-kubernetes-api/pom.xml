@@ -150,6 +150,9 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.PodTemplate>
                             io.fabric8.kubernetes.api.model.PodTemplateSpec
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.PodTemplate>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.proxycontainer.Resources>
+                            io.fabric8.kubernetes.api.model.ResourceRequirements
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.proxycontainer.Resources>
 
                         <!-- Common types used across our own CRDs -->
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ProxyRef>
