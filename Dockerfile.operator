@@ -61,7 +61,7 @@ RUN microdnf -y update \
 ENV JAVA_HOME=/usr/lib/jvm/jre-17
 
 COPY --from=builder /opt/tini/bin/tini /usr/bin/tini
-COPY --from=builder /opt/kroxylicious/kroxylicious-operator/target/kroxylicious-operator-${KROXYLICIOUS_VERSION}-bin/kroxylicious-operator-${KROXYLICIOUS_VERSION} /opt/kroxylicious-operator
+COPY --from=builder /opt/kroxylicious/kroxylicious-operator/target/kroxylicious-operator-${KROXYLICIOUS_VERSION}-app/kroxylicious-operator-${KROXYLICIOUS_VERSION} /opt/kroxylicious-operator
 
 USER ${CONTAINER_USER_UID}
 
