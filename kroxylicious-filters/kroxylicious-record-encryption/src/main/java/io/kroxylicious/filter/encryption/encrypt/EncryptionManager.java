@@ -29,7 +29,7 @@ public interface EncryptionManager<K> {
      * @return A completion stage that completes with the output MemoryRecords when all the records have been processed and transformed.
      */
     @NonNull
-    CompletionStage<MemoryRecords> encrypt(@NonNull String virtualClusterName,
+    CompletionStage<MemoryRecords> encrypt(
                                            @NonNull String topicName,
                                            int partition,
                                            @NonNull EncryptionScheme<K> encryptionScheme,

@@ -9,6 +9,8 @@ package io.kroxylicious.filter.encryption;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Meter;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static io.micrometer.core.instrument.Metrics.globalRegistry;
 
 public class RecordEncryptionMetrics {
@@ -17,39 +19,29 @@ public class RecordEncryptionMetrics {
     public static final String TOPIC_NAME = "topic_name";
 
     // Base Metric Names
-    protected static final String KROXYLICIOUS_ENCRYPTED_RECORDS_BASE_METER_NAME = "kroxylicious_encrypted_records_total";
-    protected static final String KROXYLICIOUS_NOT_ENCRYPTED_RECORDS_BASE_METER_NAME = "kroxylicious_not_encrypted_records_total";
+    private static final String RECORD_ENCRYPTION_ENCRYPTED_RECORDS = "kroxylicious_record_encryption_encrypted_records";
+    private static final String RECORD_ENCRYPTION_PLAIN_RECORDS = "kroxylicious_record_encryption_plain_records";
 
-    // Meter Providers
-    // (Callers use the providers to create the meters they need, augmenting with any tags).
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> KROXYLICIOUS_ENCRYPTED_RECORDS_BASE_METER_NAME_TOTAL_METER_PROVIDER = (virtualClusterName,
-                                                                                                                                                 nodeId) -> Counter
-                                                                                                                                                         .builder(
-                                                                                                                                                                 KROXYLICIOUS_ENCRYPTED_RECORDS_BASE_METER_NAME)
-                                                                                                                                                         .description(
-                                                                                                                                                                 "Incremented by the number of records encrypted.")
-                                                                                                                                                         .tag(VIRTUAL_CLUSTER_LABEL,
-                                                                                                                                                                 virtualClusterName)
-                                                                                                                                                         .tag(TOPIC_NAME,
-                                                                                                                                                                 nodeId)
-                                                                                                                                                         .withRegistry(
-                                                                                                                                                                 globalRegistry);
+    public static Meter.MeterProvider<Counter> recordEncryptionEncryptedRecordsCounter(String clusterName, String topicName) {
+        return buildCounterMeterProvider(RECORD_ENCRYPTION_ENCRYPTED_RECORDS, "Incremented by the number of records encrypted.",
+                clusterName, topicName);
+    }
 
-    public static final ClusterNodeSpecificMetricProviderCreator<Counter> KROXYLICIOUS_NOT_ENCRYPTED_RECORDS_TOTAL_METER_PROVIDER = (virtualClusterName,
-                                                                                                                                     nodeId) -> Counter.builder(
-                                                                                                                                             KROXYLICIOUS_NOT_ENCRYPTED_RECORDS_BASE_METER_NAME)
-                                                                                                                                             .description(
-                                                                                                                                                     "Incremented by the number of records not encrypted.")
-                                                                                                                                             .tag(VIRTUAL_CLUSTER_LABEL,
-                                                                                                                                                     virtualClusterName)
-                                                                                                                                             .tag(TOPIC_NAME,
-                                                                                                                                                     nodeId)
-                                                                                                                                             .withRegistry(
-                                                                                                                                                     globalRegistry);
+    public static Meter.MeterProvider<Counter> recordEncryptionPlainRecordsCounter(String clusterName, String topicName) {
+        return buildCounterMeterProvider(RECORD_ENCRYPTION_PLAIN_RECORDS, "Incremented by the number of records not encrypted.",
+                clusterName, topicName);
+    }
 
-    @FunctionalInterface
-    public interface ClusterNodeSpecificMetricProviderCreator<T extends Meter> {
-
-        Meter.MeterProvider<T> create(String virtualCluster, String nodeId);
+    @NonNull
+    private static Meter.MeterProvider<Counter> buildCounterMeterProvider(String meterName,
+                                                                          String description,
+                                                                          String clusterName,
+                                                                          String topicName) {
+        return Counter
+                .builder(meterName)
+                .description(description)
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(TOPIC_NAME, topicName)
+                .withRegistry(globalRegistry);
     }
 }

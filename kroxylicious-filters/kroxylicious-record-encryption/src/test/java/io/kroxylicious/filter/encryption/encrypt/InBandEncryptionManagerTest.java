@@ -84,7 +84,7 @@ class InBandEncryptionManagerTest {
                                                    List<Record> initial,
                                                    List<Record> encrypted) {
         MemoryRecords records = RecordTestUtils.memoryRecords(initial);
-        return encryptionManager.encrypt("demo", topic, partition, scheme, records, ByteBufferOutputStream::new)
+        return encryptionManager.encrypt(topic, partition, scheme, records, ByteBufferOutputStream::new)
                 .thenApply(memoryRecords -> {
                     memoryRecords.records().forEach(encrypted::add);
                     return null;

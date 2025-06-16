@@ -126,16 +126,23 @@ public class RecordEncryptionFilter<K>
                         return tpd.partitionData().stream().map(ppd -> {
                             MemoryRecords records = (MemoryRecords) ppd.records();
                             return encryptionManager.encrypt(
-                                    context.getVirtualClusterName(),
                                     topicName,
                                     ppd.index(),
                                     new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                                     records,
                                     context::createByteBufferOutputStream)
-                                    .thenApply(ppd::setRecords);
+                                    .thenApply(ppd::setRecords)
+                                    .thenApply(produceData -> {
+                                        var encyptedRecordsTotal = RecordEncryptionMetrics
+                                                .recordEncryptionEncryptedRecordsCounter(context.getVirtualClusterName(), topicName).withTags();
+                                        encyptedRecordsTotal.increment(RecordEncryptionUtil.totalRecordsInBatches((MemoryRecords) produceData.records()));
+                                        return null;
+                                    });
                         });
                     }).toList();
-                    return RecordEncryptionUtil.join(futures).thenApply(x -> request);
+
+                    return RecordEncryptionUtil.join(futures)
+                            .thenApply(x -> request);
                 }).exceptionallyCompose(throwable -> {
                     log.atWarn().setMessage("failed to encrypt records, cause message: {}")
                             .addArgument(throwable.getMessage())
@@ -147,9 +154,7 @@ public class RecordEncryptionFilter<K>
 
     private void generateMetrics(String virtualClusterName, Set<String> unresolvedTopicNames, Map<String, TopicProduceData> topicNameToData) {
         unresolvedTopicNames.forEach(unresolvedTopic -> {
-            var unEncyptedRecordsTotal = RecordEncryptionMetrics.KROXYLICIOUS_NOT_ENCRYPTED_RECORDS_TOTAL_METER_PROVIDER
-                    .create(virtualClusterName, unresolvedTopic)
-                    .withTags();
+            var unEncyptedRecordsTotal = RecordEncryptionMetrics.recordEncryptionPlainRecordsCounter(virtualClusterName, unresolvedTopic).withTags();
             TopicProduceData data = topicNameToData.get(unresolvedTopic);
             data.partitionData()
                     .forEach(produceData -> unEncyptedRecordsTotal.increment(RecordEncryptionUtil.totalRecordsInBatches((MemoryRecords) produceData.records())));

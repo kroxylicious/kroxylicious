@@ -301,7 +301,7 @@ class InBandDecryptionManagerTest {
                                                    List<Record> initial,
                                                    List<Record> encrypted) {
         MemoryRecords records = RecordTestUtils.memoryRecords(initial);
-        return encryptionManager.encrypt("demo", topic, partition, scheme, records, ByteBufferOutputStream::new)
+        return encryptionManager.encrypt(topic, partition, scheme, records, ByteBufferOutputStream::new)
                 .thenApply(memoryRecords -> {
                     memoryRecords.records().forEach(encrypted::add);
                     return null;
@@ -1067,7 +1067,7 @@ class InBandDecryptionManagerTest {
 
     @NonNull
     private static CompletionStage<MemoryRecords> encrypt(InBandEncryptionManager<UUID, InMemoryEdek> km, EncryptionScheme<UUID> scheme, MemoryRecords records) {
-        return km.encrypt("demo", "topic", 1, scheme, records, ByteBufferOutputStream::new);
+        return km.encrypt("topic", 1, scheme, records, ByteBufferOutputStream::new);
     }
 
 }

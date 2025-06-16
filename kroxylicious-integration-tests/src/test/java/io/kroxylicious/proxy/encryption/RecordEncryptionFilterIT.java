@@ -689,8 +689,7 @@ class RecordEncryptionFilterIT {
 
         try (var tester = kroxyliciousTester(builder);
                 var managementClient = tester.getManagementClient();
-                var producer = tester.producer(Map.of(ProducerConfig.LINGER_MS_CONFIG, 1000, ProducerConfig.BATCH_SIZE_CONFIG, 2));
-                var consumer = tester.consumer()) {
+                var producer = tester.producer()) {
 
             producer.send(new ProducerRecord<>(encryptedTopic.name(), HELLO_SECRET));
             producer.send(new ProducerRecord<>(plainTopic.name(), HELLO_WORLD));
@@ -698,17 +697,15 @@ class RecordEncryptionFilterIT {
 
             var metricList = managementClient.scrapeMetrics();
 
-            System.out.println(metricList);
-
             SimpleMetricAssert.assertThat(metricList)
-                    .filterByName("kroxylicious_not_encrypted_records_total")
+                    .filterByName("kroxylicious_record_encryption_plain_records_total")
                     .filterByTag(TOPIC_NAME, plainTopic.name())
                     .singleElement()
                     .value()
                     .isGreaterThanOrEqualTo(1.0);
 
             SimpleMetricAssert.assertThat(metricList)
-                    .filterByName("kroxylicious_encrypted_records_total")
+                    .filterByName("kroxylicious_record_encryption_encrypted_records_total")
                     .filterByTag(TOPIC_NAME, encryptedTopic.name())
                     .singleElement()
                     .value()
