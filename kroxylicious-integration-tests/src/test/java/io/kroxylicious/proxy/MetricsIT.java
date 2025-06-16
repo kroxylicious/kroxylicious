@@ -146,6 +146,26 @@ class MetricsIT {
     }
 
     @Test
+    void infoMetricPresent(KafkaCluster cluster) {
+        var config = configWithMetrics(cluster);
+
+        try (var tester = kroxyliciousTester(config);
+                var ahc = tester.getManagementClient()) {
+            var metrics = ahc.scrapeMetrics();
+            assertThat(metrics)
+                    .filterByName("kroxylicious_build_info")
+                    .singleElement()
+                    .labels()
+                    .containsKeys("version", "commit_id")
+                    .satisfies(labels -> {
+                        assertThat(labels.values())
+                                .isNotEmpty()
+                                .doesNotContain("UNKNOWN", "${project.version}");
+                    });
+        }
+    }
+
+    @Test
     void prometheusMetricFromNamedBinder(KafkaCluster cluster) {
         var config = configWithMetrics(cluster)
                 .addToMicrometer(

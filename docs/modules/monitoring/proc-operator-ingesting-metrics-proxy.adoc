@@ -42,5 +42,5 @@ Prometheus begins to regularly to scrape the proxy's metric.
 +
 [source]
 ----
-kroxylicious_client_to_proxy_errors_total
+kroxylicious_build_info
 ----
