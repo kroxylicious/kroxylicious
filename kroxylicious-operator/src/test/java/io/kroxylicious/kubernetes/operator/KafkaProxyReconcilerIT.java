@@ -74,6 +74,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRanges;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
+import io.kroxylicious.kubernetes.operator.assertj.AssertFactory;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import io.kroxylicious.kubernetes.operator.assertj.ProxyConfigAssert;
 import io.kroxylicious.kubernetes.operator.model.networking.LoadBalancerClusterIngressNetworkingModel;
@@ -174,7 +175,7 @@ class KafkaProxyReconcilerIT {
         KafkaService kafkaService = kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
         var created = doCreate(kafkaService, kafkaProxy(PROXY_A, 3));
         Deployment deployment = assertDeploymentReplicaCount(created.proxy(), 3);
-        Deployment updatedDeployment = deployment.edit().editStatus().withReplicas(3).withReadyReplicas(2).endStatus().build();
+        Deployment updatedDeployment = deployment.edit().editOrNewStatus().withReplicas(3).withReadyReplicas(2).withAvailableReplicas(2).endStatus().build();
 
         // when
         testActor.patchStatus(updatedDeployment);
@@ -200,11 +201,11 @@ class KafkaProxyReconcilerIT {
 
         // then
         assertProxyConfigContents(created.proxy(), Set
-                .of(
-                        UPSTREAM_TLS_CERTIFICATE_SECRET_NAME,
-                        TRUSTED_CAS_PEM,
-                        PROTOCOL_TLS_V1_3,
-                        TLS_CIPHER_SUITE_AES256GCM_SHA384),
+                        .of(
+                                UPSTREAM_TLS_CERTIFICATE_SECRET_NAME,
+                                TRUSTED_CAS_PEM,
+                                PROTOCOL_TLS_V1_3,
+                                TLS_CIPHER_SUITE_AES256GCM_SHA384),
                 Set.of());
         assertDeploymentMountsConfigMap(created.proxy(), CA_BUNDLE_CONFIG_MAP_NAME);
         assertDeploymentMountsSecret(created.proxy(), UPSTREAM_TLS_CERTIFICATE_SECRET_NAME);
@@ -852,9 +853,9 @@ class KafkaProxyReconcilerIT {
         AWAIT.alias("Deployment as expected").untilAsserted(() -> {
             var deployment = testActor.get(KafkaProxy.class, ResourcesUtil.name(proxy));
             assertThat(deployment).isNotNull()
-                    .satisfies(kafkaProxy -> assertThat(kafkaProxy.getStatus())
-                            .isNotNull()
-                            .satisfies(status -> assertThat(status.getReplicas()).isEqualTo(expectedReplicaCount)));
+                    .extracting(KafkaProxy::getStatus, AssertFactory.status())
+                    .isNotNull()
+                    .replicas(expectedReplicaCount);
         });
     }
 
