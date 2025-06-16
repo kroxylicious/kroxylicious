@@ -125,9 +125,9 @@ public class Kroxylicious implements Callable<Integer> {
 
     static class VersionProvider implements CommandLine.IVersionProvider {
         @Override
-        public String[] getVersion() throws Exception {
+        public String[] getVersion() {
             var versionInfo = VersionInfo.VERSION_INFO;
-            return new String[]{ "kroxylicious: " + versionInfo.version(), "commit id: " + versionInfo.commitId(), "commit message: " + versionInfo.commitMessage() };
+            return new String[]{ "kroxylicious: " + versionInfo.version(), "commit id: " + versionInfo.commitId() };
         }
     }
 }

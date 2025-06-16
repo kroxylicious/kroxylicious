@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2302](https://github.com/kroxylicious/kroxylicious/issues/2302) add build_info metric to Kroxylicious exposing version information
 * [#2268](https://github.com/kroxylicious/kroxylicious/issues/2268) Ensure downstream connection is closed if proxy cannot match SNI hostname against a virtual cluster
 * [#2185](https://github.com/kroxylicious/kroxylicious/pull/2185) Add $(virtualClusterName) placeholders to SNI bootstrap address and advertised broker address pattern
 * [#2198](https://github.com/kroxylicious/kroxylicious/pull/2198) Require VirtualCluster name to be a valid DNS label

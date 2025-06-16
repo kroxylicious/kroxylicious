@@ -21,8 +21,6 @@ public interface VersionInfo {
 
     String commitId();
 
-    String commitMessage();
-
     private static VersionInfo getVersionInfo() {
 
         try (var resource = Info.class.getClassLoader().getResourceAsStream("META-INF/metadata.properties")) {
@@ -31,8 +29,7 @@ public interface VersionInfo {
                 properties.load(resource);
                 String version = properties.getProperty("kroxylicious.version", Info.UNKNOWN);
                 String commitId = properties.getProperty("git.commit.id", Info.UNKNOWN);
-                String commitMessage = properties.getProperty("git.commit.message.short", Info.UNKNOWN);
-                return new Info(version, commitId, commitMessage);
+                return new Info(version, commitId);
             }
         }
         catch (IOException e) {
@@ -45,15 +42,13 @@ public interface VersionInfo {
     final class Info implements VersionInfo {
         private static final String UNKNOWN = "unknown";
 
-        private static final Info UNKNOWN_VERSION_INFO = new Info(UNKNOWN, UNKNOWN, UNKNOWN);
+        private static final Info UNKNOWN_VERSION_INFO = new Info(UNKNOWN, UNKNOWN);
         private final String version;
         private final String commitId;
-        private final String commitMessage;
 
-        private Info(@NonNull String version, @NonNull String commitId, @NonNull String commitMessage) {
+        private Info(@NonNull String version, @NonNull String commitId) {
             this.version = Objects.requireNonNull(version);
             this.commitId = Objects.requireNonNull(commitId);
-            this.commitMessage = Objects.requireNonNull(commitMessage);
         }
 
         @Override
@@ -64,11 +59,6 @@ public interface VersionInfo {
         @Override
         public String commitId() {
             return commitId;
-        }
-
-        @Override
-        public String commitMessage() {
-            return commitMessage;
         }
 
     }

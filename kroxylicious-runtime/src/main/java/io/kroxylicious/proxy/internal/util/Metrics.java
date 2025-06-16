@@ -224,6 +224,13 @@ public class Metrics {
 
     public static final String UPSTREAM = "upstream";
 
+    /**
+     * Name of the build_info metric.  Note that the {@code .info} suffix is significant
+     * to Micrometer and is used to indicate an 'info' metric to it.  The metric
+     * name emitted by Prometheus will be called {@code kroxylicious_build.info}
+     */
+    private static final String INFO_METRIC_NAME = "kroxylicious_build.info";
+
     @NonNull
     public static Counter taggedCounter(String counterName, List<Tag> tags) {
         return counter(counterName, tags);
@@ -284,13 +291,14 @@ public class Metrics {
         MeterProvider<T> create(String virtualCluster, Integer nodeId);
     }
 
-    public static void versionInfoMetric(VersionInfo versionInfo) {
-        // Something is wrong here
-        // https://github.com/micrometer-metrics/micrometer/wiki/1.13-Migration-Guide#info-vs-gauge-type
-        // says that suffixing .info should cause mircometer to use Prometheus's info type.
-        // but that's no what I'm seeing.
-        Gauge.builder("kroxylicious_build.info", () -> 1.0)
-                .description("reports the version information")
+    /**
+     * Exposes a <a href="https://www.robustperception.io/exposing-the-software-version-to-prometheus/">build info metric</a>  describing Kroxylicious version etc.
+     * @param versionInfo version info
+     * @return info metric
+     */
+    public static Gauge versionInfoMetric(VersionInfo versionInfo) {
+        return Gauge.builder(INFO_METRIC_NAME, () -> 1.0)
+                .description("Reports Kroxylicious version information")
                 .tag("version", versionInfo.version())
                 .tag("commit_id", versionInfo.commitId())
                 .register(globalRegistry);
