@@ -10,14 +10,18 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.Tag;
+
+import io.kroxylicious.proxy.VersionInfo;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -221,6 +225,14 @@ public class Metrics {
 
     public static final String UPSTREAM = "upstream";
 
+    /**
+     * Name of the build_info metric.  Note that the {@code .info} suffix is significant
+     * to Micrometer and is used to indicate an 'info' metric to it.  The metric
+     * name emitted by Prometheus will be called {@code kroxylicious_build.info}
+     */
+    private static final String INFO_METRIC_NAME = "kroxylicious_build.info";
+    private static final Supplier<Double> ONE_SUPPLIER = () -> 1.0;
+
     @NonNull
     public static Counter taggedCounter(String counterName, List<Tag> tags) {
         return counter(counterName, tags);
@@ -280,4 +292,18 @@ public class Metrics {
 
         MeterProvider<T> create(String virtualCluster, Integer nodeId);
     }
+
+    /**
+     * Exposes a <a href="https://www.robustperception.io/exposing-the-software-version-to-prometheus/">build info metric</a>  describing Kroxylicious version etc.
+     *
+     * @param versionInfo version info
+     */
+    public static void versionInfoMetric(VersionInfo versionInfo) {
+        Gauge.builder(INFO_METRIC_NAME, ONE_SUPPLIER)
+                .description("Reports Kroxylicious version information")
+                .tag("version", versionInfo.version())
+                .tag("commit_id", versionInfo.commitId())
+                .register(globalRegistry);
+    }
+
 }
