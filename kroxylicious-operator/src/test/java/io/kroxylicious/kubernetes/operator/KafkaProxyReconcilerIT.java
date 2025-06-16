@@ -187,12 +187,7 @@ class KafkaProxyReconcilerIT {
     void testCreateWithKafkaServiceTls() {
         // given
         testActor.create(tlsKeyAndCertSecret(UPSTREAM_TLS_CERTIFICATE_SECRET_NAME));
-        testActor.create(new ConfigMapBuilder()
-                .withNewMetadata()
-                .withName(CA_BUNDLE_CONFIG_MAP_NAME)
-                .endMetadata()
-                .addToData(TRUSTED_CAS_PEM, "whatever")
-                .build());
+        testActor.create(trustAnchorConfigMap(CA_BUNDLE_CONFIG_MAP_NAME));
         KafkaService kafkaService = kafkaServiceWithTls();
 
         // when
@@ -1147,8 +1142,8 @@ class KafkaProxyReconcilerIT {
                 .withName(name)
                 .endMetadata()
                 .withType("kubernetes.io/tls")
-                .addToData("tls.crt", "whatever")
-                .addToData("tls.key", "whatever")
+                .addToStringData("tls.crt", TestKeyMaterial.TEST_CERT_PEM)
+                .addToStringData("tls.key", TestKeyMaterial.TEST_KEY_PEM)
                 .build();
     }
 
@@ -1157,8 +1152,8 @@ class KafkaProxyReconcilerIT {
                 .withNewMetadata()
                 .withName(name)
                 .endMetadata()
-                .addToData("tls.pem", "whatever")
-                .addToData("key", "tls.pem")
+                .addToData(TRUSTED_CAS_PEM, TestKeyMaterial.TEST_CERT_PEM)
+                .addToData("key", TRUSTED_CAS_PEM)
                 .build();
     }
 

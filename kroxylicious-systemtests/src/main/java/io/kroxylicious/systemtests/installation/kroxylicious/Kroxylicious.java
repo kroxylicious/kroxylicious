@@ -103,6 +103,12 @@ public class Kroxylicious {
                         clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP));
     }
 
+    /**
+     * Deploy port identifies node with downstream tls and no filters.
+     *
+     * @param clusterName the cluster name
+     * @param tls the tls
+     */
     public void deployPortIdentifiesNodeWithDownstreamTlsAndNoFilters(String clusterName, Tls tls) {
         resourceManager.createResourceFromBuilder(
                 KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, 1),
@@ -114,6 +120,12 @@ public class Kroxylicious {
                         clusterName, Constants.KROXYLICIOUS_INGRESS_CLUSTER_IP, tls));
     }
 
+    /**
+     * Create certificate config map from listener.
+     *
+     * @param namespace the namespace
+     * @return the tls
+     */
     public Tls createCertificateConfigMapFromListener(String namespace) {
         // wait for listeners to contain data
         var tlsListenerStatus = KafkaUtils.getKafkaListenerStatus("tls");
@@ -145,6 +157,12 @@ public class Kroxylicious {
         // formatter:on
     }
 
+    /**
+     * Tls config from cert.
+     *
+     * @param certNane the cert nane
+     * @return the tls
+     */
     public Tls tlsConfigFromCert(String certNane) {
         TlsBuilder tlsBuilder = new TlsBuilder();
         if (certNane != null) {
@@ -218,7 +236,7 @@ public class Kroxylicious {
      */
     public int getNumberOfReplicas() {
         LOGGER.info("Getting number of replicas..");
-        return kubeClient().getDeployment(deploymentNamespace, Constants.KROXYLICIOUS_DEPLOYMENT_NAME).getStatus().getReplicas();
+        return kubeClient().getDeployment(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).getStatus().getReplicas();
     }
 
     /**
@@ -229,11 +247,17 @@ public class Kroxylicious {
      */
     public void scaleReplicasTo(int scaledTo, Duration timeout) {
         LOGGER.info("Scaling number of replicas to {}..", scaledTo);
-        kubeClient().getClient().resources(KafkaProxy.class).inNamespace(deploymentNamespace).withName(Constants.KROXYLICIOUS_DEPLOYMENT_NAME).scale(scaledTo);
+        kubeClient().getClient().resources(KafkaProxy.class).inNamespace(deploymentNamespace).withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).scale(scaledTo);
         await().atMost(timeout).pollInterval(Duration.ofSeconds(1))
-                .until(() -> getNumberOfReplicas() == scaledTo && kubeClient().isDeploymentReady(deploymentNamespace, Constants.KROXYLICIOUS_DEPLOYMENT_NAME));
+                .until(() -> getNumberOfReplicas() == scaledTo && kubeClient().isDeploymentReady(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME));
     }
 
+    /**
+     * Deploy port identifies node with no filters.
+     *
+     * @param clusterName the cluster name
+     * @param proxyPods the proxy pods
+     */
     public void deployPortIdentifiesNodeWithNoFilters(String clusterName, int proxyPods) {
         resourceManager.createResourceFromBuilder(
                 KroxyliciousKafkaProxyTemplates.defaultKafkaProxyCR(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME, proxyPods),

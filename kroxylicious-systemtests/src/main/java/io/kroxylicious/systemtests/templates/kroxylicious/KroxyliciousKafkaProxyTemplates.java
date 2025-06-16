@@ -18,7 +18,7 @@ public class KroxyliciousKafkaProxyTemplates {
      *
      * @param namespaceName the namespace name
      * @param name the name
-     * @param replicas the number porxy pods to deploy
+     * @param replicas the number proxy pods to deploy
      * @return the kafka proxy builder
      */
     public static KafkaProxyBuilder defaultKafkaProxyCR(String namespaceName, String name, int replicas) {
@@ -29,7 +29,7 @@ public class KroxyliciousKafkaProxyTemplates {
                     .withNamespace(namespaceName)
                 .endMetadata()
                 .withNewSpec()
-                .withReplicas(replicas)
+                    .withReplicas(replicas)
                 .endSpec();
         // @formatter:on
     }
