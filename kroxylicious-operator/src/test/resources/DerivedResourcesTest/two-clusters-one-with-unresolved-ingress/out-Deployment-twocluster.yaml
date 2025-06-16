@@ -73,6 +73,13 @@ spec:
             - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"
               subPath: "proxy-config.yaml"
+          resources:
+            limits:
+              "cpu": "500m"
+              "memory": "512Mi"
+            requests:
+              "cpu": "500m"
+              "memory": "512Mi"
       securityContext:
         runAsNonRoot: true
         seccompProfile:
