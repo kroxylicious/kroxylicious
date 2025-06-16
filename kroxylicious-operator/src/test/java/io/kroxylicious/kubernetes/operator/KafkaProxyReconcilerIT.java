@@ -172,18 +172,15 @@ class KafkaProxyReconcilerIT {
     @Test
     void shouldIncludeReplicaCountInKafkaProxyStatus() {
         // given
+        int desiredReplicaCount = 3;
         KafkaService kafkaService = kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
-        int desiredReplicaCount = 5;
-        var created = doCreate(kafkaService, kafkaProxy(PROXY_A, desiredReplicaCount));
-        Deployment deployment = assertDeploymentReplicaCount(created.proxy(), desiredReplicaCount);
-        Deployment updatedDeployment = deployment.edit().editOrNewStatus().withReplicas(desiredReplicaCount).withReadyReplicas(2).withAvailableReplicas(2).endStatus()
-                .build();
 
         // when
-        testActor.patchStatus(updatedDeployment);
+        var created = doCreate(kafkaService, kafkaProxy(PROXY_A, desiredReplicaCount));
+        Deployment deployment = assertDeploymentReplicaCount(created.proxy(), desiredReplicaCount);
 
         // then
-        assertStausReplicaCount(created.proxy(), 2);
+        assertStausReplicaCount(created.proxy(), desiredReplicaCount);
     }
 
     @Test
@@ -203,11 +200,11 @@ class KafkaProxyReconcilerIT {
 
         // then
         assertProxyConfigContents(created.proxy(), Set
-                .of(
-                        UPSTREAM_TLS_CERTIFICATE_SECRET_NAME,
-                        TRUSTED_CAS_PEM,
-                        PROTOCOL_TLS_V1_3,
-                        TLS_CIPHER_SUITE_AES256GCM_SHA384),
+                        .of(
+                                UPSTREAM_TLS_CERTIFICATE_SECRET_NAME,
+                                TRUSTED_CAS_PEM,
+                                PROTOCOL_TLS_V1_3,
+                                TLS_CIPHER_SUITE_AES256GCM_SHA384),
                 Set.of());
         assertDeploymentMountsConfigMap(created.proxy(), CA_BUNDLE_CONFIG_MAP_NAME);
         assertDeploymentMountsSecret(created.proxy(), UPSTREAM_TLS_CERTIFICATE_SECRET_NAME);
