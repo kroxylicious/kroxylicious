@@ -200,11 +200,11 @@ class KafkaProxyReconcilerIT {
 
         // then
         assertProxyConfigContents(created.proxy(), Set
-                        .of(
-                                UPSTREAM_TLS_CERTIFICATE_SECRET_NAME,
-                                TRUSTED_CAS_PEM,
-                                PROTOCOL_TLS_V1_3,
-                                TLS_CIPHER_SUITE_AES256GCM_SHA384),
+                .of(
+                        UPSTREAM_TLS_CERTIFICATE_SECRET_NAME,
+                        TRUSTED_CAS_PEM,
+                        PROTOCOL_TLS_V1_3,
+                        TLS_CIPHER_SUITE_AES256GCM_SHA384),
                 Set.of());
         assertDeploymentMountsConfigMap(created.proxy(), CA_BUNDLE_CONFIG_MAP_NAME);
         assertDeploymentMountsSecret(created.proxy(), UPSTREAM_TLS_CERTIFICATE_SECRET_NAME);
