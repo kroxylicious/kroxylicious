@@ -1,0 +1,21 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+resource:
+  kind: KafkaProxy
+  apiVersion: kroxylicious.io/v1alpha1
+  metadata:
+    name: use-pod-template-spec
+    namespace: proxy-ns
+  spec:
+    infrastructure:
+      proxyContainer:
+        resources:
+          requests:
+            cpu: [ ]
+expectFailureMessageToContain: |
+  spec.infrastructure.proxyContainer.resources.requests.cpu: Invalid value: "array"
