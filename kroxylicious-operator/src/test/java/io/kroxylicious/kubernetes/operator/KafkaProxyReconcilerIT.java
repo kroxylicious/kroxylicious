@@ -173,9 +173,10 @@ class KafkaProxyReconcilerIT {
     void shouldIncludeReplicaCountInKafkaProxyStatus() {
         // given
         KafkaService kafkaService = kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
-        var created = doCreate(kafkaService, kafkaProxy(PROXY_A, 3));
-        Deployment deployment = assertDeploymentReplicaCount(created.proxy(), 3);
-        Deployment updatedDeployment = deployment.edit().editOrNewStatus().withReplicas(3).withReadyReplicas(2).withAvailableReplicas(2).endStatus().build();
+        int desiredReplicaCount = 5;
+        var created = doCreate(kafkaService, kafkaProxy(PROXY_A, desiredReplicaCount));
+        Deployment deployment = assertDeploymentReplicaCount(created.proxy(), desiredReplicaCount);
+        Deployment updatedDeployment = deployment.edit().editOrNewStatus().withReplicas(desiredReplicaCount).withReadyReplicas(2).withAvailableReplicas(2).endStatus().build();
 
         // when
         testActor.patchStatus(updatedDeployment);
@@ -194,7 +195,7 @@ class KafkaProxyReconcilerIT {
                 .endMetadata()
                 .addToData(TRUSTED_CAS_PEM, "whatever")
                 .build());
-        KafkaService kafkaService = kafkaServiceWithTls(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
+        KafkaService kafkaService = kafkaServiceWithTls();
 
         // when
         var created = doCreate(kafkaService);
@@ -246,7 +247,7 @@ class KafkaProxyReconcilerIT {
 
         Secret tlsServerCert = testActor.create(tlsKeyAndCertSecret("downstream-tls-certificate"));
         String downstreamTrustAnchorName = "downstream-tls-trust-anchor";
-        ConfigMap trustAnchor = testActor.create(trustAnchorConfigMap(downstreamTrustAnchorName, "tls.pem"));
+        ConfigMap trustAnchor = testActor.create(trustAnchorConfigMap(downstreamTrustAnchorName));
 
         Ingresses clusterIngress = new IngressesBuilder()
                 .withIngressRef(toIngressRef(ingress))
@@ -269,14 +270,12 @@ class KafkaProxyReconcilerIT {
 
         String expectedBootstrapHost = baseServiceName + "-bootstrap." + extension.getNamespace() + ".svc.cluster.local";
         String expectedAdvertisedBrokerAddressPattern = baseServiceName + "-$(nodeId)." + extension.getNamespace() + ".svc.cluster.local";
-        AWAIT.alias("proxy config - gateway configured for clusterIP SNI ingress").untilAsserted(() -> {
-            assertProxyConfigInConfigMap(proxy)
-                    .cluster(name(resource))
-                    .gateway(name(ingress))
-                    .sniHostIdentifiesNode()
-                    .hasBootstrapAddress(new HostPort(expectedBootstrapHost, proxyListenPort).toString())
-                    .hasAdvertisedBrokerAddressPattern(new HostPort(expectedAdvertisedBrokerAddressPattern, clientFacingPort).toString());
-        });
+        AWAIT.alias("proxy config - gateway configured for clusterIP SNI ingress").untilAsserted(() -> assertProxyConfigInConfigMap(proxy)
+                .cluster(name(resource))
+                .gateway(name(ingress))
+                .sniHostIdentifiesNode()
+                .hasBootstrapAddress(new HostPort(expectedBootstrapHost, proxyListenPort).toString())
+                .hasAdvertisedBrokerAddressPattern(new HostPort(expectedAdvertisedBrokerAddressPattern, clientFacingPort).toString()));
 
         assertDeploymentMountsConfigMap(proxy, downstreamTrustAnchorName);
         assertSharedSniPortExposedOnProxyDeployment(proxy, proxyListenPort);
@@ -300,7 +299,7 @@ class KafkaProxyReconcilerIT {
 
         Secret tlsServerCert = testActor.create(tlsKeyAndCertSecret("downstream-tls-certificate"));
         String downstreamTrustAnchorName = "downstream-tls-trust-anchor";
-        ConfigMap trustAnchor = testActor.create(trustAnchorConfigMap(downstreamTrustAnchorName, "tls.pem"));
+        ConfigMap trustAnchor = testActor.create(trustAnchorConfigMap(downstreamTrustAnchorName));
 
         Ingresses clusterIngress = new IngressesBuilder()
                 .withIngressRef(toIngressRef(ingress))
@@ -351,14 +350,12 @@ class KafkaProxyReconcilerIT {
                                                              int proxyListenPort, int clientFacingPort) {
         String expectedBootstrapHost = baseServiceName + "-bootstrap." + extension.getNamespace() + ".svc.cluster.local";
         String expectedAdvertisedBrokerAddressPattern = baseServiceName + "-$(nodeId)." + extension.getNamespace() + ".svc.cluster.local";
-        AWAIT.alias("proxy config - gateway configured for clusterIP SNI ingress").untilAsserted(() -> {
-            assertProxyConfigInConfigMap(proxy)
-                    .cluster(name(resource))
-                    .gateway(name(ingress))
-                    .sniHostIdentifiesNode()
-                    .hasBootstrapAddress(new HostPort(expectedBootstrapHost, proxyListenPort).toString())
-                    .hasAdvertisedBrokerAddressPattern(new HostPort(expectedAdvertisedBrokerAddressPattern, clientFacingPort).toString());
-        });
+        AWAIT.alias("proxy config - gateway configured for clusterIP SNI ingress").untilAsserted(() -> assertProxyConfigInConfigMap(proxy)
+                .cluster(name(resource))
+                .gateway(name(ingress))
+                .sniHostIdentifiesNode()
+                .hasBootstrapAddress(new HostPort(expectedBootstrapHost, proxyListenPort).toString())
+                .hasAdvertisedBrokerAddressPattern(new HostPort(expectedAdvertisedBrokerAddressPattern, clientFacingPort).toString()));
     }
 
     private void assertTlsClusterIpServiceManifested(String serviceName, KafkaProxy proxy, int clientFacingPort, int proxyListenPort) {
@@ -390,7 +387,7 @@ class KafkaProxyReconcilerIT {
 
         Secret tlsServerCert = testActor.create(tlsKeyAndCertSecret("downstream-tls-certificate"));
         String downstreamTrustAnchorName = "downstream-tls-trust-anchor";
-        ConfigMap trustAnchor = testActor.create(trustAnchorConfigMap(downstreamTrustAnchorName, "tls.pem"));
+        ConfigMap trustAnchor = testActor.create(trustAnchorConfigMap(downstreamTrustAnchorName));
 
         Ingresses clusterIngress = new IngressesBuilder()
                 .withIngressRef(toIngressRef(loadBalancerIngress))
@@ -429,14 +426,12 @@ class KafkaProxyReconcilerIT {
 
         assertSharedSniPortExposedOnProxyDeployment(proxy, proxyListenPort);
 
-        AWAIT.alias("proxy config - gateway configured for SNI loadbalancer ingress").untilAsserted(() -> {
-            assertProxyConfigInConfigMap(proxy)
-                    .cluster(name(cluster))
-                    .gateway(name(loadBalancerIngress))
-                    .sniHostIdentifiesNode()
-                    .hasBootstrapAddress(new HostPort(loadbalancerBootstrap, proxyListenPort).toString())
-                    .hasAdvertisedBrokerAddressPattern(new HostPort(loadbalancerBrokerAddressPattern, clientFacingPort).toString());
-        });
+        AWAIT.alias("proxy config - gateway configured for SNI loadbalancer ingress").untilAsserted(() -> assertProxyConfigInConfigMap(proxy)
+                .cluster(name(cluster))
+                .gateway(name(loadBalancerIngress))
+                .sniHostIdentifiesNode()
+                .hasBootstrapAddress(new HostPort(loadbalancerBootstrap, proxyListenPort).toString())
+                .hasAdvertisedBrokerAddressPattern(new HostPort(loadbalancerBrokerAddressPattern, clientFacingPort).toString()));
     }
 
     private void assertSharedSniPortExposedOnProxyDeployment(KafkaProxy proxy, int proxyListenPort) {
@@ -500,13 +495,11 @@ class KafkaProxyReconcilerIT {
                     .contains(sharedSniServiceName, clusterIpServiceName);
         });
 
-        AWAIT.alias("proxy config - gateway configured for both ingress types").untilAsserted(() -> {
-            assertProxyConfigInConfigMap(proxy)
-                    .cluster(name(cluster))
-                    .extracting(VirtualCluster::gateways, list(VirtualClusterGateway.class))
-                    .extracting(VirtualClusterGateway::name)
-                    .containsExactly(name(loadBalancerIngress), name(clusterIpIngress));
-        });
+        AWAIT.alias("proxy config - gateway configured for both ingress types").untilAsserted(() -> assertProxyConfigInConfigMap(proxy)
+                .cluster(name(cluster))
+                .extracting(VirtualCluster::gateways, list(VirtualClusterGateway.class))
+                .extracting(VirtualClusterGateway::name)
+                .containsExactly(name(loadBalancerIngress), name(clusterIpIngress)));
     }
 
     @Test
@@ -598,10 +591,10 @@ class KafkaProxyReconcilerIT {
                     .extracting(svc -> svc.getSpec().getSelector())
                     .describedAs("Service's selector should select proxy pods")
                     .isEqualTo(ProxyDeploymentDependentResource.podLabels(proxy));
-            ServicePort bootstrapServicePort = clusterIpServicePort(CLUSTER_BAR, expectedBootstrapPort);
-            ServicePort node0ServicePort = clusterIpServicePort(CLUSTER_BAR, expectedBootstrapPort + 1);
-            ServicePort node1ServicePort = clusterIpServicePort(CLUSTER_BAR, expectedBootstrapPort + 2);
-            ServicePort node2ServicePort = clusterIpServicePort(CLUSTER_BAR, expectedBootstrapPort + 3);
+            ServicePort bootstrapServicePort = clusterIpServicePort(expectedBootstrapPort);
+            ServicePort node0ServicePort = clusterIpServicePort(expectedBootstrapPort + 1);
+            ServicePort node1ServicePort = clusterIpServicePort(expectedBootstrapPort + 2);
+            ServicePort node2ServicePort = clusterIpServicePort(expectedBootstrapPort + 3);
             assertThat(service.getSpec().getPorts()).containsExactly(bootstrapServicePort, node0ServicePort, node1ServicePort, node2ServicePort);
         });
 
@@ -652,8 +645,8 @@ class KafkaProxyReconcilerIT {
         return createContainerPort(bootstrapPort, bootstrapPort + "-bootstrap");
     }
 
-    private static @NonNull ServicePort clusterIpServicePort(String clusterName, int port) {
-        return createServicePort(clusterName + "-" + port, port, port);
+    private static @NonNull ServicePort clusterIpServicePort(int port) {
+        return createServicePort(KafkaProxyReconcilerIT.CLUSTER_BAR + "-" + port, port, port);
     }
 
     private static ContainerPort createContainerPort(int port, String name) {
@@ -670,16 +663,16 @@ class KafkaProxyReconcilerIT {
 
     private record CreatedResources(KafkaProxy proxy, Set<VirtualKafkaCluster> clusters, Set<KafkaService> services, Set<KafkaProxyIngress> ingresses) {
 
-        VirtualKafkaCluster cluster(String name) {
-            return findOnlyResourceNamed(name, clusters).orElseThrow();
+        VirtualKafkaCluster cluster() {
+            return findOnlyResourceNamed(KafkaProxyReconcilerIT.CLUSTER_BAR, clusters).orElseThrow();
         }
 
-        KafkaService kafkaService(String name) {
-            return findOnlyResourceNamed(name, services).orElseThrow();
+        KafkaService kafkaService() {
+            return findOnlyResourceNamed(KafkaProxyReconcilerIT.CLUSTER_BAR_REF, services).orElseThrow();
         }
 
-        KafkaProxyIngress ingress(String name) {
-            return findOnlyResourceNamed(name, ingresses).orElseThrow();
+        KafkaProxyIngress ingress() {
+            return findOnlyResourceNamed(KafkaProxyReconcilerIT.CLUSTER_BAR_CLUSTERIP_INGRESS, ingresses).orElseThrow();
         }
 
     }
@@ -715,16 +708,14 @@ class KafkaProxyReconcilerIT {
     }
 
     private void assertDefaultVirtualClusterGatewayConfigured(KafkaProxy proxy, KafkaProxyIngress ingressBar, VirtualKafkaCluster clusterBar) {
-        AWAIT.alias("gateway configured as expected").untilAsserted(() -> {
-            assertProxyConfigInConfigMap(proxy).cluster(clusterBar.getMetadata().getName())
-                    .gateway(name(ingressBar))
-                    .portIdentifiesNode()
-                    .hasBootstrapAddress(new HostPort("localhost", 9292))
-                    .hasNullNodeStartPort()
-                    .namedRange("default")
-                    .hasStart(0)
-                    .hasEnd(2);
-        });
+        AWAIT.alias("gateway configured as expected").untilAsserted(() -> assertProxyConfigInConfigMap(proxy).cluster(clusterBar.getMetadata().getName())
+                .gateway(name(ingressBar))
+                .portIdentifiesNode()
+                .hasBootstrapAddress(new HostPort("localhost", 9292))
+                .hasNullNodeStartPort()
+                .namedRange("default")
+                .hasStart(0)
+                .hasEnd(2));
     }
 
     private ProxyConfigAssert assertProxyConfigInConfigMap(KafkaProxy proxy) {
@@ -897,18 +888,16 @@ class KafkaProxyReconcilerIT {
     void testUpdateVirtualClusterTargetBootstrap() {
         final var createdResources = doCreate();
         KafkaProxy proxy = createdResources.proxy;
-        var kafkaService = createdResources.kafkaService(CLUSTER_BAR_REF).edit().editSpec().withBootstrapServers(NEW_BOOTSTRAP).endSpec().build();
+        var kafkaService = createdResources.kafkaService().edit().editSpec().withBootstrapServers(NEW_BOOTSTRAP).endSpec().build();
         kafkaService = testActor.replace(kafkaService);
         updateStatusObservedGeneration(kafkaService);
 
         assertDeploymentBecomesReady(proxy);
-        AWAIT.untilAsserted(() -> {
-            assertThatProxyConfigFor(proxy)
-                    .doesNotContain(CLUSTER_BAR_BOOTSTRAP)
-                    .contains(NEW_BOOTSTRAP);
-        });
+        AWAIT.untilAsserted(() -> assertThatProxyConfigFor(proxy)
+                .doesNotContain(CLUSTER_BAR_BOOTSTRAP)
+                .contains(NEW_BOOTSTRAP));
 
-        assertServiceTargetsProxyInstances(proxy, createdResources.cluster(CLUSTER_BAR), createdResources.ingress(CLUSTER_BAR_CLUSTERIP_INGRESS));
+        assertServiceTargetsProxyInstances(proxy, createdResources.cluster(), createdResources.ingress());
     }
 
     @Test
@@ -921,7 +910,7 @@ class KafkaProxyReconcilerIT {
         updateStatusObservedGeneration(testActor.create(kafkaService(newClusterRefName, NEW_BOOTSTRAP)));
 
         KafkaServiceRef newClusterRef = new KafkaServiceRefBuilder().withName(newClusterRefName).build();
-        var cluster = createdResources.cluster(CLUSTER_BAR).edit().editSpec().withTargetKafkaServiceRef(newClusterRef).endSpec().build();
+        var cluster = createdResources.cluster().edit().editSpec().withTargetKafkaServiceRef(newClusterRef).endSpec().build();
 
         // when
         cluster = testActor.replace(cluster);
@@ -933,14 +922,14 @@ class KafkaProxyReconcilerIT {
                 .doesNotContain(CLUSTER_BAR_BOOTSTRAP)
                 .contains(NEW_BOOTSTRAP));
 
-        assertServiceTargetsProxyInstances(proxy, createdResources.cluster(CLUSTER_BAR), createdResources.ingress(CLUSTER_BAR_CLUSTERIP_INGRESS));
+        assertServiceTargetsProxyInstances(proxy, createdResources.cluster(), createdResources.ingress());
     }
 
     @Test
     void testDeleteVirtualCluster() {
         final var createdResources = doCreate();
         KafkaProxy proxy = createdResources.proxy;
-        testActor.delete(createdResources.cluster(CLUSTER_BAR));
+        testActor.delete(createdResources.cluster());
 
         AWAIT.untilAsserted(() -> {
             var configMap = testActor.get(ConfigMap.class, ProxyConfigDependentResource.configMapName(proxy));
@@ -1062,9 +1051,7 @@ class KafkaProxyReconcilerIT {
 
     private void assertDeploymentIsRemoved(KafkaProxy proxy) {
         // wait longer for initial operator image download
-        AWAIT.alias("Deployment is removed").untilAsserted(() -> {
-            assertThat(testActor.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy))).isNull();
-        });
+        AWAIT.alias("Deployment is removed").untilAsserted(() -> assertThat(testActor.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy))).isNull());
     }
 
     private AbstractStringAssert<?> assertThatProxyConfigFor(KafkaProxy proxy) {
@@ -1099,9 +1086,9 @@ class KafkaProxyReconcilerIT {
         // @formatter:on
     }
 
-    private static KafkaService kafkaServiceWithTls(String serviceName, String clusterBootstrap) {
+    private static KafkaService kafkaServiceWithTls() {
         // @formatter:off
-        return new KafkaServiceBuilder(kafkaService(serviceName, clusterBootstrap))
+        return new KafkaServiceBuilder(kafkaService(KafkaProxyReconcilerIT.CLUSTER_BAR_REF, KafkaProxyReconcilerIT.CLUSTER_BAR_BOOTSTRAP))
                 .editSpec()
                     .withNewTls()
                         .withNewCertificateRef()
@@ -1166,13 +1153,13 @@ class KafkaProxyReconcilerIT {
                 .build();
     }
 
-    private ConfigMap trustAnchorConfigMap(String name, String filename) {
+    private ConfigMap trustAnchorConfigMap(String name) {
         return new ConfigMapBuilder()
                 .withNewMetadata()
                 .withName(name)
                 .endMetadata()
-                .addToData(filename, "whatever")
-                .addToData("key", filename)
+                .addToData("tls.pem", "whatever")
+                .addToData("key", "tls.pem")
                 .build();
     }
 
