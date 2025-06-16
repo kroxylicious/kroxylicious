@@ -97,7 +97,7 @@ public class Kroxylicious implements Callable<Integer> {
         return builder.build();
     }
 
-    private static void printBannerAndVersions(Features features) throws Exception {
+    private static void printBannerAndVersions(Features features) {
         new BannerLogger().log();
         String[] versions = new VersionProvider().getVersion();
         for (String version : versions) {

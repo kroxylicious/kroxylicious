@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 
@@ -230,6 +231,7 @@ public class Metrics {
      * name emitted by Prometheus will be called {@code kroxylicious_build.info}
      */
     private static final String INFO_METRIC_NAME = "kroxylicious_build.info";
+    private static final Supplier<Double> ONE_SUPPLIER = () -> 1.0;
 
     @NonNull
     public static Counter taggedCounter(String counterName, List<Tag> tags) {
@@ -293,11 +295,11 @@ public class Metrics {
 
     /**
      * Exposes a <a href="https://www.robustperception.io/exposing-the-software-version-to-prometheus/">build info metric</a>  describing Kroxylicious version etc.
+     *
      * @param versionInfo version info
-     * @return info metric
      */
-    public static Gauge versionInfoMetric(VersionInfo versionInfo) {
-        return Gauge.builder(INFO_METRIC_NAME, () -> 1.0)
+    public static void versionInfoMetric(VersionInfo versionInfo) {
+        Gauge.builder(INFO_METRIC_NAME, ONE_SUPPLIER)
                 .description("Reports Kroxylicious version information")
                 .tag("version", versionInfo.version())
                 .tag("commit_id", versionInfo.commitId())

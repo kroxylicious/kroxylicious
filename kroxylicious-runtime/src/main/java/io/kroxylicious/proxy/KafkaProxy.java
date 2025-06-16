@@ -19,7 +19,6 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.Tag;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFutureListener;
@@ -68,7 +67,6 @@ public final class KafkaProxy implements AutoCloseable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
     private static final Logger STARTUP_SHUTDOWN_LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
-    private Gauge versionInfoMetric;
 
     private record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
 
@@ -167,7 +165,7 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     private void initVersionInfoMetric() {
-        versionInfoMetric = Metrics.versionInfoMetric(VersionInfo.VERSION_INFO);
+        Metrics.versionInfoMetric(VersionInfo.VERSION_INFO);
     }
 
     @SuppressWarnings("removal")
