@@ -442,9 +442,12 @@
                                 </goals>
                                 <configuration>
                                     <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
+                                    <!--suppress UnresolvedMavenProperty -->
                                     <script>${rootdir}/kroxylicious-operator/package_crds.java</script>
                                     <args>
+                                        <!--suppress UnresolvedMavenProperty -->
                                         <arg>${rootdir}/kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8</arg>
+                                        <!--suppress UnresolvedMavenProperty -->
                                         <arg>${rootdir}/kroxylicious-operator/target/packaged/install</arg>
                                     </args>
                                 </configuration>

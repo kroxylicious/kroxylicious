@@ -214,7 +214,8 @@ cp kroxylicious-api/target/japicmp/japicmp.html "${API_COMPATABILITY_REPORT}"
 gh release create --title "${RELEASE_TAG}" \
   --notes-file "${RELEASE_NOTES_DIR}/release-notes_01" \
   --draft "${RELEASE_TAG}" \
-  ./kroxylicious-app/target/kroxylicious-app-*-bin.* \
+  ./kroxylicious-app/target/kroxylicious-app-*.tar.gz \
+  ./kroxylicious-app/target/kroxylicious-app-*.zip \
   ./kroxylicious-operator/target/kroxylicious-operator-*.tar.gz \
   ./kroxylicious-operator/target/kroxylicious-operator-*.zip \
   "${API_COMPATABILITY_REPORT}"
