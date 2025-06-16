@@ -17,7 +17,7 @@ jobs:
       - name: echo event
         run: cat $GITHUB_EVENT_PATH
       - name: Download PR number artifact
-        uses: dawidd6/action-download-artifact@v10
+        uses: dawidd6/action-download-artifact@v11
         with:
           workflow: Build
           run_id: ${{ github.event.workflow_run.id }}
