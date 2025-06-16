@@ -734,11 +734,11 @@
         "type": 2
       },
       "seed": 150217506,
-      "version": 872,
-      "versionNonce": 533128439,
+      "version": 896,
+      "versionNonce": 365842263,
       "isDeleted": false,
       "boundElements": [],
-      "updated": 1749921507631,
+      "updated": 1750068384532,
       "link": null,
       "locked": false,
       "points": [
@@ -782,8 +782,8 @@
       "index": "b3C",
       "roundness": null,
       "seed": 530517566,
-      "version": 676,
-      "versionNonce": 293992407,
+      "version": 700,
+      "versionNonce": 63122999,
       "isDeleted": false,
       "boundElements": [
         {
@@ -791,16 +791,16 @@
           "type": "arrow"
         }
       ],
-      "updated": 1749921507630,
+      "updated": 1750068384532,
       "link": null,
       "locked": false,
-      "text": "kroxylicious_server_to_proxy_response_total\nkroxylicious_proxy_to_server_response_size_bytes",
+      "text": "kroxylicious_server_to_proxy_response_total\nkroxylicious_server_to_proxy_response_size_bytes",
       "fontSize": 16,
       "fontFamily": 6,
       "textAlign": "left",
       "verticalAlign": "top",
       "containerId": null,
-      "originalText": "kroxylicious_server_to_proxy_response_total\nkroxylicious_proxy_to_server_response_size_bytes",
+      "originalText": "kroxylicious_server_to_proxy_response_total\nkroxylicious_server_to_proxy_response_size_bytes",
       "autoResize": true,
       "lineHeight": 1.25
     },

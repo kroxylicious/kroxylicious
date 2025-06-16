@@ -79,7 +79,7 @@ Use these metrics to help understand:
 ** `kroxylicious_proxy_to_server_request_size_bytes` is incremented by the size of each request as it goes to the broker.
 ** `kroxylicious_proxy_to_server_response_size_bytes` is incremented by the size of each response as it is returned by the broker.
 
-The size recorded is encoded size of the protocol message. It includes the 4 byte {kafka-protocol}#protocol_common[message size].
+The size recorded is the encoded size of the protocol message. It includes the 4 byte {kafka-protocol}#protocol_common[message size].
 
 Filters can alter the flow of messages through the proxy or the content of the message.
 This is apparent through the metrics.
