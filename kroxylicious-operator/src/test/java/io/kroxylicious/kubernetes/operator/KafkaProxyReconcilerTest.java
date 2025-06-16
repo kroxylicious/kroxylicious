@@ -11,9 +11,11 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,12 +23,15 @@ import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
+import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
 import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.OperatorException;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
+import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.ManagedWorkflowAndDependentResourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMapper;
@@ -40,6 +45,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyStatus;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
@@ -62,17 +68,17 @@ class KafkaProxyReconcilerTest {
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
 
     @Mock(strictness = Mock.Strictness.LENIENT)
-    Context<KafkaProxy> context;
+    Context<KafkaProxy> reconcilerContext;
 
     @Mock
-    ManagedWorkflowAndDependentResourceContext mdrc;
+    ManagedWorkflowAndDependentResourceContext workdflowContext;
 
     private AutoCloseable closeable;
 
     @BeforeEach
     void openMocks() {
         closeable = MockitoAnnotations.openMocks(this);
-        when(context.managedWorkflowAndDependentResourceContext()).thenReturn(mdrc);
+        when(reconcilerContext.managedWorkflowAndDependentResourceContext()).thenReturn(workdflowContext);
     }
 
     @AfterEach
@@ -95,7 +101,7 @@ class KafkaProxyReconcilerTest {
         // @formatter:on
 
         // When
-        var updateControl = newKafkaProxyReconciler(TEST_CLOCK).reconcile(primary, context);
+        var updateControl = newKafkaProxyReconciler(TEST_CLOCK).reconcile(primary, reconcilerContext);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -127,7 +133,7 @@ class KafkaProxyReconcilerTest {
 
         // When
         var updateControl = newKafkaProxyReconciler(TEST_CLOCK)
-                .updateErrorStatus(proxy, context, new InvalidResourceException("Resource was terrible"));
+                .updateErrorStatus(proxy, reconcilerContext, new InvalidResourceException("Resource was terrible"));
 
         // Then
         var statusAssert = assertThat(updateControl.getResource())
@@ -171,7 +177,7 @@ class KafkaProxyReconcilerTest {
         Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
 
         // When
-        var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(primary, context);
+        var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(primary, reconcilerContext);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -212,7 +218,7 @@ class KafkaProxyReconcilerTest {
 
         // When
         var updateControl = newKafkaProxyReconciler(reconciliationTime)
-                .updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+                .updateErrorStatus(primary, reconcilerContext, new InvalidResourceException("Resource was terrible"));
 
         // Then
         var statusAssert = assertThat(updateControl.getResource())
@@ -255,7 +261,7 @@ class KafkaProxyReconcilerTest {
 
         // When
         var updateControl = newKafkaProxyReconciler(reconciliationTime)
-                .updateErrorStatus(primary, context, new InvalidResourceException("Resource was terrible"));
+                .updateErrorStatus(primary, reconcilerContext, new InvalidResourceException("Resource was terrible"));
 
         // Then
         var statusAssert = assertThat(updateControl.getResource())
@@ -299,7 +305,7 @@ class KafkaProxyReconcilerTest {
 
         // When
         var updateControl = newKafkaProxyReconciler(reconciliationTime)
-                .updateErrorStatus(primary, context, new StaleReferentStatusException("stale virtualcluster status"));
+                .updateErrorStatus(primary, reconcilerContext, new StaleReferentStatusException("stale virtualcluster status"));
 
         // Then
         assertThat(updateControl.getResource()).isEmpty();
@@ -332,7 +338,7 @@ class KafkaProxyReconcilerTest {
 
         // When
         var updateControl = newKafkaProxyReconciler(reconciliationTime)
-                .updateErrorStatus(primary, context, new OperatorException(new StaleReferentStatusException("stale virtualcluster status")));
+                .updateErrorStatus(primary, reconcilerContext, new OperatorException(new StaleReferentStatusException("stale virtualcluster status")));
 
         // Then
         assertThat(updateControl.getResource()).isEmpty();
@@ -364,7 +370,7 @@ class KafkaProxyReconcilerTest {
         Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
 
         // When
-        var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(proxy, context);
+        var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(proxy, reconcilerContext);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -406,12 +412,12 @@ class KafkaProxyReconcilerTest {
                 .build();
         // @formatter:on
         Clock reconciliationTime = Clock.offset(TEST_CLOCK, Duration.ofSeconds(1));
-        doReturn(mdrc).when(context).managedWorkflowAndDependentResourceContext();
+        doReturn(workdflowContext).when(reconcilerContext).managedWorkflowAndDependentResourceContext();
         doReturn(Set.of(new VirtualKafkaClusterBuilder().withNewMetadata().withName("my-cluster").withNamespace("my-ns").endMetadata().withNewSpec().withNewProxyRef()
-                .withName("my-proxy").endProxyRef().endSpec().build())).when(context).getSecondaryResources(VirtualKafkaCluster.class);
+                .withName("my-proxy").endProxyRef().endSpec().build())).when(reconcilerContext).getSecondaryResources(VirtualKafkaCluster.class);
 
         // When
-        var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(primary, context);
+        var updateControl = newKafkaProxyReconciler(reconciliationTime).reconcile(primary, reconcilerContext);
 
         // Then
         assertThat(updateControl.isPatchStatus()).isTrue();
@@ -898,8 +904,122 @@ class KafkaProxyReconcilerTest {
         assertThat(primaryResourceIDs).isEmpty();
     }
 
+    @Test
+    void shouldIncludeReadyReplicaCountInStatus() {
+        // Given
+        //@formatter:off
+        KafkaProxy proxy = proxyBuilder("proxy")
+                .withNewSpec()
+                    .withReplicas(3)
+                .endSpec()
+                .build();
+        //@formatter:on
+
+        //@formatter:off
+        var deployment = new DeploymentBuilder()
+                .withNewMetadata()
+                    .withName("deployment")
+                .endMetadata()
+                .withNewStatus()
+                    .withReplicas(3)
+                    .withReadyReplicas(2)
+                .endStatus()
+                .build();
+        //@formatter:on
+
+        when(reconcilerContext.getSecondaryResource(Deployment.class, KafkaProxyReconciler.DEPLOYMENT_DEP)).thenReturn(Optional.of(deployment));
+
+        // When
+        UpdateControl<KafkaProxy> updateControl = newKafkaProxyReconciler(TEST_CLOCK).reconcile(proxy, reconcilerContext);
+
+        // Then
+        assertThat(updateControl).isNotNull()
+                .extracting(UpdateControl::getResource, InstanceOfAssertFactories.OPTIONAL)
+                .isPresent()
+                .get(InstanceOfAssertFactories.type(KafkaProxy.class))
+                .satisfies(kp -> {
+                    assertThat(kp).isNotNull();
+                    assertThat(kp.getStatus())
+                            .isNotNull()
+                            .extracting(KafkaProxyStatus::getReplicas)
+                            .isEqualTo(2);
+                });
+    }
+
+    @Test
+    void shouldHandleDeploymentWithoutStatus() {
+        // Given
+        //@formatter:off
+        KafkaProxy proxy = proxyBuilder("proxy")
+                .withNewSpec()
+                    .withReplicas(3)
+                .endSpec()
+                .build();
+        //@formatter:on
+
+        //@formatter:off
+        var deployment = new DeploymentBuilder()
+                .withNewMetadata()
+                    .withName("deployment")
+                .endMetadata()
+                .build();
+        //@formatter:on
+
+        when(reconcilerContext.getSecondaryResource(Deployment.class, KafkaProxyReconciler.DEPLOYMENT_DEP)).thenReturn(Optional.of(deployment));
+
+        // When
+        UpdateControl<KafkaProxy> updateControl = newKafkaProxyReconciler(TEST_CLOCK).reconcile(proxy, reconcilerContext);
+
+        // Then
+        assertThat(updateControl).isNotNull()
+                .extracting(UpdateControl::getResource, InstanceOfAssertFactories.OPTIONAL)
+                .isPresent()
+                .get(InstanceOfAssertFactories.type(KafkaProxy.class))
+                .satisfies(kp -> {
+                    assertThat(kp).isNotNull();
+                    assertThat(kp.getStatus())
+                            .isNotNull()
+                            .extracting(KafkaProxyStatus::getReplicas)
+                            .isEqualTo(0); // No status implies no replicas running
+                });
+    }
+
+    @Test
+    void shouldHandleMissingDeployment() {
+        // Given
+        //@formatter:off
+        KafkaProxy proxy = proxyBuilder("proxy")
+                .withNewSpec()
+                    .withReplicas(3)
+                .endSpec()
+                .build();
+        //@formatter:on
+
+        when(reconcilerContext.getSecondaryResource(Deployment.class, KafkaProxyReconciler.DEPLOYMENT_DEP)).thenReturn(Optional.empty());
+
+        // When
+        UpdateControl<KafkaProxy> updateControl = newKafkaProxyReconciler(TEST_CLOCK).reconcile(proxy, reconcilerContext);
+
+        // Then
+        assertThat(updateControl).isNotNull()
+                .extracting(UpdateControl::getResource, InstanceOfAssertFactories.OPTIONAL)
+                .isPresent()
+                .get(InstanceOfAssertFactories.type(KafkaProxy.class))
+                .satisfies(kp -> {
+                    assertThat(kp).isNotNull();
+                    assertThat(kp.getStatus())
+                            .isNotNull()
+                            .extracting(KafkaProxyStatus::getReplicas)
+                            .isEqualTo(0); // No status implies no replicas running
+                });
+    }
+
     private KafkaProxy buildProxy(String name) {
-        return new KafkaProxyBuilder().withNewMetadata().withName(name).endMetadata().build();
+        return proxyBuilder(name).build();
+    }
+
+    private KafkaProxyBuilder proxyBuilder(String name) {
+        return new KafkaProxyBuilder().withNewMetadata().withName(name).endMetadata();
     }
 
     private KafkaService buildKafkaService(String name, long generation, long observedGeneration) {
