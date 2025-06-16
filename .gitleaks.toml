@@ -3,6 +3,7 @@
 
   paths = [
     # Test key material
-    '''kroxylicious\/src\/test\/resources\/io\/kroxylicious\/proxy\/config\/tls\/.*$''',
+    '''kroxylicious-runtime\/src\/test\/resources\/io\/kroxylicious\/proxy\/config\/tls\/.*$''',
+    '''kroxylicious-operator\/src\/test\/java\/io\/kroxylicious\/kubernetes\/operator\/TestKeyMaterial\.java$''',
   ]
 

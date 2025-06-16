@@ -73,8 +73,7 @@ public final class TestKeyMaterial {
             5ieebjFA5AlhHm4l4QPQYa19wE/wj9Fq5Iuoo80SinIjXOOIID+azAXuTUXNleuJ
             /iCHr8a4Yi6reU+GgLHDneKMqF1SQHu2
             -----END PRIVATE KEY-----
-            """; // notsecret
-
+            """;
     public static final String TEST_CERT_PEM = """
             -----BEGIN CERTIFICATE-----
             MIIFCTCCAvGgAwIBAgIUSgyq2XREMxp374odHZkFt67VSQgwDQYJKoZIhvcNAQEL
