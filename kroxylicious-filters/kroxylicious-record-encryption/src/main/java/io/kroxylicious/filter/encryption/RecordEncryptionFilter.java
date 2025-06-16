@@ -140,9 +140,7 @@ public class RecordEncryptionFilter<K>
                                     });
                         });
                     }).toList();
-
-                    return RecordEncryptionUtil.join(futures)
-                            .thenApply(x -> request);
+                    return RecordEncryptionUtil.join(futures).thenApply(x -> request);
                 }).exceptionallyCompose(throwable -> {
                     log.atWarn().setMessage("failed to encrypt records, cause message: {}")
                             .addArgument(throwable.getMessage())
@@ -156,8 +154,10 @@ public class RecordEncryptionFilter<K>
         unresolvedTopicNames.forEach(unresolvedTopic -> {
             var unEncyptedRecordsTotal = RecordEncryptionMetrics.recordEncryptionPlainRecordsCounter(virtualClusterName, unresolvedTopic).withTags();
             TopicProduceData data = topicNameToData.get(unresolvedTopic);
-            data.partitionData()
-                    .forEach(produceData -> unEncyptedRecordsTotal.increment(RecordEncryptionUtil.totalRecordsInBatches((MemoryRecords) produceData.records())));
+            if (data != null) {
+                data.partitionData()
+                        .forEach(produceData -> unEncyptedRecordsTotal.increment(RecordEncryptionUtil.totalRecordsInBatches((MemoryRecords) produceData.records())));
+            }
         });
     }
 

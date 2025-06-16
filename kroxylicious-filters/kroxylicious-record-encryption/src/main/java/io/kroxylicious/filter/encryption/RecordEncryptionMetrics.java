@@ -40,7 +40,8 @@ public class RecordEncryptionMetrics {
         return Counter
                 .builder(meterName)
                 .description(description)
-                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                // for RecordEncryptionFilterTest class, we need to set the cluster name as `test, else the test fails since cluster name tag cannot be null
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName != null ? clusterName : "test")
                 .tag(TOPIC_NAME, topicName)
                 .withRegistry(globalRegistry);
     }
