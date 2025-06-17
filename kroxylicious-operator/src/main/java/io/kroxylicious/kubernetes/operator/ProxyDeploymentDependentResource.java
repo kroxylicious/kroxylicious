@@ -6,7 +6,6 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -19,10 +18,12 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecFluent;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
@@ -32,6 +33,8 @@ import io.javaoperatorsdk.operator.processing.dependent.kubernetes.KubernetesDep
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxySpec;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.Infrastructure;
+import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyspec.infrastructure.ProxyContainer;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.model.ProxyModel;
@@ -56,6 +59,8 @@ public class ProxyDeploymentDependentResource
     private static final String MANAGEMENT_PORT_NAME = "management";
     public static final int PROXY_PORT_START = 9292;
     public static final int SHARED_SNI_PORT = 9291;
+    private static final Map<String, Quantity> DEFAULT_LIMITS = Map.of("cpu", Quantity.parse("500m"), "memory", Quantity.parse("512Mi"));
+
     private final String kroxyliciousImage = getOperandImage();
     static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
 
@@ -121,13 +126,7 @@ public class ProxyDeploymentDependentResource
     }
 
     public static Map<String, String> podLabels(KafkaProxy primary) {
-        Map<String, String> labelsFromSpec = Optional.ofNullable(primary.getSpec()).map(KafkaProxySpec::getPodTemplate)
-                .map(PodTemplateSpec::getMetadata)
-                .map(ObjectMeta::getLabels)
-                .orElse(Map.of());
-        Map<String, String> result = new LinkedHashMap<>(labelsFromSpec);
-        result.putAll(standardLabels(primary));
-        return result;
+        return standardLabels(primary);
     }
 
     private PodTemplateSpec podTemplate(KafkaProxy primary,
@@ -152,7 +151,7 @@ public class ProxyDeploymentDependentResource
                             .withType("RuntimeDefault")
                         .endSeccompProfile()
                     .endSecurityContext()
-                    .withContainers(proxyContainer(kafkaProxyContext, ingressModel, clusterResolutionResults))
+                    .withContainers(proxyContainer(primary, kafkaProxyContext, ingressModel, clusterResolutionResults))
                     .addNewVolume()
                         .withName(CONFIG_VOLUME)
                         .withNewConfigMap()
@@ -165,7 +164,7 @@ public class ProxyDeploymentDependentResource
         // @formatter:on
     }
 
-    private Container proxyContainer(KafkaProxyContext kafkaProxyContext,
+    private Container proxyContainer(KafkaProxy primary, KafkaProxyContext kafkaProxyContext,
                                      ProxyNetworkingModel ingressModel,
                                      List<ClusterResolutionResult> clusterResolutionResults) {
         // @formatter:off
@@ -197,6 +196,7 @@ public class ProxyDeploymentDependentResource
                     .withMountPath(ProxyDeploymentDependentResource.CONFIG_PATH_IN_CONTAINER)
                     .withSubPath(ProxyConfigDependentResource.CONFIG_YAML_KEY)
                 .endVolumeMount()
+                .withResources(proxyContainerResources(primary))
                 .addAllToVolumeMounts(kafkaProxyContext.mounts())
                 // management port
                 .addNewPort()
@@ -217,6 +217,18 @@ public class ProxyDeploymentDependentResource
             containerBuilder.addNewPort().withContainerPort(SHARED_SNI_PORT).withName("shared-sni-port").endPort();
         }
         return containerBuilder.build();
+    }
+
+    private ResourceRequirements proxyContainerResources(KafkaProxy primary) {
+        ResourceRequirements defaultProxyContainerResources = new ResourceRequirementsBuilder()
+                .withRequests(DEFAULT_LIMITS)
+                .withLimits(DEFAULT_LIMITS)
+                .build();
+        return Optional.ofNullable(primary.getSpec())
+                .map(KafkaProxySpec::getInfrastructure)
+                .map(Infrastructure::getProxyContainer)
+                .map(ProxyContainer::getResources)
+                .orElse(defaultProxyContainerResources);
     }
 
     @VisibleForTesting
@@ -248,4 +260,5 @@ public class ProxyDeploymentDependentResource
         }
 
     }
+
 }

@@ -36,6 +36,9 @@ import io.fabric8.kubernetes.api.model.ContainerPort;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
@@ -155,6 +158,35 @@ class KafkaProxyReconcilerIT {
     @Test
     void testCreate() {
         doCreate();
+    }
+
+    @Test
+    void shouldConfigureResourcesOnProxyContainer() {
+        // given
+        KafkaService kafkaService = kafkaService(CLUSTER_BAR_REF, CLUSTER_BAR_BOOTSTRAP);
+
+        // when
+        // @formatter:off
+        ResourceRequirements requirements = new ResourceRequirementsBuilder()
+                .withLimits(Map.of("cpu", Quantity.parse("550m")))
+                .build();
+        KafkaProxy kafkaProxy = new KafkaProxyBuilder()
+                .withNewMetadata()
+                    .withName(PROXY_A)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewInfrastructure()
+                        .withNewProxyContainer()
+                        .withResources(requirements)
+                        .endProxyContainer()
+                    .endInfrastructure()
+                .endSpec()
+                .build();
+        // @formatter:on
+        var created = doCreate(kafkaService, kafkaProxy);
+
+        // then
+        assertDeploymentResourcesEqual(created.proxy(), requirements);
     }
 
     @Test
@@ -831,6 +863,18 @@ class KafkaProxyReconcilerIT {
                     actualDeployment.set(deployment);
                 });
         return actualDeployment.get();
+    }
+
+    private void assertDeploymentResourcesEqual(KafkaProxy proxy, ResourceRequirements resourceRequirements) {
+        AWAIT.alias("Deployment as expected").untilAsserted(() -> testActor.get(Deployment.class, ProxyDeploymentDependentResource.deploymentName(proxy)),
+                deployment -> {
+                    assertThat(deployment).isNotNull();
+                    assertThat(deployment.getSpec())
+                            .isNotNull()
+                            .satisfies(spec -> assertThat(spec.getTemplate().getSpec().getContainers()).singleElement().satisfies(container -> {
+                                assertThat(container.getResources()).isEqualTo(resourceRequirements);
+                            }));
+                });
     }
 
     private void assertStausReplicaCount(KafkaProxy proxy, int expectedReplicaCount) {

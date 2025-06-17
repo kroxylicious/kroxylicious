@@ -11,28 +11,28 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious"
-    app.kubernetes.io/instance: "use-pod-template-spec"
+    app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"
-  name: "use-pod-template-spec-config-state"
-  namespace: proxy-ns
+  name: "minimal-config-state"
+  namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "use-pod-template-spec"
+      name: "minimal"
 data:
   cluster-one: |-
     ---
     metadata:
-      generation: 5
+      generation: 4
       name: "one"
       namespace: "proxy-ns"
     status:
       conditions:
-      - observedGeneration: 5
+      - observedGeneration: 4
         type: "Accepted"
         status: "True"
         lastTransitionTime: "1970-01-01T00:00:00Z"
         reason: "Accepted"
         message: ""
       ingresses: []
-      observedGeneration: 5
+      observedGeneration: 4

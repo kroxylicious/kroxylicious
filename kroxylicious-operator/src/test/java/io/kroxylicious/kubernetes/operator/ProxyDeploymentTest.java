@@ -19,8 +19,9 @@ import org.junitpioneer.jupiter.ClearEnvironmentVariable;
 import org.junitpioneer.jupiter.SetEnvironmentVariable;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
-import io.fabric8.kubernetes.api.model.PodTemplateSpec;
-import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedWorkflowAndDependentResourceContext;
@@ -57,9 +58,8 @@ class ProxyDeploymentTest {
 
     @BeforeEach
     void setUp() {
-        PodTemplateSpec podTemplate = new PodTemplateSpecBuilder().withNewMetadata().addToLabels("c", "d").addToLabels("a", "b").endMetadata().build();
         kafkaProxy = new KafkaProxyBuilder().withNewMetadata().withName(PROXY_NAME).withUid(UUID.randomUUID().toString()).endMetadata()
-                .withNewSpec().withPodTemplate(podTemplate).endSpec().build();
+                .withNewSpec().endSpec().build();
         kubernetesContext = setupContext();
     }
 
@@ -87,6 +87,53 @@ class ProxyDeploymentTest {
 
         // Then
         assertThat(labels).containsExactlyEntriesOf(expected);
+    }
+
+    @Test
+    void proxyContainerInfrastructureResourcesPreferred() {
+        // Given
+        var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), List.of());
+        configureProxyModel(proxyModel);
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+
+        // When
+        ResourceRequirements requirements = new ResourceRequirementsBuilder().withLimits(Map.of("cpu", Quantity.parse("400m"))).build();
+        KafkaProxy proxy = kafkaProxy.edit().editOrNewSpec()
+                .editOrNewInfrastructure()
+                .editOrNewProxyContainer()
+                .withResources(requirements)
+                .endProxyContainer()
+                .endInfrastructure()
+                .endSpec()
+                .build();
+        Deployment actual = proxyDeploymentDependentResource.desired(proxy, kubernetesContext);
+
+        // Then
+        assertThat(actual.getSpec().getTemplate().getSpec().getContainers()).singleElement().satisfies(container -> {
+            assertThat(container.getResources()).isEqualTo(requirements);
+        });
+    }
+
+    @Test
+    void proxyContainerHasDefaultResourceRequirements() {
+        // Given
+        var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), List.of());
+        configureProxyModel(proxyModel);
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+
+        // When
+        Deployment actual = proxyDeploymentDependentResource.desired(kafkaProxy, kubernetesContext);
+
+        // Then
+        assertThat(actual.getSpec().getTemplate().getSpec().getContainers()).singleElement().satisfies(container -> {
+            assertThat(container.getResources()).isNotNull();
+            assertThat(container.getResources().getLimits())
+                    .containsEntry("cpu", Quantity.parse("500m"))
+                    .containsEntry("memory", Quantity.parse("512Mi"));
+            assertThat(container.getResources().getRequests())
+                    .containsEntry("cpu", Quantity.parse("500m"))
+                    .containsEntry("memory", Quantity.parse("512Mi"));
+        });
     }
 
     @Test
@@ -155,8 +202,6 @@ class ProxyDeploymentTest {
     @NonNull
     private static LinkedHashMap<String, String> expectedLabels() {
         LinkedHashMap<String, String> expected = new LinkedHashMap<>();
-        expected.put("c", "d");
-        expected.put("a", "b");
         expected.put("app.kubernetes.io/managed-by", "kroxylicious-operator");
         expected.put("app.kubernetes.io/name", "kroxylicious");
         expected.put("app.kubernetes.io/component", "proxy");

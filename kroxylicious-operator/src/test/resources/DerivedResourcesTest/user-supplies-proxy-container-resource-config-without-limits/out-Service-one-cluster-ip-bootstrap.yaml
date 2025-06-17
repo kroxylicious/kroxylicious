@@ -15,14 +15,14 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious"
-    app.kubernetes.io/instance: "use-pod-template-spec"
+    app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"
   name: "one-cluster-ip-bootstrap"
-  namespace: proxy-ns
+  namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "use-pod-template-spec"
+      name: "minimal"
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "VirtualKafkaCluster"
       name: "one"
@@ -48,8 +48,7 @@ spec:
       protocol: "TCP"
       targetPort: 9295
   selector:
-    environment: "production-from-podTemplate"
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious"
-    app.kubernetes.io/instance: "use-pod-template-spec"
+    app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"

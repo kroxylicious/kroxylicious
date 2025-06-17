@@ -10,14 +10,14 @@ apiVersion: kroxylicious.io/v1alpha1
 metadata:
   name: one
   namespace: proxy-ns
-  generation: 5
+  generation: 4
 spec:
   proxyRef:
-    name: use-pod-template-spec
+    name: minimal
   targetKafkaServiceRef:
     name: myref
   ingresses:
     - ingressRef:
         name: cluster-ip
 status:
-  observedGeneration: 5
+  observedGeneration: 4

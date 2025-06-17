@@ -5,13 +5,16 @@
 #
 
 ---
-kind: KafkaService
+kind: KafkaProxyIngress
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: myref
+  name: cluster-ip
   namespace: proxy-ns
-  generation: 1
+  generation: 2
 spec:
-  bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
+  proxyRef:
+    name: minimal
+  clusterIP:
+    protocol: TCP
 status:
-  observedGeneration: 1
+  observedGeneration: 2

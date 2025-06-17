@@ -11,30 +11,28 @@ metadata:
   labels:
     app.kubernetes.io/managed-by: "kroxylicious-operator"
     app.kubernetes.io/name: "kroxylicious"
-    app.kubernetes.io/instance: "use-pod-template-spec"
+    app.kubernetes.io/instance: "minimal"
     app.kubernetes.io/component: "proxy"
-  name: "use-pod-template-spec"
-  namespace: proxy-ns
+  name: "minimal"
+  namespace: "proxy-ns"
   ownerReferences:
     - apiVersion: "kroxylicious.io/v1alpha1"
       kind: "KafkaProxy"
-      name: "use-pod-template-spec"
+      name: "minimal"
 spec:
   replicas: 1
   selector:
     matchLabels:
-      environment: "production-from-podTemplate"
       app.kubernetes.io/managed-by: "kroxylicious-operator"
       app.kubernetes.io/name: "kroxylicious"
-      app.kubernetes.io/instance: "use-pod-template-spec"
+      app.kubernetes.io/instance: "minimal"
       app.kubernetes.io/component: "proxy"
   template:
     metadata:
       labels:
-        environment: "production-from-podTemplate"
         app.kubernetes.io/managed-by: "kroxylicious-operator"
         app.kubernetes.io/name: "kroxylicious"
-        app.kubernetes.io/instance: "use-pod-template-spec"
+        app.kubernetes.io/instance: "minimal"
         app.kubernetes.io/component: "proxy"
       annotations:
         kroxylicious.io/referent-checksum: "AAAAAAAB4wY"
@@ -75,11 +73,18 @@ spec:
             - mountPath: "/opt/kroxylicious/config/proxy-config.yaml"
               name: "config-volume"
               subPath: "proxy-config.yaml"
+          resources:
+            limits:
+              "cpu": "50m"
+              "memory": "52Mi"
+            requests:
+              "cpu": "100m"
+              "memory": "102Mi"
       securityContext:
         runAsNonRoot: true
         seccompProfile:
           type: "RuntimeDefault"
       volumes:
         - configMap:
-            name: "use-pod-template-spec-proxy-config"
+            name: "minimal-proxy-config"
           name: "config-volume"

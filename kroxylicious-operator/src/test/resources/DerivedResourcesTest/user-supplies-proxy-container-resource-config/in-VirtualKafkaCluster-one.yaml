@@ -5,14 +5,19 @@
 #
 
 ---
-kind: KafkaProxy
+kind: VirtualKafkaCluster
 apiVersion: kroxylicious.io/v1alpha1
 metadata:
-  name: use-pod-template-spec
+  name: one
   namespace: proxy-ns
-  generation: 4654
+  generation: 4
 spec:
-  podTemplate:
-    metadata:
-      labels:
-        environment: "production-from-podTemplate"
+  proxyRef:
+    name: minimal
+  targetKafkaServiceRef:
+    name: myref
+  ingresses:
+    - ingressRef:
+        name: cluster-ip
+status:
+  observedGeneration: 4
