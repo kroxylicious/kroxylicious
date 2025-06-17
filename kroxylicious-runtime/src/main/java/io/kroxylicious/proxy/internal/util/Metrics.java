@@ -61,7 +61,7 @@ public class Metrics {
     /**
      * Name of the build_info metric.  Note that the {@code .info} suffix is significant
      * to Micrometer and is used to indicate an 'info' metric to it.  The metric
-     * name emitted by Prometheus will be called {@code kroxylicious_build.info}
+     * name emitted by Prometheus will be called {@code kroxylicious_build_info}.
      */
     private static final String INFO_METRIC_NAME = "kroxylicious_build.info";
     private static final Supplier<Double> ONE_SUPPLIER = () -> 1.0;
