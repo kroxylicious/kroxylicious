@@ -59,10 +59,11 @@ class RecordEncryptionST extends AbstractST {
         else {
             LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
 
-            KafkaBuilder kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, 3);
+            int numberOfBrokers = 1;
+            KafkaBuilder kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, numberOfBrokers);
 
             resourceManager.createResourceFromBuilderWithWait(
-                    KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka.build(), 3),
+                    KafkaNodePoolTemplates.kafkaBasedNodePoolWithDualRole(BROKER_NODE_NAME, kafka.build(), numberOfBrokers),
                     kafka);
         }
 
@@ -113,7 +114,7 @@ class RecordEncryptionST extends AbstractST {
         bootstrap = kroxylicious.getBootstrap(clusterName);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
-        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -145,7 +146,7 @@ class RecordEncryptionST extends AbstractST {
         bootstrap = kroxylicious.getBootstrap(clusterName);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
-        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -177,7 +178,7 @@ class RecordEncryptionST extends AbstractST {
         bootstrap = kroxylicious.getBootstrap(clusterName);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
-        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -244,7 +245,7 @@ class RecordEncryptionST extends AbstractST {
         bootstrap = kroxylicious.getBootstrap(clusterName);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
-        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);

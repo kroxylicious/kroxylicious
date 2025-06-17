@@ -105,7 +105,7 @@ class KroxyliciousST extends AbstractST {
         int numberOfMessages = 1;
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
-        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 2);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
 
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -136,7 +136,7 @@ class KroxyliciousST extends AbstractST {
         String bootstrap = kroxylicious.getBootstrap(clusterName);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
-        KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 1);
 
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -172,7 +172,7 @@ class KroxyliciousST extends AbstractST {
         given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
-        KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 1);
 
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -209,7 +209,7 @@ class KroxyliciousST extends AbstractST {
         given(currentReplicas).withFailMessage("unexpected deployed replicas").isEqualTo(replicas);
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
-        KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 2);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 3, 1);
 
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -248,7 +248,7 @@ class KroxyliciousST extends AbstractST {
         else {
             LOGGER.atInfo().setMessage("Deploying Kafka in {} namespace").addArgument(Constants.KAFKA_DEFAULT_NAMESPACE).log();
 
-            int numberOfBrokers = 3;
+            int numberOfBrokers = 1;
             KafkaBuilder kafka = KafkaTemplates.kafkaPersistentWithKRaftAnnotations(Constants.KAFKA_DEFAULT_NAMESPACE, clusterName, numberOfBrokers);
 
             resourceManager.createResourceFromBuilderWithWait(
