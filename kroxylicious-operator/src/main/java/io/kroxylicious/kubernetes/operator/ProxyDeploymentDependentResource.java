@@ -6,10 +6,8 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.io.IOException;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -19,7 +17,6 @@ import org.slf4j.LoggerFactory;
 import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.ContainerBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
-import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecFluent;
@@ -124,13 +121,7 @@ public class ProxyDeploymentDependentResource
     }
 
     public static Map<String, String> podLabels(KafkaProxy primary) {
-        Map<String, String> labelsFromSpec = Optional.ofNullable(primary.getSpec()).map(KafkaProxySpec::getPodTemplate)
-                .map(PodTemplateSpec::getMetadata)
-                .map(ObjectMeta::getLabels)
-                .orElse(Map.of());
-        Map<String, String> result = new LinkedHashMap<>(labelsFromSpec);
-        result.putAll(standardLabels(primary));
-        return result;
+        return standardLabels(primary);
     }
 
     private PodTemplateSpec podTemplate(KafkaProxy primary,
