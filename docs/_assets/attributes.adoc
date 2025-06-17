@@ -70,7 +70,8 @@
 :unstable-api-version: denoted by a major version 0
 :stable-api-version: version 1.0.0
 
-:DocRoot: ..
+// We have a development document (docs/index.adoc) that sits one level higher than the guides, so we need a way to override DocRoot.
+ifndef::DocRoot[:DocRoot: ..]
 :ProxyGuide: link:{DocRoot}/kroxylicious-proxy/[Kroxylicious Proxy guide]
 :RecordEncryptionGuide: link:{DocRoot}/record-encryption-guide/[Kroxylicious Record Encryption guide]
 :DeveloperGuide: link:{DocRoot}/developer-guide/[Kroxylicious Developer guide]
