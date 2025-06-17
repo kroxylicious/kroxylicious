@@ -1,0 +1,74 @@
+// file included in the following:
+//
+// record-encryption-guide/assembly-monitoring-record-encryption-filter.adoc
+
+[id='assembly-monitoring-record-encryption-filter-{context}']
+= Metrics
+
+[role="_abstract"]
+
+The filter emits metrics that help you understand the interactions with the KMS.
+These metrics help you understand the load the filter will be placing on your KMS infrastructure.
+These metrics also help you understand how often interactions with the KMS fail.
+
+The filter also emits metrics that count the number of records that are being encrypted.
+This help you verify that the filter is configured properly and encrypting the topic(s) you intend.
+
+These metrics are made available automatically once metrics are enabled in the proxy.
+
+== KMS Metrics
+
+The KMS metrics count the interactions with the KMS:
+
+* Generate a DEK pair
+* Decrypt an EDEK.
+* Resolve an KEK alias.
+
+.KMS metrics
+|===
+|Metric Name |Type |Labels|Description
+
+|`kroxylicious_kms_operation_attempt_total`
+|Counter
+|`operation`
+|Count of the number of KMS operations attempted.
+
+|`kroxylicious_kms_operation_outcome_total`
+|Counter
+|`operation`, `outcome`
+|Count of the number of KMS operations discriminated by outcome.
+|===
+
+.Labels used on the KMS metrics
+|===
+|Label|Domain|Description
+
+|`operation`
+|`generate_dek_pair`, `decrypt_edek`, `resolve_alias`
+|Name of the operation.
+
+|`outcome`
+|`SUCCESS`, `EXCEPTION`, `NOT_FOUND`
+|Outcome of the operation.
+|===
+
+== Encryption accounting metrics
+
+These metrics count the number of records sent to topics that are encrypted and the number of records sent to topics that are not configured for encryption.
+These metrics are discriminated by topic name.
+Use these metrics to confirm you configuration is having the effect you desired.
+
+.Encryption accounting metrics
+|===
+|Metric Name |Type |Labels|Description
+
+|`kroxylicious_filter_record_encryption_encrypted_records`
+|Counter
+|`topic_name`
+|Count of the number of records encrypted by the filter.
+
+|`kroxylicious_filter_record_encryption_plain_records`
+|Counter
+|`topic_name`
+|Count of the number of records _not_ encrypted by the filter.
+|===
