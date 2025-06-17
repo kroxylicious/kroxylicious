@@ -41,11 +41,11 @@ spec:
           terminationMessagePolicy: FallbackToLogsOnError
           args: [ ]
           resources:
-            limits:
-              memory: 400M
-              cpu: "1"
             requests:
-              memory: 400M
+              memory: 512Mi
+              cpu: "1"
+            limits:
+              memory: 512Mi
               cpu: "1"
           ports:
             - containerPort: 8080
