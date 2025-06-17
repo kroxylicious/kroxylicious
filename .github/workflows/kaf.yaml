@@ -5,8 +5,6 @@
 # - REGISTRY_USERNAME - - your username on the service (or username of your robot account)
 # - REGISTRY_TOKEN - the access token that corresponds to `REGISTRY_USERNAME`
 #
-# If the required repository variables aren't set the workflow will be skipped.  This means the workflow won't fail
-# on the forks of developers who haven't configured the variables/secrets.
 
 name: Kaf Container 
 on:
@@ -18,10 +16,10 @@ on:
         required: true
       registry-destination:
         description: 'The release version, e.g. quay.io/<my org>/kaf'
-        default: 'quay.io/k_wall/kaf'
+        default: 'quay.io/kroxylicious/kaf'
         required: true
       ref:
-        description: 'Ref (branch/tag)'
+        description: 'Ref (branch/tag) to build'
         required: true
         default: 'master'
 jobs:
@@ -52,3 +50,5 @@ jobs:
           platforms: linux/amd64,linux/arm64,linux/s390x,linux/ppc64le
           push: true
           tags: ${{ github.event.inputs.registry-destination }}:${{ github.event.inputs.ref }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max,compression=zstd
