@@ -27,6 +27,9 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.slf4j.Logger;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Meter;
+
 import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.common.RecordEncryptionUtil;
@@ -107,6 +110,8 @@ public class RecordEncryptionFilter<K>
     }
 
     private CompletionStage<ProduceRequestData> maybeEncodeProduce(ProduceRequestData request, FilterContext context) {
+        var plainRecordsTotal = RecordEncryptionMetrics.plainRecordsCounter(context.getVirtualClusterName());
+        var encyptedRecordsTotal = RecordEncryptionMetrics.encryptedRecordsCounter(context.getVirtualClusterName());
         var topicNameToData = request.topicData().stream().collect(Collectors.toMap(TopicProduceData::name, Function.identity()));
         CompletionStage<TopicNameKekSelection<K>> keks = filterThreadExecutor.completingOnFilterThread(kekSelector.selectKek(topicNameToData.keySet()));
         return keks // figure out what keks we need
@@ -116,8 +121,7 @@ public class RecordEncryptionFilter<K>
                         return CompletableFuture.failedFuture(new UnresolvedKeyException("failed to resolve key for: " + unresolvedTopicNames));
                     }
 
-                    // metrics generation for not encrypted record
-                    generateMetrics(context.getVirtualClusterName(), unresolvedTopicNames, topicNameToData);
+                    generatePlainRecordsMetrics(plainRecordsTotal, unresolvedTopicNames, topicNameToData);
 
                     var futures = kekSelection.topicNameToKekId().entrySet().stream().flatMap(e -> {
                         String topicName = e.getKey();
@@ -133,9 +137,9 @@ public class RecordEncryptionFilter<K>
                                     context::createByteBufferOutputStream)
                                     .thenApply(ppd::setRecords)
                                     .thenApply(produceData -> {
-                                        var encyptedRecordsTotal = RecordEncryptionMetrics
-                                                .recordEncryptionEncryptedRecordsCounter(context.getVirtualClusterName(), topicName).withTags();
-                                        encyptedRecordsTotal.increment(RecordEncryptionUtil.totalRecordsInBatches((MemoryRecords) produceData.records()));
+                                        encyptedRecordsTotal
+                                                .withTags(RecordEncryptionMetrics.TOPIC_NAME, topicName)
+                                                .increment(RecordEncryptionUtil.totalRecordsInBatches((MemoryRecords) produceData.records()));
                                         return null;
                                     });
                         });
@@ -150,13 +154,14 @@ public class RecordEncryptionFilter<K>
                 });
     }
 
-    private void generateMetrics(String virtualClusterName, Set<String> unresolvedTopicNames, Map<String, TopicProduceData> topicNameToData) {
+    private void generatePlainRecordsMetrics(Meter.MeterProvider<Counter> plainRecordsTotal, Set<String> unresolvedTopicNames, Map<String, TopicProduceData> topicNameToData) {
         unresolvedTopicNames.forEach(unresolvedTopic -> {
-            var unEncyptedRecordsTotal = RecordEncryptionMetrics.recordEncryptionPlainRecordsCounter(virtualClusterName, unresolvedTopic).withTags();
             TopicProduceData data = topicNameToData.get(unresolvedTopic);
             if (data != null) {
                 data.partitionData()
-                        .forEach(produceData -> unEncyptedRecordsTotal.increment(RecordEncryptionUtil.totalRecordsInBatches((MemoryRecords) produceData.records())));
+                        .forEach(produceData -> plainRecordsTotal
+                                .withTags(RecordEncryptionMetrics.TOPIC_NAME, unresolvedTopic)
+                                .increment(RecordEncryptionUtil.totalRecordsInBatches((MemoryRecords) produceData.records())));
             }
         });
     }

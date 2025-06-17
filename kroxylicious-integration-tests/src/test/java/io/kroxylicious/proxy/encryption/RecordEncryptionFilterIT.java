@@ -698,14 +698,14 @@ class RecordEncryptionFilterIT {
             var metricList = managementClient.scrapeMetrics();
 
             SimpleMetricAssert.assertThat(metricList)
-                    .filterByName("kroxylicious_record_encryption_plain_records_total")
+                    .filterByName("kroxylicious_filter_record_encryption_plain_records_total")
                     .filterByTag(TOPIC_NAME, plainTopic.name())
                     .singleElement()
                     .value()
                     .isGreaterThanOrEqualTo(1.0);
 
             SimpleMetricAssert.assertThat(metricList)
-                    .filterByName("kroxylicious_record_encryption_encrypted_records_total")
+                    .filterByName("kroxylicious_filter_record_encryption_encrypted_records_total")
                     .filterByTag(TOPIC_NAME, encryptedTopic.name())
                     .singleElement()
                     .value()

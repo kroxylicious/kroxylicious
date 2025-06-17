@@ -19,30 +19,27 @@ public class RecordEncryptionMetrics {
     public static final String TOPIC_NAME = "topic_name";
 
     // Base Metric Names
-    private static final String RECORD_ENCRYPTION_ENCRYPTED_RECORDS = "kroxylicious_record_encryption_encrypted_records";
-    private static final String RECORD_ENCRYPTION_PLAIN_RECORDS = "kroxylicious_record_encryption_plain_records";
+    private static final String ENCRYPTED_RECORDS = "kroxylicious_filter_record_encryption_encrypted_records";
+    private static final String PLAIN_RECORDS = "kroxylicious_filter_record_encryption_plain_records";
 
-    public static Meter.MeterProvider<Counter> recordEncryptionEncryptedRecordsCounter(String clusterName, String topicName) {
-        return buildCounterMeterProvider(RECORD_ENCRYPTION_ENCRYPTED_RECORDS, "Incremented by the number of records encrypted.",
-                clusterName, topicName);
+    public static Meter.MeterProvider<Counter> encryptedRecordsCounter(String clusterName) {
+        return buildCounterMeterProvider(ENCRYPTED_RECORDS, "Incremented by the number of records encrypted.",
+                clusterName);
     }
 
-    public static Meter.MeterProvider<Counter> recordEncryptionPlainRecordsCounter(String clusterName, String topicName) {
-        return buildCounterMeterProvider(RECORD_ENCRYPTION_PLAIN_RECORDS, "Incremented by the number of records not encrypted.",
-                clusterName, topicName);
+    public static Meter.MeterProvider<Counter> plainRecordsCounter(String clusterName) {
+        return buildCounterMeterProvider(PLAIN_RECORDS, "Incremented by the number of records not encrypted.",
+                clusterName);
     }
 
     @NonNull
     private static Meter.MeterProvider<Counter> buildCounterMeterProvider(String meterName,
                                                                           String description,
-                                                                          String clusterName,
-                                                                          String topicName) {
+                                                                          String clusterName) {
         return Counter
                 .builder(meterName)
                 .description(description)
-                // for RecordEncryptionFilterTest class, we need to set the cluster name as `test, else the test fails since cluster name tag cannot be null
-                .tag(VIRTUAL_CLUSTER_LABEL, clusterName != null ? clusterName : "test")
-                .tag(TOPIC_NAME, topicName)
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
                 .withRegistry(globalRegistry);
     }
 }
