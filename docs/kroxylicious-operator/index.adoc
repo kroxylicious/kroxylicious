@@ -22,8 +22,8 @@ include::assemblies/assembly-operator-install.adoc[leveloffset=+1]
 // deploy a proxy
 include::assemblies/assembly-operator-deploy-a-proxy.adoc[leveloffset=+1]
 
-// // operating proxies
-// include::assemblies/assembly-operator-operate-proxy.adoc[leveloffset=+1]
+// operating proxies
+include::assemblies/assembly-operator-operate-proxy.adoc[leveloffset=+1]
 
 // securing proxies
 include::assemblies/assembly-operator-secure-proxy.adoc[leveloffset=+1]
