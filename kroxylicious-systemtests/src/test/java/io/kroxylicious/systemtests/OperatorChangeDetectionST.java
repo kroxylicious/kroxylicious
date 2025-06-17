@@ -26,11 +26,13 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentSpec;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 
 import io.kroxylicious.kubernetes.api.common.FilterRef;
@@ -243,6 +245,32 @@ class OperatorChangeDetectionST extends AbstractST {
     }
 
     @Test
+    void shouldNotUpdateDeploymentChecksumWhenKafkaProxyScaled(String namespace) {
+        // Given
+        KubeClient kubeClient = kubeClient(namespace);
+        kroxylicious.deployPortIdentifiesNodeWithNoFilters(kafkaClusterName);
+
+        String originalChecksum = getInitialChecksum(namespace);
+
+        KafkaProxy kafkaProxy = kubeClient.getClient().resources(KafkaProxy.class).inNamespace(namespace)
+                .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).get();
+
+        // @formatter:off
+        KafkaProxyBuilder updatedKafkaProxy = kafkaProxy.edit()
+                .editOrNewSpec()
+                .withReplicas(2)
+                .endSpec();
+        // @formatter:on
+
+        // When
+        resourceManager.createOrUpdateResourceWithWait(updatedKafkaProxy);
+        LOGGER.info("Kafka proxy updated");
+
+        // Then
+        assertDeploymentUnchanged(namespace, originalChecksum, 2);
+    }
+
+    @Test
     void shouldUpdateDeploymentWhenSecretChanges(String namespace) {
         // Given
         resourceManager.createOrUpdateResourceWithWait(
@@ -285,6 +313,24 @@ class OperatorChangeDetectionST extends AbstractST {
                     });
         });
         LOGGER.info("New checksum: {}", newChecksumFromAnnotation);
+    }
+
+    private static void assertDeploymentUnchanged(String namespace, String originalChecksum, int expectedReplicaCount) {
+        var kubeClient = kubeClient(namespace);
+        await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
+            Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
+            assertThat(proxyDeployment).isNotNull()
+                    .extracting(Deployment::getSpec)
+                    .isNotNull()
+                    .satisfies(spec -> {
+                        assertThat(spec.getReplicas()).isEqualTo(expectedReplicaCount);
+                    })
+                    .extracting(DeploymentSpec::getTemplate)
+                    .isNotNull()
+                    .extracting(PodTemplateSpec::getMetadata)
+                    .satisfies(podTemplateSpec -> OperatorAssertions.assertThat(podTemplateSpec).hasAnnotationSatisfying("kroxylicious.io/referent-checksum",
+                            value -> assertThat(value).isEqualTo(originalChecksum)));
+        });
     }
 
     @BeforeEach
