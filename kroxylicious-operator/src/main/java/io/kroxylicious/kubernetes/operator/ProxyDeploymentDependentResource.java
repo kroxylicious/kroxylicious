@@ -111,7 +111,7 @@ public class ProxyDeploymentDependentResource
         MetadataChecksumGenerator checksumGenerator = context.managedWorkflowAndDependentResourceContext()
                 .get(MetadataChecksumGenerator.CHECKSUM_CONTEXT_KEY, MetadataChecksumGenerator.class)
                 .orElse(new Crc32ChecksumGenerator());
-        checksumGenerator.appendMetadata(primary);
+
         model.clustersWithValidNetworking().stream().map(ClusterResolutionResult::cluster).forEach(checksumGenerator::appendMetadata);
         String encoded = checksumGenerator.encode();
 
