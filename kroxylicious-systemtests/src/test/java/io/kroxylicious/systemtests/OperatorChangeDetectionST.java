@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.AfterAll;
@@ -35,6 +36,7 @@ import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentSpec;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 
+import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
@@ -359,6 +361,14 @@ class OperatorChangeDetectionST extends AbstractST {
     private String getInitialChecksum(String namespace) {
         var kubeClient = kubeClient(namespace);
         AtomicReference<String> checksumFromAnnotation = new AtomicReference<>();
+        await().atMost(Duration.ofSeconds(90))
+                .pollDelay(Duration.ofSeconds(10))
+                .untilAsserted(() -> assertThat(kubeClient.getClient().resources(VirtualKafkaCluster.class)
+                        .inNamespace(namespace)
+                        .waitUntilCondition(virtualKafkaCluster -> virtualKafkaCluster.getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue), 9,
+                                TimeUnit.SECONDS))
+                        .isNotNull());
+
         await().atMost(Duration.ofSeconds(90))
                 .untilAsserted(() -> kubeClient.listPods(namespace, "app.kubernetes.io/name", "kroxylicious")
                         .stream().filter(p -> p.getMetadata().getLabels().get("app.kubernetes.io/component").equalsIgnoreCase("proxy")).toList(),

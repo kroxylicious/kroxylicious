@@ -208,4 +208,10 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
         return Condition.Type.ResolvedRefs.equals(condition.getType())
                 && Condition.Status.FALSE.equals(condition.getStatus());
     }
+
+    public static boolean isResolvedRefsTrue(Condition condition) {
+        Objects.requireNonNull(condition);
+        return Condition.Type.ResolvedRefs.equals(condition.getType())
+                && Status.TRUE.equals(condition.getStatus());
+    }
 }
