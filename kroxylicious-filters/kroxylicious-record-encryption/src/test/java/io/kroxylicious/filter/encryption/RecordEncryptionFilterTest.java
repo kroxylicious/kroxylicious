@@ -191,8 +191,8 @@ class RecordEncryptionFilterTest {
     void shouldCountPlainAndEncryptedRecords() {
         // Given
         var produceRequestData = buildProduceRequestData(new TopicProduceData()
-                        .setName(ENCRYPTED_TOPIC)
-                        .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))),
+                .setName(ENCRYPTED_TOPIC)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))),
                 new TopicProduceData()
                         .setName(UNRESOLVED_TOPIC)
                         .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));

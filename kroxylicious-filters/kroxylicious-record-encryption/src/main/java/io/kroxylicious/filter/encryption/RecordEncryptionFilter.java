@@ -154,7 +154,8 @@ public class RecordEncryptionFilter<K>
                 });
     }
 
-    private void generatePlainRecordsMetrics(Meter.MeterProvider<Counter> plainRecordsTotal, Set<String> unresolvedTopicNames, Map<String, TopicProduceData> topicNameToData) {
+    private void generatePlainRecordsMetrics(Meter.MeterProvider<Counter> plainRecordsTotal, Set<String> unresolvedTopicNames,
+                                             Map<String, TopicProduceData> topicNameToData) {
         unresolvedTopicNames.forEach(unresolvedTopic -> {
             TopicProduceData data = topicNameToData.get(unresolvedTopic);
             if (data != null) {
