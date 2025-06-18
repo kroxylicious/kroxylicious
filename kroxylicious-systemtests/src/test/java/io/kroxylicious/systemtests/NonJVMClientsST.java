@@ -52,7 +52,7 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceAndConsumeWithKcatClients(String namespace) {
-        checkArchForKcat();
+        checkKcatCompatibility();
         int numberOfMessages = 2;
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
         KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -97,7 +97,7 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceWithKcatAndConsumeWithTestClients(String namespace) {
-        checkArchForKcat();
+        checkKcatCompatibility();
         int numberOfMessages = 2;
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
         KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -120,7 +120,7 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceWithTestClientsAndConsumeWithKcat(String namespace) {
-        checkArchForKcat();
+        checkKcatCompatibility();
         int numberOfMessages = 2;
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
         KafkaClients.strimziTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -220,8 +220,9 @@ class NonJVMClientsST extends AbstractST {
         kroxyliciousOperator.delete();
     }
 
-    private void checkArchForKcat() {
         // Skip Kcat execution when architecture is different from x86_64 or amd64 because kcat only provides x86 binaries
+    private void checkKcatCompatibility() {
+        // Skip Kcat execution when architecture is different from x86_64 or amd64
         String localArch = System.getProperty("os.arch");
         assumeThat(localArch.equalsIgnoreCase(Constants.ARCHITECTURE_X86)
                 || localArch.equalsIgnoreCase(Constants.ARCHITECTURE_AMD64)).isTrue();
