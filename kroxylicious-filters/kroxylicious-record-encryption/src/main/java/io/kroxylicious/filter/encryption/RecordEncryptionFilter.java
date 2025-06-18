@@ -156,15 +156,12 @@ public class RecordEncryptionFilter<K>
 
     private void generatePlainRecordsMetrics(Meter.MeterProvider<Counter> plainRecordsTotal, Set<String> unresolvedTopicNames,
                                              Map<String, TopicProduceData> topicNameToData) {
-        unresolvedTopicNames.forEach(unresolvedTopic -> {
-            TopicProduceData data = topicNameToData.get(unresolvedTopic);
-            if (data != null) {
-                data.partitionData()
+        topicNameToData.entrySet().stream()
+                .filter(topicDataEntry -> unresolvedTopicNames.contains(topicDataEntry.getKey()))
+                .forEach(topicData -> topicData.getValue().partitionData()
                         .forEach(produceData -> plainRecordsTotal
-                                .withTags(RecordEncryptionMetrics.TOPIC_NAME, unresolvedTopic)
-                                .increment(RecordEncryptionUtil.totalRecordsInBatches((MemoryRecords) produceData.records())));
-            }
-        });
+                                .withTags(RecordEncryptionMetrics.TOPIC_NAME, topicData.getKey())
+                                .increment(RecordEncryptionUtil.totalRecordsInBatches((MemoryRecords) produceData.records()))));
     }
 
     @Override

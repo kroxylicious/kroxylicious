@@ -23,12 +23,12 @@ public class RecordEncryptionMetrics {
     private static final String PLAIN_RECORDS = "kroxylicious_filter_record_encryption_plain_records";
 
     public static Meter.MeterProvider<Counter> encryptedRecordsCounter(String clusterName) {
-        return buildCounterMeterProvider(ENCRYPTED_RECORDS, "Incremented by the number of records encrypted.",
+        return buildCounterMeterProvider(ENCRYPTED_RECORDS, "A count of the number of records which the filter encrypted.",
                 clusterName);
     }
 
     public static Meter.MeterProvider<Counter> plainRecordsCounter(String clusterName) {
-        return buildCounterMeterProvider(PLAIN_RECORDS, "Incremented by the number of records not encrypted.",
+        return buildCounterMeterProvider(PLAIN_RECORDS, "A count of records the filter sent without encrypting them.",
                 clusterName);
     }
 

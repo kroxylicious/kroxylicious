@@ -203,15 +203,17 @@ class RecordEncryptionFilterTest {
         // Then
         assertThat(Metrics.globalRegistry.get("kroxylicious_filter_record_encryption_plain_records").counter())
                 .isNotNull()
-                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
-                .satisfies(counter -> assertThat(counter.count())
-                        .isGreaterThan(0));
+                .satisfies(counter -> {
+                    assertThat(counter.getId()).isNotNull();
+                    assertThat(counter.count()).isEqualTo(1);
+                });
 
         assertThat(Metrics.globalRegistry.get("kroxylicious_filter_record_encryption_encrypted_records").counter())
                 .isNotNull()
-                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
-                .satisfies(counter -> assertThat(counter.count())
-                        .isGreaterThan(0));
+                .satisfies(counter -> {
+                    assertThat(counter.getId()).isNotNull();
+                    assertThat(counter.count()).isEqualTo(1);
+                });
     }
 
     @Test
