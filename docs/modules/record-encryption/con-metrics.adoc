@@ -3,26 +3,25 @@
 // record-encryption-guide/assembly-monitoring-record-encryption-filter.adoc
 
 [id='assembly-monitoring-record-encryption-filter-{context}']
-= Metrics
+= Record Encryption filter metrics
 
 [role="_abstract"]
 
-The filter emits metrics that help you understand the interactions with the KMS.
-These metrics help you understand the load the filter will be placing on your KMS infrastructure.
-They also help you understand how often interactions with the KMS fail.
+The filter emits metrics that provide insights into its interactions with the configured KMS.
+They indicate the load the filter places on the KMS infrastructure and how often its interactions with the KMS fail.
 
 The filter emits metrics that count the number of records that are being encrypted.
-This can help you verify that the filter is configured properly and encrypting the topic(s) you intend.
+This can help you verify that the filter is configured properly and encrypting specific topics as intended.
 
 These metrics are made available automatically once metrics are enabled in the proxy.
 
-== KMS Metrics
+== KMS metrics
 
-The KMS metrics count the interactions with the KMS:
+KMS metrics track and count the following types of interactions:
 
-* Generate a DEK pair
-* Decrypt an EDEK.
-* Resolve an KEK alias.
+* Generating DEK pairs
+* Decrypting EDEKs
+* Resolving KEK aliases
 
 .KMS metrics
 |===
@@ -36,7 +35,7 @@ The KMS metrics count the interactions with the KMS:
 |`kroxylicious_kms_operation_outcome_total`
 |Counter
 |`operation`, `outcome`
-|Count of the number of KMS operations discriminated by outcome.
+|Count of the number of KMS operations grouped by outcome.
 |===
 
 .Labels used on the KMS metrics
@@ -45,16 +44,16 @@ The KMS metrics count the interactions with the KMS:
 
 |`operation`
 |`generate_dek_pair`, `decrypt_edek`, `resolve_alias`
-|Name of the operation.
+|Type of operation performed.
 
 |`outcome`
 |`SUCCESS`, `EXCEPTION`, `NOT_FOUND`
-|Outcome of the operation.
+|Result of the operation.
 |===
 
 == Encryption accounting metrics
 
-These metrics count the number of records sent to topics that are encrypted and the number of records sent to topics that are not configured for encryption.
+Encryption accounting metrics count the number of records sent to topics that are encrypted and the number of records sent to topics that are not configured for encryption.
 These metrics are discriminated by topic name.
 Use these metrics to confirm you configuration is having the effect you desired.
 
