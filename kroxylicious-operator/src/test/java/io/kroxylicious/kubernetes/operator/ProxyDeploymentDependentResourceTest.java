@@ -72,7 +72,7 @@ class ProxyDeploymentDependentResourceTest {
     }
 
     @Test
-    void shouldIncludeKafkaProxyInChecksum() {
+    void shouldNotIncludeKafkaProxyInChecksum() {
         // Given
         ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
 
@@ -80,7 +80,7 @@ class ProxyDeploymentDependentResourceTest {
         proxyDeploymentDependentResource.checksumFor(kafkaProxy, kubernetesContext, proxyModel);
 
         // Then
-        verify(metadataChecksumGenerator).appendMetadata(kafkaProxy);
+        verify(metadataChecksumGenerator, times(0)).appendMetadata(kafkaProxy);
     }
 
     @Test

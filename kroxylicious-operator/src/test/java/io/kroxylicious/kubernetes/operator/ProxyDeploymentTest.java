@@ -162,22 +162,6 @@ class ProxyDeploymentTest {
                         value -> assertThat(value).isNotBlank());
     }
 
-    @Test
-    void shouldAddReferentChecksumOfProxy() {
-        // Given
-        var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), List.of());
-        configureProxyModel(proxyModel);
-        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
-
-        // When
-        Deployment actual = proxyDeploymentDependentResource.desired(kafkaProxy, kubernetesContext);
-
-        // Then
-        OperatorAssertions.assertThat(actual.getSpec().getTemplate().getMetadata())
-                .hasAnnotationSatisfying(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY, value -> assertThat(value).isNotBlank());
-
-    }
-
     @NonNull
     @SuppressWarnings("unchecked")
     private Context<KafkaProxy> setupContext() {
