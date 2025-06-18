@@ -5,7 +5,7 @@
 [id='con-kafkaproxy-tuning-resource-allocation-{context}']
 == Configuring Proxy container CPU and memory resource limits and requests
 
-When you define a `KafkaProxy` specification, a Kubernetes Deployment of Proxy containers is created. Each of these containers runs a single Kroxylicious Proxy process.
+When you define a `KafkaProxy` resource, a Kubernetes Deployment of Proxy containers is created. Each of these containers runs a single Kroxylicious Proxy process.
 
 By default, these Proxy containers are configured with the following resource requests and limits:
 
