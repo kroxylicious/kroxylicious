@@ -11,6 +11,11 @@ package io.kroxylicious.proxy.frame;
 public interface Frame {
 
     /**
+     * Number of bytes required for storing the frame length.
+     */
+    int FRAME_SIZE_LENGTH = Integer.BYTES;
+
+    /**
      * Estimate the expected encoded size in bytes of this {@code Frame}.<br>
      * In particular, written data by {@link #encode(ByteBufAccessor)} should be the same as reported by this method.
      */

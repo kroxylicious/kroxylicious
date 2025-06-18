@@ -40,6 +40,10 @@ import static io.kroxylicious.proxy.internal.codec.ByteBufs.writeByteBuf;
 import static io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 public class RequestDecoderTest extends AbstractCodecTest {
 
@@ -94,7 +98,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         new KafkaRequestDecoder(
                                 DecodePredicate
                                         .forFilters(FilterAndInvoker.build(filter.getClass().getSimpleName(), filter)),
-                                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl()),
+                                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), null),
                         DecodedRequestFrame.class,
                         (RequestHeaderData header) -> header, true),
                 "Unexpected correlation id");
@@ -176,7 +180,8 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         AbstractCodecTest::exampleRequestHeader,
                         AbstractCodecTest::exampleApiVersionsRequest,
                         new KafkaRequestDecoder(DecodePredicate.forFilters(
-                                FilterAndInvoker.build(filter.getClass().getSimpleName(), filter)), DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl()),
+                                FilterAndInvoker.build(filter.getClass().getSimpleName(), filter)), DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(),
+                                null),
                         OpaqueRequestFrame.class, true),
                 "Unexpected correlation id");
     }
@@ -198,7 +203,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
         new KafkaRequestDecoder(
                 DecodePredicate.forFilters(
                         FilterAndInvoker.build(filter.getClass().getSimpleName(), filter)),
-                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl())
+                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), null)
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(), messageClasses(messages));
@@ -230,7 +235,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
     private static KafkaRequestDecoder getKafkaRequestDecoder(DecodePredicate predicate, int socketFrameMaxSizeBytes) {
         return new KafkaRequestDecoder(
                 predicate,
-                socketFrameMaxSizeBytes, new ApiVersionsServiceImpl());
+                socketFrameMaxSizeBytes, new ApiVersionsServiceImpl(), null);
     }
 
     @ParameterizedTest
@@ -272,7 +277,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
         new KafkaRequestDecoder(
                 DecodePredicate.forFilters(
                         FilterAndInvoker.build(filter.getClass().getSimpleName(), filter)),
-                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl())
+                DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES, new ApiVersionsServiceImpl(), null)
                 .decode(null, byteBuf, messages);
 
         assertEquals(List.of(DecodedRequestFrame.class, DecodedRequestFrame.class), messageClasses(messages));
@@ -340,7 +345,7 @@ public class RequestDecoderTest extends AbstractCodecTest {
         assertEquals(45,
                 exactlyOneFrame_decoded(produceVersion,
                         ApiKeys.PRODUCE::requestHeaderVersion,
-                        (x) -> header,
+                        x -> header,
                         () -> body,
                         AbstractCodecTest::deserializeRequestHeaderUsingKafkaApis,
                         RequestDecoderTest::deserializeProduceRequestUsingKafkaApis,
@@ -348,4 +353,26 @@ public class RequestDecoderTest extends AbstractCodecTest {
                         DecodedRequestFrame.class, ((RequestHeaderData head) -> head), acks != 0),
                 "Unexpected correlation id");
     }
+
+    @Test
+    void shouldFireListenerOnDecode() {
+        // Given
+        var mock = mock(ApiVersionsServiceImpl.class);
+        var listener = mock(KafkaMessageListener.class);
+
+        short apiVersion = ApiKeys.API_VERSIONS.latestVersion();
+        short headerVersion = ApiKeys.API_VERSIONS.responseHeaderVersion(apiVersion);
+        RequestHeaderData exampleHeader = exampleRequestHeader(apiVersion);
+        ApiVersionsRequestData exampleBody = exampleApiVersionsRequest();
+        ByteBuffer response = serializeUsingKafkaApis(headerVersion, exampleHeader, apiVersion, exampleBody);
+        int expectedSizeIncludingLength = response.remaining();
+        var decoder = new KafkaRequestDecoder(RequestDecoderTest.DECODE_NOTHING, Integer.MAX_VALUE, mock, listener);
+
+        // When
+        decoder.decode(null, Unpooled.wrappedBuffer(response), new ArrayList<>());
+
+        // Then
+        verify(listener).onMessage(isA(OpaqueRequestFrame.class), eq(expectedSizeIncludingLength));
+    }
+
 }

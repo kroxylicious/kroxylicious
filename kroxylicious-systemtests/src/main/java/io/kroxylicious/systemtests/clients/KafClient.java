@@ -70,7 +70,7 @@ public class KafClient implements KafkaClient {
                 "--image=" + Constants.KAF_CLIENT_IMAGE,
                 "--override-type=strategic",
                 "--overrides=" + jsonOverrides,
-                "--", "kaf", "-n", String.valueOf(numOfMessages), "-b", bootstrap));
+                "--", "-n", String.valueOf(numOfMessages), "-b", bootstrap));
         recordKey.ifPresent(key -> {
             executableCommand.add("--key");
             executableCommand.add(key);
@@ -84,7 +84,7 @@ public class KafClient implements KafkaClient {
     public List<ConsumerRecord> consumeMessages(String topicName, String bootstrap, int numOfMessages, Duration timeout) {
         LOGGER.atInfo().log("Consuming messages using kaf");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
-        List<String> args = List.of("kaf", "-b", bootstrap, "consume", topicName, "--output", "json");
+        List<String> args = List.of("-b", bootstrap, "consume", topicName, "--output", "json");
         Job goClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, goClientJob);
         String log = waitForConsumer(podName, numOfMessages, timeout);

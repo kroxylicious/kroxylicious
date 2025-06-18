@@ -15,6 +15,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.InternalRequestFrame;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRequestEncoder.class);
@@ -24,7 +26,9 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
     public static final int API_VERSION = 2;
     private final CorrelationManager correlationManager;
 
-    public KafkaRequestEncoder(CorrelationManager correlationManager) {
+    public KafkaRequestEncoder(CorrelationManager correlationManager,
+                               @Nullable KafkaMessageListener listener) {
+        super(listener);
         this.correlationManager = correlationManager;
     }
 

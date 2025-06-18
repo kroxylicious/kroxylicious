@@ -24,6 +24,7 @@ import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsDowngradeFilter;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
@@ -33,8 +34,11 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private final ApiVersionsServiceImpl apiVersionsService;
 
-    public KafkaRequestDecoder(DecodePredicate decodePredicate, int socketFrameMaxSize, ApiVersionsServiceImpl apiVersionsService) {
-        super(socketFrameMaxSize);
+    public KafkaRequestDecoder(DecodePredicate decodePredicate,
+                               int socketFrameMaxSize,
+                               ApiVersionsServiceImpl apiVersionsService,
+                               @Nullable KafkaMessageListener listener) {
+        super(socketFrameMaxSize, listener);
         this.decodePredicate = decodePredicate;
         this.apiVersionsService = apiVersionsService;
     }
