@@ -173,6 +173,7 @@ class OperatorMainIT {
                     assertThat(response.statusCode()).isEqualTo(200);
                     assertThat(response.body())
                             .isNotEmpty()
+                            .anySatisfy(line -> assertThat(line).contains("kroxylicious_operator_build_info"))
                             .anySatisfy(line -> assertThat(line).contains("operator_sdk_reconciliations_executions_kafkaproxyreconciler"))
                             .anySatisfy(line -> assertThat(line).contains("operator_sdk_events_received"));
                 });
