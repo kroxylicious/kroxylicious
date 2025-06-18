@@ -42,6 +42,8 @@ include::assemblies/assembly-preparing-kms.adoc[leveloffset=+1]
 //configuring the record encryption filter
 include::assemblies/assembly-configuring-record-encryption-filter.adoc[leveloffset=+1]
 
+//monitoring the record encryption filter
+include::assemblies/assembly-monitoring-record-encryption-filter.adoc[leveloffset=+1]
 
 // == Operations
 //
