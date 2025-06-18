@@ -12,7 +12,6 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Properties;
 import java.util.function.IntSupplier;
-import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,7 +53,6 @@ public class OperatorMain {
      * name emitted by Prometheus will be called {@code kroxylicious_operator_build_info}.
      */
     private static final String BUILD_INFO_METRIC_NAME = "kroxylicious_operator_build.info";
-    private static final Supplier<Double> BUILD_INFO_VALUE_SUPPLIER = () -> 1.0;
     private final Operator operator;
     private final HttpServer managementServer;
 
@@ -196,10 +194,11 @@ public class OperatorMain {
     }
 
     private static void versionInfoMetric(VersionInfo versionInfo) {
-        Gauge.builder(BUILD_INFO_METRIC_NAME, BUILD_INFO_VALUE_SUPPLIER)
+        Gauge.builder(BUILD_INFO_METRIC_NAME, () -> 1.0)
                 .description("Reports Kroxylicious Operator version information")
                 .tag("version", versionInfo.version())
                 .tag("commit_id", versionInfo.commitId())
+                .strongReference(true)
                 .register(Metrics.globalRegistry);
     }
 

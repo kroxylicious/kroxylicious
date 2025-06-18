@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Supplier;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -64,7 +63,6 @@ public class Metrics {
      * name emitted by Prometheus will be called {@code kroxylicious_build_info}.
      */
     private static final String INFO_METRIC_NAME = "kroxylicious_build.info";
-    private static final Supplier<Double> ONE_SUPPLIER = () -> 1.0;
 
     /**
      * @deprecated use kroxylicious_client_to_proxy_request_count instead.
@@ -338,15 +336,16 @@ public class Metrics {
     }
 
     /**
-     * Exposes a <a href="https://www.robustperception.io/exposing-the-software-version-to-prometheus/">build info metric</a>  describing Kroxylicious version etc.
+     * Exposes a <a href="https://www.robustperception.io/exposing-the-software-version-to-prometheus/">build info metric</a> describing Kroxylicious version etc.
      *
      * @param versionInfo version info
      */
     public static void versionInfoMetric(VersionInfo versionInfo) {
-        Gauge.builder(INFO_METRIC_NAME, ONE_SUPPLIER)
+        Gauge.builder(INFO_METRIC_NAME, () -> 1.0)
                 .description("Reports Kroxylicious version information")
                 .tag("version", versionInfo.version())
                 .tag("commit_id", versionInfo.commitId())
+                .strongReference(true)
                 .register(globalRegistry);
     }
 }
