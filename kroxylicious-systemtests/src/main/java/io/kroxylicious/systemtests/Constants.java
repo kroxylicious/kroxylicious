@@ -154,4 +154,10 @@ public final class Constants {
      * Auxiliary variables for storing data across our tests
      */
     public static final String DOCKER_REGISTRY_GCR_MIRROR = "mirror.gcr.io";
+
+    /**
+     * Architectures
+     */
+    public static final String ARCHITECTURE_X86 = "x86_64";
+    public static final String ARCHITECTURE_AMD64 = "amd64";
 }
