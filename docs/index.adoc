@@ -1,5 +1,5 @@
-include::_assets/attributes.adoc[]
 :DocRoot: .
+include::_assets/attributes.adoc[]
 
 = Kroxylicious guides
 
