@@ -45,13 +45,8 @@ include::assemblies/assembly-configuring-record-encryption-filter.adoc[leveloffs
 //monitoring the record encryption filter
 include::assemblies/assembly-monitoring-record-encryption-filter.adoc[leveloffset=+1]
 
-// == Operations
-//
-// // === Monitoring
-// //
-// // *TODO*
-//
-// === Dealing with a lost KEK
+//operational issues affecting the record encryption filter
+include::assemblies/assembly-operations-record-encryption-filter.adoc[leveloffset=+1]
 
 //trademark notices
 include::_assets/trademarks.adoc[leveloffset=+1]
