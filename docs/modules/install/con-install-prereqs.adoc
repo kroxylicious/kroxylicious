@@ -1,0 +1,45 @@
+// Module included in the following assemblies:
+//
+// assemblies/assembly-operator-install.adoc
+
+[id='install-prereqs-{context}']
+= Install prerequisites
+
+To install Kroxylicious, you will need the following:
+
+ifndef::OpenShiftOnly[]
+* A Kubernetes {KubernetesVersion} cluster.
++
+* The `kubectl` command-line tool is installed and configured to connect to the running cluster.
+
+For more information on the tools available for running Kubernetes, see {KubeTools} in the Kubernetes documentation.
+
+[discrete]
+== `oc` and `kubectl` commands
+
+The `oc` command functions as an alternative to `kubectl`.
+In almost all cases the example `kubectl` commands used in this guide can be done using `oc` simply by replacing the command name (options and arguments remain the same).
+
+In other words, instead of using:
+
+[source,shell,subs=+quotes]
+kubectl apply -f _your-file_
+
+when using OpenShift you can use:
+
+[source,shell,subs=+quotes]
+oc apply -f _your-file_
+
+// NOTE: As an exception to this general rule, `oc` uses `oc adm` subcommands for _cluster management_ functionality,
+// whereas `kubectl` does not make this distinction.
+// For example, the `oc` equivalent of `kubectl taint` is `oc adm taint`.
+
+endif::OpenShiftOnly[]
+
+ifdef::OpenShiftOnly[]
+* An OpenShift {OpenShiftVersion} cluster.
++
+Kroxylicious is based on {KroxyliciousVersion}.
+
+* The `oc` command-line tool is installed and configured to connect to the running cluster.
+endif::OpenShiftOnly[]

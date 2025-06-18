@@ -1,0 +1,13 @@
+// Module included in the following assemblies:
+//
+// assemblies/assembly-operator-install.adoc
+
+[id='downloads-{context}']
+= Downloading Kroxylicious release artifacts
+
+[role="_abstract"]
+To use install files to install Kroxylicious, download and extract the files from the {OperatorDownload}.
+
+TODO: how do I distinguish which release artefact I need.
+
+Kroxylicious release artifacts include example YAML files to help you deploy the components of Kroxylicious to Kubernetes.

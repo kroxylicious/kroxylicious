@@ -2,7 +2,14 @@
 //
 // kroxylicious-operator/index.adoc
 
-[id='con-installing-{context}']
+[id='assembly-installing-{context}']
 = Installing the operator
 
-*TO DO*
+This section provides instructions for installing the Kroxylicious.
+
+Installation options and steps are covered using the example installation files included with Kroxylicious.
+
+include::../modules/install/con-install-prereqs.adoc[leveloffset=+1]
+include::../modules/install/con-install-product-downloads.adoc[leveloffset=+1]
+include::../modules/install/proc-install-operator.adoc[leveloffset=+1]
+
