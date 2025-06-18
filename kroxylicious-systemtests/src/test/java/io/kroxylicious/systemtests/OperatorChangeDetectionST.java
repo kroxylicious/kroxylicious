@@ -317,6 +317,7 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("New checksum: {}", newChecksumFromAnnotation);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private static void assertDeploymentUnchanged(String namespace, String originalChecksum, int expectedReplicaCount) {
         var kubeClient = kubeClient(namespace);
         await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
@@ -324,9 +325,7 @@ class OperatorChangeDetectionST extends AbstractST {
             assertThat(proxyDeployment).isNotNull()
                     .extracting(Deployment::getSpec)
                     .isNotNull()
-                    .satisfies(spec -> {
-                        assertThat(spec.getReplicas()).isEqualTo(expectedReplicaCount);
-                    })
+                    .satisfies(spec -> assertThat(spec.getReplicas()).isEqualTo(expectedReplicaCount))
                     .extracting(DeploymentSpec::getTemplate)
                     .isNotNull()
                     .extracting(PodTemplateSpec::getMetadata)
@@ -362,11 +361,9 @@ class OperatorChangeDetectionST extends AbstractST {
         var kubeClient = kubeClient(namespace);
         AtomicReference<String> checksumFromAnnotation = new AtomicReference<>();
         await().atMost(Duration.ofSeconds(90))
-                .pollDelay(Duration.ofSeconds(10))
                 .untilAsserted(() -> assertThat(kubeClient.getClient().resources(VirtualKafkaCluster.class)
                         .inNamespace(namespace)
-                        .waitUntilCondition(virtualKafkaCluster -> virtualKafkaCluster.getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue), 9,
-                                TimeUnit.SECONDS))
+                        .waitUntilCondition(OperatorChangeDetectionST::isVirtualClusterReady, 9, TimeUnit.SECONDS))
                         .isNotNull());
 
         await().atMost(Duration.ofSeconds(90))
@@ -393,6 +390,15 @@ class OperatorChangeDetectionST extends AbstractST {
 
     private String getChecksumFromAnnotation(HasMetadata entity) {
         return KubernetesResourceUtil.getOrCreateAnnotations(entity).get("kroxylicious.io/referent-checksum");
+    }
+
+    private static boolean isVirtualClusterReady(VirtualKafkaCluster virtualKafkaCluster) {
+        if (virtualKafkaCluster.getStatus() != null) {
+            return virtualKafkaCluster.getStatus().getConditions().stream().anyMatch(Condition::isResolvedRefsTrue);
+        }
+        else {
+            return false;
+        }
     }
 
     private static void updateIngresProtocol(ClusterIP.Protocol protocol, String namespace) {
