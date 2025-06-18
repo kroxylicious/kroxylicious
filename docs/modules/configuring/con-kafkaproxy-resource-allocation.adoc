@@ -7,12 +7,19 @@
 
 When you define a `KafkaProxy` resource, a Kubernetes Deployment of Proxy containers is created. Each of these containers runs a single Kroxylicious Proxy process.
 
-By default, these Proxy containers are configured with the following resource requests and limits:
+By default, these Proxy containers are configured with the following resources:
 
-- `resources.requests.cpu`: `500m`
-- `resources.requests.memory`: `512Mi`
-- `resources.limits.cpu`: `500m`
-- `resources.limits.memory`: `512Mi`
+.Default Proxy container resources
+[source,yaml]
+----
+resources:
+  requests:
+    cpu: '500m'
+    memory: '512Mi'
+  limits:
+    cpu: '500m'
+    memory: '512Mi'
+----
 
 You can learn more about Kubernetes resource management https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/[here].
 
@@ -37,3 +44,26 @@ spec:
           cpu: '500m'
           memory: '756Mi'
 ----
+
+Note that the `resources` from the KafkaProxy resource will entirely replace the defaults. So you can do things like remove the
+CPU requests/limits:
+
+.Example `KafkaProxy` configuration removing cpu requests/limits
+[source,yaml]
+----
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: simple
+spec:
+  infrastructure:
+    proxyContainer:
+      resources:
+        requests:
+          memory: '512Mi'
+        limits:
+          memory: '512Mi'
+----
+
+This is not a recommended configuration, but illustrates that your configuration is not combined with the default values in any way.
