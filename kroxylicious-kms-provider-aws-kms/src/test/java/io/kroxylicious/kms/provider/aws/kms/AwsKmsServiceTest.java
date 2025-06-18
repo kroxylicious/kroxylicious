@@ -63,7 +63,7 @@ class AwsKmsServiceTest {
     @SuppressWarnings("resource")
     void initializeCreatesCredentialsProvider() {
         // Given
-        var config = new Config(URI.create("https://host.invalid"), null, null, longTermCredentialsProviderConfig, null, "us-east-1", null);
+        var config = new Config(URI.create("https://host.invalid"), longTermCredentialsProviderConfig, null, "us-east-1", null);
 
         // When
         awsKmsService.initialize(config);
@@ -81,7 +81,7 @@ class AwsKmsServiceTest {
     @Test
     void credentialsProviderLifecycle() {
         // Given
-        var config = new Config(URI.create("https://host.invalid"), null, null, longTermCredentialsProviderConfig, null, "us-east-1", null);
+        var config = new Config(URI.create("https://host.invalid"), longTermCredentialsProviderConfig, null, "us-east-1", null);
         awsKmsService.initialize(config);
 
         // When
@@ -94,7 +94,7 @@ class AwsKmsServiceTest {
     @Test
     void applesTlsConfiguration() {
         var validButUnusualCipherSuite = "TLS_EMPTY_RENEGOTIATION_INFO_SCSV"; // Valid suite, but not a true cipher
-        var config = new Config(URI.create("https://host.invalid"), null, null,
+        var config = new Config(URI.create("https://host.invalid"),
                 longTermCredentialsProviderConfig, null, "us-east1", new Tls(null, null, new AllowDeny<>(
                         List.of(validButUnusualCipherSuite), null), null));
         awsKmsService.initialize(
