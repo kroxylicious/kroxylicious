@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1914](https://github.com/kroxylicious/kroxylicious/issues/1914) Remove deprecated AWS KMS service accessKey / secretKey config properties
 * [#2240](https://github.com/kroxylicious/kroxylicious/issues/2240) Implement new message size distribution tracking metrics
 * [#2241](https://github.com/kroxylicious/kroxylicious/issues/2241) Implement new connection counting metrics
 * [#2239](https://github.com/kroxylicious/kroxylicious/issues/2239) Implement new message counting metrics
@@ -40,6 +41,9 @@ When this is present, it will be replaced with the name of that gateway's Virtua
 When this is present, it will be replaced with the name of that gateway's VirtualCluster.
 * All the existing metrics emitted by the proxy have been deprecated. They have been replaced with connection and message metrics.
   See the documentation for the details of the new metrics.
+* Configuration the `AwsKms` directly with `accessKey` and `secretKey` config properties was deprecated at 0.9.0.  Support
+  for this configuration is now removed.  Configure using a `longTermCredentials` object with `accessKeyId` and
+  `secretAccessKey` properties instead.
 
 ## 0.12.0
 

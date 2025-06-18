@@ -32,34 +32,6 @@ class CredentialsProviderFactoryTest {
     private static final CredentialsProviderFactory FACTORY = CredentialsProviderFactory.DEFAULT;
 
     @Test
-    void legacyConfigLongTermCredentials() {
-        // Given
-        var config = buildConfig("""
-                endpointUrl: https://unused.invalid
-                region: unused
-                accessKey:
-                    password: accessKeyId
-                secretKey:
-                    password: secretAccessKey
-                """);
-
-        // When
-        var cp = FACTORY.createCredentialsProvider(config);
-
-        // Then
-        assertThat(cp)
-                .asInstanceOf(InstanceOfAssertFactories.type(LongTermCredentialsProvider.class))
-                .satisfies(ltcp -> {
-                    assertThat(ltcp.getCredentials())
-                            .succeedsWithin(Duration.ofSeconds(1))
-                            .satisfies(c -> {
-                                assertThat(c.accessKeyId()).isEqualTo("accessKeyId");
-                                assertThat(c.secretAccessKey()).isEqualTo("secretAccessKey");
-                            });
-                });
-    }
-
-    @Test
     void longTermCredentials() {
         // Given
         var config = buildConfig("""
@@ -125,59 +97,7 @@ class CredentialsProviderFactoryTest {
                                     password: accessKeyId
                                 secretAccessKey:
                                     password: secretAccessKey
-                        """),
-                Arguments.argumentSet("longTerm with legacy 1", """
-                            endpointUrl: https://unused.invalid
-                            region: unused
-                            accessKey:
-                                password: accessKeyId
-                            longTermCredentials:
-                                accessKeyId:
-                                    password: accessKeyId
-                                secretAccessKey:
-                                    password: secretAccessKey
-                        """),
-                Arguments.argumentSet("longTerm with legacy 2", """
-                            endpointUrl: https://unused.invalid
-                            region: unused
-                            secretKey:
-                                password: secretAccessKey
-                            longTermCredentials:
-                                accessKeyId:
-                                    password: accessKeyId
-                                secretAccessKey:
-                                    password: secretAccessKey
-                        """),
-                Arguments.argumentSet("ec2Metadata with legacy 1", """
-                            endpointUrl: https://unused.invalid
-                            region: unused
-                            accessKey:
-                                password: accessKeyId
-                            ec2MetadataCredentials:
-                                iamRole: foo
-                        """),
-                Arguments.argumentSet("ec2Metadata with legacy 2", """
-                            endpointUrl: https://unused.invalid
-                            region: unused
-                            secretKey:
-                                password: secretAccessKey
-                            ec2MetadataCredentials:
-                                iamRole: foo
-                        """),
-                Arguments.argumentSet("partially defined legacy 1", """
-                            endpointUrl: https://unused.invalid
-                            region: unused
-                            accessKey:
-                                password: accessKeyId
-                        """),
-                Arguments.argumentSet("partially defined legacy 2", """
-                            endpointUrl: https://unused.invalid
-                            region: unused
-                            secretKey:
-                                password: secretAccessKey
-                        """)
-
-        );
+                        """));
     }
 
     @ParameterizedTest
