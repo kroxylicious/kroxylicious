@@ -220,7 +220,7 @@ class NonJVMClientsST extends AbstractST {
         kroxyliciousOperator.delete();
     }
 
-    private void checkArchForKcat() {
+    private void checkKcatCompatibility() {
         // Skip Kcat execution when architecture is different from x86_64 or amd64
         String localArch = System.getProperty("os.arch");
         assumeThat(localArch.equalsIgnoreCase(Constants.ARCHITECTURE_X86)
