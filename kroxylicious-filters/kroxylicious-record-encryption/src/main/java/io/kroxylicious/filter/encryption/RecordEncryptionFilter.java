@@ -24,7 +24,9 @@ import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.MemoryRecords;
+import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.slf4j.Logger;
 
 import io.micrometer.core.instrument.Counter;
@@ -40,6 +42,8 @@ import io.kroxylicious.filter.encryption.config.UnresolvedKeyPolicy;
 import io.kroxylicious.filter.encryption.decrypt.DecryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionScheme;
+import io.kroxylicious.kms.service.KmsException;
+import io.kroxylicious.kms.service.UnknownKeyException;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
@@ -169,11 +173,28 @@ public class RecordEncryptionFilter<K>
         return maybeDecodeFetch(response.responses(), context)
                 .thenCompose(responses -> context.forwardResponse(header, response.setResponses(responses)))
                 .exceptionallyCompose(throwable -> {
-                    log.atWarn().setMessage("failed to decrypt records, cause message: {}")
-                            .addArgument(throwable.getMessage())
-                            .setCause(log.isDebugEnabled() ? throwable : null)
-                            .log();
-                    return CompletableFuture.failedStage(throwable);
+                    if (throwable.getCause() instanceof KmsException) {
+                        log.atWarn().setMessage("Failed to decrypt records, cause message: {}"
+                                        + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). Client may see a message 'Unexpected error code 91 while fetching at offset'")
+                                .addArgument(throwable.getMessage())
+                                .setCause(log.isDebugEnabled() ? throwable : null)
+                                .log();
+                        response.responses().forEach(r -> r.partitions().forEach(p -> {
+                            p.setErrorCode(Errors.RESOURCE_NOT_FOUND.code());
+                            p.setRecords(MemoryRecords.EMPTY);
+                        }
+                        ));
+                        return context.forwardResponse(header, response);
+                    }
+                    else {
+                        log.atWarn().setMessage("Failed to process records, connection will be closed, cause message: {}")
+                                .addArgument(throwable.getMessage())
+                                .setCause(log.isDebugEnabled() ? throwable : null)
+                                .log();
+                        // returning a failed stage is effectively asking the runtime to kill the connection.
+                        return CompletableFuture.failedStage(throwable);
+                    }
+
                 });
     }
 

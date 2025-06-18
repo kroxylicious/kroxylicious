@@ -44,7 +44,9 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.InvalidRecordException;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
+import org.apache.kafka.common.errors.KafkaStorageException;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.header.Header;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -81,6 +83,7 @@ import static io.kroxylicious.filter.encryption.RecordEncryptionMetrics.TOPIC_NA
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assumptions.assumeThatCode;
 import static org.assertj.core.api.InstanceOfAssertFactories.BYTE_ARRAY;
 import static org.awaitility.Awaitility.await;
@@ -710,6 +713,35 @@ class RecordEncryptionFilterIT {
                     .singleElement()
                     .value()
                     .isGreaterThanOrEqualTo(1.0);
+        }
+    }
+
+    @TestTemplate
+    void consumeFailsAfterDeletedKek(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(topic.name());
+
+        var builder = proxy(cluster);
+
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer();
+                var consumer = tester.consumer()) {
+
+            var timeout = Duration.ofSeconds(5);
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), HELLO_WORLD)))
+                    .succeedsWithin(timeout);
+
+            testKekManager.deleteKek(topic.name());
+
+            consumer.subscribe(List.of(topic.name()));
+
+            assertThatThrownBy(() -> consumer.poll(timeout))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Unexpected error code 91 while fetching at offset 0 from topic-partition");
         }
     }
 
