@@ -145,10 +145,11 @@ public final class Constants {
     public static final String CURL_IMAGE = Constants.DOCKER_REGISTRY_GCR_MIRROR + "/curlimages/curl:8.13.0";
 
     /**
-     * Basic paths to examples
+     * Path the all the installation files
      */
-    public static final String PATH_TO_CRDS = System.getProperty("user.dir") + "/../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8/";
-    public static final String PATH_TO_OPERATOR_INSTALL_FILES = System.getProperty("user.dir") + "/../kroxylicious-operator/target/packaged/install/";
+    public static final String OPERATOR_INSTALL_DIR = System.getProperty("user.dir") + "/../kroxylicious-operator/target/packaged/install/";
+    public static final String OPERATOR_INSTALL_CRD_GLOB = "*.CustomResourceDefinition.*.yaml";
+    public static final String OPERATOR_INSTALL_DEPLOYMENT_GLOB = "*.Deployment.*.yaml";
 
     /**
      * Auxiliary variables for storing data across our tests

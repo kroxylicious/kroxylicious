@@ -341,7 +341,7 @@
                     <plugin>
                         <artifactId>maven-assembly-plugin</artifactId>
                         <executions>
-                            <!-- Create the target/kroxylicious-operator-0.13.0-SNAPSHOT-bin directory -->
+                            <!-- Create the target/kroxylicious-operator-0.13.0-SNAPSHOT-app directory -->
                             <execution>
                                 <id>app</id>
                                 <phase>package</phase>

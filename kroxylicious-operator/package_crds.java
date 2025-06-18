@@ -41,7 +41,7 @@ public class package_crds {
                             } else {
                                 throw new IOException("YAML was not an object");
                             }
-                            var target = targetDir.resolve("00." + kind + "-" + singular + ".yaml");
+                            var target = targetDir.resolve("00." + kind + "." + singular + ".yaml");
                             Files.copy(path, target, StandardCopyOption.REPLACE_EXISTING);
                             System.out.println("Copied to " + target);
                         } catch (IOException e) {
