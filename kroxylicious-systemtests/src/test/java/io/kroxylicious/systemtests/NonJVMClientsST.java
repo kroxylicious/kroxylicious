@@ -221,7 +221,9 @@ class NonJVMClientsST extends AbstractST {
     }
 
     private void checkArchForKcat() {
-        // Skip Kcat execution when architecture is different from x86_64
-        assumeThat(Environment.ARCHITECTURE.equals(Environment.ARCHITECTURE_DEFAULT)).isTrue();
+        // Skip Kcat execution when architecture is different from x86_64 or amd64
+        String localArch = System.getProperty("os.arch");
+        assumeThat(localArch.equalsIgnoreCase(Constants.ARCHITECTURE_X86)
+                || localArch.equalsIgnoreCase(Constants.ARCHITECTURE_AMD64)).isTrue();
     }
 }
