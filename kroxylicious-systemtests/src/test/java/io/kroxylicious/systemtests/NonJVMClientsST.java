@@ -31,6 +31,7 @@ import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
 import static io.kroxylicious.systemtests.TestTags.EXTERNAL_KAFKA_CLIENTS;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assumptions.assumeThat;
 
 /**
  * The non-JVM clients system tests.
@@ -51,6 +52,8 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceAndConsumeWithKcatClients(String namespace) {
+        // Skip Kcat execution when architecture is different from x86_64
+        assumeThat(Environment.ARCHITECTURE.equals(Environment.ARCHITECTURE_DEFAULT)).isTrue();
         int numberOfMessages = 2;
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
         KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -95,6 +98,8 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceWithKcatAndConsumeWithTestClients(String namespace) {
+        // Skip Kcat execution when architecture is different from x86_64
+        assumeThat(Environment.ARCHITECTURE.equals(Environment.ARCHITECTURE_DEFAULT)).isTrue();
         int numberOfMessages = 2;
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
         KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -117,6 +122,8 @@ class NonJVMClientsST extends AbstractST {
      */
     @Test
     void produceWithTestClientsAndConsumeWithKcat(String namespace) {
+        // Skip Kcat execution when architecture is different from x86_64
+        assumeThat(Environment.ARCHITECTURE.equals(Environment.ARCHITECTURE_DEFAULT)).isTrue();
         int numberOfMessages = 2;
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
         KafkaClients.strimziTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);

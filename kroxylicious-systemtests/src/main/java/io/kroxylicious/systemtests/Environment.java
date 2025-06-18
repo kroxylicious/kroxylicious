@@ -57,6 +57,7 @@ public class Environment {
     private static final String CATALOG_SOURCE_NAME_ENV = "CATALOG_SOURCE_NAME";
     private static final String CATALOG_NAMESPACE_ENV = "CATALOG_NAMESPACE";
     private static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME_ENV = "KROXYLICIOUS_OLM_DEPLOYMENT_NAME";
+    private static final String ARCHITECTURE_ENV = "ARCHITECTURE";
 
     /**
      * The kafka version default value
@@ -112,6 +113,7 @@ public class Environment {
     private static final String CATALOG_SOURCE_NAME_DEFAULT = "kroxylicious-source";
     private static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME_DEFAULT = "kroxylicious-operator";
     private static final String CATALOG_NAMESPACE_DEFAULT = "openshift-marketplace";
+    public static final String ARCHITECTURE_DEFAULT = "x86_64";
 
     public static final String KAFKA_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KAFKA_VERSION_ENV, KAFKA_VERSION_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_VERSION_ENV, KROXYLICIOUS_VERSION_DEFAULT);
@@ -160,6 +162,7 @@ public class Environment {
     public static final String CATALOG_NAMESPACE = ENVIRONMENT_VARIABLES.getOrDefault(CATALOG_NAMESPACE_ENV, CATALOG_NAMESPACE_DEFAULT);
     public static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OLM_DEPLOYMENT_NAME_ENV,
             KROXYLICIOUS_OLM_DEPLOYMENT_NAME_DEFAULT);
+    public static final String ARCHITECTURE = ENVIRONMENT_VARIABLES.getOrDefault(ARCHITECTURE_ENV, ARCHITECTURE_DEFAULT);
 
     private static String readMetadataProperty(String property) {
         var p = new Properties();
