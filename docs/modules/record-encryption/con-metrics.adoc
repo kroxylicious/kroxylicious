@@ -9,10 +9,10 @@
 
 The filter emits metrics that help you understand the interactions with the KMS.
 These metrics help you understand the load the filter will be placing on your KMS infrastructure.
-These metrics also help you understand how often interactions with the KMS fail.
+They also help you understand how often interactions with the KMS fail.
 
-The filter also emits metrics that count the number of records that are being encrypted.
-This help you verify that the filter is configured properly and encrypting the topic(s) you intend.
+The filter emits metrics that count the number of records that are being encrypted.
+This can help you verify that the filter is configured properly and encrypting the topic(s) you intend.
 
 These metrics are made available automatically once metrics are enabled in the proxy.
 
