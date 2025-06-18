@@ -45,6 +45,7 @@ import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.assertj.core.matcher.AssertionMatcher;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -54,6 +55,9 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.hamcrest.MockitoHamcrest;
 import org.mockito.junit.jupiter.MockitoExtension;
+
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.config.TopicNameBasedKekSelector;
@@ -117,9 +121,12 @@ class RecordEncryptionFilterTest {
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
 
     private RecordEncryptionFilter<String> encryptionFilter;
+    private SimpleMeterRegistry simpleMeterRegistry;
 
     @BeforeEach
     void setUp() {
+        when(context.getVirtualClusterName()).thenReturn("test");
+
         when(context.forwardRequest(any(RequestHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
             final RequestFilterResult filterResult = mock(RequestFilterResult.class);
             return CompletableFuture.completedFuture(filterResult);
@@ -153,6 +160,17 @@ class RecordEncryptionFilterTest {
 
         encryptionFilter = new RecordEncryptionFilter<>(encryptionManager, decryptionManager, kekSelector, new FilterThreadExecutor(Runnable::run),
                 UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
+
+        simpleMeterRegistry = new SimpleMeterRegistry();
+        Metrics.globalRegistry.add(simpleMeterRegistry);
+    }
+
+    @AfterEach
+    void tearDown() {
+        if (simpleMeterRegistry != null) {
+            simpleMeterRegistry.getMeters().forEach(Metrics.globalRegistry::remove);
+            Metrics.globalRegistry.remove(simpleMeterRegistry);
+        }
     }
 
     @Test
@@ -167,6 +185,35 @@ class RecordEncryptionFilterTest {
 
         // Then
         verify(encryptionManager, never()).encrypt(any(), anyInt(), any(), any(), any());
+    }
+
+    @Test
+    void shouldCountPlainAndEncryptedRecords() {
+        // Given
+        var produceRequestData = buildProduceRequestData(new TopicProduceData()
+                .setName(ENCRYPTED_TOPIC)
+                .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))),
+                new TopicProduceData()
+                        .setName(UNRESOLVED_TOPIC)
+                        .setPartitionData(List.of(new PartitionProduceData().setRecords(makeRecord(HELLO_PLAIN_WORLD)))));
+
+        // When
+        encryptionFilter.onProduceRequest(ProduceRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), produceRequestData, context);
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_filter_record_encryption_plain_records").counter())
+                .isNotNull()
+                .satisfies(counter -> {
+                    assertThat(counter.getId()).isNotNull();
+                    assertThat(counter.count()).isEqualTo(1);
+                });
+
+        assertThat(Metrics.globalRegistry.get("kroxylicious_filter_record_encryption_encrypted_records").counter())
+                .isNotNull()
+                .satisfies(counter -> {
+                    assertThat(counter.getId()).isNotNull();
+                    assertThat(counter.count()).isEqualTo(1);
+                });
     }
 
     @Test
