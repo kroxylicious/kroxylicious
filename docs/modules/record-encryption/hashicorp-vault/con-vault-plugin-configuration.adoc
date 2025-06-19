@@ -14,6 +14,7 @@ kms: VaultKmsService                                          # <1>
 kmsConfig:
   vaultTransitEngineUrl: <vault transit engine service url>   # <2>
   tls:                                                        # <3>
+    # ...
   vaultToken:                                                 # <4>
     passwordFile: /opt/vault/token
 
@@ -23,5 +24,7 @@ kmsConfig:
 <3> (Optional) TLS trust configuration.
 <4> File containing the Vault Token.
 
-For TLS trust and TLS client authentication configuration, the filter accepts the same TLS parameters as xref:con-deploying-upstream-tls-{context}[Upstream TLS]
-except the `PEM` store type is currently https://github.com/kroxylicious/kroxylicious/issues/933[not supported].
+include::../../../snippets/snip-tls-client-keystore.adoc[]
+
+include::../../../snippets/snip-tls-client-truststore.adoc[]
+
