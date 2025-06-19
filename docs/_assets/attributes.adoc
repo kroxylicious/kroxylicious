@@ -17,10 +17,12 @@
 :KroxyliciousVersion: 0.9
 :gitRef: tree/main
 :ApicurioVersion: 2.6.x
-:KubernetesVersion: 1.31 and later
-:OpenShiftVersion: 4.18 and later
+:KubernetesVersionMinimum: 1.31
+:OpenShiftVersionMinimum: 4.18
 
-:OperatorDownload: https://github.com/kroxylicious/kroxylicious/releases[GitHub releases page^]
+:OperatorDownloadUrl: https://github.com/kroxylicious/kroxylicious/releases[GitHub releases page^]
+:OperatorAssetZipFileName: kroxylicious-operator-{KroxyliciousVersion}.zip
+:OperatorAssetTgzFileName: kroxylicious-operator-{KroxyliciousVersion}.tar.gz
 
 //Proxy links
 :github: https://github.com/kroxylicious/kroxylicious

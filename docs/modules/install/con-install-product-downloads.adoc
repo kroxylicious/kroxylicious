@@ -3,11 +3,13 @@
 // assemblies/assembly-operator-install.adoc
 
 [id='downloads-{context}']
-= Downloading Kroxylicious release artifacts
+= Kroxylicious release artifacts
 
 [role="_abstract"]
-To use install files to install Kroxylicious, download and extract the files from the {OperatorDownload}.
+To use YAML manifest files to install Kroxylicious, download  {OperatorAssetZipFileName} or {OperatorAssetTgzFileName} file from the {OperatorDownloadUrl}, and extract the files as appropriate (for example using `unzip` or `tar -xzf`).
 
-TODO: how do I distinguish which release artefact I need.
+Each of these archives contains:
 
-Kroxylicious release artifacts include example YAML files to help you deploy the components of Kroxylicious to Kubernetes.
+Installation Files:: In the `install` directory are the YAML manifests needed to install the operator.
+
+Examples:: In the `examples` directory are examples of the custom resources which can be used to deploy a proxy once the operator has been installed.
