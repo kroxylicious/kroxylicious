@@ -889,6 +889,11 @@
                         <attribute>revdate!</attribute>
                         <attribute>revremark!</attribute>
                     </attributes>
+                    <logHandler>
+                        <failIf>
+                            <severity>INFO</severity>
+                        </failIf>
+                    </logHandler>
                 </configuration>
                 <executions>
                     <execution>
