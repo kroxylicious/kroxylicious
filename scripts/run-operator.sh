@@ -40,11 +40,11 @@ kubectl wait -n kafka kafka/my-cluster --for=condition=Ready --timeout=300s
 
 info "deleting example"
 set +e
-kubectl delete -f examples/simple/ --ignore-not-found=true --timeout=30s --grace-period=1
+kubectl delete -f target/packaged/examples/simple/ --ignore-not-found=true --timeout=30s --grace-period=1
 
 info "deleting kroxylicious-operator installation"
 kubectl delete -n kroxylicious-operator all --all --timeout=30s --grace-period=1
-kubectl delete -f install --ignore-not-found=true --timeout=30s --grace-period=1
+kubectl delete -f target/packaged/install/ --ignore-not-found=true --timeout=30s --grace-period=1
 set -e
 
 info "deleting all kroxylicious.io resources and crds"
@@ -57,14 +57,10 @@ for crd in $(kubectl get crds -oname | grep kroxylicious.io | awk -F / '{ print 
   kubectl delete crd "${crd}"
 done
 
-info "installing crds"
-kubectl apply -f ../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8
 info "installing kroxylicious-operator"
-cp install/* ${TMP_INSTALL_DIR}
-${SED} -i "s|quay.io/kroxylicious/operator:latest|${OPERATOR_PULL_SPEC}|g" ${TMP_INSTALL_DIR}/03.Deployment.kroxylicious-operator.yaml
-kubectl apply -f ${TMP_INSTALL_DIR}
+kubectl apply -f target/packaged/install/
 info "installing simple proxy"
-kubectl apply -f examples/simple/
+kubectl apply -f target/packaged/examples/simple/
 
 if kubectl wait -n my-proxy kafkaproxy/simple --for=condition=Ready=True --timeout=300s
 then
