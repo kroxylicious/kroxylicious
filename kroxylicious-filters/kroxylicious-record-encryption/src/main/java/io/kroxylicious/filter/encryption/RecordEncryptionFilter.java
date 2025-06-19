@@ -9,6 +9,7 @@ package io.kroxylicious.filter.encryption;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -25,6 +26,9 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.slf4j.Logger;
+
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Meter;
 
 import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
@@ -106,6 +110,8 @@ public class RecordEncryptionFilter<K>
     }
 
     private CompletionStage<ProduceRequestData> maybeEncodeProduce(ProduceRequestData request, FilterContext context) {
+        var plainRecordsTotal = RecordEncryptionMetrics.plainRecordsCounter(context.getVirtualClusterName());
+        var encyptedRecordsTotal = RecordEncryptionMetrics.encryptedRecordsCounter(context.getVirtualClusterName());
         var topicNameToData = request.topicData().stream().collect(Collectors.toMap(TopicProduceData::name, Function.identity()));
         CompletionStage<TopicNameKekSelection<K>> keks = filterThreadExecutor.completingOnFilterThread(kekSelector.selectKek(topicNameToData.keySet()));
         return keks // figure out what keks we need
@@ -114,6 +120,9 @@ public class RecordEncryptionFilter<K>
                     if (!unresolvedTopicNames.isEmpty() && unresolvedKeyPolicy == UnresolvedKeyPolicy.REJECT) {
                         return CompletableFuture.failedFuture(new UnresolvedKeyException("failed to resolve key for: " + unresolvedTopicNames));
                     }
+
+                    generatePlainRecordsMetrics(plainRecordsTotal, unresolvedTopicNames, topicNameToData);
+
                     var futures = kekSelection.topicNameToKekId().entrySet().stream().flatMap(e -> {
                         String topicName = e.getKey();
                         var kekId = e.getValue();
@@ -126,7 +135,13 @@ public class RecordEncryptionFilter<K>
                                     new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)),
                                     records,
                                     context::createByteBufferOutputStream)
-                                    .thenApply(ppd::setRecords);
+                                    .thenApply(ppd::setRecords)
+                                    .thenApply(produceData -> {
+                                        encyptedRecordsTotal
+                                                .withTags(RecordEncryptionMetrics.TOPIC_NAME, topicName)
+                                                .increment(RecordEncryptionUtil.totalRecordsInBatches((MemoryRecords) produceData.records()));
+                                        return null;
+                                    });
                         });
                     }).toList();
                     return RecordEncryptionUtil.join(futures).thenApply(x -> request);
@@ -137,6 +152,16 @@ public class RecordEncryptionFilter<K>
                             .log();
                     return CompletableFuture.failedStage(throwable);
                 });
+    }
+
+    private void generatePlainRecordsMetrics(Meter.MeterProvider<Counter> plainRecordsTotal, Set<String> unresolvedTopicNames,
+                                             Map<String, TopicProduceData> topicNameToData) {
+        topicNameToData.entrySet().stream()
+                .filter(topicDataEntry -> unresolvedTopicNames.contains(topicDataEntry.getKey()))
+                .forEach(topicData -> topicData.getValue().partitionData()
+                        .forEach(produceData -> plainRecordsTotal
+                                .withTags(RecordEncryptionMetrics.TOPIC_NAME, topicData.getKey())
+                                .increment(RecordEncryptionUtil.totalRecordsInBatches((MemoryRecords) produceData.records()))));
     }
 
     @Override

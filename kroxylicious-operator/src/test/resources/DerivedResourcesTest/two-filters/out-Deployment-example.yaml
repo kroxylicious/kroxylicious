@@ -76,13 +76,6 @@ spec:
             - mountPath: "/opt/kroxylicious/secure/secret/my-secret"
               name: "secrets-my-secret"
               readOnly: true
-          resources:
-            limits:
-              "cpu": "500m"
-              "memory": "512Mi"
-            requests:
-              "cpu": "500m"
-              "memory": "512Mi"
       securityContext:
         runAsNonRoot: true
         seccompProfile:

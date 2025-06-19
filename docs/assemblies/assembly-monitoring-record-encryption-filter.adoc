@@ -1,0 +1,11 @@
+// file included in the following:
+//
+// record-encryption-guide/index.adoc
+
+[id='assembly-monitoring-record-encryption-filter-{context}']
+= Monitoring the Record Encryption filter
+
+[role="_abstract"]
+This section describes how to monitor the Record Encryption filter.
+
+include::../modules/record-encryption/con-metrics.adoc[leveloffset=+1]

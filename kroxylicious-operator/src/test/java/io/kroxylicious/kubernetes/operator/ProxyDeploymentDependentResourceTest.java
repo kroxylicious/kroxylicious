@@ -7,7 +7,9 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.util.List;
+import java.util.Map;
 
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -16,6 +18,9 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.Quantity;
+import io.fabric8.kubernetes.api.model.ResourceRequirements;
+import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.dependent.managed.DefaultManagedWorkflowAndDependentResourceContext;
 
@@ -45,7 +50,7 @@ class ProxyDeploymentDependentResourceTest {
     private static final String PROXY_NAME = "RandomProxy";
     private KafkaProxy kafkaProxy;
 
-    @Mock
+    @Mock(strictness = Mock.Strictness.LENIENT)
     private Context<KafkaProxy> kubernetesContext;
 
     @Mock
@@ -123,6 +128,38 @@ class ProxyDeploymentDependentResourceTest {
         // Then
         verify(metadataChecksumGenerator).encode();
         // We can't assert anything about the checksum here as the generator is mocked, we just want to verify the generator is used correctly
+    }
+
+    @Test
+    void shouldDefaultToNullResourceRequest() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+
+        // When
+        ResourceRequirements actualRequirements = proxyDeploymentDependentResource.proxyContainerResources(kafkaProxy);
+
+        // Then
+        Assertions.assertThat(actualRequirements).isNull();
+    }
+
+    @Test
+    void shouldUseSuppliedResourcesResourceRequest() {
+        // Given
+        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
+        Map<String, Quantity> resources = Map.of("cpu", Quantity.parse("1000m"), "memory", Quantity.parse("1024Mi"));
+        ResourceRequirements resourceRequirements = new ResourceRequirementsBuilder()
+                .withRequests(resources)
+                .withLimits(resources)
+                .build();
+        KafkaProxy proxyWithLimits = kafkaProxy.edit().editOrNewSpec().editOrNewInfrastructure().editOrNewProxyContainer().withResources(resourceRequirements)
+                .endProxyContainer()
+                .endInfrastructure().endSpec().build();
+
+        // When
+        ResourceRequirements actualRequirements = proxyDeploymentDependentResource.proxyContainerResources(proxyWithLimits);
+
+        // Then
+        Assertions.assertThat(actualRequirements).isNotNull().isEqualTo(resourceRequirements);
     }
 
     @NonNull

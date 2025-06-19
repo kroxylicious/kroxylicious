@@ -63,7 +63,7 @@ class AwsKmsTest {
     @BeforeEach
     public void beforeEach() {
         var longTermCredentialsProviderConfig = new LongTermCredentialsProviderConfig(new InlinePassword("access"), new InlinePassword("secret"));
-        var config = new Config(URI.create(server.baseUrl()), null, null, longTermCredentialsProviderConfig, null, "us-west-2", null);
+        var config = new Config(URI.create(server.baseUrl()), longTermCredentialsProviderConfig, null, "us-west-2", null);
         awsKmsService = new AwsKmsService();
         awsKmsService.initialize(config);
         kms = awsKmsService.buildKms();
