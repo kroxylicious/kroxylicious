@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2346](https://github.com/kroxylicious/kroxylicious/issues/2346) fix: #2346: report failure to decrypt within the fetch response.
 * [#1914](https://github.com/kroxylicious/kroxylicious/issues/1914) Remove deprecated AWS KMS service accessKey / secretKey config properties
 * [#2240](https://github.com/kroxylicious/kroxylicious/issues/2240) Implement new message size distribution tracking metrics
 * [#2241](https://github.com/kroxylicious/kroxylicious/issues/2241) Implement new connection counting metrics
