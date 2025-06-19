@@ -172,8 +172,9 @@ public class RecordEncryptionFilter<K>
                 .thenCompose(responses -> context.forwardResponse(header, response.setResponses(responses)))
                 .exceptionallyCompose(throwable -> {
                     if (throwable.getCause() instanceof KmsException) {
-                        log.atWarn().setMessage("Failed to decrypt records, cause message: {}"
-                                + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). Client may see a message 'Unexpected error code 91 while fetching at offset'")
+                        log.atWarn().setMessage("Failed to decrypt records, cause message: {}. "
+                                + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). Client may see a message like 'Unexpected error code 91 while fetching at offset' (java) or"
+                                + " or 'Request illegally referred to resource that does not exist' (librdkafka)")
                                 .addArgument(throwable.getMessage())
                                 .setCause(log.isDebugEnabled() ? throwable : null)
                                 .log();
@@ -188,22 +189,18 @@ public class RecordEncryptionFilter<K>
                         // returning a failed stage is effectively asking the runtime to kill the connection.
                         return CompletableFuture.failedStage(throwable);
                     }
-
                 });
     }
 
     @SuppressWarnings("SameParameterValue")
     private static void convertToErrorResponse(short apiVersion, FetchResponseData response, Errors error) {
-        response.setErrorCode(error.code());
-        if (apiVersion < 13) {
-            response.responses().forEach(r -> r.partitions().forEach(p -> {
-                p.setErrorCode(error.code());
-                p.setRecords(MemoryRecords.EMPTY);
-            }));
-        }
-        else {
-            response.setResponses(List.of());
-        }
+        // We take a different approach to FetchRequest.getErrorResponse here.
+        // Experimentation shows that setting the error code at the top-level just causes the Kafka client
+        // to retry to the fetch. It does not throw the error back to the application.
+        response.responses().forEach(r -> r.partitions().forEach(p -> {
+            p.setErrorCode(error.code());
+            p.setRecords(MemoryRecords.EMPTY);
+        }));
     }
 
     private CompletionStage<List<FetchableTopicResponse>> maybeDecodeFetch(List<FetchableTopicResponse> topics, FilterContext context) {

@@ -50,6 +50,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -359,8 +361,9 @@ class RecordEncryptionFilterTest {
         assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class).havingCause().isSameAs(exception);
     }
 
-    @Test
-    void shouldPropagateErrorWhenDecryptionFailsApiVersionLessThan13() {
+    @ParameterizedTest
+    @ValueSource(shorts = { OLD_FETCH_API_VERSION, MODERN_FETCH_API_VERSION })
+    void shouldPropagateErrorWhenDecryptionFails(short fetchApiVersion) {
         // Given
         var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
                 .setTopic(ENCRYPTED_TOPIC)
@@ -369,7 +372,7 @@ class RecordEncryptionFilterTest {
         when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
 
         // When
-        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(OLD_FETCH_API_VERSION,
+        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(fetchApiVersion,
                 new ResponseHeaderData(), fetchResponseData, context);
 
         // Then
@@ -377,36 +380,13 @@ class RecordEncryptionFilterTest {
 
         verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
                 .asInstanceOf(InstanceOfAssertFactories.type(FetchResponseData.class))
-                .satisfies(frd -> assertThat(frd.errorCode()).isEqualTo(Errors.RESOURCE_NOT_FOUND.code()))
+                .satisfies(frd -> assertThat(frd.errorCode()).isEqualTo(Errors.NONE.code()))
                 .extracting(FetchResponseData::responses, InstanceOfAssertFactories.list(FetchResponseData.FetchableTopicResponse.class))
                 .singleElement()
                 .extracting(FetchableTopicResponse::partitions, InstanceOfAssertFactories.list(PartitionData.class))
                 .singleElement()
                 .extracting(PartitionData::errorCode)
                 .isEqualTo(Errors.RESOURCE_NOT_FOUND.code())));
-    }
-
-    @Test
-    void shouldPropagateErrorWhenDecryptionFailsApiVersionGreaterThan13() {
-        // Given
-        var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
-                .setTopic(ENCRYPTED_TOPIC)
-                .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
-        RuntimeException exception = new KmsException("boom");
-        when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
-
-        // When
-        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(MODERN_FETCH_API_VERSION,
-                new ResponseHeaderData(), fetchResponseData, context);
-
-        // Then
-        assertThat(stage).succeedsWithin(Duration.ZERO);
-
-        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
-                .asInstanceOf(InstanceOfAssertFactories.type(FetchResponseData.class))
-                .satisfies(frd -> assertThat(frd.errorCode()).isEqualTo(Errors.RESOURCE_NOT_FOUND.code()))
-                .extracting(FetchResponseData::responses, InstanceOfAssertFactories.list(FetchResponseData.FetchableTopicResponse.class))
-                .isEmpty()));
     }
 
     @Test
@@ -426,8 +406,7 @@ class RecordEncryptionFilterTest {
         // Then
         verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> {
             assertThat(actualFetchResponse)
-                    .isInstanceOf(FetchResponseData.class)
-                    .asInstanceOf(InstanceOfAssertFactories.type(FetchResponseData.class));
+                    .isInstanceOf(FetchResponseData.class);
             FetchResponseData fetchResponse = (FetchResponseData) actualFetchResponse;
             assertThat(fetchResponse.responses()).hasSize(1);
             FetchableTopicResponse onlyTopicResponse = fetchResponse.responses().iterator().next();

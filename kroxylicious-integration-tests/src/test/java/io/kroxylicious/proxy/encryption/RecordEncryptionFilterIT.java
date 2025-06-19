@@ -501,8 +501,7 @@ class RecordEncryptionFilterIT {
     }
 
     @TestTemplate
-    void produceAndConsumeEncryptedAndPlainTopicsAtSameTime(KafkaCluster cluster, Topic encryptedTopic, Topic plainTopic, TestKmsFacade<?, ?, ?> testKmsFacade)
-            throws Exception {
+    void produceAndConsumeEncryptedAndPlainTopicsAtSameTime(KafkaCluster cluster, Topic encryptedTopic, Topic plainTopic, TestKmsFacade<?, ?, ?> testKmsFacade) {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(encryptedTopic.name());
 
@@ -715,7 +714,7 @@ class RecordEncryptionFilterIT {
     }
 
     @TestTemplate
-    void consumeFailsAfterDeletedKek(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
+    void consumeFailsAfterKekDeleted(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
