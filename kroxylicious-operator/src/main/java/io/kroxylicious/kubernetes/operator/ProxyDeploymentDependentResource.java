@@ -21,9 +21,7 @@ import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecBuilder;
 import io.fabric8.kubernetes.api.model.PodTemplateSpecFluent;
-import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirements;
-import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
@@ -42,6 +40,8 @@ import io.kroxylicious.kubernetes.operator.model.networking.ProxyNetworkingModel
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static io.kroxylicious.kubernetes.operator.Labels.standardLabels;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
 
@@ -59,7 +59,6 @@ public class ProxyDeploymentDependentResource
     private static final String MANAGEMENT_PORT_NAME = "management";
     public static final int PROXY_PORT_START = 9292;
     public static final int SHARED_SNI_PORT = 9291;
-    private static final Map<String, Quantity> DEFAULT_LIMITS = Map.of("cpu", Quantity.parse("500m"), "memory", Quantity.parse("512Mi"));
 
     private final String kroxyliciousImage = getOperandImage();
     static final String KROXYLICIOUS_IMAGE_ENV_VAR = "KROXYLICIOUS_IMAGE";
@@ -219,16 +218,19 @@ public class ProxyDeploymentDependentResource
         return containerBuilder.build();
     }
 
-    private ResourceRequirements proxyContainerResources(KafkaProxy primary) {
-        ResourceRequirements defaultProxyContainerResources = new ResourceRequirementsBuilder()
-                .withRequests(DEFAULT_LIMITS)
-                .withLimits(DEFAULT_LIMITS)
-                .build();
+    /**
+     *
+     * @param primary the proxy cr potentially defining requests and limits.
+     * @return resourceRequests if defined. <code>null</code> if not defined.
+     */
+    @VisibleForTesting
+    @Nullable
+    ResourceRequirements proxyContainerResources(KafkaProxy primary) {
         return Optional.ofNullable(primary.getSpec())
                 .map(KafkaProxySpec::getInfrastructure)
                 .map(Infrastructure::getProxyContainer)
                 .map(ProxyContainer::getResources)
-                .orElse(defaultProxyContainerResources);
+                .orElse(null);
     }
 
     @VisibleForTesting

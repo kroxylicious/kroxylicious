@@ -70,13 +70,6 @@ spec:
             - mountPath: "/opt/kroxylicious/virtual-cluster/server-certs/downstream-tls-cert"
               name: "secrets-downstream-tls-cert"
               readOnly: true
-          resources:
-            limits:
-              "cpu": "500m"
-              "memory": "512Mi"
-            requests:
-              "cpu": "500m"
-              "memory": "512Mi"
       securityContext:
         runAsNonRoot: true
         seccompProfile:
