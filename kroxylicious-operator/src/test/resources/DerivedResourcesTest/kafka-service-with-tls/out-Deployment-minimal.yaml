@@ -82,13 +82,6 @@ spec:
             - mountPath: "/opt/kroxylicious/secure/secret/upstream-tls-cert"
               name: "secrets-upstream-tls-cert"
               readOnly: true
-          resources:
-            limits:
-              "cpu": "500m"
-              "memory": "512Mi"
-            requests:
-              "cpu": "500m"
-              "memory": "512Mi"
       securityContext:
         runAsNonRoot: true
         seccompProfile:

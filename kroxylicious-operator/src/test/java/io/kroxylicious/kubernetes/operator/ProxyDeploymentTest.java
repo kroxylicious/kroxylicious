@@ -115,28 +115,6 @@ class ProxyDeploymentTest {
     }
 
     @Test
-    void proxyContainerHasDefaultResourceRequirements() {
-        // Given
-        var proxyModel = new ProxyModel(EMPTY_RESOLUTION_RESULT, new ProxyNetworkingModel(List.of()), List.of());
-        configureProxyModel(proxyModel);
-        ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
-
-        // When
-        Deployment actual = proxyDeploymentDependentResource.desired(kafkaProxy, kubernetesContext);
-
-        // Then
-        assertThat(actual.getSpec().getTemplate().getSpec().getContainers()).singleElement().satisfies(container -> {
-            assertThat(container.getResources()).isNotNull();
-            assertThat(container.getResources().getLimits())
-                    .containsEntry("cpu", Quantity.parse("500m"))
-                    .containsEntry("memory", Quantity.parse("512Mi"));
-            assertThat(container.getResources().getRequests())
-                    .containsEntry("cpu", Quantity.parse("500m"))
-                    .containsEntry("memory", Quantity.parse("512Mi"));
-        });
-    }
-
-    @Test
     void shouldSpecifySecCompProfile() {
         // Given
         ProxyDeploymentDependentResource proxyDeploymentDependentResource = new ProxyDeploymentDependentResource();
