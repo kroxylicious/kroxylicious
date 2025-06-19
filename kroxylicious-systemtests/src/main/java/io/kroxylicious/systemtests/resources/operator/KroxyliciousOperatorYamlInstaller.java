@@ -15,6 +15,7 @@ import java.io.UncheckedIOException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.PathMatcher;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -89,22 +90,48 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
     }
 
     @NonNull
-    private static Predicate<Path> glob(String glob) {
-        return FileSystems.getDefault()
-                .getPathMatcher("glob:" + glob)::matches;
+    private static List<Path> installFilesMatching(Predicate<Path> matcher) {
+        List<Path> crdFiles;
+        try (var fileStream = Files.list(Path.of(Constants.OPERATOR_INSTALL_DIR))) {
+            crdFiles = fileStream.filter(Files::isRegularFile)
+                    .filter(matcher)
+                    .sorted()
+                    .toList();
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        return crdFiles;
     }
 
-    private static List<Path> getNotCrdOperatorFiles() {
-        return installFilesMatching(
-                Predicate.not(glob(Constants.OPERATOR_INSTALL_CRD_GLOB)));
+    @NonNull
+    private static Predicate<Path> glob(String glob) {
+        PathMatcher pathMatcher = FileSystems.getDefault()
+                .getPathMatcher("glob:" + glob);
+        return path -> pathMatcher.matches(path.getFileName());
+    }
+
+    @NonNull
+    private static List<Path> installCrdFiles() {
+        return installFilesMatching(glob(Constants.OPERATOR_INSTALL_CRD_GLOB));
+    }
+
+    private static File installDeploymentFile() {
+        return getFilteredOperatorFiles(glob(Constants.OPERATOR_INSTALL_DEPLOYMENT_GLOB)).get(0);
+    }
+
+
+    private static List<File> installNonDeploymentOrCrdFiles() {
+        return getFilteredOperatorFiles(Predicate.not(glob(Constants.OPERATOR_INSTALL_DEPLOYMENT_GLOB)));
     }
 
     private static List<File> getFilteredOperatorFiles(Predicate<Path> predicate) {
-        return getNotCrdOperatorFiles().stream().filter(predicate).map(Path::toFile).toList();
+        return installFilesMatching(
+                predicate.and(Predicate.not(glob(Constants.OPERATOR_INSTALL_CRD_GLOB)))).stream().map(Path::toFile).toList();
     }
 
     private void applyClusterOperatorInstallFiles(String namespaceName) {
-        DeploymentUtils.deployYamlFiles(namespaceName, getFilteredOperatorFiles(Predicate.not(glob(Constants.OPERATOR_INSTALL_DEPLOYMENT_GLOB))));
+        DeploymentUtils.deployYamlFiles(namespaceName, installNonDeploymentOrCrdFiles());
     }
 
     /**
@@ -124,7 +151,7 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
     }
 
     private void applyDeploymentFile() {
-        Deployment operatorDeployment = TestFrameUtils.configFromYaml(getFilteredOperatorFiles(glob(Constants.OPERATOR_INSTALL_DEPLOYMENT_GLOB)).get(0),
+        Deployment operatorDeployment = TestFrameUtils.configFromYaml(installDeploymentFile(),
                 Deployment.class);
 
         String deploymentImage = operatorDeployment
@@ -189,30 +216,18 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
         KubeResourceManager.get().createOrUpdateResourceWithWait(operatorDeployment, debugService);
     }
 
+
+
     /**
      * Temporary method to fulfill the Crds installation until new JOSDK 5.0.0 release landed https://github.com/operator-framework/java-operator-sdk/releases
      */
     private void applyCrds() throws FileNotFoundException {
-        for (Path crdPath : installFilesMatching(glob(Constants.OPERATOR_INSTALL_CRD_GLOB))) {
+        for (Path crdPath : installCrdFiles()) {
             CustomResourceDefinition customResourceDefinition = TestFrameUtils.configFromYaml(crdPath.toFile(), CustomResourceDefinition.class);
             KubeResourceManager.get().createOrUpdateResourceWithWait(customResourceDefinition);
         }
     }
 
-    @NonNull
-    private static List<Path> installFilesMatching(Predicate<Path> matcher) {
-        List<Path> crdFiles;
-        try (var fileStream = Files.list(Path.of(Constants.OPERATOR_INSTALL_DIR))) {
-            crdFiles = fileStream.filter(Files::isRegularFile)
-                    .filter(matcher)
-                    .sorted()
-                    .toList();
-        }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-        return crdFiles;
-    }
 
     @Override
     public boolean equals(Object other) {
@@ -282,7 +297,7 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
 
             // clear all resources related to the extension context
             try {
-                for (File operatorFile : getFilteredOperatorFiles(Predicate.not(glob(Constants.DEPLOYMENT)))) {
+                for (File operatorFile : installNonDeploymentOrCrdFiles()) {
                     LOGGER.info("Deleting Kroxylicious Operator element: {}", operatorFile.getName());
                     kubeClient().getClient().load(new FileInputStream(operatorFile.getAbsolutePath())).inAnyNamespace().delete();
                 }
