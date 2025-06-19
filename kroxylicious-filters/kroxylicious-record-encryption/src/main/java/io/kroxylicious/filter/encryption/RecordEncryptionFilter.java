@@ -26,7 +26,6 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.MemoryRecords;
-import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.slf4j.Logger;
 
 import io.micrometer.core.instrument.Counter;
@@ -43,7 +42,6 @@ import io.kroxylicious.filter.encryption.decrypt.DecryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionScheme;
 import io.kroxylicious.kms.service.KmsException;
-import io.kroxylicious.kms.service.UnknownKeyException;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
@@ -175,15 +173,11 @@ public class RecordEncryptionFilter<K>
                 .exceptionallyCompose(throwable -> {
                     if (throwable.getCause() instanceof KmsException) {
                         log.atWarn().setMessage("Failed to decrypt records, cause message: {}"
-                                        + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). Client may see a message 'Unexpected error code 91 while fetching at offset'")
+                                + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). Client may see a message 'Unexpected error code 91 while fetching at offset'")
                                 .addArgument(throwable.getMessage())
                                 .setCause(log.isDebugEnabled() ? throwable : null)
                                 .log();
-                        response.responses().forEach(r -> r.partitions().forEach(p -> {
-                            p.setErrorCode(Errors.RESOURCE_NOT_FOUND.code());
-                            p.setRecords(MemoryRecords.EMPTY);
-                        }
-                        ));
+                        convertToErrorResponse(apiVersion, response, Errors.RESOURCE_NOT_FOUND);
                         return context.forwardResponse(header, response);
                     }
                     else {
@@ -196,6 +190,20 @@ public class RecordEncryptionFilter<K>
                     }
 
                 });
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private static void convertToErrorResponse(short apiVersion, FetchResponseData response, Errors error) {
+        response.setErrorCode(error.code());
+        if (apiVersion < 13) {
+            response.responses().forEach(r -> r.partitions().forEach(p -> {
+                p.setErrorCode(error.code());
+                p.setRecords(MemoryRecords.EMPTY);
+            }));
+        }
+        else {
+            response.setResponses(List.of());
+        }
     }
 
     private CompletionStage<List<FetchableTopicResponse>> maybeDecodeFetch(List<FetchableTopicResponse> topics, FilterContext context) {
