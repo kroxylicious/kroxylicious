@@ -120,7 +120,6 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
         return getFilteredOperatorFiles(glob(Constants.OPERATOR_INSTALL_DEPLOYMENT_GLOB)).get(0);
     }
 
-
     private static List<File> installNonDeploymentOrCrdFiles() {
         return getFilteredOperatorFiles(Predicate.not(glob(Constants.OPERATOR_INSTALL_DEPLOYMENT_GLOB)));
     }
@@ -216,8 +215,6 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
         KubeResourceManager.get().createOrUpdateResourceWithWait(operatorDeployment, debugService);
     }
 
-
-
     /**
      * Temporary method to fulfill the Crds installation until new JOSDK 5.0.0 release landed https://github.com/operator-framework/java-operator-sdk/releases
      */
@@ -227,7 +224,6 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
             KubeResourceManager.get().createOrUpdateResourceWithWait(customResourceDefinition);
         }
     }
-
 
     @Override
     public boolean equals(Object other) {
