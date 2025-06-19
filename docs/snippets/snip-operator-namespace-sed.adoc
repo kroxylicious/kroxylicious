@@ -1,0 +1,13 @@
+On Linux, use:
++
+[source, subs="+quotes"]
+----
+sed -i 's/namespace: .\*/namespace: my-kroxylicious-operator-namespace/' install/*.yaml
+----
++
+On MacOS, use:
++
+[source, subs="+quotes"]
+----
+sed -i '' 's/namespace: .\*/namespace: my-kroxylicious-operator-namespace/' install/*.yaml
+----

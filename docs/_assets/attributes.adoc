@@ -17,6 +17,12 @@
 :KroxyliciousVersion: 0.9
 :gitRef: tree/main
 :ApicurioVersion: 2.6.x
+:KubernetesVersionMinimum: 1.31
+:OpenShiftVersionMinimum: 4.18
+
+:OperatorDownloadUrl: https://github.com/kroxylicious/kroxylicious/releases[GitHub releases page^]
+:OperatorAssetZipFileName: kroxylicious-operator-{KroxyliciousVersion}.zip
+:OperatorAssetTgzFileName: kroxylicious-operator-{KroxyliciousVersion}.tar.gz
 
 //Proxy links
 :github: https://github.com/kroxylicious/kroxylicious
@@ -26,6 +32,9 @@
 :kms-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-kms/{KroxyliciousVersion}
 :encryption-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-encryption/{KroxyliciousVersion}
 :start-script: https://github.com/kroxylicious/kroxylicious/blob/{gitRef}/kroxylicious-app/src/assembly/kroxylicious-start.sh
+
+//Kubernetes links
+:KubeTools: link:https://kubernetes.io/docs/tasks/tools/[Install Tools^]
 
 //Kafka links
 :ApacheKafkaSite: https://kafka.apache.org[Apache Kafka website^]
@@ -65,6 +74,7 @@
 :include-platform-bare-metal: 1
 // We're not ready to enable OLM yet
 //:include-olm: 1
+//:OpenShiftOnly: 1
 
 //API stability markers.
 :unstable-api-version: denoted by a major version 0
