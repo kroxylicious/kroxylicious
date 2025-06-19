@@ -10,6 +10,7 @@ kms: AwsKmsService                                            # <1>
 kmsConfig:
   endpointUrl: https://kms.<region>.amazonaws.com             # <2>
   tls:                                                        # <3>
+    # ...
   longTermCredentials:
     accessKeyId:
       passwordFile: /opt/aws/accessKey                        # <4>
