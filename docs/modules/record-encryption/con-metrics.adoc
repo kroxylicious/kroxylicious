@@ -2,7 +2,7 @@
 //
 // record-encryption-guide/assembly-monitoring-record-encryption-filter.adoc
 
-[id='assembly-monitoring-record-encryption-filter-{context}']
+[id='con-monitoring-record-encryption-filter-{context}']
 = Record Encryption filter metrics
 
 [role="_abstract"]
