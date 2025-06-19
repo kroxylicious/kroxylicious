@@ -36,6 +36,7 @@ import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
 import org.apache.kafka.common.record.Record;
@@ -49,6 +50,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -66,6 +69,7 @@ import io.kroxylicious.filter.encryption.config.UnresolvedKeyPolicy;
 import io.kroxylicious.filter.encryption.decrypt.DecryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.RequestNotSatisfiable;
+import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
@@ -98,6 +102,8 @@ class RecordEncryptionFilterTest {
     private static final byte[] HELLO_CIPHER_WORLD = "Hello Ciphertext World!".getBytes(UTF_8);
 
     private static final byte[] ENCRYPTED_MESSAGE_BYTES = "xslkajfd;ljsaefjjKLDJlkDSJFLJK';,kSDKF'".getBytes(UTF_8);
+    private static final short OLD_FETCH_API_VERSION = 9;
+    private static final short MODERN_FETCH_API_VERSION = FetchResponseData.HIGHEST_SUPPORTED_VERSION;
 
     @Mock(strictness = LENIENT)
     EncryptionManager<String> encryptionManager;
@@ -355,6 +361,34 @@ class RecordEncryptionFilterTest {
         assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class).havingCause().isSameAs(exception);
     }
 
+    @ParameterizedTest
+    @ValueSource(shorts = { OLD_FETCH_API_VERSION, MODERN_FETCH_API_VERSION })
+    void shouldPropagateErrorWhenDecryptionFails(short fetchApiVersion) {
+        // Given
+        var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
+                .setTopic(ENCRYPTED_TOPIC)
+                .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
+        RuntimeException exception = new KmsException("boom");
+        when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
+
+        // When
+        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(fetchApiVersion,
+                new ResponseHeaderData(), fetchResponseData, context);
+
+        // Then
+        assertThat(stage).succeedsWithin(Duration.ZERO);
+
+        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
+                .asInstanceOf(InstanceOfAssertFactories.type(FetchResponseData.class))
+                .satisfies(frd -> assertThat(frd.errorCode()).isEqualTo(Errors.NONE.code()))
+                .extracting(FetchResponseData::responses, InstanceOfAssertFactories.list(FetchResponseData.FetchableTopicResponse.class))
+                .singleElement()
+                .extracting(FetchableTopicResponse::partitions, InstanceOfAssertFactories.list(PartitionData.class))
+                .singleElement()
+                .extracting(PartitionData::errorCode)
+                .isEqualTo(Errors.RESOURCE_NOT_FOUND.code())));
+    }
+
     @Test
     void shouldDecryptEncryptedRecords() {
         // Given
@@ -372,8 +406,7 @@ class RecordEncryptionFilterTest {
         // Then
         verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> {
             assertThat(actualFetchResponse)
-                    .isInstanceOf(FetchResponseData.class)
-                    .asInstanceOf(InstanceOfAssertFactories.type(FetchResponseData.class));
+                    .isInstanceOf(FetchResponseData.class);
             FetchResponseData fetchResponse = (FetchResponseData) actualFetchResponse;
             assertThat(fetchResponse.responses()).hasSize(1);
             FetchableTopicResponse onlyTopicResponse = fetchResponse.responses().iterator().next();
