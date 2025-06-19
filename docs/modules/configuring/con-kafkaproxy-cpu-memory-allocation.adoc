@@ -1,0 +1,35 @@
+// file included in the following:
+//
+// kroxylicious-operator/assemblies/assembly-operator-operate-resource-allocation.adoc
+
+[id='con-kafkaproxy-cpu-memory-allocation-{context}']
+= Configuring Proxy container CPU and memory resource limits and requests
+
+When you define a `KafkaProxy` resource, a number of Kubernetes `Pods` are created, each with a proxy container.
+Each of these containers runs a single Kroxylicious Proxy process.
+
+By default, these proxy containers are defined without resource limits.
+
+You can learn more about Kubernetes resource management https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/[here].
+
+To manage CPU and memory consumption in your environment, modify the `proxyContainer` section within your `KafkaProxy` specification.
+
+.Example `KafkaProxy` configuration with proxy container resource specification
+[source,yaml]
+----
+kind: KafkaProxy
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: simple
+spec:
+  infrastructure:
+    proxyContainer:
+      resources:
+        requests:
+          cpu: '400m'
+          memory: '656Mi'
+        limits:
+          cpu: '500m'
+          memory: '756Mi'
+----
