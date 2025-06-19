@@ -119,6 +119,7 @@ public final class KafkaProxy implements AutoCloseable {
         }
         try {
             STARTUP_SHUTDOWN_LOGGER.info("Kroxylicious is starting");
+            meterRegistries = new MeterRegistries(pfr, micrometerConfig);
             initVersionInfoMetric();
 
             var portConflictDefector = new PortConflictDetector();
@@ -127,7 +128,6 @@ public final class KafkaProxy implements AutoCloseable {
             portConflictDefector.validate(virtualClusterModels, managementHostPort);
 
             var availableCores = Runtime.getRuntime().availableProcessors();
-            meterRegistries = new MeterRegistries(pfr, micrometerConfig);
 
             this.managementEventGroup = buildNettyEventGroups("management", availableCores, config.isUseIoUring());
             this.serverEventGroup = buildNettyEventGroups("server", availableCores, config.isUseIoUring());
