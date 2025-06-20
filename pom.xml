@@ -75,7 +75,6 @@
         <enforcer.api.version>3.5.0</enforcer.api.version>
         <maven.core.version>3.9.9</maven.core.version>
         <awaitility.version>4.3.0</awaitility.version>
-        <commons.io.version>2.19.0</commons.io.version>
         <testcontainers.version>1.21.0</testcontainers.version>
         <bouncycastle.version>1.80</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.2.0</netty-leak-detector-junit-extension.version>
@@ -419,11 +418,6 @@
                 <groupId>org.awaitility</groupId>
                 <artifactId>awaitility</artifactId>
                 <version>${awaitility.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>commons-io</groupId>
-                <artifactId>commons-io</artifactId>
-                <version>${commons.io.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.kafka</groupId>

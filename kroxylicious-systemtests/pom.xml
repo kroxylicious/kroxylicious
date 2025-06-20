@@ -159,10 +159,6 @@
             <artifactId>assertj-core</artifactId>
         </dependency>
         <dependency>
-            <groupId>commons-io</groupId>
-            <artifactId>commons-io</artifactId>
-        </dependency>
-        <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-test-support</artifactId>
         </dependency>

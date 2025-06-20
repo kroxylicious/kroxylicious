@@ -9,10 +9,7 @@ package io.kroxylicious.systemtests.utils;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.net.URI;
-import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
@@ -20,7 +17,6 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
-import org.apache.commons.io.FileUtils;
 import org.awaitility.core.ConditionEvaluationListener;
 import org.awaitility.core.EvaluatedCondition;
 import org.awaitility.core.TimeoutEvent;
@@ -110,25 +106,6 @@ public class DeploymentUtils {
                     }
                 });
         LOGGER.debug("Deployment: {}/{} was deleted", namespaceName, name);
-    }
-
-    /**
-     * Gets deployment file from url.
-     *
-     * @param url the url
-     * @return the deployment file from url
-     * @throws IOException the io exception
-     */
-    public static FileInputStream getDeploymentFileFromURL(String url) throws IOException {
-        File deploymentFile = Files.createTempFile("deploy", ".yaml", TestUtils.getDefaultPosixFilePermissions()).toFile();
-        FileUtils.copyURLToFile(
-                URI.create(url).toURL(),
-                deploymentFile,
-                5000,
-                10000);
-        deploymentFile.deleteOnExit();
-
-        return new FileInputStream(deploymentFile);
     }
 
     /**
