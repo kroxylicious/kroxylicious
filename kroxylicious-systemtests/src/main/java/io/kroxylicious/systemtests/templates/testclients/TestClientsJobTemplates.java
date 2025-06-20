@@ -143,8 +143,10 @@ public class TestClientsJobTemplates {
     public static JobBuilder defaultKcatJob(String jobName, List<String> args) {
         return baseClientJob(jobName)
                 .editSpec()
+                .withBackoffLimit(3)
                 .editTemplate()
                 .editSpec()
+                .withRestartPolicy(Constants.RESTART_POLICY_ONFAILURE)
                 .withContainers(ContainerTemplates.baseImageBuilder("kcat", Constants.KCAT_CLIENT_IMAGE)
                         .withArgs(args)
                         .build())
