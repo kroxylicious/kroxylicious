@@ -33,6 +33,7 @@ import javax.management.MalformedObjectNameException;
 import javax.management.ObjectName;
 import javax.management.ReflectionException;
 
+import org.apache.kafka.clients.admin.RecordsToDelete;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -738,7 +739,61 @@ class RecordEncryptionFilterIT {
 
             assertThatThrownBy(() -> consumer.poll(timeout))
                     .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("Unexpected error code 91 while fetching at offset 0 from topic-partition");
+                    .hasMessageContaining("xUnexpected error code 91 while fetching at offset 0 from topic-partition");
+        }
+    }
+
+    @TestTemplate
+    void recoverFromDeletedKek(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        var testKekManager = testKmsFacade.getTestKekManager();
+
+        var builder = proxy(cluster);
+
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
+
+        var timeout = Duration.ofSeconds(5);
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer()) {
+            testKekManager.generateKek(topic.name());
+
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "encrypted with original kek")))
+                    .succeedsWithin(timeout);
+
+            testKekManager.deleteKek(topic.name());
+        }
+
+        // restart the proxy in order that its key caches are empty
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer();
+                var admin = tester.admin()) {
+
+            testKekManager.generateKek(topic.name());
+
+            var encryptedWithNewKek = producer.send(new ProducerRecord<>(topic.name(), "encrypted with new kek"));
+            assertThat(encryptedWithNewKek)
+                    .succeedsWithin(timeout);
+            var newKekOffset = encryptedWithNewKek.resultNow().offset();
+
+            try (var consumer = tester.consumer()) {
+                consumer.subscribe(List.of(topic.name()));
+                assertThatThrownBy(() -> consumer.poll(timeout))
+                        .isInstanceOf(IllegalStateException.class)
+                        .hasMessageContaining("Unexpected error code 91 while fetching at offset 0 from topic-partition");
+            }
+
+            assertThat(admin.deleteRecords(Map.of(new TopicPartition(topic.name(), 0), RecordsToDelete.beforeOffset(newKekOffset))).all())
+                    .succeedsWithin(Duration.ofSeconds(5));
+
+            try (var consumer = tester.consumer()) {
+                consumer.subscribe(List.of(topic.name()));
+
+                var records = consumer.poll(timeout);
+                assertThat(records.records(topic.name()))
+                        .map(ConsumerRecord::value)
+                        .containsExactly("encrypted with new kek");
+            }
         }
     }
 
