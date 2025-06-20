@@ -9,7 +9,6 @@ package io.kroxylicious.systemtests.resources.operator;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.FileSystems;
@@ -30,6 +29,7 @@ import org.junit.platform.commons.PreconditionViolationException;
 import io.fabric8.kubernetes.api.model.ContainerPortBuilder;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
+import io.fabric8.kubernetes.api.model.LabelSelectorBuilder;
 import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
@@ -41,6 +41,7 @@ import io.skodjob.testframe.enums.InstallType;
 import io.skodjob.testframe.installation.InstallationMethod;
 import io.skodjob.testframe.resources.KubeResourceManager;
 import io.skodjob.testframe.utils.ImageUtils;
+import io.skodjob.testframe.utils.PodUtils;
 import io.skodjob.testframe.utils.TestFrameUtils;
 
 import io.kroxylicious.systemtests.Constants;
@@ -65,8 +66,6 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
 
     private static final KubeClusterResource cluster = KubeClusterResource.getInstance();
     protected static final int DEBUG_PORT_NUMBER = 5005;
-
-    private static List<File> operatorFiles;
 
     private final ExtensionContext extensionContext;
     private final String kroxyliciousOperatorName;
@@ -139,12 +138,7 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
      * @param clientNamespace namespace which will be created and used as default by kube client
      */
     public void prepareEnvForOperator(String clientNamespace) {
-        try {
-            applyCrds();
-        }
-        catch (FileNotFoundException e) {
-            throw new UncheckedIOException(e);
-        }
+        applyCrds();
         applyClusterOperatorInstallFiles(clientNamespace);
         applyDeploymentFile();
     }
@@ -213,12 +207,16 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
                 .build();
         //@formatter:on
         KubeResourceManager.get().createOrUpdateResourceWithWait(operatorDeployment, debugService);
+        var labels = operatorDeployment.getSpec().getTemplate().getMetadata().getLabels();
+        PodUtils.waitForPodsReady(namespaceInstallTo, new LabelSelectorBuilder()
+                .withMatchLabels(labels).build(), 1, true, () -> {
+                });
     }
 
     /**
      * Temporary method to fulfill the Crds installation until new JOSDK 5.0.0 release landed https://github.com/operator-framework/java-operator-sdk/releases
      */
-    private void applyCrds() throws FileNotFoundException {
+    private void applyCrds() {
         for (Path crdPath : installCrdFiles()) {
             CustomResourceDefinition customResourceDefinition = TestFrameUtils.configFromYaml(crdPath.toFile(), CustomResourceDefinition.class);
             KubeResourceManager.get().createOrUpdateResourceWithWait(customResourceDefinition);
