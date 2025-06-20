@@ -209,7 +209,8 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
         KubeResourceManager.get().createOrUpdateResourceWithWait(operatorDeployment, debugService);
         var labels = operatorDeployment.getSpec().getTemplate().getMetadata().getLabels();
         PodUtils.waitForPodsReady(namespaceInstallTo, new LabelSelectorBuilder()
-                .withMatchLabels(labels).build(), 1, true, () -> {});
+                .withMatchLabels(labels).build(), 1, true, () -> {
+                });
     }
 
     /**
