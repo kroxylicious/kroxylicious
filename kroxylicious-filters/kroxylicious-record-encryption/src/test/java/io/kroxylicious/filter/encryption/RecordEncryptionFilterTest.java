@@ -50,8 +50,6 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
 import org.mockito.Mock;
@@ -70,6 +68,7 @@ import io.kroxylicious.filter.encryption.decrypt.DecryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.RequestNotSatisfiable;
 import io.kroxylicious.kms.service.KmsException;
+import io.kroxylicious.kms.service.UnknownKeyException;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
@@ -82,10 +81,12 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static io.kroxylicious.test.condition.kafka.ProduceRequestDataCondition.produceRequestMatching;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.atIndex;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.assertArg;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -361,18 +362,17 @@ class RecordEncryptionFilterTest {
         assertThat(stage).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class).havingCause().isSameAs(exception);
     }
 
-    @ParameterizedTest
-    @ValueSource(shorts = { OLD_FETCH_API_VERSION, MODERN_FETCH_API_VERSION })
-    void shouldPropagateErrorWhenDecryptionFails(short fetchApiVersion) {
+    @Test
+    void shouldPropagateUnknownKeyToClientAsResourceUnknownError() {
         // Given
         var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
                 .setTopic(ENCRYPTED_TOPIC)
                 .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
-        RuntimeException exception = new KmsException("boom");
+        RuntimeException exception = new UnknownKeyException("boom");
         when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
 
         // When
-        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(fetchApiVersion,
+        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
                 new ResponseHeaderData(), fetchResponseData, context);
 
         // Then
@@ -383,10 +383,74 @@ class RecordEncryptionFilterTest {
                 .satisfies(frd -> assertThat(frd.errorCode()).isEqualTo(Errors.NONE.code()))
                 .extracting(FetchResponseData::responses, InstanceOfAssertFactories.list(FetchResponseData.FetchableTopicResponse.class))
                 .singleElement()
-                .extracting(FetchableTopicResponse::partitions, InstanceOfAssertFactories.list(PartitionData.class))
+                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, ENCRYPTED_TOPIC, Errors.RESOURCE_NOT_FOUND))));
+    }
+
+    @Test
+    void shouldIdentifyTheTopicPartitionThatSufferedUnknownKey() {
+        // Given
+        var missingKeyResponse = new FetchableTopicResponse()
+                .setTopic(ENCRYPTED_TOPIC)
+                .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD))));
+        var anotherResponse = new FetchableTopicResponse()
+                .setTopic("anotherTopic")
+                .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD))));
+
+        var fetchResponseData = buildFetchResponseData(anotherResponse, missingKeyResponse);
+        RuntimeException exception = new UnknownKeyException("boom");
+        when(decryptionManager.decrypt(eq(ENCRYPTED_TOPIC), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
+        when(decryptionManager.decrypt(eq(anotherResponse.topic()), anyInt(), any(), any())).thenReturn(CompletableFuture.completedStage(makeRecord(HELLO_PLAIN_WORLD)));
+
+        // When
+        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                new ResponseHeaderData(), fetchResponseData, context);
+
+        // Then
+        assertThat(stage).succeedsWithin(Duration.ZERO);
+
+        verify(context).forwardResponse(any(ResponseHeaderData.class), assertArg(actualFetchResponse -> assertThat(actualFetchResponse)
+                .asInstanceOf(InstanceOfAssertFactories.type(FetchResponseData.class))
+                .satisfies(frd -> assertThat(frd.errorCode()).isEqualTo(Errors.NONE.code()))
+                .extracting(FetchResponseData::responses, InstanceOfAssertFactories.list(FetchResponseData.FetchableTopicResponse.class))
+                .hasSize(2)
+                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, anotherResponse.topic(), Errors.NONE), atIndex(0))
+                .satisfies(ftr -> assertHasSingleEmptyPartitionData(ftr, ENCRYPTED_TOPIC, Errors.RESOURCE_NOT_FOUND), atIndex(1))
+
+        ));
+    }
+
+    private static void assertHasSingleEmptyPartitionData(FetchableTopicResponse ftr, String expectedTopicName, Errors expectedError) {
+        assertThat(ftr.topic()).isEqualTo(expectedTopicName);
+        assertThat(ftr.partitions())
                 .singleElement()
-                .extracting(PartitionData::errorCode)
-                .isEqualTo(Errors.RESOURCE_NOT_FOUND.code())));
+                .satisfies(pd -> {
+                    assertThat(pd.errorCode()).isEqualTo(expectedError.code());
+                    assertThat(pd.records()).isSameAs(MemoryRecords.EMPTY);
+                });
+    }
+
+    /**
+     * Kms exceptions (apart from UnknownKeyException) may be transient.  Causing the connection to close
+     * will mean the client tries to fetch again.
+     */
+    @Test
+    void shouldCloseConnectionIfDecryptFailsForOtherReason() {
+        // Given
+        var fetchResponseData = buildFetchResponseData(new FetchableTopicResponse()
+                .setTopic(ENCRYPTED_TOPIC)
+                .setPartitions(List.of(new PartitionData().setRecords(makeRecord(HELLO_CIPHER_WORLD)))));
+        RuntimeException exception = new KmsException("boom");
+        when(decryptionManager.decrypt(any(), anyInt(), any(), any())).thenReturn(CompletableFuture.failedFuture(exception));
+
+        // When
+        CompletionStage<ResponseFilterResult> stage = encryptionFilter.onFetchResponse(FetchResponseData.HIGHEST_SUPPORTED_VERSION,
+                new ResponseHeaderData(), fetchResponseData, context);
+
+        // Then
+        assertThat(stage)
+                .failsWithin(Duration.ZERO)
+                .withThrowableThat()
+                .withCause(exception);
     }
 
     @Test
