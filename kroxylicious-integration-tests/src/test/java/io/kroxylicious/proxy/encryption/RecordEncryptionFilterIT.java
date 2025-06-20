@@ -738,7 +738,42 @@ class RecordEncryptionFilterIT {
 
             assertThatThrownBy(() -> consumer.poll(timeout))
                     .isInstanceOf(IllegalStateException.class)
-                    .hasMessageContaining("Unexpected error code 91 while fetching at offset 0 from topic-partition");
+                    .hasMessageContaining("Unexpected error code 91 while fetching at offset 0 from topic-partition " + topic.name() + "-0");
+        }
+    }
+
+    /**
+     * This test ensures that the topic that has suffered the failure to decrypt is the one reported to the client.
+     */
+    @TestTemplate
+    void consumeFailsForOneTopicOnlyAfterKekDeleted(KafkaCluster cluster, Topic lostKekTopic, Topic otherTopic, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(lostKekTopic.name());
+        testKekManager.generateKek(otherTopic.name());
+
+        var builder = proxy(cluster);
+
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer();
+                var consumer = tester.consumer()) {
+
+            var timeout = Duration.ofSeconds(5);
+            assertThat(producer.send(new ProducerRecord<>(lostKekTopic.name(), "hello " + lostKekTopic)))
+                    .succeedsWithin(timeout);
+            assertThat(producer.send(new ProducerRecord<>(otherTopic.name(), "hello " + otherTopic)))
+                    .succeedsWithin(timeout);
+
+            testKekManager.deleteKek(lostKekTopic.name());
+
+            consumer.subscribe(List.of(otherTopic.name(), lostKekTopic.name()));
+
+            assertThatThrownBy(() -> consumer.poll(timeout))
+                    .isInstanceOf(IllegalStateException.class)
+                    .hasMessageContaining("Unexpected error code 91 while fetching at offset 0 from topic-partition " + lostKekTopic.name() + "-0");
         }
     }
 
