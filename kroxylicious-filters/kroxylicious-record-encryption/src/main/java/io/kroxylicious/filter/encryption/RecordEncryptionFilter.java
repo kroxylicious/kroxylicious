@@ -215,7 +215,7 @@ public class RecordEncryptionFilter<K>
                             log.atWarn()
                                     .setMessage("Failed to decrypt record in topic-partition {}-{} owing to key not found condition. "
                                             + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). Client may see a message like 'Unexpected error code 91 while fetching at offset' (java) or "
-                                            + "or 'Request illegally referred to resource that does not exist' (librdkafka). "
+                                            + "'Request illegally referred to resource that does not exist' (librdkafka). "
                                             + "Cause message: {}. "
                                             + "Raise log level to DEBUG to see the stack.")
                                     .addArgument(topicName)
