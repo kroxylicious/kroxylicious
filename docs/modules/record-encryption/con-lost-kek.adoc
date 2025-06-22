@@ -6,6 +6,7 @@
 = Dealing with a lost KEK
 
 This section discusses what to do if you lose a KEK that is still required to decrypt records.
+For the purposes of this section, 'lost' means that the KMS is available to the filter but is not able to perform encryption operations using the KEK.
 
 WARNING: Deleting KEKs from the KMS is not recommended.
 Figuring out which KEKs are no longer used by any records in a Kafka cluster is non-trivial.
