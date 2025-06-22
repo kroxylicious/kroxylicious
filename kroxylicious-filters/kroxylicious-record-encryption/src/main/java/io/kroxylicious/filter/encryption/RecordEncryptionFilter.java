@@ -41,7 +41,7 @@ import io.kroxylicious.filter.encryption.config.UnresolvedKeyPolicy;
 import io.kroxylicious.filter.encryption.decrypt.DecryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionScheme;
-import io.kroxylicious.kms.service.KmsException;
+import io.kroxylicious.kms.service.UnknownKeyException;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
@@ -171,14 +171,11 @@ public class RecordEncryptionFilter<K>
         return maybeDecodeFetch(response.responses(), context)
                 .thenCompose(responses -> context.forwardResponse(header, response.setResponses(responses)))
                 .exceptionallyCompose(throwable -> {
-                    if (throwable.getCause() instanceof KmsException) {
-                        log.atWarn().setMessage("Failed to decrypt records, cause message: {}. "
-                                + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). Client may see a message like 'Unexpected error code 91 while fetching at offset' (java) or"
-                                + " or 'Request illegally referred to resource that does not exist' (librdkafka)")
-                                .addArgument(throwable.getMessage())
-                                .setCause(log.isDebugEnabled() ? throwable : null)
-                                .log();
-                        convertToErrorResponse(apiVersion, response, Errors.RESOURCE_NOT_FOUND);
+                    if (throwable.getCause() instanceof UnknownKeyException) {
+                        // #maybeDecodePartitions will have set the RESOURCE_NOT_FOUND error code on the partition(s) that failed to decrypt
+                        // and will have logged the affected topic-partitions.
+                        // Remove all the records from the whole fetch to avoid the possibility that the client processes an incomplete response.
+                        response.responses().forEach(r -> r.partitions().forEach(p -> p.setRecords(MemoryRecords.EMPTY)));
                         return context.forwardResponse(header, response);
                     }
                     else {
@@ -190,17 +187,6 @@ public class RecordEncryptionFilter<K>
                         return CompletableFuture.failedStage(throwable);
                     }
                 });
-    }
-
-    @SuppressWarnings("SameParameterValue")
-    private static void convertToErrorResponse(short apiVersion, FetchResponseData response, Errors error) {
-        // We take a different approach to FetchRequest.getErrorResponse here.
-        // Experimentation shows that setting the error code at the top-level just causes the Kafka client
-        // to retry to the fetch. It does not throw the error back to the application.
-        response.responses().forEach(r -> r.partitions().forEach(p -> {
-            p.setErrorCode(error.code());
-            p.setRecords(MemoryRecords.EMPTY);
-        }));
     }
 
     private CompletionStage<List<FetchableTopicResponse>> maybeDecodeFetch(List<FetchableTopicResponse> topics, FilterContext context) {
@@ -222,7 +208,26 @@ public class RecordEncryptionFilter<K>
             if (!(partitionData.records() instanceof MemoryRecords)) {
                 throw new IllegalStateException();
             }
-            result.add(maybeDecodeRecords(topicName, partitionData, (MemoryRecords) partitionData.records(), context));
+            var stage = maybeDecodeRecords(topicName, partitionData, (MemoryRecords) partitionData.records(), context)
+                    .exceptionallyCompose(t -> {
+                        var cause = t.getCause();
+                        if (cause instanceof UnknownKeyException) {
+                            log.atWarn()
+                                    .setMessage("Failed to decrypt record in topic-partition {}-{} owing to key not found condition. "
+                                            + "This will be reported to the client as a RESOURCE_NOT_FOUND(91). Client may see a message like 'Unexpected error code 91 while fetching at offset' (java) or "
+                                            + "'Request illegally referred to resource that does not exist' (librdkafka). "
+                                            + "Cause message: {}. "
+                                            + "Raise log level to DEBUG to see the stack.")
+                                    .addArgument(topicName)
+                                    .addArgument(partitionData.partitionIndex())
+                                    .addArgument(cause.getMessage())
+                                    .setCause(log.isDebugEnabled() ? cause : null)
+                                    .log();
+                            partitionData.setErrorCode(Errors.RESOURCE_NOT_FOUND.code());
+                        }
+                        return CompletableFuture.failedFuture(t);
+                    });
+            result.add(stage);
         }
         return RecordEncryptionUtil.join(result);
     }
