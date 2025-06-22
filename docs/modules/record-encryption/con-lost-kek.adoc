@@ -5,17 +5,17 @@
 [id='con-lost-kek-{context}']
 = Dealing with a lost KEK
 
-This section discusses what to do if KEK that is still in use to encrypt topics is KEK is lost.
+This section discusses what to do if you lose a KEK that is still required to decrypt records.
 
-WARNING: It is stressed that for successful use of the Record Encryption filter that the encryption keys are *never* deleted from the KMS.
-These procedures are provided for emergency use only.
+WARNING: Deleting KEKs from the KMS is not recommended.
+Figuring out which KEKs are no longer used by any records in a Kafka cluster is non-trivial.
+Any remaining records encrypted using a deleted KEK will become *unrecoverable*.
+In addition, consumers will be unable to read beyond those unrecoverable records without specific intervention, meaning business processing will stop.
+We recommend never deleting KEKs. As such, this procedure is provided for emergency use only.
 
-If a KEK is lost, all the records that were encrypted by the KEK will be *unrecoverable*.
-This means that consumers will be unable to read for the encrypted topic.  Business processing will stop.
-
-If this happens, consumers attached to the topic will receive an error response from the consumer.
+When consumers try to fetch an undecryptable record they will receive an error response from the proxy.
 The precise details of the failure will vary depending on the Kafka Client library being used by the application.
-The error message may look like this:
+The error message may look like one of these:
 
 * `Unexpected error code 91 while fetching at offset n from topic-partition <topic>-<partition>` (Apache Kafka client).
 * `Fetch from broker 0 failed at offset n (leader epoch 0): Broker: Request illegally referred to resource that does not exist` (`Librdkafka` based client)
@@ -55,9 +55,6 @@ Refer to documentation of the KMS for more details.
 After the key has been undeleted, restart the proxy instances.
 Consuming applications should resume as normal.
 
-After the KEK has been recovered from backup and restored to the KMS, restart the proxy instances.
-Applications should begin consuming again as normal.
-
 == Recover the key from backup
 
 If you have a backup of the keys in your KMS, you will be able to recover the key from the backup.
@@ -68,8 +65,7 @@ Refer to documentation of the KMS for more details.
 After the KEK has been recovered from backup and restored to the KMS, restart the proxy instances.
 Applications should begin consuming again as normal.
 
-NOTE: When restoring the key to your KMS, it is important to restore the key material and its associated metadata such as its
-identifiers. The Record Encryption filter stores references to the key identifier in the cipher text record. Restoring the key material alone is not sufficient.
+NOTE: When restoring the key to your KMS, it is important to restore the associated metadata, such as its identifiers, in addition to the key material itself. The Record Encryption filter stores references to the key identifier in the cipher text record. Restoring the key material alone is not sufficient.
 
 == Delete the records encrypted by the lost KEK or advance the consumer groups past them
 
@@ -79,8 +75,8 @@ The final two options are:
 * advance the consumer group offsets used by your applications so that they skip the records that can't be decrypted.
 
 The first challenge is to identify the offsets in the topics after which use of the deleted KEK has ceased.
-If you scale the proxy to more than one replica, the replicas won't necessarily response to a key rotation at the same moment.
-This means there will be periods where some proxy replicas will be using older encryption keys whilst others use newer ones.
+Proxy instances won't necessarily respond to a key rotation at the same moment.
+This means there will be periods where some proxy instances will be using older encryption keys whilst others use newer ones.
 The overall effect of this is that there may not be a single point in the transaction log where encryption switches from one KEK to the next.
 
 You can use a tool such as Apache Kafka's `kafka-console-consumer.sh` with binary search approach to discover the oldest offset that is followed exclusively by records that decrypt successfully.
@@ -90,5 +86,7 @@ You may be able to use domain specific knowledge to help you narrow the search s
 Once you have identified the new starting offset for every affected topic partition, you can use either
 `kafka-delete-records.sh` to delete the undecryptable records or use `kafka-consumer-groups` to reset the consumer group
 offsets.
+
+`kafka-delete-records.sh` only allows deleting records from the tail of the log. This means any readable records prior to the undecryptable ones will also be deleted. However, deleting records is an action that need only be done once. Whereas resetting consumer offsets needs to be done for each consumer or consumer group which ever needs to read beyond the undecryptable records.
 
 After this has been done, applications should be able to begin consuming again, albeit without the lost data.
