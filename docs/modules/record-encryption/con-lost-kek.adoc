@@ -1,0 +1,93 @@
+// file included in the following:
+//
+// assemblies/assembly-operations-record-encryption-filter.adoc
+
+[id='con-lost-kek-{context}']
+= Dealing with a lost KEK
+
+This section discusses what to do if you lose a KEK that is still required to decrypt records.
+For the purposes of this section, 'lost' means that the KMS is available to the filter but is not able to perform encryption operations using the KEK.
+
+WARNING: Deleting KEKs from the KMS is not recommended.
+Figuring out which KEKs are no longer used by any records in a Kafka cluster is non-trivial.
+Any remaining records encrypted using a deleted KEK will become *unrecoverable*.
+In addition, consumers will be unable to read beyond those unrecoverable records without specific intervention, meaning business processing will stop.
+We recommend never deleting KEKs. As such, this procedure is provided for emergency use only.
+
+When consumers try to fetch an undecryptable record they will receive an error response from the proxy.
+The precise details of the failure will vary depending on the Kafka Client library being used by the application.
+The error message may look like one of these:
+
+* `Unexpected error code 91 while fetching at offset n from topic-partition <topic>-<partition>` (Apache Kafka client).
+* `Fetch from broker 0 failed at offset n (leader epoch 0): Broker: Request illegally referred to resource that does not exist` (`Librdkafka` based client)
+
+Other clients may refer to the error code 91.
+
+Error code 91 (Resource not found) is the error number used by the Record Encryption filter to indicate that the required encryption key (KEK) is not available on the KMS.
+
+Once you have identified the issue on the client side, confirm that you indeed have a lost KEK situation, by checking the proxy logs.
+There will be messages like this:
+
+[source]
+----
+Failed to decrypt record in topic-partition <topic>-<partition> owing to key not found condition.
+This will be reported to the client as a RESOURCE_NOT_FOUND(91).
+Client may see a message like 'Unexpected error code 91 while fetching at offset' (java) or or 'Request illegally referred to resource that does not exist' (librdkafka).
+Cause message: key 'd691a642-d8b4-4445-b668-d390df7000bb' is not found (AWS error: ErrorResponse{type='KMSInvalidStateException', message='arn:aws:kms:us-east-1:000000000000:key/d691a642-d8b4-4445-b668-d390df7000bb is pending deletion.'}).
+Raise log level to DEBUG to see the stack.
+----
+
+In this situation, there are three recovery strategies that may be used.
+These are discussed, in order of preference, in the next sections.
+
+== Unschedule key's deletion
+
+Some KMS providers don't actually immediately delete encryption keys.
+Instead, a key is _scheduled_ for deletion at some time in the future.
+When the key is in this state, the key behaves as if it were gone already.
+
+This gives you a grace period where you can change your mind.
+
+Use the Console of the KMS to determine if the missing key is scheduled for deletion.
+If this is the case, use the features of the KMS to undelete the key.
+
+Refer to documentation of the KMS for more details.
+
+After the key has been undeleted, restart the proxy instances.
+Consuming applications should resume as normal.
+
+== Recover the key from backup
+
+If you have a backup of the keys in your KMS, you will be able to recover the key from the backup.
+
+The precise details of how to do this will depend on which KMS you use.
+Refer to documentation of the KMS for more details.
+
+After the KEK has been recovered from backup and restored to the KMS, restart the proxy instances.
+Applications should begin consuming again as normal.
+
+NOTE: When restoring the key to your KMS, it is important to restore the associated metadata, such as its identifiers, in addition to the key material itself. The Record Encryption filter stores references to the key identifier in the cipher text record. Restoring the key material alone is not sufficient.
+
+== Delete the records encrypted by the lost KEK or advance the consumer groups past them
+
+The final two options are:
+
+* delete the records encrypted with the lost KEK from Kafka, or
+* advance the consumer group offsets used by your applications so that they skip the records that can't be decrypted.
+
+The first challenge is to identify the offsets in the topics after which use of the deleted KEK has ceased.
+Proxy instances won't necessarily respond to a key rotation at the same moment.
+This means there will be periods where some proxy instances will be using older encryption keys whilst others use newer ones.
+The overall effect of this is that there may not be a single point in the transaction log where encryption switches from one KEK to the next.
+
+You can use a tool such as Apache Kafka's `kafka-console-consumer.sh` with binary search approach to discover the oldest offset that is followed exclusively by records that decrypt successfully.
+Repeat this process for every partition for every affected topic.
+You may be able to use domain specific knowledge to help you narrow the search space.
+
+Once you have identified the new starting offset for every affected topic partition, you can use either
+`kafka-delete-records.sh` to delete the undecryptable records or use `kafka-consumer-groups` to reset the consumer group
+offsets.
+
+`kafka-delete-records.sh` only allows deleting records from the tail of the log. This means any readable records prior to the undecryptable ones will also be deleted. However, deleting records is an action that need only be done once. Whereas resetting consumer offsets needs to be done for each consumer or consumer group which ever needs to read beyond the undecryptable records.
+
+After this has been done, applications should be able to begin consuming again, albeit without the lost data.

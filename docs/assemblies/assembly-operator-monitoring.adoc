@@ -2,7 +2,7 @@
 //
 // kroxylicious-operator/index.adoc
 
-[id='assembly-operating-monitoring-{context}']
+[id='assembly-operator-monitoring-{context}']
 = Monitoring
 
 [role="_abstract"]
