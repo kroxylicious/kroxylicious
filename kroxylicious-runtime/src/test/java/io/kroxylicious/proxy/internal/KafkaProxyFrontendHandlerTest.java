@@ -77,6 +77,7 @@ class KafkaProxyFrontendHandlerTest {
     public static final String SNI_HOSTNAME = "external.example.com";
     public static final String CLUSTER_HOST = "internal.example.org";
     public static final int CLUSTER_PORT = 9092;
+    public static final String CLUSTER_NAME = "RandomCluster";
     EmbeddedChannel inboundChannel;
     EmbeddedChannel outboundChannel;
 
@@ -109,7 +110,7 @@ class KafkaProxyFrontendHandlerTest {
     void buildChannel() {
         inboundChannel = new EmbeddedChannel();
         corrId = 0;
-        proxyChannelStateMachine = new ProxyChannelStateMachine("RandomCluster", null);
+        proxyChannelStateMachine = new ProxyChannelStateMachine(CLUSTER_NAME, null);
     }
 
     @AfterEach
@@ -147,7 +148,7 @@ class KafkaProxyFrontendHandlerTest {
     void testMessageHandledAfterConnectingBeforeConnected() {
         // Given
         VirtualClusterModel virtualClusterModel = mock(VirtualClusterModel.class);
-        when(virtualClusterModel.getClusterName()).thenReturn("cluster");
+        when(virtualClusterModel.getClusterName()).thenReturn(CLUSTER_NAME);
         VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
         when(virtualClusterListenerModel.virtualCluster()).thenReturn(virtualClusterModel);
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
@@ -478,8 +479,10 @@ class KafkaProxyFrontendHandlerTest {
     @MethodSource("requests")
     void shouldTransitionToFailedOnExceptionForFrameOversizedException(Short version, ApiMessage apiMessage) {
         // Given
+        VirtualClusterModel model = mock(VirtualClusterModel.class);
+        when(model.getClusterName()).thenReturn(CLUSTER_NAME);
         VirtualClusterGatewayModel virtualClusterListenerModel = mock(VirtualClusterGatewayModel.class);
-        when(virtualClusterListenerModel.virtualCluster()).thenReturn(mock(VirtualClusterModel.class));
+        when(virtualClusterListenerModel.virtualCluster()).thenReturn(model);
         EndpointBinding endpointBinding = mock(EndpointBinding.class);
         when(endpointBinding.endpointGateway()).thenReturn(virtualClusterListenerModel);
         KafkaProxyFrontendHandler handler = handler(this::getNetFilter, new SaslDecodePredicate(false), endpointBinding);
