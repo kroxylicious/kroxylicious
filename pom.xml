@@ -552,6 +552,7 @@
                                     <exclude>DCO.txt</exclude>
                                     <exclude>LICENSE.txt</exclude>
                                     <exclude>**/.dontdelete</exclude>
+                                    <exclude>**/.jbang/**</exclude>
                                     <exclude>docs/**</exclude>
                                     <exclude>**/*.adoc</exclude>
                                     <!-- Need to keep original copyright for Vert.x classes -->
