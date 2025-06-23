@@ -77,6 +77,17 @@ jobs:
         run: |
           gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
           exit -1
+      
+      - name: 'Stop workflow if PR is not approved'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+            PR_APPROVAL="$(gh pr view ${{ inputs.release-pr-issue-number}} --json reviewDecision | jq -r .reviewDecision)"
+            if [[ "$PR_APPROVAL" != "APPROVED" ]]; then
+              echo "PR is not Approved! You must approve the release PR before promoting it"
+              exit -1
+            fi
+            echo "PR is Approved, Continuing promotion."
 
       - name: 'Get the branch name associated with the PR'
         env:
