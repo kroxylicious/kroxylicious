@@ -134,6 +134,12 @@ jobs:
         run: |
           echo "WORK_BRANCH=release-work-${{ github.event.inputs.release-version }}-$(openssl rand -hex 12)" >> $GITHUB_ENV
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+
+      - name: Install A2s
+        run: go install github.com/asciitosvg/asciitosvg/cmd/a2s@latest
+
       - name: 'Stage Release'
         run: |
           SIGNING_KEY_SHORT_NAME=$(gpg --list-public-keys --keyid-format short --with-colons | awk -F: '/^pub:/ {print $5}' | head -n 1)

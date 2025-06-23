@@ -164,6 +164,9 @@ git push "${REPOSITORY}" "${RELEASE_TAG}" ${GIT_DRYRUN:-}
 
 echo "Deploying release"
 
+echo "checking for a2s on the path:"
+command -v a2s || (echo "a2s not found on ${PATH}" && exit 1)
+
 # shellcheck disable=SC2086
 # Quoting leads to an extra space which causes maven to barf!
 mvn -q -Prelease,dist -DskipTests=true -DreleaseSigningKey="${GPG_KEY}" ${MVN_DEPLOY_DRYRUN} -DprocessAllModules=true deploy
