@@ -5,7 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
-## SNAPSHOT
+## 0.13.0
 
 * [#2346](https://github.com/kroxylicious/kroxylicious/issues/2346) fix: #2346: report failure to decrypt within the fetch response.
 * [#1914](https://github.com/kroxylicious/kroxylicious/issues/1914) Remove deprecated AWS KMS service accessKey / secretKey config properties
