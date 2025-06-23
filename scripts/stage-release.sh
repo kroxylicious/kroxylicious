@@ -166,7 +166,7 @@ echo "Deploying release"
 
 # shellcheck disable=SC2086
 # Quoting leads to an extra space which causes maven to barf!
-mvn -q -Prelease,dist -DskipTests=true -DskipDocs=true -DreleaseSigningKey="${GPG_KEY}" ${MVN_DEPLOY_DRYRUN} -DprocessAllModules=true deploy
+mvn -q -Prelease,dist -DskipTests=true -DskipDocs=true -DskipKTs=true -DreleaseSigningKey="${GPG_KEY}" ${MVN_DEPLOY_DRYRUN} -DprocessAllModules=true deploy
 
 echo "Release deployed. Extracting release notes in: ${RELEASE_NOTES_DIR}"
 mkdir -p "${RELEASE_NOTES_DIR}"
