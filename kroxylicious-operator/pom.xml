@@ -460,7 +460,7 @@
                             <!-- run the tests which depend on having an operator image + target/packaged/install -->
                             <execution>
                                 <id>kube-integration-test</id>
-                                <phase>verify</phase>
+                                <phase>integration-test</phase>
                                 <goals>
                                     <goal>integration-test</goal>
                                 </goals>
