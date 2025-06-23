@@ -357,7 +357,7 @@
                             <!-- Make target/kroxylicious-operator-${version}.zip with the test contents from target/packaged -->
                             <execution>
                                 <id>operator-asset</id>
-                                <phase>install</phase><!-- Note this execution happens after the following plugins bound to the package phase! -->
+                                <phase>post-integration-test</phase><!-- Note this execution happens after the following plugins bound to the package phase! -->
                                 <goals>
                                     <goal>single</goal>
                                 </goals>
