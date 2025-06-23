@@ -17,6 +17,8 @@
     </parent>
 
     <artifactId>kroxylicious-operator</artifactId>
+    <name>Kubernetes Operator</name>
+    <description>An operator for running the Kroxylicious Proxy on Kubernetes</description>
 
     <properties>
         <josdk.version>5.0.4</josdk.version>

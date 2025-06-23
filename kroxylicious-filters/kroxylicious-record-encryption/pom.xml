@@ -21,7 +21,7 @@
     <artifactId>kroxylicious-record-encryption</artifactId>
     <packaging>jar</packaging>
 
-    <name>Kroxylicious Encryption</name>
+    <name>Record Encryption filter</name>
     <description>Kroxylicious Filter to encrypt and decrypt records
     </description>
 

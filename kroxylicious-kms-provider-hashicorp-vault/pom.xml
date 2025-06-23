@@ -19,9 +19,9 @@
     </parent>
 
     <artifactId>kroxylicious-kms-provider-hashicorp-vault</artifactId>
+    <name>HashiCorp Vault KMS</name>
+    <description>A KMS provider backed by a remote instance of HashiCorp Vault</description>
     <packaging>jar</packaging>
-    <name>Hashicorp Vault KMS</name>
-    <description>A KMS provider backed by a remote instance of Hashicorp Vault</description>
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>

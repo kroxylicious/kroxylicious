@@ -18,6 +18,7 @@
     </parent>
 
     <artifactId>kroxylicious-kms-tls-support</artifactId>
+    <name>KMS TLS support</name>
     <description>Optional TLS support classes for KMS implementations that need to make HTTPs connections to services.</description>
 
     <dependencies>
