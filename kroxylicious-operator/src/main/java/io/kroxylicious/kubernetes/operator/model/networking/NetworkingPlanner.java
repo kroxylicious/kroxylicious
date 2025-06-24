@@ -32,7 +32,6 @@ import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import edu.umd.cs.findbugs.annotations.UnknownNullness;
 
 import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.PROXY_PORT_START;
 import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.SHARED_SNI_PORT;
@@ -82,10 +81,14 @@ public class NetworkingPlanner {
         Stream<ClusterIngressNetworkingDefinition> networkingDefinitions = planClusterIngressNetworkingDefinitions(primary, clusterResolutionResult);
         List<ClusterIngressNetworkingModelResult> ingressResults = networkingDefinitions.map(networkingDefinition -> {
             int toAllocate = networkingDefinition.numIdentifyingPortsRequired();
-            @Nullable Integer firstIdentifyingPort = null;
-            @Nullable Integer lastIdentifyingPort = null;
-            @Nullable Integer sharedSniPort = null;
-            @Nullable IngressConflictException exception = null;
+            @Nullable
+            Integer firstIdentifyingPort = null;
+            @Nullable
+            Integer lastIdentifyingPort = null;
+            @Nullable
+            Integer sharedSniPort = null;
+            @Nullable
+            IngressConflictException exception = null;
             if (toAllocate != 0) {
                 if (identifyingPorts.get() != PROXY_PORT_START) {
                     exception = new IngressConflictException(name(networkingDefinition.ingress()),
