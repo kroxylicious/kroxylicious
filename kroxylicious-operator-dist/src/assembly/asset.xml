@@ -24,8 +24,16 @@
             </includes>
         </fileSet>
         <fileSet>
-            <directory>${project.basedir}/target/packaged</directory>
+            <directory>${project.basedir}/../kroxylicious-operator/target/packaged</directory>
             <outputDirectory>/</outputDirectory>
+        </fileSet>
+        <fileSet>
+            <directory>../target/docs/</directory>
+            <outputDirectory>/docs</outputDirectory>
+            <includes>
+                <include>html/operator-guide/</include>
+                <include>html/record-encryption/</include>
+            </includes>
         </fileSet>
     </fileSets>
 </assembly>
