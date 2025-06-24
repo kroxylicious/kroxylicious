@@ -21,7 +21,7 @@
 
     <artifactId>kroxylicious-kms-provider-fortanix-dsm-test-support</artifactId>
 
-    <name>Fortanix DSM test support</name>
+    <name>Fortanix DSM KMS test support</name>
     <description>Test support code for modules testing the Fortanix DSM KMS</description>
 
     <dependencies>
