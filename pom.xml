@@ -796,6 +796,25 @@
                     <artifactId>docker-maven-plugin</artifactId>
                     <version>0.46.0</version>
                 </plugin>
+
+                <plugin>
+                    <groupId>com.github.spotbugs</groupId>
+                    <artifactId>spotbugs-maven-plugin</artifactId>
+                    <version>4.9.3.0</version>
+                    <configuration>
+                        <effort>Max</effort>
+                        <threshold>Low</threshold>
+                        <xmlOutput>true</xmlOutput>
+                        <includeFilterFile>etc/spotbugs-include.xml</includeFilterFile>
+                    </configuration>
+                    <executions>
+                        <execution>
+                            <goals>
+                                <goal>check</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
@@ -1350,6 +1369,7 @@
                 <maven.javadoc.skip>true</maven.javadoc.skip>
                 <skipDocs>true</skipDocs>
                 <checkstyle.skip>true</checkstyle.skip>
+                <spotbugs.skip>true</spotbugs.skip>
             </properties>
         </profile>
         <profile>
