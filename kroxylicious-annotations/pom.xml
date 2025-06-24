@@ -17,6 +17,7 @@
     </parent>
 
     <artifactId>kroxylicious-annotations</artifactId>
-    <description></description>
+    <name>Common annotations</name>
+    <description>Common annotations</description>
 
 </project>

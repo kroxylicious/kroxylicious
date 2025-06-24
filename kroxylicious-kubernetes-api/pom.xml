@@ -20,7 +20,7 @@
 
     <artifactId>kroxylicious-kubernetes-api</artifactId>
     <version>0.14.0-SNAPSHOT</version>
-    <name>CRD API</name>
+    <name>Kubernetes CRD API</name>
     <description>The Kubernetes Custom Resource Definitions for the Kroxylicious Operator and their Java equivalents.
 
         Note we only consider the CRD's themselves to be our public API. We do not ensure compatability with the Java classes.

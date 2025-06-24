@@ -18,8 +18,8 @@
     </parent>
 
     <artifactId>kroxylicious-kms-provider-kroxylicious-inmemory-test-support</artifactId>
-    <name>InMemory KMS test support</name>
-    <description>Test support code for modules testing the InMemory KMS</description>
+    <name>In-memory KMS test support</name>
+    <description>Test support code for modules testing the in-memory KMS</description>
 
     <dependencies>
         <!-- project dependencies - runtime and compile -->

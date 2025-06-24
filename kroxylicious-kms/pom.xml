@@ -19,9 +19,9 @@
     </parent>
 
     <artifactId>kroxylicious-kms</artifactId>
-    <packaging>jar</packaging>
-
+    <name>KMS API</name>
     <description>An API for interacting with Key Management Systems (KMSes).</description>
+    <packaging>jar</packaging>
 
     <dependencies>
         <dependency>

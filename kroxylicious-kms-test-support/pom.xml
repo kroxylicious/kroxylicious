@@ -18,6 +18,7 @@
     </parent>
 
     <artifactId>kroxylicious-kms-test-support</artifactId>
+    <name>KMS test support</name>
     <description>Test support for modules testing KMS implementations.</description>
 
     <dependencies>
