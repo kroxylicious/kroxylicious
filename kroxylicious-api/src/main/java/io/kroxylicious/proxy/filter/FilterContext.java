@@ -14,8 +14,6 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * A context to allow filters to interact with other filters and the pipeline.
  */
@@ -68,7 +66,7 @@ public interface FilterContext {
      * @param request The request to forward to the broker.
      * @return completed filter results.
      */
-    CompletionStage<RequestFilterResult> forwardRequest(@NonNull RequestHeaderData header, @NonNull ApiMessage request);
+    CompletionStage<RequestFilterResult> forwardRequest(RequestHeaderData header, ApiMessage request);
 
     /**
      * Send a request from a filter towards the broker.   The response to the request will be made available to the
@@ -101,9 +99,8 @@ public interface FilterContext {
      * @return CompletionStage that will yield the response.
      * @see io.kroxylicious.proxy.filter Thread Safety
      */
-    @NonNull
-    <M extends ApiMessage> CompletionStage<M> sendRequest(@NonNull RequestHeaderData header,
-                                                          @NonNull ApiMessage request);
+    <M extends ApiMessage> CompletionStage<M> sendRequest(RequestHeaderData header,
+                                                          ApiMessage request);
 
     /**
      * Generates a completed filter results containing the given header and response.  When
@@ -117,7 +114,7 @@ public interface FilterContext {
      * @param response The request to forward to the broker.
      * @return completed filter results.
      */
-    CompletionStage<ResponseFilterResult> forwardResponse(@NonNull ResponseHeaderData header, @NonNull ApiMessage response);
+    CompletionStage<ResponseFilterResult> forwardResponse(ResponseHeaderData header, ApiMessage response);
 
     /**
      * Creates a builder for a request filter result objects.  This object encapsulates

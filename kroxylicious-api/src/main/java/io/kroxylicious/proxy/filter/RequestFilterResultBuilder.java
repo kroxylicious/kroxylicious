@@ -15,8 +15,6 @@ import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Builder for request filter results.
  * <br/>
@@ -33,7 +31,7 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      * @return next stage in the fluent builder API
      * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
-    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@Nullable ResponseHeaderData header, @NonNull ApiMessage message) throws IllegalArgumentException;
+    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@Nullable ResponseHeaderData header, ApiMessage message) throws IllegalArgumentException;
 
     /**
      * A short-circuit response towards the client.
@@ -43,7 +41,7 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      * @return next stage in the fluent builder API
      * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
-    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@NonNull ApiMessage message) throws IllegalArgumentException;
+    CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(ApiMessage message) throws IllegalArgumentException;
 
     /**
      * Generate a short-circuit error response towards the client.
@@ -54,7 +52,9 @@ public interface RequestFilterResultBuilder extends FilterResultBuilder<RequestH
      * @return next stage in the fluent builder API
      * @throws IllegalArgumentException header or message do not meet criteria described above.
      */
-    CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage message, @NonNull ApiException apiException)
+    CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header,
+                                                            ApiMessage message,
+                                                            ApiException apiException)
             throws IllegalArgumentException;
 
 }

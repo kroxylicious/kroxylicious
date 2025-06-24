@@ -7,8 +7,6 @@ package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * <p>A pluggable source of {@link Filter} instances.</p>
  * <p>FilterFactories are:</p>
@@ -59,7 +57,6 @@ public interface FilterFactory<C, I> {
      * @param initializationData The initialization data that was returned from {@link #initialize(FilterFactoryContext, Object)}.
      * @return the Filter instance.
      */
-    @NonNull
     Filter createFilter(FilterFactoryContext context, I initializationData);
 
     /**

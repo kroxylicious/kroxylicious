@@ -8,8 +8,6 @@ package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Construction context for Filters. Used to pass the filter configuration and environmental resources
  * to the FilterFactory when it is creating a new instance of the Filter. see {@link FilterFactory#createFilter(FilterFactoryContext, Object)}
@@ -33,5 +31,5 @@ public interface FilterFactoryContext {
      * @param <P> The plugin manager type
      * @throws UnknownPluginInstanceException
      */
-    <P> @NonNull P pluginInstance(@NonNull Class<P> pluginClass, @NonNull String instanceName);
+    <P> P pluginInstance(Class<P> pluginClass, String instanceName);
 }
