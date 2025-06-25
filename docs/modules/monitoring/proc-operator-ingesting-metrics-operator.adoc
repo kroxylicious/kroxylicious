@@ -22,7 +22,7 @@ This procedure describes how to ingest metrics from the Kroxylicious Operator in
 apiVersion: monitoring.coreos.com/v1
 kind: PodMonitor
 metadata:
-  name: proxy
+  name: operator
 spec:
   selector:
     matchLabels:
