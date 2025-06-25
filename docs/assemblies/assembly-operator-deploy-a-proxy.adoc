@@ -7,33 +7,6 @@
 = Deploying a proxy
 
 [role="_abstract"]
-Deploy a basic proxy instance with a single virtual cluster exposed to Kafka clients on the same Kubernetes cluster.
+This section provides a series of guides for deploying a proxy. We will explore different patterns for accessing the proxy.
 
-== Prerequisites
-
-* The operator must be installed in the Kubernetes cluster
-* A Kafka cluster to be proxied
-
-== The required resources
-
-include::../modules/configuring/con-kafkaproxy.adoc[leveloffset=+2]
-
-include::../modules/configuring/con-kafkaproxyingress-for-on-cluster-access.adoc[leveloffset=+2]
-
-include::../modules/configuring/con-kafkaservice-by-bootstrap.adoc[leveloffset=+2]
-
-include::../modules/configuring/con-virtualkafkacluster-tcp.adoc[leveloffset=+2]
-
-// TODO
-// == Deploying the example proxy
-//
-// include::../modules/configuring/proc-deploying-example-proxy.adoc[leveloffset=+1]
-//
-
-// configuring filters
-include::assembly-operator-configuring-kafkaprotocolfilters.adoc[leveloffset=+1]
-
-// TODO
-// == Configuring a filter
-//
-// include::../modules/configuring/proc-configuring-filter.adoc[leveloffset=+1]
+include::assembly-operator-deploy-a-proxy-with-in-cluster-plain-ingress.adoc[leveloffset=+1]
