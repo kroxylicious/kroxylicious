@@ -35,6 +35,10 @@
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-test-support</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
+        </dependency>
         <!-- third party dependencies - test -->
         <dependency>
             <groupId>org.assertj</groupId>
@@ -47,4 +51,13 @@
             <scope>test</scope>
         </dependency>
     </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
 </project>
