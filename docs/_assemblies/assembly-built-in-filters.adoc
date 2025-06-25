@@ -1,0 +1,18 @@
+// file included in the following:
+//
+// kroxylicious-proxy/index.adoc
+
+[id='assembly-built-in-filters-{context}']
+= Built-in filters
+
+[role="_abstract"]
+Kroxylicious comes with a suite of built-in filters designed to enhance the functionality and security of your Kafka clusters.
+
+== Record Encryption filter
+
+The Kroxylicious Record Encryption filter enables encryption-at-rest for Apache Kafka clusters.
+For information on using the filter, see the {RecordEncryptionGuide}.
+
+include::assembly-multi-tenancy-filter.adoc[leveloffset=+1]
+include::assembly-record-validation-filter.adoc[leveloffset=+1]
+include::../_modules/oauthbearer/con-oauthbearer.adoc[leveloffset=+1]
