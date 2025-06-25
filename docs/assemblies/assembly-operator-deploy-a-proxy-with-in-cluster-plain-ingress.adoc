@@ -1,0 +1,39 @@
+// file included in the following:
+//
+// assembly-operator-deploy-a-proxy.adoc
+
+
+[id='assembly-operator-deploy-a-proxy-with-in-cluster-plain-ingress-{context}']
+= Deploying a proxy exposed to Kafka clients on the same Kubernetes Cluster
+
+[role="_abstract"]
+Deploy a basic proxy instance with a single virtual cluster exposed to Kafka clients on the same Kubernetes cluster.
+
+== Prerequisites
+
+* The operator must be installed in the Kubernetes cluster
+* A Kafka cluster to be proxied
+
+== The required resources
+
+include::../modules/configuring/con-kafkaproxy.adoc[leveloffset=+2]
+
+include::../modules/configuring/con-kafkaproxyingress-for-on-cluster-access.adoc[leveloffset=+2]
+
+include::../modules/configuring/con-kafkaservice-by-bootstrap.adoc[leveloffset=+2]
+
+include::../modules/configuring/con-virtualkafkacluster-tcp.adoc[leveloffset=+2]
+
+// TODO
+// == Deploying the example proxy
+//
+// include::../modules/configuring/proc-deploying-example-proxy.adoc[leveloffset=+1]
+//
+
+// configuring filters
+include::assembly-operator-configuring-kafkaprotocolfilters.adoc[leveloffset=+3]
+
+// TODO
+// == Configuring a filter
+//
+// include::../modules/configuring/proc-configuring-filter.adoc[leveloffset=+1]
