@@ -64,7 +64,7 @@ class KafkaProtocolFilterReconcilerIT {
             .withReconciler(new KafkaProtocolFilterReconciler(Clock.systemUTC(), SecureConfigInterpolator.DEFAULT_INTERPOLATOR))
             .withAdditionalCustomResourceDefinition(KafkaProtocolFilter.class)
             .withKubernetesClient(rbacHandler.operatorClient())
-            .waitForNamespaceDeletion(true)
+            .waitForNamespaceDeletion(false)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
 

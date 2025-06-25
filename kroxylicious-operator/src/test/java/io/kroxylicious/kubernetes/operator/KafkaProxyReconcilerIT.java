@@ -144,7 +144,7 @@ class KafkaProxyReconcilerIT {
             .withAdditionalCustomResourceDefinition(KafkaService.class)
             .withAdditionalCustomResourceDefinition(KafkaProxyIngress.class)
             .withAdditionalCustomResourceDefinition(KafkaProtocolFilter.class)
-            .waitForNamespaceDeletion(true)
+            .waitForNamespaceDeletion(false)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
     private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(extension);
