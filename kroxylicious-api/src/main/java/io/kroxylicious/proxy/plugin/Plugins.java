@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.plugin;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class Plugins {
@@ -20,7 +19,7 @@ public class Plugins {
      * @return The non-null config
      * @param <C> The type of the config
      */
-    public static @NonNull <C> C requireConfig(Object pluginImpl, @Nullable C config) {
+    public static <C> C requireConfig(Object pluginImpl, @Nullable C config) {
         if (config == null) {
             throw new PluginConfigurationException(pluginImpl.getClass().getSimpleName() + " requires configuration, but config object is null");
         }
