@@ -12,8 +12,6 @@ import java.util.Objects;
 
 import io.kroxylicious.kms.service.Serde;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static java.lang.Math.toIntExact;
 import static org.apache.kafka.common.utils.ByteUtils.readUnsignedVarint;
 import static org.apache.kafka.common.utils.ByteUtils.sizeOfUnsignedVarint;
@@ -46,7 +44,7 @@ class VaultEdekSerde implements Serde<VaultEdek> {
     }
 
     @Override
-    public VaultEdek deserialize(@NonNull ByteBuffer buffer) {
+    public VaultEdek deserialize(ByteBuffer buffer) {
         Objects.requireNonNull(buffer);
 
         var kekRefLength = toIntExact(readUnsignedVarint(buffer));
@@ -70,7 +68,8 @@ class VaultEdekSerde implements Serde<VaultEdek> {
     }
 
     @Override
-    public void serialize(VaultEdek edek, @NonNull ByteBuffer buffer) {
+    public void serialize(VaultEdek edek,
+                          ByteBuffer buffer) {
         Objects.requireNonNull(edek);
         Objects.requireNonNull(buffer);
         var keyRefBuf = edek.kekRef().getBytes(StandardCharsets.UTF_8);

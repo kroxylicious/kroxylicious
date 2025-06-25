@@ -32,7 +32,7 @@ import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static java.net.URLEncoder.encode;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -43,7 +43,7 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
     private static final TypeReference<VaultResponse<VaultResponse.ReadKeyData>> VAULT_RESPONSE_READ_KEY_DATA_TYPEREF = new TypeReference<>() {
     };
     private static final String KEYS_PATH = "v1/transit/keys/%s";
-    private String kmsVaultToken;
+    private @Nullable String kmsVaultToken;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
     private static final HttpClient vaultClient = HttpClient.newHttpClient();
     public static final String VAULT_ROOT_TOKEN = "rootToken";
@@ -102,7 +102,6 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         return sendRequest("dummy", request, VAULT_RESPONSE_CREATE_TOKEN_RESPONSE_TYPEREF).auth().clientToken();
     }
 
-    @NonNull
     protected abstract URI getVaultUrl();
 
     @Override
@@ -120,7 +119,6 @@ public abstract class AbstractVaultTestKmsFacade implements TestKmsFacade<Config
         stopVault();
     }
 
-    @NonNull
     protected final URI getVaultTransitEngineUrl() {
         return getVaultUrl().resolve("v1/transit/");
     }
