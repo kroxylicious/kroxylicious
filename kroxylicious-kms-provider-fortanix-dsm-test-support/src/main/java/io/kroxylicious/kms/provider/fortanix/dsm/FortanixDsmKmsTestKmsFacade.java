@@ -42,7 +42,7 @@ import io.kroxylicious.kms.service.UnknownKeyException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmKms.AUTHORIZATION_HEADER;
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -101,7 +101,7 @@ class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, Forta
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private final Optional<String> adminApiKey;
 
-    private ApiKeySessionProvider adminSessionProvider;
+    private @Nullable ApiKeySessionProvider adminSessionProvider;
 
     FortanixDsmKmsTestKmsFacade() {
         this(KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT, KROXYLICIOUS_KMS_FORTANIX_API_KEY, KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY);
@@ -148,7 +148,6 @@ class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, Forta
         }
     }
 
-    @NonNull
     protected URI getEndpointUrl() {
         return endpointUri.orElseThrow();
     }
@@ -300,7 +299,6 @@ class FortanixDsmKmsTestKmsFacade implements TestKmsFacade<Config, String, Forta
         sendRequestExpectingNoResponse(kid, keyDeleteRequest);
     }
 
-    @NonNull
     private String getSessionHeader() {
         return adminSessionProvider.getSession().toCompletableFuture().join().authorizationHeader();
     }
