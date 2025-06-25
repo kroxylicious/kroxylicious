@@ -62,6 +62,7 @@ import io.kroxylicious.testing.kafka.api.TerminationStyle;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+import io.kroxylicious.testing.kafka.junit5ext.Name;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 import io.kroxylicious.testing.kafka.junit5ext.TopicPartitions;
 
@@ -91,6 +92,10 @@ class MetricsIT {
 
     private static final HostPort SNI_IDENTIFIES_BROKER_BOOTSTRAP = new HostPort("bootstrap." + SNI_IDENTIFIES_BROKER_BASE_ADDRESS, 9192);
     private static final String SNI_IDENTIFIES_BROKER_ADDRESS_PATTERN = "broker-$(nodeId)." + SNI_IDENTIFIES_BROKER_BASE_ADDRESS;
+    private static final String TEST_CLUSTER = "test-cluster";
+
+    @Name(TEST_CLUSTER)
+    static KafkaCluster cluster;
 
     @BeforeEach
     void beforeEach() {
@@ -103,7 +108,7 @@ class MetricsIT {
     }
 
     @Test
-    void nonexistentEndpointGives404(KafkaCluster cluster) {
+    void nonexistentEndpointGives404() {
         var config = configWithMetrics(cluster);
 
         try (var tester = kroxyliciousTester(config);
@@ -115,7 +120,7 @@ class MetricsIT {
     }
 
     @Test
-    void scrapeEndpointExists(KafkaCluster cluster) {
+    void scrapeEndpointExists() {
         var config = configWithMetrics(cluster);
 
         try (var tester = kroxyliciousTester(config);
@@ -129,7 +134,7 @@ class MetricsIT {
     }
 
     @Test
-    void knownPrometheusMetricPresent(KafkaCluster cluster) {
+    void knownPrometheusMetricPresent() {
         var config = configWithMetrics(cluster);
 
         try (var tester = kroxyliciousTester(config);
@@ -146,7 +151,7 @@ class MetricsIT {
     }
 
     @Test
-    void infoMetricPresent(KafkaCluster cluster) {
+    void infoMetricPresent() {
         var config = configWithMetrics(cluster);
 
         try (var tester = kroxyliciousTester(config);
@@ -166,7 +171,7 @@ class MetricsIT {
     }
 
     @Test
-    void prometheusMetricFromNamedBinder(KafkaCluster cluster) {
+    void prometheusMetricFromNamedBinder() {
         var config = configWithMetrics(cluster)
                 .addToMicrometer(
                         new MicrometerDefinitionBuilder(StandardBindersHook.class.getName()).withConfig("binderNames", List.of("JvmGcMetrics")).build());
@@ -181,7 +186,7 @@ class MetricsIT {
     }
 
     @Test
-    void prometheusMetricsWithCommonTags(KafkaCluster cluster) {
+    void prometheusMetricsWithCommonTags() {
         var config = configWithMetrics(cluster)
                 .addToMicrometer(new MicrometerDefinitionBuilder(CommonTagsHook.class.getName()).withConfig("commonTags", Map.of("a", "b")).build());
 
@@ -335,8 +340,7 @@ class MetricsIT {
     @MethodSource("messageCountMetricScenarios")
     void shouldIncrementCountOnMessageTransit(UnaryOperator<ConfigurationBuilder> builder,
                                               Consumer<List<SimpleMetric>> beforeAssertion,
-                                              Consumer<List<SimpleMetric>> afterAssertion,
-                                              KafkaCluster cluster) {
+                                              Consumer<List<SimpleMetric>> afterAssertion) {
         var config = configWithMetrics(cluster);
 
         // Given
@@ -486,8 +490,7 @@ class MetricsIT {
     void shouldIncrementSizeOnMessageTransit(UnaryOperator<ConfigurationBuilder> builder,
                                              Consumer<List<SimpleMetric>> beforeAssertion,
                                              Consumer<List<SimpleMetric>> afterAssertion,
-                                             KafkaCluster cluster,
-                                             Topic topic) {
+                                             @Name(TEST_CLUSTER) Topic topic) {
         var config = configWithMetrics(cluster);
 
         // Given
@@ -564,8 +567,7 @@ class MetricsIT {
     @ParameterizedTest
     @MethodSource("connectionMetricsScenarios")
     void shouldIncrementCountOnConnectionMetrics(Consumer<List<SimpleMetric>> beforeAssertion,
-                                                 Consumer<List<SimpleMetric>> afterAssertion,
-                                                 KafkaCluster cluster) {
+                                                 Consumer<List<SimpleMetric>> afterAssertion) {
         var config = configWithMetrics(cluster);
 
         // Given
@@ -666,8 +668,7 @@ class MetricsIT {
 
     @ParameterizedTest
     @MethodSource(value = "createDownstreamConnectionError")
-    void shouldIncrementDownstreamErrorOnConnectionError(Supplier<VirtualClusterGateway> gatewaySupplier, Consumer<KroxyliciousTester> causeConnectionError,
-                                                         KafkaCluster cluster) {
+    void shouldIncrementDownstreamErrorOnConnectionError(Supplier<VirtualClusterGateway> gatewaySupplier, Consumer<KroxyliciousTester> causeConnectionError) {
         var config = proxy(cluster)
                 .withNewManagement()
                 .withNewEndpoints()
@@ -696,9 +697,9 @@ class MetricsIT {
     }
 
     @Test
-    void countMetricsShouldBeDiscriminatedByNodeId(@BrokerCluster(numBrokers = 2) KafkaCluster cluster, @TopicPartitions(2) Topic topic)
+    void countMetricsShouldBeDiscriminatedByNodeId(@BrokerCluster(numBrokers = 2) KafkaCluster twoNodeCluster, @TopicPartitions(2) Topic topic)
             throws ExecutionException, InterruptedException {
-        var config = configWithMetrics(cluster);
+        var config = configWithMetrics(twoNodeCluster);
 
         try (var tester = kroxyliciousTester(config);
                 var managementClient = tester.getManagementClient();
@@ -742,8 +743,8 @@ class MetricsIT {
     }
 
     @Test
-    void shouldIncrementUpstreamErrorOnConnectionError(KafkaCluster cluster) {
-        var config = configWithMetrics(cluster);
+    void shouldIncrementUpstreamErrorOnConnectionError(KafkaCluster clusterToStop) {
+        var config = configWithMetrics(clusterToStop);
 
         // Given
         try (var tester = kroxyliciousTester(config);
@@ -751,7 +752,7 @@ class MetricsIT {
                 var managementClient = tester.getManagementClient()) {
 
             // when
-            cluster.stopNodes(u -> true, TerminationStyle.GRACEFUL);
+            clusterToStop.stopNodes(u -> true, TerminationStyle.GRACEFUL);
             assertThat(admin.describeCluster(new DescribeClusterOptions().timeoutMs(2_000)).clusterId())
                     .failsWithin(Duration.ofSeconds(5))
                     .withThrowableThat()
@@ -777,7 +778,7 @@ class MetricsIT {
 
     @Test
     @Deprecated(since = "0.13.0", forRemoval = true)
-    void shouldIncrementDownstreamMessagesOnProduceRequestWithoutFilter(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
+    void shouldIncrementDownstreamMessagesOnProduceRequestWithoutFilter(@Name(TEST_CLUSTER) Topic topic) throws ExecutionException, InterruptedException {
         var config = configWithMetrics(cluster);
 
         // Given
@@ -803,7 +804,7 @@ class MetricsIT {
 
     @Test
     @Deprecated(since = "0.13.0", forRemoval = true)
-    void shouldIncrementDownstreamMessagesOnProduceRequestWithFilter(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
+    void shouldIncrementDownstreamMessagesOnProduceRequestWithFilter(@Name(TEST_CLUSTER) Topic topic) throws ExecutionException, InterruptedException {
 
         // the downstream messages and decoded messages is not yet differentiated by ApiKey
         final UUID configInstance = UUID.randomUUID();
@@ -836,7 +837,7 @@ class MetricsIT {
 
     @Test
     @Deprecated(since = "0.13.0", forRemoval = true)
-    void shouldIncrementConnectionMetrics(KafkaCluster cluster, Topic topic) throws Exception {
+    void shouldIncrementConnectionMetrics(@Name(TEST_CLUSTER) Topic topic) throws Exception {
         var config = configWithMetrics(cluster);
 
         // Given
@@ -859,7 +860,7 @@ class MetricsIT {
     }
 
     @Test
-    void shouldIncrementPayloadSizeBytesMetricsOnProduceRequest(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
+    void shouldIncrementPayloadSizeBytesMetricsOnProduceRequest(@Name(TEST_CLUSTER) Topic topic) throws ExecutionException, InterruptedException {
         var config = configWithMetrics(cluster);
 
         // Given
