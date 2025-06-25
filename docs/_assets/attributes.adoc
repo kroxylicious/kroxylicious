@@ -3,7 +3,7 @@
 :doctype: book
 :experimental:
 :idprefix:
-:imagesdir: images
+:imagesdir: ../images
 :numbered:
 :sectanchors!:
 :sectnums:
