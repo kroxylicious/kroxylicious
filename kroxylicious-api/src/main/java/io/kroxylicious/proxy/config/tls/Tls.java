@@ -9,6 +9,8 @@ package io.kroxylicious.proxy.config.tls;
 import java.security.KeyStore;
 import java.util.Locale;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Provides TLS configuration for this peer.  This class is designed to be used for both TLS server and client roles.
  *
@@ -17,14 +19,14 @@ import java.util.Locale;
  * @param cipherSuites specifies a custom object which contains details of allowed and denied cipher suites
  * @param protocols specifies a custom object which contains details of allowed and denied tls protocols
  */
-public record Tls(KeyProvider key,
-                  TrustProvider trust,
-                  AllowDeny<String> cipherSuites,
-                  AllowDeny<String> protocols) {
+public record Tls(@Nullable KeyProvider key,
+                  @Nullable TrustProvider trust,
+                  @Nullable AllowDeny<String> cipherSuites,
+                  @Nullable AllowDeny<String> protocols) {
 
     public static final String PEM = "PEM";
 
-    public static String getStoreTypeOrPlatformDefault(String storeType) {
+    public static String getStoreTypeOrPlatformDefault(@Nullable String storeType) {
         return storeType == null ? KeyStore.getDefaultType().toUpperCase(Locale.ROOT) : storeType.toUpperCase(Locale.ROOT);
     }
 

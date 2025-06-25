@@ -10,8 +10,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.function.Function;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * An Executor backed by the <b>Filter Dispatch Thread</b>. That is the single thread associated with the Channel for
  * a Filter Instance. All invocations of that instance's methods are made by the Filter Dispatch Thread.
@@ -44,6 +42,6 @@ public interface FilterDispatchExecutor extends ScheduledExecutorService {
      * @return a stage completed (both exceptionally and normally) by this Filter Dispatch Thread
      * @param <T> stage value type
      */
-    <T> CompletionStage<T> completeOnFilterDispatchThread(@NonNull CompletionStage<T> stage);
+    <T> CompletionStage<T> completeOnFilterDispatchThread(CompletionStage<T> stage);
 
 }

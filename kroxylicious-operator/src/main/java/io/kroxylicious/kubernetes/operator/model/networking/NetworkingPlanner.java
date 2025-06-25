@@ -7,7 +7,6 @@
 package io.kroxylicious.kubernetes.operator.model.networking;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
@@ -32,6 +31,7 @@ import io.kroxylicious.kubernetes.operator.resolver.ProxyResolutionResult;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.PROXY_PORT_START;
 import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.SHARED_SNI_PORT;
@@ -81,9 +81,13 @@ public class NetworkingPlanner {
         Stream<ClusterIngressNetworkingDefinition> networkingDefinitions = planClusterIngressNetworkingDefinitions(primary, clusterResolutionResult);
         List<ClusterIngressNetworkingModelResult> ingressResults = networkingDefinitions.map(networkingDefinition -> {
             int toAllocate = networkingDefinition.numIdentifyingPortsRequired();
+            @Nullable
             Integer firstIdentifyingPort = null;
+            @Nullable
             Integer lastIdentifyingPort = null;
+            @Nullable
             Integer sharedSniPort = null;
+            @Nullable
             IngressConflictException exception = null;
             if (toAllocate != 0) {
                 if (identifyingPorts.get() != PROXY_PORT_START) {
@@ -156,6 +160,7 @@ public class NetworkingPlanner {
             }
         }
         else if (loadBalancer != null) {
+            validateNotNull(tls, "LoadBalancer requires TLS to be provided by the virtualkafkacluster");
             return new LoadBalancerClusterIngressNetworkingDefinition(ingress, cluster, loadBalancer, tls);
         }
         else {
@@ -189,7 +194,8 @@ public class NetworkingPlanner {
          * @param sharedSniPort the shared SNI port (if definition required SNI port)
          * @return a non-null ClusterIngressNetworkingModel
          */
-        ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort,
+        ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort,
+                                                            @Nullable Integer lastIdentifyingPort,
                                                             @Nullable Integer sharedSniPort);
 
         /**
@@ -215,7 +221,9 @@ public class NetworkingPlanner {
             implements ClusterIngressNetworkingDefinition {
 
         @Override
-        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort,
+        @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
+        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort,
+                                                                   @Nullable Integer lastIdentifyingPort,
                                                                    @Nullable Integer sharedSniPort) {
             validateNotNull(firstIdentifyingPort, "firstIdentifyingPort must be non null for ClusterIP ingress");
             validateNotNull(lastIdentifyingPort, "lastIdentifyingPort must be non null for ClusterIP ingress");
@@ -238,7 +246,9 @@ public class NetworkingPlanner {
             implements ClusterIngressNetworkingDefinition {
 
         @Override
-        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort,
+        @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
+        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort,
+                                                                   @Nullable Integer lastIdentifyingPort,
                                                                    @Nullable Integer sharedSniPort) {
             validateNotNull(sharedSniPort, "sharedSniPort must be non null for TLS ClusterIP ingress");
             validateNotNull(tls, "tls must be non null for TLS ClusterIP ingress");
@@ -258,14 +268,12 @@ public class NetworkingPlanner {
                                                                   Tls tls)
             implements ClusterIngressNetworkingDefinition {
 
-        private LoadBalancerClusterIngressNetworkingDefinition {
-            validateNotNull(tls, "LoadBalancer requires TLS to be provided by the virtualkafkacluster");
-        }
-
         @Override
-        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort, @Nullable Integer lastIdentifyingPort,
+        @SuppressFBWarnings("NP_PARAMETER_MUST_BE_NONNULL_BUT_MARKED_AS_NULLABLE")
+        public ClusterIngressNetworkingModel createNetworkingModel(@Nullable Integer firstIdentifyingPort,
+                                                                   @Nullable Integer lastIdentifyingPort,
                                                                    @Nullable Integer sharedSniPort) {
-            Objects.requireNonNull(sharedSniPort);
+            validateNotNull(sharedSniPort, "sharedSniPort must be non null for LoadBalancer ingress");
             return new LoadBalancerClusterIngressNetworkingModel(cluster, ingress, loadBalancer, tls, sharedSniPort);
         }
 

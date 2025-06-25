@@ -8,8 +8,6 @@ package io.kroxylicious.proxy.plugin;
 
 import java.util.Objects;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Thrown when a plugin configuration is invalid
  */
@@ -19,7 +17,7 @@ public class PluginConfigurationException extends RuntimeException {
      * Initializes a new instance
      * @param message message
      */
-    public PluginConfigurationException(@NonNull String message) {
+    public PluginConfigurationException(String message) {
         super(Objects.requireNonNull(message));
     }
 
@@ -28,7 +26,7 @@ public class PluginConfigurationException extends RuntimeException {
      * @param message message
      * @param cause cause
      */
-    public PluginConfigurationException(@NonNull String message, Throwable cause) {
+    public PluginConfigurationException(String message, Throwable cause) {
         super(Objects.requireNonNull(message), cause);
     }
 }
