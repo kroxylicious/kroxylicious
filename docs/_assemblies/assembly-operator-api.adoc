@@ -24,13 +24,8 @@ Specifies filter mechanisms for use with a virtual cluster.
 `ConfigMap`::
 `KafkaService` and `KafkaProtocolFilter` resources may reference a `ConfigMap` to provide non-sensitive configuration such as trusted CA certificates.
 
-<<<<<<< HEAD
 .Example input resources and the references between them
-image::operator-input-resource-topology.svg["Diagram showing the input resources, KafkaProxy, VirtualKafkaCluster, etc, as boxes, connected by arrows representing the references between the resources."]
-=======
-.Example input resources, and the references between them.
-image::{imagesdir}/operator-input-resource-topology.svg["Diagram showing the input resources, KafkaProxy, VirtualKafkaCluster, etc, as boxes, connected by arrows representing the references between the resources."]
->>>>>>> c573b4a31 (Images insanity)
+image::{realimagesdir}/operator-input-resource-topology.svg["Diagram showing the input resources, KafkaProxy, VirtualKafkaCluster, etc, as boxes, connected by arrows representing the references between the resources."]
 
 Based on the input resources, the operator generates the core Kubernetes resources needed to deploy the Kroxylicious Proxy, such as the following:
 
@@ -44,6 +39,6 @@ You can make use of Kubernete's Role-Based Access Control (RBAC) to divide respo
 For example, you might grant networking engineers the ability to configure `KafkaProxy` and `KafkaProxyIngress`, while giving application developers the ability to configure `VirtualKafkaCluster`, `KafkaService`, and `KafkaProtocolFilter` resources.
 
 .Generated Kubernetes resources and the relationships between them
-image::{imagesdir}/operator-output-resource-topology.svg["Diagram showing the output resources, Deployment, Pod, ConfigMap, Service, with arrows showing the Deployment managing the Pod, the Pod mounting the ConfigMap, and the Service selecting the Pod."]
+image::{realimagesdir}/operator-output-resource-topology.svg["Diagram showing the output resources, Deployment, Pod, ConfigMap, Service, with arrows showing the Deployment managing the Pod, the Pod mounting the ConfigMap, and the Service selecting the Pod."]
 
 include::../_modules/con-api-compatability-operator.adoc[leveloffset=+1]
