@@ -28,11 +28,13 @@
             <outputDirectory>/</outputDirectory>
         </fileSet>
         <fileSet>
-            <directory>../target/docs/</directory>
+            <directory>${rootdir}/target/docs/html</directory>
             <outputDirectory>/docs</outputDirectory>
             <includes>
-                <include>html/operator-guide/</include>
-                <include>html/record-encryption/</include>
+                <include>operator-guide/**</include>
+                <include>record-encryption/**</include>
+<!--                <include>pdf/operator-guide/</include>-->
+<!--                <include>pdf/record-encryption/</include>-->
             </includes>
         </fileSet>
     </fileSets>
