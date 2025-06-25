@@ -20,7 +20,7 @@ import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.Plugin;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static java.util.stream.Collectors.toMap;
 
@@ -40,7 +40,7 @@ import static java.util.stream.Collectors.toMap;
 public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.Config, UUID, InMemoryEdek> {
     private final Map<Config, InMemoryKms> kmsMap = new ConcurrentHashMap<>();
     @SuppressWarnings("java:S3077") // Config is an immutable object
-    private volatile Config config;
+    private volatile @Nullable Config config;
 
     public static UnitTestingKmsService newInstance() {
         return (UnitTestingKmsService) ServiceLoader.load(KmsService.class).stream()
@@ -76,12 +76,11 @@ public class UnitTestingKmsService implements KmsService<UnitTestingKmsService.C
     }
 
     @Override
-    public void initialize(@NonNull Config config) {
+    public void initialize(Config config) {
         Objects.requireNonNull(config);
         this.config = config;
     }
 
-    @NonNull
     @Override
     public InMemoryKms buildKms() {
         Objects.requireNonNull(config, "KMS service not initialized");

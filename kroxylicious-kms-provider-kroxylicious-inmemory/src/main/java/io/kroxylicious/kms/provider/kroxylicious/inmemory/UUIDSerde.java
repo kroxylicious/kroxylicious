@@ -11,8 +11,6 @@ import java.util.UUID;
 
 import io.kroxylicious.kms.service.Serde;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 class UUIDSerde implements Serde<UUID> {
 
     private static final UUIDSerde UUID_SERDE = new UUIDSerde();
@@ -21,7 +19,7 @@ class UUIDSerde implements Serde<UUID> {
     }
 
     @Override
-    public UUID deserialize(@NonNull ByteBuffer buffer) {
+    public UUID deserialize(ByteBuffer buffer) {
         var msb = buffer.getLong();
         var lsb = buffer.getLong();
         return new UUID(msb, lsb);
@@ -33,7 +31,7 @@ class UUIDSerde implements Serde<UUID> {
     }
 
     @Override
-    public void serialize(UUID uuid, @NonNull ByteBuffer buffer) {
+    public void serialize(UUID uuid, ByteBuffer buffer) {
         buffer.putLong(uuid.getMostSignificantBits());
         buffer.putLong(uuid.getLeastSignificantBits());
     }
