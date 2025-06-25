@@ -21,7 +21,7 @@ spec:
   nodeIdRanges: # <2>
     - name: brokers # <3>
       start: 0 # <4>
-      end: 5 # <5>
+      end: 2 # <5>
   # ...
 ----
 <1> The `bootstrapServers` property is a comma-separated list of addresses in `<host>:<port>` format. Including multiple broker addresses helps clients connect when one is unavailable.

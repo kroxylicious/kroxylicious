@@ -11,7 +11,7 @@ It is uniquely associated with a single `KafkaProxy` instance, but it is not uni
 
 This example shows a `KafkaProxyIngress` for exposing virtual clusters to Kafka clients running in the same Kubernetes cluster as the proxy.
 
-.Example `KafkaProxyIngress` configuration.
+.Example `KafkaProxyIngress` configuration for on cluster access.
 [source,yaml]
 ----
 kind: KafkaProxyIngress

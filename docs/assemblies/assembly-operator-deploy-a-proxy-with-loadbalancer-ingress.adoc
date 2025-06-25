@@ -1,0 +1,89 @@
+// file included in the following:
+//
+// assembly-operator-deploy-a-proxy.adoc
+
+
+[id='assembly-operator-deploy-a-proxy-with-loadbalancer-ingress-{context}']
+= Deploying a proxy exposed to Kafka clients outside the Kubernetes Cluster via a LoadBalancer Service
+:parent-context: {context}
+:context: {parent-context}-load-balancer
+
+[role="_abstract"]
+Deploy a basic proxy instance with a single virtual cluster exposed to Kafka clients outside the Kubernetes Cluster via a Kubernetes LoadBalancer Service.
+
+== Prerequisites
+
+* The operator must be installed in the Kubernetes cluster
+* A Kafka cluster to be proxied
+* External DNS under your control
+* <<Addressing Scheme>>
+* <<TLS Certificates for the proxy>>
+
+=== Addressing Scheme
+
+Access to a proxy from outside the Kubernetes Cluster via a LoadBalancer service requires:
+
+* TLS between the client and proxy
+* Specific hostnames to be routed from the client to the LoadBalancer Service (configuring external DNS systems to do this is a user responsibility)
+
+First we must decide on what addresses clients will use to address our virtual Kafka cluster:
+
+* We choose a bootstrap address of `bootstrap.my-cluster.my-proxy.kroxylicious.io`
+* We choose broker addresses:
+** `broker-0.my-cluster.my-proxy.kroxylicious.io`
+** `broker-1.my-cluster.my-proxy.kroxylicious.io`
+** `broker-2.my-cluster.my-proxy.kroxylicious.io`
+
+Where 0, 1 and 2 are the node ids of the proxied brokers.
+
+Later we will configure our DNS to resolve these addresses to the manifested LoadBalancer Service.
+
+=== TLS Certificates for the proxy
+
+We must provision a Kubernetes Secret of type `kubernetes.io/tls` containing a server certificate with Subject Alternate Names containing all the names in our <<Addressing Scheme>>.
+
+This Secret could be provisioned with a technology like https://cert-manager.io/[cert-manager].
+
+For the purposes of this guide we will assume that a Secret named `proxy-server-tls` has been created in the `my-proxy`
+namespace (must be in the same namespace as the KafkaProxy)
+
+== The required resources
+
+include::../modules/configuring/con-kafkaproxy.adoc[leveloffset=+2]
+
+include::../modules/configuring/con-kafkaproxyingress-for-loadbalancer-access.adoc[leveloffset=+2]
+
+include::../modules/configuring/con-kafkaservice-by-bootstrap.adoc[leveloffset=+2]
+
+include::../modules/configuring/con-virtualkafkacluster-tls.adoc[leveloffset=+2]
+// TODO
+// == Deploying the example proxy
+//
+// include::../modules/configuring/proc-deploying-example-proxy.adoc[leveloffset=+1]
+//
+
+// configuring filters
+include::assembly-operator-configuring-kafkaprotocolfilters.adoc[leveloffset=+3]
+
+// TODO
+// == Configuring a filter
+//
+// include::../modules/configuring/proc-configuring-filter.adoc[leveloffset=+1]
+
+== DNS Configuration
+
+After the Proxy has manifested we must configure our external DNS to resolve all the addresses in our <<Addressing Scheme>>
+to resolve to the LoadBalancer address.
+
+A Kubernetes Service `simple-sni` should have been manifested, inspect it to obtain its external address. Depending on your environment,
+this may be an IP address, or a hostname.
+
+Configure your DNS such that all the addresses in the <<Addressing Scheme>> either:
+
+* resolve to the external IP address
+* resolve to the external hostname via a `CNAME` record
+
+Once this is configured and the client can resolve all those addresses, you should be able to connect to the bootstrap
+address which is present in the `status.ingresses` section of the `VirtualKafkaCluster` you have created. The client will
+need to be appropriately configured to connect using TLS and trust the Server certificates.
+ifdef::parent-context[:context: {parent-context}]

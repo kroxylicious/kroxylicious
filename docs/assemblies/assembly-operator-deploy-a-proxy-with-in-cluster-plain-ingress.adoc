@@ -5,6 +5,8 @@
 
 [id='assembly-operator-deploy-a-proxy-with-in-cluster-plain-ingress-{context}']
 = Deploying a proxy exposed to Kafka clients on the same Kubernetes Cluster
+:parent-context: {context}
+:context: {parent-context}-in-cluster
 
 [role="_abstract"]
 Deploy a basic proxy instance with a single virtual cluster exposed to Kafka clients on the same Kubernetes cluster.
@@ -37,3 +39,5 @@ include::assembly-operator-configuring-kafkaprotocolfilters.adoc[leveloffset=+3]
 // == Configuring a filter
 //
 // include::../modules/configuring/proc-configuring-filter.adoc[leveloffset=+1]
+
+ifdef::parent-context[:context: {parent-context}]

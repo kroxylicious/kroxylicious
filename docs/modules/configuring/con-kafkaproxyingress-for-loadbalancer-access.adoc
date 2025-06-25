@@ -1,0 +1,35 @@
+// file included in the following:
+//
+// kroxylicious-operator/assemblies/assembly-operator-deploy-a-proxy.adoc
+
+[id='con-configuring-kafkaproxyingress-loadbalancer-access-{context}']
+= Networking configuration for external access via LoadBalancer Service
+
+A `KafkaProxyIngress` resource defines the networking configuration that allows Kafka clients to connect to a `VirtualKafkaCluster`.
+
+It is uniquely associated with a single `KafkaProxy` instance, but it is not uniquely associated with a `VirtualKafkaCluster`; it can be used by multiple `VirtualKafkaCluster` instances.
+
+This example shows a `KafkaProxyIngress` for exposing virtual clusters to Kafka clients outside that Kubernetes Cluster, via a Kubernetes LoadBalancer Service.
+
+.Example `KafkaProxyIngress` configuration for LoadBalancer access.
+[source,yaml]
+----
+kind: KafkaProxyIngress
+apiVersion: kroxylicious.io/v1alpha1
+metadata:
+  namespace: my-proxy
+  name: load-balancer
+spec:
+  proxyRef: # <1>
+    name: simple
+  loadBalancer: # <2>
+    bootstrapAddress: 'bootstrap.$(virtualClusterName).my-proxy.kroxylicious.io' # <3>
+    advertisedBrokerAddressPattern: 'broker-$(nodeId).$(virtualClusterName).my-proxy.kroxylicious.io' # <4>
+----
+<1> The `proxyRef` names the `KafkaProxy` resource that this ingress is part of. It must be in the same namespace as the `KafkaProxyIngress`.
+<2> This ingress uses `loadBalancer` networking, which connects a Kubernetes `Service` resources with `type: LoadBalancer` to the virtual cluster (this Service may be shared with other clusters).
+<3> The bootstrap address that clients will bootstrap with. Using the optional `$(virtualClusterName)` replacement allows this `KafkaProxyIngress` to be referenced by multiple `VirtualKafkaCluster` resources
+<4> The advertised broker address pattern that clients will connect to when communicating with brokers. Using the optional `$(virtualClusterName)` replacement allows this `KafkaProxyIngress` to be referenced by multiple `VirtualKafkaCluster` resources
+
+NOTE: LoadBalancer ingress requires TLS between the client and Proxy. So each `VirtualKafkaCluster` that references this `KafkaProxyIngress`
+must have `tls` configured alongside the `KafkaProxyIngress` reference.

@@ -5,8 +5,8 @@
 
 [id='assembly-operator-deploying-a-proxy-{context}']
 = Deploying a proxy
-
 [role="_abstract"]
 This section provides a series of guides for deploying a proxy. We will explore different patterns for accessing the proxy.
 
 include::assembly-operator-deploy-a-proxy-with-in-cluster-plain-ingress.adoc[leveloffset=+1]
+include::assembly-operator-deploy-a-proxy-with-loadbalancer-ingress.adoc[leveloffset=+1]
