@@ -11,10 +11,8 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record ScheduleKeyDeletionResponse(@JsonProperty(value = "KeyState") @NonNull String keyState,
+public record ScheduleKeyDeletionResponse(@JsonProperty(value = "KeyState") String keyState,
                                           @JsonProperty(value = "PendingWindowInDays") int pendingWindowInDays) {
 
     public ScheduleKeyDeletionResponse {

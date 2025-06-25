@@ -37,8 +37,6 @@ import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Config, String, AwsKmsEdek> {
@@ -74,7 +72,6 @@ public abstract class AbstractAwsKmsTestKmsFacade implements TestKmsFacade<Confi
         startKms();
     }
 
-    @NonNull
     protected abstract URI getAwsUrl();
 
     @Override

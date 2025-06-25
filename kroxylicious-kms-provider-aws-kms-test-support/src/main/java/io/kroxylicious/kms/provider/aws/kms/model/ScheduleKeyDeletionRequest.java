@@ -10,9 +10,7 @@ import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
-public record ScheduleKeyDeletionRequest(@JsonProperty(value = "KeyId") @NonNull String keyId,
+public record ScheduleKeyDeletionRequest(@JsonProperty(value = "KeyId") String keyId,
                                          @JsonProperty("PendingWindowInDays") int pendingWindowInDays) {
 
     public ScheduleKeyDeletionRequest {
