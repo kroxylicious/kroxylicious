@@ -90,7 +90,7 @@ This is apparent through the metrics.
 * If a filter changes the size of the message, the downstream size metrics will be different to the upstream size metrics.
 
 .Downstream and upstream message metrics in the proxy
-image::monitoring-message-counters.svg["Conceptual diagram showing the downstream and upstream message metrics within the proxy, illustrating how they respond to message transit through it."]
+image::{imagesdir}/monitoring-message-counters.svg["Conceptual diagram showing the downstream and upstream message metrics within the proxy, illustrating how they respond to message transit through it."]
 
 Message metrics include the following labels: `virtual_cluster` (the virtual cluster's name), `node_id` (the broker's node ID), `api_key` (the message type), `api_version`, and `decoded` (a flag indicating if the message was decoded by the proxy).
 
