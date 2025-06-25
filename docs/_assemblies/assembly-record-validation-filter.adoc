@@ -1,0 +1,27 @@
+// file included in the following:
+//
+// assembly-built-in-filters.adoc
+
+[id='assembly-record-validation-filter-{context}']
+= (Preview) Record Validation filter
+
+[role="_abstract"]
+The Record Validation filter validates records sent by a producer.
+Only records that pass the validation are sent to the broker.
+This filter can be used to prevent _poison messages_—such as those containing corrupted data or invalid formats—from entering the Kafka system, which may otherwise lead to consumer failure.
+
+The filter currently supports two modes of operation:
+
+1. Schema Validation ensures the content of the record conforms to a schema stored in an https://www.apicur.io/registry/[Apicurio Registry].
+2. JSON Syntax Validation ensures the content of the record contains syntactically valid JSON.
+
+Validation rules can be applied to check the content of the Kafka record key or value.
+
+If the validation fails, the product request is rejected and the producing application receives an error response.  The broker
+will not receive the rejected records.
+
+NOTE: This filter is currently in incubation and available as a preview.
+We would not recommend using it in a production environment.
+
+//configuring the record-validation filter
+include::../_modules/record-validation/proc-record-validation.adoc[leveloffset=+1]

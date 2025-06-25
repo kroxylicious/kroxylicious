@@ -1,0 +1,22 @@
+// file included in the following:
+//
+// assembly-configuring-record-encryption-filter
+
+[id='con-aws-kms-plugin-configuration-{context}']
+= AWS KMS plugin configuration
+
+For AWS KMS the configuration for authenticating with AWS KMS services looks like this:
+
+include::con-aws-kms-service-config-identity-long-term.adoc[leveloffset=+1]
+
+ifdef::include-aws-kms-service-config-identity-ec2-metadata[]
+
+Alternatively, the configuration for authenticating with EC2 metadata looks like this:
+
+include::con-aws-kms-service-config-identity-ec2-metadata.adoc[leveloffset=+1]
+endif::[]
+
+include::../../../_snippets/snip-tls-client-keystore.adoc[]
+
+include::../../../_snippets/snip-tls-client-truststore.adoc[]
+

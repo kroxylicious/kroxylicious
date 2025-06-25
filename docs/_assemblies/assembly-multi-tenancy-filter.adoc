@@ -1,0 +1,31 @@
+// file included in the following:
+//
+// assembly-built-in-filters.adoc
+
+[id='assembly-multi-tenancy-filter-{context}']
+= (Preview) Multi-tenancy filter
+
+[role="_abstract"]
+Kroxylicious’s Multi-tenancy filter presents a single Kafka cluster to tenants as if it were multiple clusters.
+Operations are isolated to a single tenant by prefixing resources with an identifier.
+
+NOTE: This filter is currently in incubation and available as a preview. 
+We would not recommend using it in a production environment.
+
+The Multi-tenancy filter works by intercepting all Kafka RPCs (remote procedure calls) that reference resources, such as topic names and consumer group names:
+
+Request path:: On the request path, resource names are prefixed with a tenant identifier.
+Response path:: On the response path, the prefix is removed.
+
+Kafka RPCs that list resources are filtered so that only resources belonging to the tenant are returned, effectively creating a private cluster experience for each tenant.
+
+To set up the filter, configure it in Kroxylicious.
+
+IMPORTANT: While the Multi-tenancy filter isolates operations on resources, it does not isolate user identities across tenants. 
+User authentication and ACLs (Access Control Lists) are shared across all tenants, meaning that identity is not scoped to individual tenants. 
+For more information on open issues related to this filter, see {github-issues}[Kroxylicious issues^].
+
+NOTE: For more information on Kafka's support for multi-tenancy, see the {ApacheKafkaSite}.
+
+//configuring the multi-tenancy filter
+include::../_modules/multi-tenancy/proc-multi-tenancy.adoc[leveloffset=+1]

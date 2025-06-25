@@ -7,31 +7,31 @@ include::_assets/attributes.adoc[]
 [id="using-book-{context}"]
 = Kroxylicious Operator for Kubernetes
 
-include::modules/con-about-{guide}-guide.adoc[leveloffset=+2]
+include::_modules/con-about-{guide}-guide.adoc[leveloffset=+2]
 
-include::assemblies/assembly-operator-overview.adoc[leveloffset=+1]
+include::_assemblies/assembly-operator-overview.adoc[leveloffset=+1]
 
-include::assemblies/assembly-operator-api.adoc[leveloffset=+1]
+include::_assemblies/assembly-operator-api.adoc[leveloffset=+1]
 
 // installing
-include::assemblies/assembly-operator-install.adoc[leveloffset=+1]
+include::_assemblies/assembly-operator-install.adoc[leveloffset=+1]
 
 // TODO upgrade the operator
-// include::assemblies/assembly-operator-api.adoc[leveloffset=+1]
+// include::_assemblies/assembly-operator-api.adoc[leveloffset=+1]
 
 // deploy a proxy
-include::assemblies/assembly-operator-deploy-a-proxy.adoc[leveloffset=+1]
+include::_assemblies/assembly-operator-deploy-a-proxy.adoc[leveloffset=+1]
 
 // operating proxies
-include::assemblies/assembly-operator-operate-proxy.adoc[leveloffset=+1]
+include::_assemblies/assembly-operator-operate-proxy.adoc[leveloffset=+1]
 
 // securing proxies
-include::assemblies/assembly-operator-secure-proxy.adoc[leveloffset=+1]
+include::_assemblies/assembly-operator-secure-proxy.adoc[leveloffset=+1]
 
 // // monitoring proxies
-include::assemblies/assembly-operator-monitoring.adoc[leveloffset=+1]
+include::_assemblies/assembly-operator-monitoring.adoc[leveloffset=+1]
 
-include::modules/ref-glossary.adoc[leveloffset=+1]
+include::_modules/ref-glossary.adoc[leveloffset=+1]
 
 //trademark notices
 include::_assets/trademarks.adoc[leveloffset=+1]

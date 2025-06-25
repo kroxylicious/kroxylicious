@@ -943,41 +943,8 @@
                         </goals>
                         <phase>package</phase>
                         <configuration combine.self="append">
-                            <sourceDirectory>docs/developer-guide</sourceDirectory>
-                            <outputDirectory>${project.build.directory}/docs/html/developer-guide</outputDirectory>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>render-proxy-guide</id>
-                        <goals>
-                            <goal>process-asciidoc</goal>
-                        </goals>
-                        <phase>package</phase>
-                        <configuration combine.self="append">
-                            <sourceDirectory>docs/kroxylicious-proxy</sourceDirectory>
-                            <outputDirectory>${project.build.directory}/docs/html/proxy-guide</outputDirectory>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>render-operator-guide</id>
-                        <goals>
-                            <goal>process-asciidoc</goal>
-                        </goals>
-                        <phase>package</phase>
-                        <configuration combine.self="append">
-                            <sourceDirectory>docs/kroxylicious-operator</sourceDirectory>
-                            <outputDirectory>${project.build.directory}/docs/html/operator-guide</outputDirectory>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>render-record-encryption-guide</id>
-                        <goals>
-                            <goal>process-asciidoc</goal>
-                        </goals>
-                        <phase>package</phase>
-                        <configuration combine.self="append">
-                            <sourceDirectory>docs/record-encryption-guide</sourceDirectory>
-                            <outputDirectory>${project.build.directory}/docs/html/record-encryption</outputDirectory>
+                            <sourceDirectory>docs</sourceDirectory>
+                            <outputDirectory>${project.build.directory}/docs/html</outputDirectory>
                         </configuration>
                     </execution>
                 </executions>
