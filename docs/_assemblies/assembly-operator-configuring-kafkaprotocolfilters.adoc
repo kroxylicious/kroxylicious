@@ -1,0 +1,16 @@
+// file included in the following:
+//
+// kroxylicious-operator/_assemblies/assembly-operator-deploy-a-proxy.adoc
+
+[id='assembly-configuring-kafkaprotocolfilters-{context}']
+= Filters
+
+[role="_abstract"]
+A `KafkaProtocolFilter` resource represents a Kroxylicious Proxy filter.
+It is not uniquely associated with a `VirtualKafkaCluster` or `KafkaProxy` instance; it can be used in a number of `VirtualKafkaCluster` instances in the same namespace.
+
+A `KafkaProtocolFilter` is similar to one of the items in a proxy configuration's `filterDefinitions`:
+
+* The resource's `metadata.name` corresponds directly to the `name` of a `filterDefinitions` item.
+* The resource's `spec.type` corresponds directly to the `type` of a `filterDefinitions` item.
+* The resource's `spec.configTemplate` corresponds to the `config` of a `filterDefinitions` item, but is subject to interpolation by the operator.
