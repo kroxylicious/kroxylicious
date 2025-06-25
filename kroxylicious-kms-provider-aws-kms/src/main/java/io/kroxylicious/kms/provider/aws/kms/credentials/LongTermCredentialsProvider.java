@@ -12,8 +12,6 @@ import java.util.concurrent.CompletionStage;
 
 import io.kroxylicious.kms.provider.aws.kms.config.LongTermCredentialsProviderConfig;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Provider that obtains long-term {@link Credentials} that are statically defined by configuration.
  *
@@ -27,7 +25,7 @@ public class LongTermCredentialsProvider implements CredentialsProvider {
      *
      * @param config config.
      */
-    public LongTermCredentialsProvider(@NonNull LongTermCredentialsProviderConfig config) {
+    public LongTermCredentialsProvider(LongTermCredentialsProviderConfig config) {
         Objects.requireNonNull(config);
         var accessKeyId = config.accessKeyId().getProvidedPassword();
         var secretAccessKey = config.secretAccessKey().getProvidedPassword();
@@ -35,7 +33,6 @@ public class LongTermCredentialsProvider implements CredentialsProvider {
                 new FixedCredentials(accessKeyId, secretAccessKey));
     }
 
-    @NonNull
     @Override
     public CompletionStage<Credentials> getCredentials() {
         return credentialsCompletionStage;

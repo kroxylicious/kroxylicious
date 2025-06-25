@@ -45,8 +45,6 @@ import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 /**
@@ -85,8 +83,11 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      */
     private final URI awsUrl;
 
-    AwsKms(@NonNull URI awsUrl, @NonNull CredentialsProvider credentialsProvider, @NonNull String region, @NonNull Duration timeout,
-           @NonNull UnaryOperator<Builder> tlsConfigurator) {
+    AwsKms(URI awsUrl,
+           CredentialsProvider credentialsProvider,
+           String region,
+           Duration timeout,
+           UnaryOperator<Builder> tlsConfigurator) {
         Objects.requireNonNull(awsUrl);
         Objects.requireNonNull(credentialsProvider);
         Objects.requireNonNull(region);
@@ -98,7 +99,7 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
         this.client = createClient(tlsConfigurator);
     }
 
-    private HttpClient createClient(@NonNull UnaryOperator<Builder> tlsConfigurator) {
+    private HttpClient createClient(UnaryOperator<Builder> tlsConfigurator) {
         return tlsConfigurator.apply(HttpClient.newBuilder())
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .connectTimeout(timeout)
@@ -115,9 +116,8 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      * <br/>
      * @see <a href="https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKey.html">https://docs.aws.amazon.com/kms/latest/APIReference/API_GenerateDataKey.html</a>
      */
-    @NonNull
     @Override
-    public CompletionStage<DekPair<AwsKmsEdek>> generateDekPair(@NonNull String kekRef) {
+    public CompletionStage<DekPair<AwsKmsEdek>> generateDekPair(String kekRef) {
         final GenerateDataKeyRequest generateRequest = new GenerateDataKeyRequest(kekRef, "AES_256");
         var stage = createRequest(generateRequest, TRENT_SERVICE_GENERATE_DATA_KEY);
         return stage.thenCompose(request -> sendAsync(kekRef, request, GENERATE_DATA_KEY_RESPONSE_TYPE_REF, UnknownKeyException::new)
@@ -132,9 +132,8 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      * <br/>
      * @see <a href="https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html">https://docs.aws.amazon.com/kms/latest/APIReference/API_Decrypt.html</a>
      */
-    @NonNull
     @Override
-    public CompletionStage<SecretKey> decryptEdek(@NonNull AwsKmsEdek edek) {
+    public CompletionStage<SecretKey> decryptEdek(AwsKmsEdek edek) {
         final DecryptRequest decryptRequest = new DecryptRequest(edek.kekRef(), edek.edek());
         var stage = createRequest(decryptRequest, TRENT_SERVICE_DECRYPT);
         return stage.thenCompose(request -> sendAsync(edek.kekRef(), request, DECRYPT_RESPONSE_TYPE_REF, UnknownKeyException::new)
@@ -146,9 +145,8 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
      * <br/>
      * @see <a href="https://docs.aws.amazon.com/kms/latest/APIReference/API_DescribeKey.html">https://docs.aws.amazon.com/kms/latest/APIReference/API_DescribeKey.html</a>
      */
-    @NonNull
     @Override
-    public CompletionStage<String> resolveAlias(@NonNull String alias) {
+    public CompletionStage<String> resolveAlias(String alias) {
         final DescribeKeyRequest resolveRequest = new DescribeKeyRequest(ALIAS_PREFIX + alias);
         var stage = createRequest(resolveRequest, TRENT_SERVICE_DESCRIBE_KEY);
         return stage.thenCompose(request -> sendAsync(alias, request, DESCRIBE_KEY_RESPONSE_TYPE_REF, UnknownAliasException::new)
@@ -156,7 +154,7 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
                 .thenApply(KeyMetadata::keyId));
     }
 
-    private <T> CompletableFuture<T> sendAsync(@NonNull String key, HttpRequest request,
+    private <T> CompletableFuture<T> sendAsync(String key, HttpRequest request,
                                                TypeReference<T> valueTypeRef,
                                                Function<String, KmsException> exception) {
         return client.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
@@ -174,10 +172,9 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
         }
     }
 
-    @NonNull
-    private static HttpResponse<byte[]> checkResponseStatus(@NonNull String key,
-                                                            @NonNull HttpResponse<byte[]> response,
-                                                            @NonNull Function<String, KmsException> notFound) {
+    private static HttpResponse<byte[]> checkResponseStatus(String key,
+                                                            HttpResponse<byte[]> response,
+                                                            Function<String, KmsException> notFound) {
         var statusCode = response.statusCode();
         // AWS API states that only the 200 response is currently used.
         // Our HTTP client is configured to follow redirects so 3xx responses are not expected here.
@@ -200,13 +197,11 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
         return response;
     }
 
-    @NonNull
     @Override
     public Serde<AwsKmsEdek> edekSerde() {
         return AwsKmsEdekSerde.instance();
     }
 
-    @NonNull
     private URI getAwsUrl() {
         return awsUrl;
     }

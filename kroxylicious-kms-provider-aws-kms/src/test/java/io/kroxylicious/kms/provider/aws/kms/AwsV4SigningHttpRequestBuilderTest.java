@@ -41,8 +41,6 @@ import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 
 import io.kroxylicious.kms.provider.aws.kms.credentials.LongTermCredentialsProvider;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
@@ -217,7 +215,6 @@ class AwsV4SigningHttpRequestBuilderTest {
         assertThat(builder.getHostHeaderForSigning(uri)).isEqualTo(expected);
     }
 
-    @NonNull
     private HttpRequest.Builder createBuilder(URI uri) {
         var builder = AwsV4SigningHttpRequestBuilder.newBuilder(LongTermCredentialsProvider.fixedCredentials(ACCESS_KEY, SECRET_KEY),
                 REGION, SERVICE, Instant.ofEpochMilli(0));

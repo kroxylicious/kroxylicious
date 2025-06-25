@@ -39,7 +39,7 @@ import io.kroxylicious.kms.provider.aws.kms.credentials.Credentials;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static java.net.http.HttpRequest.BodyPublisher;
 import static java.net.http.HttpRequest.Builder;
@@ -69,7 +69,7 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
     private final Instant date;
     private final Builder builder;
     private final Credentials credentials;
-    private String payloadHexedSha56;
+    private @Nullable String payloadHexedSha56;
 
     /**
      * Creates an AwsV4SigningHttpRequestBuilder builder.
@@ -80,7 +80,10 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
      * @param date request date
      * @return a new request builder
      */
-    public static Builder newBuilder(@NonNull Credentials credentials, @NonNull String region, @NonNull String service, @NonNull Instant date) {
+    public static Builder newBuilder(Credentials credentials,
+                                     String region,
+                                     String service,
+                                     Instant date) {
         return new AwsV4SigningHttpRequestBuilder(region, service, date, HttpRequest.newBuilder(), credentials);
     }
 
@@ -180,7 +183,6 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         return builder.build();
     }
 
-    @NonNull
     private BodyPublisher digestingPublisher(BodyPublisher bodyPublisher) {
         var items = new ArrayList<BodyPublisher>();
 
@@ -237,8 +239,8 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         credentials.securityToken().ifPresent(securityToken -> builder.header(X_AMZ_SECURITY_TOKEN_HEADER, securityToken));
     }
 
-    @NonNull
-    private CanonicalRequestResult computeCanonicalRequest(Map<String, String> allHeaders, HttpRequest unsignedRequest) {
+    private CanonicalRequestResult computeCanonicalRequest(Map<String, String> allHeaders,
+                                                           HttpRequest unsignedRequest) {
         var method = unsignedRequest.method();
         var uri = unsignedRequest.uri();
         var path = Optional.ofNullable(uri.getPath()).filter(Predicate.not(String::isEmpty)).orElse("/");
@@ -265,8 +267,9 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
 
     private record CanonicalRequestResult(String signedHeaders, String canonicalRequestHash) {}
 
-    @NonNull
-    private StringToSignResult computeStringToSign(CanonicalRequestResult canonicalRequestResult, String isoDateTime, String isoDate) {
+    private StringToSignResult computeStringToSign(CanonicalRequestResult canonicalRequestResult,
+                                                   String isoDateTime,
+                                                   String isoDate) {
         var stringToSignLines = new ArrayList<String>();
         stringToSignLines.add("AWS4-HMAC-SHA256");
         stringToSignLines.add(isoDateTime);
@@ -279,8 +282,9 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
 
     private record StringToSignResult(String credentialScope, String stringToSign) {}
 
-    @NonNull
-    private String computeAuthorization(CanonicalRequestResult canonicalRequestResult, StringToSignResult stringToSignResult, String isoDate) {
+    private String computeAuthorization(CanonicalRequestResult canonicalRequestResult,
+                                        StringToSignResult stringToSignResult,
+                                        String isoDate) {
         var dateHmac = hmac(("AWS4" + credentials.secretAccessKey()).getBytes(StandardCharsets.UTF_8), isoDate);
         var regionHmac = hmac(dateHmac, this.region);
         var serviceHmac = hmac(regionHmac, this.service);
@@ -350,7 +354,6 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         }
     }
 
-    @NonNull
     private static Mac newHmacSha256() {
         try {
             return Mac.getInstance("HmacSHA256");
@@ -360,7 +363,6 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         }
     }
 
-    @NonNull
     private static MessageDigest newSha256Digester() {
         try {
             return MessageDigest.getInstance("SHA-256");
@@ -370,7 +372,6 @@ class AwsV4SigningHttpRequestBuilder implements Builder {
         }
     }
 
-    @NonNull
     private static Map<String, String> getSingleValuedHeaders(HttpRequest request) {
         return request.headers().map().entrySet().stream()
                 .filter(AwsV4SigningHttpRequestBuilder::hasSingleValue)

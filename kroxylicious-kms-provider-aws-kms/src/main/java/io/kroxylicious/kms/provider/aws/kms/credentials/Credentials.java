@@ -8,8 +8,6 @@ package io.kroxylicious.kms.provider.aws.kms.credentials;
 
 import java.util.Optional;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Representations credentials needed to authenticate to AWS.
  */
@@ -19,7 +17,6 @@ public interface Credentials {
      *
      * @return access key id.
      */
-    @NonNull
     String accessKeyId();
 
     /**
@@ -27,7 +24,6 @@ public interface Credentials {
      *
      * @return secret key.
      */
-    @NonNull
     String secretAccessKey();
 
     /**
@@ -36,7 +32,6 @@ public interface Credentials {
      *
      * @return security token.
      */
-    @NonNull
     default Optional<String> securityToken() {
         return Optional.empty();
     }

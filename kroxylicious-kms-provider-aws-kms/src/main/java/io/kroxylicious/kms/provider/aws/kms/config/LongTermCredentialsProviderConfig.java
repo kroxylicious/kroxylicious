@@ -10,8 +10,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  *
  * Configuration providing long-term, fixed, credentials.
@@ -21,5 +19,5 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  *
  * @see <a href="https://docs.aws.amazon.com/sdkref/latest/guide/access-iam-users.html">long-term credentials</a>.
  */
-public record LongTermCredentialsProviderConfig(@JsonProperty(value = "accessKeyId", required = true) @NonNull PasswordProvider accessKeyId,
-                                                @JsonProperty(value = "secretAccessKey", required = true) @NonNull PasswordProvider secretAccessKey) {}
+public record LongTermCredentialsProviderConfig(@JsonProperty(value = "accessKeyId", required = true) PasswordProvider accessKeyId,
+                                                @JsonProperty(value = "secretAccessKey", required = true) PasswordProvider secretAccessKey) {}
