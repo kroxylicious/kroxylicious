@@ -21,18 +21,12 @@
     <description>Assembles the operator assets for release</description>
     <packaging>pom</packaging>
 
-    <properties>
-        <maven.compiler.source>21</maven.compiler.source>
-        <maven.compiler.target>21</maven.compiler.target>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-operator</artifactId>
             <version>${project.version}</version>
-            <scope>runtime</scope>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
@@ -46,7 +40,7 @@
                         <executions>
                             <execution>
                                 <id>operator-asset</id>
-                                <phase>package</phase><!-- Note this execution happens after the following plugins bound to the package phase! -->
+                                <phase>package</phase>
                                 <goals>
                                     <goal>single</goal>
                                 </goals>
