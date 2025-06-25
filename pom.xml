@@ -907,20 +907,10 @@
                     <requires>
                         <require>asciidoctor-diagram</require>
                     </requires>
-                    <resources>
-                        <resource>
-                            <directory>docs/_assets</directory>
-<!--                        <targetPath>${project.build.directory}/docs/kroxylicious-operator/html/images</targetPath>-->
-                            <targetPath>_assets</targetPath>
-                            <includes>
-                                <include>**/*.svg</include>
-                            </includes>
-                        </resource>
-                    </resources>
                     <preserveDirectories>true</preserveDirectories>
                     <attributes>
                         <source-highlighter>coderay</source-highlighter>
-                        <imagesdir>./images</imagesdir>
+                        <imagesdir>../images</imagesdir>
                         <toc>left</toc>
                         <icons>font</icons>
                         <attribute>revnumber!</attribute>
@@ -933,7 +923,7 @@
                             <severity>INFO</severity>
                         </failIf>
                     </logHandler>
-                    <standalone>false</standalone>
+                    <standalone>true</standalone>
                 </configuration>
                 <executions>
                     <execution>
