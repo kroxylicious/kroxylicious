@@ -47,7 +47,6 @@ import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kms.provider.fortanix.dsm.model.Constants.AES;
@@ -82,7 +81,9 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
     private final URI fortanixDsmUrl;
     private final SessionProvider sessionProvider;
 
-    FortanixDsmKms(@NonNull URI fortanixDsmUrl, @NonNull SessionProvider sessionProvider, @NonNull HttpClient client) {
+    FortanixDsmKms(URI fortanixDsmUrl,
+                   SessionProvider sessionProvider,
+                   HttpClient client) {
         this.fortanixDsmUrl = Objects.requireNonNull(fortanixDsmUrl);
         this.sessionProvider = Objects.requireNonNull(sessionProvider);
         this.client = Objects.requireNonNull(client);
@@ -103,9 +104,8 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
      * @see <a href="https://support.fortanix.com/apidocs/get-the-details-and-value-of-a-particular-exportable-security-object">https://support.fortanix.com/apidocs/get-the-details-and-value-of-a-particular-exportable-security-object</a>
      * @see <a href="https://support.fortanix.com/apidocs/encrypt-data-using-a-symmetric-or-asymmetric-key">https://support.fortanix.com/apidocs/encrypt-data-using-a-symmetric-or-asymmetric-key</a>
      */
-    @NonNull
     @Override
-    public CompletionStage<DekPair<FortanixDsmKmsEdek>> generateDekPair(@NonNull String kekRef) {
+    public CompletionStage<DekPair<FortanixDsmKmsEdek>> generateDekPair(String kekRef) {
         var sessionFuture = getSessionFuture();
         var dekName = "dek-" + UUID.randomUUID();
         return sessionFuture
@@ -114,15 +114,17 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
                 .thenCompose(exportedKey -> wrapExportedTransientKey(kekRef, exportedKey, sessionFuture));
     }
 
-    private CompletionStage<SecurityObjectResponse> createTransientKey(@NonNull String dekName, @NonNull Session session) {
+    private CompletionStage<SecurityObjectResponse> createTransientKey(String dekName,
+                                                                       Session session) {
         var transientKeySo = new SecurityObjectRequest(dekName, 256, AES, true, List.of(EXPORT_KEY_OPS), Map.of());
         var requestBuilder = createRequestBuilder(transientKeySo, "/crypto/v1/keys");
 
         return sendAsync(requestBuilder, SECURITY_OBJECT_RESPONSE_TYPE_REF, FortanixDsmKms::getStatusException, session);
     }
 
-    private CompletionStage<SecurityObjectResponse> exportTransientKey(@NonNull String dekName, @NonNull SecurityObjectResponse transientKeyResponse,
-                                                                       @NonNull CompletionStage<Session> sessionFuture) {
+    private CompletionStage<SecurityObjectResponse> exportTransientKey(String dekName,
+                                                                       SecurityObjectResponse transientKeyResponse,
+                                                                       CompletionStage<Session> sessionFuture) {
         var requestBuilder = createRequestBuilder(new SecurityObjectDescriptor(null, null, transientKeyResponse.transientKey()),
                 "/crypto/v1/keys/export");
 
@@ -131,8 +133,9 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
                         (uri, status) -> getStatusException(uri, status, () -> new UnknownKeyException(dekName)), session));
     }
 
-    private CompletionStage<DekPair<FortanixDsmKmsEdek>> wrapExportedTransientKey(@NonNull String kekRef, @NonNull SecurityObjectResponse exportedKey,
-                                                                                  @NonNull CompletionStage<Session> sessionFuture) {
+    private CompletionStage<DekPair<FortanixDsmKmsEdek>> wrapExportedTransientKey(String kekRef,
+                                                                                  SecurityObjectResponse exportedKey,
+                                                                                  CompletionStage<Session> sessionFuture) {
         var secretKey = DestroyableRawSecretKey.takeOwnershipOf(exportedKey.value(), "AES");
         var encryptRequest = EncryptRequest.createWrapRequest(kekRef, exportedKey.value());
 
@@ -148,9 +151,8 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
      * <br/>
      * @see <a href="https://support.fortanix.com/apidocs/decrypt-data-using-a-symmetric-or-asymmetric-key">https://support.fortanix.com/apidocs/decrypt-data-using-a-symmetric-or-asymmetric-key</a>
     */
-    @NonNull
     @Override
-    public CompletionStage<SecretKey> decryptEdek(@NonNull FortanixDsmKmsEdek edek) {
+    public CompletionStage<SecretKey> decryptEdek(FortanixDsmKmsEdek edek) {
         var sessionFuture = getSessionFuture();
 
         var decryptRequest = DecryptRequest.createUnwrapRequest(edek.kekRef(), edek.iv(), edek.edek());
@@ -166,9 +168,8 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
      * <br/>
      * @see <a href="https://support.fortanix.com/apidocs/lookup-a-security-object">https://support.fortanix.com/apidocs/lookup-a-security-object</a>
      */
-    @NonNull
     @Override
-    public CompletionStage<String> resolveAlias(@NonNull String alias) {
+    public CompletionStage<String> resolveAlias(String alias) {
         var sessionFuture = getSessionFuture();
         var descriptor = new SecurityObjectDescriptor(null, alias, null);
         var requestBuilder = createRequestBuilder(descriptor, "/crypto/v1/keys/info");
@@ -178,13 +179,11 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
                 .thenApply(SecurityObjectResponse::kid);
     }
 
-    @NonNull
     @Override
     public Serde<FortanixDsmKmsEdek> edekSerde() {
         return FortanixDsmKmsEdekSerde.instance();
     }
 
-    @NonNull
     private URI getEndpointUrl() {
         return fortanixDsmUrl;
     }
@@ -228,16 +227,16 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
      * @param response response
      * @return response
      */
-    @NonNull
-    private static HttpResponse<byte[]> invalidateSessionIfNecessary(@NonNull Session session, @NonNull HttpResponse<byte[]> response) {
+    private static HttpResponse<byte[]> invalidateSessionIfNecessary(Session session,
+                                                                     HttpResponse<byte[]> response) {
         if (Set.of(401, 403).contains(response.statusCode())) {
             session.invalidate();
         }
         return response;
     }
 
-    @NonNull
-    private static HttpResponse<byte[]> checkResponseStatus(@NonNull HttpResponse<byte[]> response, BiFunction<URI, Integer, KmsException> exceptionSupplier) {
+    private static HttpResponse<byte[]> checkResponseStatus(HttpResponse<byte[]> response,
+                                                            BiFunction<URI, Integer, KmsException> exceptionSupplier) {
         var statusCode = response.statusCode();
         var exception = exceptionSupplier.apply(response.request().uri(), statusCode);
         if (exception != null) {
@@ -246,11 +245,14 @@ public class FortanixDsmKms implements Kms<String, FortanixDsmKmsEdek> {
         return response;
     }
 
-    private static @Nullable KmsException getStatusException(@NonNull URI uri, int statusCode) {
+    private static @Nullable KmsException getStatusException(URI uri,
+                                                             int statusCode) {
         return getStatusException(uri, statusCode, null);
     }
 
-    private static @Nullable KmsException getStatusException(@NonNull URI uri, int statusCode, @Nullable Supplier<KmsException> notFoundSupplier) {
+    private static @Nullable KmsException getStatusException(URI uri,
+                                                             int statusCode,
+                                                             @Nullable Supplier<KmsException> notFoundSupplier) {
         // Our HTTP client is configured to follow redirects so 3xx responses are not expected here.
         KmsException cause = null;
         if (!(statusCode >= 200 && statusCode < 300)) {

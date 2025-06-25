@@ -11,6 +11,8 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Decrypt response from Fortanix DSM REST API, @code /crypto/v1/decrypt}.
  *
@@ -20,7 +22,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @SuppressWarnings("java:S6218") // we don't need DecryptResponse equality
 public record DecryptResponse(
-                              @JsonProperty(value = "kid", required = false) String kid,
+                              @JsonProperty(value = "kid", required = false) @Nullable String kid,
                               @JsonProperty(value = "plain", required = true) byte[] plain) {
 
     /**

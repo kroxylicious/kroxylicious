@@ -9,8 +9,6 @@ package io.kroxylicious.kms.provider.fortanix.dsm;
 import java.util.Arrays;
 import java.util.Objects;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * A Fortanix DSM Encrypted Dek.
  *
@@ -18,9 +16,9 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param iv dek iv bytes
  * @param edek - edek bytes
  */
-record FortanixDsmKmsEdek(@NonNull String kekRef,
-                          @NonNull byte[] iv,
-                          @NonNull byte[] edek) {
+record FortanixDsmKmsEdek(String kekRef,
+                          byte[] iv,
+                          byte[] edek) {
 
     public static final int IV_LENGTH = 16;
 

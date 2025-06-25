@@ -9,6 +9,8 @@ package io.kroxylicious.kms.provider.fortanix.dsm.model;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Security object response from the Fortanix DSM REST API.
  *
@@ -18,9 +20,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 @SuppressWarnings("java:S6218") // we don't need SecurityObjectResponse equality
-public record SecurityObjectResponse(@JsonProperty(value = "kid", required = false) String kid,
-                                     @JsonProperty(value = "transient_key", required = false) String transientKey,
-                                     @JsonProperty(value = "value", required = false) byte[] value) {
+public record SecurityObjectResponse(@JsonProperty(value = "kid", required = false) @Nullable String kid,
+                                     @JsonProperty(value = "transient_key", required = false) @Nullable String transientKey,
+                                     @JsonProperty(value = "value", required = false) @Nullable byte[] value) {
     /**
      * Security object response from the Fortanix DSM REST API.
      *

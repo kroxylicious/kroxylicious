@@ -12,6 +12,8 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * A session auth response.
  *
@@ -26,7 +28,7 @@ public record SessionAuthResponse(@JsonProperty("token_type") String tokenType,
                                   @JsonProperty("expires_in") int expiresIn,
                                   @JsonProperty("access_token") String accessToken,
                                   @JsonProperty("entity_id") String entityId,
-                                  @JsonProperty(value = "allowed_mfa_methods", required = false) List<String> allowedMfaMethods) {
+                                  @JsonProperty(value = "allowed_mfa_methods", required = false) @Nullable List<String> allowedMfaMethods) {
     /**
      * A session auth response.
      *

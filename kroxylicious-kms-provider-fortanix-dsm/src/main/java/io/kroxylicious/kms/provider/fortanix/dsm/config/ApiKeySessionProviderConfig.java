@@ -10,7 +10,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Api Key authenticated session provider.
@@ -19,5 +19,5 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param sessionLifetimeFactor  the factor applied to determine how long until a session is preemptively refreshed
  *
  */
-public record ApiKeySessionProviderConfig(@JsonProperty(value = "apiKey", required = true) @NonNull PasswordProvider apiKey,
-                                          @JsonProperty(value = "sessionLifetimeFactor", required = false) Double sessionLifetimeFactor) {}
+public record ApiKeySessionProviderConfig(@JsonProperty(value = "apiKey", required = true) PasswordProvider apiKey,
+                                          @JsonProperty(value = "sessionLifetimeFactor", required = false) @Nullable Double sessionLifetimeFactor) {}

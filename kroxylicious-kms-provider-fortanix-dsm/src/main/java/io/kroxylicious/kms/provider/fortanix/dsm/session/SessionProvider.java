@@ -9,8 +9,6 @@ package io.kroxylicious.kms.provider.fortanix.dsm.session;
 import java.io.Closeable;
 import java.util.concurrent.CompletionStage;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Fortanix Session Provider
  */
@@ -21,7 +19,6 @@ public interface SessionProvider extends Closeable {
      *
      * @return future
      */
-    @NonNull
     CompletionStage<Session> getSession();
 
     default void close() {

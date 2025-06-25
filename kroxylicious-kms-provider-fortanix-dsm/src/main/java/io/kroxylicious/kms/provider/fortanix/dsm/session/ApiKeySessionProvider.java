@@ -43,8 +43,6 @@ import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static io.kroxylicious.kms.provider.fortanix.dsm.FortanixDsmKms.AUTHORIZATION_HEADER;
 
 /**
@@ -99,12 +97,15 @@ public class ApiKeySessionProvider implements SessionProvider {
      * @param config config.
      * @param client configured HTTP client
      */
-    public ApiKeySessionProvider(@NonNull Config config, @NonNull HttpClient client) {
+    public ApiKeySessionProvider(Config config,
+                                 HttpClient client) {
         this(config, client, Clock.systemUTC());
     }
 
     @VisibleForTesting
-    ApiKeySessionProvider(@NonNull Config config, @NonNull HttpClient client, @NonNull Clock systemClock) {
+    ApiKeySessionProvider(Config config,
+                          HttpClient client,
+                          Clock systemClock) {
         Objects.requireNonNull(config);
         Objects.requireNonNull(systemClock);
         Objects.requireNonNull(client);
@@ -119,7 +120,6 @@ public class ApiKeySessionProvider implements SessionProvider {
         this.client = client;
     }
 
-    @NonNull
     @Override
     public CompletionStage<Session> getSession() {
         var newCredFuture = new CompletableFuture<Session>();
@@ -223,13 +223,11 @@ public class ApiKeySessionProvider implements SessionProvider {
         var authzHeader = sessionAuthResponse.tokenType() + " " + sessionAuthResponse.accessToken();
         var expiration = systemClock.instant().plusSeconds(sessionAuthResponse.expiresIn());
         return new Session() {
-            @NonNull
             @Override
             public String authorizationHeader() {
                 return authzHeader;
             }
 
-            @NonNull
             @Override
             public Instant expiration() {
                 return expiration;
@@ -267,7 +265,7 @@ public class ApiKeySessionProvider implements SessionProvider {
      * @param stage session future.
      */
     @VisibleForTesting
-    protected void terminateSessionOnServer(@NonNull CompletionStage<Session> stage) {
+    protected void terminateSessionOnServer(CompletionStage<Session> stage) {
 
         try {
             var s = stage.toCompletableFuture().getNow(null);
@@ -295,8 +293,7 @@ public class ApiKeySessionProvider implements SessionProvider {
         }
     }
 
-    @NonNull
-    private static <O> HttpResponse<O> checkResponseStatus(@NonNull HttpResponse<O> response) {
+    private static <O> HttpResponse<O> checkResponseStatus(HttpResponse<O> response) {
         var statusCode = response.statusCode();
         var httpSuccess = statusCode >= 200 && statusCode < 300;
         if (!httpSuccess) {

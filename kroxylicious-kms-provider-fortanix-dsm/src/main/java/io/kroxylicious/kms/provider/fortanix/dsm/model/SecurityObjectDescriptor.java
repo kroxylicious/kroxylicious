@@ -9,6 +9,8 @@ package io.kroxylicious.kms.provider.fortanix.dsm.model;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Fortanix key descriptor capable of expressing a security object by kid, name or transient key id.
  *
@@ -18,9 +20,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record SecurityObjectDescriptor(
-                                       @JsonProperty("kid") String kid,
-                                       @JsonProperty("name") String name,
-                                       @JsonProperty("transient_key") String transientKey) {
+                                       @JsonProperty("kid") @Nullable String kid,
+                                       @JsonProperty("name") @Nullable String name,
+                                       @JsonProperty("transient_key") @Nullable String transientKey) {
     /**
      * Fortanix key descriptor capable of expressing a security object by kid, name or transient key id.
      *

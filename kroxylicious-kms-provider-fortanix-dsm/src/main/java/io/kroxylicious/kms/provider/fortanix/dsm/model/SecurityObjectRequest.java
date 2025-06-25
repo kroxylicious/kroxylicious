@@ -13,6 +13,8 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Security object request to the Fortanix DSM REST API.
  *
@@ -25,12 +27,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @see <a href="https://support.fortanix.com/apidocs/generate-a-new-security-object">generate-a-new-security-object</a>
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record SecurityObjectRequest(@JsonProperty("name") String name,
+public record SecurityObjectRequest(@JsonProperty("name") @Nullable String name,
                                     @JsonProperty("key_size") int keySize,
                                     @JsonProperty(value = "obj_type", required = true) String objType,
                                     @JsonProperty("transient") boolean transientSo,
-                                    @JsonProperty("key_ops") List<String> keyOps,
-                                    @JsonProperty("custom_metadata") Map<String, Object> customMetadata) {
+                                    @JsonProperty("key_ops") @Nullable List<String> keyOps,
+                                    @JsonProperty("custom_metadata") @Nullable Map<String, Object> customMetadata) {
     /**
      * Security object request to the Fortanix DSM REST API.
      *
