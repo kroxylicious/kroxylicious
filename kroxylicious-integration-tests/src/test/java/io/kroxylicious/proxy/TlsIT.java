@@ -58,6 +58,7 @@ import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.Request;
+import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.common.KafkaClusterConfig;
@@ -83,12 +84,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 @ExtendWith(KafkaClusterExtension.class)
 class TlsIT extends BaseIT {
-    private static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
+    private static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:" + KroxyliciousConfigUtils.startPort());
     private static final String TOPIC = "my-test-topic";
 
     private static final String SNI_BASE_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("sni");
     private static final String SNI_BROKER_ADDRESS_PATTERN = "broker-$(nodeId)." + SNI_BASE_ADDRESS;
-    private static final HostPort SNI_BOOTSTRAP_ADDRESS = HostPort.parse("bootstrap." + SNI_BASE_ADDRESS + ":9192");
+    private static final HostPort SNI_BOOTSTRAP_ADDRESS = HostPort.parse("bootstrap." + SNI_BASE_ADDRESS + ":" + KroxyliciousConfigUtils.startPort());
     private static final String TLS_CLUSTER = "tlsCluster";
     private static final String PLAIN_CLUSTER = "plainCluster";
 

@@ -91,11 +91,11 @@ class ExpositionIT extends BaseIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExpositionIT.class);
 
     private static final String TOPIC = "my-test-topic";
-    public static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
+    public static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:" + KroxyliciousConfigUtils.startPort());
 
     private static final String SNI_BASE_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("sni");
 
-    public static final HostPort SNI_BOOTSTRAP = new HostPort("bootstrap." + SNI_BASE_ADDRESS, 9192);
+    public static final HostPort SNI_BOOTSTRAP = new HostPort("bootstrap." + SNI_BASE_ADDRESS, KroxyliciousConfigUtils.startPort());
     public static final String SNI_BROKER_ADDRESS_PATTERN = "broker-$(nodeId)." + SNI_BASE_ADDRESS;
     public static final String SNI_BROKER_ADDRESS_PATTERN_WITH_CLUSTER_NAME = "$(virtualClusterName)-broker-$(nodeId)." + SNI_BASE_ADDRESS;
     public static final String SASL_USER = "user";
@@ -141,7 +141,7 @@ class ExpositionIT extends BaseIT {
 
     @Test
     void exposesTwoClusterOverPlainWithSeparatePorts() {
-        List<String> clusterProxyAddresses = List.of("localhost:9192", "localhost:9294");
+        List<String> clusterProxyAddresses = List.of("localhost:" + KroxyliciousConfigUtils.startPort(), "localhost:" + (KroxyliciousConfigUtils.startPort() + 10));
 
         var builder = new ConfigurationBuilder();
 
@@ -173,8 +173,8 @@ class ExpositionIT extends BaseIT {
         var builder = new ConfigurationBuilder();
 
         VirtualClusterBuilder virtualClusterBuilder = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "cluster");
-        virtualClusterBuilder.addToGateways(portPerBrokerGateway("localhost:9192", "gateway1"),
-                portPerBrokerGateway("localhost:9294", "gateway2"));
+        virtualClusterBuilder.addToGateways(portPerBrokerGateway("localhost:" + KroxyliciousConfigUtils.startPort(), "gateway1"),
+                portPerBrokerGateway("localhost:" + (KroxyliciousConfigUtils.startPort() + 10), "gateway2"));
         var virtualCluster = virtualClusterBuilder.build();
         builder.addToVirtualClusters(virtualCluster);
 
@@ -182,12 +182,12 @@ class ExpositionIT extends BaseIT {
             try (var admin = tester.admin("cluster", "gateway1")) {
                 createTopic(admin, randomTopicName(), 1);
                 Set<Integer> ports = getClusterNodePorts(admin);
-                assertThat(ports).containsExactly(9193);
+                assertThat(ports).containsExactly(KroxyliciousConfigUtils.startPort() + 1);
             }
             try (var admin = tester.admin("cluster", "gateway2")) {
                 createTopic(admin, randomTopicName(), 1);
                 Set<Integer> ports = getClusterNodePorts(admin);
-                assertThat(ports).containsExactly(9295);
+                assertThat(ports).containsExactly(KroxyliciousConfigUtils.startPort() + 11);
             }
         }
     }
@@ -228,7 +228,7 @@ class ExpositionIT extends BaseIT {
      */
     @Test
     void exposesUpstreamClustersUsingSniRoutingBehindPassthroughProxy() throws Exception {
-        try (var proxy = new PassthroughProxy(9192, "localhost")) {
+        try (var proxy = new PassthroughProxy(KroxyliciousConfigUtils.startPort(), "localhost")) {
             var virtualClusterCommonNamePattern = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".cluster");
             var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
             var virtualClusterBrokerAddressPattern = "broker-$(nodeId)" + virtualClusterCommonNamePattern;
@@ -238,7 +238,7 @@ class ExpositionIT extends BaseIT {
             var keystoreTrustStorePair = buildKeystoreTrustStorePair("*" + virtualClusterCommonNamePattern);
 
             var virtualCluster = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "cluster")
-                    .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterBootstrapPattern + ":9192",
+                    .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterBootstrapPattern + ":" + KroxyliciousConfigUtils.startPort(),
                             virtualClusterBrokerAddressPattern + ":" + proxy.getLocalPort())
                             .withNewTls()
                             .withNewKeyStoreKey()
@@ -284,7 +284,8 @@ class ExpositionIT extends BaseIT {
             keystoreTrustStoreList.add(keystoreTrustStorePair);
 
             var virtualCluster = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "cluster" + i)
-                    .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterFQDN + ":9192", virtualClusterBrokerAddressPattern.formatted(i))
+                    .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterFQDN + ":" + KroxyliciousConfigUtils.startPort(),
+                            virtualClusterBrokerAddressPattern.formatted(i))
                             .withNewTls()
                             .withNewKeyStoreKey()
                             .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
@@ -318,7 +319,7 @@ class ExpositionIT extends BaseIT {
         var virtualClusterCommonNamePattern = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".$(virtualClusterName)");
         var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
         var virtualClusterBrokerAddressPattern = "broker-$(nodeId)" + virtualClusterCommonNamePattern;
-        VirtualClusterGatewayBuilder sniBuilder = defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterBootstrapPattern + ":9192",
+        VirtualClusterGatewayBuilder sniBuilder = defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterBootstrapPattern + ":" + KroxyliciousConfigUtils.startPort(),
                 virtualClusterBrokerAddressPattern);
 
         var builder = new ConfigurationBuilder();
@@ -358,7 +359,7 @@ class ExpositionIT extends BaseIT {
                             .map(node -> new HostPort(node.host(), node.port()))
                             .collect(Collectors.toSet());
                     String expectedAdvertisedBrokerHost = "broker-0.%s%s".formatted(clusterName, TEST_DOMAIN);
-                    assertThat(nodeAdvertisedAddresses).singleElement().isEqualTo(new HostPort(expectedAdvertisedBrokerHost, 9192));
+                    assertThat(nodeAdvertisedAddresses).singleElement().isEqualTo(new HostPort(expectedAdvertisedBrokerHost, KroxyliciousConfigUtils.startPort()));
                 }
             }
         }
@@ -383,7 +384,7 @@ class ExpositionIT extends BaseIT {
                     .addToGateways(new VirtualClusterGatewayBuilder()
                             .withName("gateway-" + i)
                             .withNewSniHostIdentifiesNode()
-                            .withBootstrapAddress(new HostPort(virtualClusterFQDN, 9192).toString())
+                            .withBootstrapAddress(new HostPort(virtualClusterFQDN, KroxyliciousConfigUtils.startPort()).toString())
                             .withAdvertisedBrokerAddressPattern(virtualClusterBrokerAddressPattern.formatted(i))
                             .endSniHostIdentifiesNode()
                             .withNewTls()

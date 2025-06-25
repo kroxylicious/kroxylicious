@@ -44,6 +44,7 @@ import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.filter.multitenant.MultiTenant;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
@@ -60,10 +61,10 @@ public abstract class BaseMultiTenantIT extends BaseIT {
 
     public static final String TENANT_1_CLUSTER = "foo";
     static final HostPort TENANT_1_PROXY_ADDRESS = HostPort
-            .parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_1_CLUSTER, 9192));
+            .parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_1_CLUSTER, KroxyliciousConfigUtils.startPort()));
     public static final String TENANT_2_CLUSTER = "bar";
     static final HostPort TENANT_2_PROXY_ADDRESS = HostPort
-            .parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_2_CLUSTER, 9292));
+            .parse(IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(TENANT_2_CLUSTER, KroxyliciousConfigUtils.startPort() + 10));
 
     static final long FUTURE_TIMEOUT_SECONDS = 5L;
     Map<String, Object> clientConfig;

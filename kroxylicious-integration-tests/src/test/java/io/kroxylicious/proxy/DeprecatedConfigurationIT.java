@@ -22,6 +22,7 @@ import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -33,7 +34,7 @@ import static org.junit.jupiter.params.provider.Arguments.argumentSet;
  */
 public class DeprecatedConfigurationIT extends BaseIT {
 
-    private static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
+    private static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:" + KroxyliciousConfigUtils.startPort());
 
     @SuppressWarnings("removal")
     static Stream<Arguments> shouldSupportDeprecatedClusterNetworkAddressConfigProvider() {

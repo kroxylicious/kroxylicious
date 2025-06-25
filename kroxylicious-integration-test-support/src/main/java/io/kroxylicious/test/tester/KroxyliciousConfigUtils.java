@@ -12,6 +12,9 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedRange;
@@ -40,8 +43,20 @@ public class KroxyliciousConfigUtils {
 
     public static final String DEFAULT_VIRTUAL_CLUSTER = "demo";
     public static final String DEFAULT_GATEWAY_NAME = "default";
+    private static final Logger LOGGER = LoggerFactory.getLogger(KroxyliciousConfigUtils.class);
 
-    static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", 9192);
+    static final HostPort DEFAULT_PROXY_BOOTSTRAP = new HostPort("localhost", startPort());
+
+    public static int startPort() {
+        int forkNumber = Integer.parseInt(System.getProperty("forkNumber", "0"));
+        int offset = 50 * forkNumber;
+        LOGGER.info("Using fork number " + forkNumber + " and offset " + offset);
+        return 9192 + offset;
+    }
+
+    public static int metricsPort() {
+        return startPort() - 1;
+    }
 
     /**
      * Create a KroxyliciousConfigBuilder with a single virtual cluster configured to

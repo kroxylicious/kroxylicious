@@ -263,6 +263,11 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
+                <configuration combine.children="append">
+                    <forkCount>3</forkCount>
+                    <reuseForks>true</reuseForks>
+                    <argLine>-DforkNumber=${surefire.forkNumber}</argLine>
+                </configuration>
             </plugin>
         </plugins>
     </build>
