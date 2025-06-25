@@ -28,7 +28,7 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app.kubernetes.io/application: kroxylicious
+      app.kubernetes.io/name: kroxylicious
       app.kubernetes.io/component: proxy
   podMetricsEndpoints:
   - path: /metrics
