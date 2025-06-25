@@ -497,6 +497,7 @@
         <module>kroxylicious-kubernetes-api</module>
         <module>kroxylicious-operator-test-support</module>
         <module>kroxylicious-operator</module>
+        <module>kroxylicious-operator-dist</module>
     </modules>
 
 
@@ -918,7 +919,7 @@
                         <phase>package</phase>
                         <configuration combine.self="append">
                             <sourceDirectory>docs/developer-guide</sourceDirectory>
-                            <outputDirectory>${project.build.directory}/docs/developer-guide/html</outputDirectory>
+                            <outputDirectory>${project.build.directory}/docs/html/developer-guide</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
@@ -929,7 +930,7 @@
                         <phase>package</phase>
                         <configuration combine.self="append">
                             <sourceDirectory>docs/kroxylicious-proxy</sourceDirectory>
-                            <outputDirectory>${project.build.directory}/docs/proxy-guide/html</outputDirectory>
+                            <outputDirectory>${project.build.directory}/docs/html/proxy-guide</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
@@ -940,7 +941,7 @@
                         <phase>package</phase>
                         <configuration combine.self="append">
                             <sourceDirectory>docs/kroxylicious-operator</sourceDirectory>
-                            <outputDirectory>${project.build.directory}/docs/operator-guide/html</outputDirectory>
+                            <outputDirectory>${project.build.directory}/docs/html/operator-guide</outputDirectory>
                         </configuration>
                     </execution>
                     <execution>
@@ -951,7 +952,7 @@
                         <phase>package</phase>
                         <configuration combine.self="append">
                             <sourceDirectory>docs/record-encryption-guide</sourceDirectory>
-                            <outputDirectory>${project.build.directory}/docs/record-encryption/html</outputDirectory>
+                            <outputDirectory>${project.build.directory}/docs/html/record-encryption</outputDirectory>
                         </configuration>
                     </execution>
                 </executions>
