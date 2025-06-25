@@ -58,7 +58,7 @@ class KafkaProxyIngressReconcilerIT {
             .withReconciler(new KafkaProxyIngressReconciler(Clock.systemUTC()))
             .withKubernetesClient(rbacHandler.operatorClient())
             .withAdditionalCustomResourceDefinition(KafkaProxy.class)
-            .waitForNamespaceDeletion(true)
+            .waitForNamespaceDeletion(false)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
     private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(extension);

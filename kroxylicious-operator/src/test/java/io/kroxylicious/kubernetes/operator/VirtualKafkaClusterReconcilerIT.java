@@ -84,7 +84,7 @@ class VirtualKafkaClusterReconcilerIT {
             .withAdditionalCustomResourceDefinition(KafkaProxyIngress.class)
             .withAdditionalCustomResourceDefinition(KafkaService.class)
             .withAdditionalCustomResourceDefinition(KafkaProtocolFilter.class)
-            .waitForNamespaceDeletion(true)
+            .waitForNamespaceDeletion(false)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
 

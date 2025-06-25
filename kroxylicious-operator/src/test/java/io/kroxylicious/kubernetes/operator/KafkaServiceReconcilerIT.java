@@ -56,7 +56,7 @@ class KafkaServiceReconcilerIT {
     LocallyRunOperatorExtension extension = LocallyRunOperatorExtension.builder()
             .withReconciler(new KafkaServiceReconciler(Clock.systemUTC()))
             .withKubernetesClient(rbacHandler.operatorClient())
-            .waitForNamespaceDeletion(true)
+            .waitForNamespaceDeletion(false)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
 
