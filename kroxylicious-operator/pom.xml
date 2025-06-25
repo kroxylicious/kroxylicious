@@ -356,21 +356,6 @@
                                     </descriptors>
                                 </configuration>
                             </execution>
-                            <!-- Make target/kroxylicious-operator-${version}.zip with the test contents from target/packaged -->
-                            <execution>
-                                <id>operator-asset</id>
-                                <phase>post-integration-test</phase><!-- Note this execution happens after the following plugins bound to the package phase! -->
-                                <goals>
-                                    <goal>single</goal>
-                                </goals>
-                                <configuration>
-                                    <appendAssemblyId>false</appendAssemblyId>
-                                    <descriptors>
-                                        <!-- Custom assembly descriptor -->
-                                        <descriptor>src/assembly/asset.xml</descriptor>
-                                    </descriptors>
-                                </configuration>
-                            </execution>
                         </executions>
                     </plugin>
                     <plugin>
