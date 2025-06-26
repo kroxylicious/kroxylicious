@@ -1,25 +1,27 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
+//JAVA 21+
+//DEPS org.jsoup:jsoup:1.20.1
 /*
  * Copyright Kroxylicious Authors.
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-//DEPS org.jsoup:jsoup:1.20.1
-//JAVA 17+
 
 import static java.lang.System.*;
-import org.jsoup.*;
-import org.jsoup.nodes.*;
+
 import java.io.*;
 import java.nio.file.*;
+
+import org.jsoup.*;
+import org.jsoup.nodes.*;
 
 public class tocify {
 
     public static void main(String... args) throws Exception {
         if (args.length != 3) {
             err.println("""
-Usage: hello.java SOURCE TOC TOCLESS
-Split the Asciidoctor-generated SOURCE HTML file into TOC and TOCLESS
+Usage: hello.java SOURCEDIR TOC TOCLESS
+Recurse the files in SOURCEDIR splitting any the Asciidoctor-generated index.html files into TOC and TOCLESS
 suitable for use with a Jekyll layout.
 """);
             exit(1);
@@ -34,13 +36,14 @@ suitable for use with a Jekyll layout.
             stream.forEach((Path path) -> {
                 if (Files.isRegularFile(path)
                         && path.getFileName().toString().equals("index.html")) {
-                    System.out.println(path.toAbsolutePath());
+                    out.println(path.toAbsolutePath());
                     if (splitOutToc(path,
                             path.getParent().resolve(Path.of(args[1])),
                             path.getParent().resolve(Path.of(args[2])))) {
                         try {
                             Files.delete(path);
-                        } catch (IOException e) {
+                        }
+                        catch (IOException e) {
                             throw new UncheckedIOException(e);
                         }
                     }
@@ -48,8 +51,6 @@ suitable for use with a Jekyll layout.
 
             });
         }
-
-
     }
 
     static boolean splitOutToc(Path sourcePath, Path tocPath, Path toclessPath) {
