@@ -1,0 +1,55 @@
+
+// file included in the following:
+//
+// con-virtualkafkafkacluster-overview.adoc
+
+[id='proc-virtualkafkacluster-loadbalancer-dns-config-{context}']
+
+= Configuring DNS (load balancer ingress type only)
+
+[role="_abstract"]
+
+When using the `loadBalancer` ingress type, it is the responsibility of the user to ensure that both the `bootstrapAddress` and the names generated from `advertisedBrokerAddressPattern` resolve to the *external address* of the Kubernetes Service underlying the load balancer on the *network where the off-cluster applications run*.
+
+.Prerequisites
+
+* Kroxylicious Operator is installed.
+* `KafkaProxy`, `VirtualKafkaCluster`, and `KafkaProxyIngress` resources deployed.
+* `VirtualKafkaCluster`, and `KafkaProxyIngress` configured for use of a `loadBalancer`.
+* Ability to configure DNS on the network where the off-cluster applications run.
+
+.Procedure
+
+.  Run the following command to discover the *external address* being used by the load balancer.
++
+[source,shell]
+----
+kubectl get service -n <namespace> <proxy-name>-sni -o=jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+----
++
+Replace `<namespace>` with the name of the Kubernetes namespace where the resources are deployed and replace `<proxy-name>` with the name of the `KafkaProxy` resource.
+
+. Depending on your Kubernetes environment, the command will return an IP address, or a hostname.
+
+. Configure your DNS so that the bootstrap and broker names resolve to the external address.
++
+Assuming a `bootstrapAddress` of `$(virtualClusterName).kafkaproxy.example.com`, an `advertisedBrokerAddressPattern` of `broker-$(nodeId).$(virtualClusterName).kafkaproxy.example.com`,
+a kafka cluster uses nodeIDs (0-2) and a virtual cluster name of `my-cluster`, the following DNS mappings would need to be made:
++
+[source,text]
+----
+mycluster.kafkaproxy.example.com => <external address>
+broker-0.mycluster.kafkaproxy.example.com => <external address>
+broker-1.mycluster.kafkaproxy.example.com => <external address>
+broker-2.mycluster.kafkaproxy.example.com => <external address>
+----
++
+The exact steps will vary depending on your environment. Talk to your Network Administrator.
+. Confirm that the names resolve from the application network.
++
+[source,shell]
+----
+nslookup mycluster.kafkaproxy.example.com
+nslookup broker-0.mycluster.kafkaproxy.example.com
+----
+
