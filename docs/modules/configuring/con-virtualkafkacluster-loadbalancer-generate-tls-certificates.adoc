@@ -1,0 +1,38 @@
+// file included in the following:
+//
+// con-virtualkafkafkacluster-overview.adoc
+
+[id='con-virtualkafkacluster-loadbalancer-generate-tls-certificates-{context}']
+
+= Generating TLS certificates for `loadBalancer` ingress type
+
+[role="_abstract"]
+
+When using `loadBalancer` ingress type it is the responsibility of the user to provide suitable TLS
+material to secure communications.
+
+The overall steps are:
+
+* Generate a TLS server certificate covering the bootstrap and broker names assigned to the virtual cluster by the ingress.
+* Provide the certificate to Virtual Cluster by way of a Kubernetes Secret of type `kubernetes.io/tls`.
+
+The exact procedure for generating the certificate will depend on your organization.
+
+The certificate must meet the following criteria:
+
+* The certificate needs to be signed by a CA that is trusted by the *off-cluster applications* that will connect to the virtual cluster.
+* The format of the certificate must be PKCS#8 encoded PEM (Privacy Enhanced Mail).
+  It must not be password protected.
+* The certificate must use SAN (Subject Alternate Names) to express the bootstrap and all the broker names.
+  Assuming a `bootstrapAddress` of `$(virtualClusterName).kafkaproxy.example.com`, an `advertisedBrokerAddressPattern` of `broker-$(nodeId).$(virtualClusterName).kafkaproxy.example.com`, a kafka cluster using nodeIDs (0-2) and a virtual cluster name of `my-cluster`, the following SANs would need to expressed:
++
+[source,text]
+----
+mycluster.kafkaproxy.example.com
+broker-0.mycluster.kafkaproxy.example.com
+broker-1.mycluster.kafkaproxy.example.com
+broker-2.mycluster.kafkaproxy.example.com
+----
+
+include::../../snippets/snip-create-secret-containing-pem-certificate.adoc[]
+
