@@ -44,8 +44,6 @@ import io.kroxylicious.kms.provider.aws.kms.config.Ec2MetadataCredentialsProvide
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Provider that obtains {@link Credentials} from the metadata server of the EC2 instance.
  * <p>
@@ -107,12 +105,13 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
      *
      * @param config config.
      */
-    public Ec2MetadataCredentialsProvider(@NonNull Ec2MetadataCredentialsProviderConfig config) {
+    public Ec2MetadataCredentialsProvider(Ec2MetadataCredentialsProviderConfig config) {
         this(config, Clock.systemUTC());
     }
 
     @VisibleForTesting
-    Ec2MetadataCredentialsProvider(@NonNull Ec2MetadataCredentialsProviderConfig config, @NonNull Clock systemClock) {
+    Ec2MetadataCredentialsProvider(Ec2MetadataCredentialsProviderConfig config,
+                                   Clock systemClock) {
         Objects.requireNonNull(config);
         Objects.requireNonNull(systemClock);
         this.config = config;
@@ -135,7 +134,6 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
                 .build();
     }
 
-    @NonNull
     @Override
     public CompletionStage<SecurityCredentials> getCredentials() {
         var newCredFuture = new CompletableFuture<SecurityCredentials>();
@@ -262,8 +260,7 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
         return sc;
     }
 
-    @NonNull
-    private static <O> HttpResponse<O> checkResponseStatus(@NonNull HttpResponse<O> response) {
+    private static <O> HttpResponse<O> checkResponseStatus(HttpResponse<O> response) {
         var statusCode = response.statusCode();
         var httpSuccess = statusCode >= 200 && statusCode < 300;
         if (!httpSuccess) {
@@ -284,11 +281,11 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record SecurityCredentials(@JsonProperty(value = "Code") @NonNull String code,
-                                      @JsonProperty(value = "AccessKeyId") @NonNull String accessKeyId,
-                                      @JsonProperty(value = "SecretAccessKey") @NonNull String secretAccessKey,
-                                      @JsonProperty(value = "Token") @NonNull String token,
-                                      @JsonProperty(value = "Expiration") @NonNull Instant expiration)
+    public record SecurityCredentials(@JsonProperty(value = "Code") String code,
+                                      @JsonProperty(value = "AccessKeyId") String accessKeyId,
+                                      @JsonProperty(value = "SecretAccessKey") String secretAccessKey,
+                                      @JsonProperty(value = "Token") String token,
+                                      @JsonProperty(value = "Expiration") Instant expiration)
             implements Credentials {
         public SecurityCredentials {
             Objects.requireNonNull(code);
@@ -309,7 +306,6 @@ public class Ec2MetadataCredentialsProvider implements CredentialsProvider {
                     '}';
         }
 
-        @NonNull
         @Override
         public Optional<String> securityToken() {
             return Optional.of(token);

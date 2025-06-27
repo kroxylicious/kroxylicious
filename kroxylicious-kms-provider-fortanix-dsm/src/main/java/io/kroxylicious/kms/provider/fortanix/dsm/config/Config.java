@@ -13,6 +13,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.config.tls.Tls;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Configuration for the Fortanix DSM KMS service.
  *
@@ -22,8 +24,8 @@ import io.kroxylicious.proxy.config.tls.Tls;
  */
 
 public record Config(@JsonProperty(value = "endpointUrl", required = true) URI endpointUrl,
-                     @JsonProperty(value = "apiKeySessionProvider") ApiKeySessionProviderConfig apiKeySessionProviderConfig,
-                     Tls tls) {
+                     @JsonProperty(value = "apiKeySessionProvider") @Nullable ApiKeySessionProviderConfig apiKeySessionProviderConfig,
+                     @Nullable Tls tls) {
     /**
      *
      * Configuration for the Fortanix DSM KMS service.

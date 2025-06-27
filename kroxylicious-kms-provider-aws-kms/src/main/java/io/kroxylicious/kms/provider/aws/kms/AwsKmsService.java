@@ -18,7 +18,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.TlsHttpClientConfigurator;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * An implementation of the {@link KmsService} interface backed by a remote instance of AWS KMS.
@@ -28,7 +28,9 @@ public class AwsKmsService implements KmsService<Config, String, AwsKmsEdek> {
 
     private final CredentialsProviderFactory credentialsProviderFactory;
     @SuppressWarnings("java:S3077") // KMS services are thread safe. As Config is immutable, volatile is sufficient to ensure its safe publication between threads.
+    @Nullable
     private volatile Config config;
+    @Nullable
     private CredentialsProvider credentialsProvider;
 
     public AwsKmsService() {
@@ -36,18 +38,17 @@ public class AwsKmsService implements KmsService<Config, String, AwsKmsEdek> {
     }
 
     @VisibleForTesting
-    AwsKmsService(@NonNull CredentialsProviderFactory credentialsProviderFactory) {
+    AwsKmsService(CredentialsProviderFactory credentialsProviderFactory) {
         this.credentialsProviderFactory = Objects.requireNonNull(credentialsProviderFactory);
     }
 
     @Override
-    public void initialize(@NonNull Config config) {
+    public void initialize(Config config) {
         Objects.requireNonNull(config);
         this.config = config;
         this.credentialsProvider = credentialsProviderFactory.createCredentialsProvider(config);
     }
 
-    @NonNull
     @Override
     public AwsKms buildKms() {
         Objects.requireNonNull(config, "KMS service not initialized");

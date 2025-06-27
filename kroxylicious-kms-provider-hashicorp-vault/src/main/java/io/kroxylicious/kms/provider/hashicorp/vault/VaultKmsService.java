@@ -14,7 +14,7 @@ import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.tls.TlsHttpClientConfigurator;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * An implementation of the {@link KmsService} interface backed by a remote instance of HashiCorp Vault.
@@ -23,15 +23,14 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class VaultKmsService implements KmsService<Config, String, VaultEdek> {
 
     @SuppressWarnings("java:S3077") // KMS services are thread safe. As Config is immutable, volatile is sufficient to ensure its safe publication between threads.
-    private volatile Config config;
+    private volatile @Nullable Config config;
 
     @Override
-    public void initialize(@NonNull Config config) {
+    public void initialize(Config config) {
         Objects.requireNonNull(config);
         this.config = config;
     }
 
-    @NonNull
     @Override
     public VaultKms buildKms() {
         Objects.requireNonNull(config, "KMS service not initialized");

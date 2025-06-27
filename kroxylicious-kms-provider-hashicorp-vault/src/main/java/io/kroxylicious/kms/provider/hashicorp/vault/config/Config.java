@@ -14,6 +14,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 import io.kroxylicious.proxy.config.tls.Tls;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Configuration for the Vault KMS service.
  * @param vaultTransitEngineUrl URL of the Vault Transit Engine e.g. {@code https://myhashicorpvault:8200/v1/transit}
@@ -22,7 +24,7 @@ import io.kroxylicious.proxy.config.tls.Tls;
 public record Config(
                      @JsonProperty(value = "vaultTransitEngineUrl", required = true) URI vaultTransitEngineUrl,
                      @JsonProperty(required = true) PasswordProvider vaultToken,
-                     Tls tls) {
+                     @Nullable Tls tls) {
     public Config {
         Objects.requireNonNull(vaultTransitEngineUrl);
         Objects.requireNonNull(vaultToken);

@@ -10,8 +10,6 @@ import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static io.kroxylicious.kms.provider.fortanix.dsm.model.Constants.AES;
 import static io.kroxylicious.kms.provider.fortanix.dsm.model.Constants.BATCH_ENCRYPT_CIPHER_MODE;
 
@@ -62,8 +60,9 @@ public record DecryptRequest(@JsonProperty(value = "key", required = true) Secur
      * @param cipher Ciphertext bytes to be decrypted.
      * @return decrypt request
      */
-    @NonNull
-    public static DecryptRequest createUnwrapRequest(@NonNull String kid, byte[] iv, byte[] cipher) {
+    public static DecryptRequest createUnwrapRequest(String kid,
+                                                     byte[] iv,
+                                                     byte[] cipher) {
         return new DecryptRequest(new SecurityObjectDescriptor(kid, null, null), AES, BATCH_ENCRYPT_CIPHER_MODE, iv, cipher);
     }
 

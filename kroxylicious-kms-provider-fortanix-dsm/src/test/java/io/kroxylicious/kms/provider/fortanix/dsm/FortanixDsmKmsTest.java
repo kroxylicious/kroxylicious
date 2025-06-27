@@ -44,8 +44,6 @@ import io.kroxylicious.kms.service.SecretKeyUtils;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.containing;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -250,18 +248,16 @@ class FortanixDsmKmsTest {
     }
 
     private static class StubSessionProviderFactory implements SessionProviderFactory {
-        @NonNull
         @Override
-        public SessionProvider createSessionProvider(@NonNull Config config, HttpClient client) {
+        public SessionProvider createSessionProvider(Config config,
+                                                     HttpClient client) {
             var session = new Session() {
 
-                @NonNull
                 @Override
                 public String authorizationHeader() {
                     return "Bearer auth";
                 }
 
-                @NonNull
                 @Override
                 public Instant expiration() {
                     return Instant.MAX;
@@ -274,7 +270,6 @@ class FortanixDsmKmsTest {
             };
             var sessionStage = CompletableFuture.<Session> completedStage(session);
             return new SessionProvider() {
-                @NonNull
                 @Override
                 public CompletionStage<Session> getSession() {
                     return sessionStage;

@@ -8,8 +8,6 @@ package io.kroxylicious.kms.provider.fortanix.dsm.session;
 
 import java.time.Instant;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Fortanix DSM Session.
  */
@@ -20,7 +18,6 @@ public interface Session {
      *
      * @return authentication header
      */
-    @NonNull
     String authorizationHeader();
 
     /**
@@ -28,7 +25,6 @@ public interface Session {
      *
      * @return expiration time.
      */
-    @NonNull
     Instant expiration();
 
     /**

@@ -32,8 +32,6 @@ import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * An in-memory KMS to be used only for testing.
  * Note that this exposes public methods that are not part of the {@link Kms} interface which are used for those
@@ -116,9 +114,8 @@ public class InMemoryKms implements
         return new InMemoryEdek(spec.getTLen(), spec.getIV(), kekRef, edek);
     }
 
-    @NonNull
     @Override
-    public CompletableFuture<DekPair<InMemoryEdek>> generateDekPair(@NonNull UUID kekRef) {
+    public CompletableFuture<DekPair<InMemoryEdek>> generateDekPair(UUID kekRef) {
         try {
             var dek = DestroyableRawSecretKey.toDestroyableKey(this.aes.generateKey());
             var edek = wrap(kekRef, () -> dek);
@@ -161,9 +158,8 @@ public class InMemoryKms implements
         }
     }
 
-    @NonNull
     @Override
-    public CompletableFuture<SecretKey> decryptEdek(@NonNull InMemoryEdek edek) {
+    public CompletableFuture<SecretKey> decryptEdek(InMemoryEdek edek) {
         try {
             var kek = lookupKey(edek.kekRef());
             Cipher aesCipher = aesGcm();
@@ -176,7 +172,7 @@ public class InMemoryKms implements
         }
     }
 
-    private static DestroyableRawSecretKey unwrap(@NonNull InMemoryEdek edek, Cipher aesCipher) {
+    private static DestroyableRawSecretKey unwrap(InMemoryEdek edek, Cipher aesCipher) {
         try {
             return DestroyableRawSecretKey.toDestroyableKey((SecretKey) aesCipher.unwrap(edek.edek(), AES_KEY_ALGO, Cipher.SECRET_KEY));
         }
@@ -185,7 +181,7 @@ public class InMemoryKms implements
         }
     }
 
-    private static void initializeforUnwrap(Cipher aesCipher, @NonNull InMemoryEdek edek, SecretKey kek) {
+    private static void initializeforUnwrap(Cipher aesCipher, InMemoryEdek edek, SecretKey kek) {
         var spec = new GCMParameterSpec(edek.numAuthBits(), edek.iv());
         try {
             aesCipher.init(Cipher.UNWRAP_MODE, kek, spec);
@@ -204,9 +200,8 @@ public class InMemoryKms implements
         }
     }
 
-    @NonNull
     @Override
-    public CompletableFuture<UUID> resolveAlias(@NonNull String alias) {
+    public CompletableFuture<UUID> resolveAlias(String alias) {
         UUID uuid = aliases.get(alias);
         if (uuid == null) {
             return CompletableFuture.failedFuture(new UnknownAliasException(alias));
@@ -214,7 +209,6 @@ public class InMemoryKms implements
         return CompletableFuture.completedFuture(uuid);
     }
 
-    @NonNull
     @Override
     public Serde<InMemoryEdek> edekSerde() {
         return InMemoryEdekSerde.instance();

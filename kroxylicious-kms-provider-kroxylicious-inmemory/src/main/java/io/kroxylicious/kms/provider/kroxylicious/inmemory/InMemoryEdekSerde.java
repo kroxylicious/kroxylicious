@@ -11,8 +11,6 @@ import java.util.UUID;
 
 import io.kroxylicious.kms.service.Serde;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 class InMemoryEdekSerde implements Serde<InMemoryEdek> {
 
     private static final InMemoryEdekSerde INSTANCE = new InMemoryEdekSerde();
@@ -26,7 +24,7 @@ class InMemoryEdekSerde implements Serde<InMemoryEdek> {
     }
 
     @Override
-    public InMemoryEdek deserialize(@NonNull ByteBuffer buffer) {
+    public InMemoryEdek deserialize(ByteBuffer buffer) {
         short numAuthBits = Serde.getUnsignedByte(buffer);
         var ivLength = Serde.getUnsignedByte(buffer);
         var iv = new byte[ivLength];
@@ -48,7 +46,7 @@ class InMemoryEdekSerde implements Serde<InMemoryEdek> {
     }
 
     @Override
-    public void serialize(InMemoryEdek inMemoryEdek, @NonNull ByteBuffer buffer) {
+    public void serialize(InMemoryEdek inMemoryEdek, ByteBuffer buffer) {
         Serde.putUnsignedByte(buffer, inMemoryEdek.numAuthBits());
         Serde.putUnsignedByte(buffer, inMemoryEdek.iv().length);
         buffer.put(inMemoryEdek.iv());

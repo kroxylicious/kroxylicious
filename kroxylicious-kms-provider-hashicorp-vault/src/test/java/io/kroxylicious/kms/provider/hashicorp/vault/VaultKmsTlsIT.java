@@ -30,8 +30,6 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
 import io.kroxylicious.proxy.tls.CertificateGenerator;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
@@ -144,39 +142,32 @@ class VaultKmsTlsIT {
         return vaultContainer.createKek(keyId);
     }
 
-    @NonNull
     private static Tls insecureTls() {
         return new Tls(null, new InsecureTls(true), null, null);
     }
 
-    @NonNull
     private static Tls defaultStoreTypeTls(CertificateGenerator.TrustStore jksTrustStore) {
         return new Tls(null, new TrustStore(jksTrustStore.path().toString(), new InlinePassword(jksTrustStore.password()), null, null), null, null);
     }
 
-    @NonNull
     private static VaultKms getTlsVaultKms(Tls tls, URI endpoint) {
         var vaultKmsService = new VaultKmsService();
         vaultKmsService.initialize(vaultConfig(tls, endpoint));
         return vaultKmsService.buildKms();
     }
 
-    @NonNull
     private static Config vaultConfig(Tls tls, URI endpoint) {
         return new Config(endpoint, new InlinePassword(VAULT_TOKEN), tls);
     }
 
-    @NonNull
     private static Tls tlsForTrustStoreInlinePassword(CertificateGenerator.TrustStore trustStore) {
         return new Tls(null, new TrustStore(trustStore.path().toString(), new InlinePassword(trustStore.password()), trustStore.type(), null), null, null);
     }
 
-    @NonNull
     private static Tls tlsForTrustStoreFilePassword(CertificateGenerator.TrustStore trustStore) {
         return new Tls(null, new TrustStore(trustStore.path().toString(), new FilePassword(trustStore.passwordFile().toString()), trustStore.type(), null), null, null);
     }
 
-    @NonNull
     private static Tls tlsForTrustStoreNoPassword(CertificateGenerator.TrustStore trustStore) {
         return new Tls(null, new TrustStore(trustStore.path().toString(), null, trustStore.type(), null), null, null);
     }

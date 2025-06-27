@@ -9,8 +9,6 @@ package io.kroxylicious.kms.provider.aws.kms.credentials;
 import java.io.Closeable;
 import java.util.concurrent.CompletionStage;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * AWS Credentials Provider
  */
@@ -21,7 +19,6 @@ public interface CredentialsProvider extends Closeable {
      *
      * @return AWS credentials.
      */
-    @NonNull
     CompletionStage<? extends Credentials> getCredentials();
 
     default void close() {

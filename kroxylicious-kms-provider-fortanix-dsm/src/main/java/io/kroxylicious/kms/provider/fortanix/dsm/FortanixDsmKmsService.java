@@ -20,7 +20,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.TlsHttpClientConfigurator;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * An implementation of the {@link KmsService} backed by <a href="https://www.fortanix.com/platform/data-security-manager">Fortanix DSM</a>.
@@ -30,9 +30,9 @@ public class FortanixDsmKmsService implements KmsService<Config, String, Fortani
 
     private final SessionProviderFactory sessionProviderFactory;
     @SuppressWarnings("java:S3077") // KMS services are thread safe. As Config is immutable, volatile is sufficient to ensure its safe publication between threads.
-    private volatile Config config;
-    private SessionProvider sessionProvider;
-    private HttpClient client;
+    private volatile @Nullable Config config;
+    private @Nullable SessionProvider sessionProvider;
+    private @Nullable HttpClient client;
 
     /**
      * Creates the Fortanix DSM KMS service.
@@ -42,19 +42,18 @@ public class FortanixDsmKmsService implements KmsService<Config, String, Fortani
     }
 
     @VisibleForTesting
-    FortanixDsmKmsService(@NonNull SessionProviderFactory sessionProviderFactory) {
+    FortanixDsmKmsService(SessionProviderFactory sessionProviderFactory) {
         this.sessionProviderFactory = Objects.requireNonNull(sessionProviderFactory);
     }
 
     @Override
-    public void initialize(@NonNull Config config) {
+    public void initialize(Config config) {
         Objects.requireNonNull(config);
         this.config = config;
         this.client = createClient(config.tls(), Duration.ofSeconds(20));
         this.sessionProvider = sessionProviderFactory.createSessionProvider(config, client);
     }
 
-    @NonNull
     @Override
     public FortanixDsmKms buildKms() {
         Objects.requireNonNull(config, "KMS service not initialized");

@@ -16,11 +16,13 @@ import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.UnknownAliasException;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 public class InMemoryTestKmsFacade implements TestKmsFacade<Config, UUID, InMemoryEdek> {
 
     private final UUID kmsId = UUID.randomUUID();
-    private InMemoryKms kms;
-    private IntegrationTestingKmsService service;
+    private @Nullable InMemoryKms kms;
+    private @Nullable IntegrationTestingKmsService service;
 
     @Override
     public void start() {

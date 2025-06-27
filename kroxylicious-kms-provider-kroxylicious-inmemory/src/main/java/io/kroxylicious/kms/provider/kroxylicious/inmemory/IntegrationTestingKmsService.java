@@ -16,7 +16,7 @@ import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsService;
 import io.kroxylicious.proxy.plugin.Plugin;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * <p>A service interface for {@link InMemoryKms} useful for integration testing.
@@ -49,7 +49,7 @@ public class IntegrationTestingKmsService implements KmsService<IntegrationTesti
     }
 
     @SuppressWarnings("java:S3077") // Config is an immutable object
-    private volatile Config config;
+    private volatile @Nullable Config config;
 
     public record Config(
                          String name) {
@@ -63,12 +63,11 @@ public class IntegrationTestingKmsService implements KmsService<IntegrationTesti
     private static final Map<String, InMemoryKms> KMSES = new ConcurrentHashMap<>();
 
     @Override
-    public void initialize(@NonNull Config config) {
+    public void initialize(Config config) {
         Objects.requireNonNull(config);
         this.config = config;
     }
 
-    @NonNull
     @Override
     public InMemoryKms buildKms() {
         Objects.requireNonNull(config, "KMS service not initialized");

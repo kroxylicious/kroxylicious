@@ -12,8 +12,6 @@ import java.util.Objects;
 import io.kroxylicious.kms.provider.fortanix.dsm.config.Config;
 import io.kroxylicious.kms.service.KmsException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Factory for the Fortanix SessionProviders
  */
@@ -27,16 +25,16 @@ public interface SessionProviderFactory {
      * @param client http client
      * @return session provider.
      */
-    @NonNull
-    SessionProvider createSessionProvider(@NonNull Config config, HttpClient client);
+    SessionProvider createSessionProvider(Config config,
+                                          HttpClient client);
 
     /**
      * Default session provider implementation.
      */
     SessionProviderFactory DEFAULT = new SessionProviderFactory() {
-        @NonNull
         @Override
-        public SessionProvider createSessionProvider(@NonNull Config config, @NonNull HttpClient client) {
+        public SessionProvider createSessionProvider(Config config,
+                                                     HttpClient client) {
             Objects.requireNonNull(config);
             Objects.requireNonNull(client);
             var configException = new KmsException("Config %s must define exactly one session provider".formatted(config));

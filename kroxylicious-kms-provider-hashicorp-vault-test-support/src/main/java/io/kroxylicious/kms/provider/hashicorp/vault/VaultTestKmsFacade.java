@@ -12,13 +12,13 @@ import org.testcontainers.DockerClientFactory;
 import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.vault.VaultContainer;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     private static final DockerImageName HASHICORP_VAULT = DockerImageName.parse("hashicorp/vault:1.20.0");
 
     @SuppressWarnings("rawtypes")
-    private VaultContainer vaultContainer;
+    private @Nullable VaultContainer vaultContainer;
 
     @Override
     public boolean isAvailable() {
@@ -40,7 +40,6 @@ public class VaultTestKmsFacade extends AbstractVaultTestKmsFacade {
     }
 
     @Override
-    @NonNull
     protected URI getVaultUrl() {
         return URI.create(vaultContainer.getHttpHostAddress());
     }

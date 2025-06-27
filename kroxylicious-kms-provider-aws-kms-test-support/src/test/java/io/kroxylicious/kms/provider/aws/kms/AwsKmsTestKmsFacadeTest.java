@@ -20,8 +20,6 @@ import com.github.tomakehurst.wiremock.WireMockServer;
 import io.kroxylicious.kms.provider.aws.kms.config.Config;
 import io.kroxylicious.kms.service.TestKekManager;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.matchingJsonPath;
@@ -134,7 +132,6 @@ class AwsKmsTestKmsFacadeTest {
         }
 
         @Override
-        @NonNull
         protected URI getAwsUrl() {
             return uri;
         }

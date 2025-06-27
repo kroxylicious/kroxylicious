@@ -29,8 +29,6 @@ import io.kroxylicious.kms.provider.aws.kms.config.Ec2MetadataCredentialsProvide
 import io.kroxylicious.kms.provider.aws.kms.credentials.Ec2MetadataCredentialsProvider.SecurityCredentials;
 import io.kroxylicious.kms.service.KmsException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.put;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
@@ -333,7 +331,6 @@ class Ec2MetadataCredentialsProviderTest {
         }
     }
 
-    @NonNull
     private SecurityCredentials createTestCredential(String code, String accessKey, String secretKey, String token, Instant expiration) {
         return new SecurityCredentials(code, accessKey, secretKey, token, expiration);
     }

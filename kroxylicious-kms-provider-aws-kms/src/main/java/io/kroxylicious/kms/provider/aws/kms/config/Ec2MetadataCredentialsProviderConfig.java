@@ -12,6 +12,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.kms.provider.aws.kms.credentials.Credentials;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  *
  * Configuration for the provider that obtains {@link Credentials} from the metadata server of the EC2 instance.
@@ -21,7 +23,7 @@ import io.kroxylicious.kms.provider.aws.kms.credentials.Credentials;
  * @param credentialLifetimeFactor the factor applied to determine how long until a credential is preemptively refreshed
  */
 public record Ec2MetadataCredentialsProviderConfig(@JsonProperty(value = "iamRole", required = true) String iamRole,
-                                                   @JsonProperty(value = "metadataEndpoint", required = false) URI metadataEndpoint,
-                                                   @JsonProperty(value = "credentialLifetimeFactor", required = false) Double credentialLifetimeFactor) {
+                                                   @JsonProperty(value = "metadataEndpoint", required = false) @Nullable URI metadataEndpoint,
+                                                   @JsonProperty(value = "credentialLifetimeFactor", required = false) @Nullable Double credentialLifetimeFactor) {
 
 }

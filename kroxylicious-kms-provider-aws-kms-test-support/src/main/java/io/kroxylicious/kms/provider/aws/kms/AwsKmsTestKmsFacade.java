@@ -14,12 +14,12 @@ import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.localstack.LocalStackContainer;
 import org.testcontainers.utility.DockerImageName;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     private static final Logger LOG = LoggerFactory.getLogger(AwsKmsTestKmsFacade.class);
     private static final DockerImageName LOCALSTACK_IMAGE = DockerImageName.parse("localstack/localstack:4.5.0");
-    private LocalStackContainer localStackContainer;
+    private @Nullable LocalStackContainer localStackContainer;
 
     @Override
     public boolean isAvailable() {
@@ -61,7 +61,6 @@ public class AwsKmsTestKmsFacade extends AbstractAwsKmsTestKmsFacade {
     }
 
     @Override
-    @NonNull
     protected URI getAwsUrl() {
         return localStackContainer.getEndpointOverride(LocalStackContainer.Service.KMS);
     }

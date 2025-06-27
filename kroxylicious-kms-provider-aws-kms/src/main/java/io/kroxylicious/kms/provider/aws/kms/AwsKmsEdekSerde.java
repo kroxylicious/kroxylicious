@@ -12,8 +12,6 @@ import java.util.Objects;
 
 import io.kroxylicious.kms.service.Serde;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static java.lang.Math.toIntExact;
 import static org.apache.kafka.common.utils.ByteUtils.readUnsignedVarint;
 import static org.apache.kafka.common.utils.ByteUtils.sizeOfUnsignedVarint;
@@ -47,7 +45,7 @@ class AwsKmsEdekSerde implements Serde<AwsKmsEdek> {
     }
 
     @Override
-    public AwsKmsEdek deserialize(@NonNull ByteBuffer buffer) {
+    public AwsKmsEdek deserialize(ByteBuffer buffer) {
         Objects.requireNonNull(buffer);
 
         var version = buffer.get();
@@ -76,7 +74,7 @@ class AwsKmsEdekSerde implements Serde<AwsKmsEdek> {
     }
 
     @Override
-    public void serialize(AwsKmsEdek edek, @NonNull ByteBuffer buffer) {
+    public void serialize(AwsKmsEdek edek, ByteBuffer buffer) {
         Objects.requireNonNull(edek);
         Objects.requireNonNull(buffer);
         var keyRefBuf = edek.kekRef().getBytes(StandardCharsets.UTF_8);
