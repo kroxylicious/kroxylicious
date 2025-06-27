@@ -106,7 +106,7 @@ public class tocify implements Callable<Integer> {
 layout: released-documentation
 title: Documentation
 ---
-        """, StandardOpenOption.TRUNCATE_EXISTING);
+        """, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
         return 0;
     }
@@ -150,7 +150,7 @@ release: ${project.version}
                                             """.replace("${doc.name}", dataDocObject.get("name").textValue())
                                             .replace("${doc.description}", dataDocObject.get("description").textValue())
                                             .replace("${project.version}", this.projectVersion),
-                                    StandardOpenOption.TRUNCATE_EXISTING);
+                                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
                         }
                     }
                     else if (!omitable && !tocifiable && !datafiable) {
@@ -171,7 +171,7 @@ release: ${project.version}
         }
         System.out.println(mapper.writeValueAsString(resultRootObject));
         Files.createDirectories(dataDestPath.getParent());
-        Files.writeString(dataDestPath, mapper.writeValueAsString(resultRootObject), StandardOpenOption.TRUNCATE_EXISTING);
+        Files.writeString(dataDestPath, mapper.writeValueAsString(resultRootObject), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
     ObjectNode addToMetadata(Path filePath, Path relFilePath, ArrayNode resultDocsArray) throws IOException {
