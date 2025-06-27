@@ -92,6 +92,7 @@ public class AwsKms implements Kms<String, AwsKmsEdek> {
         Objects.requireNonNull(credentialsProvider);
         Objects.requireNonNull(region);
         Objects.requireNonNull(tlsConfigurator);
+        Objects.requireNonNull(timeout);
         this.awsUrl = awsUrl;
         this.credentialsProvider = credentialsProvider;
         this.region = region;
