@@ -31,17 +31,17 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator.Feature;
 import com.fasterxml.jackson.databind.node.*;
 
-@Command(name = "tocify", mixinStandardHelpOptions = true, version = "tocify 0.1",
-        description = "tocify made with jbang")
-public class tocify implements Callable<Integer> {
+@Command(name = "webify", mixinStandardHelpOptions = true, version = "webify 0.1",
+        description = "Converts Asciidoc standalone HTML output into content ready for kroxylicious.io")
+public class webify implements Callable<Integer> {
 
     @Option(names = {"--project-version"}, required = true, description = "The kroxy version.")
     private String projectVersion;
 
-    @Option(names = {"--src-dir"}, required = true, description = "The source directory.")
+    @Option(names = {"--src-dir"}, required = true, description = "The source directory containing Asciidoc standalone HTML.")
     private Path srcDir;
 
-    @Option(names = {"--dest-dir"}, required = true, description = "The output directory.")
+    @Option(names = {"--dest-dir"}, required = true, description = "The output directory ready for copying to the website.")
     private Path destdir;
 
     @Option(names = {"--tocify-omit"}, description = "Glob matching file(s) to omit from the HTML output.")
@@ -68,28 +68,13 @@ public class tocify implements Callable<Integer> {
             .enable(Feature.INDENT_ARRAYS_WITH_INDICATOR);
 
     public static void main(String... args) {
-        System.out.println(System.getProperties());
-        System.err.println(Arrays.asList(args));
-        int exitCode = new CommandLine(new tocify()).execute(args);
+        int exitCode = new CommandLine(new webify()).execute(args);
         System.exit(exitCode);
     }
 
-    @java.lang.Override
-    public java.lang.String toString() {
-        return "tocify{" +
-                "dataDestPath=" + dataDestPath +
-                ", srcDir=" + srcDir +
-                ", outdir=" + outdir +
-                ", omitGlobs=" + omitGlobs +
-                ", tocifyGlob='" + tocifyGlob + '\'' +
-                ", tocifyTocName='" + tocifyTocName + '\'' +
-                ", tocifyToclessName='" + tocifyToclessName + '\'' +
-                ", datafyGlob='" + datafyGlob + '\'' +
-                '}';
-    }
 
     @Override
-    public Integer call() throws Exception { // your business logic goes here...
+    public Integer call() throws Exception {
         System.out.println(this);
         this.outdir = this.destdir.resolve("documentation").resolve(this.projectVersion).resolve("html");
         this.dataDestPath = this.destdir.resolve("_data/documentation").resolve(this.projectVersion.replace(".", "_") + ".yaml");
@@ -201,7 +186,7 @@ release: ${project.version}
                 outDir.resolve(this.tocifyTocName),
                 outDir.resolve(this.tocifyToclessName))) {
             System.out.println("copying " + filePath + " to " + outFilePath);
-            Files.copy(filePath, outFilePath);
+            Files.copy(filePath, outFilePath, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
