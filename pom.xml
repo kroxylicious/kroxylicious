@@ -954,9 +954,8 @@
                 <groupId>dev.jbang</groupId>
                 <artifactId>jbang-maven-plugin</artifactId>
                 <executions>
-                    <!-- Add the crds to target/packaged/install, renaming the files to match the other YAMLs -->
                     <execution>
-                        <id>tocify</id>
+                        <id>webify</id>
                         <phase>package</phase>
                         <goals>
                             <goal>run</goal>
@@ -965,7 +964,7 @@
                             <skip>${skipDocs}</skip>
                             <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
                             <!--suppress UnresolvedMavenProperty -->
-                            <script>${rootdir}/scripts/tocify.java</script>
+                            <script>${rootdir}/scripts/webify.java</script>
                             <args>
                                 <arg>--project-version=${project.version}</arg>
                                 <!--suppress UnresolvedMavenProperty -->
@@ -981,8 +980,6 @@
                                 <arg>--tocify-toc-file=toc.html</arg>
                                 <arg>--tocify-tocless-file=content.html</arg>
                                 <arg>--datafy=*/doc.yaml</arg>
-
-
                             </args>
                         </configuration>
                     </execution>
