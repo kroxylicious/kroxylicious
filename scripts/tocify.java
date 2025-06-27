@@ -1,6 +1,11 @@
 ///usr/bin/env jbang "$0" "$@" ; exit $?
 //JAVA 21+
 //DEPS org.jsoup:jsoup:1.20.1
+//DEPS info.picocli:picocli:4.6.3
+//DEPS com.fasterxml.jackson.core:jackson-core:2.18.3
+//DEPS com.fasterxml.jackson.core:jackson-databind:2.18.3
+//DEPS com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.18.3
+
 /*
  * Copyright Kroxylicious Authors.
  *
@@ -11,69 +16,211 @@ import static java.lang.System.*;
 
 import java.io.*;
 import java.nio.file.*;
+import java.util.*;
+import java.util.concurrent.Callable;
 
 import org.jsoup.*;
 import org.jsoup.nodes.*;
 
-public class tocify {
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
-    public static void main(String... args) throws Exception {
-        if (args.length != 3) {
-            err.println("""
-Usage: hello.java SOURCEDIR TOC TOCLESS
-Recurse the files in SOURCEDIR splitting any the Asciidoctor-generated index.html files into TOC and TOCLESS
-suitable for use with a Jekyll layout.
-""");
-            exit(1);
-        }
-        // sourcePath = index.html
-        // tocPath = toc.txt
-        // toclessPath = content.txt
-        // TODO ?generate index.html (need to know the title, description, release version and ideally some tags)
-        // TODO copy the directory structure
-        Path sourceDirPath = Path.of(args[0]);
-        try (var stream = Files.walk(sourceDirPath)) {
-            stream.forEach((Path path) -> {
-                if (Files.isRegularFile(path)
-                        && path.getFileName().toString().equals("index.html")) {
-                    out.println(path.toAbsolutePath());
-                    if (splitOutToc(path,
-                            path.getParent().resolve(Path.of(args[1])),
-                            path.getParent().resolve(Path.of(args[2])))) {
-                        try {
-                            Files.delete(path);
-                        }
-                        catch (IOException e) {
-                            throw new UncheckedIOException(e);
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator.Feature;
+import com.fasterxml.jackson.databind.node.*;
+
+@Command(name = "tocify", mixinStandardHelpOptions = true, version = "tocify 0.1",
+        description = "tocify made with jbang")
+public class tocify implements Callable<Integer> {
+
+    @Option(names = {"--project-version"}, required = true, description = "The kroxy version.")
+    private String projectVersion;
+
+    @Option(names = {"--src-dir"}, required = true, description = "The source directory.")
+    private Path srcDir;
+
+    @Option(names = {"--dest-dir"}, required = true, description = "The output directory.")
+    private Path destdir;
+
+    @Option(names = {"--tocify-omit"}, description = "Glob matching file(s) to omit from the HTML output.")
+    private List<String> omitGlobs = List.of();
+
+    @Option(names = {"--tocify"}, description = "Glob matching HTML files within --src-dir to tocify.")
+    private String tocifyGlob;
+
+    @Option(names = {"--tocify-toc-file"}, description = "The name to give to output TOC files")
+    private String tocifyTocName;
+
+    @Option(names = {"--tocify-tocless-file"}, description = "The name to give to output TOC-less files")
+    private String tocifyToclessName;
+
+    @Option(names = {"--datafy"}, description = "Glob matching data yamls")
+    private String datafyGlob;
+
+    private Path outdir;
+    private Path dataDestPath;
+
+    private final ObjectMapper mapper = new YAMLMapper()
+            .disable(Feature.WRITE_DOC_START_MARKER)
+            .enable(Feature.MINIMIZE_QUOTES)
+            .enable(Feature.INDENT_ARRAYS_WITH_INDICATOR);
+
+    public static void main(String... args) {
+        System.out.println(System.getProperties());
+        System.err.println(Arrays.asList(args));
+        int exitCode = new CommandLine(new tocify()).execute(args);
+        System.exit(exitCode);
+    }
+
+    @java.lang.Override
+    public java.lang.String toString() {
+        return "tocify{" +
+                "dataDestPath=" + dataDestPath +
+                ", srcDir=" + srcDir +
+                ", outdir=" + outdir +
+                ", omitGlobs=" + omitGlobs +
+                ", tocifyGlob='" + tocifyGlob + '\'' +
+                ", tocifyTocName='" + tocifyTocName + '\'' +
+                ", tocifyToclessName='" + tocifyToclessName + '\'' +
+                ", datafyGlob='" + datafyGlob + '\'' +
+                '}';
+    }
+
+    @Override
+    public Integer call() throws Exception { // your business logic goes here...
+        System.out.println(this);
+        this.outdir = this.destdir.resolve("documentation").resolve(this.projectVersion).resolve("html");
+        this.dataDestPath = this.destdir.resolve("_data/documentation").resolve(this.projectVersion.replace(".", "_") + ".yaml");
+
+        FileSystem fs = FileSystems.getDefault();
+        var tocifyGlob = fs.getPathMatcher("glob:" + this.tocifyGlob);
+        var omitGlobs = this.omitGlobs.stream().map(glob -> fs.getPathMatcher("glob:" + glob)).toList();
+        var datafyGlob = fs.getPathMatcher("glob:" + this.datafyGlob);
+
+        walk(omitGlobs, tocifyGlob, datafyGlob);
+
+        Files.writeString(outdir.getParent().resolve("index.md"), """
+---
+layout: released-documentation
+title: Documentation
+---
+        """, StandardOpenOption.TRUNCATE_EXISTING);
+
+        return 0;
+    }
+
+    private void walk(List<PathMatcher> omitGlobs,
+                        PathMatcher tocifyGlob,
+                        PathMatcher datafyGlob) throws IOException {
+        var resultRootObject = this.mapper.createObjectNode();
+        var resultDocsArray = resultRootObject.putArray("docs");
+        try (var stream = Files.walk(this.srcDir)) {
+            stream.forEach((Path filePath) -> {
+                try {
+                    if (!Files.isRegularFile(filePath)) {
+                        return;
+                    }
+                    var relFilePath = this.srcDir.relativize(filePath);
+                    var outFilePath = this.outdir.resolve(relFilePath);
+                    var omitable = omitGlobs.stream().anyMatch(glob -> glob.matches(relFilePath));
+                    var tocifiable = tocifyGlob.matches(relFilePath);
+                    var datafiable = datafyGlob.matches(relFilePath);
+                    if (omitable && !tocifiable && !datafiable) {
+                        return;
+                    }
+                    else if (!omitable && tocifiable && !datafiable) {
+                        tocify(filePath, outFilePath);
+                    }
+                    else if (!omitable && !tocifiable && datafiable) {
+                        System.out.println("datafiable " + filePath);
+                        var dataDocObject = addToMetadata(filePath, relFilePath, resultDocsArray);
+                        System.out.println("datafiable " + dataDocObject);
+                        if (!dataDocObject.has("path")) {
+                            Files.createDirectories(outFilePath.getParent());
+                            Files.writeString(outFilePath.getParent().resolve("index.html"),
+                                    """
+---
+layout: guide
+title: ${doc.name}
+description: ${doc.description}
+release: ${project.version}
+---
+                                            """.replace("${doc.name}", dataDocObject.get("name").textValue())
+                                            .replace("${doc.description}", dataDocObject.get("description").textValue())
+                                            .replace("${project.version}", this.projectVersion),
+                                    StandardOpenOption.TRUNCATE_EXISTING);
                         }
                     }
+                    else if (!omitable && !tocifiable && !datafiable) {
+                        Files.createDirectories(outFilePath.getParent());
+                        Files.copy(filePath, outFilePath, StandardCopyOption.REPLACE_EXISTING);
+                    }
+                    else {
+                        throw new IOException((filePath + " matched multiple globs: "
+                                + (omitable ? "--tocify-omit " : "")
+                                + (tocifiable ? "--tocify " : "")
+                                + (datafiable ? "--datafy " : "")).trim());
+                    }
                 }
-
+                catch (Exception e) {
+                    throw new RuntimeException(filePath.toString(), e);
+                }
             });
+        }
+        System.out.println(mapper.writeValueAsString(resultRootObject));
+        Files.createDirectories(dataDestPath.getParent());
+        Files.writeString(dataDestPath, mapper.writeValueAsString(resultRootObject), StandardOpenOption.TRUNCATE_EXISTING);
+    }
+
+    ObjectNode addToMetadata(Path filePath, Path relFilePath, ArrayNode resultDocsArray) throws IOException {
+        var dataDocObject = (ObjectNode) this.mapper.readTree(filePath.toFile());
+        var resultDocObject = resultDocsArray.addObject();
+        var dataDocFields = dataDocObject.fields();
+        while (dataDocFields.hasNext()) {
+            var entry = dataDocFields.next();
+            if ("$schema".equals(entry.getKey())) {
+                continue;
+            }
+            resultDocObject.put(entry.getKey(), entry.getValue());
+        }
+        if (!dataDocObject.has("path")) {
+            resultDocObject.put("path", "html/" + relFilePath.getParent().toString());
+        }
+        else {
+            resultDocObject.put("path", dataDocObject.get("path").textValue().replace("${project.version}", this.projectVersion));
+        }
+        return dataDocObject;
+    }
+
+    void tocify(Path filePath, Path outFilePath) throws IOException {
+        var outDir = outFilePath.getParent();
+        Files.createDirectories(outDir);
+        if (!splitOutToc(filePath,
+                outDir.resolve(this.tocifyTocName),
+                outDir.resolve(this.tocifyToclessName))) {
+            System.out.println("copying " + filePath + " to " + outFilePath);
+            Files.copy(filePath, outFilePath);
         }
     }
 
-    static boolean splitOutToc(Path sourcePath, Path tocPath, Path toclessPath) {
-        try {
-            // Parse the SOURCE
-            Document doc = Jsoup.parse(sourcePath, "UTF-8");
-            // Find the toc by it's ID
-            var toc = doc.getElementById("toc");
-            if (toc == null) {
-                return false;
-            }
-            // Remove the toc from the doc
-            toc.remove();
-            // Drop the "Table of Content" title
-            toc.getElementById("toctitle").remove();
-            // Write the two nodes
-            writeRaw(toc, tocPath);
-            writeRaw(doc, toclessPath);
-            return true;
+    static boolean splitOutToc(Path sourcePath, Path tocPath, Path toclessPath) throws IOException {
+        // Parse the SOURCE
+        Document doc = Jsoup.parse(sourcePath, "UTF-8");
+        // Find the toc by it's ID
+        var toc = doc.getElementById("toc");
+        if (toc == null) {
+            return false;
         }
-        catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+        // Remove the toc from the doc
+        toc.remove();
+        // Drop the "Table of Content" title
+        toc.getElementById("toctitle").remove();
+        // Write the two nodes
+        writeRaw(toc, tocPath);
+        writeRaw(doc, toclessPath);
+        return true;
     }
     
     static void writeRaw(Node node, Path path) throws IOException {

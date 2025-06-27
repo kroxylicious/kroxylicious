@@ -1,0 +1,29 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://kroxylicious.io/doc-schema.yaml
+type: object
+required:
+  - name
+  - description
+properties:
+  name:
+    description: The name of this document.
+    type: string
+  description:
+    description: A description of this document.
+    type: string
+  tags:
+    description: Tags to associate with this document
+    type: array
+    items:
+      description: The allowed tags for documents
+      type: string
+      enum:
+        - proxy
+        - developer
+        - filter
+        - kubernetes
+  path:
+    description: |
+      Optional URL pointing to the documentation. Relative paths are interpreted as relative to the 
+      base documentation URL for this release.
+    type: string
