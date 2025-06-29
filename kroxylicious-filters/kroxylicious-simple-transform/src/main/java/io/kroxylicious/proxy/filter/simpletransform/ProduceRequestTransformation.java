@@ -16,8 +16,6 @@ import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * A {@link FilterFactory} for {@link ProduceRequestTransformationFilter}.
  *
@@ -29,7 +27,6 @@ public class ProduceRequestTransformation
                          @PluginImplName(ByteBufferTransformationFactory.class) @JsonProperty(required = true) String transformation,
                          @PluginImplConfig(implNameProperty = "transformation") Object transformationConfig) {}
 
-    @NonNull
     @Override
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public ProduceRequestTransformationFilter createFilter(FilterFactoryContext context,
