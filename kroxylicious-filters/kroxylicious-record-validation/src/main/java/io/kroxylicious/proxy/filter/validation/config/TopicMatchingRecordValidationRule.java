@@ -12,6 +12,8 @@ import java.util.Set;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Configuration that links a topic name pattern with some record validation rules.
  */
@@ -26,9 +28,9 @@ public class TopicMatchingRecordValidationRule extends RecordValidationRule {
      * @param valueRule optional validation to apply to Record's value
      */
     @JsonCreator
-    public TopicMatchingRecordValidationRule(@JsonProperty(value = "topicNames") Set<String> topicNames,
-                                             @JsonProperty(value = "keyRule") BytebufValidation keyRule,
-                                             @JsonProperty(value = "valueRule") BytebufValidation valueRule) {
+    public TopicMatchingRecordValidationRule(@JsonProperty(value = "topicNames") @Nullable Set<String> topicNames,
+                                             @JsonProperty(value = "keyRule") @Nullable BytebufValidation keyRule,
+                                             @JsonProperty(value = "valueRule") @Nullable BytebufValidation valueRule) {
         super(keyRule, valueRule);
         this.topicNames = topicNames == null ? Set.of() : topicNames;
     }

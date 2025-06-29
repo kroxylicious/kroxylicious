@@ -10,8 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Static factory methods for creating/getting {@link BytebufValidator} instances
  */
@@ -67,8 +65,8 @@ public class BytebufValidators {
      *
      * @return BytebufValidator that will validate against all.
      */
-    public static BytebufValidator chainOf(@NonNull List<BytebufValidator> elements) {
-        Objects.nonNull(elements);
+    public static BytebufValidator chainOf(List<BytebufValidator> elements) {
+        Objects.requireNonNull(elements);
 
         if (elements.isEmpty()) {
             return allValid();

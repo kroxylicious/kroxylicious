@@ -10,6 +10,8 @@ import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Configuration for Produce Request validation. Contains a description of the rules for validating
  * the data for all topic-partitions within a ProduceRequest.
@@ -17,8 +19,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param rules describes a list of rules, associating topics with some validation to be applied to produce data for that topic
  * @param defaultRule the default validation rule to be applied when no rule is matched for a topic within a ProduceRequest
  */
-public record ValidationConfig(@JsonProperty("rules") List<TopicMatchingRecordValidationRule> rules,
-                               @JsonProperty("defaultRule") RecordValidationRule defaultRule) {
+public record ValidationConfig(@JsonProperty("rules") @Nullable List<TopicMatchingRecordValidationRule> rules,
+                               @JsonProperty("defaultRule") @Nullable RecordValidationRule defaultRule) {
 
     @Override
     public String toString() {

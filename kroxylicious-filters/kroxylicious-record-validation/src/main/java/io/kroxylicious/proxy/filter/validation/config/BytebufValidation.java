@@ -12,12 +12,14 @@ import java.util.Optional;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Configuration for validating a Bytebuffer holding a value.
  */
 public class BytebufValidation {
-    private final SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig;
-    private final SchemaValidationConfig schemaValidationConfig;
+    private final @Nullable SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig;
+    private final @Nullable SchemaValidationConfig schemaValidationConfig;
     private final boolean allowNulls;
     private final boolean allowEmpty;
 
@@ -29,10 +31,10 @@ public class BytebufValidation {
      * @param allowEmpty whether an empty byte-buffer should be considered valid
      */
     @JsonCreator
-    public BytebufValidation(@JsonProperty("syntacticallyCorrectJson") SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig,
-                             @JsonProperty("schemaValidationConfig") SchemaValidationConfig schemaValidationConfig,
-                             @JsonProperty(value = "allowNulls", defaultValue = "true") Boolean allowNulls,
-                             @JsonProperty(value = "allowEmpty", defaultValue = "false") Boolean allowEmpty) {
+    public BytebufValidation(@JsonProperty("syntacticallyCorrectJson") @Nullable SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig,
+                             @JsonProperty("schemaValidationConfig") @Nullable SchemaValidationConfig schemaValidationConfig,
+                             @JsonProperty(value = "allowNulls", defaultValue = "true") @Nullable Boolean allowNulls,
+                             @JsonProperty(value = "allowEmpty", defaultValue = "false") @Nullable Boolean allowEmpty) {
         this.syntacticallyCorrectJsonConfig = syntacticallyCorrectJsonConfig;
         this.schemaValidationConfig = schemaValidationConfig;
         this.allowNulls = allowNulls == null || allowNulls;

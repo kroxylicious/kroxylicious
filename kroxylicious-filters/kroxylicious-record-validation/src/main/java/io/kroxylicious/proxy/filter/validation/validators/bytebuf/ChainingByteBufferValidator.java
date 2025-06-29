@@ -15,8 +15,6 @@ import org.apache.kafka.common.record.Record;
 
 import io.kroxylicious.proxy.filter.validation.validators.Result;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * A chain of {@link BytebufValidators}.  Validators are executed in the order
  * they are defined.  Validation stops after the first validation failure.
@@ -25,7 +23,7 @@ class ChainingByteBufferValidator implements BytebufValidator {
 
     private final List<BytebufValidator> elements;
 
-    ChainingByteBufferValidator(@NonNull List<BytebufValidator> elements) {
+    ChainingByteBufferValidator(List<BytebufValidator> elements) {
         this.elements = List.copyOf(elements);
     }
 

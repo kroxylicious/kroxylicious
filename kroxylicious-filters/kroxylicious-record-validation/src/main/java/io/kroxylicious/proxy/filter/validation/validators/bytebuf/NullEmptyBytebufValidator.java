@@ -14,6 +14,8 @@ import org.apache.kafka.common.record.Record;
 
 import io.kroxylicious.proxy.filter.validation.validators.Result;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 class NullEmptyBytebufValidator implements BytebufValidator {
 
     private final boolean nullValid;
@@ -38,7 +40,7 @@ class NullEmptyBytebufValidator implements BytebufValidator {
         return delegate.validate(buffer, record, isKey);
     }
 
-    private Result validateField(boolean hasField, int fieldLenth) {
+    private @Nullable Result validateField(boolean hasField, int fieldLenth) {
         if (!hasField) {
             return nullValid ? Result.VALID_RESULT : new Result(false, "Null buffer invalid");
         }

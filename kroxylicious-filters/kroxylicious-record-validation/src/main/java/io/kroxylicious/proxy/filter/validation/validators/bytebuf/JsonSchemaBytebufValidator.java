@@ -26,8 +26,6 @@ import io.apicurio.schema.validation.json.JsonValidator;
 
 import io.kroxylicious.proxy.filter.validation.validators.Result;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class JsonSchemaBytebufValidator implements BytebufValidator {
     private final JsonValidator jsonValidator;
     private final Long globalId;
@@ -85,14 +83,12 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
         return Optional.empty();
     }
 
-    @NonNull
     private static DefaultHeadersHandler buildHeaderHandler(boolean isKey) {
         var handler = new DefaultHeadersHandler();
         handler.configure(Map.of(), isKey);
         return handler;
     }
 
-    @NonNull
     private static DefaultIdHandler buildIdHandler(boolean isKey) {
         var handler = new DefaultIdHandler();
         handler.configure(Map.of(), isKey);
