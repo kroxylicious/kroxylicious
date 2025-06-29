@@ -57,6 +57,7 @@ import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+import io.kroxylicious.testing.kafka.junit5ext.Name;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
@@ -88,6 +89,11 @@ class FilterIT {
     private static final String PLAINTEXT = "Hello, world!";
     private static final NamedFilterDefinitionBuilder REJECTING_CREATE_TOPIC_FILTER = new NamedFilterDefinitionBuilder(RejectingCreateTopicFilterFactory.class.getName(),
             RejectingCreateTopicFilterFactory.class.getName());
+
+    private static final String TEST_CLUSTER = "testCluster";
+
+    @Name(TEST_CLUSTER)
+    static KafkaCluster cluster;
 
     @Test
     void reversibleEncryption() {
@@ -143,7 +149,7 @@ class FilterIT {
     }
 
     @Test
-    void shouldPassThroughRecordUnchanged(KafkaCluster cluster, Topic topic) throws Exception {
+    void shouldPassThroughRecordUnchanged(@Name(TEST_CLUSTER) Topic topic) throws Exception {
 
         try (var tester = kroxyliciousTester(proxy(cluster));
                 var producer = tester.producer(Map.of(CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged", DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
@@ -164,7 +170,7 @@ class FilterIT {
 
     @Test
     @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
-    void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
+    void requestFiltersCanRespondWithoutProxying(@Name(TEST_CLUSTER) Admin admin) throws Exception {
         var config = proxy(cluster)
                 .addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
                 .addToDefaultFilters(REJECTING_CREATE_TOPIC_FILTER.name());
@@ -302,7 +308,7 @@ class FilterIT {
 
     @Test
     @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
-    void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
+    void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(@Name(TEST_CLUSTER) Admin admin) throws Exception {
         var config = proxy(cluster)
                 .addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
                 .addToDefaultFilters(REJECTING_CREATE_TOPIC_FILTER.name());
@@ -334,7 +340,7 @@ class FilterIT {
     }
 
     @Test
-    void shouldModifyProduceMessage(KafkaCluster cluster, Topic topic1, Topic topic2) throws Exception {
+    void shouldModifyProduceMessage(@Name(TEST_CLUSTER) Topic topic1, @Name(TEST_CLUSTER) Topic topic2) throws Exception {
 
         var bytes = PLAINTEXT.getBytes(StandardCharsets.UTF_8);
         var expectedEncoded1 = encode(topic1.name(), ByteBuffer.wrap(bytes)).array();
@@ -441,7 +447,7 @@ class FilterIT {
     // zero-ack produce requests require special handling because they have no response associated
     // this checks that Kroxy can handle the basics of forwarding them.
     @Test
-    void shouldModifyZeroAckProduceMessage(KafkaCluster cluster, Topic topic) throws Exception {
+    void shouldModifyZeroAckProduceMessage(@Name(TEST_CLUSTER) Topic topic) throws Exception {
         String className = ProduceRequestTransformation.class.getName();
         var config = proxy(cluster)
                 .addToFilterDefinitions(new NamedFilterDefinitionBuilder(className, className)
@@ -469,7 +475,7 @@ class FilterIT {
     }
 
     @Test
-    void shouldForwardUnfilteredZeroAckProduceMessage(KafkaCluster cluster, Topic topic) throws Exception {
+    void shouldForwardUnfilteredZeroAckProduceMessage(@Name(TEST_CLUSTER) Topic topic) throws Exception {
 
         var config = proxy(cluster);
 
@@ -492,7 +498,7 @@ class FilterIT {
     }
 
     @Test
-    void shouldModifyFetchMessage(KafkaCluster cluster, Topic topic1, Topic topic2) throws Exception {
+    void shouldModifyFetchMessage(@Name(TEST_CLUSTER) Topic topic1, @Name(TEST_CLUSTER) Topic topic2) throws Exception {
 
         var bytes = PLAINTEXT.getBytes(StandardCharsets.UTF_8);
         var encoded1 = encode(topic1.name(), ByteBuffer.wrap(bytes)).array();
