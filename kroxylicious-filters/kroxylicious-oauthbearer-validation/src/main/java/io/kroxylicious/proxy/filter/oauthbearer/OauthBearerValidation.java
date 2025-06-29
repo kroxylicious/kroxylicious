@@ -14,6 +14,7 @@ import java.util.Deque;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ThreadLocalRandom;
@@ -38,7 +39,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.Plugins;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule.OAUTHBEARER_MECHANISM;
 
@@ -77,8 +78,8 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
                 OAUTHBEARER_MECHANISM,
                 createDefaultJaasConfig());
         LoadingCache<String, AtomicInteger> rateLimiter = Caffeine.newBuilder()
-                .expireAfterWrite(configWithDefaults.authenticateBackOffMaxMs(), TimeUnit.MILLISECONDS)
-                .maximumSize(configWithDefaults.authenticateCacheMaxSize())
+                .expireAfterWrite(Objects.requireNonNull(configWithDefaults.authenticateBackOffMaxMs()), TimeUnit.MILLISECONDS)
+                .maximumSize(Objects.requireNonNull(configWithDefaults.authenticateCacheMaxSize()))
                 .build(key -> new AtomicInteger(0));
         ExponentialJitterBackoffStrategy backoffStrategy = new ExponentialJitterBackoffStrategy(Duration.ofMillis(500), Duration.ofSeconds(5), 2d,
                 ThreadLocalRandom.current());
@@ -98,7 +99,6 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
         }
     }
 
-    @NonNull
     private List<String> parseAllowedSaslOauthBearerProperty() {
         String property = System.getProperty(ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG);
         var allowedList = Optional.ofNullable(property)
@@ -118,7 +118,6 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
         }
     }
 
-    @NonNull
     @Override
     public OauthBearerValidationFilter createFilter(FilterFactoryContext context, SharedOauthBearerValidationContext sharedContext) {
         return new OauthBearerValidationFilter(context.filterDispatchExecutor(), sharedContext);
@@ -135,24 +134,24 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
 
     public record Config(
                          @JsonProperty(required = true) URI jwksEndpointUrl,
-                         @JsonProperty Long jwksEndpointRefreshMs,
-                         @JsonProperty Long jwksEndpointRetryBackoffMs,
-                         @JsonProperty Long jwksEndpointRetryBackoffMaxMs,
-                         @JsonProperty String scopeClaimName,
-                         @JsonProperty String subClaimName,
-                         @JsonProperty Long authenticateBackOffMaxMs,
-                         @JsonProperty Long authenticateCacheMaxSize,
-                         @JsonProperty String expectedAudience,
-                         @JsonProperty String expectedIssuer) {}
+                         @JsonProperty @Nullable Long jwksEndpointRefreshMs,
+                         @JsonProperty @Nullable Long jwksEndpointRetryBackoffMs,
+                         @JsonProperty @Nullable Long jwksEndpointRetryBackoffMaxMs,
+                         @JsonProperty @Nullable String scopeClaimName,
+                         @JsonProperty @Nullable String subClaimName,
+                         @JsonProperty @Nullable Long authenticateBackOffMaxMs,
+                         @JsonProperty @Nullable Long authenticateCacheMaxSize,
+                         @JsonProperty @Nullable String expectedAudience,
+                         @JsonProperty @Nullable String expectedIssuer) {}
 
     private Map<String, ?> createSaslConfigMap(Config config) {
-        Map<String, Object> saslConfig = new HashMap<>(Map.of(
-                SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_URL, config.jwksEndpointUrl().toString(),
-                SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_REFRESH_MS, config.jwksEndpointRefreshMs(),
-                SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS, config.jwksEndpointRetryBackoffMs(),
-                SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS, config.jwksEndpointRetryBackoffMaxMs(),
-                SaslConfigs.SASL_OAUTHBEARER_SCOPE_CLAIM_NAME, config.scopeClaimName(),
-                SaslConfigs.SASL_OAUTHBEARER_SUB_CLAIM_NAME, config.subClaimName()));
+        Map<String, Object> saslConfig = new HashMap<>();
+        saslConfig.put(SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_URL, config.jwksEndpointUrl().toString());
+        saslConfig.put(SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_REFRESH_MS, config.jwksEndpointRefreshMs());
+        saslConfig.put(SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MS, config.jwksEndpointRetryBackoffMs());
+        saslConfig.put(SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS, config.jwksEndpointRetryBackoffMaxMs());
+        saslConfig.put(SaslConfigs.SASL_OAUTHBEARER_SCOPE_CLAIM_NAME, config.scopeClaimName());
+        saslConfig.put(SaslConfigs.SASL_OAUTHBEARER_SUB_CLAIM_NAME, config.subClaimName());
         if (config.expectedAudience() != null) {
             List<String> audience = Arrays.stream(config.expectedAudience().split(","))
                     .map(String::trim)
@@ -184,15 +183,15 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
                 defaultIfNullOrEmpty(config.expectedIssuer(), null));
     }
 
-    private Long defaultIfNullOrNegative(Long value, Long defaultValue) {
+    private @Nullable Long defaultIfNullOrNegative(@Nullable Long value, @Nullable Long defaultValue) {
         return (value != null && value >= 0L) ? value : defaultValue;
     }
 
-    private Long defaultIfNullOrNonPositive(Long value, Long defaultValue) {
+    private @Nullable Long defaultIfNullOrNonPositive(@Nullable Long value, @Nullable Long defaultValue) {
         return (value != null && value > 0L) ? value : defaultValue;
     }
 
-    private String defaultIfNullOrEmpty(String value, String defaultValue) {
+    private @Nullable String defaultIfNullOrEmpty(@Nullable String value, @Nullable String defaultValue) {
         return (value != null && !value.trim().isEmpty()) ? value : defaultValue;
     }
 }
