@@ -8,8 +8,6 @@ package io.kroxylicious.proxy.filter.simpletransform;
 
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public interface ByteBufferTransformationFactory<C> {
 
     /**
@@ -19,7 +17,6 @@ public interface ByteBufferTransformationFactory<C> {
      */
     void validateConfiguration(C config) throws PluginConfigurationException;
 
-    @NonNull
     default C requireConfig(C config) {
         if (config == null) {
             throw new PluginConfigurationException(this.getClass().getSimpleName() + " requires configuration, but config object is null");

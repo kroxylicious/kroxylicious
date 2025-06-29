@@ -42,8 +42,6 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -146,7 +144,6 @@ class ProduceRequestTransformationFilterTest {
                 .flatMap(si -> StreamSupport.stream(si, false));
     }
 
-    @NonNull
     private static TopicProduceData createTopicProduceDataWithOneRecord(String key, String value) {
         var topicProduceData = new TopicProduceData();
         var partitionData = new PartitionProduceData();
@@ -163,7 +160,6 @@ class ProduceRequestTransformationFilterTest {
         }
     }
 
-    @NonNull
     private String decodeUtf8Value(Record record) {
         return StandardCharsets.UTF_8.decode(record.value()).toString();
     }
