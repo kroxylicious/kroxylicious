@@ -12,6 +12,8 @@ import java.util.Optional;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Describes an optional key validation rule and an optional value validation rule which will
  * be applied to a {@link org.apache.kafka.common.record.Record} to validate its contents.
@@ -21,12 +23,12 @@ public class RecordValidationRule {
     /**
      * rule to apply to record key
      */
-    protected final BytebufValidation keyRule;
+    protected final @Nullable BytebufValidation keyRule;
 
     /**
      * rule to apply to record value
      */
-    protected final BytebufValidation valueRule;
+    protected final @Nullable BytebufValidation valueRule;
 
     /**
      * Construct new RecordValidationRule
@@ -34,8 +36,8 @@ public class RecordValidationRule {
      * @param valueRule optional validation to apply to Record's value
      */
     @JsonCreator
-    public RecordValidationRule(@JsonProperty(value = "keyRule") BytebufValidation keyRule,
-                                @JsonProperty(value = "valueRule") BytebufValidation valueRule) {
+    public RecordValidationRule(@JsonProperty(value = "keyRule") @Nullable BytebufValidation keyRule,
+                                @JsonProperty(value = "valueRule") @Nullable BytebufValidation valueRule) {
         this.keyRule = keyRule;
         this.valueRule = valueRule;
     }

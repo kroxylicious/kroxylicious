@@ -11,6 +11,8 @@ import java.util.Objects;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Configuration for validating a component ByteBuffer of a {@link org.apache.kafka.common.record.Record} is syntactically correct JSON.
  */
@@ -22,7 +24,7 @@ public class SyntacticallyCorrectJsonConfig {
      * @param validateObjectKeysUnique whether we expect the Object keys in the JSON to be unique
      */
     @JsonCreator
-    public SyntacticallyCorrectJsonConfig(@JsonProperty(value = "validateObjectKeysUnique", defaultValue = "false") Boolean validateObjectKeysUnique) {
+    public SyntacticallyCorrectJsonConfig(@JsonProperty(value = "validateObjectKeysUnique", defaultValue = "false") @Nullable Boolean validateObjectKeysUnique) {
         this.validateObjectKeysUnique = validateObjectKeysUnique != null && validateObjectKeysUnique;
     }
 

@@ -23,7 +23,8 @@ public class KeyAndValueRecordValidator implements RecordValidator {
     private final BytebufValidator keyValidator;
     private final BytebufValidator valueValidator;
 
-    private KeyAndValueRecordValidator(BytebufValidator keyValidator, BytebufValidator valueValidator) {
+    private KeyAndValueRecordValidator(BytebufValidator keyValidator,
+                                       BytebufValidator valueValidator) {
         if (keyValidator == null) {
             throw new IllegalArgumentException("keyValidator was null");
         }

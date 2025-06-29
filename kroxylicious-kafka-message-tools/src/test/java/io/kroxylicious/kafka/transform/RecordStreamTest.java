@@ -25,7 +25,6 @@ import io.kroxylicious.test.assertj.MemoryRecordsAssert;
 import io.kroxylicious.test.assertj.RecordBatchAssert;
 import io.kroxylicious.test.record.RecordTestUtils;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.test.assertj.KafkaAssertions.assertThat;
@@ -187,8 +186,7 @@ class RecordStreamTest {
                 .hasTimestampEqualTo(Math.abs(Integer.hashCode(index)) + 65L);
     }
 
-    @NonNull
-    private static ByteBuffer prefix(@NonNull String prefix, @NonNull ByteBuffer buffer) {
+    private static ByteBuffer prefix(String prefix, ByteBuffer buffer) {
         return StandardCharsets.UTF_8.encode(CharBuffer.wrap(prefix + StandardCharsets.UTF_8.decode(buffer)));
     }
 
@@ -196,49 +194,49 @@ class RecordStreamTest {
         private T state;
 
         @Override
-        public void initBatch(@NonNull RecordBatch batch) {
+        public void initBatch(RecordBatch batch) {
 
         }
 
         @Override
         public void init(
                          T state,
-                         @NonNull Record record) {
+                         Record record) {
             this.state = state;
         }
 
         @Override
         public void resetAfterTransform(
                                         T state,
-                                        @NonNull Record record) {
+                                        Record record) {
 
         }
 
         @Override
-        public long transformOffset(@NonNull Record record) {
+        public long transformOffset(Record record) {
             return Math.abs(state.hashCode()) + record.offset();
         }
 
         @Override
-        public long transformTimestamp(@NonNull Record record) {
+        public long transformTimestamp(Record record) {
             return Math.abs(state.hashCode()) + record.timestamp();
         }
 
         @Nullable
         @Override
-        public ByteBuffer transformKey(@NonNull Record record) {
+        public ByteBuffer transformKey(Record record) {
             return prefix(String.valueOf(state), record.key());
         }
 
         @Nullable
         @Override
-        public ByteBuffer transformValue(@NonNull Record record) {
+        public ByteBuffer transformValue(Record record) {
             return prefix(String.valueOf(state), record.value());
         }
 
         @Nullable
         @Override
-        public Header[] transformHeaders(@NonNull Record record) {
+        public Header[] transformHeaders(Record record) {
             return new Header[0];
         }
     }

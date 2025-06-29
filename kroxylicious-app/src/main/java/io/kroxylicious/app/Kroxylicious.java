@@ -9,6 +9,7 @@ import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 
 import org.slf4j.Logger;
@@ -21,7 +22,9 @@ import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.internal.config.Feature;
 import io.kroxylicious.proxy.internal.config.Features;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Model.CommandSpec;
@@ -46,19 +49,22 @@ public class Kroxylicious implements Callable<Integer> {
         this(KafkaProxy::new);
     }
 
+    @VisibleForTesting
     Kroxylicious(KafkaProxyBuilder proxyBuilder) {
         this.proxyBuilder = proxyBuilder;
     }
 
     @Spec
-    private CommandSpec spec;
+    private @Nullable CommandSpec spec;
 
     @Option(names = { "-c", "--config" }, description = "name of the configuration file", required = true)
-    private File configFile;
+    private @Nullable File configFile;
 
     @Override
     public Integer call() throws Exception {
+        Objects.requireNonNull(configFile, "configFile");
         if (!configFile.exists()) {
+            Objects.requireNonNull(spec, "spec");
             throw new ParameterException(spec.commandLine(), String.format("Given configuration file does not exist: %s", configFile.toPath().toAbsolutePath()));
         }
 

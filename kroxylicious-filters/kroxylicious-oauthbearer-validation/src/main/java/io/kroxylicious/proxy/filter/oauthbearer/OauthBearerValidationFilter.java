@@ -44,6 +44,8 @@ import io.kroxylicious.proxy.filter.SaslHandshakeRequestFilter;
 import io.kroxylicious.proxy.filter.oauthbearer.sasl.BackoffStrategy;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static org.apache.kafka.common.protocol.Errors.ILLEGAL_SASL_STATE;
 import static org.apache.kafka.common.protocol.Errors.NONE;
 import static org.apache.kafka.common.protocol.Errors.SASL_AUTHENTICATION_FAILED;
@@ -66,7 +68,7 @@ public class OauthBearerValidationFilter
     private final BackoffStrategy strategy;
     private final LoadingCache<String, AtomicInteger> rateLimiter;
     private final OAuthBearerValidatorCallbackHandler oauthHandler;
-    private SaslServer saslServer;
+    private @Nullable SaslServer saslServer;
     private boolean validateAuthentication = true;
 
     public OauthBearerValidationFilter(ScheduledExecutorService executorService, SharedOauthBearerValidationContext sharedContext) {

@@ -29,8 +29,6 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 import io.kroxylicious.test.record.RecordTestUtils;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -516,7 +514,6 @@ class BatchAwareMemoryRecordsBuilderTest {
         assertThat(builder.build()).describedAs("Build should be idempotent").isEqualTo(mr);
     }
 
-    @NonNull
     private static SimpleRecord controlRecord() {
         var key = ControlRecordType.ABORT.recordKey();
         var bb = ByteBuffer.allocate(key.sizeOf());

@@ -9,19 +9,15 @@ package io.kroxylicious.proxy.filter.oauthbearer.sasl;
 import java.time.Duration;
 import java.util.Random;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class ExponentialJitterBackoffStrategy implements BackoffStrategy {
 
-    @NonNull
     private final Duration initialDelay;
-    @NonNull
     private final Duration maximumDelay;
     private final double multiplier;
     private final Random random;
 
-    public ExponentialJitterBackoffStrategy(@NonNull Duration initialDelay,
-                                            @NonNull Duration maximumDelay,
+    public ExponentialJitterBackoffStrategy(Duration initialDelay,
+                                            Duration maximumDelay,
                                             double multiplier,
                                             Random random) {
         if (multiplier <= 1.0d) {

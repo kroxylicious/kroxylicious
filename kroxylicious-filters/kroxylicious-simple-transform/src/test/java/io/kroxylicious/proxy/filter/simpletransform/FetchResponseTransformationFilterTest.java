@@ -56,8 +56,6 @@ import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
@@ -276,7 +274,6 @@ class FetchResponseTransformationFilterTest {
                 .flatMap(si -> StreamSupport.stream(si, false));
     }
 
-    @NonNull
     private static FetchableTopicResponse createFetchableTopicResponseWithOneRecord() {
         var fetchableTopicResponse = new FetchableTopicResponse();
         var partitionData1 = new PartitionData();
@@ -294,7 +291,6 @@ class FetchResponseTransformationFilterTest {
         }
     }
 
-    @NonNull
     private String decodeUtf8Value(Record record) {
         return StandardCharsets.UTF_8.decode(record.value()).toString();
     }
