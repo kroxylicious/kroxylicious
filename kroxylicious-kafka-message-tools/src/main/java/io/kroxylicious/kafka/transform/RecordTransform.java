@@ -14,7 +14,6 @@ import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -35,37 +34,37 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @NotThreadSafe
 public interface RecordTransform<S> {
 
-    void initBatch(@NonNull RecordBatch batch);
+    void initBatch(RecordBatch batch);
 
-    void init(S state, @NonNull Record record);
+    void init(@Nullable S state, Record record);
 
-    void resetAfterTransform(S state, @NonNull Record record);
+    void resetAfterTransform(S state, Record record);
 
     /**
      * @param record The operand record.
      * @return The offset of the new record.
      */
-    long transformOffset(@NonNull Record record);
+    long transformOffset(Record record);
 
     /**
      * @param record The operand record.
      * @return The timestamp of the new record.
      */
-    long transformTimestamp(@NonNull Record record);
+    long transformTimestamp(Record record);
 
     /**
      * @param record The operand record.
      * @return The key of the new record.
      */
     @Nullable
-    ByteBuffer transformKey(@NonNull Record record);
+    ByteBuffer transformKey(Record record);
 
     /**
      * @param record The operand record.
      * @return The value of the new record.
      */
     @Nullable
-    ByteBuffer transformValue(@NonNull Record record);
+    ByteBuffer transformValue(Record record);
 
     /**
      * @param record The operand record.
@@ -75,5 +74,5 @@ public interface RecordTransform<S> {
      * while in batch magic &lt; 2 headers are not permitted (thus must be null).
      */
     @Nullable
-    Header[] transformHeaders(@NonNull Record record);
+    Header[] transformHeaders(Record record);
 }
