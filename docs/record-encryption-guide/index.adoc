@@ -7,7 +7,7 @@ include::_assets/attributes.adoc[]
 [id="using-book-{context}"]
 = Record Encryption Guide
 
-include::modules/record-encryption/con-about-{guide}-guide.adoc[leveloffset=+1]
+include::_modules/record-encryption/con-about-{guide}-guide.adoc[leveloffset=+1]
 
 [role="_abstract"]
 The Kroxylicious Record Encryption filter enhances the security of Kafka messages.
@@ -33,20 +33,20 @@ You can provide implementations for your specific KMS systems.
 Additional KMS support may be added based on demand.
 
 //overview of the record encryption process
-include::modules/record-encryption/con-record-encryption-overview.adoc[leveloffset=+1]
+include::_modules/record-encryption/con-record-encryption-overview.adoc[leveloffset=+1]
 
 // preparing the KMS (might be done by a KMS admin, rather
 // than the person setting up the filter)
-include::assemblies/assembly-preparing-kms.adoc[leveloffset=+1]
+include::_assemblies/assembly-preparing-kms.adoc[leveloffset=+1]
 
 //configuring the record encryption filter
-include::assemblies/assembly-configuring-record-encryption-filter.adoc[leveloffset=+1]
+include::_assemblies/assembly-configuring-record-encryption-filter.adoc[leveloffset=+1]
 
 //monitoring the record encryption filter
-include::assemblies/assembly-monitoring-record-encryption-filter.adoc[leveloffset=+1]
+include::_assemblies/assembly-monitoring-record-encryption-filter.adoc[leveloffset=+1]
 
 //operational issues affecting the record encryption filter
-include::assemblies/assembly-operations-record-encryption-filter.adoc[leveloffset=+1]
+include::_assemblies/assembly-operations-record-encryption-filter.adoc[leveloffset=+1]
 
 //trademark notices
 include::_assets/trademarks.adoc[leveloffset=+1]
