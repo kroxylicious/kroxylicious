@@ -13,16 +13,18 @@ Deploy a basic proxy instance with a single virtual cluster exposed to Kafka cli
 
 * The operator must be installed in the Kubernetes cluster
 * A Kafka cluster to be proxied
+* For some ingress configurations using TLS, you will need the means to generate TLS server certificates.
+* For ingress configurations allowing off-cluster access, you may need the ability to make DNS changes within your off-cluster environment.
 
 == The required resources
 
 include::../modules/configuring/con-kafkaproxy.adoc[leveloffset=+2]
 
-include::../modules/configuring/con-kafkaproxyingress-for-on-cluster-access.adoc[leveloffset=+2]
+include::../modules/configuring/con-kafkaproxyingress-overview.adoc[leveloffset=+2]
 
 include::../modules/configuring/con-kafkaservice-by-bootstrap.adoc[leveloffset=+2]
 
-include::../modules/configuring/con-virtualkafkacluster-tcp.adoc[leveloffset=+2]
+include::../modules/configuring/con-virtualkafkacluster-overview.adoc[leveloffset=+2]
 
 // TODO
 // == Deploying the example proxy
@@ -33,7 +35,3 @@ include::../modules/configuring/con-virtualkafkacluster-tcp.adoc[leveloffset=+2]
 // configuring filters
 include::assembly-operator-configuring-kafkaprotocolfilters.adoc[leveloffset=+1]
 
-// TODO
-// == Configuring a filter
-//
-// include::../modules/configuring/proc-configuring-filter.adoc[leveloffset=+1]
