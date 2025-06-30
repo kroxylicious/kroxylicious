@@ -325,6 +325,7 @@ will continue for 3 minutes.  If `socat` terminates after about 10 seconds, the 
 has been applied ineffectively.
 
 ## Running system tests locally
+
 ### Prerequisites
 * minikube ([install guide](https://minikube.sigs.k8s.io/docs/start/))
 * helm ([install guide](https://helm.sh/docs/helm/helm_install/))
@@ -337,6 +338,7 @@ has been applied ineffectively.
 * `KROXYLICIOUS_OPERATOR_ORG`: name of the organisation in the registry where kroxylicious operator is located. Default value: `kroxylicious`
 * `KROXYLICIOUS_OPERATOR_IMAGE_NAME`: name of the image of kroxylicious operator to be used. Default value: `operator`
 * `KROXYLICIOUS_OPERATOR_VERSION`: version of kroxylicious operator to be used. Default value: `${project.version}` in pom file
+* `KROXYLICIOUS_IMAGE` image locaion of the kroxylicious (proxy) image. Defaults to `quay.io/kroxylicious/kroxylicious:${project.version}`
 * `KAFKA_VERSION`: kafka version to be used. Default value: `${kafka.version}` in pom file
 * `STRIMZI_VERSION`: strimzi version to be used. Default value: `${strimzi.version}` in pom file
 * `STRIMZI_NAMESPACE`: namespace used for strimzi cluster operator installation. Useful when strimzi is previously installed. Default value: `kafka`
@@ -360,26 +362,25 @@ First of all, the code must be compiled and the distribution artifacts created:
 mvn clean install -Dquick -Pdist
 ```
 
-If the tests are going to be run against local changes, use the [deploy-image.sh](./scripts/build-image.sh)
-describe [above](#building-and-pushing-a-kroxylicious-container-image) to create a test image.
-
-Start minikube:
+Start Minikube:
 ```shell
 minikube start
 ```
 
-Then, you can run them from system test or root folder:
+By default, the system tests will pull the Operator from `quay.io/kroxylicious/operator:${project.version}` and the Proxy from `quay.io/kroxylicious/kroxylicious:${project.version}`.
+These will be the latest images built by CI.  You can change this behaviour by setting the environment variables shown in the table above.
 
-* Run the system tests from [kroxylicious-systemtests](kroxylicious-systemtests) folder:
+Alternatively, to run system tests against locally made changes, push the built operator and proxy images into your Minikube.
 
-```shell
-KROXYLICIOUS_IMAGE_REPO=<container_registry>/<myorg>/kroxylicious mvn clean integration-test -DskipSTs=false
+```
+minikube image load kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
+minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
 ```
 
-* Run them from root folder of kroxylicious project:
+Run the system tests like this:
 
-```shell
-KROXYLICIOUS_IMAGE_REPO=<container_registry>/<myorg>/kroxylicious mvn clean verify -DskiptITs=true -DskiptUTs=true -DskipSTs=false
+```
+mvn clean verify -DskiptITs=true -DskiptUTs=true -DskipSTs=false
 ```
 
 ### Jenkins pipeline for system tests
