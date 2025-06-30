@@ -11,7 +11,7 @@ It is uniquely associated with a single `KafkaProxy` instance, but it is not uni
 
 The `KafkaProxyIngress` supports different types of networking configuration:
 
-* `clusterIP` - an ingress type used to allow other application running within Kubernetes Cluster to access the virtual cluster.
+* `clusterIP` - an ingress type used to allow other application running within the same Kubernetes Cluster as the Proxy to access the virtual cluster.
 * `loadBalancer` - an ingress type used to allow application running off-cluster to access the virtual cluster.
 
 The `clusterIP` ingress types support both TCP (plain) and TLS connections.
@@ -90,25 +90,26 @@ When using TLS, you must provide a xref:con-virtualkafkacluster-clusterip-genera
 The `loadBalancer` ingress type allows applications running off-cluster to connect to the virtual cluster.
 The use of TLS is required.
 
-When `loadBalancer` are in-use, the proxy uses SNI (Server Name Indication) to match the host name the client is connecting to with the right virtual cluster and right broker within the proxy.
-These means that every virtual cluster and every broker within the virtual cluster *must* be uniquely identifiable within DNS.
-To accomplish this the following configuration:
+When using a loadBalancer ingress, the proxy uses SNI (Server Name Indication) to match the host name the client is connecting to with the right virtual cluster and right broker within the proxy.
+This means that every virtual cluster and every broker within the virtual cluster *must* be uniquely identifiable within DNS.
+To accomplish this, the configuration must provide:
 
-* a unique `bootstrapAddress` that the clients will use to initially connect to the virtual cluster.
-* an `advertisedBrokerAddressPattern` which is used to generate unique broker addresses.
+* a unique `bootstrapAddress`. This is the address that the clients will initially use to connect to the virtual cluster.
+* an `advertisedBrokerAddressPattern` which will generate unique broker addresses.
   These addresses get presented to the client.
   The client uses them to connect with the individual brokers.
 
 It is up to the user to decide how to formulate the `bootstrapAddress` and the `advertisedBrokerAddressPattern` to best fit in with the networking conventions of their organization.
 
-The `advertisedBrokerAddressPattern` *must* contain the token `$(nodeId)` (which is replaced by the broker's nodeID).
+The `advertisedBrokerAddressPattern` *must* contain the token `$(nodeId)`.
+The proxy replaces this token with the broker's nodeID.
 This is used to ensure that connections the clients make to the broker route correctly.
 
 Both `bootstrapAddress` and `advertisedBrokerAddressPattern` *may* contain the token `$(virtualClusterName)`.
 If this is present it is replaced by the virtual cluster's name.
 This token is necessary when the `KafkaProxyIngress` is being shared by many virtual clusters.
 
-On possible scheme is to use the virtual cluster's name as a subdomain within your organisation's domain name.
+One possible scheme is to use the virtual cluster's name as a subdomain within your organisation's domain name.
 
 [source,text]
 ----

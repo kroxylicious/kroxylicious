@@ -23,15 +23,15 @@ The certificate must meet the following criteria:
 * The certificate needs to be signed by a CA that is trusted by the *on-cluster applications* that will connect to the virtual cluster.
 * The format of the certificate must be PKCS#8 encoded PEM (Privacy Enhanced Mail).
   It must not be password protected.
-* The certificate must use SAN (Subject Alternate Names) to express all the service names, or use TLS certificate wild-card that covers them all.
+* The certificate must use SAN (Subject Alternate Names) to express all the service names, or use a TLS certificate wild-card that covers them all.
   Assuming a virtual cluster name of `my-cluster`, an ingress name of `cluster-ip` and a kafka cluster using nodeIDs (0-2), the following SANs would need to expressed:
 +
 [source,text]
 ----
 my-cluster-cluster-ip-bootstrap.<namespace>.svc.cluster.local
-my-cluster-name>-cluster-ip-0.<namespace>.svc.cluster.local
-my-cluster-name>-cluster-ip-1<namespace>.svc.cluster.local
-my-cluster-name>-cluster-ip-2<namespace>.svc.cluster.local
+my-cluster-cluster-ip-0.<namespace>.svc.cluster.local
+my-cluster-cluster-ip-1<namespace>.svc.cluster.local
+my-cluster-cluster-ip-2<namespace>.svc.cluster.local
 ----
 
 include::../../snippets/snip-create-secret-containing-pem-certificate.adoc[]
