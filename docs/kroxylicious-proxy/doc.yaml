@@ -3,3 +3,4 @@ name: Proxy guide
 description: Covers using the proxy, including configuration, security and operation.
 tags:
   - proxy
+rank: "010"
