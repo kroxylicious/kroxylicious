@@ -4,3 +4,4 @@ description: The Java API documentation.
 tags:
   - developer
 path: https://javadoc.io/doc/io.kroxylicious/kroxylicious-api/${project.version}/index.html
+rank: "033"

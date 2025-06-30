@@ -27,3 +27,7 @@ properties:
       Optional URL pointing to the documentation. Relative paths are interpreted as relative to the 
       base documentation URL for this release.
     type: string
+  rank:
+    description: |
+      A string for the lexicographic ordering of documents
+    type: string

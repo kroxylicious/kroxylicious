@@ -3,3 +3,4 @@ name: Kroxylicious Developer guide
 description: Covers writing plugins for the proxy in the Java programming language
 tags:
   - developer
+rank: "032"

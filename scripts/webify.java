@@ -86,21 +86,25 @@ public class webify implements Callable<Integer> {
 
         walk(omitGlobs, tocifyGlob, datafyGlob);
 
-        Files.writeString(outdir.getParent().resolve("index.md"), """
----
-layout: released-documentation
-title: Documentation
----
-        """, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+        Files.writeString(outdir.getParent().resolve("index.md"),
+                docIndexFrontMatter(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
         return 0;
     }
 
+    String docIndexFrontMatter() {
+        return """
+---
+layout: released-documentation
+title: Documentation
+---
+        """;
+    }
+
     private void walk(List<PathMatcher> omitGlobs,
-                        PathMatcher tocifyGlob,
-                        PathMatcher datafyGlob) throws IOException {
-        var resultRootObject = this.mapper.createObjectNode();
-        var resultDocsArray = resultRootObject.putArray("docs");
+                      PathMatcher tocifyGlob,
+                      PathMatcher datafyGlob) throws IOException {
+        var resultDocsList = new ArrayList<ObjectNode>();
         try (var stream = Files.walk(this.srcDir)) {
             stream.forEach((Path filePath) -> {
                 try {
@@ -120,21 +124,12 @@ title: Documentation
                     }
                     else if (!omitable && !tocifiable && datafiable) {
                         System.out.println("datafiable " + filePath);
-                        var dataDocObject = addToMetadata(filePath, relFilePath, resultDocsArray);
+                        var dataDocObject = addToMetadata(filePath, relFilePath, resultDocsList);
                         System.out.println("datafiable " + dataDocObject);
                         if (!dataDocObject.has("path")) {
                             Files.createDirectories(outFilePath.getParent());
                             Files.writeString(outFilePath.getParent().resolve("index.html"),
-                                    """
----
-layout: guide
-title: ${doc.name}
-description: ${doc.description}
-release: ${project.version}
----
-                                            """.replace("${doc.name}", dataDocObject.get("name").textValue())
-                                            .replace("${doc.description}", dataDocObject.get("description").textValue())
-                                            .replace("${project.version}", this.projectVersion),
+                                    guideFrontMatter(dataDocObject),
                                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
                         }
                     }
@@ -154,14 +149,35 @@ release: ${project.version}
                 }
             });
         }
+
+        Collections.sort(resultDocsList, Comparator.nullsLast(Comparator.comparing(node -> node.get("rank").asText(null))));
+
+        var resultRootObject = this.mapper.createObjectNode();
+        var resultDocsArray = resultRootObject.putArray("docs");
+        resultDocsArray.addAll(resultDocsList);
         System.out.println(mapper.writeValueAsString(resultRootObject));
         Files.createDirectories(dataDestPath.getParent());
         Files.writeString(dataDestPath, mapper.writeValueAsString(resultRootObject), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
-    ObjectNode addToMetadata(Path filePath, Path relFilePath, ArrayNode resultDocsArray) throws IOException {
+    String guideFrontMatter(ObjectNode dataDocObject) {
+        return """
+---
+layout: guide
+title: ${doc.name}
+description: ${doc.description}
+release: ${project.version}
+---
+                """.replace("${doc.name}", dataDocObject.get("name").textValue())
+                .replace("${doc.description}", dataDocObject.get("description").textValue())
+                .replace("${project.version}", this.projectVersion);
+    }
+
+    ObjectNode addToMetadata(Path filePath,
+                             Path relFilePath,
+                             List<ObjectNode> resultDocsArray) throws IOException {
         var dataDocObject = (ObjectNode) this.mapper.readTree(filePath.toFile());
-        var resultDocObject = resultDocsArray.addObject();
+        var resultDocObject = this.mapper.createObjectNode();
         var dataDocFields = dataDocObject.fields();
         while (dataDocFields.hasNext()) {
             var entry = dataDocFields.next();
@@ -176,10 +192,12 @@ release: ${project.version}
         else {
             resultDocObject.put("path", dataDocObject.get("path").textValue().replace("${project.version}", this.projectVersion));
         }
+        resultDocsArray.add(resultDocObject);
         return dataDocObject;
     }
 
-    void tocify(Path filePath, Path outFilePath) throws IOException {
+    void tocify(Path filePath,
+                Path outFilePath) throws IOException {
         var outDir = outFilePath.getParent();
         Files.createDirectories(outDir);
         if (!splitOutToc(filePath,
@@ -190,7 +208,9 @@ release: ${project.version}
         }
     }
 
-    static boolean splitOutToc(Path sourcePath, Path tocPath, Path toclessPath) throws IOException {
+    static boolean splitOutToc(Path sourcePath,
+                               Path tocPath,
+                               Path toclessPath) throws IOException {
         // Parse the SOURCE
         Document doc = Jsoup.parse(sourcePath, "UTF-8");
         // Find the toc by it's ID
@@ -208,7 +228,8 @@ release: ${project.version}
         return true;
     }
     
-    static void writeRaw(Node node, Path path) throws IOException {
+    static void writeRaw(Node node,
+                         Path path) throws IOException {
         // Jekyll/Liquid doesn't have a way of {% include ... %} which
         // *prevents* the included file processing as a liquid template
         // Bracketing with {% raw %}/{% endraw %} is about the best we can do
