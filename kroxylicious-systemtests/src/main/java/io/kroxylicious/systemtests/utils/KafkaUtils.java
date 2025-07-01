@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +22,6 @@ import io.strimzi.api.kafka.model.kafka.KafkaStatus;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.systemtests.Constants;
-import io.kroxylicious.systemtests.clients.KafkaClient;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -78,7 +78,6 @@ public class KafkaUtils {
         }
     }
 
-
     /**
      * Create job
      *
@@ -91,13 +90,14 @@ public class KafkaUtils {
         kubeClient().getClient().batch().v1().jobs().inNamespace(namespace).resource(clientJob).create();
         return KafkaUtils.getPodNameByLabel(namespace, "app", name, Duration.ofSeconds(30));
     }
+
     /**
      * Delete job
      *
      * @param clientJob the client job
      */
     public static void deleteJob(Job clientJob) {
-        kubeClient().getClient().batch().v1().jobs().resource(clientJob).delete();
+        kubeClient().getClient().batch().v1().jobs().resource(clientJob).withTimeout(30, TimeUnit.SECONDS).delete();
     }
 
     /**
@@ -107,7 +107,7 @@ public class KafkaUtils {
      * @param podName pod name
      */
     private static void deletePod(String namespace, String podName) {
-        kubeClient().getClient().pods().inNamespace(namespace).withName(podName).delete();
+        kubeClient().getClient().pods().inNamespace(namespace).withName(podName).withTimeout(30, TimeUnit.SECONDS).delete();
     }
 
     /**
