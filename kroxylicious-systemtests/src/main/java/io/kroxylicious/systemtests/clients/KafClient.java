@@ -85,9 +85,10 @@ public class KafClient implements KafkaClient {
         LOGGER.atInfo().log("Consuming messages using kaf");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();
         List<String> args = List.of("-b", bootstrap, "consume", topicName, "--output", "json");
-        Job goClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, args).build();
-        String podName = KafkaUtils.createJob(deployNamespace, name, goClientJob);
+        Job kafClientJob = TestClientsJobTemplates.defaultKafkaGoConsumerJob(name, args).build();
+        String podName = KafkaUtils.createJob(deployNamespace, name, kafClientJob);
         String log = waitForConsumer(podName, numOfMessages, timeout);
+        KafkaUtils.deleteJob(kafClientJob);
         LOGGER.atInfo().setMessage("Log: {}").addArgument(log).log();
         List<String> logRecords = extractRecordLinesFromLog(log);
         return getConsumerRecords(topicName, logRecords);

@@ -21,6 +21,7 @@ import io.strimzi.api.kafka.model.kafka.KafkaStatus;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.clients.KafkaClient;
 import io.kroxylicious.systemtests.executor.Exec;
 import io.kroxylicious.systemtests.executor.ExecResult;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
@@ -69,12 +70,14 @@ public class KafkaUtils {
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         if (result.isSuccess()) {
             LOGGER.atInfo().setMessage("{} client produce log: {}").addArgument(clientName).addArgument(log).log();
+            deletePod(deployNamespace, podName);
         }
         else {
             LOGGER.atError().setMessage("error producing messages with {}: {}").addArgument(clientName).addArgument(log).log();
             throw new KubeClusterException("error producing messages with " + clientName + ": " + log);
         }
     }
+
 
     /**
      * Create job
@@ -87,6 +90,24 @@ public class KafkaUtils {
     public static String createJob(String namespace, String name, Job clientJob) {
         kubeClient().getClient().batch().v1().jobs().inNamespace(namespace).resource(clientJob).create();
         return KafkaUtils.getPodNameByLabel(namespace, "app", name, Duration.ofSeconds(30));
+    }
+    /**
+     * Delete job
+     *
+     * @param clientJob the client job
+     */
+    public static void deleteJob(Job clientJob) {
+        kubeClient().getClient().batch().v1().jobs().resource(clientJob).delete();
+    }
+
+    /**
+     * Delete a pod
+     *
+     * @param namespace namespace
+     * @param podName pod name
+     */
+    private static void deletePod(String namespace, String podName) {
+        kubeClient().getClient().pods().inNamespace(namespace).withName(podName).delete();
     }
 
     /**
