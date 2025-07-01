@@ -15,21 +15,32 @@ When using the `loadBalancer` ingress type, it is the responsibility of the user
 
 * Kroxylicious Operator is installed.
 * `KafkaProxy`, `VirtualKafkaCluster`, and `KafkaProxyIngress` resources deployed.
-* `VirtualKafkaCluster`, and `KafkaProxyIngress` configured for use of a `loadBalancer`.
+* `VirtualKafkaCluster` and `KafkaProxyIngress` configured for use of a `loadBalancer`.
 * Ability to configure DNS on the network where the off-cluster applications run.
+* Network traffic is permitted to flow from the application network run to the external addresses provided by the Kubernetes cluster.
 
 .Procedure
 
-.  Run the following command to discover the *external address* being used by the load balancer.
+ifndef::OpenShiftOnly[]
+. If using Minikube as your Kubernetes environment, enable the {Minikube}/docs/commands/tunnel/[Minikube Load Balancer tunnel] by running the following command.
+  Use a separate console window to do this as the command needs to stay running for the tunnel to work.
 +
 [source,shell]
 ----
-kubectl get service -n <namespace> <proxy-name>-sni -o=jsonpath='{.status.loadBalancer.ingress[0].hostname}'
+minikube tunnel
+----
+endif::OpenShiftOnly[]
+. Run the following command to discover the *external address* being used by the load balancer.
++
+[source,shell]
+----
+kubectl get service -n <namespace> <proxy-name>-sni -o=jsonpath='{.status.loadBalancer.ingress[0]}'
 ----
 +
 Replace `<namespace>` with the name of the Kubernetes namespace where the resources are deployed and replace `<proxy-name>` with the name of the `KafkaProxy` resource.
 
 . Depending on your Kubernetes environment, the command will return an IP address, or a hostname.
+  This is the external address of the load balancer.
 
 . Configure your DNS so that the bootstrap and broker names resolve to the external address.
 +
@@ -38,10 +49,10 @@ a kafka cluster uses nodeIDs (0-2) and a virtual cluster name of `my-cluster`, t
 +
 [source,text]
 ----
-mycluster.kafkaproxy.example.com => <external address>
-broker-0.mycluster.kafkaproxy.example.com => <external address>
-broker-1.mycluster.kafkaproxy.example.com => <external address>
-broker-2.mycluster.kafkaproxy.example.com => <external address>
+my-cluster.kafkaproxy.example.com => <external address>
+broker-0.my-cluster.kafkaproxy.example.com => <external address>
+broker-1.my-cluster.kafkaproxy.example.com => <external address>
+broker-2.my-cluster.kafkaproxy.example.com => <external address>
 ----
 +
 The exact steps will vary depending on your environment. Talk to your Network Administrator.

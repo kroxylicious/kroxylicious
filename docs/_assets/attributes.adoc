@@ -36,6 +36,9 @@
 //Kubernetes links
 :KubeTools: link:https://kubernetes.io/docs/tasks/tools/[Install Tools^]
 
+//Minikube links
+:Minikube: https://minikube.sigs.k8s.io/
+
 //Kafka links
 :ApacheKafkaSite: https://kafka.apache.org[Apache Kafka website^]
 :kafka-protocol: https://kafka.apache.org/protocol.html
