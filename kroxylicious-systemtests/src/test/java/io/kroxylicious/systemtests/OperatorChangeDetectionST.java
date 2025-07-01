@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -25,8 +26,10 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
+import io.fabric8.kubernetes.api.model.Container;
 import io.fabric8.kubernetes.api.model.HasMetadata;
 import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.PodSpec;
 import io.fabric8.kubernetes.api.model.PodTemplateSpec;
 import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.api.model.ResourceRequirementsBuilder;
@@ -213,16 +216,15 @@ class OperatorChangeDetectionST extends AbstractST {
     }
 
     @Test
-    void shouldUpdateDeploymentWhenKafkaProxyChanges(String namespace) {
+    void shouldUpdateDeploymentWhenResourceRequirementsChange(String namespace) {
         // Given
         KubeClient kubeClient = kubeClient(namespace);
         kroxylicious.deployPortIdentifiesNodeWithNoFilters(kafkaClusterName);
 
-        String originalChecksum = getInitialChecksum(namespace);
-
         KafkaProxy kafkaProxy = kubeClient.getClient().resources(KafkaProxy.class).inNamespace(namespace)
                 .withName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).get();
-        Map<String, Quantity> customResourceRequirements = Map.of("cpu", Quantity.parse("600m"), "memory", Quantity.parse("516Mi"));
+        var customResourceLimits = Map.of("cpu", Quantity.parse("600m"), "memory", Quantity.parse("516Mi"));
+        var customResourceRequests = Map.of("cpu", Quantity.parse("599m"), "memory", Quantity.parse("515Mi"));
 
         // @formatter:off
         KafkaProxyBuilder updatedKafkaProxy = kafkaProxy.edit()
@@ -230,8 +232,8 @@ class OperatorChangeDetectionST extends AbstractST {
                 .withNewInfrastructure()
                 .withNewProxyContainer()
                 .withResources(new ResourceRequirementsBuilder()
-                        .withLimits(customResourceRequirements)
-                        .withRequests(customResourceRequirements)
+                        .withLimits(customResourceLimits)
+                        .withRequests(customResourceRequests)
                         .build())
                 .endProxyContainer()
                 .endInfrastructure()
@@ -243,7 +245,23 @@ class OperatorChangeDetectionST extends AbstractST {
         LOGGER.info("Kafka proxy updated");
 
         // Then
-        assertDeploymentUpdated(namespace, originalChecksum);
+        await().atMost(Duration.ofSeconds(90)).untilAsserted(() -> {
+            Deployment proxyDeployment = kubeClient.getDeployment(namespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME);
+            assertThat(proxyDeployment)
+                    .isNotNull()
+                    .extracting(Deployment::getSpec)
+                    .extracting(DeploymentSpec::getTemplate)
+                    .extracting(PodTemplateSpec::getSpec)
+                    .extracting(PodSpec::getContainers, InstanceOfAssertFactories.list(Container.class))
+                    .singleElement()
+                    .extracting(Container::getResources)
+                    .satisfies(resources -> {
+                        assertThat(resources.getLimits())
+                                .isEqualTo(customResourceLimits);
+                        assertThat(resources.getRequests())
+                                .isEqualTo(customResourceRequests);
+                    });
+        });
     }
 
     @Test
