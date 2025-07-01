@@ -872,18 +872,8 @@
                 <groupId>org.asciidoctor</groupId>
                 <artifactId>asciidoctor-maven-plugin</artifactId>
                 <version>3.1.1</version>
-                <dependencies>
-                    <dependency>
-                        <groupId>org.asciidoctor</groupId>
-                        <artifactId>asciidoctorj-diagram</artifactId>
-                        <version>2.3.2</version>
-                    </dependency>
-                </dependencies>
                 <configuration>
                     <skip>${skipDocs}</skip>
-                    <requires>
-                        <require>asciidoctor-diagram</require>
-                    </requires>
                     <resources>
                         <resource>
                             <directory>docs/_assets</directory>
