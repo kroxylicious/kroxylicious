@@ -12,7 +12,6 @@ import java.time.ZoneId;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -24,7 +23,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.operator.assertj.KafkaProxyIngressStatusAssert;
-import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 
 import static io.kroxylicious.kubernetes.operator.assertj.KafkaProxyIngressStatusAssert.assertThat;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -115,61 +113,6 @@ class KafkaProxyIngressReconcilerTest {
                 .singleElement()
                 .isResolvedRefsTrue(INGRESS);
 
-    }
-
-    @SuppressWarnings("OptionalGetWithoutIsPresent")
-    @Test
-    void shouldAddChecksumForValidProxyRef() throws Exception {
-        // given
-        var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
-
-        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME)).thenReturn(Optional.of(PROXY));
-
-        // when
-        var update = reconciler.reconcile(INGRESS, context);
-
-        // then
-        assertThat(update)
-                .isNotNull()
-                .satisfies(uc -> Assertions.assertThat(update.getResource())
-                        .isPresent()
-                        .satisfies(kpi -> OperatorAssertions.assertThat(kpi.get())
-                                .hasAnnotationSatisfying(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY,
-                                        actualValue -> Assertions.assertThat(actualValue)
-                                                .isNotBlank()
-                                                .isBase64())));
-
-    }
-
-    @SuppressWarnings({ "unchecked" })
-    @Test
-    void shouldIncludeProxyGenerationInChecksum() throws Exception {
-        // given
-        var reconciler = new KafkaProxyIngressReconciler(TEST_CLOCK);
-
-        KafkaProxy updatedProxy = new KafkaProxyBuilder(PROXY).withNewMetadataLike(PROXY.getMetadata()).withGeneration(PROXY_GENERATION + 1).endMetadata().build();
-
-        when(context.getSecondaryResource(KafkaProxy.class, KafkaProxyIngressReconciler.PROXY_EVENT_SOURCE_NAME))
-                .thenReturn(Optional.of(PROXY), Optional.of(updatedProxy));
-        var initial = reconciler.reconcile(INGRESS, context);
-
-        Assertions.assertThat(initial.getResource()).isPresent();
-        String initialChecksum = initial.getResource().get().getMetadata().getAnnotations().get(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY);
-
-        // when
-        var update = reconciler.reconcile(INGRESS, context);
-
-        // then
-        assertThat(update)
-                .isNotNull()
-                .satisfies(uc -> {
-                    Assertions.assertThat(update.getResource()).isPresent();
-                    Assertions.assertThat(update.getResource().get()).satisfies(kpi -> OperatorAssertions.assertThat(kpi)
-                            .hasAnnotationSatisfying(Annotations.REFERENT_CHECKSUM_ANNOTATION_KEY,
-                                    actualValue -> Assertions.assertThat(actualValue)
-                                            .isNotBlank()
-                                            .isNotEqualTo(initialChecksum)));
-                });
     }
 
     @Test

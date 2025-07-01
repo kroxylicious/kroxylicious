@@ -6,6 +6,9 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+
+* [#2385](https://github.com/kroxylicious/kroxylicious/issues/2385) fix: Prevent existing proxy pod(s) rolling if number of replicas is changed.
+
 ## 0.13.0
 
 * [#2346](https://github.com/kroxylicious/kroxylicious/issues/2346) fix: #2346: report failure to decrypt within the fetch response.
