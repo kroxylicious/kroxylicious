@@ -97,8 +97,9 @@ public class webify implements Callable<Integer> {
 ---
 layout: released-documentation
 title: Documentation
+permalink: /documentation/${project.version}/
 ---
-        """;
+        """.replace("${project.version}", this.projectVersion);
     }
 
     private void walk(List<PathMatcher> omitGlobs,
@@ -123,15 +124,20 @@ title: Documentation
                         tocify(filePath, outFilePath);
                     }
                     else if (!omitable && !tocifiable && datafiable) {
-                        System.out.println("datafiable " + filePath);
-                        var dataDocObject = addToMetadata(filePath, relFilePath, resultDocsList);
-                        System.out.println("datafiable " + dataDocObject);
+                        var dataDocObject = readMetadata(filePath, relFilePath);
+                        String relPath;
                         if (!dataDocObject.has("path")) {
+                            relPath = "html/" + relFilePath.getParent().toString();
                             Files.createDirectories(outFilePath.getParent());
                             Files.writeString(outFilePath.getParent().resolve("index.html"),
-                                    guideFrontMatter(dataDocObject),
+                                    guideFrontMatter(dataDocObject, "html/" + relFilePath.getParent().toString()),
                                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
                         }
+                        else {
+                            relPath = dataDocObject.get("path").textValue().replace("${project.version}", this.projectVersion);
+                        }
+                        dataDocObject.put("path", relPath);
+                        resultDocsList.add(dataDocObject);
                     }
                     else if (!omitable && !tocifiable && !datafiable) {
                         Files.createDirectories(outFilePath.getParent());
@@ -160,22 +166,23 @@ title: Documentation
         Files.writeString(dataDestPath, mapper.writeValueAsString(resultRootObject), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
-    String guideFrontMatter(ObjectNode dataDocObject) {
+    String guideFrontMatter(ObjectNode dataDocObject, String relPath) {
         return """
 ---
 layout: guide
 title: ${doc.name}
 description: ${doc.description}
 release: ${project.version}
+permalink: /documentation/${project.version}/${relPath}/
 ---
                 """.replace("${doc.name}", dataDocObject.get("name").textValue())
                 .replace("${doc.description}", dataDocObject.get("description").textValue())
-                .replace("${project.version}", this.projectVersion);
+                .replace("${project.version}", this.projectVersion)
+                .replace("${relPath}", relPath);
     }
 
-    ObjectNode addToMetadata(Path filePath,
-                             Path relFilePath,
-                             List<ObjectNode> resultDocsArray) throws IOException {
+    ObjectNode readMetadata(Path filePath,
+                             Path relFilePath) throws IOException {
         var dataDocObject = (ObjectNode) this.mapper.readTree(filePath.toFile());
         var resultDocObject = this.mapper.createObjectNode();
         var dataDocFields = dataDocObject.fields();
@@ -186,14 +193,7 @@ release: ${project.version}
             }
             resultDocObject.put(entry.getKey(), entry.getValue());
         }
-        if (!dataDocObject.has("path")) {
-            resultDocObject.put("path", "html/" + relFilePath.getParent().toString());
-        }
-        else {
-            resultDocObject.put("path", dataDocObject.get("path").textValue().replace("${project.version}", this.projectVersion));
-        }
-        resultDocsArray.add(resultDocObject);
-        return dataDocObject;
+        return resultDocObject;
     }
 
     void tocify(Path filePath,
