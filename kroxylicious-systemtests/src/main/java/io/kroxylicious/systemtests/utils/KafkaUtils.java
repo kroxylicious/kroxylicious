@@ -107,7 +107,7 @@ public class KafkaUtils {
      * @param podName pod name
      */
     private static void deletePod(String namespace, String podName) {
-        kubeClient().getClient().pods().inNamespace(namespace).withName(podName).withTimeout(30, TimeUnit.SECONDS).delete();
+        kubeClient().getClient().pods().inNamespace(namespace).withName(podName).withTimeout(60, TimeUnit.SECONDS).delete();
     }
 
     /**
