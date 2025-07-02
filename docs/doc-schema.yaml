@@ -2,10 +2,10 @@ $schema: https://json-schema.org/draft/2020-12/schema
 $id: https://kroxylicious.io/doc-schema.yaml
 type: object
 required:
-  - name
+  - title
   - description
 properties:
-  name:
+  title:
     description: The name of this document.
     type: string
   description:

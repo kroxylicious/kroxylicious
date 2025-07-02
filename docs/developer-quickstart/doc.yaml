@@ -1,5 +1,5 @@
 $schema: https://kroxylicious.io/doc-schema.yaml
-name: Developer quickstart
+title: Developer quickstart
 description: Start here if you're developing a filter for the first time.
 tags:
   - developer

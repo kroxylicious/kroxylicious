@@ -166,19 +166,14 @@ permalink: /documentation/${project.version}/
         Files.writeString(dataDestPath, mapper.writeValueAsString(resultRootObject), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
-    String guideFrontMatter(ObjectNode dataDocObject, String relPath) {
-        return """
----
-layout: guide
-title: ${doc.name}
-description: ${doc.description}
-release: ${project.version}
-permalink: /documentation/${project.version}/${relPath}/
----
-                """.replace("${doc.name}", dataDocObject.get("name").textValue())
-                .replace("${doc.description}", dataDocObject.get("description").textValue())
-                .replace("${project.version}", this.projectVersion)
-                .replace("${relPath}", relPath);
+    String guideFrontMatter(ObjectNode dataDocObject, String relPath) throws IOException {
+        return "---\n" + this.mapper.writeValueAsString(this.mapper.createObjectNode()
+                .put("layout", "guide")
+                .<ObjectNode>setAll(dataDocObject)
+                .put("version", this.projectVersion)
+                .put("permalink", "/documentation/${project.version}/${relPath}/"
+                        .replace("${project.version}", this.projectVersion)
+                        .replace("${relPath}", relPath))) + "---\n";
     }
 
     ObjectNode readMetadata(Path filePath,
