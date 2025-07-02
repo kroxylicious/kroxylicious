@@ -64,6 +64,7 @@ import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.common.SaslMechanism;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+import io.kroxylicious.testing.kafka.junit5ext.Name;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -90,11 +91,11 @@ class ExpositionIT extends BaseIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(ExpositionIT.class);
 
     private static final String TOPIC = "my-test-topic";
-    public static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:9192");
+    public static final HostPort PROXY_ADDRESS = HostPort.parse("localhost:" + KroxyliciousConfigUtils.startPort());
 
     private static final String SNI_BASE_ADDRESS = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName("sni");
 
-    public static final HostPort SNI_BOOTSTRAP = new HostPort("bootstrap." + SNI_BASE_ADDRESS, 9192);
+    public static final HostPort SNI_BOOTSTRAP = new HostPort("bootstrap." + SNI_BASE_ADDRESS, KroxyliciousConfigUtils.startPort());
     public static final String SNI_BROKER_ADDRESS_PATTERN = "broker-$(nodeId)." + SNI_BASE_ADDRESS;
     public static final String SNI_BROKER_ADDRESS_PATTERN_WITH_CLUSTER_NAME = "$(virtualClusterName)-broker-$(nodeId)." + SNI_BASE_ADDRESS;
     public static final String SASL_USER = "user";
@@ -103,15 +104,24 @@ class ExpositionIT extends BaseIT {
     @TempDir
     private static Path certsDirectory;
 
+    private static final String TEST_CLUSTER = "testCluster";
+    private static final String TWO_NODE_TEST_CLUSTER = "twoNodeCluster";
+
+    @Name(TEST_CLUSTER)
+    static KafkaCluster cluster;
+
+    @Name(TWO_NODE_TEST_CLUSTER)
+    @BrokerCluster(numBrokers = 2)
+    static KafkaCluster twoNodeCluster;
+
     @ParameterizedTest
     @MethodSource("virtualClusterConfigurations")
     void exposesSingleUpstreamClusterOverTls(VirtualClusterBuilder virtualClusterBuilder,
-                                             Map<String, Object> clientSecurityProtocolConfig,
-                                             @BrokerCluster(numBrokers = 2) KafkaCluster cluster) {
+                                             Map<String, Object> clientSecurityProtocolConfig) {
         virtualClusterBuilder
                 .withName("demo")
                 .withNewTargetCluster()
-                .withBootstrapServers(cluster.getBootstrapServers())
+                .withBootstrapServers(twoNodeCluster.getBootstrapServers())
                 .endTargetCluster();
         var builder = new ConfigurationBuilder()
                 .addToVirtualClusters(virtualClusterBuilder.build());
@@ -119,7 +129,7 @@ class ExpositionIT extends BaseIT {
         try (var tester = kroxyliciousTester(builder);
                 var admin = tester.admin("demo", clientSecurityProtocolConfig)) {
             // do some work to ensure connection is opened
-            createTopic(admin, TOPIC, 1);
+            createTopic(admin, randomTopicName(), 1);
 
             var connectionsMetric = admin.metrics().entrySet().stream().filter(metricNameEntry -> "connections".equals(metricNameEntry.getKey().name()))
                     .findFirst();
@@ -130,8 +140,8 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
-    void exposesTwoClusterOverPlainWithSeparatePorts(KafkaCluster cluster) {
-        List<String> clusterProxyAddresses = List.of("localhost:9192", "localhost:9294");
+    void exposesTwoClusterOverPlainWithSeparatePorts() {
+        List<String> clusterProxyAddresses = List.of("localhost:" + KroxyliciousConfigUtils.startPort(), "localhost:" + (KroxyliciousConfigUtils.startPort() + 10));
 
         var builder = new ConfigurationBuilder();
 
@@ -152,38 +162,38 @@ class ExpositionIT extends BaseIT {
             for (int i = 0; i < clusterProxyAddresses.size(); i++) {
                 try (var admin = tester.admin("cluster" + i)) {
                     // do some work to ensure virtual cluster is operational
-                    createTopic(admin, TOPIC + i, 1);
+                    createTopic(admin, randomTopicName(), 1);
                 }
             }
         }
     }
 
     @Test
-    void exposesSingleClusterWithMultiplePortPerBrokerGateways(KafkaCluster cluster) throws Exception {
+    void exposesSingleClusterWithMultiplePortPerBrokerGateways() throws Exception {
         var builder = new ConfigurationBuilder();
 
         VirtualClusterBuilder virtualClusterBuilder = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "cluster");
-        virtualClusterBuilder.addToGateways(portPerBrokerGateway("localhost:9192", "gateway1"),
-                portPerBrokerGateway("localhost:9294", "gateway2"));
+        virtualClusterBuilder.addToGateways(portPerBrokerGateway("localhost:" + KroxyliciousConfigUtils.startPort(), "gateway1"),
+                portPerBrokerGateway("localhost:" + (KroxyliciousConfigUtils.startPort() + 10), "gateway2"));
         var virtualCluster = virtualClusterBuilder.build();
         builder.addToVirtualClusters(virtualCluster);
 
         try (var tester = kroxyliciousTester(builder)) {
             try (var admin = tester.admin("cluster", "gateway1")) {
-                createTopic(admin, TOPIC, 1);
+                createTopic(admin, randomTopicName(), 1);
                 Set<Integer> ports = getClusterNodePorts(admin);
-                assertThat(ports).containsExactly(9193);
+                assertThat(ports).containsExactly(KroxyliciousConfigUtils.startPort() + 1);
             }
             try (var admin = tester.admin("cluster", "gateway2")) {
-                createTopic(admin, TOPIC + "2", 1);
+                createTopic(admin, randomTopicName(), 1);
                 Set<Integer> ports = getClusterNodePorts(admin);
-                assertThat(ports).containsExactly(9295);
+                assertThat(ports).containsExactly(KroxyliciousConfigUtils.startPort() + 11);
             }
         }
     }
 
     @Test
-    void shouldFailFastWhenConnectWithSSLToPlainListener(KafkaCluster cluster) {
+    void shouldFailFastWhenConnectWithSSLToPlainListener() {
         assertThatThrownBy(() -> {
             try (var tester = kroxyliciousTester(proxy(cluster))) {
                 String bootstrap = tester.getBootstrapAddress();
@@ -217,8 +227,8 @@ class ExpositionIT extends BaseIT {
      * to the advertised port (e.g. 443) rather than the listening port for the VirtualCluster.
      */
     @Test
-    void exposesUpstreamClustersUsingSniRoutingBehindPassthroughProxy(KafkaCluster cluster) throws Exception {
-        try (var proxy = new PassthroughProxy(9192, "localhost")) {
+    void exposesUpstreamClustersUsingSniRoutingBehindPassthroughProxy() throws Exception {
+        try (var proxy = new PassthroughProxy(KroxyliciousConfigUtils.startPort(), "localhost")) {
             var virtualClusterCommonNamePattern = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".cluster");
             var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
             var virtualClusterBrokerAddressPattern = "broker-$(nodeId)" + virtualClusterCommonNamePattern;
@@ -228,7 +238,7 @@ class ExpositionIT extends BaseIT {
             var keystoreTrustStorePair = buildKeystoreTrustStorePair("*" + virtualClusterCommonNamePattern);
 
             var virtualCluster = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "cluster")
-                    .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterBootstrapPattern + ":9192",
+                    .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterBootstrapPattern + ":" + KroxyliciousConfigUtils.startPort(),
                             virtualClusterBrokerAddressPattern + ":" + proxy.getLocalPort())
                             .withNewTls()
                             .withNewKeyStoreKey()
@@ -259,7 +269,7 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
-    void exposesTwoSeparateUpstreamClustersUsingSniRouting(KafkaCluster cluster) throws Exception {
+    void exposesTwoSeparateUpstreamClustersUsingSniRouting() throws Exception {
         var keystoreTrustStoreList = new ArrayList<KeystoreTrustStorePair>();
         var virtualClusterCommonNamePattern = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".virtualcluster%d");
         var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
@@ -274,7 +284,8 @@ class ExpositionIT extends BaseIT {
             keystoreTrustStoreList.add(keystoreTrustStorePair);
 
             var virtualCluster = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "cluster" + i)
-                    .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterFQDN + ":9192", virtualClusterBrokerAddressPattern.formatted(i))
+                    .addToGateways(defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterFQDN + ":" + KroxyliciousConfigUtils.startPort(),
+                            virtualClusterBrokerAddressPattern.formatted(i))
                             .withNewTls()
                             .withNewKeyStoreKey()
                             .withStoreFile(keystoreTrustStorePair.brokerKeyStore())
@@ -303,12 +314,12 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
-    void exposeSingleUpstreamClustersWithTwoVirtualClustersUsingIdenticalSNIGatewayConfigurationWithClusterNameReplacement(KafkaCluster cluster) throws Exception {
+    void exposeSingleUpstreamClustersWithTwoVirtualClustersUsingIdenticalSNIGatewayConfigurationWithClusterNameReplacement() throws Exception {
         var keystoreTrustStoreList = new ArrayList<KeystoreTrustStorePair>();
         var virtualClusterCommonNamePattern = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".$(virtualClusterName)");
         var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
         var virtualClusterBrokerAddressPattern = "broker-$(nodeId)" + virtualClusterCommonNamePattern;
-        VirtualClusterGatewayBuilder sniBuilder = defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterBootstrapPattern + ":9192",
+        VirtualClusterGatewayBuilder sniBuilder = defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterBootstrapPattern + ":" + KroxyliciousConfigUtils.startPort(),
                 virtualClusterBrokerAddressPattern);
 
         var builder = new ConfigurationBuilder();
@@ -343,19 +354,19 @@ class ExpositionIT extends BaseIT {
                         SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trust.clientTrustStore(),
                         SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, trust.password()))) {
                     // do some work to ensure virtual cluster is operational
-                    createTopic(admin, TOPIC + i, 1);
+                    createTopic(admin, randomTopicName(), 1);
                     Set<HostPort> nodeAdvertisedAddresses = admin.describeCluster().nodes().get(5, TimeUnit.SECONDS).stream()
                             .map(node -> new HostPort(node.host(), node.port()))
                             .collect(Collectors.toSet());
                     String expectedAdvertisedBrokerHost = "broker-0.%s%s".formatted(clusterName, TEST_DOMAIN);
-                    assertThat(nodeAdvertisedAddresses).singleElement().isEqualTo(new HostPort(expectedAdvertisedBrokerHost, 9192));
+                    assertThat(nodeAdvertisedAddresses).singleElement().isEqualTo(new HostPort(expectedAdvertisedBrokerHost, KroxyliciousConfigUtils.startPort()));
                 }
             }
         }
     }
 
     @Test
-    void exposesSingleUpstreamClustersUsingMultipleSniGateways(KafkaCluster cluster) throws Exception {
+    void exposesSingleUpstreamClustersUsingMultipleSniGateways() throws Exception {
         var keystoreTrustStoreList = new ArrayList<KeystoreTrustStorePair>();
         var virtualClusterCommonNamePattern = IntegrationTestInetAddressResolverProvider.generateFullyQualifiedDomainName(".virtualcluster%d");
         var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
@@ -373,7 +384,7 @@ class ExpositionIT extends BaseIT {
                     .addToGateways(new VirtualClusterGatewayBuilder()
                             .withName("gateway-" + i)
                             .withNewSniHostIdentifiesNode()
-                            .withBootstrapAddress(new HostPort(virtualClusterFQDN, 9192).toString())
+                            .withBootstrapAddress(new HostPort(virtualClusterFQDN, KroxyliciousConfigUtils.startPort()).toString())
                             .withAdvertisedBrokerAddressPattern(virtualClusterBrokerAddressPattern.formatted(i))
                             .endSniHostIdentifiesNode()
                             .withNewTls()
@@ -397,7 +408,7 @@ class ExpositionIT extends BaseIT {
                         SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, trust.clientTrustStore(),
                         SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, trust.password()))) {
                     // do some work to ensure virtual cluster is operational
-                    createTopic(admin, TOPIC + i, 1);
+                    createTopic(admin, randomTopicName(), 1);
                     Set<String> hosts = admin.describeCluster().nodes().get(5, TimeUnit.SECONDS).stream().map(Node::host).collect(Collectors.toSet());
                     assertThat(hosts).containsExactly(virtualClusterBrokerAddressPattern.formatted(i).replace("$(nodeId)", "0"));
                 }
@@ -406,9 +417,9 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
-    void exposesClusterOfTwoBrokersWithRangeAwarePortPerNode(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
+    void exposesClusterOfTwoBrokersWithRangeAwarePortPerNode() throws Exception {
         var builder = new ConfigurationBuilder()
-                .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "demo")
+                .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(twoNodeCluster, "demo")
                         .addToGateways(defaultGatewayBuilder()
                                 .withNewPortIdentifiesNode()
                                 .withBootstrapAddress(PROXY_ADDRESS)
@@ -423,21 +434,21 @@ class ExpositionIT extends BaseIT {
 
             try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS.toString()))) {
                 var nodes = await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
-                        n -> n.size() == cluster.getNumOfBrokers());
+                        n -> n.size() == twoNodeCluster.getNumOfBrokers());
                 var unique = nodes.stream().collect(Collectors.toMap(Node::id, ExpositionIT::toAddress));
                 assertThat(unique).containsExactlyInAnyOrderEntriesOf(brokerEndpoints);
             }
 
-            verifyAllBrokersAvailableViaProxy(tester, cluster);
+            verifyAllBrokersAvailableViaProxy(tester, twoNodeCluster);
         }
     }
 
     @Test
-    void exposesClusterOfTwoBrokersWithGapInNodeIds(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
-        cluster.addBroker();
-        cluster.removeBroker(1);
+    void exposesClusterOfTwoBrokersWithGapInNodeIds(@BrokerCluster(numBrokers = 2) KafkaCluster clusterToMutate) throws Exception {
+        clusterToMutate.addBroker();
+        clusterToMutate.removeBroker(1);
         var builder = new ConfigurationBuilder()
-                .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "demo")
+                .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(clusterToMutate, "demo")
                         .addToGateways(defaultGatewayBuilder()
                                 .withNewPortIdentifiesNode()
                                 .withBootstrapAddress(PROXY_ADDRESS)
@@ -452,20 +463,20 @@ class ExpositionIT extends BaseIT {
 
             try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS.toString()))) {
                 var nodes = await().atMost(Duration.ofSeconds(20)).until(() -> admin.describeCluster().nodes().get(),
-                        n -> n.size() == cluster.getNumOfBrokers());
+                        n -> n.size() == clusterToMutate.getNumOfBrokers());
                 var unique = nodes.stream().collect(Collectors.toMap(Node::id, ExpositionIT::toAddress));
                 assertThat(unique).containsExactlyInAnyOrderEntriesOf(brokerEndpoints);
             }
 
-            verifyAllBrokersAvailableViaProxy(tester, cluster);
+            verifyAllBrokersAvailableViaProxy(tester, clusterToMutate);
         }
     }
 
     @Test
-    void exposesClusterOfTwoBrokers(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
+    void exposesClusterOfTwoBrokers() throws Exception {
         HostPort proxyAddress = PROXY_ADDRESS;
         var builder = new ConfigurationBuilder()
-                .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "demo")
+                .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(twoNodeCluster, "demo")
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(proxyAddress).build())
                         .build());
 
@@ -475,12 +486,12 @@ class ExpositionIT extends BaseIT {
 
             try (var admin = CloseableAdmin.create(Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, PROXY_ADDRESS.toString()))) {
                 var nodes = await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
-                        n -> n.size() == cluster.getNumOfBrokers());
+                        n -> n.size() == twoNodeCluster.getNumOfBrokers());
                 var unique = nodes.stream().collect(Collectors.toMap(Node::id, ExpositionIT::toAddress));
                 assertThat(unique).containsExactlyInAnyOrderEntriesOf(brokerEndpoints);
             }
 
-            verifyAllBrokersAvailableViaProxy(tester, cluster);
+            verifyAllBrokersAvailableViaProxy(tester, twoNodeCluster);
         }
     }
 
@@ -534,14 +545,13 @@ class ExpositionIT extends BaseIT {
      * @see #connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart(VirtualClusterBuilder, Map, KafkaCluster)
      * @param virtualClusterBuilder the virtual cluster builder
      * @param clientSecurityProtocolConfig addition client configuration
-     * @param cluster kafka cluster
+     * @param twoNodeCluster kafka cluster
      */
     @ParameterizedTest()
     @MethodSource(value = "virtualClusterConfigurations")
     void connectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart(VirtualClusterBuilder virtualClusterBuilder,
-                                                                         Map<String, Object> clientSecurityProtocolConfig,
-                                                                         @BrokerCluster(numBrokers = 2) KafkaCluster cluster) {
-        doConnectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart(virtualClusterBuilder, clientSecurityProtocolConfig, cluster);
+                                                                         Map<String, Object> clientSecurityProtocolConfig) {
+        doConnectToExposedBrokerEndpointsDirectlyAfterKroxyliciousRestart(virtualClusterBuilder, clientSecurityProtocolConfig, twoNodeCluster);
     }
 
     /**
@@ -624,8 +634,7 @@ class ExpositionIT extends BaseIT {
     @ParameterizedTest
     @MethodSource(value = "virtualClusterConfigurations")
     void connectToDiscoveryAddress(VirtualClusterBuilder virtualClusterBuilder,
-                                   Map<String, Object> clientSecurityProtocolConfig,
-                                   @BrokerCluster KafkaCluster cluster) {
+                                   Map<String, Object> clientSecurityProtocolConfig) {
         virtualClusterBuilder
                 .withName("demo")
                 .withNewTargetCluster()
@@ -684,42 +693,42 @@ class ExpositionIT extends BaseIT {
     }
 
     @Test
-    void targetClusterDynamicallyAddsBroker(@BrokerCluster KafkaCluster cluster) throws Exception {
+    void targetClusterDynamicallyAddsBroker(@BrokerCluster KafkaCluster clusterToMutate) throws Exception {
         var builder = new ConfigurationBuilder()
-                .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "demo")
+                .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(clusterToMutate, "demo")
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder)) {
 
-            assertThat(cluster.getNumOfBrokers()).isOne();
+            assertThat(clusterToMutate.getNumOfBrokers()).isOne();
             try (var admin = tester.admin()) {
                 await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
-                        n -> n.size() == cluster.getNumOfBrokers());
+                        n -> n.size() == clusterToMutate.getNumOfBrokers());
 
-                int newNodeId = cluster.addBroker();
-                assertThat(cluster.getNumOfBrokers()).isEqualTo(2);
+                int newNodeId = clusterToMutate.addBroker();
+                assertThat(clusterToMutate.getNumOfBrokers()).isEqualTo(2);
 
                 var updatedNodes = await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
-                        n -> n.size() == cluster.getNumOfBrokers());
+                        n -> n.size() == clusterToMutate.getNumOfBrokers());
 
                 assertThat(updatedNodes).describedAs("new node should appear in the describeCluster response").anyMatch(n -> n.id() == newNodeId);
             }
 
-            verifyAllBrokersAvailableViaProxy(tester, cluster);
+            verifyAllBrokersAvailableViaProxy(tester, clusterToMutate);
         }
     }
 
     // Test extension does not allow us to influence the node ids, so we start a 3 node cluster
     // and shutdown node 1, leaving us with nodes 0 (controller/broker) and 2 (broker).
     @Test
-    void canConfigurePortIdentifiesNodeWithRanges(@BrokerCluster(numBrokers = 3) KafkaCluster cluster, Admin admin) throws Exception {
-        cluster.removeBroker(1);
+    void canConfigurePortIdentifiesNodeWithRanges(@BrokerCluster(numBrokers = 3) KafkaCluster clusterToMutate, Admin admin) throws Exception {
+        clusterToMutate.removeBroker(1);
         await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
                 n -> n.stream().map(Node::id).collect(Collectors.toSet()).equals(Set.of(0, 2)));
         var builder = new ConfigurationBuilder()
-                .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "demo")
+                .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(clusterToMutate, "demo")
                         .addToGateways(defaultGatewayBuilder()
                                 .withNewPortIdentifiesNode()
                                 .withBootstrapAddress(PROXY_ADDRESS)
@@ -729,45 +738,45 @@ class ExpositionIT extends BaseIT {
                         .build());
 
         try (var tester = kroxyliciousTester(builder)) {
-            assertThat(cluster.getNumOfBrokers()).isEqualTo(2);
-            verifyAllBrokersAvailableViaProxy(tester, cluster);
+            assertThat(clusterToMutate.getNumOfBrokers()).isEqualTo(2);
+            verifyAllBrokersAvailableViaProxy(tester, clusterToMutate);
         }
     }
 
     @Test
-    void targetClusterDynamicallyRemovesBroker(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
+    void targetClusterDynamicallyRemovesBroker(@BrokerCluster(numBrokers = 2) KafkaCluster clusterToMutate) throws Exception {
         var builder = new ConfigurationBuilder()
-                .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "demo")
+                .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(clusterToMutate, "demo")
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .build())
                         .build());
 
         try (var tester = kroxyliciousTester(builder)) {
 
-            assertThat(cluster.getNumOfBrokers()).isEqualTo(2);
+            assertThat(clusterToMutate.getNumOfBrokers()).isEqualTo(2);
             try (var admin = tester.admin()) {
                 await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
-                        n -> n.size() == cluster.getNumOfBrokers());
+                        n -> n.size() == clusterToMutate.getNumOfBrokers());
 
                 var removedNodeId = 1;
-                cluster.removeBroker(removedNodeId);
-                assertThat(cluster.getNumOfBrokers()).isOne();
+                clusterToMutate.removeBroker(removedNodeId);
+                assertThat(clusterToMutate.getNumOfBrokers()).isOne();
 
                 var updatedNodes = await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
-                        n -> n.size() == cluster.getNumOfBrokers());
+                        n -> n.size() == clusterToMutate.getNumOfBrokers());
 
                 assertThat(updatedNodes).describedAs("removed node must not appear in the describeCluster response")
                         .isNotEmpty()
                         .allSatisfy(n -> assertThat(n.id()).isNotEqualTo(removedNodeId));
             }
 
-            verifyAllBrokersAvailableViaProxy(tester, cluster);
+            verifyAllBrokersAvailableViaProxy(tester, clusterToMutate);
         }
     }
 
     private void verifyAllBrokersAvailableViaProxy(KroxyliciousTester tester, KafkaCluster cluster) throws Exception {
         int numberOfPartitions = cluster.getNumOfBrokers();
-        var topic = TOPIC + UUID.randomUUID();
+        var topic = randomTopicName();
 
         // create topic and ensure that leaders are on different brokers.
         try (var admin = tester.admin();
@@ -790,6 +799,11 @@ class ExpositionIT extends BaseIT {
                 deleteTopics(admin, TopicNameCollection.ofTopicNames(List.of(topic)));
             }
         }
+    }
+
+    @NonNull
+    private static String randomTopicName() {
+        return TOPIC + UUID.randomUUID();
     }
 
     private static String toAddress(Node n) {

@@ -104,6 +104,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     public static long secondGlobalId;
 
     private static GenericContainer registryContainer;
+    static KafkaCluster cluster;
 
     @BeforeAll
     public static void init() throws IOException {
@@ -131,7 +132,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void shouldAcceptValidJsonInProduceRequest(KafkaCluster cluster, Topic topic) throws Exception {
+    void shouldAcceptValidJsonInProduceRequest(Topic topic) throws Exception {
         var config = createGlobalIdRecordValidationConfig(cluster, topic, "valueRule", firstGlobalId);
 
         try (var tester = kroxyliciousTester(config);
@@ -145,7 +146,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void invalidAgeProduceRejectedUsingTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2) throws Exception {
+    void invalidAgeProduceRejectedUsingTopicNames(Topic topic1, Topic topic2) throws Exception {
         // Topic 2 has schema validation, invalid data cannot be sent.
         var config = createGlobalIdRecordValidationConfig(cluster, topic2, "valueRule", firstGlobalId);
 
@@ -167,7 +168,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void nonExistentSchema(KafkaCluster cluster, Topic topic) {
+    void nonExistentSchema(Topic topic) {
         var config = createGlobalIdRecordValidationConfig(cluster, topic, "valueRule", 3L);
 
         try (var tester = kroxyliciousTester(config);
@@ -181,7 +182,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void clientSideUsesValueSchemasToo(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) throws Exception {
+    void clientSideUsesValueSchemasToo(boolean schemaIdInHeader, Topic topic) throws Exception {
         var config = createGlobalIdRecordValidationConfig(cluster, topic, "valueRule", firstGlobalId);
 
         var keySerde = new Serdes.StringSerde();
@@ -204,7 +205,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void clientSideUsesKeySchemasToo(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) throws Exception {
+    void clientSideUsesKeySchemasToo(boolean schemaIdInHeader, Topic topic) throws Exception {
         var config = createGlobalIdRecordValidationConfig(cluster, topic, "keyRule", firstGlobalId);
 
         boolean isKey = true;
@@ -227,7 +228,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void detectsClientProducingWithWrongValueSchemaId(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) {
+    void detectsClientProducingWithWrongValueSchemaId(boolean schemaIdInHeader, Topic topic) {
         var config = createGlobalIdRecordValidationConfig(cluster, topic, "valueRule", secondGlobalId);
 
         var keySerde = new Serdes.StringSerde();
@@ -242,7 +243,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
 
     @ParameterizedTest
     @ValueSource(booleans = { true, false })
-    void detectsClientProducingWithWrongKeySchemaId(boolean schemaIdInHeader, KafkaCluster cluster, Topic topic) {
+    void detectsClientProducingWithWrongKeySchemaId(boolean schemaIdInHeader, Topic topic) {
         var config = createGlobalIdRecordValidationConfig(cluster, topic, "keyRule", secondGlobalId);
 
         var valueSerde = new Serdes.StringSerde();
