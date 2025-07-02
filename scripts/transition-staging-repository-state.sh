@@ -5,6 +5,9 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
+# KWTODO
+exit 0
+
 set -euo pipefail
 
 usage() {
@@ -45,7 +48,7 @@ done
 #[INFO] iokroxylicious-1032  CLOSED   unknown
 #[INFO] ------------------------------------------------------------------------
 
-STAGING_REPO_IDS=$(mvn ${PLUGIN}:rc-list "${MVN_ARGS[@]}" 2>/dev/null \
+STAGING_REPO_IDS=$(mvn -X ${PLUGIN}:rc-list "${MVN_ARGS[@]}" 2>/dev/null \
                  | awk '/\[INFO\] ---*/{found=0} found==1{print $2} /\[INFO\] ID.*State.*Description/{found=1}')
 
 NUM_REPOS=$(echo "${STAGING_REPO_IDS}" | (grep -c . || true))
