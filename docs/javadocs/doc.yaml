@@ -1,5 +1,5 @@
 $schema: https://kroxylicious.io/doc-schema.yaml
-name: Kroxylicious Javadocs
+title: Kroxylicious Javadocs
 description: The Java API documentation.
 tags:
   - developer
