@@ -60,7 +60,7 @@ This will:
 * raise single PR that will contain two commits:
   1. the first will version the artefacts at `release-version`.  A `release-version` tag will point at this commit.
   2. the second will re-open main for development, at the next snapshot.
-* stage a release [Nexus UI](https://s01.oss.sonatype.org/). It'll be named `iokroxylicious-nn`.
+* stage a release at [Maven Central Publishing](https://central.sonatype.com/publishing/namespaces). It'll be named `iokroxylicious-nn`.
 
 If anything goes wrong, follow the steps in [Failed Releases](#failed-releases)
 
@@ -72,7 +72,7 @@ You can validate the staged artefacts by using a test application, `T`, use the 
 1. Find the staging repository URL by executing.
    ```shell
    curl -sS --header 'Accept: application/json' \
-     https://s01.oss.sonatype.org/service/local/all_repositories \
+     https://ossrh-staging-api.central.sonatype.com/service/local/all_repositories \
      | jq '.data[] | select(.name | contains("kroxylicious")) | .contentResourceURI'
    ```
    The repository url should include `iokroxylious-nn`. You can also browse to it via the [Nexus UI](https://s01.oss.sonatype.org/).
