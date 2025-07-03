@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,6 +70,7 @@ public class KafkaUtils {
         String log = kubeClient().logsInSpecificNamespace(deployNamespace, podName);
         if (result.isSuccess()) {
             LOGGER.atInfo().setMessage("{} client produce log: {}").addArgument(clientName).addArgument(log).log();
+            deletePod(deployNamespace, podName);
         }
         else {
             LOGGER.atError().setMessage("error producing messages with {}: {}").addArgument(clientName).addArgument(log).log();
@@ -87,6 +89,25 @@ public class KafkaUtils {
     public static String createJob(String namespace, String name, Job clientJob) {
         kubeClient().getClient().batch().v1().jobs().inNamespace(namespace).resource(clientJob).create();
         return KafkaUtils.getPodNameByLabel(namespace, "app", name, Duration.ofSeconds(30));
+    }
+
+    /**
+     * Delete job
+     *
+     * @param clientJob the client job
+     */
+    public static void deleteJob(Job clientJob) {
+        kubeClient().getClient().batch().v1().jobs().resource(clientJob).withTimeout(30, TimeUnit.SECONDS).delete();
+    }
+
+    /**
+     * Delete a pod
+     *
+     * @param namespace namespace
+     * @param podName pod name
+     */
+    private static void deletePod(String namespace, String podName) {
+        kubeClient().getClient().pods().inNamespace(namespace).withName(podName).withTimeout(60, TimeUnit.SECONDS).delete();
     }
 
     /**
