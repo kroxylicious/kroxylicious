@@ -6,4 +6,4 @@
 
 # Helm Overrides File for cert manager used by the system tests.
 image:
-  tag: v1.18.1
+  tag: v1.18.2
