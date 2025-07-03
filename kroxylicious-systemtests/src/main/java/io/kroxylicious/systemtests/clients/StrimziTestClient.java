@@ -65,6 +65,7 @@ public class StrimziTestClient implements KafkaClient {
         KafkaUtils.produceMessages(deployNamespace, topicName, name, testClientJob);
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));
         String log = waitForProducer(deployNamespace, podName, Duration.ofSeconds(60));
+        KafkaUtils.deleteJob(testClientJob);
         LOGGER.atInfo().setMessage("client producer log: {}").addArgument(log).log();
     }
 
@@ -95,6 +96,7 @@ public class StrimziTestClient implements KafkaClient {
         Job testClientJob = TestClientsJobTemplates.defaultTestClientConsumerJob(name, bootstrap, topicName, numOfMessages).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, testClientJob);
         String log = waitForConsumer(deployNamespace, podName, timeout);
+        KafkaUtils.deleteJob(testClientJob);
         LOGGER.atInfo().setMessage("Log: {}").addArgument(log).log();
         Stream<String> logRecords = extractRecordLinesFromLog(log);
         return getConsumerRecords(logRecords);
