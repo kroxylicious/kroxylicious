@@ -56,7 +56,7 @@ public class NamespaceUtils {
         if (!Environment.SKIP_TEARDOWN) {
             LOGGER.info("Deleting namespace: {}", namespace);
             kubeClient().deleteNamespace(namespace);
-            if(wait) {
+            if (wait) {
                 await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
                         .until(() -> kubeClient().getNamespace(namespace) == null);
             }
@@ -156,12 +156,13 @@ public class NamespaceUtils {
         Set<String> namespaceList = getOrCreateNamespacesForTestClass(testSuiteName);
         LOGGER.info("Deleting all namespaces for {}", testSuiteName);
 
-        namespaceList.forEach( ns -> {
+        namespaceList.forEach(ns -> {
             List<CompletableFuture<Void>> waiters = new ArrayList<>();
             CompletableFuture<Void> cf = CompletableFuture.runAsync(() -> deleteNamespaceWithWait(ns));
             if (async) {
                 waiters.add(cf);
-            } else {
+            }
+            else {
                 cf.join();
             }
 
