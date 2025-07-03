@@ -76,8 +76,8 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
     public void afterAll(ExtensionContext extensionContext) {
         if (!Environment.SKIP_TEARDOWN) {
             ResourceManager.setTestContext(extensionContext);
-            NamespaceUtils.deleteAllNamespacesFromSet(true);
-            KubeResourceManager.get().deleteResources(true);
+            NamespaceUtils.deleteAllNamespacesFromSet(!Environment.SYNC_RESOURCES_DELETION);
+            KubeResourceManager.get().deleteResources(!Environment.SYNC_RESOURCES_DELETION);
         }
     }
 
@@ -94,7 +94,12 @@ public class KroxyliciousExtension implements ParameterResolver, BeforeAllCallba
             });
         }
         finally {
-            NamespaceUtils.deleteNamespaceWithoutWaitAndRemoveFromSet(namespace, testClassName);
+            if (Environment.SYNC_RESOURCES_DELETION) {
+                NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(namespace, testClassName);
+            }
+            else {
+                NamespaceUtils.deleteNamespaceWithoutWaitAndRemoveFromSet(namespace, testClassName);
+            }
         }
     }
 
