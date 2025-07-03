@@ -162,7 +162,8 @@ public class Environment {
     public static final String CATALOG_NAMESPACE = ENVIRONMENT_VARIABLES.getOrDefault(CATALOG_NAMESPACE_ENV, CATALOG_NAMESPACE_DEFAULT);
     public static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OLM_DEPLOYMENT_NAME_ENV,
             KROXYLICIOUS_OLM_DEPLOYMENT_NAME_DEFAULT);
-    public static final boolean SYNC_RESOURCES_DELETION = ENVIRONMENT_VARIABLES.getOrDefault(SYNC_RESOURCES_DELETION_ENV, Boolean::parseBoolean, SYNC_RESOURCES_DELETION_DEFAULT);
+    public static final boolean SYNC_RESOURCES_DELETION = ENVIRONMENT_VARIABLES.getOrDefault(SYNC_RESOURCES_DELETION_ENV, Boolean::parseBoolean,
+            SYNC_RESOURCES_DELETION_DEFAULT);
 
     private static String readMetadataProperty(String property) {
         var p = new Properties();
