@@ -13,7 +13,7 @@ When using the `clusterIP` ingress type with the `TLS` protocol, you must provid
 The basic steps are as follows:
 
 * Generate a TLS server certificate that covers the service names assigned to the virtual cluster by the ingress.
-* Provide the certificate to virtual cluster using a Kubernetes `Secret` of type `kubernetes.io/tls`.
+* Provide the certificate to the virtual cluster using a Kubernetes `Secret` of type `kubernetes.io/tls`.
 
 The exact procedure for generating the certificate depends on the tooling and processes used by your organization.
 
