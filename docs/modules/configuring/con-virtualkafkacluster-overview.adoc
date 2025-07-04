@@ -51,27 +51,24 @@ metadata:
   name: my-cluster
   namespace: my-proxy
 spec:
-  proxyRef: # <1>
+  proxyRef:
     name: simple
-  targetKafkaServiceRef: # <2>
+  targetKafkaServiceRef:
     name: my-cluster
-  ingresses: # <3>
+  ingresses:
     - ingressRef:
         name: cluster-ip
         certificateRef:
-          name: 'cluster-ip-server-cert' # <4>
+          name: 'cluster-ip-server-cert' # <1>
           kind: Secret
     - ingressRef:
         name: load-balancer
         certificateRef:
-          name: 'external-server-cert' # <5>
+          name: 'external-server-cert' # <2>
           kind: Secret
 ----
-<1> Identifies the `KafkaProxy` resource that this virtual cluster is part of.
-<2> The `KafkaService` that defines the Kafka cluster proxied by the virtual cluster.
-<3> Ingresses that expose the virtual cluster.
-<4> Reference to a secret containing the server certificate for the `clusterIP` ingress.
-<5> Reference to a secret containing the server certificate for the `loadBalancer` ingress.
+<1> Reference to a secret containing the server certificate for the `clusterIP` ingress.
+<2> Reference to a secret containing the server certificate for the `loadBalancer` ingress.
 
 include::./con-virtualkafkacluster-clusterip-generate-tls-certificates.adoc[leveloffset=+1]
 include::./con-virtualkafkacluster-loadbalancer-generate-tls-certificates.adoc[leveloffset=+1]
