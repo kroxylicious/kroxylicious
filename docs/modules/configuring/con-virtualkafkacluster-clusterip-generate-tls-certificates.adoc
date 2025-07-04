@@ -22,7 +22,7 @@ The certificate must meet the following criteria:
 * The certificate needs to be signed by a CA that is trusted by the *on-cluster applications* that connect to the virtual cluster.
 * The format of the certificate must be PKCS#8 encoded PEM (Privacy Enhanced Mail).
   It must not be password protected.
-* The certificate must use SAN (Subject Alternate Names) to list all service names or use a wildcard TLS certificate that covers them all.
+* The certificate must use SANs (Subject Alternate Names) to list all service names or use a wildcard TLS certificate that covers them all.
 Assuming a virtual cluster name of `my-cluster`, an ingress name of `cluster-ip`, and a Kafka cluster using node IDs (0-2), the following SANs must be listed in the certificate:
 +
 [source,text]
