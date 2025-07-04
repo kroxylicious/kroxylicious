@@ -28,12 +28,12 @@ The following table summarizes the supported ingress types.
 |Ingress Type|Use case|Supported Transport|Requires DNS changes?
 
 |`clusterIP`
-|Connections from applications deployed to the same Kubernetes cluster
+|On-cluster applications
 |TCP/TLS
 |No
 
 |`loadBalancer`
-|Connections from applications deployed outside the Kubernetes cluster
+|Off-cluster applications
 |TLS only
 |Yes
 |===
