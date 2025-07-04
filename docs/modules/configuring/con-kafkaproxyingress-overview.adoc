@@ -43,7 +43,9 @@ IMPORTANT: TLS is recommended when connecting applications in a production envir
 == `clusterIP` ingress type
 
 The `clusterIP` ingress type exposes virtual clusters to Kafka clients running in the same Kubernetes cluster as the proxy. 
-It supports both TCP (plain) and TLS connections. 
+It supports both TCP (plain) and TLS connections.
+
+The `clusterIP` ingress type uses Kubernetes `Service` resources of type `ClusterIP` to enable on-cluster access.
 
 .Example `KafkaProxyIngress` configuration for `clusterIP` with TCP
 [source,yaml]
@@ -59,8 +61,8 @@ spec:
   clusterIP: # <2>
     protocol: TCP # <3>
 ----
-<1> The `proxyRef` names the `KafkaProxy` resource that this ingress is part of. It must be in the same namespace as the `KafkaProxyIngress`.
-<2> This ingress uses `clusterIP` networking, which uses Kubernetes `Service` resources with `type: ClusterIP` to configure Kubernetes DNS names for the virtual cluster.
+<1> Identifies the `KafkaProxy` resource that this ingress is part of.
+<2> Specifies `clusterIP` networking.
 <3> Defines the connection protocol as plain `TCP`. Use `TLS` to enable encrypted communication between clients and the proxy.
 
 .Example `KafkaProxyIngress` configuration for `clusterIP` with TLS
@@ -84,6 +86,8 @@ When using TLS, specify a xref:con-virtualkafkacluster-clusterip-generate-tls-ce
 
 The `loadBalancer` ingress type allows applications running off-cluster to connect to the virtual cluster.
 TLS must be used with this ingress type.
+
+The `loadBalancer` ingress type uses Kubernetes `Service` resources of type `LoadBalancer` to enable off-cluster access.
 
 When using a loadBalancer ingress, the proxy uses SNI (Server Name Indication) to match the client’s requested host name to the correct virtual cluster and broker within the proxy.
 This means that every virtual cluster and every broker within the virtual cluster *must* be uniquely identifiable within DNS.
@@ -133,8 +137,8 @@ spec:
     bootstrapAddress: "$(virtualClusterName).kafkaproxy.example.com" # <3>
     advertisedBrokerAddressPattern: "broker-$(nodeId).$(virtualClusterName).kafkaproxy.example.com" # <4>
 ----
-<1> The `proxyRef` names the `KafkaProxy` resource that this ingress is part of. It must be in the same namespace as the `KafkaProxyIngress`.
-<2> Specifies `loadBalancer` networking, which uses Kubernetes `Service` resources with `type: LoadBalancer` to enable off-cluster access to the virtual cluster.
+<1> Identifies the `KafkaProxy` resource that this ingress is part of.
+<2> Specifies `loadBalancer` networking.
 <3> The bootstrap address for clients to connect to the virtual cluster.
 <4> The advertised broker address used by the proxy to generate the individual broker addresses presented to the client.
 

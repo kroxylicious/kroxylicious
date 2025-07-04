@@ -9,7 +9,7 @@ A `VirtualKafkaCluster` resource defines a logical Kafka cluster that is accessi
 
 The virtual cluster references the following resources, which must be in the same namespace:
 
-* A `KafkaProxy` resource that the proxy is associated with.
+* A `KafkaProxy` resource that the proxy is part of.
 * One or more `KafkaProxyIngress` resources that expose the virtual cluster to Kafka clients and provide virtual-cluster-specific configuration to the ingress (such as TLS certificates and other parameters).
 * A `KafkaService` resource that defines the backend Kafka cluster.
 * Zero or more `KafkaProtocolFilter` resources that apply filters to the Kafka protocol traffic passing between clients and the backend Kafka cluster.
@@ -34,12 +34,10 @@ spec:
     - ingressRef: # <3>
         name: cluster-ip
 ----
-<1> The `proxyRef` names the `KafkaProxy` associated with the virtual cluster.
-  It must be in the same namespace as the `VirtualKafkaCluster`.
+<1> Identifies the `KafkaProxy` resource that this virtual cluster is part of.
 <2> The `KafkaService` that defines the Kafka cluster proxied by the virtual cluster.
-  It must be in the same namespace as the `VirtualKafkaCluster`.
 <3> Ingresses that expose the virtual cluster.
-  Each ingress references a `KafkaProxyIngress`, which must be in the same namespace as the `VirtualKafkaCluster`.
+  Each ingress references a `KafkaProxyIngress` by name.
 
 This example shows a `VirtualKafkaCluster`, exposing it to Kafka clients running both on and off-cluster, both using TLS.
 Because TLS is used, the ingress configuration must reference a TLS server certificate.
@@ -69,10 +67,8 @@ spec:
           name: 'external-server-cert' # <5>
           kind: Secret
 ----
-<1> The `proxyRef` names the `KafkaProxy` associated with this virtual cluster.
-It must be in the same namespace as the `VirtualKafkaCluster`.
+<1> Identifies the `KafkaProxy` resource that this virtual cluster is part of.
 <2> The `KafkaService` that defines the Kafka cluster proxied by the virtual cluster.
-It must be in the same namespace as the `VirtualKafkaCluster`.
 <3> Ingresses that expose the virtual cluster.
 <4> Reference to a secret containing the server certificate for the `clusterIP` ingress.
 <5> Reference to a secret containing the server certificate for the `loadBalancer` ingress.
