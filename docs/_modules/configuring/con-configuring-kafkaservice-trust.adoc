@@ -1,0 +1,33 @@
+// file included in the following:
+//
+// kroxylicious-operator/_assemblies/assembly-operator-secure-proxy-broker-connection.adoc
+
+[id='con-configuring-kafkaservice-trust-{context}']
+= TLS trust configuration for proxy-to-cluster connections
+
+By default, the proxy uses the platform's default trust store when connecting to the proxied cluster over TLS.  
+This works if the cluster's TLS certificates are signed by a well-known public Certificate Authority (CA), but fails if they’re signed by a private CA instead.
+
+IMPORTANT: It is good practice to configure trust explicitly, even when proxied cluster's TLS certificates are signed by a public CA.
+
+This example configures a `KafkaService` to trust TLS certificates signed by any Certificate Authority (CA) listed in the `trusted-cas.pem` entry of the `ConfigMap` named `trusted-cas`.
+
+.Example `KafkaService` configuration for trusting certificates.
+[source,yaml]
+----
+kind: KafkaService
+metadata:
+  # ...
+spec:
+  bootstrapServers: kafka.example.com:9092
+  tls:
+    trustAnchorRef: # <1>
+      kind: ConfigMap # <2>
+      name: trusted-cas # <3>
+      key: trusted-cas.pem # <4>
+    # ...
+----
+<1> The `trustAnchorRef` property references a separate Kubernetes resource which contains the CA certificates to be trusted
+<2> The `kind` is optional and defaults to `ConfigMap`.
+<3> The `name` of the resource of the given `kind`. This resource must exist in the same namespace as the `KafkaService`
+<4> The `key` identifies the entry in the given resource. The corresponding value must be a PEM-encoded set of CA certificates.

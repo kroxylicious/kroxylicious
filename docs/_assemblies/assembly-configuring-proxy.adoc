@@ -1,0 +1,17 @@
+[id='assembly-configuring-proxy-{context}']
+= Configuring proxies
+
+[role="_abstract"]
+Fine-tune your deployment by configuring proxies to include additional features according to your specific requirements.
+
+include::../_modules/configuring/con-configuration-outline.adoc[leveloffset=+1]
+include::../_modules/configuring/con-configuring-filters.adoc[leveloffset=+1]
+include::../_modules/configuring/con-configuring-virtual-clusters.adoc[leveloffset=+1]
+include::../_modules/configuring/con-configuring-vc-gateways.adoc[leveloffset=+1]
+include::../_modules/configuring/con-configuring-vc-client-tls.adoc[leveloffset=+1]
+include::../_modules/configuring/con-configuring-vc-target-tls.adoc[leveloffset=+1]
+
+include::../_modules/configuring/con-configuring-vc-other-settings.adoc[leveloffset=+1]
+include::../_modules/configuring/con-configuring-toplevel-other-settings.adoc[leveloffset=+1]
+
+include::../_modules/configuring/ref-configuring-proxy-example.adoc[leveloffset=+1]
