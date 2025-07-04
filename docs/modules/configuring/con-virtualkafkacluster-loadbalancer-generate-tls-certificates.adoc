@@ -23,7 +23,7 @@ The certificate must meet the following criteria:
 * The format of the certificate must be PKCS#8 encoded PEM (Privacy Enhanced Mail).
   It must not be password protected.
 * The certificate must use SAN (Subject Alternate Names) to list the bootstrap and all the broker names.
-Assuming a `bootstrapAddress` of `$(virtualClusterName).kafkaproxy.example.com`, an `advertisedBrokerAddressPattern` of `broker-$(nodeId).$(virtualClusterName).kafkaproxy.example.com`, a Kafka cluster using nodeIDs (0-2), and a virtual cluster name of `my-cluster`, the following SANs must be listed in the certificate:
+Assuming a `bootstrapAddress` of `$(virtualClusterName).kafkaproxy.example.com`, an `advertisedBrokerAddressPattern` of `broker-$(nodeId).$(virtualClusterName).kafkaproxy.example.com`, a Kafka cluster using node IDs (0-2), and a virtual cluster name of `my-cluster`, the following SANs must be listed in the certificate:
 +
 [source,text]
 ----

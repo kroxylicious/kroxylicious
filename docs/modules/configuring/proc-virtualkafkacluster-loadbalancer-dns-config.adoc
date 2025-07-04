@@ -45,7 +45,7 @@ This is the external address of the load balancer.
 . Configure your DNS so that the bootstrap and broker names resolve to the external address.
 +
 Assuming a `bootstrapAddress` of `$(virtualClusterName).kafkaproxy.example.com`, an `advertisedBrokerAddressPattern` of `broker-$(nodeId).$(virtualClusterName).kafkaproxy.example.com`,
-a Kafka cluster uses nodeIDs (0-2), and a virtual cluster name of `my-cluster`, the following DNS mappings are listed:
+a Kafka cluster uses node IDs (0-2), and a virtual cluster name of `my-cluster`, the following DNS mappings are listed:
 +
 [source,text]
 ----
