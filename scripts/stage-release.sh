@@ -218,6 +218,7 @@ gh release create --title "${RELEASE_TAG}" \
   ./kroxylicious-app/target/kroxylicious-app-*.zip \
   ./kroxylicious-operator-dist/target/kroxylicious-operator-*.tar.gz \
   ./kroxylicious-operator-dist/target/kroxylicious-operator-*.zip \
+  ./kroxylicious-operator-dist/target/kroxylicious-operator-*.yaml \
   "${API_COMPATABILITY_REPORT}"
 
 
