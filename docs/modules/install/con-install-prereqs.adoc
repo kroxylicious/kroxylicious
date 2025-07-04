@@ -9,6 +9,7 @@ To install Kroxylicious, you will need the following:
 
 ifndef::OpenShiftOnly[]
 * A Kubernetes {KubernetesVersionMinimum} or later cluster.
+  For development purposes, {Minikube}[Minikube] may be used.
 +
 * The `kubectl` command-line tool to be installed and configured to connect to the running cluster.
 
