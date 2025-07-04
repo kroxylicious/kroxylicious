@@ -8,23 +8,22 @@
 
 [role="_abstract"]
 
-When using `loadBalancer` ingress type it is the responsibility of the user to provide suitable TLS
-material to secure communications.
+When using `loadBalancer` ingress type, you must provide suitable TLS certificates to secure communication.
 
-The overall steps are:
+The basic steps are as follows:
 
-* Generate a TLS server certificate covering the bootstrap and broker names assigned to the virtual cluster by the ingress.
-* Provide the certificate to Virtual Cluster by way of a Kubernetes Secret of type `kubernetes.io/tls`.
+* Generate a TLS server certificate that covers the bootstrap and broker names assigned to the virtual cluster by the ingress.
+* Provide the certificate to virtual cluster using a Kubernetes `Secret` of type `kubernetes.io/tls`.
 
-The exact procedure for generating the certificate will depend on your organization.
+The exact procedure for generating the certificate depends on the tooling and processes used by your organization.
 
 The certificate must meet the following criteria:
 
-* The certificate needs to be signed by a CA that is trusted by the *off-cluster applications* that will connect to the virtual cluster.
+* The certificate needs to be signed by a CA that is trusted by the *off-cluster applications* that connect to the virtual cluster.
 * The format of the certificate must be PKCS#8 encoded PEM (Privacy Enhanced Mail).
   It must not be password protected.
-* The certificate must use SAN (Subject Alternate Names) to express the bootstrap and all the broker names.
-  Assuming a `bootstrapAddress` of `$(virtualClusterName).kafkaproxy.example.com`, an `advertisedBrokerAddressPattern` of `broker-$(nodeId).$(virtualClusterName).kafkaproxy.example.com`, a kafka cluster using nodeIDs (0-2) and a virtual cluster name of `my-cluster`, the following SANs would need to expressed:
+* The certificate must use SAN (Subject Alternate Names) to list the bootstrap and all the broker names.
+Assuming a `bootstrapAddress` of `$(virtualClusterName).kafkaproxy.example.com`, an `advertisedBrokerAddressPattern` of `broker-$(nodeId).$(virtualClusterName).kafkaproxy.example.com`, a Kafka cluster using nodeIDs (0-2), and a virtual cluster name of `my-cluster`, the following SANs must be listed in the certificate:
 +
 [source,text]
 ----
