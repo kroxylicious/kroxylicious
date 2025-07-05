@@ -88,6 +88,20 @@ micrometer:
 
 |===
 
+== Pause detector
+
+See https://micrometer.io/docs/concepts#_pause_detection[Micrometer Pause Detection^]
+
+.Example pause detector configuration
+[source,yaml]
+----
+micrometer:
+  - type: "PauseDetectorHook"
+    config:
+      sleepIntervalMs: 500
+      pauseThresholdMs: 500
+----
+
 == Using Micrometer with filters
 
 Use the static methods of https://www.javadoc.io/doc/io.micrometer/micrometer-core/1.10.5/io/micrometer/core/instrument/Metrics.html[Micrometer Metrics^] to register metrics with the global registry. 
