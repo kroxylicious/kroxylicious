@@ -1,2 +1,3 @@
 io.kroxylicious.proxy.micrometer.CommonTagsHook
 io.kroxylicious.proxy.micrometer.StandardBindersHook
+io.kroxylicious.proxy.micrometer.PauseDetectorHook
