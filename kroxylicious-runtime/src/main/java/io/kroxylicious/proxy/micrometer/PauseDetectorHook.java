@@ -21,10 +21,6 @@ import io.kroxylicious.proxy.plugin.Plugin;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-/**
- *
- * @author Hari Mani
- */
 @Plugin(configType = PauseDetectorHook.PauseDetectorHookConfig.class)
 public class PauseDetectorHook implements MicrometerConfigurationHookService<PauseDetectorHook.PauseDetectorHookConfig> {
 
@@ -49,7 +45,7 @@ public class PauseDetectorHook implements MicrometerConfigurationHookService<Pau
         private final Duration pauseThresholdMs;
 
         @JsonCreator
-        @ConstructorProperties({"sleepIntervalMs", "pauseThresholdMs"})
+        @ConstructorProperties({ "sleepIntervalMs", "pauseThresholdMs" })
         public PauseDetectorHookConfig(final Long sleepIntervalMs, final Long pauseThresholdMs) {
             this.sleepIntervalMs = Duration.ofMillis(sleepIntervalMs != null ? sleepIntervalMs : DEFAULT_SLEEP_INTERVAL_MS);
             this.pauseThresholdMs = Duration.ofMillis(pauseThresholdMs != null ? pauseThresholdMs : DEFAULT_PAUSE_THRESHOLD_MS);
@@ -80,8 +76,8 @@ public class PauseDetectorHook implements MicrometerConfigurationHookService<Pau
         public void configure(MeterRegistry targetRegistry) {
             final PauseDetector pauseDetector = new ClockDriftPauseDetector(config.getSleepInterval(), config.getPauseThreshold());
             targetRegistry.config().pauseDetector(pauseDetector);
-            // TODO log configuration parameters
-            log.info("configured micrometer registry with pause detector");
+            log.info("configured pause detector on micrometer registry with sleep interval: {} and pause threshold: {}", config.getSleepInterval(),
+                    config.getPauseThreshold());
         }
     }
 

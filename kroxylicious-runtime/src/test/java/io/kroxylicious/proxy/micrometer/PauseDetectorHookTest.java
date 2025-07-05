@@ -28,12 +28,12 @@ class PauseDetectorHookTest {
     @Test
     void build_whenGivenConfigIsNull_shouldThrowException() {
         final PauseDetectorHook pauseDetectorHook = new PauseDetectorHook();
-        //noinspection resource
+        // noinspection resource
         assertThatThrownBy(() -> pauseDetectorHook.build(null)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
-    void whenConfigIsGiven_shouldUseGivenValue() {
+    void configure_whenConfigIsGiven_shouldUseGivenValue() {
         final long sleepIntervalMs = 250;
         final long pauseThresholdMs = 250;
         final PauseDetectorHook.PauseDetectorHookConfig config = new PauseDetectorHook.PauseDetectorHookConfig(sleepIntervalMs, pauseThresholdMs);
@@ -45,7 +45,7 @@ class PauseDetectorHookTest {
     }
 
     @Test
-    void whenConfigIsNotGiven_shouldUseDefaults() {
+    void configure_whenConfigIsNotGiven_shouldUseDefaults() {
         final PauseDetectorHook.PauseDetectorHookConfig config = new PauseDetectorHook.PauseDetectorHookConfig(null, null);
         try (MicrometerConfigurationHook hook = new PauseDetectorHook().build(config)) {
             final MeterRegistry meterRegistry = givenRegistryConfiguredWith(hook);
