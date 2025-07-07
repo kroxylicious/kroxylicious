@@ -34,9 +34,10 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
 
     public static final String SYNTACTICALLY_CORRECT_JSON = "{\"value\":\"json\"}";
     public static final String SYNTACTICALLY_INCORRECT_JSON = "Not Json";
+    static KafkaCluster cluster;
 
     @Test
-    void invalidJsonProduceRejected(KafkaCluster cluster, Topic topic) {
+    void invalidJsonProduceRejected(Topic topic) {
         NamedFilterDefinition filterDef = createFilterDef(topic);
         var config = proxy(cluster)
                 .addToFilterDefinitions(filterDef)
@@ -49,7 +50,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void invalidJsonProduceRejectedUsingTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2) {
+    void invalidJsonProduceRejectedUsingTopicNames(Topic topic1, Topic topic2) {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
         NamedFilterDefinition filterDef = createFilterDef(topic1);
@@ -73,7 +74,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void invalidJsonProduceRejectedUsingTransaction(KafkaCluster cluster, Topic topic1, Topic topic2) {
+    void invalidJsonProduceRejectedUsingTransaction(Topic topic1, Topic topic2) {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
         NamedFilterDefinition filterDef = createFilterDef(topic1);
@@ -95,7 +96,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void singleValidationFailureCausesRejectionOfWholeBatch(KafkaCluster cluster, Topic topic1, Topic topic2) {
+    void singleValidationFailureCausesRejectionOfWholeBatch(Topic topic1, Topic topic2) {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
         NamedFilterDefinition filterDef = createFilterDef(topic1);
@@ -114,7 +115,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void singleValidationFailureCausesRejectionOfWholeBatchSameTopic(KafkaCluster cluster, @TopicPartitions(2) Topic topic) {
+    void singleValidationFailureCausesRejectionOfWholeBatchSameTopic(@TopicPartitions(2) Topic topic) {
         assertThat(cluster.getNumOfBrokers()).isOne();
 
         NamedFilterDefinition filterDef = createFilterDef(topic);
@@ -133,7 +134,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void validJsonProduceAccepted(KafkaCluster cluster, Topic topic) {
+    void validJsonProduceAccepted(Topic topic) {
         NamedFilterDefinition filterDef = createFilterDef(topic);
         var config = proxy(cluster)
                 .addToFilterDefinitions(filterDef)
@@ -153,7 +154,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void allowNulls(KafkaCluster cluster, Topic topic) {
+    void allowNulls(Topic topic) {
         String className = RecordValidation.class.getName();
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
                 List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
@@ -177,7 +178,7 @@ class JsonSyntaxRecordValidationIT extends RecordValidationBaseIT {
     }
 
     @Test
-    void rejectNulls(KafkaCluster cluster, Topic topic) {
+    void rejectNulls(Topic topic) {
 
         String className = RecordValidation.class.getName();
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
