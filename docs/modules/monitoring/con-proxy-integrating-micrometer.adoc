@@ -90,6 +90,16 @@ micrometer:
 
 == Pause detector
 
+Micrometer uses a pause detector to add additional latencies here and there to compensate for pauses
+ arising from system and VM pauses. (GC etc.)
+Micrometer defaults to a no-op pause detector implementation, but it also provides a clock drift based
+ implementation which can be optionally configured.
+The clock drift based pause detector can be configured by providing a sleep interval a pause threshold.
+These values are defaulted to the Micrometer recommended `100ms` but you can choose to configure
+ different values based on your environment.
+Using the clock drift based pause detector can result in samples being added to timers in
+ unexpected ways in some degenerate cases so users are advised to use it after careful consideration.
+
 See https://micrometer.io/docs/concepts#_pause_detection[Micrometer Pause Detection^]
 
 .Example pause detector configuration
