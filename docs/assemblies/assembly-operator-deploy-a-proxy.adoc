@@ -11,18 +11,20 @@ Deploy a basic proxy instance with a single virtual cluster exposed to Kafka cli
 
 == Prerequisites
 
-* The operator must be installed in the Kubernetes cluster
-* A Kafka cluster to be proxied
+* The Kroxylicious Operator is installed in the Kubernetes cluster.
+* A Kafka cluster is available to be proxied.
+* TLS certificate generation capability is available for ingress configurations that require TLS.
+* DNS management access is available for ingress configurations that require off-cluster access.
 
 == The required resources
 
 include::../modules/configuring/con-kafkaproxy.adoc[leveloffset=+2]
 
-include::../modules/configuring/con-kafkaproxyingress-for-on-cluster-access.adoc[leveloffset=+2]
+include::../modules/configuring/con-kafkaproxyingress-overview.adoc[leveloffset=+2]
 
 include::../modules/configuring/con-kafkaservice-by-bootstrap.adoc[leveloffset=+2]
 
-include::../modules/configuring/con-virtualkafkacluster-tcp.adoc[leveloffset=+2]
+include::../modules/configuring/con-virtualkafkacluster-overview.adoc[leveloffset=+2]
 
 // TODO
 // == Deploying the example proxy
@@ -33,7 +35,3 @@ include::../modules/configuring/con-virtualkafkacluster-tcp.adoc[leveloffset=+2]
 // configuring filters
 include::assembly-operator-configuring-kafkaprotocolfilters.adoc[leveloffset=+1]
 
-// TODO
-// == Configuring a filter
-//
-// include::../modules/configuring/proc-configuring-filter.adoc[leveloffset=+1]
