@@ -6,7 +6,10 @@
 
 package io.kroxylicious.systemtests.utils;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.junit.jupiter.api.extension.ExtensionContext;
@@ -37,11 +40,26 @@ public class NamespaceUtils {
      * @param namespace the namespace
      */
     public static void deleteNamespaceWithWait(String namespace) {
+        deleteNamespace(namespace, true);
+    }
+
+    /**
+     * Delete namespace without wait.
+     *
+     * @param namespace the namespace
+     */
+    public static void deleteNamespaceWithoutWait(String namespace) {
+        deleteNamespace(namespace, false);
+    }
+
+    private static void deleteNamespace(String namespace, boolean wait) {
         if (!Environment.SKIP_TEARDOWN) {
             LOGGER.info("Deleting namespace: {}", namespace);
             kubeClient().deleteNamespace(namespace);
-            await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
-                    .until(() -> kubeClient().getNamespace(namespace) == null);
+            if (wait) {
+                await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
+                        .until(() -> kubeClient().getNamespace(namespace) == null);
+            }
 
             LOGGER.info("Namespace: {} deleted", namespace);
         }
@@ -133,10 +151,25 @@ public class NamespaceUtils {
      * After that, it clears the whole Map
      * It is used mainly in {@code AbstractST.afterAllMayOverride} to remove everything after all test cases are executed
      */
-    public static void deleteAllNamespacesFromSet() {
+    public static void deleteAllNamespacesFromSet(boolean async) {
         final String testSuiteName = ResourceManager.getTestContext().getRequiredTestClass().getName();
         Set<String> namespaceList = getOrCreateNamespacesForTestClass(testSuiteName);
-        namespaceList.forEach(NamespaceUtils::deleteNamespaceWithWait);
+        LOGGER.info("Deleting all namespaces for {}", testSuiteName);
+
+        namespaceList.forEach(ns -> {
+            List<CompletableFuture<Void>> waiters = new ArrayList<>();
+            CompletableFuture<Void> cf = CompletableFuture.runAsync(() -> deleteNamespaceWithWait(ns));
+            if (async) {
+                waiters.add(cf);
+            }
+            else {
+                cf.join();
+            }
+
+            if (!waiters.isEmpty()) {
+                CompletableFuture.allOf(waiters.toArray(new CompletableFuture[0])).join();
+            }
+        });
         getStore(testSuiteName).remove(TRACKED_NAMESPACES_KEY, Set.class);
     }
 
@@ -149,6 +182,18 @@ public class NamespaceUtils {
      */
     public static void deleteNamespaceWithWaitAndRemoveFromSet(String namespaceName, String testSuiteName) {
         deleteNamespaceWithWait(namespaceName);
+        deleteNamespaceFromSet(namespaceName, testSuiteName);
+    }
+
+    /**
+     * Deletes Namespace with {@param namespaceName}, and in case that {@param collectorElement}
+     * is not {@code null}, removes the Namespace from the store.
+     *
+     * @param namespaceName Name of the Namespace that should be deleted
+     * @param testSuiteName the test suite name
+     */
+    public static void deleteNamespaceWithoutWaitAndRemoveFromSet(String namespaceName, String testSuiteName) {
+        deleteNamespaceWithoutWait(namespaceName);
         deleteNamespaceFromSet(namespaceName, testSuiteName);
     }
 
