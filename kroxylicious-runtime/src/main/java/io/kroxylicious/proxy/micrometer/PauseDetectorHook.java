@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.micrometer;
 
 import java.beans.ConstructorProperties;
 import java.time.Duration;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,16 +61,10 @@ public class PauseDetectorHook implements MicrometerConfigurationHookService<Pau
         }
     }
 
-    @SuppressWarnings("ClassCanBeRecord")
-    private static class Hook implements MicrometerConfigurationHook {
+    private record Hook(@NonNull PauseDetectorHookConfig config) implements MicrometerConfigurationHook {
 
-        private final PauseDetectorHookConfig config;
-
-        Hook(PauseDetectorHookConfig config) {
-            if (config == null) {
-                throw new IllegalArgumentException("config must be non null");
-            }
-            this.config = config;
+        private Hook {
+            Objects.requireNonNull(config, "config must be non null");
         }
 
         @Override

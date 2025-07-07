@@ -29,7 +29,7 @@ class PauseDetectorHookTest {
     void build_whenGivenConfigIsNull_shouldThrowException() {
         final PauseDetectorHook pauseDetectorHook = new PauseDetectorHook();
         // noinspection resource
-        assertThatThrownBy(() -> pauseDetectorHook.build(null)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> pauseDetectorHook.build(null)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
