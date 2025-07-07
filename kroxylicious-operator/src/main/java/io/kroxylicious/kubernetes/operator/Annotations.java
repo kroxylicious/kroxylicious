@@ -136,6 +136,10 @@ public class Annotations {
             Objects.requireNonNull(ingressName);
             Objects.requireNonNull(bootstrapServers);
         }
+
+        public boolean matchesIngress(String ingressName, String clusterName) {
+            return this.ingressName.equals(ingressName) && this.clusterName.equals(clusterName);
+        }
     }
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();

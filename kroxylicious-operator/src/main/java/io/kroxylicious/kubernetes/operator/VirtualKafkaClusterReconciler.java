@@ -20,9 +20,12 @@ import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.HasMetadata;
+import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
+import io.fabric8.kubernetes.api.model.LoadBalancerStatus;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.Service;
+import io.fabric8.kubernetes.api.model.ServiceStatus;
 import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -52,6 +55,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses.Protocol;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.IngressesBuilder;
+import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.ingresses.LoadBalancerIngressPointsBuilder;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator;
 import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
@@ -251,27 +255,43 @@ public final class VirtualKafkaClusterReconciler implements
 
     }
 
+    record ServiceBootstrap(Service service, Annotations.ClusterIngressBootstrapServers bootstrap) {
+        boolean matchesIngress(String ingressName, String clusterName) {
+            return bootstrap.matchesIngress(ingressName, clusterName);
+        }
+    }
+
     private List<io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses> buildIngressStatus(VirtualKafkaCluster cluster,
                                                                                                                  Context<VirtualKafkaCluster> context) {
         var bootstraps = context.getSecondaryResources(Service.class).stream()
-                .flatMap(service -> Annotations.readBootstrapServersFrom(service).stream()).toList();
+                .flatMap(service -> Annotations.readBootstrapServersFrom(service).stream().map(bootstrap -> new ServiceBootstrap(service, bootstrap)))
+                .toList();
         return cluster.getSpec().getIngresses()
                 .stream()
                 .flatMap(
                         ingress -> {
-                            Optional<Annotations.ClusterIngressBootstrapServers> bootstrap = bootstraps.stream().filter(
-                                    b -> b.ingressName().equals(ingress.getIngressRef().getName()) && b.clusterName().equals(name(cluster))).findFirst();
-                            if (bootstrap.isEmpty()) {
-                                return Stream.empty();
-                            }
-                            var serverCert = Optional.ofNullable(ingress.getTls()).map(Tls::getCertificateRef);
-                            var builder = new IngressesBuilder()
-                                    .withName(ingress.getIngressRef().getName())
-                                    .withBootstrapServer(bootstrap.get().bootstrapServers())
-                                    .withProtocol(serverCert.isEmpty() ? Protocol.TCP : Protocol.TLS);
-                            return Stream.of(builder.build());
+                            Optional<ServiceBootstrap> bootstrap = bootstraps.stream().filter(
+                                    b -> b.matchesIngress(ingress.getIngressRef().getName(), name(cluster)))
+                                    .findFirst();
+                            return bootstrap.map(serviceBootstrap -> buildStatusIngress(ingress, serviceBootstrap)).orElseGet(Stream::empty);
                         })
                 .toList();
+    }
+
+    private static Stream<io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses> buildStatusIngress(Ingresses ingress,
+                                                                                                                          ServiceBootstrap serviceBootstrap) {
+        var serverCert = Optional.ofNullable(ingress.getTls()).map(Tls::getCertificateRef);
+        var builder = new IngressesBuilder()
+                .withName(ingress.getIngressRef().getName())
+                .withBootstrapServer(serviceBootstrap.bootstrap().bootstrapServers())
+                .withProtocol(serverCert.isEmpty() ? Protocol.TCP : Protocol.TLS);
+        List<LoadBalancerIngress> loadBalancerIngresses = Optional.ofNullable(serviceBootstrap.service().getStatus())
+                .map(ServiceStatus::getLoadBalancer).map(LoadBalancerStatus::getIngress).orElse(List.of());
+        loadBalancerIngresses.stream()
+                .map(loadBalancerIngress -> new LoadBalancerIngressPointsBuilder().withIp(loadBalancerIngress.getIp())
+                        .withHostname(loadBalancerIngress.getHostname()).build())
+                .forEach(builder::addToLoadBalancerIngressPoints);
+        return Stream.of(builder.build());
     }
 
     private VirtualKafkaCluster handleResolutionProblems(VirtualKafkaCluster cluster,
