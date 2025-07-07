@@ -1,6 +1,11 @@
 $schema: https://kroxylicious.io/doc-schema.yaml
-title: Kroxylicious Developer guide
-description: Covers writing plugins for the proxy in the Java programming language
-tags:
-  - developer
-rank: "032"
+src: index.html
+transforms:
+  - tocify
+frontmatter:
+  layout: guide
+  title: Kroxylicious Developer guide
+  description: Covers writing plugins for the proxy in the Java programming language
+  tags:
+    - developer
+  rank: "032"

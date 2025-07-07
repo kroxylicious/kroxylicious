@@ -1,7 +1,0 @@
-$schema: https://kroxylicious.io/doc-schema.yaml
-title: Developer quickstart
-description: Start here if you're developing a filter for the first time.
-tags:
-  - developer
-path: /quickstarts
-rank: "031"

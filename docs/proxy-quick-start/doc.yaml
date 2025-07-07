@@ -1,0 +1,11 @@
+$schema: https://kroxylicious.io/doc-schema.yaml
+src: index.markdown
+transforms:
+  - prependFrontmatter
+frontmatter:
+  layout: quickstart
+  title: Proxy quickstart
+  description: Start here if you're experimenting with the proxy for the first time.
+  tags:
+    - proxy
+  rank: "000"
