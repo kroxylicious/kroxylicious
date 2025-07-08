@@ -17,7 +17,6 @@ import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig;
 import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig;
 
 /**
@@ -92,16 +91,11 @@ public class KroxyliciousConfigUtils {
         if (cluster.isEmpty()) {
             throw new IllegalArgumentException("virtualCluster " + virtualCluster + " not found in config: " + config);
         }
-        var first = cluster.get().gateways().stream().filter(l -> l.name().equals(gateway)).map(VirtualClusterGateway::clusterNetworkAddressConfigProvider)
-                .findFirst();
+        var first = cluster.get().gateways().stream().filter(l -> l.name().equals(gateway)).map(VirtualClusterGateway::clusterNetworkAddressConfigProvider).findFirst();
         var provider = first.orElseThrow(() -> new IllegalArgumentException(virtualCluster + " does not have gateway named " + gateway));
-
         // Need proper way to do this for embedded use-cases. We should have a way to query kroxy for the virtual cluster's
         // actual bootstrap after the proxy is started. The provider might support dynamic ports (port 0), so querying the
         // config might not work.
-        if (provider.config() instanceof PortPerBrokerClusterNetworkAddressConfigProviderConfig c) {
-            return c.getBootstrapAddress().toString();
-        }
         if (provider.config() instanceof RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig c) {
             return c.getBootstrapAddress().toString();
         }

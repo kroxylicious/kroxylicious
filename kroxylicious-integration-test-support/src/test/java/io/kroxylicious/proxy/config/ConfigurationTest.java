@@ -61,9 +61,8 @@ class ConfigurationTest {
                               targetCluster:
                                 bootstrapServers: kafka.example:1234
                             """, VirtualCluster.class);
-        }).isInstanceOf(ValueInstantiationException.class)
-                .hasCauseInstanceOf(IllegalConfigurationException.class)
-                .hasMessageContaining("no gateways configured for virtualCluster");
+        }).isInstanceOf(MismatchedInputException.class)
+                .hasMessageContaining("Missing required creator property 'gateways'");
     }
 
     @Test

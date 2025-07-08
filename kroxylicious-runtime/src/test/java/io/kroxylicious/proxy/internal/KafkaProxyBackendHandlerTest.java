@@ -29,7 +29,10 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 import io.kroxylicious.proxy.config.TargetCluster;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.IntRangeSpec;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.NamedRangeSpec;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
@@ -44,9 +47,9 @@ import static org.mockito.Mockito.when;
 class KafkaProxyBackendHandlerTest {
 
     @SuppressWarnings("removal")
-    private static final ClusterNetworkAddressConfigProvider ADDRESS_CONFIG_PROVIDER = new PortPerBrokerClusterNetworkAddressConfigProvider().build(
-            new PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig(new HostPort("localhost", 9090), "broker-", 9190,
-                    0, 10),
+    private static final ClusterNetworkAddressConfigProvider ADDRESS_CONFIG_PROVIDER = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
+            new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(new HostPort("localhost", 9090), "broker-", 9190,
+                    List.of(new NamedRangeSpec("default", new IntRangeSpec(0, 10)))),
             Mockito.mock(VirtualClusterModel.class));
     @Mock
     ProxyChannelStateMachine proxyChannelStateMachine;
