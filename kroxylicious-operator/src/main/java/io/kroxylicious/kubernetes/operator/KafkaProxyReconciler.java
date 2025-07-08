@@ -270,8 +270,6 @@ public class KafkaProxyReconciler implements
                 .flatMap(clusterCfs -> buildTargetCluster(kafkaServiceRef).map(targetCluster -> new VirtualCluster(
                         name(cluster.cluster()),
                         targetCluster,
-                        null,
-                        Optional.empty(),
                         clusterCfs,
                         false,
                         false,

@@ -6,18 +6,8 @@
 
 package io.kroxylicious.test.tester;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
-
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
-import io.kroxylicious.proxy.config.NamedRange;
-import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
-import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
-import io.kroxylicious.proxy.config.VirtualCluster;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
@@ -102,7 +92,7 @@ public class KroxyliciousConfigUtils {
         if (cluster.isEmpty()) {
             throw new IllegalArgumentException("virtualCluster " + virtualCluster + " not found in config: " + config);
         }
-        var first = getVirtualClusterGatewayStream(cluster.get()).filter(l -> l.name().equals(gateway)).map(VirtualClusterGateway::clusterNetworkAddressConfigProvider)
+        var first = cluster.get().gateways().stream().filter(l -> l.name().equals(gateway)).map(VirtualClusterGateway::clusterNetworkAddressConfigProvider)
                 .findFirst();
         var provider = first.orElseThrow(() -> new IllegalArgumentException(virtualCluster + " does not have gateway named " + gateway));
 
@@ -150,48 +140,6 @@ public class KroxyliciousConfigUtils {
 
     public static VirtualClusterGatewayBuilder defaultSniHostIdentifiesNodeGatewayBuilder(String bootstrapAddress, String advertisedBrokerAddressPattern) {
         return defaultSniHostIdentifiesNodeGatewayBuilder(HostPort.parse(bootstrapAddress), advertisedBrokerAddressPattern);
-    }
-
-    public static Stream<VirtualClusterGateway> getVirtualClusterGatewayStream(VirtualCluster cluster) {
-        return Optional.ofNullable(cluster.gateways())
-                .filter(Predicate.not(List::isEmpty))
-                .map(Collection::stream)
-                .orElseGet(() -> buildGatewayFromDeprecatedNetworkProvider(cluster));
-    }
-
-    @NonNull
-    @SuppressWarnings("removal")
-    private static Stream<VirtualClusterGateway> buildGatewayFromDeprecatedNetworkProvider(VirtualCluster cluster) {
-        var providerDefinition = cluster.clusterNetworkAddressConfigProvider();
-        if (providerDefinition.config() instanceof PortPerBrokerClusterNetworkAddressConfigProviderConfig pc) {
-            var strategy = new PortIdentifiesNodeIdentificationStrategy(pc.getBootstrapAddress(),
-                    pc.getBrokerAddressPattern(),
-                    pc.getBrokerStartPort(),
-                    null);
-
-            return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
-                    strategy, null, cluster.tls()));
-        }
-        else if (providerDefinition.config() instanceof RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig rc) {
-            var ranges = rc.getNodeIdRanges().stream()
-                    .map(nir -> new NamedRange(nir.name(), nir.rangeSpec().startInclusive(), nir.rangeSpec().endExclusive() - 1))
-                    .toList();
-            var strategy = new PortIdentifiesNodeIdentificationStrategy(rc.getBootstrapAddress(),
-                    rc.getNodeAddressPattern(),
-                    rc.getNodeStartPort(),
-                    ranges);
-
-            return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
-                    strategy, null, cluster.tls()));
-        }
-        else if (providerDefinition.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig sc) {
-            var strategy = new SniHostIdentifiesNodeIdentificationStrategy(new HostPort(sc.getBootstrapAddressPattern(), sc.getAdvertisedPort()).toString(),
-                    sc.getAdvertisedBrokerAddressPattern());
-
-            return Stream.of(new VirtualClusterGateway(DEFAULT_GATEWAY_NAME,
-                    null, strategy, cluster.tls()));
-        }
-        throw new UnsupportedOperationException(providerDefinition.type() + " is unrecognised");
     }
 
     @NonNull
