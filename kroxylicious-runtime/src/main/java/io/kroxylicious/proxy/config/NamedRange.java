@@ -80,4 +80,8 @@ public record NamedRange(@NonNull @JsonProperty(required = true) String name,
                 ", end=" + end +
                 '}';
     }
+
+    public String toIntervalNotationString() {
+        return "[" + start + "," + end + "]";
+    }
 }

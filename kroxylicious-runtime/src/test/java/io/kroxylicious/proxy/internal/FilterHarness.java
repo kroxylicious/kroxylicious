@@ -38,8 +38,8 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -81,7 +81,7 @@ public abstract class FilterHarness {
         when(targetCluster.bootstrapServersList()).thenReturn(TARGET_CLUSTER_BOOTSTRAP);
         var testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", targetCluster, false,
                 false, List.of());
-        testVirtualCluster.addGateway("default", mock(ClusterNetworkAddressConfigProvider.class), Optional.empty());
+        testVirtualCluster.addGateway("default", mock(NodeIdentificationStrategy.class), Optional.empty());
         var inboundChannel = new EmbeddedChannel();
         var channelProcessors = Stream.<ChannelHandler> of(new InternalRequestTracker(), new CorrelationIdIssuer());
 

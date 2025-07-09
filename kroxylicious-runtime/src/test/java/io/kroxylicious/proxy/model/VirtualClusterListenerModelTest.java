@@ -21,10 +21,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.Mockito;
 
 import io.netty.buffer.ByteBufAllocator;
 
+import io.kroxylicious.proxy.config.NamedRange;
+import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
@@ -34,13 +35,9 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TlsTestConstants;
 import io.kroxylicious.proxy.config.tls.TrustStore;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.IntRangeSpec;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.NamedRangeSpec;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
-import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -81,8 +78,8 @@ class VirtualClusterListenerModelTest {
     }
 
     @Test
-    void delegatesToProviderForAdvertisedPort() {
-        var mock = mock(ClusterNetworkAddressConfigProvider.class);
+    void delegatesToStrategyForAdvertisedPort() {
+        var mock = mock(NodeIdentificationStrategy.class);
         var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
         var advertisedHostPort = new HostPort("broker", 55);
         when(mock.getAdvertisedBrokerAddress(0)).thenReturn(advertisedHostPort);
@@ -90,8 +87,8 @@ class VirtualClusterListenerModelTest {
     }
 
     @Test
-    void delegatesToProviderForBrokerAddress() {
-        var mock = mock(ClusterNetworkAddressConfigProvider.class);
+    void delegatesToStrategyForBrokerAddress() {
+        var mock = mock(NodeIdentificationStrategy.class);
         var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
         var brokerAddress = new HostPort("broker", 55);
         when(mock.getBrokerAddress(0)).thenReturn(brokerAddress);
@@ -99,8 +96,8 @@ class VirtualClusterListenerModelTest {
     }
 
     @Test
-    void delegatesToProviderForBrokerIdFromBrokerAddress() {
-        var mock = mock(ClusterNetworkAddressConfigProvider.class);
+    void delegatesToStrategyForBrokerIdFromBrokerAddress() {
+        var mock = mock(NodeIdentificationStrategy.class);
         var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
         var brokerAddress = new HostPort("broker", 55);
         when(mock.getBrokerIdFromBrokerAddress(brokerAddress)).thenReturn(1);
@@ -108,8 +105,8 @@ class VirtualClusterListenerModelTest {
     }
 
     @Test
-    void delegatesToProviderForServerNameIndication() {
-        var mock = mock(ClusterNetworkAddressConfigProvider.class);
+    void delegatesToStrategyForServerNameIndication() {
+        var mock = mock(NodeIdentificationStrategy.class);
         var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), mock, Optional.empty(), "default");
         when(mock.requiresServerNameIndication()).thenReturn(true);
         assertThat(listener.requiresServerNameIndication()).isTrue();
@@ -121,10 +118,10 @@ class VirtualClusterListenerModelTest {
         var downstreamTls = Optional.of(
                 new Tls(keyPair,
                         new InsecureTls(false), null, null));
-        var clusterNetworkAddressConfigProvider = createTestClusterNetworkAddressConfigProvider();
+        var nodeIdentificationStrategy = createTestNodeIdentificationStrategy();
 
         // When
-        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, downstreamTls, "default");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), nodeIdentificationStrategy, downstreamTls, "default");
 
         // Then
         assertThat(listener).isNotNull().extracting("downstreamSslContext").isNotNull();
@@ -160,10 +157,10 @@ class VirtualClusterListenerModelTest {
     void shouldRequireDownstreamClientAuth(TlsClientAuth clientAuth, Consumer<SSLEngine> sslEngineAssertions) {
         // Given
         var downstreamTls = Optional.of(new Tls(keyPair, new TrustStore(client, PASSWORD_PROVIDER, null, new ServerOptions(clientAuth)), null, null));
-        var clusterNetworkAddressConfigProvider = createTestClusterNetworkAddressConfigProvider();
+        var nodeIdentificationStrategy = createTestNodeIdentificationStrategy();
 
         // When
-        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, downstreamTls, "default");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), nodeIdentificationStrategy, downstreamTls, "default");
 
         // Then
         assertThat(listener)
@@ -193,10 +190,10 @@ class VirtualClusterListenerModelTest {
     void shouldApplyDownstreamProtocolRestriction(AllowDeny<String> protocolAllowDeny, Consumer<SSLEngine> sslEngineAssertions) {
         // Given
         var tls = Optional.of(new Tls(keyPair, new TrustStore(client, PASSWORD_PROVIDER, null, null), null, protocolAllowDeny));
-        var clusterNetworkAddressConfigProvider = createTestClusterNetworkAddressConfigProvider();
+        var nodeIdentificationStrategy = createTestNodeIdentificationStrategy();
 
         // When
-        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, tls, "default");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), nodeIdentificationStrategy, tls, "default");
 
         // Then
         assertThat(listener)
@@ -226,10 +223,10 @@ class VirtualClusterListenerModelTest {
     void shouldApplyDownstreamCipherSuiteRestriction(AllowDeny<String> cipherSuiteAllowDeny, Consumer<SSLEngine> sslEngineAssertions) {
         // Given
         var tls = Optional.of(new Tls(keyPair, new TrustStore(client, PASSWORD_PROVIDER, null, null), cipherSuiteAllowDeny, null));
-        var clusterNetworkAddressConfigProvider = createTestClusterNetworkAddressConfigProvider();
+        var nodeIdentificationStrategy = createTestNodeIdentificationStrategy();
 
         // When
-        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), clusterNetworkAddressConfigProvider, tls, "default");
+        var listener = new VirtualClusterGatewayModel(mock(VirtualClusterModel.class), nodeIdentificationStrategy, tls, "default");
 
         // Then
         assertThat(listener)
@@ -256,14 +253,14 @@ class VirtualClusterListenerModelTest {
     void downstreamListenerThatRequiresSniEnforcesTlsWithKey(Optional<Tls> downstreamTls) {
         // Given
         var model = mock(VirtualClusterModel.class);
-        var provider = mock(ClusterNetworkAddressConfigProvider.class);
-        when(provider.requiresServerNameIndication()).thenReturn(true);
+        var nodeIdentificationStrategy = mock(NodeIdentificationStrategy.class);
+        when(nodeIdentificationStrategy.requiresServerNameIndication()).thenReturn(true);
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualClusterGatewayModel(model, provider, downstreamTls, "mygateway"))
+        assertThatThrownBy(() -> new VirtualClusterGatewayModel(model, nodeIdentificationStrategy, downstreamTls, "mygateway"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(
-                        "Cluster endpoint provider requires ServerNameIndication, but virtual cluster gateway 'mygateway' does not configure TLS and provide a certificate for the server");
+                        "Node Identification Strategy requires ServerNameIndication, but virtual cluster gateway 'mygateway' does not configure TLS and provide a certificate for the server");
     }
 
     @Test
@@ -271,24 +268,20 @@ class VirtualClusterListenerModelTest {
         // Given
         var tls = Optional.<Tls> empty();
         var model = mock(VirtualClusterModel.class);
-        var provider = mock(ClusterNetworkAddressConfigProvider.class);
-        when(provider.getSharedPorts()).thenReturn(Set.of(9080, 9081));
-        when(provider.getExclusivePorts()).thenReturn(Set.of(9080));
+        var strategy = mock(NodeIdentificationStrategy.class);
+        when(strategy.getSharedPorts()).thenReturn(Set.of(9080, 9081));
+        when(strategy.getExclusivePorts()).thenReturn(Set.of(9080));
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualClusterGatewayModel(model, provider, tls, "mygateway"))
+        assertThatThrownBy(() -> new VirtualClusterGatewayModel(model, strategy, tls, "mygateway"))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining(
-                        "The set of exclusive ports described by the cluster endpoint provider must be distinct from those described as shared. Intersection: [9080]");
+                        "The set of exclusive ports described by the Node Identification Strategy must be distinct from those described as shared. Intersection: [9080]");
     }
 
     @NonNull
-    @SuppressWarnings("removal")
-    private ClusterNetworkAddressConfigProvider createTestClusterNetworkAddressConfigProvider() {
-        final RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig clusterNetworkAddressConfigProviderConfig = new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
-                parse("localhost:1235"),
-                "localhost", 19092, List.of(new NamedRangeSpec("default", new IntRangeSpec(0, 1))));
-        return new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
-                clusterNetworkAddressConfigProviderConfig, Mockito.mock(VirtualClusterModel.class));
+    private NodeIdentificationStrategy createTestNodeIdentificationStrategy() {
+        return new PortIdentifiesNodeIdentificationStrategy(parse("localhost:1235"), "localhost", 19092,
+                List.of(new NamedRange("default", 0, 0))).buildStrategy("cluster");
     }
 }

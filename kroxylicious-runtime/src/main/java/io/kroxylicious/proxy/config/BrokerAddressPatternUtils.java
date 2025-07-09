@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider;
+package io.kroxylicious.proxy.config;
 
 import java.util.Arrays;
 import java.util.Objects;
@@ -19,8 +19,8 @@ import java.util.stream.Collectors;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 final class BrokerAddressPatternUtils {
-    public static final String LITERAL_NODE_ID = "$(nodeId)";
-    public static final String LITERAL_VIRTUAL_CLUSTER_NAME = "$(virtualClusterName)";
+    static final String LITERAL_NODE_ID = "$(nodeId)";
+    static final String LITERAL_VIRTUAL_CLUSTER_NAME = "$(virtualClusterName)";
     private static final Pattern LITERAL_NODE_ID_PATTERN = Pattern.compile(Pattern.quote(LITERAL_NODE_ID));
     private static final Pattern PORT_SPECIFIER_RE = Pattern.compile("^(.*):([1-9]\\d*)$");
     private static final Pattern TOKEN_RE = Pattern.compile("(\\$\\([^)]+\\))");
@@ -92,7 +92,7 @@ final class BrokerAddressPatternUtils {
         }
     }
 
-    public static String replaceVirtualClusterName(String toReplace, String clusterName) {
+    static String replaceVirtualClusterName(String toReplace, String clusterName) {
         return toReplace.replaceAll(Pattern.quote(LITERAL_VIRTUAL_CLUSTER_NAME), Matcher.quoteReplacement(clusterName));
     }
 

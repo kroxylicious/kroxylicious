@@ -54,8 +54,8 @@ import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointResolutionException;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -119,7 +119,7 @@ class KafkaProxyInitializerTest {
         final Optional<Tls> tls = Optional.empty();
         VirtualClusterModel testCluster = new VirtualClusterModel("testCluster", new TargetCluster("localhost:9090", tls), logNetwork,
                 logFrames, List.of());
-        testCluster.addGateway("defaullt", mock(ClusterNetworkAddressConfigProvider.class), tls);
+        testCluster.addGateway("defaullt", mock(NodeIdentificationStrategy.class), tls);
         return testCluster;
 
     }

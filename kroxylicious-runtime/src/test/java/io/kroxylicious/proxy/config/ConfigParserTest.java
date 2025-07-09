@@ -32,7 +32,6 @@ import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 import io.kroxylicious.proxy.config.tls.TlsTestConstants;
 import io.kroxylicious.proxy.filter.FilterFactory;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.internal.filter.ConstructorInjectionConfig;
 import io.kroxylicious.proxy.internal.filter.ExamplePluginFactory;
 import io.kroxylicious.proxy.internal.filter.FactoryMethodConfig;
@@ -271,7 +270,6 @@ class ConfigParserTest {
     }
 
     @Test
-    @SuppressWarnings("removal")
     void testDeserializeFromYaml() {
         Configuration configuration = configParser.parseConfiguration(this.getClass().getClassLoader().getResourceAsStream("config.yaml"));
         assertThat(configuration.isUseIoUring()).isTrue();
@@ -296,11 +294,10 @@ class ConfigParserTest {
                             .singleElement()
                             .satisfies(vcl -> {
                                 assertThat(vcl.name()).isEqualTo("mygateway");
-                                assertThat(vcl.clusterNetworkAddressConfigProvider())
-                                        .extracting(ClusterNetworkAddressConfigProviderDefinition::config)
-                                        .asInstanceOf(InstanceOfAssertFactories.type(RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig.class))
-                                        .satisfies(c -> assertThat(c.getBootstrapAddress())
-                                                .isEqualTo(HostPort.parse("localhost:9192")));
+                                assertThat(vcl.portIdentifiesNode()).isNotNull().satisfies(
+                                        strategy -> {
+                                            assertThat(strategy.getBootstrapAddress()).isEqualTo(HostPort.parse("localhost:9192"));
+                                        });
                             });
                 });
     }
@@ -870,7 +867,7 @@ class ConfigParserTest {
                   - name: mygateway
                     portIdentifiesNode:
                       bootstrapAddress: "localhost:9082"
-                  """);
+                """);
 
         // Then
         assertThat(configurationModel)
