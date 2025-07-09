@@ -637,7 +637,7 @@ class ExpositionIT extends BaseIT {
         final HostPort discoveryBrokerAddressToProbe;
         SniHostIdentifiesNodeIdentificationStrategy sniStrategy = virtualClusterBuilder.buildFirstGateway().sniHostIdentifiesNode();
         if (sniStrategy != null) {
-            String pattern = sniStrategy.advertisedBrokerAddressPattern();
+            String pattern = sniStrategy.getAdvertisedBrokerAddressPattern();
             String replacedNodeId = pattern.replace("$(nodeId)", Integer.toString(cluster.getNumOfBrokers()));
             String replacedVirtualClusterName = replacedNodeId.replace("$(virtualClusterName)", "demo");
             discoveryBrokerAddressToProbe = new HostPort(replacedVirtualClusterName,

@@ -15,7 +15,7 @@ import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
-import io.kroxylicious.proxy.config.NodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
 
 /**
  * Represents the client-facing resources, and backend plumbing required to enable a client to
@@ -63,7 +63,7 @@ public interface ClusterIngressNetworkingModel {
      * The node identification strategy to be injected into the Proxy Config for this model
      * @return a NodeIdentificationStrategy
      */
-    NodeIdentificationStrategy nodeIdentificationStrategy();
+    NodeIdentificationStrategyFactory nodeIdentificationStrategy();
 
     /**
      * The downstream TLS to be injected into the Proxy Config for this model, if available

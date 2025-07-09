@@ -16,7 +16,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
@@ -28,14 +27,12 @@ import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
+import io.kroxylicious.proxy.config.NamedRange;
+import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.IntRangeSpec;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.NamedRangeSpec;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.awaitility.Awaitility.await;
@@ -46,11 +43,8 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class KafkaProxyBackendHandlerTest {
 
-    @SuppressWarnings("removal")
-    private static final ClusterNetworkAddressConfigProvider ADDRESS_CONFIG_PROVIDER = new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
-            new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(new HostPort("localhost", 9090), "broker-", 9190,
-                    List.of(new NamedRangeSpec("default", new IntRangeSpec(0, 10)))),
-            Mockito.mock(VirtualClusterModel.class));
+    private static final NodeIdentificationStrategy NODE_IDENTIFICATION_STRATEGY = new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9090),
+            "broker-", 9190, List.of(new NamedRange("default", 0, 9))).buildStrategy("cluster");
     @Mock
     ProxyChannelStateMachine proxyChannelStateMachine;
 
@@ -63,7 +57,7 @@ class KafkaProxyBackendHandlerTest {
         outboundChannel = new EmbeddedChannel();
         var virtualClusterModel = new VirtualClusterModel("wibble", new TargetCluster("localhost:9090", Optional.empty()), false, false,
                 List.of());
-        virtualClusterModel.addGateway("default", ADDRESS_CONFIG_PROVIDER, Optional.empty());
+        virtualClusterModel.addGateway("default", NODE_IDENTIFICATION_STRATEGY, Optional.empty());
         kafkaProxyBackendHandler = new KafkaProxyBackendHandler(proxyChannelStateMachine,
                 virtualClusterModel);
         outboundChannel.pipeline().addFirst(kafkaProxyBackendHandler);
