@@ -9,9 +9,6 @@ When you define a `KafkaProxy` resource, a number of Kubernetes `Pods` are creat
 Each of these containers runs a single Kroxylicious Proxy process.
 
 By default, these proxy containers are defined without resource limits.
-
-You can learn more about Kubernetes resource management https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/[here].
-
 To manage CPU and memory consumption in your environment, modify the `proxyContainer` section within your `KafkaProxy` specification.
 
 .Example `KafkaProxy` configuration with proxy container resource specification
@@ -33,3 +30,8 @@ spec:
           cpu: '500m'
           memory: '756Mi'
 ----
+
+[role="_additional-resources"]
+.Additional resources
+
+* https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/[Kubernetes documentation: Resource Management for Pods and Containers^]

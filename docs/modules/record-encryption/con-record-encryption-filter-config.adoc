@@ -13,9 +13,13 @@ The filter looks up the resulting key name in the KMS.
 
 .Prerequisites
 
-* An instance of Kroxylicious.
-For information on deploying Kroxylicious, see the
-{ProxyGuide} or {OperatorGuide}.
+* An instance of Kroxylicious. +
+ifdef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {OperatorGuide}.
+endif::OpenShiftOnly[]
+ifndef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {ProxyGuide} or {OperatorGuide}.
+endif::OpenShiftOnly[]
 * A KMS is installed and set up for the filter with KEKs to encrypt records set up for topics.
 
 .Procedure

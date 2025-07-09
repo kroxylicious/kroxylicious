@@ -33,6 +33,9 @@ spec:
 <2> Lists the cipher suites explicitly allowed for TLS negotiation.
 
 Alternatively, you can use `deny` to specify cipher suites to exclude.
-
 The names of the cipher suites supported depend on the JVM in the proxy container image.
-See {cipherSuiteNames}.
+
+[role="_additional-resources"]
+.Additional resources
+
+* {cipherSuiteNames}
