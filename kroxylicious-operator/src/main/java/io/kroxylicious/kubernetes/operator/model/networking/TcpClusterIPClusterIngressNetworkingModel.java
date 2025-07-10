@@ -29,7 +29,7 @@ import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
 import io.kroxylicious.proxy.config.NamedRange;
-import io.kroxylicious.proxy.config.NodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -123,7 +123,7 @@ public record TcpClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     @Override
-    public NodeIdentificationStrategy nodeIdentificationStrategy() {
+    public NodeIdentificationStrategyFactory nodeIdentificationStrategy() {
         List<NamedRange> portRanges = IntStream.range(0, nodeIdRanges.size()).mapToObj(i -> {
             NodeIdRanges range = nodeIdRanges.get(i);
             String name = Optional.ofNullable(range.getName()).orElse("range-" + i);

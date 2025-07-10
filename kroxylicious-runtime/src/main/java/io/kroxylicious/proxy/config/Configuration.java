@@ -35,12 +35,7 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -149,7 +144,6 @@ public record Configuration(
     }
 
     private static VirtualClusterModel toVirtualClusterModel(@NonNull VirtualCluster virtualCluster,
-                                                             @NonNull PluginFactoryRegistry pfr,
                                                              @NonNull List<NamedFilterDefinition> filterDefinitions) {
 
         VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualCluster.name(),
@@ -158,34 +152,18 @@ public record Configuration(
                 virtualCluster.logFrames(),
                 filterDefinitions);
 
-        addGateways(pfr, virtualCluster.gateways(), virtualClusterModel);
+        addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();
 
         return virtualClusterModel;
     }
 
-    private static void addGateways(@NonNull PluginFactoryRegistry pfr, List<VirtualClusterGateway> gateways, VirtualClusterModel virtualClusterModel) {
+    private static void addGateways(List<VirtualClusterGateway> gateways, VirtualClusterModel virtualClusterModel) {
         gateways.forEach(gateway -> {
-            var config = gateway.clusterNetworkAddressConfigProvider().config();
-            var networkAddress = createDeprecatedProvider(config, virtualClusterModel);
+            var nodeIdentificationStrategy = gateway.buildNodeIdentificationStrategy(virtualClusterModel.getClusterName());
             var tls = gateway.tls();
-            virtualClusterModel.addGateway(gateway.name(), networkAddress, tls);
+            virtualClusterModel.addGateway(gateway.name(), nodeIdentificationStrategy, tls);
         });
-    }
-
-    @NonNull
-    @SuppressWarnings("removal")
-    private static ClusterNetworkAddressConfigProvider createDeprecatedProvider(Object config, VirtualClusterModel virtualClusterModel) {
-        // We avoid using the buildNetworkAddressProviderService in order to avoid the deprecation notice it will produce.
-        if (config instanceof SniRoutingClusterNetworkAddressConfigProviderConfig sniConfig) {
-            return new SniRoutingClusterNetworkAddressConfigProvider().build(sniConfig, virtualClusterModel);
-        }
-        else if (config instanceof RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig rangeConfig) {
-            return new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(rangeConfig, virtualClusterModel);
-        }
-        else {
-            throw new IllegalStateException("unexpected provider config type : " + config.getClass().getName());
-        }
     }
 
     public List<MicrometerDefinition> getMicrometer() {
@@ -204,7 +182,7 @@ public record Configuration(
         return virtualClusters.stream()
                 .map(virtualCluster -> {
                     List<NamedFilterDefinition> filterDefinitions = namedFilterDefinitionsForCluster(filterDefinitionsByName, virtualCluster);
-                    return toVirtualClusterModel(virtualCluster, pfr, filterDefinitions);
+                    return toVirtualClusterModel(virtualCluster, filterDefinitions);
                 })
                 .toList();
     }

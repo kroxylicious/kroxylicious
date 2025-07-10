@@ -6,7 +6,10 @@
 
 package io.kroxylicious.proxy.config;
 
-import java.util.function.Supplier;
+import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
-public interface NodeIdentificationStrategy extends Supplier<ClusterNetworkAddressConfigProviderDefinition> {
+public interface NodeIdentificationStrategyFactory {
+
+    NodeIdentificationStrategy buildStrategy(String clusterName);
+
 }

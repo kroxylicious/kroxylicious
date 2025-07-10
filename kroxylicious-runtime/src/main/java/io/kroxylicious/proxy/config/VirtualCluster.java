@@ -36,12 +36,6 @@ public record VirtualCluster(@NonNull @JsonProperty(required = true) String name
 
     private static final Pattern DNS_LABEL_PATTERN = Pattern.compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", Pattern.CASE_INSENSITIVE);
 
-    /**
-     * Name given to the gateway defined using the deprecated fields.
-     */
-    @Deprecated(forRemoval = true, since = "0.11.0")
-    static final String DEFAULT_GATEWAY_NAME = "default";
-
     @SuppressWarnings({ "removal", "java:S2789" }) // S2789 - checking for null tls is the intent
     public VirtualCluster {
         Objects.requireNonNull(name);
