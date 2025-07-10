@@ -28,12 +28,15 @@ import org.junit.jupiter.params.provider.MethodSource;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.KubernetesResourceList;
+import io.fabric8.kubernetes.api.model.LoadBalancerIngress;
+import io.fabric8.kubernetes.api.model.LoadBalancerIngressBuilder;
 import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
+import io.fabric8.kubernetes.api.model.ServiceStatusBuilder;
 import io.fabric8.kubernetes.client.CustomResource;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.dsl.MixedOperation;
@@ -243,6 +246,7 @@ class VirtualKafkaClusterReconcilerTest {
                     .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(CLUSTERIP_INGRESS)).endOwnerReference()
                 .endMetadata()
                 .withNewSpec()
+                    .withType("ClusterIP")
                     .addToPorts(new ServicePortBuilder().withName("port").withPort(9082).build())
                 .endSpec()
                 .build();
@@ -251,18 +255,27 @@ class VirtualKafkaClusterReconcilerTest {
     public static final String LOADBALANCER_BOOTSTRAP = "loadbalancer.bootstrap:123";
 
     public static final Service KUBERNETES_SHARED_SNI_SERVICE;
+    public static final String SHARED_SNI_LOADBALANCER_IP = "10.13.11.22";
+    public static final String SHARED_SNI_LOADBALANCER_HOSTNAME = "sni-hostname";
+
     static {
         var metadataBuilder = new ServiceBuilder().withNewMetadata();
         Annotations.ClusterIngressBootstrapServers bootstrap = new Annotations.ClusterIngressBootstrapServers(name(CLUSTER_NO_FILTERS), name(LOADBALANCER_INGRESS), LOADBALANCER_BOOTSTRAP);
         Annotations.annotateWithBootstrapServers(metadataBuilder, Set.of(bootstrap));
+        LoadBalancerIngress loadBalancerIngress = new LoadBalancerIngressBuilder()
+                .withHostname(SHARED_SNI_LOADBALANCER_HOSTNAME)
+                .withIp(SHARED_SNI_LOADBALANCER_IP)
+                .build();
         KUBERNETES_SHARED_SNI_SERVICE=metadataBuilder
                 .withName(PROXY_NAME + "-sni")
                 .withNamespace(NAMESPACE)
                 .addNewOwnerReferenceLike(ResourcesUtil.newOwnerReferenceTo(PROXY)).endOwnerReference()
             .endMetadata()
             .withNewSpec()
+                .withType("LoadBalancer")
                 .addToPorts(new ServicePortBuilder().withName("port").withPort(9082).build())
             .endSpec()
+                .withStatus(new ServiceStatusBuilder().withNewLoadBalancer().withIngress(loadBalancerIngress).endLoadBalancer().build())
             .build();
     }
 
@@ -698,6 +711,40 @@ class VirtualKafkaClusterReconcilerTest {
                             assertThat(ingress.getName()).isEqualTo(CLUSTERIP_INGRESS.getMetadata().getName());
                             assertThat(ingress.getBootstrapServer()).isEqualTo(LOADBALANCER_BOOTSTRAP);
                             assertThat(ingress.getProtocol()).isEqualTo(Protocol.TLS);
+                            assertThat(ingress.getLoadBalancerIngressPoints()).singleElement().satisfies(ingressPoint -> {
+                                assertThat(ingressPoint.getHostname()).isEqualTo(SHARED_SNI_LOADBALANCER_HOSTNAME);
+                                assertThat(ingressPoint.getIp()).isEqualTo(SHARED_SNI_LOADBALANCER_IP);
+                            });
+                        }));
+
+    }
+
+    @Test
+    void shoulNotSetIngressStatusForLoadBalancerIngressWithNoStatus() {
+        // given
+        var reconciler = new VirtualKafkaClusterReconciler(TEST_CLOCK, DependencyResolver.create());
+        Context<VirtualKafkaCluster> reconcilerContext = mockReconcilerContext(PROXY, LOADBALANCER_INGRESS, SERVICE, NO_FILTERS_CONFIG_MAP, Set.of());
+        mockGetSecret(reconcilerContext, Optional.of(KUBE_TLS_CERT_SECRET));
+        Service loadbalancerServiceWithNoStatus = KUBERNETES_SHARED_SNI_SERVICE.edit().withStatus(null).build();
+        when(reconcilerContext.getSecondaryResources(Service.class)).thenReturn(Set.of(loadbalancerServiceWithNoStatus));
+
+        // when
+        var update = reconciler.reconcile(CLUSTER_TLS_NO_FILTERS, reconcilerContext);
+
+        // then
+        assertThat(update).isNotNull();
+        assertThat(update.isPatchStatus()).isTrue();
+        assertThat(update.getResource())
+                .isPresent()
+                .get()
+                .satisfies(r -> assertThat(r.getStatus())
+                        .extracting(VirtualKafkaClusterStatus::getIngresses, InstanceOfAssertFactories.list(Ingresses.class))
+                        .singleElement()
+                        .satisfies(ingress -> {
+                            assertThat(ingress.getName()).isEqualTo(CLUSTERIP_INGRESS.getMetadata().getName());
+                            assertThat(ingress.getBootstrapServer()).isEqualTo(LOADBALANCER_BOOTSTRAP);
+                            assertThat(ingress.getProtocol()).isEqualTo(Protocol.TLS);
+                            assertThat(ingress.getLoadBalancerIngressPoints()).isNull();
                         }));
 
     }

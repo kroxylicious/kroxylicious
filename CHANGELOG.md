@@ -7,7 +7,13 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2414](https://github.com/kroxylicious/kroxylicious/pull/2414): Remove tcp and clusterNetworkAddressConfigProvider configuration options from virtual cluster
 * [#2385](https://github.com/kroxylicious/kroxylicious/issues/2385) fix: Prevent existing proxy pod(s) rolling if number of replicas is changed.
+
+### Changes, deprecations and removals
+
+* Remove deprecated `tls` and `clusterNetworkAddressConfigProvider` fields from virtual cluster. You must define
+  at least one gateway in the `gateways` array of your virtual cluster instead.
 
 ## 0.13.0
 
