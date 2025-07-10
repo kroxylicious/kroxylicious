@@ -92,7 +92,7 @@ virtualClusters:
             clientAuth: REQUIRED # <4>
 # ...
 ----
-<1> PKCS #12 store containing CA certificate(s) used to verify that the client's certificate is trusted.
+<1> PKCS #12 store containing CA certificates used to verify that the client's certificate is trusted.
 <2> (Optional) Password to protect the PKCS #12 store.
 <3> (Optional) Keystore type. If a keystore type is not specified, the default JKS (Java Keystore) type is used.
 <4> (Optional) Client authentication mode. 

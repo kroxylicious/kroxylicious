@@ -12,7 +12,7 @@ Secure proxies by using TLS and storing sensitive values in external resources.
 
 == Prerequisites
 
-* A running Kroxylicious proxy instance
+* A running Kroxylicious Proxy instance
 
 include::assembly-operator-secure-client-proxy-connection.adoc[leveloffset=+1]
 

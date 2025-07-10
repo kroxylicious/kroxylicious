@@ -15,7 +15,14 @@ For the Operator, the port is named `http`.
 
 Prometheus can be configured to ingest the metrics from the scrape endpoints.
 
+ifndef::OpenShiftOnly[]
 This guide assumes you are using the https://prometheus-operator.dev/[Prometheus Operator] to configure Prometheus.
+endif::OpenShiftOnly[]
+
+ifdef::OpenShiftOnly[]
+NOTE: This guide assumes monitoring for user-defined projects is enabled on your OpenShift cluster.
+For more information, see the Openshift https://docs.redhat.com/en/documentation/openshift_container_platform/latest/html-single/monitoring/[Monitoring] guide.
+endif::OpenShiftOnly[]
 
 include::./proc-operator-ingesting-metrics-operator.adoc[leveloffset=+1]
 include::./proc-operator-ingesting-metrics-proxy.adoc[leveloffset=+1]

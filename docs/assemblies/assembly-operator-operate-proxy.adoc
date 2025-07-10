@@ -8,6 +8,6 @@
 [role="_abstract"]
 Operate a deployed proxy by configuring its resource allocations.
 
-This section assumes you have a running Kroxylicious proxy instance.
+This section assumes you have a running Kroxylicious Proxy instance.
 
 include::../modules/configuring/con-kafkaproxy-cpu-memory-allocation.adoc[leveloffset=+1]

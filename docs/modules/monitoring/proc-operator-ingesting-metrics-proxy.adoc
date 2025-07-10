@@ -12,8 +12,14 @@ This procedure describes how to ingest metrics from the Kroxylicious Proxy into 
 .Prerequisites
 
 * Kroxylicious Operator is installed.
-* https://prometheus-operator.dev/[Prometheus Operator] is installed, and a Prometheus instance has been created using the https://prometheus-operator.dev/docs/api-reference/api/#monitoring.coreos.com/v1.Prometheus[`Prometheus` custom resource].
 * An instance of Kroxylicious deployed by the operator.
+ifndef::OpenShiftOnly[]
+* https://prometheus-operator.dev/[Prometheus Operator] is installed, and a Prometheus instance has been created using the https://prometheus-operator.dev/docs/api-reference/api/#monitoring.coreos.com/v1.Prometheus[`Prometheus` custom resource].
+endif::OpenShiftOnly[]
+ifdef::OpenShiftOnly[]
+* Monitoring for user-defined projects is enabled on your OpenShift cluster and a Prometheus instance has been created.
+For more information, see the Openshift https://docs.redhat.com/en/documentation/openshift_container_platform/latest/html-single/monitoring/[Monitoring] guide.
+endif::OpenShiftOnly[]
 
 .Procedure
 

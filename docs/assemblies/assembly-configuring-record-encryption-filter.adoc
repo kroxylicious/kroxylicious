@@ -12,7 +12,12 @@ Subsections provide in-depth details.
 .Prerequisites
 
 * An instance of Kroxylicious. +
+ifdef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {OperatorGuide}.
+endif::OpenShiftOnly[]
+ifndef::OpenShiftOnly[]
 For information on deploying Kroxylicious, see the {ProxyGuide} or {OperatorGuide}.
+endif::OpenShiftOnly[]
 * A KMS has been prepared for use by the filter, with KEKs to encrypt records set up for topics.
 
 .Procedure

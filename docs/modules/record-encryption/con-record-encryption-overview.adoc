@@ -100,4 +100,4 @@ This supports scenarios where topics with confidential information are encrypted
 [role="_additional-resources"]
 .Additional resources
 
-* For more information on envelope encryption, see the link:https://www.nist.gov/publications/recommendation-key-management-part-1-general-1[NIST Recommendation for Key Management].
+* For more information on envelope encryption, see the link:https://www.nist.gov/publications/recommendation-key-management-part-1-general-1[NIST Recommendation for Key Management^].

@@ -20,4 +20,4 @@ scrape_configs:
     static_configs:
       - targets: ['proxyhost:9190'] # <1>
 ----
-<1> The host that is running the kroxylicious instance and the port number assigned to management.
+<1> The host that is running the Kroxylicious instance and the port number assigned to management.

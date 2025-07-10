@@ -27,6 +27,9 @@ spec:
 <2> `allow` lists the versions of TLS which are permitted.
 
 The `protocols` property also supports `deny`, if you prefer to list the versions to exclude instead.
-
 The names of the TLS protocol versions supported depend on the JVM in the proxy container image.
-See {tlsProtocolNames}.
+
+[role="_additional-resources"]
+.Additional resources
+
+* {tlsProtocolNames}

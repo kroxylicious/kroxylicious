@@ -20,6 +20,7 @@ Connection metrics count the TCP connections made from the client to the proxy (
 These metrics count connection _attempts_, so the connection count is incremented even if the connection attempt ultimately fails.
 
 In addition to the count metrics, there are error metrics.
+
 * If an error occurs whilst the proxy is accepting a connection from the client the `kroxylicious_client_to_proxy_errors_total` metric is incremented by one.
 * If an error occurs whilst the proxy is attempting a connection to a broker the `kroxylicious_proxy_to_server_errors_total` metric is incremented by one.
 
@@ -60,9 +61,10 @@ NOTE: Error conditions signaled _within_ the Kafka protocol response (such as `R
 
 == Message metrics
 
-Message metrics count, and record the sizes of, the Kafka protocol requests and responses that flow through the proxy.
+Message metrics count and record the sizes of the Kafka protocol requests and responses that flow through the proxy.
 
 Use these metrics to help understand:
+
 * the number of messages flowing through the proxy.
 * the overall volume of data through the proxy.
 * the effect the filters are having on the messages.
@@ -83,11 +85,12 @@ The size recorded is the encoded size of the protocol message. It includes the 4
 
 Filters can alter the flow of messages through the proxy or the content of the message.
 This is apparent through the metrics.
+
 * If a filter sends a short-circuit, or closes a connection the downstream message counters will exceed the upstream counters.
 * If a filter changes the size of the message, the downstream size metrics will be different to the upstream size metrics.
 
 .Downstream and upstream message metrics in the proxy
-image::../_assets/monitoring-message-counters.svg["Conceptual diagram showing the downstream and upstream message metrics within the proxy, illustrating how they respond to message transit through it."]
+image::monitoring-message-counters.svg["Conceptual diagram showing the downstream and upstream message metrics within the proxy, illustrating how they respond to message transit through it."]
 
 Message metrics include the following labels: `virtual_cluster` (the virtual cluster's name), `node_id` (the broker's node ID), `api_key` (the message type), `api_version`, and `decoded` (a flag indicating if the message was decoded by the proxy).
 

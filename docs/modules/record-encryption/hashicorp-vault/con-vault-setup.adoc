@@ -16,13 +16,14 @@ The Vault Transit Engine URL is required so the filter knows the location of the
 Vault instance.
 
 The URL is formed from the concatenation of the `Api Address` (reported by Vault reported by during
-{hashicorp-vault}/tutorials/getting-started/getting-started-dev-server#starting-the-dev-server[starts up]) with the
-complete path to Transit Engine, including the name of the engine itself. If
-{hashicorp-vault}/docs/enterprise/namespaces[Namespacing] is used on the Vault instance, the path needs to include the
-namespace(s). The URL will end with `/transit` unless the `-path` parameter was used when
+{hashicorp-vault}/tutorials/getting-started/getting-started-dev-server#starting-the-dev-server[startup^]) with the
+complete path to Transit Engine, including the name of the engine itself. 
+
+If {hashicorp-vault}/docs/enterprise/namespaces[Namespacing] is used on the Vault instance, the path must include the
+namespaces. The URL will end with `/transit` unless the `-path` parameter was used when
 {hashicorp-vault}/docs/secrets/transit#setup[enabling the engine].
 
-If namespacing is not in use, the URL will look like this:
+If namespacing is not in use, the URL looks like this:
 
 [source,shell]
 ----
@@ -30,7 +31,7 @@ https://myvaultinstance:8200/v1/transit
 ----
 
 If namespacing is in use, the path must include the namespaces. For example, if there is a parent namespace is `a` and
-a child namespace is `b`, the URL will look like this:
+a child namespace is `b`, the URL looks like this:
 
 [source,shell]
 ----
@@ -38,7 +39,7 @@ https://myvaultinstance:8200/v1/a/b/transit
 ----
 
 If the name of the Transit engine was changed (using the `-path` argument to the `vault secrets enable transit` command)
-the URL will look like this:
+the URL looks like this:
 
 [source,shell]
 ----

@@ -26,6 +26,9 @@ spec:
 <2> `allow` lists the cipher suites which are permitted.
 
 The `cipherSuites` property also supports `deny`, if you prefer to list the cipher suites to exclude instead.
-
 The names of the cipher suites supported depend on the JVM in the proxy container image.
-See {cipherSuiteNames}.
+
+[role="_additional-resources"]
+.Additional resources
+
+* {cipherSuiteNames}

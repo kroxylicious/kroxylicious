@@ -12,7 +12,9 @@ Kroxylicious follows https://semver.org/#semantic-versioning-200[Semantic Versio
 
 We also consider our configuration file syntax a public API (though not the Java model backing it). As such, the syntax follows the same Semantic Versioning and deprecation rules.
 
-Kubernetes custom resources are a public API, and we are making every effort to evolve Kroxylicious custom resources in line with https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/[Kubernetes best practices]. Kubernetes resources have their own versioning scheme, which is independent of the Kroxylicious proxy service version. As a result, we may reach {stable-api-version} of Kroxylicious while still using alpha or beta versions of the custom resources.
+Kubernetes custom resources are a public API, and we are making every effort to evolve Kroxylicious custom resources in line with https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/[Kubernetes best practices]. 
+
+Kubernetes resources have their own versioning scheme, which is independent of the Kroxylicious Proxy service version. As a result, Kroxylicious may reach {stable-api-version} while still using alpha or beta versions of the custom resources.
 
 [id='con-api-compatibility-third-party{context}']
 === Third-party plugins
