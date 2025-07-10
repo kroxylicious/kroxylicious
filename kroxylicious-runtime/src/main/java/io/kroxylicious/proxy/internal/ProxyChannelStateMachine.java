@@ -22,6 +22,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
+import io.kroxylicious.proxy.VersionInfo;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -453,7 +454,8 @@ public class ProxyChannelStateMachine {
         ApiException errorCodeEx;
         if (cause instanceof DecoderException de
                 && de.getCause() instanceof FrameOversizedException e) {
-            var tlsHint = tlsEnabled ? "" : " or an unexpected TLS handshake";
+            var tlsHint = tlsEnabled ? "" : " or an unexpected TLS handshake? When connecting via TLS from your client, make sure to enable TLS for the Kroxylicious gateway (https://kroxylicious.io/documentation/" + VersionInfo.VERSION_INFO.version()
+                    +"/html/kroxylicious-proxy/#con-configuring-client-connections-proxy).";
             LOGGER.warn(
                     "Received over-sized frame from the client, max frame size bytes {}, received frame size bytes {} "
                             + "(hint: are we decoding a Kafka frame, or something unexpected like an HTTP request{}?)",
