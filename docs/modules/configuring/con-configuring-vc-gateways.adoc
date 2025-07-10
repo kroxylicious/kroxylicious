@@ -105,7 +105,7 @@ The gateway exposes the following three broker addresses:
 |mycluster.example.com:9201
 
 |2
-|mycluster.example.com:9203
+|mycluster.example.com:9202
 |===
 
 .Example Port Identifies Node configuration with customized node ranges
