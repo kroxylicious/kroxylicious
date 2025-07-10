@@ -187,42 +187,6 @@ class ConfigParserTest {
                                       passwordFile: /tmp/password.txt
                                     storeType: JKS
                         """),
-                Arguments.argumentSet("Virtual cluster (PortPerBroker - deprecated)", """
-                        virtualClusters:
-                          - name: demo1
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
-                            clusterNetworkAddressConfigProvider:
-                              type: PortPerBrokerClusterNetworkAddressConfigProvider
-                              config:
-                                bootstrapAddress: cluster1:9192
-                                numberOfBrokerPorts: 1
-                                brokerAddressPattern: localhost
-                                brokerStartPort: 9193
-                            tls:
-                              key:
-                                storeFile: /tmp/foo.jks
-                                storePassword:
-                                  passwordFile: /tmp/password.txt
-                                storeType: JKS
-                        """),
-                Arguments.argumentSet("Virtual cluster (RangeAwarePortPerNode - deprecated)", """
-                        virtualClusters:
-                          - name: demo1
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
-                            clusterNetworkAddressConfigProvider:
-                              type: RangeAwarePortPerNodeClusterNetworkAddressConfigProvider
-                              config:
-                                bootstrapAddress: cluster1:9192
-                                nodeAddressPattern: cluster1
-                                nodeStartPort: 9193
-                                nodeIdRanges:
-                                - name: myrange
-                                  range:
-                                    startInclusive: 0
-                                    endExclusive: 1
-                        """),
                 Arguments.argumentSet("Filters", """
                         filterDefinitions:
                         - name: myfilter
@@ -771,7 +735,7 @@ class ConfigParserTest {
         var config = new Configuration(null,
                 List.of(new NamedFilterDefinition("foo", "", new NonSerializableConfig(""))),
                 List.of("foo"),
-                List.of(new VirtualCluster("demo", targetCluster, null, null, List.of(gateway), false, false, List.of())),
+                List.of(new VirtualCluster("demo", targetCluster, List.of(gateway), false, false, List.of())),
                 null,
                 false,
                 Optional.empty());

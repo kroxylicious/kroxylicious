@@ -48,7 +48,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.getVirtualClusterGatewayStream;
 
 public class DefaultKroxyliciousTester implements KroxyliciousTester {
     private AutoCloseable proxy;
@@ -121,7 +120,7 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
         var definedCluster = kroxyliciousConfig.virtualClusters().stream().filter(v -> v.name().equals(virtualCluster)).findFirst();
         definedCluster.ifPresent(cluster -> {
 
-            var first = getVirtualClusterGatewayStream(cluster).filter(g -> g.name().equals(gateway)).findFirst();
+            var first = cluster.gateways().stream().filter(g -> g.name().equals(gateway)).findFirst();
             var vcl = first.orElseThrow(() -> new IllegalArgumentException("cluster " + virtualCluster + " does not contain gateway named " + gateway));
             final Optional<Tls> tls = vcl.tls();
             if (tls.isPresent()) {
