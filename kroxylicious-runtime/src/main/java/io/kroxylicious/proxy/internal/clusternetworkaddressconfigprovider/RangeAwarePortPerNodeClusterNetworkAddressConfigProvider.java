@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProviderService;
 import io.kroxylicious.proxy.service.HostPort;
@@ -52,7 +51,6 @@ import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider
  *
  * @deprecated use {@link io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy} instead
  */
-@Plugin(configType = RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig.class)
 @Deprecated(since = "0.11.0", forRemoval = true)
 public class RangeAwarePortPerNodeClusterNetworkAddressConfigProvider implements
         ClusterNetworkAddressConfigProviderService<RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig> {

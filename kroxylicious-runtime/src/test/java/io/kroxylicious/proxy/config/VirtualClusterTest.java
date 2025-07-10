@@ -20,8 +20,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import com.google.common.base.Strings;
 
-import io.kroxylicious.proxy.config.tls.Tls;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -43,23 +41,13 @@ class VirtualClusterTest {
     ClusterNetworkAddressConfigProviderDefinition provider;
 
     @Test
-    @SuppressWarnings("removal")
-    void supportsDeprecatedConfigProvider() {
-        // Given/When
-        var vc = new VirtualCluster("mycluster", targetCluster, provider, Optional.empty(), null, false, false, NO_FILTERS);
-
-        // Then
-        assertThat(vc.clusterNetworkAddressConfigProvider()).isEqualTo(provider);
-    }
-
-    @Test
     void supportsMultipleGateways() {
         // Given
         var gateways = List.of(new VirtualClusterGateway("mygateway1", portIdentifiesNode1, null, Optional.empty()),
                 new VirtualClusterGateway("mygateway2", portIdentifiesNode2, null, Optional.empty()));
 
         // When
-        var vc = new VirtualCluster("mycluster", targetCluster, null, null, gateways, false, false, NO_FILTERS);
+        var vc = new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS);
 
         // Then
         assertThat(vc.gateways())
@@ -68,30 +56,9 @@ class VirtualClusterTest {
     }
 
     @Test
-    void disallowsGatewaysAndDeprecatedConfigProvider() {
-        // Given
-        var gateways = List.of(new VirtualClusterGateway("mygateway", portIdentifiesNode1, null, Optional.empty()));
-
-        // When/Then
-        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, provider, null, gateways, false, false, NO_FILTERS))
-                .isInstanceOf(IllegalConfigurationException.class);
-    }
-
-    @Test
-    void disallowsGatewaysAndDeprecatedTls() {
-        // Given
-        var gateways = List.of(new VirtualClusterGateway("mygateway", portIdentifiesNode1, null, Optional.empty()));
-        var tls = Optional.of(new Tls(null, null, null, null));
-
-        // When/Then
-        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, null, tls, gateways, false, false, NO_FILTERS))
-                .isInstanceOf(IllegalConfigurationException.class);
-    }
-
-    @Test
     void disallowMissingGateways() {
         // Given/When/Then
-        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, null, null, null, false, false, NO_FILTERS))
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, null, false, false, NO_FILTERS))
                 .isInstanceOf(IllegalConfigurationException.class);
     }
 
@@ -100,7 +67,7 @@ class VirtualClusterTest {
         // Given
         var noGateways = List.<VirtualClusterGateway> of();
         // When/Then
-        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, null, null, noGateways, false, false, NO_FILTERS))
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, noGateways, false, false, NO_FILTERS))
                 .isInstanceOf(IllegalConfigurationException.class);
     }
 
@@ -110,7 +77,7 @@ class VirtualClusterTest {
         var gateways = List.of(new VirtualClusterGateway("dup", portIdentifiesNode1, null, Optional.empty()),
                 new VirtualClusterGateway("dup", portIdentifiesNode2, null, Optional.empty()));
         // When/Then
-        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, null, null, gateways, false, false, NO_FILTERS))
+        assertThatThrownBy(() -> new VirtualCluster("mycluster", targetCluster, gateways, false, false, NO_FILTERS))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Gateway names for a virtual cluster must be unique. The following gateway names are duplicated: [dup]");
     }
@@ -131,7 +98,7 @@ class VirtualClusterTest {
         // When
         // Then
         assertThatThrownBy(() -> {
-            new VirtualCluster(clusterName, targetCluster, null, null, gateways, false, false, NO_FILTERS);
+            new VirtualCluster(clusterName, targetCluster, gateways, false, false, NO_FILTERS);
         }).isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Virtual cluster name '" + clusterName
                         + "' is invalid. It must be less than 64 characters long and match pattern ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ (case insensitive)");
@@ -156,7 +123,7 @@ class VirtualClusterTest {
         // When
         // Then
         assertThatCode(() -> {
-            new VirtualCluster(clusterName, targetCluster, null, null, gateways, false, false, NO_FILTERS);
+            new VirtualCluster(clusterName, targetCluster, gateways, false, false, NO_FILTERS);
         }).doesNotThrowAnyException();
     }
 }

@@ -96,8 +96,6 @@ class OperatorAssertionsTest {
                 List.of(),
                 List.of(new VirtualCluster("Bob",
                         new TargetCluster("", Optional.empty()),
-                        null,
-                        Optional.empty(),
                         List.of(new VirtualClusterGateway("gateway",
                                 new PortIdentifiesNodeIdentificationStrategy(new HostPort("localhost", 9090), null, null, List.of()),
                                 null,
