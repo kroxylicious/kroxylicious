@@ -8,3 +8,4 @@
 - Zhenyu Luo(https://github.com/luozhenyu)
 - Carles Arnal(https://github.com/carlesarnal)
 - Alan Robinson(https://github.com/alanrobinson-dwp)
+- Hari Mani(https://github.com/The-East-Wind)

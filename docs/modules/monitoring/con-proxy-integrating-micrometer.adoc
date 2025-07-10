@@ -88,6 +88,32 @@ micrometer:
 
 |===
 
+== Pause detector
+
+Micrometer offers a pause detector (using the https://latencyutils.github.io/LatencyUtils/[LatencyUtils^] package) which attempts to compensate for
+ requests which would have been accepted and delayed by a pause arising from a source external
+ to the monitored section (There are a wide variety of possible sources such as Garbage collectors
+ or system pauses).
+Micrometer defaults to a no-op pause detector implementation, but it also provides a clock drift based
+ implementation which can be optionally configured.
+The clock drift based pause detector can be configured by providing a sleep interval a pause threshold.
+These values are defaulted to the Micrometer recommended `100ms` but you can choose to configure
+ different values based on your environment.
+Using the clock drift based pause detector can result in samples being added to timers in
+ unexpected ways in some degenerate cases so users are advised to use it after careful consideration.
+
+See https://micrometer.io/docs/concepts#_pause_detection[Micrometer Pause Detection^]
+
+.Example pause detector configuration
+[source,yaml]
+----
+micrometer:
+  - type: "PauseDetectorHook"
+    config:
+      sleepIntervalMs: 500
+      pauseThresholdMs: 500
+----
+
 == Using Micrometer with filters
 
 Use the static methods of https://www.javadoc.io/doc/io.micrometer/micrometer-core/1.10.5/io/micrometer/core/instrument/Metrics.html[Micrometer Metrics^] to register metrics with the global registry. 
