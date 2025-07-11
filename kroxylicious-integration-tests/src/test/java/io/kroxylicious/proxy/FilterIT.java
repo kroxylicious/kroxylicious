@@ -8,6 +8,7 @@ package io.kroxylicious.proxy;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -17,10 +18,12 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.InvalidTopicException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -33,6 +36,8 @@ import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.security.auth.SecurityProtocol;
+import org.apache.kafka.common.security.scram.ScramLoginModule;
 import org.apache.kafka.common.serialization.Serdes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -56,6 +61,7 @@ import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.common.SaslMechanism;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
@@ -88,6 +94,10 @@ class FilterIT {
     private static final String PLAINTEXT = "Hello, world!";
     private static final NamedFilterDefinitionBuilder REJECTING_CREATE_TOPIC_FILTER = new NamedFilterDefinitionBuilder(RejectingCreateTopicFilterFactory.class.getName(),
             RejectingCreateTopicFilterFactory.class.getName());
+    public static final String SCRAM_256 = "SCRAM-SHA-256";
+    public static final String SCRAM_512 = "SCRAM-SHA-512";
+    public static final String SCRAM_USER = "user";
+    public static final String SCRAM_PAZZ = "pazz";
 
     @Test
     void reversibleEncryption() {
@@ -163,7 +173,80 @@ class FilterIT {
     }
 
     @Test
-    @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
+    void scramSha256Test(@SaslMechanism(value = SCRAM_256, principals = @SaslMechanism.Principal(user = SCRAM_USER, password = SCRAM_PAZZ)) KafkaCluster cluster,
+                         Topic topic)
+            throws Exception {
+
+        Map<String, Object> clientConfig = new HashMap<>();
+        clientConfig.put(CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged");
+        clientConfig.put(DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000);
+        clientConfig.put(SaslConfigs.SASL_JAAS_CONFIG,
+                String.format("""
+                        %s required username="%s" password="%s";""",
+                        ScramLoginModule.class.getName(), SCRAM_USER, SCRAM_PAZZ));
+        clientConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name);
+        clientConfig.put(SaslConfigs.SASL_MECHANISM, SCRAM_256);
+
+        Map<String, Object> consumerConfig = new HashMap<>(clientConfig);
+        consumerConfig.put(GROUP_ID_CONFIG, "group");
+        consumerConfig.put(AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+        try (var tester = kroxyliciousTester(proxy(cluster));
+                var producer = tester.producer(clientConfig);
+                var consumer = tester.consumer(consumerConfig)) {
+            producer.send(new ProducerRecord<>(topic.name(), "my-key", "Hello, world!")).get();
+            consumer.subscribe(Set.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(10));
+            consumer.close();
+
+            assertThat(records.iterator())
+                    .toIterable()
+                    .hasSize(1)
+                    .map(ConsumerRecord::value)
+                    .containsExactly(PLAINTEXT);
+
+        }
+    }
+
+    @Test
+    void scramSha512Test(@SaslMechanism(value = SCRAM_512, principals = @SaslMechanism.Principal(user = SCRAM_USER, password = SCRAM_PAZZ)) KafkaCluster cluster,
+                         Topic topic)
+            throws Exception {
+
+        Map<String, Object> clientConfig = new HashMap<>();
+        clientConfig.put(CLIENT_ID_CONFIG, "shouldPassThroughRecordUnchanged");
+        clientConfig.put(DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000);
+        clientConfig.put(SaslConfigs.SASL_JAAS_CONFIG,
+                String.format("""
+                        %s required username="%s" password="%s";""",
+                        ScramLoginModule.class.getName(), SCRAM_USER, SCRAM_PAZZ));
+        clientConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name);
+        clientConfig.put(SaslConfigs.SASL_MECHANISM, SCRAM_512);
+
+        Map<String, Object> consumerConfig = new HashMap<>(clientConfig);
+        consumerConfig.put(GROUP_ID_CONFIG, "group");
+        consumerConfig.put(AUTO_OFFSET_RESET_CONFIG, "earliest");
+
+        try (var tester = kroxyliciousTester(proxy(cluster));
+                var producer = tester.producer(clientConfig);
+                var consumer = tester.consumer(consumerConfig)) {
+            producer.send(new ProducerRecord<>(topic.name(), "my-key", "Hello, world!")).get();
+            consumer.subscribe(Set.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(10));
+            consumer.close();
+
+            assertThat(records.iterator())
+                    .toIterable()
+                    .hasSize(1)
+                    .map(ConsumerRecord::value)
+                    .containsExactly(PLAINTEXT);
+
+        }
+    }
+
+    @Test
+    @SuppressWarnings("java:S5841")
+    // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
                 .addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
@@ -301,7 +384,8 @@ class FilterIT {
     }
 
     @Test
-    @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
+    @SuppressWarnings("java:S5841")
+    // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
                 .addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
