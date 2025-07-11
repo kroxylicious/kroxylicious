@@ -374,6 +374,11 @@ public class VirtualClusterModel {
 
         private Optional<SslContext> buildDownstreamSslContext() {
             return tls.map(tlsConfiguration -> {
+                if (tlsConfiguration.key() == null) {
+                    throw new IllegalConfigurationException(("Gateway '%s' of virtual cluster '%s' has a `tls' object defined with no 'key' configured. "
+                            + "The Proxy requires a 'key' to terminate TLS connections from clients. Please add a 'key' to your gateway's 'tls' object.")
+                            .formatted(name(), virtualCluster.getClusterName()));
+                }
                 try {
                     var sslContextBuilder = Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer)
                             .orElseThrow();

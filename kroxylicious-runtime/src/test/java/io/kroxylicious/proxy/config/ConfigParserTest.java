@@ -395,6 +395,30 @@ class ConfigParserTest {
     }
 
     @Test
+    void shouldRequireKeyIfDownstreamTlsObjectPresent() {
+        // given
+        Configuration configuration = configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: mycluster1
+                    targetCluster:
+                      bootstrapServers: kafka1.example:1234
+                    gateways:
+                    - name: default
+                      tls: {}
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """);
+        // When/Then
+        assertThatThrownBy(() -> {
+            configuration.virtualClusterModel(new ServiceBasedPluginFactoryRegistry());
+        }).isInstanceOf(IllegalConfigurationException.class)
+                .hasMessage(
+                        "Gateway 'default' of virtual cluster 'mycluster1' has a `tls' object defined with no 'key' configured. "
+                                + "The Proxy requires a 'key' to terminate TLS connections from clients. "
+                                + "Please add a 'key' to your gateway's 'tls' object.");
+    }
+
+    @Test
     void shouldDetectInconsistentClusterNameInDeprecatedVirtualClusterMap() {
         // When/Then
         assertThatThrownBy(() -> {
@@ -870,7 +894,7 @@ class ConfigParserTest {
                   - name: mygateway
                     portIdentifiesNode:
                       bootstrapAddress: "localhost:9082"
-                  """);
+                """);
 
         // Then
         assertThat(configurationModel)
