@@ -1,0 +1,9 @@
+[allowlist]
+  description = "Global Allowlist"
+
+  paths = [
+    # Test key material
+    '''kroxylicious-runtime\/src\/test\/resources\/io\/kroxylicious\/proxy\/config\/tls\/.*$''',
+    '''kroxylicious-operator\/src\/test\/java\/io\/kroxylicious\/kubernetes\/operator\/TestKeyMaterial\.java$''',
+  ]
+
