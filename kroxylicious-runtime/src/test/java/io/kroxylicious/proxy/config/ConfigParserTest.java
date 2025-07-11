@@ -392,6 +392,28 @@ class ConfigParserTest {
     }
 
     @Test
+    void shouldRequireKeyIfDownstreamTlsObjectPresent() {
+        // given
+        Configuration configuration = configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: mycluster1
+                    targetCluster:
+                      bootstrapServers: kafka1.example:1234
+                    gateways:
+                    - name: default
+                      tls: {}
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """);
+        ServiceBasedPluginFactoryRegistry registry = new ServiceBasedPluginFactoryRegistry();
+        // When/Then
+        assertThatThrownBy(() -> {
+            configuration.virtualClusterModel(registry);
+        }).isInstanceOf(IllegalConfigurationException.class)
+                .hasMessage("Virtual cluster 'mycluster1', gateway 'default': 'tls' object is missing the mandatory attribute 'key'.");
+    }
+
+    @Test
     void shouldDetectInconsistentClusterNameInDeprecatedVirtualClusterMap() {
         // When/Then
         assertThatThrownBy(() -> {
