@@ -98,45 +98,15 @@
         </license>
     </licenses>
 
+    <organization>
+        <name>Kroxylicious</name>
+        <url>https://github.com/orgs/kroxylicious</url>
+    </organization>
+
     <developers>
         <developer>
-            <name>Tom Bentley</name>
-            <email>tbentley@redhat.com</email>
-            <organization>Red Hat</organization>
-            <organizationUrl>https://www.redhat.com</organizationUrl>
-        </developer>
-        <developer>
-            <name>Keith Wall</name>
-            <email>kwall@redhat.com</email>
-            <organization>Red Hat</organization>
-            <organizationUrl>https://www.redhat.com</organizationUrl>
-        </developer>
-        <developer>
-            <name>Sam Barker</name>
-            <email>sbarker@redhat.com</email>
-            <organization>Red Hat</organization>
-            <organizationUrl>https://www.redhat.com</organizationUrl>
-            <timezone>Pacific/Auckland</timezone>
-        </developer>
-        <developer>
-            <name>Robert Young</name>
-            <email>robeyoun@redhat.com</email>
-            <organization>Red Hat</organization>
-            <organizationUrl>https://www.redhat.com</organizationUrl>
-            <timezone>Pacific/Auckland</timezone>
-        </developer>
-        <developer>
-            <name>Francisco Vila</name>
-            <email>fvila@redhat.com</email>
-            <organization>Red Hat</organization>
-            <organizationUrl>https://www.redhat.com</organizationUrl>
-        </developer>
-        <developer>
-            <name>Grace Grimwood</name>
-            <email>ggrimwoo@redhat.com</email>
-            <organization>Red Hat</organization>
-            <organizationUrl>https://www.redhat.com</organizationUrl>
-            <timezone>Pacific/Auckland</timezone>
+            <organization>kroxylicious/developers</organization>
+            <organizationUrl>https://github.com/kroxylicious/.github/TEAMS.md#kroxylicious-developers</organizationUrl>
         </developer>
     </developers>
 
