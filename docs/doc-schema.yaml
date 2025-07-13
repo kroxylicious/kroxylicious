@@ -2,59 +2,32 @@ $schema: https://json-schema.org/draft/2020-12/schema
 $id: https://kroxylicious.io/doc-schema.yaml
 type: object
 required:
-  - frontmatter
-additionalProperties: false
+  - title
+  - description
 properties:
-  "$schema":
+  title:
+    description: The name of this document.
     type: string
-  src:
-    description: |
-      Optional path pointing to the documentation. 
-      This may be a file or a directory, and relative paths are interpreted as relative to the `doc.yaml` file. 
-      Subject to POM property interpolation.
-    default: index.html
+  description:
+    description: A description of this document.
     type: string
-  transforms:
+  tags:
+    description: Tags to associate with this document
     type: array
     items:
+      description: The allowed tags for documents
       type: string
       enum:
-        - tocify
-        - prependFrontmatter
-  frontmatter:
+        - proxy
+        - developer
+        - filter
+        - kubernetes
+  path:
     description: |
-      The frontmatter to be associated with the documentation.
-    type: object
-    required:
-      - title
-      - description
-      - layout
-    additionalProperties: false
-    properties:
-      layout:
-        description: The layout
-        type: string
-        enum:
-          - quickstart
-          - guide
-      title:
-        description: The name of this document.
-        type: string
-      description:
-        description: A description of this document.
-        type: string
-      tags:
-        description: Tags to associate with this document
-        type: array
-        items:
-          description: The allowed tags for documents
-          type: string
-          enum:
-            - proxy
-            - developer
-            - filter
-            - kubernetes
-      rank:
-        description: |
-          A string for the lexicographic ordering of documents
-        type: string
+      Optional URL pointing to the documentation. Relative paths are interpreted as relative to the 
+      base documentation URL for this release.
+    type: string
+  rank:
+    description: |
+      A string for the lexicographic ordering of documents
+    type: string

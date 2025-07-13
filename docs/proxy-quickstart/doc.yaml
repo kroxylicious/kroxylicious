@@ -1,0 +1,7 @@
+$schema: https://kroxylicious.io/doc-schema.yaml
+title: Proxy quickstart
+description: Start here if you're experimenting with the proxy for the first time.
+tags:
+  - proxy
+path: /quickstarts
+rank: "000"

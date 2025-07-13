@@ -961,14 +961,12 @@
                             <goal>run</goal>
                         </goals>
                         <configuration>
-<!--                            <skip>${skipDocs}</skip>-->
+                            <skip>${skipDocs}</skip>
                             <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
                             <!--suppress UnresolvedMavenProperty -->
                             <script>${rootdir}/scripts/webify.java</script>
                             <args>
                                 <arg>--project-version=${project.version}</arg>
-                                <!--suppress UnresolvedMavenProperty -->
-                                <arg>--rootdir=${rootdir}</arg>
                                 <!--suppress UnresolvedMavenProperty -->
                                 <arg>--src-dir=${rootdir}/target/docs/embedded/</arg>
                                 <!--suppress UnresolvedMavenProperty -->

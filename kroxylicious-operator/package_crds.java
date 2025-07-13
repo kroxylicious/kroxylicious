@@ -1,23 +1,27 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
 ///usr/bin/env jbang "$0" "$@" ; exit $?
 //DEPS org.yaml:snakeyaml:2.2
-//JAVA 21+
 
 import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 import org.yaml.snakeyaml.Yaml;
-import static java.lang.System.*;
 
 public class package_crds {
     public static void main(String[] args) throws IOException {
         if (args.length != 2) {
-            out.println("Usage: jbang package_crds.java SOURCEDIR TARGETDIR");
+            System.out.println("Usage: jbang package_crds.java SOURCEDIR TARGETDIR");
             System.exit(1);
         }
 
         var sourceDir = Path.of(args[0]);
         if (!Files.exists(sourceDir)) {
-            out.println("[package_crds.java] SOURCEDIR '" + sourceDir + "' does not exist");
+            System.out.println("[package_crds.java] SOURCEDIR '" + sourceDir + "' does not exist");
             System.exit(1);
         }
         var targetDir = Path.of(args[1]);
@@ -40,8 +44,7 @@ public class package_crds {
                             var target = targetDir.resolve("00." + kind + "." + singular + ".yaml");
                             Files.copy(path, target, StandardCopyOption.REPLACE_EXISTING);
                             System.out.println("Copied to " + target);
-                        }
-                        catch (IOException e) {
+                        } catch (IOException e) {
                             throw new UncheckedIOException("With file " + path, e);
                         }
                     });

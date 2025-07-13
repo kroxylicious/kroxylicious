@@ -1,11 +1,6 @@
 $schema: https://kroxylicious.io/doc-schema.yaml
-src: index.html
-transforms:
-  - tocify
-frontmatter:
-  layout: guide
-  title: Record Encryption Guide
-  description: Covers using the record encryption filter, including configuration, security and operation.
-  tags:
-    - filter
-  rank: "020"
+title: Record Encryption Guide
+description: Covers using the record encryption filter, including configuration, security and operation.
+tags:
+  - filter
+rank: "020"

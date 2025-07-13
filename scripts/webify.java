@@ -38,9 +38,6 @@ public class webify implements Callable<Integer> {
     @Option(names = {"--project-version"}, required = true, description = "The kroxy version.")
     private String projectVersion;
 
-    @Option(names = {"--rootdir"}, required = true, description = "The rootdir.")
-    private String rootdir;
-
     @Option(names = {"--src-dir"}, required = true, description = "The source directory containing Asciidoc standalone HTML.")
     private Path srcDir;
 
@@ -50,11 +47,17 @@ public class webify implements Callable<Integer> {
     @Option(names = {"--tocify-omit"}, description = "Glob matching file(s) to omit from the HTML output.")
     private List<String> omitGlobs = List.of();
 
+    @Option(names = {"--tocify"}, description = "Glob matching HTML files within --src-dir to tocify.")
+    private String tocifyGlob;
+
     @Option(names = {"--tocify-toc-file"}, description = "The name to give to output TOC files")
     private String tocifyTocName;
 
     @Option(names = {"--tocify-tocless-file"}, description = "The name to give to output TOC-less files")
     private String tocifyToclessName;
+
+    @Option(names = {"--datafy"}, description = "Glob matching data yamls")
+    private String datafyGlob;
 
     private Path outdir;
     private Path dataDestPath;
@@ -89,36 +92,14 @@ public class webify implements Callable<Integer> {
         return 0;
     }
 
-    String interpolate(String str, String... keyValuePairs) {
-        if (keyValuePairs.length % 2 != 0) {
-            throw new IllegalArgumentException("keyValuePairs must be even");
-        }
-        str = str
-                .replace("${project.version}", this.projectVersion)
-                .replace("${rootdir}", this.rootdir);
-        for (int i = 0; i < keyValuePairs.length; i += 2) {
-            str = str.replace("${" + keyValuePairs[i] + "}", keyValuePairs[i + 1]);
-        }
-        return str;
-    }
-
     String docIndexFrontMatter() {
-        return interpolate("""
+        return """
 ---
 layout: released-documentation
 title: Documentation
 permalink: /documentation/${project.version}/
 ---
-        """);
-    }
-
-    record DocYaml(String src,
-                   List<String> transforms,
-                   Map<String, String> frontmatter) {}
-
-    DocYaml readDocYaml(Path docYamlPath) throws IOException {
-        var docYaml = this.mapper.readValue(docYamlPath.toFile(), DocYaml.class);
-        return docYaml;
+        """.replace("${project.version}", this.projectVersion);
     }
 
     private void walk(List<PathMatcher> omitGlobs,
@@ -143,10 +124,22 @@ permalink: /documentation/${project.version}/
                         tocify(filePath, outFilePath);
                     }
                     else if (!omitable && !tocifiable && datafiable) {
-                        resultDocsList.add(datafy(filePath, outFilePath));
+                        var dataDocObject = readMetadata(filePath, relFilePath);
+                        String relPath;
+                        if (!dataDocObject.has("path")) {
+                            relPath = "html/" + relFilePath.getParent().toString();
+                            Files.createDirectories(outFilePath.getParent());
+                            Files.writeString(outFilePath.getParent().resolve("index.html"),
+                                    guideFrontMatter(dataDocObject, "html/" + relFilePath.getParent().toString()),
+                                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+                        }
+                        else {
+                            relPath = dataDocObject.get("path").textValue().replace("${project.version}", this.projectVersion);
+                        }
+                        dataDocObject.put("path", relPath);
+                        resultDocsList.add(dataDocObject);
                     }
                     else if (!omitable && !tocifiable && !datafiable) {
-                        //
                         Files.createDirectories(outFilePath.getParent());
                         Files.copy(filePath, outFilePath, StandardCopyOption.REPLACE_EXISTING);
                     }
@@ -173,80 +166,48 @@ permalink: /documentation/${project.version}/
         Files.writeString(dataDestPath, mapper.writeValueAsString(resultRootObject), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
     }
 
-    ObjectNode datafy(Path docYamlPath, Path outFilePath) throws IOException {
-        String docName = docYamlPath.getParent().getFileName().toString();
-        var docYaml = readDocYaml(docYamlPath);
-        String relPath;
-        if (docYaml.src != null) {
-            relPath = "html/" + docName;
-            var bob = this.outdir.resolve(docName);
-            //Files.createDirectories(outFilePath.getParent());
-            var rr = docYamlPath.resolve(interpolate(docYaml.src.toString()));
-            try (var s = Files.walk(rr)) {
-                s.forEach(docPath -> {
-                    try {
-                        var to = bob.resolve(rr.relativize(docPath));
-                        System.out.println("from: " + docPath);
-                        System.out.println("to: " + to);
-
-                        if (Files.isDirectory(docPath)) {
-                            Files.createDirectories(to);
-                        }
-                        else if (Files.isRegularFile(docPath)) {
-                            Files.copy(docPath, to, StandardCopyOption.REPLACE_EXISTING);
-                        }
-                        else {
-                            throw new RuntimeException("Not a regular file or directory: " + docPath.toString());
-                        }
-                    }
-                    catch (java.lang.Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                });
-            }
-        }
-        else if (!docYaml.has("path")) {
-            relPath = "html/" + docName;
-            Files.createDirectories(outFilePath.getParent());
-            Files.writeString(outFilePath.getParent().resolve("index.html"),
-                    guideFrontMatter(docYaml, relPath),
-                    StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-        }
-        else {
-            relPath = interpolate(docYaml.get("path").textValue());
-        }
-        docYaml.put("path", relPath);
-        return docYaml;
-    }
-
-
-
     String guideFrontMatter(ObjectNode dataDocObject, String relPath) throws IOException {
         return "---\n" + this.mapper.writeValueAsString(this.mapper.createObjectNode()
                 .put("layout", "guide")
                 .<ObjectNode>setAll(dataDocObject)
                 .put("version", this.projectVersion)
-                .put("permalink", interpolate("/documentation/${project.version}/${relPath}/", "relPath", relPath))) + "---\n";
+                .put("permalink", "/documentation/${project.version}/${relPath}/"
+                        .replace("${project.version}", this.projectVersion)
+                        .replace("${relPath}", relPath))) + "---\n";
     }
 
+    ObjectNode readMetadata(Path filePath,
+                             Path relFilePath) throws IOException {
+        var dataDocObject = (ObjectNode) this.mapper.readTree(filePath.toFile());
+        var resultDocObject = this.mapper.createObjectNode();
+        var dataDocFields = dataDocObject.fields();
+        while (dataDocFields.hasNext()) {
+            var entry = dataDocFields.next();
+            if ("$schema".equals(entry.getKey())) {
+                continue;
+            }
+            resultDocObject.put(entry.getKey(), entry.getValue());
+        }
+        return resultDocObject;
+    }
 
-    void tocify(Path htmlFilePath,
+    void tocify(Path filePath,
                 Path outFilePath) throws IOException {
         var outDir = outFilePath.getParent();
         Files.createDirectories(outDir);
-        if (!splitOutToc(htmlFilePath,
+        if (!splitOutToc(filePath,
                 outDir.resolve(this.tocifyTocName),
                 outDir.resolve(this.tocifyToclessName))) {
-            System.out.println("copying " + htmlFilePath + " to " + outFilePath);
-            Files.copy(htmlFilePath, outFilePath, StandardCopyOption.REPLACE_EXISTING);
+            System.out.println("copying " + filePath + " to " + outFilePath);
+            Files.copy(filePath, outFilePath, StandardCopyOption.REPLACE_EXISTING);
         }
     }
 
-    static boolean splitOutToc(Path htmlFilePath,
-                               Path outputTocHtmlPath,
-                               Path outputToclessHtmlPath) throws IOException {
+    static boolean splitOutToc(Path sourcePath,
+                               Path tocPath,
+                               Path toclessPath) throws IOException {
         // Parse the SOURCE
-        Document doc = Jsoup.parse(htmlFilePath, "UTF-8");
+        Document doc = Jsoup.parse(sourcePath, "UTF-8");
         // Find the toc by it's ID
         var toc = doc.getElementById("toc");
         if (toc == null) {
@@ -257,8 +218,8 @@ permalink: /documentation/${project.version}/
         // Drop the "Table of Content" title
         toc.getElementById("toctitle").remove();
         // Write the two nodes
-        writeRaw(toc, outputTocHtmlPath);
-        writeRaw(doc, outputToclessHtmlPath);
+        writeRaw(toc, tocPath);
+        writeRaw(doc, toclessPath);
         return true;
     }
     
