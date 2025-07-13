@@ -803,7 +803,9 @@ class ExpositionIT extends BaseIT {
         var brokerCertificateGenerator = new KeytoolCertificateGenerator();
         brokerCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", domain, "KI", "kroxylicious.io", null, null, "US");
         Path resolve = certsDirectory.resolve(UUID.randomUUID().toString());
-        var unused = resolve.toFile().mkdirs();
+        if (!resolve.toFile().mkdirs()) {
+            throw new RuntimeException("Could not create directory " + resolve);
+        }
         var clientTrustStore = resolve.resolve("kafka.truststore.jks");
         brokerCertificateGenerator.generateTrustStore(brokerCertificateGenerator.getCertFilePath(), "client",
                 clientTrustStore.toAbsolutePath().toString());

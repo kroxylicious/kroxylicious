@@ -270,13 +270,14 @@ public record Configuration(
         @Override
         public ManagementConfiguration deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
             JsonNode node = jp.getCodec().readTree(jp);
-            if ("adminHttp".equals(jp.currentName())) {
+            String currentName = jp.currentName();
+            if ("adminHttp".equals(currentName)) {
                 LOGGER.warn("The 'adminHttp' configuration property is deprecated and will be removed in a future release. "
                         + "Configurations should replace 'adminHttp' with 'management'.");
             }
             if (node.has("host")) {
                 LOGGER.warn("The 'host' configuration property within the '{}' object  is deprecated and will be removed in a future release. "
-                        + "Configurations should replace 'host' with 'bindAddress'.", jp.currentName());
+                        + "Configurations should replace 'host' with 'bindAddress'.", currentName);
             }
             return ctxt.readTreeAsValue(node, getValueType(ctxt));
         }

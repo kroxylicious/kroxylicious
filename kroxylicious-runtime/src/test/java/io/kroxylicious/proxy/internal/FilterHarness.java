@@ -244,11 +244,11 @@ public abstract class FilterHarness {
      * Tracks outstanding internal requests by associating the correlation id with the recipient/promise tuple.
      */
     private class InternalRequestTracker extends ChannelOutboundHandlerAdapter {
+        @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            if (msg instanceof InternalRequestFrame<?> irf && irf.hasResponse()) {
-                if (pendingInternalRequestMap.put(irf.header().correlationId(), new Correlation(irf.recipient(), irf.promise())) != null) {
-                    throw new IllegalStateException("correlationId %d already has a promise associated with it".formatted(irf.correlationId()));
-                }
+            if (msg instanceof InternalRequestFrame<?> irf && irf.hasResponse()
+                    && pendingInternalRequestMap.put(irf.header().correlationId(), new Correlation(irf.recipient(), irf.promise())) != null) {
+                throw new IllegalStateException("correlationId %d already has a promise associated with it".formatted(irf.correlationId()));
             }
             super.write(ctx, msg, promise);
         }

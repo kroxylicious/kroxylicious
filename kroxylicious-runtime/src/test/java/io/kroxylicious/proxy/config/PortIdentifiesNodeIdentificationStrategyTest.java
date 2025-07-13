@@ -213,20 +213,22 @@ class PortIdentifiesNodeIdentificationStrategyTest {
 
     @Test
     void rangesMustHaveUniqueNames() {
+        List<NamedRange> nodeIdRanges = List.of(new NamedRange("brokers", 0, 1), new NamedRange("brokers", 1, 2));
         assertThatThrownBy(() -> new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 ADVERTISED_BROKER_ADDRESS_PATTERN,
                 null,
-                List.of(new NamedRange("brokers", 0, 1), new NamedRange("brokers", 1, 2))))
+                nodeIdRanges))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("non-unique nodeIdRange names discovered: [brokers]");
     }
 
     @Test
     void exclusivePortsMultipleRanges() {
+        List<NamedRange> nodeIdRanges = List.of(new NamedRange("brokers", 0, 1), new NamedRange("controllers", 3, 4));
         NodeIdentificationStrategy strategy = new PortIdentifiesNodeIdentificationStrategy(BOOSTRAP_HOSTPORT,
                 ADVERTISED_BROKER_ADDRESS_PATTERN,
                 null,
-                List.of(new NamedRange("brokers", 0, 1), new NamedRange("controllers", 3, 4))).buildStrategy("cluster");
+                nodeIdRanges).buildStrategy("cluster");
         assertThat(strategy.getExclusivePorts()).containsExactly(1235, 1236, 1237, 1238, 1239);
     }
 
