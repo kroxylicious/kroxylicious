@@ -34,8 +34,10 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.config.tls.TlsTestConstants;
 import io.kroxylicious.proxy.config.tls.TrustStore;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.PortPerBrokerClusterNetworkAddressConfigProvider.PortPerBrokerClusterNetworkAddressConfigProviderConfig;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.IntRangeSpec;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.NamedRangeSpec;
+import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
@@ -283,10 +285,10 @@ class VirtualClusterListenerModelTest {
     @NonNull
     @SuppressWarnings("removal")
     private ClusterNetworkAddressConfigProvider createTestClusterNetworkAddressConfigProvider() {
-        final PortPerBrokerClusterNetworkAddressConfigProviderConfig clusterNetworkAddressConfigProviderConfig = new PortPerBrokerClusterNetworkAddressConfigProviderConfig(
+        final RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig clusterNetworkAddressConfigProviderConfig = new RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig(
                 parse("localhost:1235"),
-                "localhost", 19092, 0, 1);
-        return new PortPerBrokerClusterNetworkAddressConfigProvider().build(
+                "localhost", 19092, List.of(new NamedRangeSpec("default", new IntRangeSpec(0, 1))));
+        return new RangeAwarePortPerNodeClusterNetworkAddressConfigProvider().build(
                 clusterNetworkAddressConfigProviderConfig, Mockito.mock(VirtualClusterModel.class));
     }
 }

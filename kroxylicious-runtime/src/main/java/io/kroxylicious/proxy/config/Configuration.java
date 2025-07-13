@@ -16,7 +16,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Function;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -42,7 +41,6 @@ import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRou
 import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
-import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProviderService;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -160,10 +158,7 @@ public record Configuration(
                 virtualCluster.logFrames(),
                 filterDefinitions);
 
-        Optional.ofNullable(virtualCluster.gateways())
-                .filter(Predicate.not(List::isEmpty))
-                .ifPresentOrElse(gateways -> addGateways(pfr, gateways, virtualClusterModel),
-                        () -> addGatewayFromDeprecatedConfig(virtualCluster, pfr, virtualClusterModel));
+        addGateways(pfr, virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();
 
         return virtualClusterModel;
@@ -191,23 +186,6 @@ public record Configuration(
         else {
             throw new IllegalStateException("unexpected provider config type : " + config.getClass().getName());
         }
-    }
-
-    @SuppressWarnings("removal")
-    private static void addGatewayFromDeprecatedConfig(@NonNull VirtualCluster virtualCluster, @NonNull PluginFactoryRegistry pfr,
-                                                       VirtualClusterModel virtualClusterModel) {
-        // VirtualCluster config validation should mean this we always have a provider if we reach this point.
-        Objects.requireNonNull(virtualCluster.clusterNetworkAddressConfigProvider(), "provider unexpectedly null");
-        var networkAddress = buildNetworkAddressProviderService(virtualCluster.clusterNetworkAddressConfigProvider(), pfr, virtualClusterModel);
-        virtualClusterModel.addGateway(VirtualCluster.DEFAULT_GATEWAY_NAME, networkAddress, virtualCluster.tls());
-    }
-
-    private static ClusterNetworkAddressConfigProvider buildNetworkAddressProviderService(@NonNull ClusterNetworkAddressConfigProviderDefinition definition,
-                                                                                          @NonNull PluginFactoryRegistry registry,
-                                                                                          VirtualClusterModel virtualClusterModel) {
-        var provider = registry.pluginFactory(ClusterNetworkAddressConfigProviderService.class)
-                .pluginInstance(definition.type());
-        return provider.build(definition.config(), virtualClusterModel);
     }
 
     public List<MicrometerDefinition> getMicrometer() {
