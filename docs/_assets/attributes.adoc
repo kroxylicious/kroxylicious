@@ -3,7 +3,7 @@
 :doctype: book
 :experimental:
 :idprefix:
-:imagesdir: images
+:imagesdir: _assets/
 :numbered:
 :sectanchors!:
 :sectnums:
@@ -35,6 +35,8 @@
 
 //Kubernetes links
 :KubeTools: link:https://kubernetes.io/docs/tasks/tools/[Install Tools^]
+:KubernetesSite: https://kubernetes.io/[Kubernetes website^]
+:OperatorPattern: https://kubernetes.io/docs/concepts/extend-kubernetes/operator/[Operators^]
 
 //Minikube links
 :Minikube: https://minikube.sigs.k8s.io/
@@ -46,8 +48,8 @@
 //java links
 :java-17-javadoc: https://docs.oracle.com/en/java/javase/17/docs/api
 :java-17-specs: https://docs.oracle.com/en/java/javase/17/docs/specs
-:tlsProtocolNames: https://docs.oracle.com/en/java/javase/17/docs/specs/security/standard-names.html#sslcontext-algorithms
-:cipherSuiteNames: https://docs.oracle.com/en/java/javase/21/docs/specs/security/standard-names.html#jsse-cipher-suite-names
+:tlsProtocolNames: https://docs.oracle.com/en/java/javase/17/docs/specs/security/standard-names.html#sslcontext-algorithms[Oracle documentation: SSLContext names^]
+:cipherSuiteNames: https://docs.oracle.com/en/java/javase/21/docs/specs/security/standard-names.html#jsse-cipher-suite-names[Oracle documentation: JSSE Cipher Suite Names^]
 
 //Vault links
 :hashicorp-vault: https://developer.hashicorp.com/vault
@@ -61,10 +63,6 @@
 
 // Apicurio links
 :apicurio-docs: https://www.apicur.io/registry/docs/apicurio-registry/{ApicurioVersion}/
-
-// Kubernetes links
-:KubernetesSite: https://kubernetes.io/
-:OperatorPattern: https://kubernetes.io/docs/concepts/extend-kubernetes/operator/
 
 // Java Operator SDK links
 :josdk: https://javaoperatorsdk.io/

@@ -18,7 +18,7 @@ For the filter API this means that you can compile your filter against the Kroxy
 
 == Compatibility of your Filter configuration
 
-The Kroxylicious proxy isn't able to provide or enforce any compatibility guarantees about the configuration API that your plugin offers to users.
+The Kroxylicious Proxy isn't able to provide or enforce any compatibility guarantees about the configuration API that your plugin offers to users.
 In other words you are free you release your plugin at version _a.b.c_ and later release a version _a.d.e_ which doesn't accept the same configuration syntax (JSON or YAML) that the original version did.
 
 Doing this makes it more difficult for users to upgrade from older versions on your plugin, because they will have to rewrite and revalidate the configuration which worked with the old version.
