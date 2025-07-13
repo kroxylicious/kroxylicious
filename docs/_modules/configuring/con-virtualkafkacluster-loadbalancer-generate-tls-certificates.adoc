@@ -33,5 +33,5 @@ broker-1.mycluster.kafkaproxy.example.com
 broker-2.mycluster.kafkaproxy.example.com
 ----
 
-include::../../snippets/snip-create-secret-containing-pem-certificate.adoc[]
+include::../../_snippets/snip-create-secret-containing-pem-certificate.adoc[]
 

@@ -33,4 +33,4 @@ my-cluster-cluster-ip-1<namespace>.svc.cluster.local
 my-cluster-cluster-ip-2<namespace>.svc.cluster.local
 ----
 
-include::../../snippets/snip-create-secret-containing-pem-certificate.adoc[]
+include::../../_snippets/snip-create-secret-containing-pem-certificate.adoc[]
