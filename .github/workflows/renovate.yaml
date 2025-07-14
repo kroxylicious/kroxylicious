@@ -30,6 +30,29 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: "Calculate effective token"
+        env:
+          EFFECTIVE_TOKEN: "${{ secrets.KROXYLICIOUS_GITHUB_READWRITE_TOKEN || secrets.GITHUB_TOKEN }}"
+          KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET: "${{secrets.KROXYLICIOUS_GITHUB_READWRITE_TOKEN  && 'true' || 'false' }}"
+        run: |
+          echo "EFFECTIVE_TOKEN=${EFFECTIVE_TOKEN}" >> $GITHUB_ENV
+          echo "KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET=${KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET}" >> $GITHUB_ENV
+      - name: "Set actor from Kroxylicious secret"
+        if: env.KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET == 'true'
+        run: |
+          WHOAMI=$(curl --fail --silent -L \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${EFFECTIVE_TOKEN}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          https://api.github.com/user)
+          TOKEN_ACTOR=$(echo ${WHOAMI} | jq -r .name)
+          TOKEN_ACTOR_LOGIN=$(echo ${WHOAMI} | jq -r .login)
+          TOKEN_ACTOR_ID=$(echo ${WHOAMI} | jq -r .id)
+          echo "RENOVATE_GIT_AUTHOR=${TOKEN_ACTOR} <${TOKEN_ACTOR_ID}+${TOKEN_ACTOR_LOGIN}@users.noreply.github.com>" >> $GITHUB_ENV
+      - name: "Set actor from Github token"
+        if: env.KROXYLICIOUS_GITHUB_READWRITE_TOKEN_SET != 'true'
+        run: |
+          echo "RENOVATE_GIT_AUTHOR=${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>" >> $GITHUB_ENV
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup node
@@ -38,9 +61,8 @@ jobs:
         uses: renovatebot/github-action@v43.0.3
         with:
           configurationFile: .github/renovate.json
-          token: ${{ secrets.KROXYLICIOUS_GITHUB_READWRITE_TOKEN || secrets.GITHUB_TOKEN}}
+          token: ${{ env.EFFECTIVE_TOKEN }}
         env:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_ONBOARDING: "false"
-          RENOVATE_GIT_AUTHOR: "${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>"
           LOG_LEVEL: debug
