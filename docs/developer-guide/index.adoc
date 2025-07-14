@@ -7,13 +7,13 @@ include::_assets/attributes.adoc[]
 [id="using-book-{context}"]
 = Kroxylicious Developer guide
 
-include::modules/con-about-{guide}-guide.adoc[leveloffset=+1]
+include::_modules/con-about-{guide}-guide.adoc[leveloffset=+1]
 
-include::assemblies/assembly-proxy-overview.adoc[leveloffset=+1]
+include::_assemblies/assembly-proxy-overview.adoc[leveloffset=+1]
 
-include::modules/con-api-compatability-{guide}.adoc[leveloffset=+2]
+include::_modules/con-api-compatability-{guide}.adoc[leveloffset=+2]
 
-include::modules/con-custom-filters.adoc[leveloffset=+1]
+include::_modules/con-custom-filters.adoc[leveloffset=+1]
 
 //trademark notices
 include::_assets/trademarks.adoc[leveloffset=+1]

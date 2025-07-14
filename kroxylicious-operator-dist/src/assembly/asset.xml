@@ -31,8 +31,11 @@
             <directory>../target/docs/</directory>
             <outputDirectory>/docs</outputDirectory>
             <includes>
-                <include>html/operator-guide/</include>
-                <include>html/record-encryption/</include>
+                <include>html/images/**</include>
+                <include>html/kroxylicious-operator/**</include>
+                <include>html/record-encryption-guide/**</include>
+                <include>pdf/kroxylicious-operator/**</include>
+                <include>pdf/record-encryption-guide/**</include>
             </includes>
         </fileSet>
     </fileSets>

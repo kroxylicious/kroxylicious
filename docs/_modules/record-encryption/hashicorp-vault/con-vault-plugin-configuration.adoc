@@ -1,0 +1,30 @@
+// file included in the following:
+//
+// assembly-configuring-record-encryption-filter
+
+[id='con-vault-plugin-configuration-{context}']
+= HashiCorp Vault plugin configuration
+
+For HashiCorp Vault, the KMS configuration used by the filter looks like this.
+Use the Vault Token and Vault Transit Engine URL values from the KMS setup.
+
+[source, yaml]
+----
+kms: VaultKmsService                                          # <1>
+kmsConfig:
+  vaultTransitEngineUrl: <vault transit engine service url>   # <2>
+  tls:                                                        # <3>
+    # ...
+  vaultToken:                                                 # <4>
+    passwordFile: /opt/vault/token
+
+----
+<1> Specifies the name of the KMS provider. Use `VaultKmsService`.
+<2> xref:con-vault-setup-{context}[Vault Transit Engine URL] including the protocol part, such as `https:` or `http:`.
+<3> (Optional) TLS trust configuration.
+<4> File containing the Vault Token.
+
+include::../../../_snippets/snip-tls-client-keystore.adoc[]
+
+include::../../../_snippets/snip-tls-client-truststore.adoc[]
+

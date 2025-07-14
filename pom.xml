@@ -878,81 +878,109 @@
                         <artifactId>asciidoctorj-diagram</artifactId>
                         <version>2.3.2</version>
                     </dependency>
+                    <dependency>
+                        <groupId>org.asciidoctor</groupId>
+                        <artifactId>asciidoctorj-pdf</artifactId>
+                        <version>2.3.15</version>
+                    </dependency>
                 </dependencies>
                 <configuration>
                     <skip>${skipDocs}</skip>
                     <requires>
                         <require>asciidoctor-diagram</require>
                     </requires>
-                    <resources>
-                        <resource>
-                            <directory>docs/_assets</directory>
-<!--                        <targetPath>${project.build.directory}/docs/kroxylicious-operator/html/images</targetPath>-->
-                            <targetPath>_assets</targetPath>
-                            <includes>
-                                <include>**/*.svg</include>
-                            </includes>
-                        </resource>
-                    </resources>
                     <preserveDirectories>true</preserveDirectories>
                     <attributes>
                         <source-highlighter>coderay</source-highlighter>
-                        <imagesdir>./images</imagesdir>
+                        <imagesdir>../images</imagesdir>
                         <toc>left</toc>
                         <icons>font</icons>
                         <attribute>revnumber!</attribute>
                         <attribute>revdate!</attribute>
                         <attribute>revremark!</attribute>
+                        <attribute-missing>warn</attribute-missing>
                     </attributes>
                     <logHandler>
                         <failIf>
                             <severity>INFO</severity>
                         </failIf>
                     </logHandler>
+                    <standalone>true</standalone>
                 </configuration>
                 <executions>
                     <execution>
-                        <id>render-developer-guide</id>
+                        <id>html-guides</id>
                         <goals>
                             <goal>process-asciidoc</goal>
                         </goals>
                         <phase>package</phase>
                         <configuration combine.self="append">
-                            <sourceDirectory>docs/developer-guide</sourceDirectory>
-                            <outputDirectory>${project.build.directory}/docs/html/developer-guide</outputDirectory>
+                            <sourceDirectory>docs</sourceDirectory>
+                            <outputDirectory>${project.build.directory}/docs/html</outputDirectory>
+                            <standalone>true</standalone>
                         </configuration>
                     </execution>
                     <execution>
-                        <id>render-proxy-guide</id>
+                        <id>embedded-guides</id>
                         <goals>
                             <goal>process-asciidoc</goal>
                         </goals>
                         <phase>package</phase>
                         <configuration combine.self="append">
-                            <sourceDirectory>docs/kroxylicious-proxy</sourceDirectory>
-                            <outputDirectory>${project.build.directory}/docs/html/proxy-guide</outputDirectory>
+                            <sourceDirectory>docs</sourceDirectory>
+                            <outputDirectory>${project.build.directory}/docs/embedded</outputDirectory>
+                            <standalone>false</standalone>
                         </configuration>
                     </execution>
                     <execution>
-                        <id>render-operator-guide</id>
+                        <id>pdf-guides</id>
                         <goals>
                             <goal>process-asciidoc</goal>
                         </goals>
                         <phase>package</phase>
                         <configuration combine.self="append">
-                            <sourceDirectory>docs/kroxylicious-operator</sourceDirectory>
-                            <outputDirectory>${project.build.directory}/docs/html/operator-guide</outputDirectory>
+                            <sourceDirectory>docs</sourceDirectory>
+                            <outputDirectory>${project.build.directory}/docs/pdf</outputDirectory>
+                            <backend>pdf</backend>
+                            <attributes combine.self="override">
+                                <imagesdir>.</imagesdir>
+                                <imagespdfhack>/images</imagespdfhack>
+                            </attributes>
                         </configuration>
                     </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>dev.jbang</groupId>
+                <artifactId>jbang-maven-plugin</artifactId>
+                <executions>
                     <execution>
-                        <id>render-record-encryption-guide</id>
-                        <goals>
-                            <goal>process-asciidoc</goal>
-                        </goals>
+                        <id>webify</id>
                         <phase>package</phase>
-                        <configuration combine.self="append">
-                            <sourceDirectory>docs/record-encryption-guide</sourceDirectory>
-                            <outputDirectory>${project.build.directory}/docs/html/record-encryption</outputDirectory>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${skipDocs}</skip>
+                            <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
+                            <!--suppress UnresolvedMavenProperty -->
+                            <script>${rootdir}/scripts/webify.java</script>
+                            <args>
+                                <arg>--project-version=${project.version}</arg>
+                                <!--suppress UnresolvedMavenProperty -->
+                                <arg>--src-dir=${rootdir}/target/docs/embedded/</arg>
+                                <!--suppress UnresolvedMavenProperty -->
+                                <arg>--dest-dir=${rootdir}/target/web</arg>
+                                <arg>--tocify-omit=index.html</arg>
+                                <arg>--tocify-omit=doc-schema.yaml</arg>
+                                <arg>--tocify-omit=README.md</arg>
+                                <arg>--tocify-omit=**/.*</arg>
+                                <arg>--tocify-omit=**/.*/**</arg>
+                                <arg>--tocify=*/index.html</arg>
+                                <arg>--tocify-toc-file=toc.html</arg>
+                                <arg>--tocify-tocless-file=content.html</arg>
+                                <arg>--datafy=*/doc.yaml</arg>
+                            </args>
                         </configuration>
                     </execution>
                 </executions>

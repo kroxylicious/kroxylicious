@@ -3,7 +3,15 @@
 :doctype: book
 :experimental:
 :idprefix:
-:imagesdir: _assets/
+// The html5 backend has a different handling of imagesdir
+// than the pdf backend. So to make it work we're
+// overriding imagespdfhack for pdf generation, but not
+// for html generation.
+// When you're using the image:: macro you should use
+// {realimagesdir}.
+:imagesdir: ../_assets
+:imagespdfhack:
+:realimagesdir: {imagesdir}{imagespdfhack}
 :numbered:
 :sectanchors!:
 :sectnums:
