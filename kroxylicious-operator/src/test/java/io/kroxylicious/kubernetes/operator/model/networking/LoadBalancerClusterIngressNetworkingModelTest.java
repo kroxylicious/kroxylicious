@@ -102,8 +102,8 @@ class LoadBalancerClusterIngressNetworkingModelTest {
         assertThat(gateway.tls()).isNotNull();
         assertThat(gateway.portIdentifiesNode()).isNull();
         assertThat(gateway.sniHostIdentifiesNode()).isNotNull().satisfies(sniStrategy -> {
-            assertThat(sniStrategy.bootstrapAddress()).isEqualTo(new HostPort(BOOTSTRAP_ADDRESS, sharedSniPort).toString());
-            assertThat(sniStrategy.advertisedBrokerAddressPattern()).isEqualTo(new HostPort(ADVERTISED_BROKER_ADDRESS_PATTERN, 9083).toString());
+            assertThat(sniStrategy.getBootstrapAddress()).isEqualTo(new HostPort(BOOTSTRAP_ADDRESS, sharedSniPort).toString());
+            assertThat(sniStrategy.getAdvertisedBrokerAddressPattern()).isEqualTo(new HostPort(ADVERTISED_BROKER_ADDRESS_PATTERN, 9083).toString());
         });
     }
 

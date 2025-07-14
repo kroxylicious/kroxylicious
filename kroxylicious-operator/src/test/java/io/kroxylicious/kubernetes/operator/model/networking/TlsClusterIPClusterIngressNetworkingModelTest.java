@@ -120,8 +120,9 @@ class TlsClusterIPClusterIngressNetworkingModelTest {
         assertThat(gateway.name()).isEqualTo(INGRESS_NAME);
         assertThat(gateway.tls()).isNotNull();
         assertThat(gateway.sniHostIdentifiesNode()).isNotNull().satisfies(sni -> {
-            assertThat(sni.bootstrapAddress()).isEqualTo(new HostPort("my-cluster-my-ingress-bootstrap." + NAMESPACE + ".svc.cluster.local", sharedSniPort).toString());
-            assertThat(sni.advertisedBrokerAddressPattern()).isEqualTo("my-cluster-my-ingress-$(nodeId)." + NAMESPACE + ".svc.cluster.local:" + 9292);
+            assertThat(sni.getBootstrapAddress())
+                    .isEqualTo(new HostPort("my-cluster-my-ingress-bootstrap." + NAMESPACE + ".svc.cluster.local", sharedSniPort).toString());
+            assertThat(sni.getAdvertisedBrokerAddressPattern()).isEqualTo("my-cluster-my-ingress-$(nodeId)." + NAMESPACE + ".svc.cluster.local:" + 9292);
         });
     }
 

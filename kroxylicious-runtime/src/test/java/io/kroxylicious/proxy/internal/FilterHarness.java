@@ -38,8 +38,8 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.service.ClusterNetworkAddressConfigProvider;
 import io.kroxylicious.proxy.service.HostPort;
+import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -81,7 +81,7 @@ public abstract class FilterHarness {
         when(targetCluster.bootstrapServersList()).thenReturn(TARGET_CLUSTER_BOOTSTRAP);
         var testVirtualCluster = new VirtualClusterModel("TestVirtualCluster", targetCluster, false,
                 false, List.of());
-        testVirtualCluster.addGateway("default", mock(ClusterNetworkAddressConfigProvider.class), Optional.empty());
+        testVirtualCluster.addGateway("default", mock(NodeIdentificationStrategy.class), Optional.empty());
         var inboundChannel = new EmbeddedChannel();
         var channelProcessors = Stream.<ChannelHandler> of(new InternalRequestTracker(), new CorrelationIdIssuer());
 
@@ -244,11 +244,11 @@ public abstract class FilterHarness {
      * Tracks outstanding internal requests by associating the correlation id with the recipient/promise tuple.
      */
     private class InternalRequestTracker extends ChannelOutboundHandlerAdapter {
+        @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            if (msg instanceof InternalRequestFrame<?> irf && irf.hasResponse()) {
-                if (pendingInternalRequestMap.put(irf.header().correlationId(), new Correlation(irf.recipient(), irf.promise())) != null) {
-                    throw new IllegalStateException("correlationId %d already has a promise associated with it".formatted(irf.correlationId()));
-                }
+            if (msg instanceof InternalRequestFrame<?> irf && irf.hasResponse()
+                    && pendingInternalRequestMap.put(irf.header().correlationId(), new Correlation(irf.recipient(), irf.promise())) != null) {
+                throw new IllegalStateException("correlationId %d already has a promise associated with it".formatted(irf.correlationId()));
             }
             super.write(ctx, msg, promise);
         }

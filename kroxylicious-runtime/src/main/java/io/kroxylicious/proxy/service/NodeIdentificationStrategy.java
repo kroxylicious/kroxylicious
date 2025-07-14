@@ -10,9 +10,20 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Provides the addresses of the network endpoints required by a virtual cluster.
+ * This is the Strategy for how we expose a virtual kafka cluster on the network. The aim is
+ * to manifest network endpoints such that we can identify which gateway and upstream node the
+ * client wants to connect to.
+ * The strategy may require 'exclusive' ports that cannot be shared with any other gateways.
+ * These are typically used when the only mechanism available to identify the gateway and
+ * upstream broker is the port.
+ * The strategy may require 'shared' ports that can be shared with other gateways. For example
+ * a strategy using TLS with SNI to identify the gateway and broker could share that port with
+ * other gateways that want to use TLS and SNI.
+ * The strategy also controls how we advertise the broker addresses to the clients, so that we can do
+ * things like set a different advertised port, in case there is routing technology between the client
+ * and proxy.
  */
-public interface ClusterNetworkAddressConfigProvider {
+public interface NodeIdentificationStrategy {
 
     /**
      * Address of the cluster's bootstrap address.
