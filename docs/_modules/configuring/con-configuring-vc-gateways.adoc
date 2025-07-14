@@ -126,7 +126,7 @@ virtualClusters:
           start: 1
           end: 3
         - name: brokers
-          start: 100
+          start: 101
           end: 103
 
     # ...
