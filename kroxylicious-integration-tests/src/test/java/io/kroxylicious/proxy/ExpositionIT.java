@@ -637,7 +637,7 @@ class ExpositionIT extends BaseIT {
         final HostPort discoveryBrokerAddressToProbe;
         SniHostIdentifiesNodeIdentificationStrategy sniStrategy = virtualClusterBuilder.buildFirstGateway().sniHostIdentifiesNode();
         if (sniStrategy != null) {
-            String pattern = sniStrategy.advertisedBrokerAddressPattern();
+            String pattern = sniStrategy.getAdvertisedBrokerAddressPattern();
             String replacedNodeId = pattern.replace("$(nodeId)", Integer.toString(cluster.getNumOfBrokers()));
             String replacedVirtualClusterName = replacedNodeId.replace("$(virtualClusterName)", "demo");
             discoveryBrokerAddressToProbe = new HostPort(replacedVirtualClusterName,
@@ -803,7 +803,9 @@ class ExpositionIT extends BaseIT {
         var brokerCertificateGenerator = new KeytoolCertificateGenerator();
         brokerCertificateGenerator.generateSelfSignedCertificateEntry("test@redhat.com", domain, "KI", "kroxylicious.io", null, null, "US");
         Path resolve = certsDirectory.resolve(UUID.randomUUID().toString());
-        var unused = resolve.toFile().mkdirs();
+        if (!resolve.toFile().mkdirs()) {
+            throw new RuntimeException("Could not create directory " + resolve);
+        }
         var clientTrustStore = resolve.resolve("kafka.truststore.jks");
         brokerCertificateGenerator.generateTrustStore(brokerCertificateGenerator.getCertFilePath(), "client",
                 clientTrustStore.toAbsolutePath().toString());

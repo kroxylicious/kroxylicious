@@ -27,7 +27,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses
 import io.kroxylicious.kubernetes.operator.Annotations;
 import io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource;
 import io.kroxylicious.kubernetes.operator.ResourcesUtil;
-import io.kroxylicious.proxy.config.NodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -122,7 +122,7 @@ public record TlsClusterIPClusterIngressNetworkingModel(KafkaProxy proxy,
     }
 
     @Override
-    public NodeIdentificationStrategy nodeIdentificationStrategy() {
+    public NodeIdentificationStrategyFactory nodeIdentificationStrategy() {
         HostPort bootstrapAddress = new HostPort(getCrossNamespaceServiceAddress(), sharedSniPort);
         HostPort advertisedBrokerAddressPattern = new HostPort(crossNamespaceServiceAddress(suffixedServiceName("$(nodeId)"), proxy), CLIENT_FACING_PORT);
         return new SniHostIdentifiesNodeIdentificationStrategy(bootstrapAddress.toString(),

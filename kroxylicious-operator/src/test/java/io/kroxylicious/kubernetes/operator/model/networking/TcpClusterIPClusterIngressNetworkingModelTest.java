@@ -149,12 +149,12 @@ class TcpClusterIPClusterIngressNetworkingModelTest {
         assertThat(gateway.tls()).isEmpty();
         assertThat(gateway.sniHostIdentifiesNode()).isNull();
         assertThat(gateway.portIdentifiesNode()).isNotNull().satisfies(portIdentifiesNode -> {
-            assertThat(portIdentifiesNode.bootstrapAddress()).isEqualTo(new HostPort("localhost", 1));
-            assertThat(portIdentifiesNode.nodeStartPort()).isNull(); // we use the default of bootstrap port + 1
+            assertThat(portIdentifiesNode.getBootstrapAddress()).isEqualTo(new HostPort("localhost", 1));
+            assertThat(portIdentifiesNode.getNodeStartPort()).isNull(); // we use the default of bootstrap port + 1
             String expectedAdvertisedAddress = CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap." + NAMESPACE + ".svc.cluster.local";
-            assertThat(portIdentifiesNode.advertisedBrokerAddressPattern()).isEqualTo(expectedAdvertisedAddress);
+            assertThat(portIdentifiesNode.getAdvertisedBrokerAddressPattern()).isEqualTo(expectedAdvertisedAddress);
             NamedRange expectedRange = new NamedRange(rangeName, rangeStart, rangeEnd);
-            assertThat(portIdentifiesNode.nodeIdRanges()).containsExactly(expectedRange);
+            assertThat(portIdentifiesNode.getNodeIdRanges()).containsExactly(expectedRange);
         });
     }
 
@@ -298,13 +298,13 @@ class TcpClusterIPClusterIngressNetworkingModelTest {
         assertThat(gateway.tls()).isEmpty();
         assertThat(gateway.sniHostIdentifiesNode()).isNull();
         assertThat(gateway.portIdentifiesNode()).isNotNull().satisfies(portIdentifiesNode -> {
-            assertThat(portIdentifiesNode.bootstrapAddress()).isEqualTo(new HostPort("localhost", 2));
-            assertThat(portIdentifiesNode.nodeStartPort()).isNull(); // we use the default of bootstrap port + 1
+            assertThat(portIdentifiesNode.getBootstrapAddress()).isEqualTo(new HostPort("localhost", 2));
+            assertThat(portIdentifiesNode.getNodeStartPort()).isNull(); // we use the default of bootstrap port + 1
             String expectedAdvertisedAddress = CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap." + NAMESPACE + ".svc.cluster.local";
-            assertThat(portIdentifiesNode.advertisedBrokerAddressPattern()).isEqualTo(expectedAdvertisedAddress);
+            assertThat(portIdentifiesNode.getAdvertisedBrokerAddressPattern()).isEqualTo(expectedAdvertisedAddress);
             NamedRange expectedRange = new NamedRange("range-0", rangeStart, rangeEnd);
             NamedRange expectedRange2 = new NamedRange("range-1", rangeStart2, rangeEnd2);
-            assertThat(portIdentifiesNode.nodeIdRanges()).containsExactly(expectedRange, expectedRange2);
+            assertThat(portIdentifiesNode.getNodeIdRanges()).containsExactly(expectedRange, expectedRange2);
         });
     }
 
@@ -333,13 +333,13 @@ class TcpClusterIPClusterIngressNetworkingModelTest {
         assertThat(gateway.tls()).isEmpty();
         assertThat(gateway.sniHostIdentifiesNode()).isNull();
         assertThat(gateway.portIdentifiesNode()).isNotNull().satisfies(portIdentifiesNode -> {
-            assertThat(portIdentifiesNode.bootstrapAddress()).isEqualTo(new HostPort("localhost", 2));
-            assertThat(portIdentifiesNode.nodeStartPort()).isNull(); // we use the default of bootstrap port + 1
+            assertThat(portIdentifiesNode.getBootstrapAddress()).isEqualTo(new HostPort("localhost", 2));
+            assertThat(portIdentifiesNode.getNodeStartPort()).isNull(); // we use the default of bootstrap port + 1
             String expectedAdvertisedAddress = CLUSTER_NAME + "-" + INGRESS_NAME + "-bootstrap." + NAMESPACE + ".svc.cluster.local";
-            assertThat(portIdentifiesNode.advertisedBrokerAddressPattern()).isEqualTo(expectedAdvertisedAddress);
+            assertThat(portIdentifiesNode.getAdvertisedBrokerAddressPattern()).isEqualTo(expectedAdvertisedAddress);
             NamedRange expectedRange = new NamedRange(rangeName, rangeStart, rangeEnd);
             NamedRange expectedRange2 = new NamedRange(rangeName2, rangeStart2, rangeEnd2);
-            assertThat(portIdentifiesNode.nodeIdRanges()).containsExactly(expectedRange, expectedRange2);
+            assertThat(portIdentifiesNode.getNodeIdRanges()).containsExactly(expectedRange, expectedRange2);
         });
     }
 

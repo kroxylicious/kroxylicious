@@ -9,15 +9,11 @@ package io.kroxylicious.test.tester;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
-import io.kroxylicious.proxy.config.VirtualClusterGateway;
 import io.kroxylicious.proxy.config.VirtualClusterGatewayBuilder;
-import io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.RangeAwarePortPerNodeClusterNetworkAddressConfigProvider.RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-
-import static io.kroxylicious.proxy.internal.clusternetworkaddressconfigprovider.SniRoutingClusterNetworkAddressConfigProvider.SniRoutingClusterNetworkAddressConfigProviderConfig;
 
 /**
  * Class for utilities related to manipulating KroxyliciousConfig and it's builder.
@@ -91,22 +87,13 @@ public class KroxyliciousConfigUtils {
         if (cluster.isEmpty()) {
             throw new IllegalArgumentException("virtualCluster " + virtualCluster + " not found in config: " + config);
         }
-        var first = cluster.get().gateways().stream().filter(l -> l.name().equals(gateway)).map(VirtualClusterGateway::clusterNetworkAddressConfigProvider).findFirst();
-        var provider = first.orElseThrow(() -> new IllegalArgumentException(virtualCluster + " does not have gateway named " + gateway));
+        var first = cluster.get().gateways().stream().filter(l -> l.name().equals(gateway)).map(
+                virtualClusterGateway -> virtualClusterGateway.buildNodeIdentificationStrategy(virtualCluster)).findFirst();
+        var nodeIdentificationStrategy = first.orElseThrow(() -> new IllegalArgumentException(virtualCluster + " does not have gateway named " + gateway));
         // Need proper way to do this for embedded use-cases. We should have a way to query kroxy for the virtual cluster's
         // actual bootstrap after the proxy is started. The provider might support dynamic ports (port 0), so querying the
         // config might not work.
-        if (provider.config() instanceof RangeAwarePortPerNodeClusterNetworkAddressConfigProviderConfig c) {
-            return c.getBootstrapAddress().toString();
-        }
-        else if (provider.config() instanceof SniRoutingClusterNetworkAddressConfigProviderConfig c) {
-            String bootstrapAddressPattern = c.getBootstrapAddressPattern();
-            String replaced = bootstrapAddressPattern.replace("$(virtualClusterName)", virtualCluster);
-            return new HostPort(replaced, c.getAdvertisedPort()).toString();
-        }
-        else {
-            throw new IllegalStateException("I don't know how to handle ClusterEndpointConfigProvider type:" + provider.type());
-        }
+        return nodeIdentificationStrategy.getClusterBootstrapAddress().toString();
     }
 
     public static VirtualClusterGatewayBuilder defaultGatewayBuilder() {

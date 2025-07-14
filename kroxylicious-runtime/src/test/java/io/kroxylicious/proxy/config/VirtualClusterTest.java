@@ -37,9 +37,6 @@ class VirtualClusterTest {
     @Mock
     PortIdentifiesNodeIdentificationStrategy portIdentifiesNode2;
 
-    @Mock
-    ClusterNetworkAddressConfigProviderDefinition provider;
-
     @Test
     void supportsMultipleGateways() {
         // Given

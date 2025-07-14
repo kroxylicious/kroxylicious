@@ -71,7 +71,7 @@ import io.kroxylicious.kubernetes.operator.resolver.ClusterResolutionResult;
 import io.kroxylicious.kubernetes.operator.resolver.ResolutionResult;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
-import io.kroxylicious.proxy.config.NodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
 import io.kroxylicious.proxy.config.PortIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.TargetCluster;
@@ -290,7 +290,7 @@ public class KafkaProxyReconciler implements
 
         PortIdentifiesNodeIdentificationStrategy portIdentifiesNode = null;
         SniHostIdentifiesNodeIdentificationStrategy sniHostIdentifiesNode = null;
-        NodeIdentificationStrategy nodeIdentificationStrategy = gateway.nodeIdentificationStrategy();
+        NodeIdentificationStrategyFactory nodeIdentificationStrategy = gateway.nodeIdentificationStrategy();
         if (nodeIdentificationStrategy instanceof PortIdentifiesNodeIdentificationStrategy port) {
             portIdentifiesNode = port;
         }

@@ -1,0 +1,12 @@
+// file included in the following:
+//
+// kroxylicious-operator/index.adoc
+
+[id='assembly-operations-record-encryption-filter-{context}']
+= Operations
+
+[role="_abstract"]
+
+This section documents the operational aspects of using the record encryption filter.
+
+include::../_modules/record-encryption/con-lost-kek.adoc[leveloffset=+1]

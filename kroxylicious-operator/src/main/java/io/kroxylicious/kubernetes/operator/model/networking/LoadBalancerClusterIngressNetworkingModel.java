@@ -18,7 +18,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
 import io.kroxylicious.kubernetes.operator.Annotations;
-import io.kroxylicious.proxy.config.NodeIdentificationStrategy;
+import io.kroxylicious.proxy.config.NodeIdentificationStrategyFactory;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -51,7 +51,7 @@ public record LoadBalancerClusterIngressNetworkingModel(VirtualKafkaCluster clus
     }
 
     @Override
-    public NodeIdentificationStrategy nodeIdentificationStrategy() {
+    public NodeIdentificationStrategyFactory nodeIdentificationStrategy() {
         String bootstrapAddress = HostPort.asString(loadBalancer.getBootstrapAddress(), sharedSniPort);
         String advertisedBrokerAddressPattern = HostPort.asString(loadBalancer.getAdvertisedBrokerAddressPattern(), DEFAULT_CLIENT_FACING_LOADBALANCER_PORT);
         return new SniHostIdentifiesNodeIdentificationStrategy(bootstrapAddress, advertisedBrokerAddressPattern);
