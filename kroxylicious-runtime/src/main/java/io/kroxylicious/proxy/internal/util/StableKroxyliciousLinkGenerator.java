@@ -12,6 +12,9 @@ public class StableKroxyliciousLinkGenerator {
 
     public static final String CLIENT_TLS = "clientTls";
 
+    private StableKroxyliciousLinkGenerator() {
+    }
+
     public static String errorLink(String slug) {
         return generateLink("errors", slug);
     }
