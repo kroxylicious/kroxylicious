@@ -458,7 +458,7 @@ public class ProxyChannelStateMachine {
             tlsHint = tlsEnabled
                     ? ""
                     : " Possible unexpected TLS handshake? When connecting via TLS from your client, make sure to enable TLS for the Kroxylicious gateway ("
-                            + StableKroxyliciousLinkGenerator.errorLink("suspectedTls")
+                            + StableKroxyliciousLinkGenerator.errorLink(StableKroxyliciousLinkGenerator.CLIENT_TLS)
                             + ").";
             LOGGER.warn(
                     "Received over-sized frame from the client, max frame size bytes {}, received frame size bytes {} "

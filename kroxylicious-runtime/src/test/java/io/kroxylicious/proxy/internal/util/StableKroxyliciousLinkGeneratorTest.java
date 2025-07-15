@@ -19,7 +19,7 @@ class StableKroxyliciousLinkGeneratorTest {
         // Given
 
         // When
-        String errorLink = StableKroxyliciousLinkGenerator.errorLink("suspectedTls");
+        String errorLink = StableKroxyliciousLinkGenerator.errorLink("clientTls");
 
         // Then
         assertThat(errorLink).contains("/redirects/errors/");
@@ -30,7 +30,7 @@ class StableKroxyliciousLinkGeneratorTest {
         // Given
 
         // When
-        String errorLink = StableKroxyliciousLinkGenerator.errorLink("suspectedTls");
+        String errorLink = StableKroxyliciousLinkGenerator.errorLink("clientTls");
 
         // Then
         assertThat(errorLink).contains(VersionInfo.VERSION_INFO.version());

@@ -410,7 +410,8 @@ class ConfigParserTest {
         assertThatThrownBy(() -> {
             configuration.virtualClusterModel(registry);
         }).isInstanceOf(IllegalConfigurationException.class)
-                .hasMessage("Virtual cluster 'mycluster1', gateway 'default': 'tls' object is missing the mandatory attribute 'key'.");
+                .hasMessageStartingWith("Virtual cluster 'mycluster1', gateway 'default': 'tls' object is missing the mandatory attribute 'key'.");
+        // We can't assert the full message as the link will chang with every release
     }
 
     @Test

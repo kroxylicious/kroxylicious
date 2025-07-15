@@ -10,6 +10,8 @@ import io.kroxylicious.proxy.VersionInfo;
 
 public class StableKroxyliciousLinkGenerator {
 
+    public static final String CLIENT_TLS = "clientTls";
+
     public static String errorLink(String slug) {
         return generateLink("errors", slug);
     }
