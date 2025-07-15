@@ -43,3 +43,29 @@ found on this page https://uk.smartkey.io/#/settings.
 In order to be able to run the system and performance tests for our Pull Requests (PR) using Jenkins, we have defined the following Personal Access Token (PAT) 
 `KROXYLICIOUS_JENKINS_TOKEN` to allow `kroxylicious-robot` writing comments with the results of the test execution and adding a new status check in the PR.
 
+## Deploying the Snapshot Website to GitHub Pages on a Fork
+
+We have automation to deploy a snapshot version of the website (source at https://github.com/kroxylicious/kroxylicious.github.io) with the latest documentation
+from this repository incorporated. This is deployed to https://kroxylicious.io/kroxylicious so that we can see what the documentation in this repository looks
+like when combined with the website, testing the API between the two repos.
+
+To exercise the GitHub workflows and share documentation changes it can be convenient to deploy this to your own fork. To do this you need to add some configuration
+so that:
+1. Actions can deploy to GitHub Pages
+2. The built HTML refers to your github pages URL as it will be hosted at `https://<your-name>.github.io/kroxylicious/`. Jekyll builds up absolute URLs using a
+   configured site url.
+
+To enable pages on your fork:
+1. go to `https://github.com/${yourname}/kroxylicious.github.io/settings` in a browser, replacing `${yourname}` with your GitHub username.
+2. Navigate to "Pages" under "Code and automation"
+3. Under "Build and deployment", under "Source", select "Github Actions".
+4. Navigate to "Actions" under "Secrets and variables" under "Security"
+5. Select the "Variables" tab
+6. Click "New repository variable"
+7. Create a new repository variable named `JEKYLL_CONFIG_OVERRIDES` with value:
+   ```yaml
+   url: "https://${yourname}.github.io"
+   ```
+   replacing `${yourname}` with your GitHub username.
+8. Push changes to any branch of your fork and then trigger a manual run of `https://github.com/${yourname}/kroxylicious/actions/workflows/publish-snapshot-docs-to-website.yaml`.
+   supplying the branch you want to checkout and deploy as a parameter. 
