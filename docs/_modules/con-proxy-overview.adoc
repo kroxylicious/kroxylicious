@@ -26,36 +26,7 @@ First let's define the concepts in the landscape surrounding Kroxylicious.
 . _Upstream_ refers to the area between Kroxylicious and a Kafka Cluster.
 
 .Kroxylicious landscape
-[a2s, format="svg"]
-....
-.---------------------------------------------------------------------------.
-|                                  :                                        |
-|                                  :              +===============+         |
-|                                  :              :[Cluster]      :         |
-|                         .-----------------.     :  .----------. :         |
-|     .----------.        |[Kroxylicious]   |     :  |[Broker1] | :         |
-|     |[Client]  |        |                 +------->|          | :         |
-|     |          +------->|                 |     :  |          | :         |
-|     |          |        |                 |     :  .----------. :         |
-|     |          |        |                 |     :               :         |
-|     .----------.        |                 |     :  .----------. :         |
-|                         |                 |     :  |[Broker2] | :         |
-|                         |                 +------->|          | :         |
-|                         |                 |     :  |          | :         |
-|                         |                 |     :  .----------. :         |
-|     .----------.        |                 |     :               :         |
-|     |[Client]  |        |                 |     :  .----------. :         |
-|     |          |        |                 |     :  |[Broker3] | :         |
-|     |          +------->|                 +------->|          | :         |
-|     |          |        |                 |     :  |          | :         |
-|     .----------.        |                 |     :  .----------. :         |
-|                         .-----------------.     .===============+         |
-|                                  :                                        |
-|                                  :                                        |
-|     [downstream]                 :                  [upstream]            |
-.---------------------------------------------------------------------------.
-[0,0]: {"fill":"#99d","a2s:delref":1}
-....
+image::{realimagesdir}/landscape.svg["Diagram showing Kroxylicious in the context of the applications and the brokers"]
 
 Now let's define some concepts used within Kroxylicious itself.
 
@@ -94,56 +65,11 @@ many-to-one pattern is exploited by filters such as the xref:multi-tenancy/proc-
 filter.
 
 .One-to-One relationship between Virtual Cluster and Target Cluster
-[a2s, format="svg"]
-....
-.-------------------------------------------------------------------------------------.
-|                                                                                     |
-|                 '-------------------------------------'    '===================='   |
-| '---------'     |[Kroxylicious]                       |    :[Cluster]           :   |
-| |[Client] |=+   |                                     |    :                    :   |
-| '---------' :   |    '----------------------------'   |    :      '---------'   :   |
-|             :   |    |[Virtual Cluster]           |===+====|=====>|[Broker] |   :   |
-|             :   |    |                            |   |    :      |         |   :   |
-|             +===|===>| '---------'                |   |    :      '---------'   :   |
-|             :   |    | |[Gateway]|                |   |    :                    :   |
-|             +===|===>| '---------'                |   |    :      '---------'   :   |
-|                 |    |                            |===+====:==+==>|[Broker] |   :   |
-|                 |    '----------------------------'   |    :      |         |   :   |
-|                 |                                     |    :      '---------'   :   |
-|                 '-------------------------------------'    '===================='   |
-.-------------------------------------------------------------------------------------.
-[0,0]: {"fill":"#99d","a2s:delref":1}
-....
+image::{realimagesdir}/cluster_topology_one_to_one.svg["Diagram showing a single virtual cluster proxying a single kafka cluster"]
 
 .Many-to-one between Virtual Cluster and Target Cluster
-[a2s, format="svg"]
-....
-.-------------------------------------------------------------------------------------.
-|                                                                                     |
-|                 '-------------------------------------'    '===================='   |
-| '---------'     |[Kroxylicious]                       |    :[Cluster]           :   |
-| |[Client] |=+   |                                     |    :                    :   |
-| '---------' :   |    '----------------------------'   |    :      '---------'   :   |
-|             :   |    |[Virtual Cluster A]         |===+=+==|==+==>|[Broker] |   :   |
-|             +===|===>| '---------'                |   | :  :      |         |   :   |
-|             :   |    | |[Gateway]|                |   | :  :      '---------'   :   |
-|             +===|===>| '---------'                |   | :  :                    :   |
-|                 |    |                            |   | :  :      '---------'   :   |
-|                 |    |                            |===+====:==+==>|[Broker] |   :   |
-|                 |    '----------------------------'   | :  :  :   |         |   :   |
-| '---------'     |                                     | :  :  :   '---------'   :   |
-| |[Client] |=+   |    '----------------------------'   | :  :  :                 :   |
-| '---------' :   |    |[Virtual Cluster B]         |===+=+  '===================='   |
-|             +===|===>| '---------'                |   |       :                     |
-|             :   |    | |[Gateway]|                |   |       :                     |
-|             +===|===>| '---------'                |   |       :                     |
-|                 |    |                            |   |       :                     |
-|                 |    |                            |===+=======+                     |
-|                 |    '----------------------------'   |                             |
-|                 '-------------------------------------'                             |
-.-------------------------------------------------------------------------------------.
-[0,0]: {"fill":"#99d","a2s:delref":1}
-....
+
+image::{realimagesdir}/cluster_topology_many_to_one.svg["Diagram showing many virtual clusters proxying the same kafka cluster"]
 
 A one-to-many pattern, where one Virtual Cluster points to many Target Clusters (providing amalgamation),
 is not a supported use-case.
@@ -167,31 +93,7 @@ are described later.
 // TODO document additional filter behaviours https://github.com/kroxylicious/kroxylicious/issues/420
 
 .Illustration of a request and response being manipulated by filters in a chain
-[a2s, format="svg"]
-....
-.----------------------------------------------------------------------------------------------------------------------.
-|                                                                                                                      |
-|                       '---------------------------------------------------------------'                              |
-|                       |[Kroxylicious]                                                 |                              |
-|                       |                                                               |                              |
-|                       |   '----------------------------------------------------'      |      '--------------------'  |
-|                       |   |[Virtual Cluster]                                   |      |      |[Cluster]           |  |
-|  '-------------'      |   |   '----------'     '----------'     '----------'   |      |      |    '------------'  |  |
-|  |[Client]     |      |   |   |[Filter1] |     |[Filter2] |     |[Filter3] |   |      |      |    |[Broker]    |  |  |
-|  |             |======|===|==>|          |====>|          |====>|          |===|======|======|===>|            |  |  |
-|  |             |  A   |   |   | F(A)-->B |  B  | F(B)-->C |  C  | F(C)-->D |   |      |      | D  |            |  |  |
-|  |             |      |   |   |          |     |          |     |          |   |      |      |    |            |  |  |
-|  |             |<=====|===|===|          |<====|          |<====|          |<==|======|======|====|            |  |  |
-|  |             |  W   |   |   | f(X)-->W |  X  | f(Y)-->X |  Y  | f(Z)-->Y |   |      |      | Z  |            |  |  |
-|  '-------------'      |   |   '----------'     '----------'     '----------'   |      |      |    '------------'  |  |
-|                       |   |                                                    |      |      '--------------------'  |
-|                       |   '----------------------------------------------------'      |                              |
-|                       |                                                               |                              |
-|                       '---------------------------------------------------------------'                              |
-|                                                                                                                      |
-.----------------------------------------------------------------------------------------------------------------------.
-[0,0]: {"fill":"#99d","a2s:delref":1}
-....
+image::{realimagesdir}/cluster-filter-chain.svg["Diagram showing a kafka request message (and its response) being manipulated by several filters."]
 
 As mentioned above, Kroxylicious takes the responsibility to rewrite the Kafka RPC responses that carry broker address
 information so that they reflect the broker addresses exposed by the Virtual Cluster. These are the
@@ -210,7 +112,7 @@ When a filter forwards a request or response it doesn't know whether the message
 Such composition is important because it means a _proxy user_ can configure multiple filters (possibly written by several _filter authors_) and expect to get the combined effect of all of them.
 
 It's never quite that simple, of course.
-In practice they will often need to understand what each filter does in some detail in order to be able to operate their proxy properly, for example by understanding whatever metrics each filter is emitting.
+In practice, they will often need to understand what each filter does in some detail in order to be able to operate their proxy properly, for example by understanding whatever metrics each filter is emitting.
 
 == Implementation
 
