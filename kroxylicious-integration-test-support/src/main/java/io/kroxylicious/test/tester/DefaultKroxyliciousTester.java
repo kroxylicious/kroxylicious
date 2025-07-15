@@ -298,8 +298,8 @@ public class DefaultKroxyliciousTester implements KroxyliciousTester {
     @Override
     public Set<String> createTopics(String virtualCluster, int numberOfTopics) {
         try (Admin admin = clients(virtualCluster, DEFAULT_GATEWAY_NAME).admin()) {
-            final List<NewTopic> newTopics = IntStream.range(0, numberOfTopics).mapToObj(ignored -> {
-                final String topicName = MobyNamesGenerator.getRandomName();
+            final List<NewTopic> newTopics = IntStream.range(0, numberOfTopics).mapToObj(index -> {
+                final String topicName = MobyNamesGenerator.getRandomName() + "-" + index;
                 return new NewTopic(topicName, (short) 1, (short) 1);
             }).toList();
             final CreateTopicsResult createTopicsResult = admin.createTopics(newTopics);
