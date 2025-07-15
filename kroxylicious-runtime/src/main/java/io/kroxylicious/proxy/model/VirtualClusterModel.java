@@ -34,6 +34,7 @@ import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.config.tls.NettyTrustProvider;
 import io.kroxylicious.proxy.config.tls.PlatformTrustProvider;
+import io.kroxylicious.proxy.config.tls.SslContextBuildException;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
@@ -235,7 +236,7 @@ public class VirtualClusterModel {
             return SSLContext.getDefault().getDefaultSSLParameters();
         }
         catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new SslContextBuildException(e);
         }
     }
 
@@ -244,7 +245,7 @@ public class VirtualClusterModel {
             return SSLContext.getDefault().getSupportedSSLParameters();
         }
         catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new SslContextBuildException(e);
         }
     }
 
