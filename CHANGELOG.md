@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2440](https://github.com/kroxylicious/kroxylicious/issues/2440): Fail fast on unknown properties in proxy configuration file 
 * [#2450](https://github.com/kroxylicious/kroxylicious/issues/2450): fix(proxy): Forward ApiVersions v0 response on UNSUPPORTED_VERSION v0 response from upstream
 * [#2455](https://github.com/kroxylicious/kroxylicious/pull/2455): refactor: make oauth bearer validation filter content into a standalone guide.
 * [#2378](https://github.com/kroxylicious/kroxylicious/issues/2378): refactor: Finish factoring out filter documentation into standalone guides.
@@ -23,6 +24,8 @@ Format `<github issue/pr number>: <short description>`.
 
 * Remove deprecated `tls` and `clusterNetworkAddressConfigProvider` fields from virtual cluster. You must define
   at least one gateway in the `gateways` array of your virtual cluster instead.
+* Warning: We have made the Proxy configuration parsing less lenient. If your configuration YAML contains unknown properties, then this will cause
+  the proxy to log an exception and fail to start.
 
 ## 0.13.0
 

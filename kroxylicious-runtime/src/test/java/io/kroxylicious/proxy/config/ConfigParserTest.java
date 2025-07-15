@@ -514,6 +514,28 @@ class ConfigParserTest {
     }
 
     @Test
+    void shouldErrorOnAnyUnknownProperties() {
+        // Given
+        assertThatThrownBy(() ->
+        // When
+        configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: demo1
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                      unknownProperty: unknownProperty
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """))
+                // Then
+                .isInstanceOf(IllegalArgumentException.class)
+                .cause()
+                .hasMessageContaining("Unrecognized field \"unknownProperty\"");
+    }
+
+    @Test
     void shouldDetectMissingTargetCluster() {
         // Given
         assertThatThrownBy(() ->
