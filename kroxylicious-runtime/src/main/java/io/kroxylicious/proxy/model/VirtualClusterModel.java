@@ -380,7 +380,7 @@ public class VirtualClusterModel {
                     throw new IllegalConfigurationException(
                             "Virtual cluster '%s', gateway '%s': 'tls' object is missing the mandatory attribute 'key'. See %s for details"
                                     .formatted(virtualCluster.getClusterName(), name(),
-                                            StableKroxyliciousLinkGenerator.errorLink(StableKroxyliciousLinkGenerator.CLIENT_TLS)));
+                                            StableKroxyliciousLinkGenerator.INSTANCE.errorLink(StableKroxyliciousLinkGenerator.CLIENT_TLS)));
                 }
                 try {
                     var sslContextBuilder = Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer)

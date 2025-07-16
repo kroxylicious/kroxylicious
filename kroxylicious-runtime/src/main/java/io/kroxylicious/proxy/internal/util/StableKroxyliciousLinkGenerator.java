@@ -6,20 +6,65 @@
 
 package io.kroxylicious.proxy.internal.util;
 
-import io.kroxylicious.proxy.VersionInfo;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Map;
+import java.util.Properties;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class StableKroxyliciousLinkGenerator {
+    private static final Logger LOGGER = LoggerFactory.getLogger(StableKroxyliciousLinkGenerator.class);
+    public static StableKroxyliciousLinkGenerator INSTANCE = new StableKroxyliciousLinkGenerator();
 
     public static final String CLIENT_TLS = "clientTls";
+    private final LinkInfo links;
 
-    private StableKroxyliciousLinkGenerator() {
+    StableKroxyliciousLinkGenerator() {
+        this(() -> {
+            LOGGER.info("loading links from: classpath:META-INF/stablelinks.properties");
+            return StableKroxyliciousLinkGenerator.class.getClassLoader().getResourceAsStream("META-INF/stablelinks.properties");
+        });
     }
 
-    public static String errorLink(String slug) {
-        return generateLink("errors", slug);
+    StableKroxyliciousLinkGenerator(Supplier<InputStream> propLoader) {
+        links = loadLinks(propLoader);
     }
 
-    public static String generateLink(String namespace, String slug) {
-        return String.format("https://kroxylicious.io/redirects/%s/%s/%s", namespace, VersionInfo.VERSION_INFO.version(), slug);
+    public String errorLink(String slug) {
+        return links.generateLink("errors", slug);
+    }
+
+    private LinkInfo loadLinks(Supplier<InputStream> propLoader1) {
+        try (var resource = propLoader1.get()) {
+            if (resource != null) {
+                Properties properties = new Properties();
+                properties.load(resource);
+                return new LinkInfo(properties);
+            }
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return new LinkInfo(Map.of());
+    }
+
+    private record LinkInfo(Map<String, String> properties) {
+        LinkInfo(Properties properties) {
+            this(properties.entrySet().stream().collect(Collectors.toMap(e -> e.getKey().toString(), e -> e.getValue().toString())));
+        }
+
+        public String generateLink(String namespace, String slug) {
+            String lookupKey = "%s.%s".formatted(namespace, slug);
+            if (properties.containsKey(lookupKey)) {
+                return properties.get(lookupKey);
+            }
+            else {
+                throw new IllegalArgumentException("No link found for " + lookupKey);
+            }
+        }
     }
 }

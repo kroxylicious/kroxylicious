@@ -6,33 +6,46 @@
 
 package io.kroxylicious.proxy.internal.util;
 
+import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
+
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.proxy.VersionInfo;
-
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class StableKroxyliciousLinkGeneratorTest {
 
-    @Test
-    void shouldGenerateLinkToErrorNamespace() {
-        // Given
+    private StableKroxyliciousLinkGenerator stableKroxyliciousLinkGenerator;
 
-        // When
-        String errorLink = StableKroxyliciousLinkGenerator.errorLink("clientTls");
-
-        // Then
-        assertThat(errorLink).contains("/redirects/errors/");
+    @BeforeEach
+    void setUp() {
+        stableKroxyliciousLinkGenerator = new StableKroxyliciousLinkGenerator(() -> new ByteArrayInputStream("""
+                errors.clientTls=https://example.com/redirect/errors/
+                alternative.clientTls=https://example.com/alternative
+                """.getBytes(StandardCharsets.UTF_8)));
     }
 
     @Test
-    void shouldGenerateLinkWithVersionSpecifier() {
+    void shouldThrowExceptionIfSlugIsNotInGivenNamespace() {
         // Given
 
         // When
-        String errorLink = StableKroxyliciousLinkGenerator.errorLink("clientTls");
+        // Then
+        assertThatThrownBy(() -> stableKroxyliciousLinkGenerator.errorLink("unknown"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("No link found for errors.unknown");
+    }
+
+    @Test
+    void shouldLoadLinkFromErrorNamespace() {
+        // Given
+
+        // When
+        String errorLink = stableKroxyliciousLinkGenerator.errorLink("clientTls");
 
         // Then
-        assertThat(errorLink).contains(VersionInfo.VERSION_INFO.version());
+        assertThat(errorLink).isEqualTo("https://example.com/redirect/errors/");
     }
 }

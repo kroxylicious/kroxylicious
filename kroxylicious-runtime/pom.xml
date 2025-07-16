@@ -217,6 +217,7 @@
                 <filtering>true</filtering>
                 <includes>
                     <include>META-INF/metadata.properties</include>
+                    <include>META-INF/stablelinks.properties</include>
                 </includes>
             </resource>
         </resources>
