@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2314](https://github.com/kroxylicious/kroxylicious/pull/2314): Bump kubernetes-client.version from 7.2.0 to 7.3.1 (and Jackson from 2.18.3 to 2.19.1)
 * [#2432](https://github.com/kroxylicious/kroxylicious/pull/2432): Bump io.micrometer:micrometer-bom from 1.15.0 to 1.15.2
 * [#2431](https://github.com/kroxylicious/kroxylicious/pull/2431): Bump io.prometheus:prometheus-metrics-bom from 1.3.7 to 1.3.10
 * [#2286](https://github.com/kroxylicious/kroxylicious/pull/2286): Bump apicurio-registry.version from 2.6.8.Final to 2.6.11.Final
