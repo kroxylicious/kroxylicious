@@ -23,6 +23,7 @@
 
     <properties>
         <libs.dir>libs</libs.dir>
+        <release.version>${project.version}</release.version>
     </properties>
 
     <name>Proxy runtime</name>
