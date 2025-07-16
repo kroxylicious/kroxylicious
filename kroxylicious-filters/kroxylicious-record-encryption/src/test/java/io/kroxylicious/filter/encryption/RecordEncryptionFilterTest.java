@@ -212,14 +212,14 @@ class RecordEncryptionFilterTest {
                 .isNotNull()
                 .satisfies(counter -> {
                     assertThat(counter.getId()).isNotNull();
-                    assertThat(counter.count()).isEqualTo(1);
+                    assertThat(counter.count()).isEqualTo(1.0);
                 });
 
         assertThat(Metrics.globalRegistry.get("kroxylicious_filter_record_encryption_encrypted_records").counter())
                 .isNotNull()
                 .satisfies(counter -> {
                     assertThat(counter.getId()).isNotNull();
-                    assertThat(counter.count()).isEqualTo(1);
+                    assertThat(counter.count()).isEqualTo(1.0);
                 });
     }
 
