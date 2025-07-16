@@ -1,8 +1,8 @@
 // file included in the following:
 //
-// assembly-record-validation-filter.adoc
+// record-validation-guide/index.adoc
 
-[id='proc-record-validation-{context}']
+[id='assembly-configuring-record-validation-filter-{context}']
 = (Preview) Setting up the Record Validation filter
 
 [role="_abstract"]
@@ -12,7 +12,12 @@ Provide the filter configuration and rules that the filter uses to check against
 .Prerequisites
 
 * An instance of Kroxylicious.
-For information on deploying Kroxylicious, see the link:{github}[samples and examples^].
+ifdef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {OperatorGuide}.
+endif::OpenShiftOnly[]
+ifndef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {ProxyGuide} or {OperatorGuide}.
+endif::OpenShiftOnly[]
 * A config map for Kroxylicious that includes the configuration for creating a virtual cluster.
 * Apicurio Registry (if wanting to use Schema validation).
 
@@ -20,29 +25,13 @@ For information on deploying Kroxylicious, see the link:{github}[samples and exa
 
 . Configure a `RecordValidation` type filter.
 
-[source,yaml]
-----
-filterDefinitions:
-  - name: my-record-validation
-    type: RecordValidation
-    config:
-        rules:
-        - topicNames:                                                  # <1>
-            - <topic name>
-          keyRule:
-            <rule definition>                                          # <2>
-          valueRule:
-            <rule definition>                                          # <3>
-        defaultRule:                                                   # <4>
-          keyRule:
-            <rule definition>                                          # <2>
-          valueRule:
-            <rule definition>                                          # <3>
-----
-<1> List of topic names to which the validation rules will be applied.
-<2> Validation rules that are applied to the record's key.
-<3> Validation rules that are applied to the record's value.
-<4> (Optional) Default rule that is applied to any topics for which there is no explict rule defined.
+ifdef::include-platform-bare-metal[]
+* In a standalone proxy deployment. See <<con-example-proxy-config-{context}>>
+endif::[]
+ifdef::include-platform-kubernetes[]
+* In a Kubernetes deployment using a `KafkaProcotolFilter` resource. See <<con-example-kafkaprotocolfilter-resource-{context}>>
+endif::[]
+
 
 Replace the token `<rule definition>`  in the YAML configuration with either a Schema Validation rule or a JSON Syntax Validation rule depending on your requirements.
 
@@ -86,3 +75,11 @@ allowEmpty: true                                                 # <3>
 <1> If `true`, the validator enforces that objects keys must be unique. The default is `false`.
 <2> if `true`, the validator allows keys and or values to be `null`. The default is `false`.
 <3> if `true`, the validator allows keys and or values to be empty. The default is `false`.
+
+ifdef::include-platform-bare-metal[]
+include::../_modules/record-validation/con-example-proxy-config.adoc[leveloffset=+1]
+endif::[]
+
+ifdef::include-platform-kubernetes[]
+include::../_modules/record-validation/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+1]
+endif::[]

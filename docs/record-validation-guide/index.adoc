@@ -1,9 +1,13 @@
-// file included in the following:
-//
-// assembly-built-in-filters.adoc
+:experimental:
+include::_assets/attributes.adoc[]
 
-[id='assembly-record-validation-filter-{context}']
-= (Preview) Record Validation filter
+:context: record-validation
+:guide: record-validation
+
+[id="using-book-{context}"]
+= (Preview) Record Validation Guide
+
+include::_modules/record-validation/con-about-{guide}-guide.adoc[leveloffset=+1]
 
 [role="_abstract"]
 The Record Validation filter validates records sent by a producer.
@@ -24,4 +28,10 @@ NOTE: This filter is currently in incubation and available as a preview.
 We would not recommend using it in a production environment.
 
 //configuring the record-validation filter
-include::../_modules/record-validation/proc-record-validation.adoc[leveloffset=+1]
+include::_assemblies/assembly-configuring-record-validation-filter.adoc[leveloffset=+1]
+
+//monitoring the record validation filter
+//operational issues affecting the record validation filter
+
+//trademark notices
+include::_assets/trademarks.adoc[leveloffset=+1]
