@@ -34,12 +34,13 @@ endif::OpenShiftOnly[]
 +
 [source,shell]
 ----
-kubectl get service -n <namespace> <proxy-name>-sni -o=jsonpath='{.status.loadBalancer.ingress[0]}'
+kubectl get virtualkafkacluster -n <namespace> <virtual-cluster-name> -o=jsonpath='{.status.ingresses[?(@.name == "<ingress-name>")].loadBalancerIngressPoints}' 
 ----
 +
-Replace `<namespace>` with the name of the Kubernetes namespace where the resources are deployed and replace `<proxy-name>` with the name of the `KafkaProxy` resource.
+Replace `<namespace>` with the name of the Kubernetes namespace where the resources are deployed, replace `<ingress-name>` with
+the name of the KafkaProxyIngresses and replace `<virtual-cluster-name>` with the name of the `VirtualKafkaCluster` resource.
 +
-Depending on your Kubernetes environment, the command returns an IP address or a hostname.
+Depending on your Kubernetes environment, the command returns an object containing an IP address or a hostname.
 This is the external address of the load balancer.
 
 . Configure your DNS so that the bootstrap and broker names resolve to the external address.
