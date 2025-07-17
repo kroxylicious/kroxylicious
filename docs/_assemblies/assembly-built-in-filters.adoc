@@ -15,8 +15,12 @@ For information on using the filter, see the {RecordEncryptionGuide}.
 
 == Record Validation filter
 
-This guide covers using the *Kroxylicious Record Validation Filter* to validate records sent by Kafka client to Kafka brokers.
+The Kroxylicious Record Validation filter validates records sent by Kafka client to Kafka brokers.
 For information on using the filter, see the {RecordValidationGuide}.
 
-include::assembly-multi-tenancy-filter.adoc[leveloffset=+1]
+== Multi-tenancy filter
+
+The Kroxylicious multi-tenancy filter presents a single Kafka cluster to tenants as if it were multiple clusters.
+For information on using the filter, see the {MultiTenancyGuide}.
+
 include::../_modules/oauthbearer/con-oauthbearer.adoc[leveloffset=+1]

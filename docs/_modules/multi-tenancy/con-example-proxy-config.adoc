@@ -1,0 +1,26 @@
+// file included in the following:
+//
+// assembly-configuring-multi-tenancy-filter.adoc
+
+[id='con-example-proxy-config-{context}']
+= Example proxy configuration file
+
+If your instance of the Kroxylicious Proxy runs directly on an operating system, provide the filter configuration in the `filterDefinitions` list of your proxy configuration.
+
+Here's a complete example of a `filterDefinitions` entry configured for multi-tenancy:
+
+.Example `filterDefinitions` configuration
+[source, yaml]
+----
+filterDefinitions:
+  - name: my-multi-tenant-filter
+    type: MultiTenant
+    config:
+      prefixResourceNameSeparator: "." # <1>
+----
+<1> The separator used for the prefix.
+If a separator is not specified, `-` is the default.
++
+NOTE: Currently, only the prefix with separator is validated.
+
+Refer to the {ProxyGuide} for more information about configuring the proxy.
