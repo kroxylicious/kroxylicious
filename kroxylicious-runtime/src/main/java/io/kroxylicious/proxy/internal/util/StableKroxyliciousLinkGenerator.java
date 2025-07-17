@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal.util;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UncheckedIOException;
 import java.util.Map;
 import java.util.Properties;
 import java.util.function.Supplier;
@@ -18,7 +19,8 @@ import org.slf4j.LoggerFactory;
 
 public class StableKroxyliciousLinkGenerator {
     private static final Logger LOGGER = LoggerFactory.getLogger(StableKroxyliciousLinkGenerator.class);
-    public static StableKroxyliciousLinkGenerator INSTANCE = new StableKroxyliciousLinkGenerator();
+
+    public static final StableKroxyliciousLinkGenerator INSTANCE = new StableKroxyliciousLinkGenerator();
 
     public static final String CLIENT_TLS = "clientTls";
     private final LinkInfo links;
@@ -38,8 +40,8 @@ public class StableKroxyliciousLinkGenerator {
         return links.generateLink("errors", slug);
     }
 
-    private LinkInfo loadLinks(Supplier<InputStream> propLoader1) {
-        try (var resource = propLoader1.get()) {
+    private LinkInfo loadLinks(Supplier<InputStream> propLoader) {
+        try (var resource = propLoader.get()) {
             if (resource != null) {
                 Properties properties = new Properties();
                 properties.load(resource);
@@ -47,7 +49,7 @@ public class StableKroxyliciousLinkGenerator {
             }
         }
         catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new UncheckedIOException(e);
         }
         return new LinkInfo(Map.of());
     }
