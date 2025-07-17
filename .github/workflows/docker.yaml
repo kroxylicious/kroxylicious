@@ -25,7 +25,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: ${{ vars.REGISTRY_SERVER != '' && vars.REGISTRY_USERNAME != '' && vars.REGISTRY_ORGANISATION != '' && vars.PROXY_IMAGE_NAME != '' && vars.OPERATOR_IMAGE_NAME != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -43,14 +42,26 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set env variables
+      - name: Determine Build Configuration
+        id: build_configuration
         run: |
-          echo "RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_ENV
-          echo "PROXY_IMAGE=${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}" >> $GITHUB_ENV
-          echo "OPERATOR_IMAGE=${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}" >> $GITHUB_ENV
+          RELEASE_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "release_version=${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+
+          if [[ "${{ github.event_name }}" == "pull_request" || "${{ vars.REGISTRY_SERVER }}" == "" ]]; then
+            echo "proxy_tags=kroxylicious-proxy:${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+            echo "operator_tags=kroxylicious-operator:${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+            echo "push_images=false" >> $GITHUB_OUTPUT
+          else
+            PROXY_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.PROXY_IMAGE_NAME }}"
+            OPERATOR_IMAGE="${{ vars.REGISTRY_SERVER }}/${{ vars.REGISTRY_ORGANISATION }}/${{ vars.OPERATOR_IMAGE_NAME }}"
+            echo "proxy_tags=${PROXY_IMAGE}:${RELEASE_VERSION}" >> $GITHUB_OUTPUT
+            echo "operator_tags=${OPERATOR_IMAGE}:${RELEASE_VERSION},${OPERATOR_IMAGE}:latest" >> $GITHUB_OUTPUT
+            echo "push_images=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Login to container registry
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: steps.build_configuration.outputs.push_images == 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ vars.REGISTRY_SERVER }}
@@ -62,10 +73,10 @@ jobs:
         with:
           context: .
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+          push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
           build-args: |
-            KROXYLICIOUS_VERSION=${{ env.RELEASE_VERSION }}
-          tags: ${{ env.PROXY_IMAGE }}:${{ env.RELEASE_VERSION }}
+            KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          tags: ${{ steps.build_configuration.outputs.proxy_tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max,compression=zstd
 
@@ -75,9 +86,9 @@ jobs:
           context: .
           file: ./Dockerfile.operator
           platforms: linux/amd64,linux/arm64
-          push: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+          push: ${{ steps.build_configuration.outputs.push_images == 'true' }}
           build-args: |
-            KROXYLICIOUS_VERSION=${{ env.RELEASE_VERSION }}
-          tags: ${{ env.OPERATOR_IMAGE }}:${{ env.RELEASE_VERSION }},${{ env.OPERATOR_IMAGE }}:latest
+            KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.release_version }}
+          tags: ${{ steps.build_configuration.outputs.operator_tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max,compression=zstd
