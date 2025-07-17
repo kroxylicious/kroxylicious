@@ -1,0 +1,39 @@
+// file included in the following:
+//
+// assembly-configuring-record-validation-filter.adoc
+
+[id='con-example-kafkaprotocolfilter-resource-{context}']
+= Example `KafkaProtocolFilter` resource
+
+If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProcotolFilter` resource to contain the filter configuration.
+
+Here's a complete example of a `KafkaProtocolFilter` resource configured for record validation:
+
+.Example `KafkaProtocolFilter` resource for record validation
+[source,yaml]
+----
+kind: KafkaProtocolFilter
+metadata:
+  name: my-validation-filter
+spec:
+  type: RecordValidation
+  configTemplate:
+    rules:
+    - topicNames:                                                  # <1>
+        - <topic name>
+      keyRule:
+        <rule definition>                                          # <2>
+      valueRule:
+        <rule definition>                                          # <3>
+    defaultRule:                                                   # <4>
+      keyRule:
+        <rule definition>                                          # <2>
+      valueRule:
+        <rule definition>                                          # <3>
+----
+<1> List of topic names to which the validation rules will be applied.
+<2> Validation rules that are applied to the record's key.
+<3> Validation rules that are applied to the record's value.
+<4> (Optional) Default rule that is applied to any topics for which there is no explict rule defined.
+
+Refer to the {OperatorGuide} for more information about configuration on Kubernetes.
