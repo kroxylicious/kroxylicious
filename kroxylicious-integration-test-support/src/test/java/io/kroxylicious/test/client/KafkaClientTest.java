@@ -71,7 +71,7 @@ class KafkaClientTest {
         ApiVersionsResponseData message = new ApiVersionsResponseData();
         message.setErrorCode(Errors.UNSUPPORTED_VERSION.code());
         try (var mockServer = MockServer.startOnRandomPort(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 0, message));
-                var kafkaClient = new KafkaClient("127.0.0.1", mockServer.port())) {
+                var kafkaClient = new KafkaClient("localhost", mockServer.port())) {
             ApiVersionsRequest request = new ApiVersionsRequest(new ApiVersionsRequestData(), (short) 0);
             int correlationId = 5;
             ByteBuffer byteBuffer = request.serializeWithHeader(new RequestHeader(ApiKeys.API_VERSIONS, (short) 0, "client", correlationId));
@@ -93,7 +93,7 @@ class KafkaClientTest {
         message.setErrorCode(Errors.UNSUPPORTED_VERSION.code());
         ResponsePayload v0Payload = new ResponsePayload(ApiKeys.API_VERSIONS, (short) 0, message);
         try (var mockServer = MockServer.startOnRandomPort(v0Payload);
-                var kafkaClient = new KafkaClient("127.0.0.1", mockServer.port())) {
+                var kafkaClient = new KafkaClient("localhost", mockServer.port())) {
             CompletableFuture<Response> future = kafkaClient.get(new Request(ApiKeys.API_VERSIONS, (short) 0, "client", new ApiVersionsRequestData()));
             assertThat(future).succeedsWithin(10, TimeUnit.SECONDS).satisfies(response -> {
                 assertThat(response.payload().message()).isInstanceOfSatisfying(ApiVersionsResponseData.class, apiVersionsRequestData -> {
@@ -126,7 +126,7 @@ class KafkaClientTest {
         var serverResponse = new ResponsePayload(ApiKeys.API_VERSIONS, (short) 0, message);
 
         try (var mockServer = MockServer.startOnRandomPort(serverResponse, serverSslContext);
-                var kafkaClient = new KafkaClient("127.0.0.1", mockServer.port(), clientSslContext)) {
+                var kafkaClient = new KafkaClient("localhost", mockServer.port(), clientSslContext)) {
 
             CompletableFuture<Response> future = kafkaClient.get(new Request(ApiKeys.API_VERSIONS, (short) 0, "client", new ApiVersionsRequestData()));
             assertThat(future)

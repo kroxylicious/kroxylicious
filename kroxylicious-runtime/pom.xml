@@ -23,6 +23,7 @@
 
     <properties>
         <libs.dir>libs</libs.dir>
+        <release.version>${project.version}</release.version>
     </properties>
 
     <name>Proxy runtime</name>
@@ -217,6 +218,7 @@
                 <filtering>true</filtering>
                 <includes>
                     <include>META-INF/metadata.properties</include>
+                    <include>META-INF/stablelinks.properties</include>
                 </includes>
             </resource>
         </resources>

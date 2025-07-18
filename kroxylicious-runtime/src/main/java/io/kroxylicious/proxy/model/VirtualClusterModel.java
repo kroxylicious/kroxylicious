@@ -39,6 +39,7 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -376,8 +377,10 @@ public class VirtualClusterModel {
         private Optional<SslContext> buildDownstreamSslContext() {
             return tls.map(tlsConfiguration -> {
                 if (tlsConfiguration.key() == null) {
-                    throw new IllegalConfigurationException(("Virtual cluster '%s', gateway '%s': 'tls' object is missing the mandatory attribute 'key'.")
-                            .formatted(virtualCluster.getClusterName(), name()));
+                    throw new IllegalConfigurationException(
+                            "Virtual cluster '%s', gateway '%s': 'tls' object is missing the mandatory attribute 'key'. See %s for details"
+                                    .formatted(virtualCluster.getClusterName(), name(),
+                                            StableKroxyliciousLinkGenerator.INSTANCE.errorLink(StableKroxyliciousLinkGenerator.CLIENT_TLS)));
                 }
                 try {
                     var sslContextBuilder = Optional.of(tlsConfiguration.key()).map(NettyKeyProvider::new).map(NettyKeyProvider::forServer)

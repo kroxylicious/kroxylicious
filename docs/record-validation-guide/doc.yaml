@@ -1,0 +1,6 @@
+$schema: https://kroxylicious.io/doc-schema.yaml
+title: Record Validation Guide
+description: Covers using the record validation filter.
+tags:
+  - filter
+rank: "021"

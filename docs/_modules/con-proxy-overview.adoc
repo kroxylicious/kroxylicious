@@ -61,8 +61,7 @@ A _Virtual Cluster_ has exactly one _Target Cluster_.
 
 There can be a _one-to-one_ relationship between Virtual Clusters and Target Clusters.
 The other possibility is _many-to-one_, where many Virtual Clusters point to the same Target Cluster.  The
-many-to-one pattern is exploited by filters such as the xref:multi-tenancy/proc-multi-tenancy.adoc#proc-multi-tenancy-{context}[Multi-tenancy]
-filter.
+many-to-one pattern is exploited by filters such as multi-tenancy ({MultiTenancyGuide}).
 
 .One-to-One relationship between Virtual Cluster and Target Cluster
 image::{realimagesdir}/cluster_topology_one_to_one.svg["Diagram showing a single virtual cluster proxying a single kafka cluster"]

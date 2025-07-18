@@ -2,7 +2,7 @@
 //
 // record-encryption-guide/index.adoc
 
-[id='proc-configuring-record-encryption-filter-{context}']
+[id='assembly-configuring-record-encryption-filter-{context}']
 = Configuring the Record Encryption filter
 
 [role="_abstract"]

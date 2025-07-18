@@ -1,8 +1,8 @@
 // file included in the following:
 //
-// assembly-multi-tenancy-filter.adoc
+// index.adoc
 
-[id='proc-multi-tenancy-{context}']
+[id='assembly-configuring-multi-tenancy-filter-{context}']
 = (Preview) Setting up the Multi-tenancy filter
 
 [role="_abstract"]
@@ -15,31 +15,33 @@ This means that the same virtual cluster name cannot be used to represent differ
 
 .Prerequisites
 
-* An instance of Kroxylicious. 
-For information on deploying Kroxylicious, see the link:{github}[samples and examples^].
-* A config map for Kroxylicious that includes the configuration for creating virtual clusters and filters. 
-* A virtual cluster definition for each tenant using the Kafka cluster. 
-You need at least two virtual clusters to apply multi-tenancy.
+* An instance of Kroxylicious.
+ifdef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {OperatorGuide}.
+endif::OpenShiftOnly[]
+ifndef::OpenShiftOnly[]
+For information on deploying Kroxylicious, see the {ProxyGuide} or {OperatorGuide}.
+endif::OpenShiftOnly[]
 
 .Procedure
 
 . Configure a `MultiTenant` type filter.
-+
-[source, yaml]
-----
-filterDefinitions:
-  - name: my-multi-tenant-filter
-    type: MultiTenant
-    config:
-      prefixResourceNameSeparator: "." # <1>
-----
-<1> The separator used for the prefix. 
-If a separator is not specified, `-` is the default.
-+
-NOTE: Currently, only the prefix with separator is validated.
+ifdef::include-platform-bare-metal[]
+* In a standalone proxy deployment. See <<con-example-proxy-config-{context}>>
+endif::[]
+ifdef::include-platform-kubernetes[]
+* In a Kubernetes deployment using a `KafkaProcotolFilter` resource. See <<con-example-kafkaprotocolfilter-resource-{context}>>
+endif::[]
 
 . Verify that multi-tenancy filtering has been applied.
 +
 For example, create a topic through each virtual cluster and check that the topics are prefixed with the name of the corresponding virtual cluster.  
 +
-For more information, see the {github}/blob/main/kubernetes-examples/filters/multi-tenant/script.txt[example for a Kubernetes environment].
+
+ifdef::include-platform-bare-metal[]
+include::../_modules/multi-tenancy/con-example-proxy-config.adoc[leveloffset=+1]
+endif::[]
+
+ifdef::include-platform-kubernetes[]
+include::../_modules/multi-tenancy/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+1]
+endif::[]

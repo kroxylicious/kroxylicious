@@ -1,0 +1,6 @@
+$schema: https://kroxylicious.io/doc-schema.yaml
+title: Multi-tenancy Guide
+description: Covers using the multi-tenancy filter.
+tags:
+  - filter
+rank: "022"
