@@ -1,34 +1,23 @@
 // file included in the following:
 //
-// assembly-built-in-filters.adoc
+// assembly-configuring-oauth-bearer-validation-filter.adoc
 
-[id='con-oauthbearer-{context}']
-= OAUTHBEARER validation
+[id='con-example-kafkaprotocolfilter-resource-{context}']
+= Example `KafkaProtocolFilter` resource
 
-[role="_abstract"]
-OauthBearerValidation filter enables a validation on the JWT token received from client before forwarding it to cluster.
+If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProcotolFilter` resource to contain the filter configuration.
 
-If the token is not validated, then the request is short-circuited.
-It reduces resource consumption on the cluster when a client sends too many invalid SASL requests.
+Here's a complete example of a `KafkaProtocolFilter` resource configured for Oauth Bearer validation:
 
-.Sequence diagram showing the filter validating the oauth token before it reaches the broker.
-image::{realimagesdir}/oauth-bearer-validation-seq.svg["Sequence diagram showing the filter validating the oauth token before it reaches the broker."]
-
-== How to use the filter
-
-There are two steps to using the filter.
-
-1. <<Configuring virtual clusters>>
-2. Configuring the filter within Kroxylicious.
-
-=== Configuring the filter within Kroxylicious.
-
-[source, yaml]
+.Example `KafkaProtocolFilter` resource for record validation
+[source,yaml]
 ----
-filterDefinitions:
-  - name: my-oauth-filter
-    type: OauthBearerValidation
-    config:
+kind: KafkaProtocolFilter
+metadata:
+  name: my-oauth-bearer-validation-filter
+spec:
+  type: OauthBearerValidation
+  configTemplate:
       jwksEndpointUrl: https://oauth/JWKS   #<1>
       jwksEndpointRefreshMs: 3600000        #<2>
       jwksEndpointRetryBackoffMs: 100       #<3>
@@ -40,7 +29,6 @@ filterDefinitions:
       expectedAudience: https://first.audience, https//second.audience #<9>
       expectedIssuer: https://your-domain.auth/ #<10>
 ----
-
 <1> The OAuth/OIDC provider URL from which the provider's JWKS (JSON Web Key Set) can be retrieved.
 <2> The (optional) value in milliseconds for the broker to wait between refreshing its JWKS (JSON Web Key Set) cache that contains the keys to verify the signature of the JWT.
 <3> The (optional) value in milliseconds for the initial wait between JWKS (JSON Web Key Set) retrieval attempts from the external authentication provider.
@@ -52,4 +40,4 @@ filterDefinitions:
 <9> The (optional) comma-delimited setting for the broker to use to verify that the JWT was issued for one of the expected audiences.
 <10> The (optional) setting for the broker to use to verify that the JWT was created by the expected issuer.
 
-Note: OauthBearer config follows https://kafka.apache.org/documentation/#security_ssl[kafka's properties]
+Refer to the {OperatorGuide} for more information about configuration on Kubernetes.

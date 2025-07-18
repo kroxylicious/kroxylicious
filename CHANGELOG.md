@@ -7,10 +7,10 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
-<<<<<<< HEAD
-=======
+refactor: make oauth bearer validation filter content into a standalone guide.
+
+* [#2378](https://github.com/kroxylicious/kroxylicious/issues/2378): refactor: Finish factoring out filter documentation into standalone guides.
 * [#2412](https://github.com/kroxylicious/kroxylicious/pull/2412): [Operator] Add hostname/ip information to VKC loadbalancer status
->>>>>>> ead44ecab (Update CHANGELOG.md)
 * [#2314](https://github.com/kroxylicious/kroxylicious/pull/2314): Bump kubernetes-client.version from 7.2.0 to 7.3.1 (and Jackson from 2.18.3 to 2.19.1)
 * [#2432](https://github.com/kroxylicious/kroxylicious/pull/2432): Bump io.micrometer:micrometer-bom from 1.15.0 to 1.15.2
 * [#2431](https://github.com/kroxylicious/kroxylicious/pull/2431): Bump io.prometheus:prometheus-metrics-bom from 1.3.7 to 1.3.10

@@ -23,4 +23,8 @@ For information on using the filter, see the {RecordValidationGuide}.
 The Kroxylicious multi-tenancy filter presents a single Kafka cluster to tenants as if it were multiple clusters.
 For information on using the filter, see the {MultiTenancyGuide}.
 
-include::../_modules/oauthbearer/con-oauthbearer.adoc[leveloffset=+1]
+== Oauth Bearer Validation filter
+
+The Kroxylicious Oauth Bearer Validation filter enables a validation on the JWT token received from client before forwarding it to cluster.
+For information on using the filter, see the {OauthBearerValidationGuide}.
+
