@@ -105,7 +105,7 @@ public class ConfigParser implements PluginFactoryRegistry {
                 .setVisibility(PropertyAccessor.CREATOR, Visibility.ANY)
                 .setConstructorDetector(ConstructorDetector.USE_PROPERTIES_BASED)
                 .enable(SerializationFeature.FAIL_ON_EMPTY_BEANS)
-                .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
+                .enable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
                 .disable(DeserializationFeature.FAIL_ON_MISSING_EXTERNAL_TYPE_ID_PROPERTY)
                 .enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION)
                 .setSerializationInclusion(JsonInclude.Include.NON_DEFAULT);
