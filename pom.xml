@@ -926,7 +926,7 @@
                             <skip>${skipDocs}</skip>
                             <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
                             <!--suppress UnresolvedMavenProperty -->
-                            <script>${rootdir}/scripts/webify.java</script>
+                            <script>${rootdir}/src/build/jbang/webify.java</script>
                             <args>
                                 <arg>--project-version=${project.version}</arg>
                                 <!--suppress UnresolvedMavenProperty -->
@@ -1012,6 +1012,14 @@
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <source>7</source>
+                    <target>7</target>
+                </configuration>
             </plugin>
         </plugins>
     </build>
