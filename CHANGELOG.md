@@ -17,6 +17,7 @@ refactor: make oauth bearer validation filter content into a standalone guide.
 * [#2286](https://github.com/kroxylicious/kroxylicious/pull/2286): Bump apicurio-registry.version from 2.6.8.Final to 2.6.11.Final
 * [#2414](https://github.com/kroxylicious/kroxylicious/pull/2414): Remove tcp and clusterNetworkAddressConfigProvider configuration options from virtual cluster
 * [#2385](https://github.com/kroxylicious/kroxylicious/issues/2385) fix: Prevent existing proxy pod(s) rolling if number of replicas is changed.
+* [#2464](https://github.com/kroxylicious/kroxylicious/pull/2464) Bump the log level for upstream fame and network loggers to match the downstream side. 
 
 ### Changes, deprecations and removals
 
