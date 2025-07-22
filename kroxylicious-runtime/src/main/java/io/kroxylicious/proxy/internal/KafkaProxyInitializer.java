@@ -12,6 +12,7 @@ import java.util.Map;
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import io.micrometer.core.instrument.Counter;
 import io.netty.channel.Channel;
@@ -95,7 +96,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     public void initChannel(Channel ch) {
         if (!ch.hasAttr(SESSION_ID_ATTRIBUTE_KEY)) {
             String sessionId = MobyNamesGenerator.getRandomName() + "_" + ch.id().asShortText();
-            LOGGER.info("Allocating sessionId: {} to channel: {}", sessionId, ch.id());
+            MDC.put(SESSION_ID_ATTRIBUTE_KEY.name(), sessionId);
+            LOGGER.info("Allocating sessionId: {} to channel: {}", sessionId, ch);
             ch.attr(SESSION_ID_ATTRIBUTE_KEY).setIfAbsent(sessionId);
         }
         LOGGER.trace("Connection from {} to my address {}", ch.remoteAddress(), ch.localAddress());
@@ -200,7 +202,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         ChannelPipeline pipeline = ch.pipeline();
         pipeline.remove(LOGGING_INBOUND_ERROR_HANDLER_NAME);
         if (virtualCluster.isLogNetwork()) {
-            pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger - " + sessionId, LogLevel.INFO));
+            pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
         }
 
         // Add handler here
@@ -222,11 +224,11 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder(encoderListener));
         pipeline.addLast("responseOrderer", new ResponseOrderer());
         if (virtualCluster.isLogFrames()) {
-            pipeline.addLast("frameLogger", new FameLoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger - " + sessionId, LogLevel.INFO));
+            pipeline.addLast("frameLogger", new FameLoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger", LogLevel.INFO));
         }
 
         if (!authnHandlers.isEmpty()) {
-            LOGGER.debug("Adding authn handler for handlers {}", authnHandlers);
+            LOGGER.debug("{}: Adding authn handler for handlers {}", sessionId, authnHandlers);
             pipeline.addLast(new KafkaAuthnHandler(ch, authnHandlers));
         }
 
@@ -244,7 +246,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         pipeline.addLast("netHandler", frontendHandler);
         addLoggingErrorHandler(pipeline);
 
-        LOGGER.debug("{}: Initial pipeline: {}", ch, pipeline);
+        LOGGER.debug("{}:{} Initial pipeline: {}", ch, sessionId, pipeline);
     }
 
     private KafkaMessageListener buildMetricsMessageListenerForDecode(EndpointBinding binding, VirtualClusterModel virtualCluster) {

@@ -472,8 +472,7 @@ public class KafkaProxyFrontendHandler
         LOGGER.trace("Connecting to outbound {}", remote);
         ChannelFuture serverTcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
         Channel outboundChannel = serverTcpConnectFuture.channel();
-        Attribute<String> attr = inboundChannel.attr(KafkaProxyInitializer.SESSION_ID_ATTRIBUTE_KEY);
-        String sessionId = attr.get();
+
         outboundChannel.attr(KafkaProxyInitializer.SESSION_ID_ATTRIBUTE_KEY).set(sessionId);
         LOGGER.debug("{}: bound inbound channel {} to outbound channel {}", sessionId, inboundChannel, outboundChannel);
         ChannelPipeline pipeline = outboundChannel.pipeline();
