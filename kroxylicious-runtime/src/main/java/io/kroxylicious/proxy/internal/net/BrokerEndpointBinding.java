@@ -18,7 +18,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * @param endpointGateway                      the endpoint listener
  * @param upstreamTarget                       the upstream target of this binding
  * @param nodeId                               kafka nodeId of the target broker
- * @param restrictUpstreamToMetadataDiscovery  true if the upstreamTarget corresponds to a broker, false if it points at a bootstrap.
+ * @param restrictUpstreamToMetadataDiscovery  false if the upstreamTarget corresponds to a broker, true if it points at a bootstrap.
  */
 public record BrokerEndpointBinding(EndpointGateway endpointGateway, HostPort upstreamTarget, Integer nodeId, boolean restrictUpstreamToMetadataDiscovery)
         implements EndpointBinding {
