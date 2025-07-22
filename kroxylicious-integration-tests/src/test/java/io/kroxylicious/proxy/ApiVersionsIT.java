@@ -5,12 +5,17 @@
  */
 package io.kroxylicious.proxy;
 
+import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ByteBufferAccessor;
+import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.protocol.ObjectSerializationCache;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -26,6 +31,7 @@ import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -65,15 +71,44 @@ public class ApiVersionsIT {
         }
     }
 
+    /**
+     * By the Kafka protocol, when the client ApiVersions request is ahead of the upstream, the server will respond
+     * with a v0 response with error code 35 as per KIP-511. If the upstream responds this way, the proxy should
+     * forward v0 response body bytes to the client.
+     */
     @Test
-    void shouldOfferTheMinimumHighestSupportedVersionWhenKroxyliciousIsAheadOfBroker() {
+    void shouldHandleVersionZeroErrorResponseWhenKroxyliciousIsAheadOfBroker() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.simpleTestClient()) {
-            givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), (short) (ApiKeys.METADATA.latestVersion() - 1));
+            short brokerMaxVersion = (short) (ApiKeys.API_VERSIONS.latestVersion() - 1);
+            givenMockRespondsWithDowngradedV0ApiVersionsResponse(tester, ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.oldestVersion(), brokerMaxVersion);
             Response response = whenGetApiVersionsFromKroxylicious(client);
-            assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(),
-                    (short) (ApiKeys.METADATA.latestVersion() - 1));
+            ByteBufferAccessor writable = new ByteBufferAccessor(ByteBuffer.allocate(20));
+            // we have to compare bytes directly as our test code is relying on client code that will leniently
+            // decode a v0 ApiVersionsResponse if there is some problem reading it with the latest version. We want
+            // to be very sure that the bytes are what we hoped they were, so we compare directly.
+            byte[] bytes = expectedKip511DowngradedApiVersionResponseHeaderAndBodyBytes(brokerMaxVersion, response, writable);
+            assertThat(response.rawHeaderAndBodyBytes())
+                    .describedAs("unexpected response header and body bytes").isEqualTo(bytes);
+            assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.oldestVersion(),
+                    brokerMaxVersion);
         }
+    }
+
+    private static byte[] expectedKip511DowngradedApiVersionResponseHeaderAndBodyBytes(short brokerMaxVersion, Response response, ByteBufferAccessor writable) {
+        ApiVersionsResponseData apiVersionsRequestData = new ApiVersionsResponseData();
+        ApiVersionsResponseData.ApiVersionCollection coll = new ApiVersionsResponseData.ApiVersionCollection();
+        coll.add(new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.API_VERSIONS.id).setMinVersion(ApiKeys.API_VERSIONS.oldestVersion())
+                .setMaxVersion(brokerMaxVersion));
+        apiVersionsRequestData.setApiKeys(coll);
+        apiVersionsRequestData.setErrorCode(Errors.UNSUPPORTED_VERSION.code());
+        ObjectSerializationCache cache = new ObjectSerializationCache();
+        short responseApiVersion = (short) 0;
+        ResponseHeaderData responseHeaderData = new ResponseHeaderData().setCorrelationId(response.correlationId());
+        responseHeaderData.write(writable, cache, ApiKeys.API_VERSIONS.responseHeaderVersion(responseApiVersion));
+        apiVersionsRequestData.write(writable, cache, responseApiVersion);
+        writable.flip();
+        return writable.readArray(writable.remaining());
     }
 
     @Test
@@ -102,11 +137,7 @@ public class ApiVersionsIT {
     void shouldNotOfferBrokerApisThatAreUnknownToKroxy() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.simpleTestClient()) {
-            ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
-            ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
-            version.setApiKey((short) 9999).setMinVersion((short) 3).setMaxVersion((short) 4);
-            mockResponse.apiKeys().add(version);
-            tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
+            givennMockRespondsWithApiVersionsForKey((short) 9999, (short) 3, (short) 4, tester, (short) 3);
             Response response = whenGetApiVersionsFromKroxylicious(client);
             ResponsePayload payload = response.payload();
             assertEquals(ApiKeys.API_VERSIONS, payload.apiKeys());
@@ -143,11 +174,24 @@ public class ApiVersionsIT {
     }
 
     private static void givenMockRespondsWithApiVersionsForApiKey(MockServerKroxyliciousTester tester, ApiKeys keys, short minVersion, short maxVersion) {
+        givennMockRespondsWithApiVersionsForKey(keys.id, minVersion, maxVersion, tester, (short) 3);
+    }
+
+    // if the upstream cannot handle the ApiVersions request, it responds with a v0 response with error code 35 as per KIP-511
+    private static void givenMockRespondsWithDowngradedV0ApiVersionsResponse(MockServerKroxyliciousTester tester, ApiKeys keys, short minVersion, short maxVersion) {
+        short apiVersion = (short) 0;
+        ApiVersionsResponseData apiVersionsResponseData = givennMockRespondsWithApiVersionsForKey(keys.id, minVersion, maxVersion, tester, apiVersion);
+        apiVersionsResponseData.setErrorCode(Errors.UNSUPPORTED_VERSION.code());
+    }
+
+    private static ApiVersionsResponseData givennMockRespondsWithApiVersionsForKey(short keys, short minVersion, short maxVersion, MockServerKroxyliciousTester tester,
+                                                                                   short apiVersion) {
         ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
         ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
-        version.setApiKey(keys.id).setMinVersion(minVersion).setMaxVersion(maxVersion);
+        version.setApiKey(keys).setMinVersion(minVersion).setMaxVersion(maxVersion);
         mockResponse.apiKeys().add(version);
-        tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
+        tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, apiVersion, mockResponse));
+        return mockResponse;
     }
 
     private static Response whenGetApiVersionsFromKroxylicious(KafkaClient client) {

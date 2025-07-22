@@ -5,9 +5,11 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.protocol.Readable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +75,12 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
             log().trace("{}: Body: {}", ctx, body);
             Filter recipient = correlation.recipient();
+            if (apiKey == ApiKeys.API_VERSIONS && body instanceof ApiVersionsResponseData data && data.errorCode() == Errors.UNSUPPORTED_VERSION.code()) {
+                // KIP-511 response: If the upstream does not understand the API_VERSIONS version we sent to the broker, the upstream
+                // responds with a v0 response, with supported API_VERSIONS versions and error code 35. We must be careful to forward
+                // on v0 bytes to the client to preserve the KIP-511 contract.
+                apiVersion = ApiKeys.API_VERSIONS.oldestVersion();
+            }
             if (recipient == null) {
                 frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
             }

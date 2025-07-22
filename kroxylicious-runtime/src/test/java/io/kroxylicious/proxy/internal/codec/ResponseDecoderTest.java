@@ -166,10 +166,13 @@ class ResponseDecoderTest extends AbstractCodecTest {
         mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, null, true);
 
         // given
-        ByteBuf buffer = Unpooled.wrappedBuffer(serializeUsingKafkaApis((short) 0,
+        ApiVersionsResponseData.ApiVersionCollection apiKeys = new ApiVersionsResponseData.ApiVersionCollection();
+        apiKeys.add(new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.API_VERSIONS.id).setMinVersion((short) 0).setMaxVersion((short) 3));
+        ByteBuf buffer = Unpooled.wrappedBuffer(serializeUsingKafkaApis(ApiKeys.API_VERSIONS.responseHeaderVersion((short) 0),
                 exampleResponseHeader(),
                 (short) 0,
                 new ApiVersionsResponseData()
+                        .setApiKeys(apiKeys)
                         .setErrorCode(Errors.UNSUPPORTED_VERSION.code())));
         List<Object> objects = new ArrayList<>();
 
@@ -179,7 +182,14 @@ class ResponseDecoderTest extends AbstractCodecTest {
         // then
         assertThat(objects)
                 .singleElement()
-                .extracting("body")
-                .isEqualTo(new ApiVersionsResponseData().setErrorCode(Errors.UNSUPPORTED_VERSION.code()));
+                .isInstanceOfSatisfying(DecodedResponseFrame.class, frame -> {
+                    ApiVersionsResponseData.ApiVersionCollection expectedApiKeys = new ApiVersionsResponseData.ApiVersionCollection();
+                    expectedApiKeys.add(new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.API_VERSIONS.id).setMinVersion((short) 0).setMaxVersion((short) 3));
+                    assertThat(frame.body()).isEqualTo(new ApiVersionsResponseData().setErrorCode(Errors.UNSUPPORTED_VERSION.code()).setApiKeys(expectedApiKeys));
+                    // the apiVersion on the decoded frame is used by the proxy at encoding time when we forward it to the downstream
+                    // we need to ensure that we forward on v0 bytes as some clients will infer from the 35 error code that a v0 body
+                    // follows
+                    assertThat(frame.apiVersion()).isEqualTo((short) 0);
+                });
     }
 }

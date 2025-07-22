@@ -203,7 +203,8 @@ public final class KafkaClient implements AutoCloseable {
 
     private static Response toResponse(SequencedResponse sequencedResponse) {
         DecodedResponseFrame<?> frame = sequencedResponse.frame();
-        return new Response(new ResponsePayload(frame.apiKey(), frame.apiVersion(), frame.body()), sequencedResponse.sequenceNumber());
+        return new Response(new ResponsePayload(frame.apiKey(), frame.apiVersion(), frame.body()), sequencedResponse.sequenceNumber(), frame.correlationId(),
+                sequencedResponse.rawResponseHeaderAndBody());
     }
 
     private static SslContext buildTrustAllSslContext() {

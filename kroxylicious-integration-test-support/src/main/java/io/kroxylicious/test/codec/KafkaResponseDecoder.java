@@ -66,8 +66,11 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         log().trace("{}: Header: {}", ctx, header);
         ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
         log().trace("{}: Body: {}", ctx, body);
+        in.readerIndex(ri);
+        byte[] rawHeaderAndBody = new byte[length];
+        in.readBytes(rawHeaderAndBody);
         frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
-        correlation.responseFuture().complete(new SequencedResponse(frame, i++));
+        correlation.responseFuture().complete(new SequencedResponse(frame, i++, rawHeaderAndBody));
         return frame;
     }
 

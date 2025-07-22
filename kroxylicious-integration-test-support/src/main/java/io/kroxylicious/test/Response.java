@@ -7,4 +7,6 @@
 package io.kroxylicious.test;
 
 public record Response(ResponsePayload payload,
-                       int sequenceNumber) {}
+                       int sequenceNumber,
+                       int correlationId,
+                       byte[] rawHeaderAndBodyBytes) {}
