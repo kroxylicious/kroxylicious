@@ -35,6 +35,7 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.util.Attribute;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
@@ -469,6 +470,9 @@ public class KafkaProxyFrontendHandler
         LOGGER.trace("Connecting to outbound {}", remote);
         ChannelFuture serverTcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
         Channel outboundChannel = serverTcpConnectFuture.channel();
+        Attribute<String> attr = inboundChannel.attr(KafkaProxyInitializer.SESSION_ID_ATTRIBUTE_KEY);
+        String sessionId = attr.get();
+        outboundChannel.attr(KafkaProxyInitializer.SESSION_ID_ATTRIBUTE_KEY).set(sessionId);
         ChannelPipeline pipeline = outboundChannel.pipeline();
 
         var correlationManager = new CorrelationManager();

@@ -24,6 +24,7 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniHandler;
 import io.netty.handler.ssl.SslContext;
+import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.Future;
 
 import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
@@ -50,6 +51,8 @@ import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
+
 public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyInitializer.class);
@@ -57,6 +60,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private static final ChannelInboundHandlerAdapter LOGGING_INBOUND_ERROR_HANDLER = new LoggingInboundErrorHandler();
     @VisibleForTesting
     static final String LOGGING_INBOUND_ERROR_HANDLER_NAME = "loggingInboundErrorHandler";
+    public static final AttributeKey<String> SESSION_ID_ATTRIBUTE_KEY = AttributeKey.valueOf("sessionId");
 
     private final boolean haproxyProtocol;
     private final Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnHandlers;
@@ -89,7 +93,11 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     @Override
     public void initChannel(Channel ch) {
-
+        if (!ch.hasAttr(SESSION_ID_ATTRIBUTE_KEY)) {
+            String sessionId = MobyNamesGenerator.getRandomName() + "_" + ch.id().asShortText();
+            LOGGER.info("Allocating sessionId: {} to channel: {}", sessionId, ch.id());
+            ch.attr(SESSION_ID_ATTRIBUTE_KEY).setIfAbsent(sessionId);
+        }
         LOGGER.trace("Connection from {} to my address {}", ch.remoteAddress(), ch.localAddress());
 
         if (tls) {
@@ -188,10 +196,11 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     @VisibleForTesting
     void addHandlers(Channel ch, EndpointBinding binding) {
         var virtualCluster = binding.endpointGateway().virtualCluster();
+        String sessionId = ch.attr(SESSION_ID_ATTRIBUTE_KEY).get();
         ChannelPipeline pipeline = ch.pipeline();
         pipeline.remove(LOGGING_INBOUND_ERROR_HANDLER_NAME);
         if (virtualCluster.isLogNetwork()) {
-            pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger", LogLevel.INFO));
+            pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger - " + sessionId, LogLevel.INFO));
         }
 
         // Add handler here
@@ -213,7 +222,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder(encoderListener));
         pipeline.addLast("responseOrderer", new ResponseOrderer());
         if (virtualCluster.isLogFrames()) {
-            pipeline.addLast("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger", LogLevel.INFO));
+            pipeline.addLast("frameLogger", new FameLoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger - " + sessionId, LogLevel.INFO));
         }
 
         if (!authnHandlers.isEmpty()) {
