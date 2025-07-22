@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -26,6 +27,7 @@ import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.test.tester.MockServerKroxyliciousTester;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -48,7 +50,8 @@ public class ApiVersionsIT {
                 var client = tester.simpleTestClient()) {
             givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), (short) (ApiKeys.METADATA.latestVersion() + 1));
             Response response = whenGetApiVersionsFromKroxylicious(client);
-            assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion());
+            assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion(),
+                    Errors.NONE.code());
         }
     }
 
@@ -61,7 +64,7 @@ public class ApiVersionsIT {
                 var client = tester.simpleTestClient()) {
             givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion(true));
             Response response = whenGetApiVersionsFromKroxylicious(client);
-            assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), overriddenVersion);
+            assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), overriddenVersion, Errors.NONE.code());
         }
     }
 
@@ -69,10 +72,29 @@ public class ApiVersionsIT {
     void shouldOfferTheMinimumHighestSupportedVersionWhenKroxyliciousIsAheadOfBroker() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.simpleTestClient()) {
-            givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), (short) (ApiKeys.METADATA.latestVersion() - 1));
+            short expectedApiVersion = (short) (ApiKeys.METADATA.latestVersion() - 1);
+            givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), expectedApiVersion);
             Response response = whenGetApiVersionsFromKroxylicious(client);
             assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(),
-                    (short) (ApiKeys.METADATA.latestVersion() - 1));
+                    expectedApiVersion, Errors.NONE.code());
+        }
+    }
+
+    /**
+     * By the Kafka protocol, when the client ApiVersions request is ahead of the upstream, the server will respond
+     * with a v0 response with error code 35 as per KIP-511. If the upstream responds this way, the proxy should
+     * forward v0 response body bytes to the client.
+     */
+    @Test
+    void shouldHandleVersionZeroErrorResponseWhenKroxyliciousIsAheadOfBroker() {
+        try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
+                var client = tester.simpleTestClient()) {
+            short brokerMaxVersion = (short) (ApiKeys.API_VERSIONS.latestVersion() - 1);
+            givenMockRespondsWithDowngradedV0ApiVersionsResponse(tester, ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.oldestVersion(), brokerMaxVersion);
+            Response response = whenGetApiVersionsFromKroxylicious(client);
+
+            assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.oldestVersion(),
+                    brokerMaxVersion, Errors.UNSUPPORTED_VERSION.code());
         }
     }
 
@@ -83,7 +105,7 @@ public class ApiVersionsIT {
             short brokerOldestVersion = (short) (ApiKeys.METADATA.oldestVersion() + 1);
             givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, brokerOldestVersion, ApiKeys.METADATA.latestVersion());
             Response response = whenGetApiVersionsFromKroxylicious(client);
-            assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, brokerOldestVersion, ApiKeys.METADATA.latestVersion());
+            assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, brokerOldestVersion, ApiKeys.METADATA.latestVersion(), Errors.NONE.code());
         }
     }
 
@@ -94,7 +116,8 @@ public class ApiVersionsIT {
             short brokerOldestVersion = (short) (ApiKeys.METADATA.oldestVersion() - 1);
             givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, brokerOldestVersion, ApiKeys.METADATA.latestVersion());
             Response response = whenGetApiVersionsFromKroxylicious(client);
-            assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion());
+            assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion(),
+                    Errors.NONE.code());
         }
     }
 
@@ -150,20 +173,32 @@ public class ApiVersionsIT {
         tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
     }
 
+    private static void givenMockRespondsWithDowngradedV0ApiVersionsResponse(MockServerKroxyliciousTester tester, ApiKeys keys, short minVersion, short maxVersion) {
+        ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
+        ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
+        version.setApiKey(keys.id).setMinVersion(minVersion).setMaxVersion(maxVersion);
+        mockResponse.apiKeys().add(version);
+        mockResponse.setErrorCode(Errors.UNSUPPORTED_VERSION.code());
+        tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
+    }
+
     private static Response whenGetApiVersionsFromKroxylicious(KafkaClient client) {
         return client.getSync(new Request(ApiKeys.API_VERSIONS, (short) 3, "client", new ApiVersionsRequestData()));
     }
 
-    private static void assertKroxyliciousResponseOffersApiVersionsForApiKey(Response response, ApiKeys apiKeys, short minVersion, short maxVersion) {
+    private static void assertKroxyliciousResponseOffersApiVersionsForApiKey(Response response, ApiKeys apiKeys, short minVersion, short maxVersion, short expected) {
         ResponsePayload payload = response.payload();
         assertEquals(ApiKeys.API_VERSIONS, payload.apiKeys());
         assertEquals((short) 3, payload.apiVersion());
         ApiVersionsResponseData message = (ApiVersionsResponseData) payload.message();
-        assertEquals(1, message.apiKeys().size());
-        ApiVersionsResponseData.ApiVersion singletonVersion = message.apiKeys().iterator().next();
-        assertEquals(apiKeys.id, singletonVersion.apiKey());
-        assertEquals(minVersion, singletonVersion.minVersion());
-        assertEquals(maxVersion, singletonVersion.maxVersion());
+        assertThat(message.errorCode()).isEqualTo(expected);
+        assertThat(message.apiKeys())
+                .singleElement()
+                .satisfies(apiVersion -> {
+                    assertThat(apiVersion.apiKey()).isEqualTo(apiKeys.id);
+                    assertThat(apiVersion.minVersion()).isEqualTo(minVersion);
+                    assertThat(apiVersion.maxVersion()).isEqualTo(maxVersion);
+                });
     }
 
 }
