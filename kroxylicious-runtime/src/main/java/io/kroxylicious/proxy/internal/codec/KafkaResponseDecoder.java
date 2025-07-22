@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.internal.codec;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.protocol.Readable;
 import org.slf4j.Logger;
@@ -72,14 +71,20 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             log().trace("{}: Header version: {}", ctx, headerVersion);
             ResponseHeaderData header = readHeader(headerVersion, accessor);
             log().trace("{}: Header: {}", ctx, header);
-            ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
+            DecodedApiMessage result = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
+            var body = result.apiMessage();
             log().trace("{}: Body: {}", ctx, body);
             Filter recipient = correlation.recipient();
             if (apiKey == ApiKeys.API_VERSIONS && body instanceof ApiVersionsResponseData data && data.errorCode() == Errors.UNSUPPORTED_VERSION.code()) {
+                if (result.decodeApiVersion() != (short) 0) {
+                    throw new IllegalStateException(
+                            "Api Versions response with error code 35 should be decoded as v0 per KIP-511, decoded successfully with apiVersion "
+                                    + result.decodeApiVersion());
+                }
                 // KIP-511 response: If the upstream does not understand the API_VERSIONS version we sent to the broker, the upstream
                 // responds with a v0 response, with supported API_VERSIONS versions and error code 35. We must be careful to forward
                 // on v0 bytes to the client to preserve the KIP-511 contract.
-                apiVersion = ApiKeys.API_VERSIONS.oldestVersion();
+                apiVersion = (short) 0;
             }
             if (recipient == null) {
                 frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);

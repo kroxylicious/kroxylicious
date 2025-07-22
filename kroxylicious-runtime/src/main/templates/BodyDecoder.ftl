@@ -66,7 +66,7 @@ public class BodyDecoder {
     * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-511%3A+Collect+and+Expose+Client%27s+Name+and+Version+in+the+Brokers#KIP511:CollectandExposeClient'sNameandVersionintheBrokers-ApiVersionsRequest/ResponseHandling">KIP-511: Collect and Expose Client's Name and Version in the Brokers</a>
     * ApiVersions Request/Response Handling
     */
-    static ApiMessage decodeResponse(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor) {
+    static DecodedApiMessage decodeResponse(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor) {
         return switch (apiKey) {
 <#list messageSpecs as messageSpec>
     <#if messageSpec.type?lower_case == 'response'>
@@ -76,12 +76,12 @@ public class BodyDecoder {
                 // Use the same algorithm as https://github.com/apache/kafka/blob/a41c10fd49841381b5207c184a385622094ed440/clients/src/main/java/org/apache/kafka/common/requests/ApiVersionsResponse.java#L90-L106
                 int prev = accessor.readerIndex();
                 try {
-                    yield new ${messageSpec.name}Data(accessor, apiVersion);
+                    yield new DecodedApiMessage(new ${messageSpec.name}Data(accessor, apiVersion), apiVersion);
                 }
                 catch (RuntimeException e) {
                     accessor.readerIndex(prev);
                     if (apiVersion != 0) {
-                        yield new ${messageSpec.name}Data(accessor, (short) 0);
+                        yield new DecodedApiMessage(new ${messageSpec.name}Data(accessor, (short) 0), (short) 0);
                     }
                     else {
                         throw e;
@@ -89,7 +89,7 @@ public class BodyDecoder {
                 }
             }
         <#else>
-            case ${retrieveApiKey(messageSpec)} -> new ${messageSpec.name}Data(accessor, apiVersion);
+            case ${retrieveApiKey(messageSpec)} -> new DecodedApiMessage(new ${messageSpec.name}Data(accessor, apiVersion), apiVersion);
         </#if>
     </#if>
 </#list>

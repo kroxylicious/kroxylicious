@@ -30,6 +30,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static io.kroxylicious.proxy.internal.codec.ByteBufs.writeByteBuf;
 import static io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -187,9 +188,32 @@ class ResponseDecoderTest extends AbstractCodecTest {
                     expectedApiKeys.add(new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.API_VERSIONS.id).setMinVersion((short) 0).setMaxVersion((short) 3));
                     assertThat(frame.body()).isEqualTo(new ApiVersionsResponseData().setErrorCode(Errors.UNSUPPORTED_VERSION.code()).setApiKeys(expectedApiKeys));
                     // the apiVersion on the decoded frame is used by the proxy at encoding time when we forward it to the downstream
-                    // we need to ensure that we forward on v0 bytes as some clients will infer from the 35 error code that a v0 body
-                    // follows
+                    // we need to ensure that we forward on v0 bytes as that is the contract specified by KIP-511 and clients can assume
+                    // that a 35 error code implies v0 body
                     assertThat(frame.apiVersion()).isEqualTo((short) 0);
                 });
+    }
+
+    @Test
+    void rejectsNonV0UnknownVersionResponse() {
+        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, null, true);
+
+        // given
+        ApiVersionsResponseData.ApiVersionCollection apiKeys = new ApiVersionsResponseData.ApiVersionCollection();
+        apiKeys.add(new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.API_VERSIONS.id).setMinVersion((short) 3).setMaxVersion((short) 3));
+        ByteBuf buffer = Unpooled.wrappedBuffer(serializeUsingKafkaApis(ApiKeys.API_VERSIONS.responseHeaderVersion((short) 3),
+                exampleResponseHeader(),
+                (short) 3,
+                new ApiVersionsResponseData()
+                        .setApiKeys(apiKeys)
+                        .setErrorCode(Errors.UNSUPPORTED_VERSION.code())));
+        List<Object> objects = new ArrayList<>();
+
+        // when
+        assertThatThrownBy(() -> {
+            responseDecoder.decode(null, buffer, objects);
+        }).isInstanceOf(IllegalStateException.class)
+                .hasMessage("Api Versions response with error code 35 should be decoded as v0 per KIP-511, decoded successfully with apiVersion 3");
+
     }
 }
