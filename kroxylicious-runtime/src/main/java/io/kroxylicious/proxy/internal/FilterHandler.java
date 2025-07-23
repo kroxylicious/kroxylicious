@@ -33,6 +33,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.ssl.SslHandler;
 
+import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -71,17 +72,24 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final VirtualClusterModel virtualClusterModel;
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
+    private final ClientSaslContextImpl csc;
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private ChannelHandlerContext ctx;
     private PromiseFactory promiseFactory;
 
-    public FilterHandler(FilterAndInvoker filterAndInvoker, long timeoutMs, String sniHostname, VirtualClusterModel virtualClusterModel, Channel inboundChannel) {
+    public FilterHandler(FilterAndInvoker filterAndInvoker,
+                         long timeoutMs,
+                         String sniHostname,
+                         VirtualClusterModel virtualClusterModel,
+                         Channel inboundChannel,
+                         ClientSaslContextImpl csc) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
         this.virtualClusterModel = virtualClusterModel;
         this.inboundChannel = inboundChannel;
+        this.csc = csc;
     }
 
     @Override
@@ -493,6 +501,40 @@ public class FilterHandler extends ChannelDuplexHandler {
             return Optional.ofNullable(inboundChannel.pipeline().get(SslHandler.class))
                     .map(clientFacingSslHandler -> new ClientTlsContextImpl(
                             Objects.requireNonNull(localTlsCertificate(clientFacingSslHandler)), getPeerTlsCertificate(clientFacingSslHandler)));
+        }
+
+        @Override
+        public void clientSaslAuthenticationSuccess(@NonNull String mechanism,
+                                                    @NonNull String authorizedId) {
+            LOGGER.atInfo().setMessage("{}: Filter '{}' announces client has passed SASL authentication using mechanism '{}' and authorizationId '{}'.")
+                    .addArgument(channelDescriptor())
+                    .addArgument(filterDescriptor())
+                    .addArgument(mechanism)
+                    .addArgument(authorizedId)
+                    .log();
+            // dispatch principal injection
+            csc.clientSaslAuthenticationSuccess(mechanism, authorizedId, null);
+        }
+
+        @Override
+        public void clientSaslAuthenticationFailure(@Nullable String mechanism,
+                                                    @Nullable String authorizedId,
+                                                    @NonNull Exception exception) {
+            LOGGER.atInfo()
+                    .setMessage("{}: Filter '{}' announces client has failed SASL authentication using mechanism '{}' and authorizationId '{}'. Cause message {}")
+                    .addArgument(channelDescriptor())
+                    .addArgument(filterDescriptor())
+                    .addArgument(mechanism)
+                    .addArgument(authorizedId)
+                    .addArgument(exception.toString())
+                    .log();
+            csc.clientSaslAuthenticationFailure();
+
+        }
+
+        @Override
+        public @NonNull Optional<ClientSaslContext> clientSaslContext() {
+            return FilterHandler.this.csc.clientSaslContext();
         }
 
         @Override
