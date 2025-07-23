@@ -93,7 +93,7 @@ public final class KafkaClient implements AutoCloseable {
         var header = new RequestHeaderData().setRequestApiKey(messageType.apiKey()).setRequestApiVersion(request.apiVersion());
         header.setClientId(request.clientIdHeader());
         header.setCorrelationId(correlationId.incrementAndGet());
-        return new DecodedRequestFrame<>(header.requestApiVersion(), header.correlationId(), header, request.message());
+        return new DecodedRequestFrame<>(header.requestApiVersion(), header.correlationId(), header, request.message(), request.responseApiVersion());
     }
 
     // TODO return a Response class with jsonObject() and frame() methods

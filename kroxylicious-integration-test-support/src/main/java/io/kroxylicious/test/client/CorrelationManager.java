@@ -33,15 +33,16 @@ public class CorrelationManager {
     /**
      * Allocate and return a correlation id for an outgoing request to the broker.
      *
-     * @param apiKey         The API key.
-     * @param apiVersion     The API version.
-     * @param correlationId  The request's correlation id.
+     * @param apiKey The API key.
+     * @param apiVersion The API version.
+     * @param correlationId The request's correlation id.
      * @param responseFuture The future to complete with the response
+     * @param responseApiVersion
      */
     public void putBrokerRequest(short apiKey,
                                  short apiVersion,
-                                 int correlationId, CompletableFuture<SequencedResponse> responseFuture) {
-        Correlation existing = this.brokerRequests.put(correlationId, new Correlation(apiKey, apiVersion, responseFuture));
+                                 int correlationId, CompletableFuture<SequencedResponse> responseFuture, short responseApiVersion) {
+        Correlation existing = this.brokerRequests.put(correlationId, new Correlation(apiKey, apiVersion, responseFuture, responseApiVersion));
         if (existing != null) {
             LOGGER.error("Duplicate upstream correlation id {}", correlationId);
         }
@@ -72,13 +73,15 @@ public class CorrelationManager {
      */
     public record Correlation(short apiKey,
                               short apiVersion,
-                              CompletableFuture<SequencedResponse> responseFuture) {
+                              CompletableFuture<SequencedResponse> responseFuture,
+                              short responseApiVersion) {
 
         @Override
         public String toString() {
             return "Correlation(" +
                     "apiKey=" + ApiKeys.forId(apiKey) +
                     ", apiVersion=" + apiVersion +
+                    ", responseApiVersion=" + responseApiVersion +
                     ')';
         }
 
@@ -91,12 +94,12 @@ public class CorrelationManager {
                 return false;
             }
             Correlation that = (Correlation) o;
-            return apiKey == that.apiKey && apiVersion == that.apiVersion;
+            return apiKey == that.apiKey && apiVersion == that.apiVersion && responseApiVersion == that.responseApiVersion;
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(apiKey, apiVersion);
+            return Objects.hash(apiKey, apiVersion, responseApiVersion);
         }
 
     }
