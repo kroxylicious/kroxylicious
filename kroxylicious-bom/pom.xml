@@ -247,6 +247,16 @@
                     <artifactId>git-commit-id-maven-plugin</artifactId>
                     <version>9.0.2</version>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-enforcer-plugin</artifactId>
+                    <version>3.5.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-gpg-plugin</artifactId>
+                    <version>3.2.7</version>
+                </plugin>
             </plugins>
         </pluginManagement>
         <plugins>
