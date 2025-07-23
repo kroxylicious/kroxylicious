@@ -189,8 +189,40 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
     * @return true if the filter implements any Specific Message Filter interfaces
     */
     public static boolean implementsAnySpecificFilterInterface(Filter filter) {
-        return <#list messageSpecs as messageSpec>filter instanceof ${messageSpec.name}Filter<#sep> ||
-        </#sep></#list>;
+        return implementsAnySpecificRequestFilterInterface(filter)
+                || implementsAnySpecificResponseFilterInterface(filter);
+    }
+
+    /**
+    * Check if a Filter implements any of the Specific Request Filter interfaces
+    * @param filter the filter
+    * @return true if the filter implements any Specific Request Filter interfaces
+    */
+    public static boolean implementsAnySpecificRequestFilterInterface(Filter filter) {
+<#list messageSpecs as messageSpec>
+    <#if messageSpec.type?lower_case == 'request'>
+        if (filter instanceof ${messageSpec.name}Filter) {
+            return true;
+        }
+    </#if>
+</#list>
+        return false;
+    }
+
+    /**
+    * Check if a Filter implements any of the Specific Response Filter interfaces
+    * @param filter the filter
+    * @return true if the filter implements any Specific Response Filter interfaces
+    */
+    public static boolean implementsAnySpecificResponseFilterInterface(Filter filter) {
+<#list messageSpecs as messageSpec>
+    <#if messageSpec.type?lower_case == 'response'>
+        if (filter instanceof ${messageSpec.name}Filter) {
+            return true;
+        }
+    </#if>
+</#list>
+        return false;
     }
 
     private static FilterInvoker[] createHandleNothing() {
