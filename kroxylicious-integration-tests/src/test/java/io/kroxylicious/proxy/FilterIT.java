@@ -57,10 +57,13 @@ import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilterFactory;
 import io.kroxylicious.proxy.filter.simpletransform.FetchResponseTransformation;
 import io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation;
+import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
+import io.kroxylicious.proxy.testplugins.SaslPlainInitiation;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.common.SaslMechanism;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
@@ -574,6 +577,51 @@ class FilterIT {
             assertThat(records.records(topic2.name()))
                     .hasSize(1)
                     .map(ConsumerRecord::value).containsExactly(PLAINTEXT);
+        }
+    }
+
+    @Test
+    void shouldInitiate(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+                        Topic topic)
+            throws Exception {
+        String testName = "shouldInitiate";
+
+        NamedFilterDefinition saslInitiation = new NamedFilterDefinitionBuilder(
+                SaslPlainInitiation.class.getName(),
+                SaslPlainInitiation.class.getName())
+                .build();
+        NamedFilterDefinition lawyer = new NamedFilterDefinitionBuilder(
+                ClientTlsAwareLawyer.class.getName(),
+                ClientTlsAwareLawyer.class.getName())
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(saslInitiation, lawyer)
+                .addToDefaultFilters(saslInitiation.name(), lawyer.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(Map.of(
+                        CLIENT_ID_CONFIG, testName + "-producer",
+                        DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                var consumer = tester
+                        .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(
+                                CLIENT_ID_CONFIG, testName + "-consumer",
+                                GROUP_ID_CONFIG, "my-group-id",
+                                AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
+            producer.send(new ProducerRecord<>(topic.name(), "my-key", PLAINTEXT)).get();
+
+            producer.flush();
+
+            consumer.subscribe(Set.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(10));
+
+            assertThat(records).hasSize(1);
+            assertThat(records.records(topic.name()))
+                    .as("topic %s records", topic.name())
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .as("record value")
+                    .extracting(String::new)
+                    .isEqualTo(PLAINTEXT);
         }
     }
 
