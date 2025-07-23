@@ -104,6 +104,21 @@ class KafkaClientTest {
     }
 
     @Test
+    void unreadBytesAfterFrameDecodeThrowsException() {
+        ApiVersionsResponseData message = new ApiVersionsResponseData();
+        message.setErrorCode(Errors.UNSUPPORTED_VERSION.code());
+        message.setThrottleTimeMs(22);
+        ResponsePayload v0Payload = new ResponsePayload(ApiKeys.API_VERSIONS, (short) 1, message);
+        try (var mockServer = MockServer.startOnRandomPort(v0Payload);
+                var kafkaClient = new KafkaClient("localhost", mockServer.port())) {
+            CompletableFuture<Response> future = kafkaClient.get(new Request(ApiKeys.API_VERSIONS, (short) 3, "client", new ApiVersionsRequestData(), (short) 0));
+            // fails to decode v0 response because client encodes v1, which is backwards compatible but emits additional bytes. We want to be as sure as we can be that it was a v0 response.
+            assertThat(future).failsWithin(10, TimeUnit.SECONDS).withThrowableThat()
+                    .withMessageContaining("Unread bytes remaining in frame, potentially response api version differs from expectation");
+        }
+    }
+
+    @Test
     void unexpectedResponseFormatTriggersFailure() {
         ApiVersionsResponseData message = new ApiVersionsResponseData();
         message.setErrorCode(Errors.UNSUPPORTED_VERSION.code());
