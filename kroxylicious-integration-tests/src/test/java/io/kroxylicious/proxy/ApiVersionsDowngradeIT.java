@@ -118,7 +118,7 @@ public class ApiVersionsDowngradeIT {
         clientSecurityProtocolConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name);
         clientSecurityProtocolConfig.put(SaslConfigs.SASL_JAAS_CONFIG,
                 String.format("""
-                                %s required username="%s" password="%s";""",
+                        %s required username="%s" password="%s";""",
                         PlainLoginModule.class.getName(), SASL_USER, SASL_PASSWORD));
         clientSecurityProtocolConfig.put(SaslConfigs.SASL_MECHANISM, "PLAIN");
 
