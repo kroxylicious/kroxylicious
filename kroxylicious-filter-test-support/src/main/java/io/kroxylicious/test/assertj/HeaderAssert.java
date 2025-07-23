@@ -53,4 +53,7 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
         return headerValue;
     }
 
+    public AbstractByteArrayAssert<?> hasValue() {
+        return Assertions.assertThat(actual.value());
+    }
 }
