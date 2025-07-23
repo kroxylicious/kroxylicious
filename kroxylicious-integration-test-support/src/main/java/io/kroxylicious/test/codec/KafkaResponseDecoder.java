@@ -61,14 +61,12 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
             short apiVersion = correlation.responseApiVersion();
             var accessor = new ByteBufAccessorImpl(in);
             short headerVersion = apiKey.responseHeaderVersion(apiVersion);
-            log().trace("{}: Header version: {}", ctx, headerVersion);
             ResponseHeaderData header = readHeader(headerVersion, accessor);
-            log().trace("{}: Header: {}", ctx, header);
             ApiMessage body = BodyDecoder.decodeResponse(apiKey, apiVersion, accessor);
-            log().trace("{}: Body: {}", ctx, body);
             frame = new DecodedResponseFrame<>(apiVersion, correlationId, header, body);
+            log().trace("{}: Frame: {}", ctx, frame);
             if (in.readableBytes() != 0) {
-                throw new RuntimeException("Unread bytes remaining in frame, potentially response api version differs from expectation");
+                throw new IllegalStateException("Unread bytes remaining in frame, potentially response api version differs from expectation");
             }
             correlation.responseFuture().complete(new SequencedResponse(frame, i++));
             return frame;

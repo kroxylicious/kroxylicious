@@ -78,23 +78,30 @@ public class ApiVersionsDowngradeIT {
 
     @Test
     void clientAheadOfProxy() {
+        // Given
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.simpleTestClient()) {
             OpaqueRequestFrame frame = createHypotheticalFutureRequest();
-            CompletableFuture<Response> responseCompletableFuture = client.get(
-                    frame);
-            assertThat(responseCompletableFuture).succeedsWithin(5, TimeUnit.SECONDS).satisfies(response -> {
-                assertThat(response.payload().apiKeys()).isEqualTo(ApiKeys.API_VERSIONS);
-                assertThat(response.payload().message()).isInstanceOfSatisfying(ApiVersionsResponseData.class, data -> {
-                    assertThat(data.errorCode()).isEqualTo(Errors.UNSUPPORTED_VERSION.code());
-                    ApiVersionsResponseData.ApiVersion expected = new ApiVersionsResponseData.ApiVersion();
-                    expected.setApiKey(ApiKeys.API_VERSIONS.id).setMinVersion(ApiKeys.API_VERSIONS.oldestVersion())
-                            .setMaxVersion(ApiKeys.API_VERSIONS.latestVersion(true));
-                    ApiVersionsResponseData.ApiVersionCollection collection = new ApiVersionsResponseData.ApiVersionCollection();
-                    collection.add(expected);
-                    assertThat(data.apiKeys()).isEqualTo(collection);
-                });
-            });
+            ApiVersionsResponseData.ApiVersion expected = new ApiVersionsResponseData.ApiVersion();
+            ApiVersionsResponseData.ApiVersionCollection collection = new ApiVersionsResponseData.ApiVersionCollection();
+            expected.setApiKey(ApiKeys.API_VERSIONS.id).setMinVersion(ApiKeys.API_VERSIONS.oldestVersion())
+                    .setMaxVersion(ApiKeys.API_VERSIONS.latestVersion(true));
+            collection.add(expected);
+
+            // When
+            CompletableFuture<Response> responseCompletableFuture = client.get(frame);
+
+            // Then
+            assertThat(responseCompletableFuture).succeedsWithin(5, TimeUnit.SECONDS)
+                    .satisfies(response -> {
+                        assertThat(response.payload().apiKeys()).isEqualTo(ApiKeys.API_VERSIONS);
+                        assertThat(response.payload().message()).isInstanceOfSatisfying(ApiVersionsResponseData.class,
+                                data -> {
+                                    assertThat(data.apiKey()).isEqualTo(ApiKeys.API_VERSIONS.id);
+                                    assertThat(data.errorCode()).isEqualTo(Errors.UNSUPPORTED_VERSION.code());
+                                    assertThat(data.apiKeys()).isEqualTo(collection);
+                                });
+                    });
             assertThat(tester.getReceivedRequestCount()).isZero();
         }
     }
@@ -111,7 +118,7 @@ public class ApiVersionsDowngradeIT {
         clientSecurityProtocolConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name);
         clientSecurityProtocolConfig.put(SaslConfigs.SASL_JAAS_CONFIG,
                 String.format("""
-                        %s required username="%s" password="%s";""",
+                                %s required username="%s" password="%s";""",
                         PlainLoginModule.class.getName(), SASL_USER, SASL_PASSWORD));
         clientSecurityProtocolConfig.put(SaslConfigs.SASL_MECHANISM, "PLAIN");
 
@@ -135,10 +142,8 @@ public class ApiVersionsDowngradeIT {
                     .extracting("client")
                     .extracting("apiVersions")
                     .extracting("nodeApiVersions", InstanceOfAssertFactories.map(String.class, NodeApiVersions.class))
-                    .hasEntrySatisfying("0", nav -> {
-                        assertThat(nav.apiVersion(ApiKeys.API_VERSIONS).maxVersion())
-                                .isEqualTo(apiVersion);
-                    });
+                    .hasEntrySatisfying("0", nav -> assertThat(nav.apiVersion(ApiKeys.API_VERSIONS).maxVersion())
+                            .isEqualTo(apiVersion));
         }
     }
 
@@ -157,7 +162,7 @@ public class ApiVersionsDowngradeIT {
     @EnabledIf(value = "isDockerAvailable", disabledReason = "docker unavailable")
     void clientAheadOfProxyWhichIsAheadOfBroker() {
 
-        try (var redpanda = createRedpanda(OLD_REDPANDA_USING_API_VER0_2)) {
+        try (var redpanda = createRedpanda()) {
             redpanda.start();
             var redpandaApiVersion = (short) 2;
             var proxyApiVersion = (short) (ApiKeys.API_VERSIONS.latestVersion() - 1);
@@ -178,10 +183,8 @@ public class ApiVersionsDowngradeIT {
                         .extracting("client")
                         .extracting("apiVersions")
                         .extracting("nodeApiVersions", InstanceOfAssertFactories.map(String.class, NodeApiVersions.class))
-                        .hasEntrySatisfying("-1", nav -> {
-                            assertThat(nav.apiVersion(ApiKeys.API_VERSIONS).maxVersion())
-                                    .isEqualTo(redpandaApiVersion);
-                        });
+                        .hasEntrySatisfying("-1", nav -> assertThat(nav.apiVersion(ApiKeys.API_VERSIONS).maxVersion())
+                                .isEqualTo(redpandaApiVersion));
             }
 
         }
@@ -189,7 +192,7 @@ public class ApiVersionsDowngradeIT {
 
     private static @NonNull OpaqueRequestFrame createHypotheticalFutureRequest() {
         short unsupportedVersion = (short) (ApiKeys.API_VERSIONS.latestVersion(true) + 1);
-        RequestHeaderData requestHeaderData = getRequestHeaderData(API_VERSIONS_ID, unsupportedVersion, CORRELATION_ID);
+        RequestHeaderData requestHeaderData = getRequestHeaderData(unsupportedVersion);
         short requestHeaderVersion = ApiKeys.API_VERSIONS.requestHeaderVersion(unsupportedVersion);
         ObjectSerializationCache cache = new ObjectSerializationCache();
         int headerSize = requestHeaderData.size(cache, requestHeaderVersion);
@@ -204,20 +207,20 @@ public class ApiVersionsDowngradeIT {
         ByteBufAccessorImpl accessor = new ByteBufAccessorImpl(buffer);
         requestHeaderData.write(accessor, cache, requestHeaderVersion);
         accessor.writeByteArray(arbitraryBodyData);
-        return new OpaqueRequestFrame(buffer, CORRELATION_ID, messageSize, true, ApiKeys.API_VERSIONS, unsupportedVersion);
+        return new OpaqueRequestFrame(buffer, CORRELATION_ID, messageSize, true, ApiKeys.API_VERSIONS, unsupportedVersion, (short) 0);
     }
 
-    private static @NonNull RequestHeaderData getRequestHeaderData(short apiKey, short unsupportedVersion, int correlationId) {
+    private static @NonNull RequestHeaderData getRequestHeaderData(short unsupportedVersion) {
         RequestHeaderData requestHeaderData = new RequestHeaderData();
-        requestHeaderData.setRequestApiKey(apiKey);
+        requestHeaderData.setRequestApiKey(ApiVersionsDowngradeIT.API_VERSIONS_ID);
         requestHeaderData.setRequestApiVersion(unsupportedVersion);
-        requestHeaderData.setCorrelationId(correlationId);
+        requestHeaderData.setCorrelationId(ApiVersionsDowngradeIT.CORRELATION_ID);
         return requestHeaderData;
     }
 
     @NonNull
-    private RedpandaContainer createRedpanda(DockerImageName image) {
-        var redpanda = new RedpandaContainer(image);
+    private RedpandaContainer createRedpanda() {
+        var redpanda = new RedpandaContainer(ApiVersionsDowngradeIT.OLD_REDPANDA_USING_API_VER0_2);
         redpanda.setWaitStrategy(new LogMessageWaitStrategy().withRegEx(".*Bootstrap complete.*"));
         redpanda.addFixedExposedPort(9092, 9092);
         return redpanda;
