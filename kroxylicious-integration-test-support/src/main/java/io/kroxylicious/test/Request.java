@@ -12,6 +12,12 @@ import org.apache.kafka.common.protocol.ApiMessage;
 public record Request(ApiKeys apiKeys,
                       short apiVersion,
                       String clientIdHeader,
-                      ApiMessage message) {
-
+                      ApiMessage message,
+                      short responseApiVersion) {
+    public Request(ApiKeys apiKeys,
+                   short apiVersion,
+                   String clientIdHeader,
+                   ApiMessage message) {
+        this(apiKeys, apiVersion, clientIdHeader, message, apiVersion);
+    }
 }

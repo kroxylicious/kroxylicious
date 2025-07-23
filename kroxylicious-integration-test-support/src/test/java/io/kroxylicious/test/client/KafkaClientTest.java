@@ -88,18 +88,31 @@ class KafkaClientTest {
 
     // brokers can respond with a v0 response if they do not support the ApiVersions request version, see KIP-511
     @Test
-    void testClientCanTolerateV0ApiVersionsResponseToHigherRequestVersion() {
+    void testClientCanHandleResponseApiVersionDifferentFromRequestApiVersion() {
         ApiVersionsResponseData message = new ApiVersionsResponseData();
         message.setErrorCode(Errors.UNSUPPORTED_VERSION.code());
         ResponsePayload v0Payload = new ResponsePayload(ApiKeys.API_VERSIONS, (short) 0, message);
         try (var mockServer = MockServer.startOnRandomPort(v0Payload);
                 var kafkaClient = new KafkaClient("localhost", mockServer.port())) {
-            CompletableFuture<Response> future = kafkaClient.get(new Request(ApiKeys.API_VERSIONS, (short) 0, "client", new ApiVersionsRequestData()));
+            CompletableFuture<Response> future = kafkaClient.get(new Request(ApiKeys.API_VERSIONS, (short) 3, "client", new ApiVersionsRequestData(), (short) 0));
             assertThat(future).succeedsWithin(10, TimeUnit.SECONDS).satisfies(response -> {
                 assertThat(response.payload().message()).isInstanceOfSatisfying(ApiVersionsResponseData.class, apiVersionsRequestData -> {
                     assertThat(apiVersionsRequestData.errorCode()).isEqualTo(Errors.UNSUPPORTED_VERSION.code());
                 });
             });
+        }
+    }
+
+    @Test
+    void unexpectedResponseFormatTriggersFailure() {
+        ApiVersionsResponseData message = new ApiVersionsResponseData();
+        message.setErrorCode(Errors.UNSUPPORTED_VERSION.code());
+        ResponsePayload v0Payload = new ResponsePayload(ApiKeys.API_VERSIONS, (short) 0, message);
+        try (var mockServer = MockServer.startOnRandomPort(v0Payload);
+                var kafkaClient = new KafkaClient("localhost", mockServer.port())) {
+            CompletableFuture<Response> future = kafkaClient.get(new Request(ApiKeys.API_VERSIONS, (short) 3, "client", new ApiVersionsRequestData()));
+            // fails to decode v0 response because client expects v3
+            assertThat(future).failsWithin(10, TimeUnit.SECONDS).withThrowableThat().withMessageContaining("non-nullable field apiKeys was serialized as null");
         }
     }
 

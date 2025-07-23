@@ -91,7 +91,7 @@ public class ApiVersionsIT {
                 var client = tester.simpleTestClient()) {
             short brokerMaxVersion = (short) (ApiKeys.API_VERSIONS.latestVersion() - 1);
             givenMockRespondsWithDowngradedV0ApiVersionsResponse(tester, ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.oldestVersion(), brokerMaxVersion);
-            Response response = whenGetApiVersionsFromKroxylicious(client);
+            Response response = whenGetApiVersionsFromKroxylicious(client, (short) 3, (short) 0);
 
             assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.oldestVersion(),
                     brokerMaxVersion, Errors.UNSUPPORTED_VERSION.code());
@@ -179,17 +179,20 @@ public class ApiVersionsIT {
         version.setApiKey(keys.id).setMinVersion(minVersion).setMaxVersion(maxVersion);
         mockResponse.apiKeys().add(version);
         mockResponse.setErrorCode(Errors.UNSUPPORTED_VERSION.code());
-        tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
+        tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 0, mockResponse));
     }
 
     private static Response whenGetApiVersionsFromKroxylicious(KafkaClient client) {
-        return client.getSync(new Request(ApiKeys.API_VERSIONS, (short) 3, "client", new ApiVersionsRequestData()));
+        return whenGetApiVersionsFromKroxylicious(client, (short) 3, (short) 3);
+    }
+
+    private static Response whenGetApiVersionsFromKroxylicious(KafkaClient client, short requestApiVersion, short responseApiVersion) {
+        return client.getSync(new Request(ApiKeys.API_VERSIONS, requestApiVersion, "client", new ApiVersionsRequestData(), responseApiVersion));
     }
 
     private static void assertKroxyliciousResponseOffersApiVersionsForApiKey(Response response, ApiKeys apiKeys, short minVersion, short maxVersion, short expected) {
         ResponsePayload payload = response.payload();
         assertEquals(ApiKeys.API_VERSIONS, payload.apiKeys());
-        assertEquals((short) 3, payload.apiVersion());
         ApiVersionsResponseData message = (ApiVersionsResponseData) payload.message();
         assertThat(message.errorCode()).isEqualTo(expected);
         assertThat(message.apiKeys())
