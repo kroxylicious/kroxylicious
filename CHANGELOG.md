@@ -7,8 +7,8 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
-refactor: make oauth bearer validation filter content into a standalone guide.
-
+* [#2450](https://github.com/kroxylicious/kroxylicious/issues/2450): fix(proxy): Forward ApiVersions v0 response on UNSUPPORTED_VERSION v0 response from upstream
+* [#2455](https://github.com/kroxylicious/kroxylicious/pull/2455): refactor: make oauth bearer validation filter content into a standalone guide.
 * [#2378](https://github.com/kroxylicious/kroxylicious/issues/2378): refactor: Finish factoring out filter documentation into standalone guides.
 * [#2412](https://github.com/kroxylicious/kroxylicious/pull/2412): [Operator] Add hostname/ip information to VKC loadbalancer status
 * [#2314](https://github.com/kroxylicious/kroxylicious/pull/2314): Bump kubernetes-client.version from 7.2.0 to 7.3.1 (and Jackson from 2.18.3 to 2.19.1)
