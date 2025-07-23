@@ -5,6 +5,9 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +33,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static io.kroxylicious.proxy.internal.codec.ByteBufs.writeByteBuf;
 import static io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -181,5 +185,42 @@ class ResponseDecoderTest extends AbstractCodecTest {
                 .singleElement()
                 .extracting("body")
                 .isEqualTo(new ApiVersionsResponseData().setErrorCode(Errors.UNSUPPORTED_VERSION.code()));
+    }
+
+    @Test
+    void throwsOnUndecodableV0ApiVersionsResponse() throws IOException {
+        int upstreamCorrelationId = mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 0, 52, true, null, null, true);
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream);
+        dataOutputStream.writeInt(4); // framesize
+        dataOutputStream.writeInt(upstreamCorrelationId);
+        dataOutputStream.close();
+        // given
+        ByteBuf buffer = Unpooled.wrappedBuffer(byteArrayOutputStream.toByteArray());
+        List<Object> objects = new ArrayList<>();
+
+        // when
+        assertThatThrownBy(() -> {
+            responseDecoder.decode(null, buffer, objects);
+        }).isInstanceOf(IndexOutOfBoundsException.class);
+
+    }
+
+    @Test
+    void throwsOnUndecodableNonV0ApiVersionsResponse() throws IOException {
+        int upstreamCorrelationId = mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, null, true);
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream);
+        dataOutputStream.writeInt(4); // framesize
+        dataOutputStream.writeInt(upstreamCorrelationId);
+        dataOutputStream.close();
+        // given
+        ByteBuf buffer = Unpooled.wrappedBuffer(byteArrayOutputStream.toByteArray());
+        List<Object> objects = new ArrayList<>();
+
+        // then
+        assertThatThrownBy(() -> {
+            responseDecoder.decode(null, buffer, objects);
+        }).isInstanceOf(IndexOutOfBoundsException.class);
     }
 }
