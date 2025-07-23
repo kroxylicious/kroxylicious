@@ -7,6 +7,7 @@
 package io.kroxylicious.microbenchmarks;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
@@ -34,6 +35,7 @@ import io.kroxylicious.filters.FourInterfaceFilter1;
 import io.kroxylicious.filters.FourInterfaceFilter2;
 import io.kroxylicious.filters.FourInterfaceFilter3;
 import io.kroxylicious.proxy.filter.ArrayFilterInvoker;
+import io.kroxylicious.proxy.tls.ClientTlsContext;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
@@ -176,6 +178,11 @@ public class InvokerDispatchBenchmark {
         @Override
         public String getVirtualClusterName() {
             return null;
+        }
+
+        @Override
+        public Optional<ClientTlsContext> clientTlsContext() {
+            return Optional.empty();
         }
 
         @Override
