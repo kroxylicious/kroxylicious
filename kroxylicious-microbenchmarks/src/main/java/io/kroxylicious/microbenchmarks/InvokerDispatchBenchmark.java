@@ -35,7 +35,6 @@ import io.kroxylicious.filters.FourInterfaceFilter1;
 import io.kroxylicious.filters.FourInterfaceFilter2;
 import io.kroxylicious.filters.FourInterfaceFilter3;
 import io.kroxylicious.proxy.filter.ArrayFilterInvoker;
-import io.kroxylicious.proxy.tls.ClientTlsContext;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterInvoker;
@@ -45,6 +44,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
+import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
 @Fork(value = 2, jvmArgsAppend = "-XX:LoopUnrollLimit=1")
