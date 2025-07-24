@@ -53,6 +53,7 @@ import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -490,11 +491,8 @@ public class FilterHandler extends ChannelDuplexHandler {
         @Override
         public @NonNull Optional<ClientTlsContext> clientTlsContext() {
             return Optional.ofNullable(inboundChannel.pipeline().get(SslHandler.class))
-                    .map(clientFacingSslHandler -> {
-                        final X509Certificate proxyCertificate = Objects.requireNonNull(localTlsCertificate(clientFacingSslHandler));
-                        final X509Certificate clientCertificate = getPeerTlsCertificate(clientFacingSslHandler);
-                        return new ClientTlsContextImpl(proxyCertificate, clientCertificate);
-                    });
+                    .map(clientFacingSslHandler -> new ClientTlsContextImpl(
+                            Objects.requireNonNull(localTlsCertificate(clientFacingSslHandler)), getPeerTlsCertificate(clientFacingSslHandler)));
         }
 
         @Override
@@ -567,7 +565,8 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     }
 
-    private @Nullable X509Certificate getPeerTlsCertificate(SslHandler sslHandler) {
+    @VisibleForTesting
+    static @Nullable X509Certificate getPeerTlsCertificate(@Nullable SslHandler sslHandler) {
         if (sslHandler != null) {
             SSLSession session = sslHandler.engine().getSession();
 
@@ -590,7 +589,8 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
     }
 
-    private @Nullable X509Certificate localTlsCertificate(SslHandler sslHandler) {
+    @VisibleForTesting
+    static @Nullable X509Certificate localTlsCertificate(@Nullable SslHandler sslHandler) {
         if (sslHandler != null) {
             SSLSession session = sslHandler.engine().getSession();
             Certificate[] localCertificates = session.getLocalCertificates();
