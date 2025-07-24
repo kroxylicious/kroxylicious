@@ -20,7 +20,7 @@ public class HeadersAssertTest {
             .add("bar", "3".getBytes(StandardCharsets.UTF_8)));
     private final HeadersAssert emptyAssert = KafkaAssertions.assertThat(new RecordHeaders());
     HeadersAssert singletonAssert = KafkaAssertions.assertThat(new RecordHeaders()
-            .add("foo", "1".getBytes(StandardCharsets.UTF_8)));
+            .add("foo", null));
 
     @Test
     void firstHeader() {
@@ -45,7 +45,7 @@ public class HeadersAssertTest {
                         + "Expected size: 1 but was: 0 in:\n"
                         + "RecordHeaders(headers = [], isReadOnly = false)");
         Assertions.assertThatThrownBy(headersAssert::singleHeader).isInstanceOf(AssertionError.class);
-        singletonAssert.singleHeader().hasValue();
+        singletonAssert.singleHeader().hasNullValue();
     }
 
     @Test
@@ -76,5 +76,16 @@ public class HeadersAssertTest {
                 .hasMessage("[headers with key foo] \n"
                         + "Expected size: 1 but was: 2 in:\n"
                         + "[RecordHeader(key = foo, value = [49]), RecordHeader(key = foo, value = [50])]");
+    }
+
+    @Test
+    void nullHeaders() {
+        HeadersAssert nullAssert = KafkaAssertions.assertThat((RecordHeaders) null);
+        nullAssert.isNull();
+
+        Assertions.assertThatThrownBy(nullAssert::isNotNull)
+                .isExactlyInstanceOf(AssertionError.class)
+                .hasMessage("[null headers] \n"
+                        + "Expecting actual not to be null");
     }
 }
