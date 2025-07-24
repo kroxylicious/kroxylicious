@@ -84,7 +84,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          RELCAND_ID=$(gh issue view ${{ github.event.issue.number }} --json labels | jq --raw-output --exit-status '[.labels.[] | select(.name | startswith("__relcand_id-"))][0] | .name | sub("__relcand_id-"; "")')
+          RELCAND_ID=$(gh issue view ${{ github.event.issue.number }} --json labels | jq --raw-output --exit-status \
+            '[.labels.[] | select(.name | startswith("__relcand_id-"))] |
+             if . | length == 1 then first else "unexpected number of relcand_ids on PR" | halt_error end | 
+             .name | sub("__relcand_id-"; "")')
           echo "RELCAND_ID=${RELCAND_ID}" >> $GITHUB_ENV
 
       - name: Download release state artefact
