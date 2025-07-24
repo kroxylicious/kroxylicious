@@ -176,11 +176,12 @@ jobs:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-docs.sh
 
       - name: 'Drop stage repository, if failed'
-        if: ${{ failure() }}
+        if: ${{ failure() &&  env.DEPLOYMENT_ID }}
         env:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
           SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
-        run: ./scripts/transition-staging-repository-state.sh -s drop -i ${DEPLOYMENT_ID}
+        run: |
+          ./scripts/transition-staging-repository-state.sh -s drop -d "${DEPLOYMENT_ID}" || true
 
       - name: 'Drop run label used to tag release PR, if failed'
         if: ${{ failure() }}
