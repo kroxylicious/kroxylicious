@@ -28,7 +28,7 @@ while getopts ":l:v:b:k:r:n:w:sh" opt; do
     ;;
     k) GPG_KEY="${OPTARG}"
     ;;
-    l) RUN_ID_LABEL="${OPTARG}"
+    l) RELCAND_ID_LABEL="${OPTARG}"
     ;;
     w) WORK_BRANCH_NAME="${OPTARG}"
     ;;
@@ -55,7 +55,7 @@ EOF
   esac
 done
 
-if [[ -z "${RUN_ID_LABEL}" ]]; then
+if [[ -z "${RELCAND_ID_LABEL}" ]]; then
     echo "No run id label. Please specify -l <run id label>" 1>&2
     exit 1
 fi
@@ -229,5 +229,5 @@ gh pr create --head "${PREPARE_DEVELOPMENT_BRANCH}" \
              --title "Kroxylicious release version ${RELEASE_VERSION} development version ${NEXT_VERSION}" \
              --body "${BODY}" \
              --repo "$(gh repo set-default -v)" \
-             --label "${RUN_ID_LABEL}"
+             --label "${RELCAND_ID_LABEL}"
 

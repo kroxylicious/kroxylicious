@@ -54,11 +54,6 @@ if [[ -z ${RELEASE_DOCS_BRANCH} ]]; then
   exit 1
 fi
 
-if [[ -z ${RUN_ID_LABEL} ]]; then
-  echo "No run id label specified, aborting"
-  exit 1
-fi
-
 if [[ -z ${WEBSITE_REPO_URL} ]]; then
   echo "No website repository URL specified, aborting"
   exit 1

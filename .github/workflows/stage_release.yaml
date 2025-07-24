@@ -123,14 +123,16 @@ jobs:
           echo "WORK_BRANCH=release-work-${{ github.event.inputs.release-version }}-${{github.run_id}}" >> $GITHUB_ENV
           # This label will be add to the release PR. The run id embedded in the label allows us to download
           # the release state file. This allows us to identify the deployment in Central Publishing Portal.
-          RUN_ID_LABEL="__run_id-${{github.run_id}}"
-          echo "RUN_ID_LABEL=${RUN_ID_LABEL}" >> $GITHUB_ENV
+          RELCAND_ID_LABEL="__relcand_id-${{github.run_id}}"
+          echo "RELCAND_ID_LABEL=${RELCAND_ID_LABEL}" >> $GITHUB_ENV
 
       - name: 'Create run label used to tag release PRs'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          gh label create ${RUN_ID_LABEL} --force
+          gh label create ${RELCAND_ID_LABEL} \
+                          --description "Used by release workflow to identify the PR for release candidate (${{ github.event.inputs.release-version }}). Do not modify." \
+                          --force
 
       - name: 'Stage Release'
         env:
@@ -145,7 +147,7 @@ jobs:
                                      -n ${{ github.event.inputs.development-version }} \
                                      -b ${{ github.event.inputs.branch }} \
                                      -w ${{ env.WORK_BRANCH }} \
-                                     -l ${{ env.RUN_ID_LABEL }} \
+                                     -l ${{ env.RELCAND_ID_LABEL }} \
                                      ${{ github.event.inputs.skip-tests == 'true' && '-s' || '' }}
           # Deployment id is the id known to Central Publishing Portal
           echo "DEPLOYMENT_ID=$(cat DEPLOYMENT.ID)" >> $GITHUB_ENV
@@ -185,7 +187,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          gh label delete ${RUN_ID_LABEL} --yes || true
+          gh label delete ${RELCAND_ID_LABEL} --yes || true
 
       - name: 'Add pending status to block the merge'
         env:

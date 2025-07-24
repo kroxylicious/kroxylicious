@@ -84,14 +84,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          STAGE_RUN_ID=$(gh issue view ${{ github.event.issue.number }} --json labels | jq --raw-output --exit-status '[.labels.[] | select(.name | startswith("__run_id-"))][0] | .name | sub("__run_id-"; "")')
-          echo "STAGE_RUN_ID=${STAGE_RUN_ID}" >> $GITHUB_ENV
+          RELCAND_ID=$(gh issue view ${{ github.event.issue.number }} --json labels | jq --raw-output --exit-status '[.labels.[] | select(.name | startswith("__relcand_id-"))][0] | .name | sub("__relcand_id-"; "")')
+          echo "RELCAND_ID=${RELCAND_ID}" >> $GITHUB_ENV
 
       - name: Download release state artefact
         uses: dawidd6/action-download-artifact@v11
         with:
           workflow: stage-release
-          run_id: ${{ env.STAGE_RUN_ID }}
+          run_id: ${{ env.RELCAND_ID }}
           name: RELEASE_STATE.json
 
       - name: 'Extract deployment id from the release state'
@@ -218,5 +218,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          gh label delete "__run_id-${STAGE_RUN_ID}" --yes || true
+          gh label delete "__relcand_id-${RELCAND_ID}" --yes || true
 
