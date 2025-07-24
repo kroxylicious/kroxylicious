@@ -6,9 +6,6 @@
 
 package io.kroxylicious.proxy.testplugins;
 
-import java.security.Principal;
-
-import io.kroxylicious.proxy.authentication.ClientPrincipalConsumer;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
@@ -16,7 +13,6 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 @Plugin(configType = Void.class)
-@ClientPrincipalConsumer(Principal.class)
 public class AuditLogger implements FilterFactory<Void, Void> {
     @Override
     public Void initialize(FilterFactoryContext context, Void config) throws PluginConfigurationException {

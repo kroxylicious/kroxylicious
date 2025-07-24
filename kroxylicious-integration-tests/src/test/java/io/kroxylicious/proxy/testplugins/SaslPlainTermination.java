@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.testplugins;
 
-import io.kroxylicious.proxy.authentication.ClientSaslProducer;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
@@ -14,7 +13,6 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 @Plugin(configType = Void.class)
-@ClientSaslProducer
 public class SaslPlainTermination
         implements FilterFactory<Void, Void> {
 

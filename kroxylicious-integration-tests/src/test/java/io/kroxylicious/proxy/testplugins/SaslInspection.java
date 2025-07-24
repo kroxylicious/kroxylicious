@@ -12,7 +12,6 @@ import java.util.Set;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-import io.kroxylicious.proxy.authentication.ClientSaslProducer;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
@@ -24,7 +23,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 @Plugin(configType = SaslInspection.Config.class)
-@ClientSaslProducer
 public class SaslInspection implements FilterFactory<SaslInspection.Config, SaslInspection.Config> {
     /**
      * @param announceAuthResults Whether the filter should announce authentications via
