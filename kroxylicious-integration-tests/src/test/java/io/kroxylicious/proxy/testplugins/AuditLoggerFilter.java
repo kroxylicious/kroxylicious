@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.testplugins;
 
-import java.security.Principal;
 import java.security.cert.X509Certificate;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -108,7 +107,6 @@ public class AuditLoggerFilter implements RequestFilter, ResponseFilter {
             object.put("clientCertSig", context.clientTlsContext().flatMap(ClientTlsContext::clientCertificate)
                     .map(X509Certificate::getSignature).orElse(null));
             object.put("clientId", header.clientId());
-            object.put("clientPrincipal", context.clientPrincipal().map(Principal::getName).orElse(null));
             object.put("correlationId", header.correlationId());
             object.put("apiKey", apiKey.name);
             if (logRequest) {
