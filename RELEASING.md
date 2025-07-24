@@ -60,7 +60,7 @@ This will:
 * raise single PR that will contain two commits:
   1. the first will version the artefacts at `release-version`.  A `release-version` tag will point at this commit.
   2. the second will re-open main for development, at the next snapshot.
-* stage a release [Nexus UI](https://s01.oss.sonatype.org/). It'll be named `iokroxylicious-nn`.
+* stage a deployment in the [Central Publishing Portal](https://central.sonatype.com/publishing).
 
 If anything goes wrong, follow the steps in [Failed Releases](#failed-releases)
 
@@ -69,19 +69,11 @@ If anything goes wrong, follow the steps in [Failed Releases](#failed-releases)
 You can validate the staged artefacts by using a test application, `T`, use the Maven artefacts.   The [kroxylicious-wasm](https://github.com/andreaTP/kroxylicious-wasm) from the
 [community-gallery](https://github.com/kroxylicious/kroxylicious-community-gallery) is a suitable choice.
 
-1. Find the staging repository URL by executing.
-   ```shell
-   curl -sS --header 'Accept: application/json' \
-     https://s01.oss.sonatype.org/service/local/all_repositories \
-     | jq '.data[] | select(.name | contains("kroxylicious")) | .contentResourceURI'
-   ```
-   The repository url should include `iokroxylious-nn`. You can also browse to it via the [Nexus UI](https://s01.oss.sonatype.org/).
-1. Add a [`<repositories>`](https://maven.apache.org/pom.html#Repositories) that references the staging repository public url to `T`'s POM.
-1. Update `T`'s kroxylicious dependency to refer to the `<RELEASE_VERSION>`.
+1. [Configure Maven](https://central.sonatype.org/publish/publish-portal-api/#verify-status-of-the-deployment)) to download staged artefacts from Central Publishing Portal.
 1. Run `T` build/test cycle but use an alternative cache location to be sure artefacts are being fetched.  Check the build output, you'll see the
    kroxylicious comes from the staging location.
 ```bash
-MAVEN_OPTS="-Dmaven.repo.local=/tmp/repository" mvn verify
+MAVEN_OPTS="-Dmaven.repo.local=/tmp/repository" mvn verify -Dkroxylicious.version=<new release version>
 ```
 If the build passes, proceed to make the release public.
 The local changes made to `T`'s POM can be reverted.

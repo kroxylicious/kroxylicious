@@ -52,7 +52,7 @@ on:
         required: true
 
 jobs:
-  build:
+  promote-release:
     runs-on: ubuntu-latest
 
     steps:
@@ -73,18 +73,43 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
 
       - name: 'Stop workflow if user is not a release-engineer'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         if: ${{ github.repository == 'kroxylicious/kroxylicious' && steps.team-membership.outputs.isTeamMember == 'false' }}
         run: |
           gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not a member of https://github.com/orgs/kroxylicious/teams/release-engineers)"
           exit -1
-      
+
+      - name: 'Get run id of stage release workflow'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          RELCAND_ID=$(gh issue view ${{ github.event.issue.number }} --json labels | jq --raw-output --exit-status \
+            '[.labels.[] | select(.name | startswith("__relcand_id-"))] |
+             if . | length == 1 then first else "unexpected number of relcand_ids on PR" | halt_error end | 
+             .name | sub("__relcand_id-"; "")')
+          echo "RELCAND_ID=${RELCAND_ID}" >> $GITHUB_ENV
+
+      - name: Download release state artefact
+        uses: dawidd6/action-download-artifact@v11
+        with:
+          workflow: stage-release
+          run_id: ${{ env.RELCAND_ID }}
+          name: RELEASE_STATE.json
+
+      - name: 'Extract deployment id from the release state'
+        run: |
+          DEPLOYMENT_ID=$(jq --exit-status --raw-output '.deploymentId' RELEASE_STATE.json)
+          echo "DEPLOYMENT_ID=${DEPLOYMENT_ID}" >> $GITHUB_ENV
+
       - name: 'Stop workflow if PR is not approved'
+        if: ${{ github.repository == 'kroxylicious/kroxylicious' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
             PR_APPROVAL="$(gh pr view ${{ inputs.release-pr-issue-number}} --json reviewDecision | jq -r .reviewDecision)"
             if [[ "$PR_APPROVAL" != "APPROVED" ]]; then
-              echo "PR is not Approved! You must approve the release PR before promoting it"
+              gh issue comment  ${{ github.event.issue.number }} --body "PR is not Approved! You must approve the release PR before promoting it"
               exit -1
             fi
             echo "PR is Approved, Continuing promotion."
@@ -152,28 +177,13 @@ jobs:
             exit 1
           fi
 
-      - name: 'Cache Maven packages'
-        uses: actions/cache@v4
-        with:
-          path: ~/.m2
-          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
-          restore-keys: ${{ runner.os }}-m2
-
-      - name: 'Set up Java'
-        uses: actions/setup-java@v4
-        with:
-          java-version: 21
-          distribution: temurin
-          server-id: ossrh
-          server-username: SONATYPE_TOKEN_USERNAME # env variable for Sonatype username
-          server-password: SONATYPE_TOKEN_PASSWORD # env variable for Sonatype password
-          overwrite-settings: true
-
-      - name: 'Transition staging repository to desired state'
+      - name: 'Transition Central Publishing Portal to desired state'
         env:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
           SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
-        run: ./scripts/transition-staging-repository-state.sh -s ${{ inputs.command == 'promote-release' && 'release' || 'drop' }}
+        run: |
+          ./scripts/transition-staging-repository-state.sh -d "${{ env.DEPLOYMENT_ID}}" \
+                                                           -s "${{ inputs.command == 'promote-release' && 'release' || 'drop' }}"
 
       - name: 'Unblock the merge'
         if: ${{ inputs.command == 'promote-release' }}
@@ -206,4 +216,10 @@ jobs:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
           gh pr close --comment "Release dropped" --delete-branch ${{ inputs.release-pr-issue-number }} 
+
+      - name: 'Drop run label used to tag release PR'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          gh label delete "__relcand_id-${RELCAND_ID}" --yes || true
 
