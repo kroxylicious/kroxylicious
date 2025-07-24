@@ -12,12 +12,12 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-import static java.lang.System.*;
-
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
 import java.util.concurrent.Callable;
+import java.util.stream.Collectors;
 
 import org.jsoup.*;
 import org.jsoup.nodes.*;
@@ -38,8 +38,11 @@ public class webify implements Callable<Integer> {
     @Option(names = {"--project-version"}, required = true, description = "The kroxy version.")
     private String projectVersion;
 
-    @Option(names = {"--src-dir"}, required = true, description = "The source directory containing Asciidoc standalone HTML.")
-    private Path srcDir;
+    @Option(names = {"--asciidoc-src-dir"}, required = true, description = "The source directory containing Asciidoc standalone HTML.")
+    private Path asciidocSrcDir;
+
+    @Option(names = {"--markdown-src-dir"}, required = true, description = "The source directory containing Asciidoc standalone HTML.")
+    private Path markdownSrcDir;
 
     @Option(names = {"--dest-dir"}, required = true, description = "The output directory ready for copying to the website.")
     private Path destdir;
@@ -84,12 +87,64 @@ public class webify implements Callable<Integer> {
         var omitGlobs = this.omitGlobs.stream().map(glob -> fs.getPathMatcher("glob:" + glob)).toList();
         var datafyGlob = fs.getPathMatcher("glob:" + this.datafyGlob);
 
-        walk(omitGlobs, tocifyGlob, datafyGlob);
+        processStructuredAsciidoc(omitGlobs, tocifyGlob, datafyGlob);
+        processSelfContainedMarkdown();
+        buildDocumentationManifest(datafyGlob, List.of(asciidocSrcDir, markdownSrcDir));
 
         Files.writeString(outdir.getParent().resolve("index.md"),
                 docIndexFrontMatter(), StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
         return 0;
+    }
+
+    private void processSelfContainedMarkdown() throws IOException {
+        try (var stream = Files.walk(this.markdownSrcDir)) {
+            stream.filter(Files::isRegularFile)
+                    .filter(path -> path.getFileName().toString().endsWith(".markdown"))
+            .forEach((Path filePath) -> {
+                try {
+                    var relFilePath = this.markdownSrcDir.relativize(filePath);
+                    var outFilePath = this.outdir.resolve(relFilePath);
+                    Files.createDirectories(outFilePath.getParent());
+                    String markdown = Files.readString(filePath);
+                    // we use the directory name to create the Jekyll frontmatter name
+                    Path markdownDir = filePath.getParent();
+                    Files.writeString(outFilePath, selfContainedMarkdownFrontMatter(markdownDir) + markdown, StandardCharsets.UTF_8, StandardOpenOption.CREATE_NEW);
+                }
+                catch (Exception e) {
+                    throw new RuntimeException(filePath.toString(), e);
+                }
+            });
+        }
+    }
+
+    String selfContainedMarkdownFrontMatter(Path path) {
+        String name = path.getFileName().toString();
+        String markdownName = toHumanPresentableName(name);
+        return """
+---
+layout: quickstart
+title: ${name}
+version: ${project.version}
+---
+        """.replace("${project.version}", this.projectVersion).replace("${name}", markdownName);
+    }
+
+    public static String toHumanPresentableName(String fileName) {
+        if (fileName == null || fileName.isEmpty()) {
+            return "";
+        }
+
+        String baseName = fileName;
+        int lastDotIndex = fileName.lastIndexOf('.');
+        if (lastDotIndex > 0) {
+            baseName = fileName.substring(0, lastDotIndex);
+        }
+
+        return Arrays.stream(baseName.split("-"))
+                .filter(part -> !part.isEmpty())
+                .map(part -> Character.toUpperCase(part.charAt(0)) + part.substring(1))
+                .collect(Collectors.joining(" "));
     }
 
     String docIndexFrontMatter() {
@@ -102,17 +157,16 @@ permalink: /documentation/${project.version}/
         """.replace("${project.version}", this.projectVersion);
     }
 
-    private void walk(List<PathMatcher> omitGlobs,
-                      PathMatcher tocifyGlob,
-                      PathMatcher datafyGlob) throws IOException {
-        var resultDocsList = new ArrayList<ObjectNode>();
-        try (var stream = Files.walk(this.srcDir)) {
+    private void processStructuredAsciidoc(List<PathMatcher> omitGlobs,
+                                           PathMatcher tocifyGlob,
+                                           PathMatcher datafyGlob) throws IOException {
+        try (var stream = Files.walk(this.asciidocSrcDir)) {
             stream.forEach((Path filePath) -> {
                 try {
                     if (!Files.isRegularFile(filePath)) {
                         return;
                     }
-                    var relFilePath = this.srcDir.relativize(filePath);
+                    var relFilePath = this.asciidocSrcDir.relativize(filePath);
                     var outFilePath = this.outdir.resolve(relFilePath);
                     var omitable = omitGlobs.stream().anyMatch(glob -> glob.matches(relFilePath));
                     var tocifiable = tocifyGlob.matches(relFilePath);
@@ -125,21 +179,14 @@ permalink: /documentation/${project.version}/
                     }
                     else if (!omitable && !tocifiable && datafiable) {
                         var dataDocObject = readMetadata(filePath, relFilePath);
-                        String relPath;
                         if (!dataDocObject.has("path")) {
-                            relPath = "html/" + relFilePath.getParent().toString();
                             Files.createDirectories(outFilePath.getParent());
                             Files.writeString(outFilePath.getParent().resolve("index.html"),
                                     guideFrontMatter(dataDocObject, "html/" + relFilePath.getParent().toString()),
                                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
                         }
-                        else {
-                            relPath = dataDocObject.get("path").textValue().replace("${project.version}", this.projectVersion);
-                        }
-                        dataDocObject.put("path", relPath);
-                        resultDocsList.add(dataDocObject);
                     }
-                    else if (!omitable && !tocifiable && !datafiable) {
+                    else if (!omitable && !tocifiable) {
                         Files.createDirectories(outFilePath.getParent());
                         Files.copy(filePath, outFilePath, StandardCopyOption.REPLACE_EXISTING);
                     }
@@ -155,9 +202,39 @@ permalink: /documentation/${project.version}/
                 }
             });
         }
+    }
 
+    private void buildDocumentationManifest(PathMatcher datafyGlob, List<Path> sourceDirs) throws IOException {
+        var resultDocsList = new ArrayList<ObjectNode>();
+        for (Path sourceDir : sourceDirs) {
+            try (var stream = Files.walk(sourceDir)) {
+                stream.forEach((Path filePath) -> {
+                    try {
+                        if (!Files.isRegularFile(filePath)) {
+                            return;
+                        }
+                        var relFilePath = sourceDir.relativize(filePath);
+                        var datafiable = datafyGlob.matches(relFilePath);
+                        if (datafiable) {
+                            var dataDocObject = readMetadata(filePath, relFilePath);
+                            String relPath;
+                            if (!dataDocObject.has("path")) {
+                                relPath = "html/" + relFilePath.getParent().toString();
+                            }
+                            else {
+                                relPath = dataDocObject.get("path").textValue().replace("${project.version}", this.projectVersion);
+                            }
+                            dataDocObject.put("path", relPath);
+                            resultDocsList.add(dataDocObject);
+                        }
+                    }
+                    catch (Exception e) {
+                        throw new RuntimeException(filePath.toString(), e);
+                    }
+                });
+            }
+        }
         Collections.sort(resultDocsList, Comparator.nullsLast(Comparator.comparing(node -> node.get("rank").asText(null))));
-
         var resultRootObject = this.mapper.createObjectNode();
         var resultDocsArray = resultRootObject.putArray("docs");
         resultDocsArray.addAll(resultDocsList);
