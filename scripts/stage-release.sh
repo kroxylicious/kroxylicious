@@ -36,12 +36,12 @@ while getopts ":l:v:b:k:r:n:w:sh" opt; do
     ;;
     h)
       1>&2 cat << EOF
-usage: $0 -k keyid -v version -i github-workflow runid [-b branch] [-r repository] [-s] [-d] [-h]
+usage: $0 -k keyid -v version -l relcand-label [-b branch] [-r repository] [-s] [-d] [-h]
  -k short key id used to sign the release
  -v version number e.g. 0.3.0
  -b branch to release from (defaults to 'main')
  -n development version e.g. 0.4.0-SNAPSHOT
- -i GitHub Workflow Run Id
+ -l Release candidate label to be applied to the PR.
  -r the remote name of the kroxylicious repository (defaults to 'origin')
  -w release work branch
  -s skips validation
