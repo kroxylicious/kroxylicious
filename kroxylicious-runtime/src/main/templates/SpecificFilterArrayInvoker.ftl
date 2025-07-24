@@ -184,16 +184,6 @@ class SpecificFilterArrayInvoker implements FilterInvoker {
     }
 
     /**
-    * Check if a Filter implements any of the Specific Message Filter interfaces
-    * @param filter the filter
-    * @return true if the filter implements any Specific Message Filter interfaces
-    */
-    public static boolean implementsAnySpecificFilterInterface(Filter filter) {
-        return implementsAnySpecificRequestFilterInterface(filter)
-                || implementsAnySpecificResponseFilterInterface(filter);
-    }
-
-    /**
     * Check if a Filter implements any of the Specific Request Filter interfaces
     * @param filter the filter
     * @return true if the filter implements any Specific Request Filter interfaces
