@@ -59,6 +59,12 @@ if [[ -z ${WEBSITE_REPO_URL} ]]; then
   exit 1
 fi
 
+if ! command -v gh &> /dev/null
+then
+    echo "gh command could not be found."
+    exit 1
+fi
+
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
