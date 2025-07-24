@@ -13,6 +13,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
@@ -46,6 +47,10 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.ForwardingStyle;
+import io.kroxylicious.proxy.filter.GenericRequestSpecificResponseFilter;
+import io.kroxylicious.proxy.filter.GenericRequestSpecificResponseFilterFactory;
+import io.kroxylicious.proxy.filter.GenericResponseSpecificRequestFilter;
+import io.kroxylicious.proxy.filter.GenericResponseSpecificRequestFilterFactory;
 import io.kroxylicious.proxy.filter.RejectingCreateTopicFilter;
 import io.kroxylicious.proxy.filter.RejectingCreateTopicFilterFactory;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter;
@@ -88,6 +93,14 @@ class FilterIT {
     private static final String PLAINTEXT = "Hello, world!";
     private static final NamedFilterDefinitionBuilder REJECTING_CREATE_TOPIC_FILTER = new NamedFilterDefinitionBuilder(RejectingCreateTopicFilterFactory.class.getName(),
             RejectingCreateTopicFilterFactory.class.getName());
+
+    private static final NamedFilterDefinitionBuilder GENERIC_REQUEST_SPECIFIC_RESPONSE = new NamedFilterDefinitionBuilder(
+            GenericRequestSpecificResponseFilterFactory.class.getName(),
+            GenericRequestSpecificResponseFilterFactory.class.getName());
+
+    private static final NamedFilterDefinitionBuilder GENERIC_RESPONSE_SPECIFIC_REQUEST = new NamedFilterDefinitionBuilder(
+            GenericResponseSpecificRequestFilterFactory.class.getName(),
+            GenericResponseSpecificRequestFilterFactory.class.getName());
 
     @Test
     void reversibleEncryption() {
@@ -177,6 +190,46 @@ class FilterIT {
             // check no topic created on the cluster
             Set<String> names = admin.listTopics().names().get(10, TimeUnit.SECONDS);
             assertThat(names).doesNotContain(topicName);
+        }
+    }
+
+    @Test
+    void filtersCanImplementGenericRequestFilterAndSpecificResponseFilter() {
+        try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
+                .addToFilterDefinitions(GENERIC_REQUEST_SPECIFIC_RESPONSE.build())
+                .addToDefaultFilters(GENERIC_REQUEST_SPECIFIC_RESPONSE.name()));
+                var simpleTestClient = tester.simpleTestClient()) {
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
+            String clientIdHeader = "my-client";
+            CompletableFuture<Response> responseFuture = simpleTestClient.get(
+                    new Request(API_VERSIONS, API_VERSIONS.latestVersion(), clientIdHeader, new ApiVersionsRequestData()));
+            assertThat(responseFuture).succeedsWithin(Duration.ofSeconds(10)).satisfies(response -> {
+                List<String> clientIds = unknownTaggedFieldsToStrings(response.payload().message(), GenericRequestSpecificResponseFilter.CLIENT_ID_TAG).toList();
+                // the filter extracts the client id from the request and correlates it with the response, attaching it as an
+                // unknown tagged field to the body. This demonstrates that messages are routed to a single instance of a Filter
+                // implementing the generic RequestFilter and a specific response message filter interface.
+                assertThat(clientIds).describedAs("client id extracted from request should be attached to response").singleElement().isEqualTo(clientIdHeader);
+            });
+        }
+    }
+
+    @Test
+    void filtersCanImplementGenericResponseFilterAndSpecificRequestFilter() {
+        try (var tester = mockKafkaKroxyliciousTester((mockBootstrap) -> proxy(mockBootstrap)
+                .addToFilterDefinitions(GENERIC_RESPONSE_SPECIFIC_REQUEST.build())
+                .addToDefaultFilters(GENERIC_RESPONSE_SPECIFIC_REQUEST.name()));
+                var simpleTestClient = tester.simpleTestClient()) {
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(), new ApiVersionsResponseData()));
+            String clientIdHeader = "my-client";
+            CompletableFuture<Response> responseFuture = simpleTestClient.get(
+                    new Request(API_VERSIONS, API_VERSIONS.latestVersion(), clientIdHeader, new ApiVersionsRequestData()));
+            assertThat(responseFuture).succeedsWithin(Duration.ofSeconds(10)).satisfies(response -> {
+                List<String> clientIds = unknownTaggedFieldsToStrings(response.payload().message(), GenericResponseSpecificRequestFilter.CLIENT_ID_TAG).toList();
+                // the filter extracts the client id from the request and correlates it with the response, attaching it as an
+                // unknown tagged field to the body. This demonstrates that messages are routed to a single instance of a Filter
+                // implementing the generic ResponseFilter and a specific request message filter interface.
+                assertThat(clientIds).describedAs("client id extracted from request should be attached to response").singleElement().isEqualTo(clientIdHeader);
+            });
         }
     }
 

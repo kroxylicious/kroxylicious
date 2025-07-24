@@ -40,8 +40,8 @@ class FilterInvokersTest {
 
         };
         return Stream.of(noFilterSubinterfacesImplemented,
-                new SpecificAndRequestFilter(),
-                new SpecificAndResponseFilter());
+                new SpecificRequestAndGenericRequestFilter(),
+                new SpecificResponseAndGenericResponseFilter());
     }
 
     public static Stream<Filter> validFilters() {
@@ -49,13 +49,15 @@ class FilterInvokersTest {
         RequestFilter requestFilter = (apiKey, header, body, filterContext) -> null;
         ResponseFilter responseFilter = (apiKey, header, body, filterContext) -> null;
         return Stream.of(singleSpecificMessageFilter,
-                new MultipleSpecificFilter(),
+                new SpecificRequestSpecificResponseFilter(),
                 requestFilter,
                 responseFilter,
-                new RequestResponseFilter());
+                new GenericRequestGenericResponseFilter(),
+                new SpecificRequestAndGenericResponseFilter(),
+                new GenericRequestSpecificResponseFilter());
     }
 
-    static class RequestResponseFilter implements RequestFilter, ResponseFilter {
+    static class GenericRequestGenericResponseFilter implements RequestFilter, ResponseFilter {
 
         @Override
         public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
@@ -68,7 +70,7 @@ class FilterInvokersTest {
         }
     }
 
-    static class MultipleSpecificFilter implements ApiVersionsRequestFilter, ApiVersionsResponseFilter {
+    static class SpecificRequestSpecificResponseFilter implements ApiVersionsRequestFilter, ApiVersionsResponseFilter {
 
         @Override
         public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
@@ -85,7 +87,7 @@ class FilterInvokersTest {
         }
     }
 
-    static class SpecificAndResponseFilter implements ApiVersionsRequestFilter, ResponseFilter {
+    static class SpecificRequestAndGenericResponseFilter implements ApiVersionsRequestFilter, ResponseFilter {
 
         @Override
         public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
@@ -101,7 +103,23 @@ class FilterInvokersTest {
         }
     }
 
-    static class SpecificAndRequestFilter implements ApiVersionsRequestFilter, RequestFilter {
+    static class SpecificResponseAndGenericResponseFilter implements ApiVersionsResponseFilter, ResponseFilter {
+
+        @Override
+        public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData request,
+                                                                           FilterContext context) {
+
+            return null;
+        }
+
+        @Override
+        public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+
+            return null;
+        }
+    }
+
+    static class SpecificRequestAndGenericRequestFilter implements ApiVersionsRequestFilter, RequestFilter {
 
         @Override
         public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
@@ -112,6 +130,22 @@ class FilterInvokersTest {
         @Override
         public CompletionStage<RequestFilterResult> onApiVersionsRequest(short apiVersion, RequestHeaderData header, ApiVersionsRequestData request,
                                                                          FilterContext context) {
+
+            return null;
+        }
+    }
+
+    static class GenericRequestSpecificResponseFilter implements RequestFilter, ApiVersionsResponseFilter {
+
+        @Override
+        public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+
+            return null;
+        }
+
+        @Override
+        public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData request,
+                                                                           FilterContext context) {
 
             return null;
         }
