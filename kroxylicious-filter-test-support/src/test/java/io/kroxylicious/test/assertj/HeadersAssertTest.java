@@ -19,6 +19,8 @@ public class HeadersAssertTest {
             .add("foo", "2".getBytes(StandardCharsets.UTF_8))
             .add("bar", "3".getBytes(StandardCharsets.UTF_8)));
     private final HeadersAssert emptyAssert = KafkaAssertions.assertThat(new RecordHeaders());
+    HeadersAssert singletonAssert = KafkaAssertions.assertThat(new RecordHeaders()
+            .add("foo", "1".getBytes(StandardCharsets.UTF_8)));
 
     @Test
     void firstHeader() {
@@ -43,6 +45,7 @@ public class HeadersAssertTest {
                         + "Expected size: 1 but was: 0 in:\n"
                         + "RecordHeaders(headers = [], isReadOnly = false)");
         Assertions.assertThatThrownBy(headersAssert::singleHeader).isInstanceOf(AssertionError.class);
+        singletonAssert.singleHeader().hasValue();
     }
 
     @Test
