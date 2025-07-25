@@ -239,35 +239,11 @@ public class SaslInspectionIT {
                         .singleElement()
                         .asInstanceOf(new InstanceOfAssertFactory<>(ConsumerRecord.class, KafkaAssertions::assertThat))
                         .headers();
-
                 recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_CLIENT_SASLPRINCIPAL_NAME)
                         .hasValueEqualTo("alice");
-
-                // .extracting(ConsumerRecord::headers)
-                // .as("record headers");
-                // recordHeaders
-                // .extracting(headers -> headers.headers(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_CLIENT_SASLPRINCIPAL_NAME),
-                // InstanceOfAssertFactories.iterable(Header.class))
-                // .as("headers with key %s", ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_CLIENT_SASLPRINCIPAL_NAME)
-                // .singleElement()
-                // .extracting(Header::value)
-                // .as("value of only header for key %s", ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_CLIENT_SASLPRINCIPAL_NAME)
-                // .isNotNull()
-                // .extracting(String::new)
-                // .isEqualTo("alice");
-
                 recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
                         .hasValueEqualTo(mechanism);
 
-                // .extracting(headers -> headers.headers(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME),
-                // InstanceOfAssertFactories.iterable(Header.class))
-                // .as("headers with key %s", ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
-                // .singleElement()
-                // .extracting(Header::value)
-                // .as("value of only header for key %s", ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
-                // .isNotNull()
-                // .extracting(String::new)
-                // .isEqualTo(mechanism);
                 numBatches -= 1;
                 if (numBatches > 0) {
                     Thread.sleep(pauseMs);
