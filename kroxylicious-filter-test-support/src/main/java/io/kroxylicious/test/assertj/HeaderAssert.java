@@ -11,7 +11,9 @@ import java.nio.charset.StandardCharsets;
 import org.apache.kafka.common.header.Header;
 import org.assertj.core.api.AbstractAssert;
 import org.assertj.core.api.AbstractByteArrayAssert;
+import org.assertj.core.api.AbstractStringAssert;
 import org.assertj.core.api.Assertions;
+import org.assertj.core.api.InstanceOfAssertFactories;
 
 public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
     protected HeaderAssert(Header header) {
@@ -23,37 +25,46 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
         return new HeaderAssert(actual);
     }
 
+    private AbstractStringAssert<?> key() {
+        var existingDescription = descriptionText();
+        return Assertions.assertThat(actual.key())
+                .describedAs(existingDescription + " key");
+    }
+
+    public AbstractByteArrayAssert<?> value() {
+        var existingDescription = descriptionText();
+        return Assertions.assertThat(actual.value())
+                .describedAs(existingDescription + " value");
+    }
+
     public HeaderAssert hasKeyEqualTo(String expected) {
-        isNotNull();
-        Assertions.assertThat(actual.key())
-                .describedAs("header key")
-                .isEqualTo(expected);
+        isNotNull().key().isEqualTo(expected);
         return this;
     }
 
     public HeaderAssert hasValueEqualTo(String expected) {
-        valueAssert().isEqualTo(expected == null ? null : expected.getBytes(StandardCharsets.UTF_8));
+        if (expected == null) {
+            isNotNull().value().isNull();
+        }
+        else {
+            String existingDescription = descriptionText();
+            isNotNull().value()
+                    .asInstanceOf(InstanceOfAssertFactories.BYTE_ARRAY)
+                    .asString(StandardCharsets.UTF_8)
+                    .as(existingDescription + " value")
+                    .isEqualTo(expected);
+        }
         return this;
     }
 
     public HeaderAssert hasValueEqualTo(byte[] expected) {
-        valueAssert().isEqualTo(expected);
+        isNotNull().value().isEqualTo(expected);
         return this;
     }
 
     public HeaderAssert hasNullValue() {
-        valueAssert().isNull();
+        isNotNull().value().isNull();
         return this;
     }
 
-    private AbstractByteArrayAssert<?> valueAssert() {
-        isNotNull();
-        AbstractByteArrayAssert<?> headerValue = Assertions.assertThat(actual.value())
-                .describedAs("header value");
-        return headerValue;
-    }
-
-    public AbstractByteArrayAssert<?> hasValue() {
-        return Assertions.assertThat(actual.value());
-    }
 }

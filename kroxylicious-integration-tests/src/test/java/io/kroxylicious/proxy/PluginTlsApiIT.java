@@ -9,6 +9,8 @@ package io.kroxylicious.proxy;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -25,12 +27,17 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
+import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TlsBuilder;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
 import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -39,13 +46,94 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class PluginTlsApiIT extends AbstractTlsIT {
 
     @Test
-    void clientTlsAwareFilters(KafkaCluster cluster,
-                               Topic topic) {
-        var bootstrapServers = cluster.getBootstrapServers();
-        var proxyKeystoreLocation = downstreamCertificateGenerator.getKeyStoreLocation();
+    void clientTlsContextPlainTcp(KafkaCluster cluster,
+                                  Topic topic) {
+        assertClientTlsContext(
+                buildGatewayTls(TlsClientAuth.NONE, null),
+                Map.of(
+                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.PLAINTEXT.name),
+                cluster,
+                topic,
+                (byte) 0,
+                null,
+                null);
+    }
+
+    @Test
+    void clientTlsContextMutualTls(KafkaCluster cluster,
+                                   Topic topic) {
         var proxyKeystorePassword = downstreamCertificateGenerator.getPassword();
 
+        assertClientTlsContext(
+                buildGatewayTls(TlsClientAuth.REQUIRED, proxyKeystorePassword),
+                Map.of(
+                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
+                        SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                        SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, proxyKeystorePassword,
+                        SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, clientCertGenerator.getKeyStoreLocation(),
+                        SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, clientCertGenerator.getPassword()),
+                cluster,
+                topic,
+                (byte) 1,
+                "CN=client, OU=Dev, O=kroxylicious.io, L=null, ST=null, C=US, emailAddress=clientTest@kroxylicious.io",
+                "CN=localhost, OU=KI, O=kroxylicious.io, L=null, ST=null, C=US, emailAddress=test@kroxylicious.io");
+    }
+
+
+
+    @Test
+    void clientTlsContextUnilateralTls(KafkaCluster cluster,
+                                       Topic topic) {
+        var proxyKeystorePassword = downstreamCertificateGenerator.getPassword();
+
+        assertClientTlsContext(
+                buildGatewayTls(TlsClientAuth.REQUESTED, proxyKeystorePassword),
+                Map.of(
+                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
+                        SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                        SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, proxyKeystorePassword),
+                cluster,
+                topic,
+                (byte) 1,
+                null,
+                "CN=localhost, OU=KI, O=kroxylicious.io, L=null, ST=null, C=US, emailAddress=test@kroxylicious.io");
+    }
+
+        @NonNull
+    private Optional<Tls> buildGatewayTls(@NonNull TlsClientAuth required,
+                                          @Nullable String proxyKeystorePassword) {
+        if (required == TlsClientAuth.NONE) {
+            return Optional.empty();
+        }
+        Objects.requireNonNull(proxyKeystorePassword, "proxyKeystorePassword is null");
+        var proxyKeystoreLocation = downstreamCertificateGenerator.getKeyStoreLocation();
         var proxyKeystorePasswordProvider = constructPasswordProvider(InlinePassword.class, proxyKeystorePassword);
+
+        // @formatter:off
+        return Optional.of(new TlsBuilder()
+                .withNewKeyStoreKey()
+                    .withStoreFile(proxyKeystoreLocation)
+                    .withStorePasswordProvider(proxyKeystorePasswordProvider)
+                .endKeyStoreKey()
+                .withNewTrustStoreTrust()
+                    .withNewServerOptionsTrust()
+                        .withClientAuth(required)
+                    .endServerOptionsTrust()
+                    .withStoreFile(proxyTrustStore.toAbsolutePath().toString())
+                    .withNewInlinePasswordStoreProvider(clientCertGenerator.getPassword())
+                .endTrustStoreTrust()
+            .build());
+        // @formatter:on
+    }
+
+    private void assertClientTlsContext(Optional<Tls> gatewayTls,
+                                        Map<String, Object> clientConfigs,
+                                        KafkaCluster cluster,
+                                        Topic topic,
+                                        byte expectedHeaderKeyClientTls,
+                                        @Nullable String expectedClientPrincipalName,
+                                        @Nullable String expectedProxyPrincipalName) {
+        var bootstrapServers = cluster.getBootstrapServers();
 
         // @formatter:off
         String demoCluster = "demo";
@@ -58,29 +146,10 @@ public class PluginTlsApiIT extends AbstractTlsIT {
                                 .withBootstrapServers(bootstrapServers)
                             .endTargetCluster()
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
-                                .withNewTls()
-                                    .withNewKeyStoreKey()
-                                        .withStoreFile(proxyKeystoreLocation)
-                                        .withStorePasswordProvider(proxyKeystorePasswordProvider)
-                                    .endKeyStoreKey()
-                                    .withNewTrustStoreTrust()
-                                        .withNewServerOptionsTrust()
-                                            .withClientAuth(TlsClientAuth.REQUIRED)
-                                        .endServerOptionsTrust()
-                                        .withStoreFile(proxyTrustStore.toAbsolutePath().toString())
-                                        .withNewInlinePasswordStoreProvider(clientCertGenerator.getPassword())
-                                    .endTrustStoreTrust()
-                                .endTls()
+                                .withTls(gatewayTls)
                                 .build())
                         .build());
         // @formatter:on
-
-        var clientConfigs = Map.<String, Object> of(
-                CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
-                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
-                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, proxyKeystorePassword,
-                SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, clientCertGenerator.getKeyStoreLocation(),
-                SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, clientCertGenerator.getPassword());
 
         try (var tester = kroxyliciousTester(builder)) {
 
@@ -101,11 +170,12 @@ public class PluginTlsApiIT extends AbstractTlsIT {
             }
             var recordHeaders = assertThat(records).singleElement().asInstanceOf(new InstanceOfAssertFactory<>(ConsumerRecord.class, KafkaAssertions::assertThat))
                     .headers();
-            recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_TLS).hasValue().containsExactly(1);
+            recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_TLS).value()
+                    .containsExactly(expectedHeaderKeyClientTls);
             recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_TLS_CLIENT_X500PRINCIPAL_NAME)
-                    .hasValueEqualTo("CN=client, OU=Dev, O=kroxylicious.io, L=null, ST=null, C=US, emailAddress=clientTest@kroxylicious.io");
+                    .hasValueEqualTo(expectedClientPrincipalName);
             recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_TLS_PROXY_X500PRINCIPAL_NAME)
-                    .hasValueEqualTo("CN=localhost, OU=KI, O=kroxylicious.io, L=null, ST=null, C=US, emailAddress=test@kroxylicious.io");
+                    .hasValueEqualTo(expectedProxyPrincipalName);
         }
     }
 }
