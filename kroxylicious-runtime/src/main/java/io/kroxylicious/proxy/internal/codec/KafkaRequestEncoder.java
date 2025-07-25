@@ -54,8 +54,8 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
                 frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).promise() : null, decodeResponse);
         out.writerIndex(LENGTH + API_KEY + API_VERSION);
         out.writeInt(upstreamCorrelationId);
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: {} downstream correlation id {} assigned upstream correlation id: {}",
+        if (log().isDebugEnabled()) {
+            log().debug("{}: {} downstream correlation id {} assigned upstream correlation id: {}",
                     ctx, ApiKeys.forId(apiKey), downstreamCorrelationId, upstreamCorrelationId);
         }
         out.writerIndex(wi);
