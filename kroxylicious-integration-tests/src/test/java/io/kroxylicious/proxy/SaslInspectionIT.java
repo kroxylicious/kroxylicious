@@ -30,7 +30,6 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
-import io.kroxylicious.proxy.testplugins.AuditLogger;
 import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
 import io.kroxylicious.proxy.testplugins.SaslInspection;
@@ -283,10 +282,6 @@ public class SaslInspectionIT {
     }
 
     private static ConfigurationBuilder buildProxyConfig(String e1, KafkaCluster cluster) {
-        NamedFilterDefinition auditLogger = new NamedFilterDefinitionBuilder(
-                AuditLogger.class.getName(),
-                AuditLogger.class.getName())
-                .build();
         NamedFilterDefinition saslInspection = new NamedFilterDefinitionBuilder(
                 SaslInspection.class.getName(),
                 SaslInspection.class.getName())
@@ -297,7 +292,7 @@ public class SaslInspectionIT {
                 ClientTlsAwareLawyer.class.getName())
                 .build();
         return proxy(cluster)
-                .addToFilterDefinitions(auditLogger, saslInspection, lawyer)
-                .addToDefaultFilters(auditLogger.name(), saslInspection.name(), lawyer.name());
+                .addToFilterDefinitions(saslInspection, lawyer)
+                .addToDefaultFilters(saslInspection.name(), lawyer.name());
     }
 }
