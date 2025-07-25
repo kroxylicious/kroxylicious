@@ -15,15 +15,7 @@ ifndef::OpenShiftOnly[]
 
 For more information on the tools available for running Kubernetes, see {KubeTools} in the Kubernetes documentation.
 
-endif::OpenShiftOnly[]
-
-ifdef::OpenShiftOnly[]
 [discrete]
-
-* An OpenShift {OpenShiftVersionMinimum} or later cluster.
-
-* The `oc` command-line tool is installed and configured to connect to the running cluster.
-
 == `oc` and `kubectl` commands
 
 The `oc` command functions as an alternative to `kubectl`.
@@ -38,9 +30,12 @@ when using OpenShift you can use:
 
 [source,shell,subs=+quotes]
 oc apply -f _your-file_
-
-// NOTE: As an exception to this general rule, `oc` uses `oc adm` subcommands for _cluster management_ functionality,
-// whereas `kubectl` does not make this distinction.
-// For example, the `oc` equivalent of `kubectl taint` is `oc adm taint`.
-
 endif::OpenShiftOnly[]
+
+ifdef::OpenShiftOnly[]
+* An OpenShift {OpenShiftVersionMinimum} or later cluster.
+
+* The `oc` command-line tool is installed and configured to connect to the running cluster.
+endif::OpenShiftOnly[]
+
+
