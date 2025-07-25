@@ -57,13 +57,10 @@ import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilterFactory;
 import io.kroxylicious.proxy.filter.simpletransform.FetchResponseTransformation;
 import io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation;
-import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
-import io.kroxylicious.proxy.testplugins.SaslPlainInitiation;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
-import io.kroxylicious.testing.kafka.common.SaslMechanism;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
