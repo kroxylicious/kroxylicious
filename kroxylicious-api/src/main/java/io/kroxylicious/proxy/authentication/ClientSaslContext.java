@@ -6,8 +6,6 @@
 
 package io.kroxylicious.proxy.authentication;
 
-import java.util.Optional;
-
 import io.kroxylicious.proxy.filter.FilterContext;
 
 /**
