@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy.filter;
 
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import javax.annotation.Nullable;
@@ -13,6 +14,8 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
+
+import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 /**
  * A context to allow filters to interact with other filters and the pipeline.
@@ -135,6 +138,10 @@ public interface FilterContext {
      * @return virtual cluster name
      */
     String getVirtualClusterName();
-    // TODO an API to allow a filter to add/remove another filter from the pipeline
+
+    /**
+     * @return The TLS context for the client connection, or empty if the client connection is not TLS.
+     */
+    Optional<ClientTlsContext> clientTlsContext();
 
 }

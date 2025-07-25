@@ -5,10 +5,16 @@
  */
 package io.kroxylicious.proxy.internal;
 
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
+
+import javax.net.ssl.SSLPeerUnverifiedException;
+import javax.net.ssl.SSLSession;
 
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -25,6 +31,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.handler.ssl.SslHandler;
 
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
@@ -46,6 +53,8 @@ import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
+import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -480,6 +489,13 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
         @Override
+        public @NonNull Optional<ClientTlsContext> clientTlsContext() {
+            return Optional.ofNullable(inboundChannel.pipeline().get(SslHandler.class))
+                    .map(clientFacingSslHandler -> new ClientTlsContextImpl(
+                            Objects.requireNonNull(localTlsCertificate(clientFacingSslHandler)), getPeerTlsCertificate(clientFacingSslHandler)));
+        }
+
+        @Override
         public RequestFilterResultBuilder requestFilterResultBuilder() {
             return new RequestFilterResultBuilderImpl();
         }
@@ -547,6 +563,47 @@ public class FilterHandler extends ChannelDuplexHandler {
             return filterPromise.minimalCompletionStage();
         }
 
+    }
+
+    @VisibleForTesting
+    static @Nullable X509Certificate getPeerTlsCertificate(@Nullable SslHandler sslHandler) {
+        if (sslHandler != null) {
+            SSLSession session = sslHandler.engine().getSession();
+
+            Certificate[] peerCertificates;
+            try {
+                peerCertificates = session.getPeerCertificates();
+            }
+            catch (SSLPeerUnverifiedException e) {
+                peerCertificates = null;
+            }
+            if (peerCertificates != null && peerCertificates.length > 0) {
+                return Objects.requireNonNull((X509Certificate) peerCertificates[0]);
+            }
+            else {
+                return null;
+            }
+        }
+        else {
+            return null;
+        }
+    }
+
+    @VisibleForTesting
+    static @Nullable X509Certificate localTlsCertificate(@Nullable SslHandler sslHandler) {
+        if (sslHandler != null) {
+            SSLSession session = sslHandler.engine().getSession();
+            Certificate[] localCertificates = session.getLocalCertificates();
+            if (localCertificates != null && localCertificates.length > 0) {
+                return Objects.requireNonNull((X509Certificate) localCertificates[0]);
+            }
+            else {
+                return null;
+            }
+        }
+        else {
+            return null;
+        }
     }
 
 }

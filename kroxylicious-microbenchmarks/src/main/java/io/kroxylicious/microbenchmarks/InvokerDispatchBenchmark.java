@@ -7,6 +7,7 @@
 package io.kroxylicious.microbenchmarks;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
@@ -43,6 +44,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
+import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
 @Fork(value = 2, jvmArgsAppend = "-XX:LoopUnrollLimit=1")
@@ -176,6 +178,11 @@ public class InvokerDispatchBenchmark {
         @Override
         public String getVirtualClusterName() {
             return null;
+        }
+
+        @Override
+        public Optional<ClientTlsContext> clientTlsContext() {
+            return Optional.empty();
         }
 
         @Override
