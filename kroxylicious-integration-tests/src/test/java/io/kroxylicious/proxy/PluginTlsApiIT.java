@@ -79,8 +79,6 @@ public class PluginTlsApiIT extends AbstractTlsIT {
                 "CN=localhost, OU=KI, O=kroxylicious.io, L=null, ST=null, C=US, emailAddress=test@kroxylicious.io");
     }
 
-
-
     @Test
     void clientTlsContextUnilateralTls(KafkaCluster cluster,
                                        Topic topic) {
@@ -99,7 +97,7 @@ public class PluginTlsApiIT extends AbstractTlsIT {
                 "CN=localhost, OU=KI, O=kroxylicious.io, L=null, ST=null, C=US, emailAddress=test@kroxylicious.io");
     }
 
-        @NonNull
+    @NonNull
     private Optional<Tls> buildGatewayTls(@NonNull TlsClientAuth required,
                                           @Nullable String proxyKeystorePassword) {
         if (required == TlsClientAuth.NONE) {
