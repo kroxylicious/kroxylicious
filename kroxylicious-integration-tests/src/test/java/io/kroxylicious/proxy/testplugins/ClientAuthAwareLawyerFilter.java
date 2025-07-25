@@ -17,6 +17,7 @@ import javax.security.auth.x500.X500Principal;
 
 import org.apache.kafka.common.header.internals.RecordHeader;
 
+import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
@@ -38,6 +39,10 @@ public class ClientAuthAwareLawyerFilter
     public static final String HEADER_KEY_CLIENT_TLS_PROXY_X500PRINCIPAL_NAME = headerName("#clientTlsContext.proxyServerCertificate.principalName");
     public static final String HEADER_KEY_CLIENT_TLS_CLIENT_X500PRINCIPAL_NAME = headerName("#clientTlsContext.clientCertificate.principalName");
 
+    public static final String HEADER_KEY_CLIENT_SASL_CLIENT_SASLPRINCIPAL_NAME = headerName("#clientSaslContext.clientPrincipal");
+    public static final String HEADER_KEY_CLIENT_SASL_MECH_NAME = headerName("#clientSaslContext.mechanismName");
+    public static final String HEADER_KEY_CLIENT_SASL_PROXY_SASLPRINCIPAL_NAME = headerName("#clientSaslContext.proxyServerPrincipal");
+
     private static final Map<String, Function<FilterContext, byte[]>> HEADERS = Map.of(
             HEADER_KEY_CLIENT_TLS_IS_PRESENT,
             context -> context.clientTlsContext().isPresent() ? new byte[]{ 1 } : new byte[]{ 0 },
@@ -52,7 +57,25 @@ public class ClientAuthAwareLawyerFilter
                     .map(ClientTlsContext::clientCertificate)
                     .flatMap(opt -> opt.map(ClientAuthAwareLawyerFilter::principalName))
                     .map(string -> string.getBytes(StandardCharsets.UTF_8))
-                    .orElse(null));
+                    .orElse(null),
+
+            HEADER_KEY_CLIENT_SASL_CLIENT_SASLPRINCIPAL_NAME,
+            context -> context.clientSaslContext()
+                    .map(ClientSaslContext::authorizationId)
+                    .map(string -> string.getBytes(StandardCharsets.UTF_8))
+                    .orElse(null),
+            HEADER_KEY_CLIENT_SASL_MECH_NAME,
+            context -> context.clientSaslContext()
+                    .map(ClientSaslContext::mechanismName)
+                    .map(string -> string.getBytes(StandardCharsets.UTF_8))
+                    .orElse(null),
+            HEADER_KEY_CLIENT_SASL_PROXY_SASLPRINCIPAL_NAME,
+            context -> context.clientSaslContext()
+                    .flatMap(ClientSaslContext::proxyServerId)
+                    .map(string -> string.getBytes(StandardCharsets.UTF_8))
+                    .orElse(null)
+
+    );
 
     private static String principalName(X509Certificate x509Certificate) {
         return x509Certificate.getSubjectX500Principal()
