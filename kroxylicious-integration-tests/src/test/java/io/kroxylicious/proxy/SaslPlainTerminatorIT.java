@@ -30,7 +30,6 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
-import io.kroxylicious.proxy.testplugins.AuditLogger;
 import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
 import io.kroxylicious.proxy.testplugins.SaslPlainTermination;
@@ -75,10 +74,6 @@ public class SaslPlainTerminatorIT extends BaseIT {
                 AUTO_OFFSET_RESET_CONFIG, "earliest"));
         consumerConfigs.putAll(clientSaslConfigs);
 
-        NamedFilterDefinition auditLogger = new NamedFilterDefinitionBuilder(
-                AuditLogger.class.getName(),
-                AuditLogger.class.getName())
-                .build();
         NamedFilterDefinition saslTermination = new NamedFilterDefinitionBuilder(
                 SaslPlainTermination.class.getName(),
                 SaslPlainTermination.class.getName())
@@ -88,8 +83,8 @@ public class SaslPlainTerminatorIT extends BaseIT {
                 ClientTlsAwareLawyer.class.getName())
                 .build();
         var config = proxy(cluster)
-                .addToFilterDefinitions(auditLogger, saslTermination, lawyer)
-                .addToDefaultFilters(auditLogger.name(), saslTermination.name(), lawyer.name());
+                .addToFilterDefinitions(saslTermination, lawyer)
+                .addToDefaultFilters(saslTermination.name(), lawyer.name());
 
         try (var tester = kroxyliciousTester(config)) {
             if (producerAction != null) {
