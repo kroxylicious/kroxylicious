@@ -103,7 +103,7 @@ jobs:
           echo "DEPLOYMENT_ID=${DEPLOYMENT_ID}" >> $GITHUB_ENV
 
       - name: 'Stop workflow if PR is not approved'
-        if: ${{ github.repository == 'kroxylicious/kroxylicious' }}
+        if: ${{ github.repository == 'kroxylicious/kroxylicious' && inputs.command == 'promote-release' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
