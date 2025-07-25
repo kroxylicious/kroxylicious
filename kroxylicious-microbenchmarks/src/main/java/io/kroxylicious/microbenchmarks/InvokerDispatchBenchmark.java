@@ -34,6 +34,7 @@ import io.kroxylicious.filters.FourInterfaceFilter0;
 import io.kroxylicious.filters.FourInterfaceFilter1;
 import io.kroxylicious.filters.FourInterfaceFilter2;
 import io.kroxylicious.filters.FourInterfaceFilter3;
+import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.filter.ArrayFilterInvoker;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -182,6 +183,21 @@ public class InvokerDispatchBenchmark {
 
         @Override
         public Optional<ClientTlsContext> clientTlsContext() {
+            return Optional.empty();
+        }
+
+        @Override
+        public void clientSaslAuthenticationSuccess(String mechanism, String authorizedId) {
+
+        }
+
+        @Override
+        public void clientSaslAuthenticationFailure(String mechanism, String authorizedId, Exception exception) {
+
+        }
+
+        @Override
+        public Optional<ClientSaslContext> clientSaslContext() {
             return Optional.empty();
         }
 
