@@ -55,14 +55,9 @@ on:
         type: boolean
         required: false
         default: false
-      dry-run:
-        description: 'Dry-run mode, no remote tags or PRs will be created, no artefacts will be staged'
-        type: boolean
-        required: false
-        default: true
 
 jobs:
-  build:
+  stage-release:
     runs-on: ubuntu-latest
 
     steps:
@@ -104,7 +99,7 @@ jobs:
         with:
           java-version: 21
           distribution: temurin
-          server-id: ossrh
+          server-id: central
           server-username: SONATYPE_TOKEN_USERNAME # env variable for Sonatype username
           server-password: SONATYPE_TOKEN_PASSWORD # env variable for Sonatype password
           gpg-passphrase: MAVEN_GPG_PASSPHRASE # env variable for GPG private key passphrase
@@ -118,23 +113,33 @@ jobs:
           kubernetes version: 'v1.32.0'
           github token: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
 
-      - name: 'Verify no existing staging repository exists'
-        if: ${{ github.event.inputs.dry-run == 'false' }}
-        env:
-          SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
-          SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
-        run: ./scripts/transition-staging-repository-state.sh -a
-
       - name: 'Verify no existing release note exist for tag'
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by transition-github-release-note-state.sh
         run: ./scripts/transition-github-release-note-state.sh -v ${{ github.event.inputs.release-version }} -a
 
-      - name: 'Create git work branch name'
+      - name: 'Prepare Release Environment'
         run: |
-          echo "WORK_BRANCH=release-work-${{ github.event.inputs.release-version }}-$(openssl rand -hex 12)" >> $GITHUB_ENV
+          echo "WORK_BRANCH=release-work-${{ github.event.inputs.release-version }}-${{github.run_id}}" >> $GITHUB_ENV
+          # This label will be add to the release PR. The run id embedded in the label allows us to download
+          # the release state file. This allows us to identify the deployment in Central Publishing Portal.
+          RELCAND_ID_LABEL="__relcand_id-${{github.run_id}}"
+          echo "RELCAND_ID_LABEL=${RELCAND_ID_LABEL}" >> $GITHUB_ENV
+
+      - name: 'Create run label used to tag release PRs'
+        env:
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          gh label create ${RELCAND_ID_LABEL} \
+                          --description "Used by release workflow to identify the PR for release candidate (${{ github.event.inputs.release-version }}). Do not modify." \
+                          --force
 
       - name: 'Stage Release'
+        env:
+          SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
+          SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
+          MAVEN_GPG_PASSPHRASE: ${{ secrets.KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE }}
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-release.sh
         run: |
           SIGNING_KEY_SHORT_NAME=$(gpg --list-public-keys --keyid-format short --with-colons | awk -F: '/^pub:/ {print $5}' | head -n 1)
           ./scripts/stage-release.sh -k "${SIGNING_KEY_SHORT_NAME}" \
@@ -142,39 +147,50 @@ jobs:
                                      -n ${{ github.event.inputs.development-version }} \
                                      -b ${{ github.event.inputs.branch }} \
                                      -w ${{ env.WORK_BRANCH }} \
-                                     ${{ github.event.inputs.dry-run == 'true' && '-d' || '' }} \
+                                     -l ${{ env.RELCAND_ID_LABEL }} \
                                      ${{ github.event.inputs.skip-tests == 'true' && '-s' || '' }}
-        env:
-          SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
-          SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
-          MAVEN_GPG_PASSPHRASE: ${{ secrets.KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE }}
-          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-release.sh
+          # Deployment id is the id known to Central Publishing Portal
+          echo "DEPLOYMENT_ID=$(cat DEPLOYMENT.ID)" >> $GITHUB_ENV
+
+      - name: 'Build release state'
+        run: |
+          jq -n --arg deploymentId "${{ env.DEPLOYMENT_ID }}" \
+                --arg releaseVersion "${{ github.event.inputs.release-version }}" \
+                --arg developmentVersion "${{ github.event.inputs.development-version }}" \
+                --arg workBranch "${{ env.WORK_BRANCH }}" \
+              '$ARGS.named' > RELEASE_STATE.json
+
+      - name: 'Archive release state (used by the promote workflow)'
+        uses: actions/upload-artifact@v4
+        with:
+          name: RELEASE_STATE.json
+          path: RELEASE_STATE.json
 
       - name: 'Stage release docs'
         if: ${{ success() }}
         run: |
           ./scripts/stage-docs.sh -v ${{ github.event.inputs.release-version }} \
-                                  -u "https://user:${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}@${{ github.event.inputs.website-repository }}" \
-                                  ${{ github.event.inputs.dry-run == 'true' && '-d' || '' }}
+                                  -b "prepare-v${{ github.event.inputs.release-version }}-release-docs-${{ github.run_id }}" \
+                                  -u "https://user:${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}@${{ github.event.inputs.website-repository }}"
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-docs.sh
 
       - name: 'Drop stage repository, if failed'
-        if: ${{ failure() && github.event.inputs.dry-run == 'false' }}
+        if: ${{ failure() &&  env.DEPLOYMENT_ID }}
         env:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
           SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
-        run: ./scripts/transition-staging-repository-state.sh -s drop
+        run: |
+          ./scripts/transition-staging-repository-state.sh -s drop -d "${DEPLOYMENT_ID}"
 
-      - name: 'Close stage repository'
-        if: ${{ github.event.inputs.dry-run == 'false' }}
+      - name: 'Drop run label used to tag release PR, if failed'
+        if: ${{ failure() }}
         env:
-          SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
-          SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
-        run: ./scripts/transition-staging-repository-state.sh -s close
+          GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
+        run: |
+          gh label delete ${RELCAND_ID_LABEL} --yes || true
 
       - name: 'Add pending status to block the merge'
-        if: ${{ github.event.inputs.dry-run == 'false' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
@@ -188,23 +204,29 @@ jobs:
                  -f "context=maven-central"
 
       - name: 'Comment on PR to prompt next phase of the release'
-        if: ${{ github.event.inputs.dry-run == 'false' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }} # For the gh cmd line tool used by stage-release.sh
         run: |
-          gh pr comment ${{ env.WORK_BRANCH }} --body-file - << 'EOF'
+          export REPO="https://central.sonatype.com/api/v1/publisher/deployment/${{ env.DEPLOYMENT_ID }}/download"
+          envsubst << "EOF" | gh pr comment ${{ env.WORK_BRANCH }} --body-file -
           Hey, that's the ${{ github.event.inputs.release-version }} release prepared and its artefacts successfully staged to Sonatype. This PR contains a commit for ${{ github.event.inputs.release-version }} and a commit for ${{ github.event.inputs.development-version }} which will reopen main for new work.
           
           There are a couple of steps to do before the release is completed.
           
-          * [ ] Let the CI workflow on this PR complete.
-          * [ ] Review the "[Sonatype] iokroxylicious-nnnn repository report" email for unexpected threats.
-          * [ ] [Kick the tyres](https://github.com/kroxylicious/kroxylicious-junit5-extension/blob/main/RELEASING.md#making-the-release-public) on the Maven artefacts.
+          * [ ] Let the CI workflow on this PR complete
+          * [ ] [Kick the tyres](https://github.com/kroxylicious/kroxylicious/blob/main/RELEASING.md#making-the-release-public) using the staged Maven artefacts (available at `${REPO}`).
+                You can use this Maven snippet in your test project's pom.xml to configure Maven to download from the Portal. You also need to configure Maven to [authenticate](https://central.sonatype.org/publish/publish-portal-api/#maven).
+            ```
+            <repositories>
+              <repository>
+                <id>central.manual.testing</id>
+                <url>${REPO}</url>
+              </repository>
+            </repositories>
+            ```
+          * [ ] Approve this PR.
           
-          Once done:
-          1. Approve this PR
-          2. comment <code>&commat;kroxylicious-robot promote-release</code> on this PR. This will release the artefacts to Maven Central and merge this PR to main.
-          
+          Once the above is done, comment <code>&commat;kroxylicious-robot promote-release</code> on this PR. This will release the artefacts to Maven Central and merge this PR to main.
           If things don't look good, abort the release by saying <code>&commat;kroxylicious-robot drop-release</code>.
           
           Thank you,
