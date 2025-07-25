@@ -41,7 +41,6 @@ public class ClientAuthAwareLawyerFilter
 
     public static final String HEADER_KEY_CLIENT_SASL_CLIENT_SASLPRINCIPAL_NAME = headerName("#clientSaslContext.clientPrincipal");
     public static final String HEADER_KEY_CLIENT_SASL_MECH_NAME = headerName("#clientSaslContext.mechanismName");
-    public static final String HEADER_KEY_CLIENT_SASL_PROXY_SASLPRINCIPAL_NAME = headerName("#clientSaslContext.proxyServerPrincipal");
 
     private static final Map<String, Function<FilterContext, byte[]>> HEADERS = Map.of(
             HEADER_KEY_CLIENT_TLS_IS_PRESENT,
@@ -68,13 +67,7 @@ public class ClientAuthAwareLawyerFilter
             context -> context.clientSaslContext()
                     .map(ClientSaslContext::mechanismName)
                     .map(string -> string.getBytes(StandardCharsets.UTF_8))
-                    .orElse(null),
-            HEADER_KEY_CLIENT_SASL_PROXY_SASLPRINCIPAL_NAME,
-            context -> context.clientSaslContext()
-                    .flatMap(ClientSaslContext::proxyServerId)
-                    .map(string -> string.getBytes(StandardCharsets.UTF_8))
                     .orElse(null)
-
     );
 
     private static String principalName(X509Certificate x509Certificate) {

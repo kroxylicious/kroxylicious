@@ -27,12 +27,4 @@ public interface ClientSaslContext {
      * @return the client's authorizationId.
      */
     String authorizationId();
-
-    /**
-     * The server identity that the proxy presented to the client using SASL authentication.
-     * @return the proxy's identity with the client. This will be null
-     * if the proxy did not supply an identity because the SASL mechanism used
-     * does not support mutual authentication.
-     */
-    Optional<String> proxyServerId();
 }

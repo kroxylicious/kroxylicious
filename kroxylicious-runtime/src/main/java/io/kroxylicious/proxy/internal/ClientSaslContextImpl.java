@@ -65,9 +65,4 @@ public class ClientSaslContextImpl implements ClientSaslContext {
         return Objects.requireNonNull(this.clientAuthorizationId);
     }
 
-    @Override
-    public Optional<String> proxyServerId() {
-        return Optional.ofNullable(this.proxyServerId);
-    }
-
 }
