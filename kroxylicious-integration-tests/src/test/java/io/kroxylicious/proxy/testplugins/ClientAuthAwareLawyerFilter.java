@@ -67,8 +67,7 @@ public class ClientAuthAwareLawyerFilter
             context -> context.clientSaslContext()
                     .map(ClientSaslContext::mechanismName)
                     .map(string -> string.getBytes(StandardCharsets.UTF_8))
-                    .orElse(null)
-    );
+                    .orElse(null));
 
     private static String principalName(X509Certificate x509Certificate) {
         return x509Certificate.getSubjectX500Principal()
