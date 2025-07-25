@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.testplugins;
 
+import java.nio.charset.StandardCharsets;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,24 +34,24 @@ public class ClientAuthAwareLawyerFilter
         return ClientAuthAwareLawyerFilter.class.getSimpleName() + hashtag;
     }
 
-    public static final String HEADER_KEY_CLIENT_TLS = headerName("#clientTlsContext.isPresent");
+    public static final String HEADER_KEY_CLIENT_TLS_IS_PRESENT = headerName("#clientTlsContext.isPresent");
     public static final String HEADER_KEY_CLIENT_TLS_PROXY_X500PRINCIPAL_NAME = headerName("#clientTlsContext.proxyServerCertificate.principalName");
     public static final String HEADER_KEY_CLIENT_TLS_CLIENT_X500PRINCIPAL_NAME = headerName("#clientTlsContext.clientCertificate.principalName");
 
     private static final Map<String, Function<FilterContext, byte[]>> HEADERS = Map.of(
-            HEADER_KEY_CLIENT_TLS,
+            HEADER_KEY_CLIENT_TLS_IS_PRESENT,
             context -> context.clientTlsContext().isPresent() ? new byte[]{ 1 } : new byte[]{ 0 },
             HEADER_KEY_CLIENT_TLS_PROXY_X500PRINCIPAL_NAME,
             context -> context.clientTlsContext()
                     .map(ClientTlsContext::proxyServerCertificate)
                     .map(ClientAuthAwareLawyerFilter::principalName)
-                    .map(String::getBytes)
+                    .map(string -> string.getBytes(StandardCharsets.UTF_8))
                     .orElse(null),
             HEADER_KEY_CLIENT_TLS_CLIENT_X500PRINCIPAL_NAME,
             context -> context.clientTlsContext()
                     .map(ClientTlsContext::clientCertificate)
                     .flatMap(opt -> opt.map(ClientAuthAwareLawyerFilter::principalName))
-                    .map(String::getBytes)
+                    .map(string -> string.getBytes(StandardCharsets.UTF_8))
                     .orElse(null));
 
     private static String principalName(X509Certificate x509Certificate) {

@@ -54,7 +54,7 @@ public class PluginTlsApiIT extends AbstractTlsIT {
                         CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.PLAINTEXT.name),
                 cluster,
                 topic,
-                (byte) 0,
+                false,
                 null,
                 null);
     }
@@ -74,7 +74,7 @@ public class PluginTlsApiIT extends AbstractTlsIT {
                         SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, clientCertGenerator.getPassword()),
                 cluster,
                 topic,
-                (byte) 1,
+                true,
                 "CN=client, OU=Dev, O=kroxylicious.io, L=null, ST=null, C=US, emailAddress=clientTest@kroxylicious.io",
                 "CN=localhost, OU=KI, O=kroxylicious.io, L=null, ST=null, C=US, emailAddress=test@kroxylicious.io");
     }
@@ -92,7 +92,7 @@ public class PluginTlsApiIT extends AbstractTlsIT {
                         SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, proxyKeystorePassword),
                 cluster,
                 topic,
-                (byte) 1,
+                true,
                 null,
                 "CN=localhost, OU=KI, O=kroxylicious.io, L=null, ST=null, C=US, emailAddress=test@kroxylicious.io");
     }
@@ -128,7 +128,7 @@ public class PluginTlsApiIT extends AbstractTlsIT {
                                         Map<String, Object> clientConfigs,
                                         KafkaCluster cluster,
                                         Topic topic,
-                                        byte expectedHeaderKeyClientTls,
+                                        boolean expectHeaderKeyClientTlsPresent,
                                         @Nullable String expectedClientPrincipalName,
                                         @Nullable String expectedProxyPrincipalName) {
         var bootstrapServers = cluster.getBootstrapServers();
@@ -168,8 +168,8 @@ public class PluginTlsApiIT extends AbstractTlsIT {
             }
             var recordHeaders = assertThat(records).singleElement().asInstanceOf(new InstanceOfAssertFactory<>(ConsumerRecord.class, KafkaAssertions::assertThat))
                     .headers();
-            recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_TLS).value()
-                    .containsExactly(expectedHeaderKeyClientTls);
+            recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_TLS_IS_PRESENT).value()
+                    .containsExactly(expectHeaderKeyClientTlsPresent ? (byte) 1 : (byte) 0);
             recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_TLS_CLIENT_X500PRINCIPAL_NAME)
                     .hasValueEqualTo(expectedClientPrincipalName);
             recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_TLS_PROXY_X500PRINCIPAL_NAME)
