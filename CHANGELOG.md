@@ -5,6 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## SNAPSHOT
 ## 0.14.0
 
 * [#2472](https://github.com/kroxylicious/kroxylicious/pull/2472): Restrictions on which interfaces Filter implementations an implementation could implement have been relaxed.
