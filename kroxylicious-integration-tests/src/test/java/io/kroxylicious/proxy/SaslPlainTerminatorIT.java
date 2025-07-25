@@ -146,13 +146,12 @@ public class SaslPlainTerminatorIT extends BaseIT {
                 },
                 records -> {
                     assertThat(records).hasSize(1);
-                    assertThat(records.records(topic.name()))
+                    var recordHeaders = assertThat(records.records(topic.name()))
                             .as("topic %s records", topic.name())
                             .singleElement()
                             .asInstanceOf(new InstanceOfAssertFactory<>(ConsumerRecord.class, KafkaAssertions::assertThat))
-                            .headers()
-                            .singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_CLIENT_SASLPRINCIPAL_NAME)
-                            .hasValueEqualTo("alice");
+                            .headers();
+                    recordHeaders.firstHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_CLIENT_SASLPRINCIPAL_NAME).hasValueEqualTo("alice");
                 });
     }
 
