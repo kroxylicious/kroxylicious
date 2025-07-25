@@ -181,7 +181,7 @@ jobs:
           SONATYPE_TOKEN_USERNAME: ${{ vars.KROXYLICIOUS_SONATYPE_TOKEN_USERNAME }}
           SONATYPE_TOKEN_PASSWORD: ${{ secrets.KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD }}
         run: |
-          ./scripts/transition-staging-repository-state.sh -s drop -d "${DEPLOYMENT_ID}" || true
+          ./scripts/transition-staging-repository-state.sh -s drop -d "${DEPLOYMENT_ID}"
 
       - name: 'Drop run label used to tag release PR, if failed'
         if: ${{ failure() }}
