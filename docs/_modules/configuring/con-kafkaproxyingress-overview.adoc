@@ -63,7 +63,7 @@ spec:
 ----
 <1> Identifies the `KafkaProxy` resource that this ingress is part of.
 <2> Specifies `clusterIP` networking.
-<3> Defines the connection protocol as plain `TCP`. Use `TLS` to enable encrypted communication between clients and the proxy.
+<3> Defines the connection protocol as plain `TCP`.
 
 .Example `KafkaProxyIngress` configuration for `clusterIP` with TLS
 [source,yaml]
@@ -74,11 +74,12 @@ metadata:
   namespace: my-proxy
   name: cluster-ip
 spec:
-  proxyRef: # <1>
+  proxyRef:
     name: simple
-  clusterIP: # <2>
-    protocol: TLS # <3>
+  clusterIP:
+    protocol: TLS # <1>
 ----
+<1> Defines the connection protocol as `TLS` to enable encrypted communication between clients and the proxy.
 
 When using TLS, specify a xref:con-virtualkafkacluster-clusterip-generate-tls-certificates-{context}[TLS server certificate] in the xref:con-virtualkafkacluster-overview-{context}[ingress configuration] of the `VirtualKafkaCluster` resource using a `certificateRef`.
 
