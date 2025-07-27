@@ -155,8 +155,8 @@ public class SaslPlainTerminationFilter
                                                           FilterContext context) {
         return switch (apiKey) {
             case API_VERSIONS -> context.forwardRequest(header, request);
-            case SASL_HANDSHAKE -> onSaslHandshakeRequest(header.requestApiVersion(), header, (SaslHandshakeRequestData) request, context);
-            case SASL_AUTHENTICATE -> onSaslAuthenticateRequest(header.requestApiVersion(), header, (SaslAuthenticateRequestData) request, context);
+            case SASL_HANDSHAKE -> onSaslHandshakeRequest((SaslHandshakeRequestData) request, context);
+            case SASL_AUTHENTICATE -> onSaslAuthenticateRequest((SaslAuthenticateRequestData) request, context);
             default -> {
                 if (context.clientSaslContext().isPresent()) {
                     yield context.forwardRequest(header, request);
