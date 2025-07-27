@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
-public class SaslInspectionIT {
+class SaslInspectionIT {
     // client handshakes with PLAIN
     // proxy and broker have PLAIN enabled
     // client authenticated with the correct password
@@ -137,8 +137,7 @@ public class SaslInspectionIT {
     void shouldNotAuthenticateWhenSameMechanismButWrongPassword_PLAIN(
                                                                       @SaslMechanism(value = "PLAIN", principals = {
                                                                               @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
-                                                                      Topic topic)
-            throws Exception {
+                                                                      Topic topic) {
 
         String mechanism = "PLAIN";
         String clientLoginModule = "org.apache.kafka.common.security.plain.PlainLoginModule";
@@ -149,7 +148,7 @@ public class SaslInspectionIT {
         assertClientsGetSaslAuthenticationException(cluster, topic, mechanism, clientLoginModule, username, password, testName);
     }
 
-    // TODO assert fails with wrong password on SCRAM
+
     // TODO assert fails if no handshake done at all
     // TODO assert fails if client not configured for SASL
     // TODO assert that filters don't get invoked even if a client sends a metadata after getting an error after authenticate
@@ -164,8 +163,7 @@ public class SaslInspectionIT {
     // reauth attempt by client which didn't use >= v1 Autn req
 
     private static void assertClientsGetSaslAuthenticationException(KafkaCluster cluster, Topic topic, String mechanism, String clientLoginModule, String username,
-                                                                    String password, String testName)
-            throws InterruptedException, ExecutionException {
+                                                                    String password, String testName) {
         var config = buildProxyConfig(mechanism, cluster);
 
         String jaasConfig = "%s required%n  username=\"%s\"%n   password=\"%s\";".formatted(clientLoginModule, username, password);
@@ -195,6 +193,7 @@ public class SaslInspectionIT {
                 testName, 1, 0);
     }
 
+    @SuppressWarnings("java:S2925") // Impossible to integration test reauth without Thread.sleep
     private static void assertClientsCanAccessCluster(KafkaCluster cluster,
                                                       Topic topic,
                                                       String mechanism,
@@ -258,8 +257,7 @@ public class SaslInspectionIT {
     @Test
     void shouldNotAuthenticateWhenNoCommonMechanism(@SaslMechanism(value = "PLAIN", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
-                                                    Topic topic)
-            throws Exception {
+                                                    Topic topic) {
         String testName = "shouldInspect";
 
         var config = buildProxyConfig("SCRAM-SHA-256", cluster);

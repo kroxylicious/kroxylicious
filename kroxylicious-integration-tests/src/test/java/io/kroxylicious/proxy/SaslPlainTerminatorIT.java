@@ -57,8 +57,7 @@ public class SaslPlainTerminatorIT extends BaseIT {
                                  String mechanismName,
                                  String clientJaasCofig,
                                  @Nullable Consumer<Producer<String, String>> producerAction,
-                                 @Nullable Consumer<ConsumerRecords<String, String>> consumerAction)
-            throws Exception {
+                                 @Nullable Consumer<ConsumerRecords<String, String>> consumerAction) {
         var clientSaslConfigs = Map.of(
                 CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
                 SaslConfigs.SASL_MECHANISM, mechanismName,
@@ -122,7 +121,7 @@ public class SaslPlainTerminatorIT extends BaseIT {
      * This class sets up the cluster
      */
     @Test
-    void shouldAuthenticateClientWithValidCreds(KafkaCluster cluster, Topic topic) throws Exception {
+    void shouldAuthenticateClientWithValidCreds(KafkaCluster cluster, Topic topic) {
 
         String mechanismName = "PLAIN";
 
@@ -151,7 +150,7 @@ public class SaslPlainTerminatorIT extends BaseIT {
     }
 
     @Test
-    void shouldNotAuthenticateClientWithWrongPassword(KafkaCluster cluster, Topic topic) throws Exception {
+    void shouldNotAuthenticateClientWithWrongPassword(KafkaCluster cluster, Topic topic) {
 
         String mechanismName = "PLAIN";
 
@@ -170,7 +169,7 @@ public class SaslPlainTerminatorIT extends BaseIT {
     }
 
     @Test
-    void shouldNotAuthenticateClientWithUnknownUserName(KafkaCluster cluster, Topic topic) throws Exception {
+    void shouldNotAuthenticateClientWithUnknownUserName(KafkaCluster cluster, Topic topic) {
 
         String mechanismName = "PLAIN";
 

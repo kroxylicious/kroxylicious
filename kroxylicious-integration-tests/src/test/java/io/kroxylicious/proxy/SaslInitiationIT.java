@@ -37,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
-public class SaslInitiationIT {
+class SaslInitiationIT {
     @Test
     void shouldInitiate(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
                         Topic topic)

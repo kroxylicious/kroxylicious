@@ -53,9 +53,7 @@ public class SaslPlainTerminationFilter
         return plainServerCallbackHandler;
     }
 
-    CompletionStage<RequestFilterResult> onSaslHandshakeRequest(short apiVersion,
-                                                                RequestHeaderData header,
-                                                                SaslHandshakeRequestData request,
+    CompletionStage<RequestFilterResult> onSaslHandshakeRequest(SaslHandshakeRequestData request,
                                                                 FilterContext context) {
         Errors errorCode;
         AuthenticateCallbackHandler cbh = null;
@@ -89,9 +87,7 @@ public class SaslPlainTerminationFilter
                 .completed();
     }
 
-    CompletionStage<RequestFilterResult> onSaslAuthenticateRequest(short apiVersion,
-                                                                   RequestHeaderData header,
-                                                                   SaslAuthenticateRequestData request,
+    CompletionStage<RequestFilterResult> onSaslAuthenticateRequest(SaslAuthenticateRequestData request,
                                                                    FilterContext context) {
         byte[] bytes = new byte[0];
         Errors error;
