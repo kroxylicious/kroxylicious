@@ -24,26 +24,22 @@ public class ClientSaslContextImpl implements ClientSaslContext {
 
     private @Nullable String clientAuthorizationId;
     private @Nullable String mechanism;
-    private @Nullable String proxyServerId;
 
     public ClientSaslContextImpl() {
         this.clientAuthorizationId = null;
     }
 
     void clientSaslAuthenticationSuccess(String mechanism,
-                                         String clientAuthorizationId,
-                                         @Nullable String proxyServerId) {
+                                         String clientAuthorizationId) {
         Objects.requireNonNull(mechanism, "mechanism");
         Objects.requireNonNull(clientAuthorizationId, "clientAuthorizationId");
         this.clientAuthorizationId = clientAuthorizationId;
         this.mechanism = mechanism;
-        this.proxyServerId = proxyServerId;
     }
 
     void clientSaslAuthenticationFailure() {
         this.clientAuthorizationId = null;
         this.mechanism = null;
-        this.proxyServerId = null;
     }
 
     public Optional<ClientSaslContext> clientSaslContext() {

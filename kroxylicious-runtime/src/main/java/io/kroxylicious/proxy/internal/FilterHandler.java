@@ -513,7 +513,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addArgument(authorizedId)
                     .log();
             // dispatch principal injection
-            csc.clientSaslAuthenticationSuccess(mechanism, authorizedId, null);
+            csc.clientSaslAuthenticationSuccess(mechanism, authorizedId);
         }
 
         @Override
