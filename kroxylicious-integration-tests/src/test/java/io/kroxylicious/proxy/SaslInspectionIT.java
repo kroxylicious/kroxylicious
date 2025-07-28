@@ -228,8 +228,6 @@ class SaslInspectionIT {
                 assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
                         .succeedsWithin(Duration.ofSeconds(5));
 
-                producer.flush();
-
                 consumer.subscribe(Set.of(topic.name()));
                 var records = consumer.poll(Duration.ofSeconds(10));
 

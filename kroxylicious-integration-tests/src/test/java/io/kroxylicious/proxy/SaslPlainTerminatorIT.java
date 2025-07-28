@@ -134,8 +134,6 @@ public class SaslPlainTerminatorIT extends BaseIT {
                     Assertions.assertThatCode(() -> {
                         assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
                                 .succeedsWithin(Duration.ofSeconds(5));
-
-                        producer.flush();
                     }).doesNotThrowAnyException();
                 },
                 records -> {
