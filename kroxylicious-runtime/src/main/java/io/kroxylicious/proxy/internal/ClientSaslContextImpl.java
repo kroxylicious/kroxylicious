@@ -57,11 +57,17 @@ public class ClientSaslContextImpl implements ClientSaslContext {
 
     @Override
     public String mechanismName() {
+        // A Filter implementation should never get an NPE as a result of calling this method
+        // because FilterContext.clientSaslContext() would return an empty
+        // optional if there was no current SASL authentication information.
         return Objects.requireNonNull(this.mechanism);
     }
 
     @Override
     public String authorizationId() {
+        // A Filter implementation should never get an NPE as a result of calling this method
+        // because FilterContext.clientSaslContext() would return an empty
+        // optional if there was no current SASL authentication information.
         return Objects.requireNonNull(this.clientAuthorizationId);
     }
 
