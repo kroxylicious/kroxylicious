@@ -48,13 +48,9 @@ class SaslInitiationIT {
                 SaslPlainInitiation.class.getName(),
                 SaslPlainInitiation.class.getName())
                 .build();
-        NamedFilterDefinition lawyer = new NamedFilterDefinitionBuilder(
-                ClientTlsAwareLawyer.class.getName(),
-                ClientTlsAwareLawyer.class.getName())
-                .build();
         var config = proxy(cluster)
-                .addToFilterDefinitions(saslInitiation, lawyer)
-                .addToDefaultFilters(saslInitiation.name(), lawyer.name());
+                .addToFilterDefinitions(saslInitiation)
+                .addToDefaultFilters(saslInitiation.name());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(
