@@ -19,7 +19,7 @@ import edu.umd.cs.findbugs.annotations.ReturnValuesAreNonnullByDefault;
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)
-public class ClientSaslContextImpl {
+public class ClientSaslManager {
 
     private record Authorized(
                               String authorizationId,
@@ -28,7 +28,7 @@ public class ClientSaslContextImpl {
 
     private Authorized clientAuthorization;
 
-    public ClientSaslContextImpl() {
+    public ClientSaslManager() {
         this.clientAuthorization = null;
     }
 

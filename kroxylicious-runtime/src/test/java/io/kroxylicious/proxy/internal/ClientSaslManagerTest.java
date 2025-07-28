@@ -13,12 +13,12 @@ import io.kroxylicious.proxy.authentication.ClientSaslContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ClientSaslContextImplTest {
+class ClientSaslManagerTest {
 
     @Test
     void initialState() {
         // Given
-        ClientSaslContextImpl impl = new ClientSaslContextImpl();
+        ClientSaslManager impl = new ClientSaslManager();
         // Then
         assertThat(impl.clientSaslContext()).isEmpty();
     }
@@ -26,7 +26,7 @@ class ClientSaslContextImplTest {
     @Test
     void transitionInitialToAuthorized() {
         // Given
-        ClientSaslContextImpl impl = new ClientSaslContextImpl();
+        ClientSaslManager impl = new ClientSaslManager();
         // When
         impl.clientSaslAuthenticationSuccess("FOO", "bob");
         // Then
@@ -38,7 +38,7 @@ class ClientSaslContextImplTest {
     @Test
     void transitionInitialToFailed() {
         // Given
-        ClientSaslContextImpl impl = new ClientSaslContextImpl();
+        ClientSaslManager impl = new ClientSaslManager();
         // When
         impl.clientSaslAuthenticationFailure();
         // Then
@@ -48,7 +48,7 @@ class ClientSaslContextImplTest {
     @Test
     void transitionAuthorizedToAuthorized() {
         // Given
-        ClientSaslContextImpl impl = new ClientSaslContextImpl();
+        ClientSaslManager impl = new ClientSaslManager();
         impl.clientSaslAuthenticationSuccess("FOO", "bob");
         // When
         impl.clientSaslAuthenticationSuccess("BAR", "sue");
@@ -61,7 +61,7 @@ class ClientSaslContextImplTest {
     @Test
     void transitionAuthorizedToFailed() {
         // Given
-        ClientSaslContextImpl impl = new ClientSaslContextImpl();
+        ClientSaslManager impl = new ClientSaslManager();
         impl.clientSaslAuthenticationSuccess("FOO", "bob");
         // When
         impl.clientSaslAuthenticationFailure();
@@ -72,7 +72,7 @@ class ClientSaslContextImplTest {
     @Test
     void transitionFailedToAuthorized() {
         // Given
-        ClientSaslContextImpl impl = new ClientSaslContextImpl();
+        ClientSaslManager impl = new ClientSaslManager();
         impl.clientSaslAuthenticationFailure();
 
         // When

@@ -72,7 +72,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final VirtualClusterModel virtualClusterModel;
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
-    private final ClientSaslContextImpl csc;
+    private final ClientSaslManager clientSaslManager;
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private ChannelHandlerContext ctx;
@@ -83,13 +83,13 @@ public class FilterHandler extends ChannelDuplexHandler {
                          String sniHostname,
                          VirtualClusterModel virtualClusterModel,
                          Channel inboundChannel,
-                         ClientSaslContextImpl csc) {
+                         ClientSaslManager clientSaslManager) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
         this.virtualClusterModel = virtualClusterModel;
         this.inboundChannel = inboundChannel;
-        this.csc = csc;
+        this.clientSaslManager = clientSaslManager;
     }
 
     @Override
@@ -513,7 +513,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addArgument(authorizedId)
                     .log();
             // dispatch principal injection
-            csc.clientSaslAuthenticationSuccess(mechanism, authorizedId);
+            clientSaslManager.clientSaslAuthenticationSuccess(mechanism, authorizedId);
         }
 
         @Override
@@ -530,13 +530,13 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addArgument(authorizedId)
                     .addArgument(exception.toString())
                     .log();
-            csc.clientSaslAuthenticationFailure();
+            clientSaslManager.clientSaslAuthenticationFailure();
 
         }
 
         @Override
         public @NonNull Optional<ClientSaslContext> clientSaslContext() {
-            return FilterHandler.this.csc.clientSaslContext();
+            return FilterHandler.this.clientSaslManager.clientSaslContext();
         }
 
         @Override
