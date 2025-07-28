@@ -33,6 +33,8 @@ import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -45,8 +47,8 @@ class ConstantSaslIT {
                                  Topic topic,
                                  Map<String, Object> filterConfig,
                                  boolean expectedClientSaslPresent,
-                                 String expectedAuthorizedId,
-                                 String expectedMechanism) {
+                                 @Nullable String expectedAuthorizedId,
+                                 @Nullable String expectedMechanism) {
         NamedFilterDefinition saslInspection = new NamedFilterDefinitionBuilder(
                 ConstantSasl.class.getName(),
                 ConstantSasl.class.getName())

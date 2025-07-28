@@ -19,8 +19,18 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.Plugins;
 import io.kroxylicious.proxy.testplugins.ProtocolCounter.Config;
 
+/**
+ * Filter used for testing which simply counts the number of requests and/or responses for the
+ * configured API keys and serializes those counts into the record headers of any passing
+ * Produce requests.
+ *
+ * This provides a way for an IT to infer that some kind of protocol level interaction has happened.
+ */
 @Plugin(configType = Config.class)
 public class ProtocolCounter implements FilterFactory<Config, Config> {
+
+    public record Config(Set<ApiKeys> countRequests,
+                         Set<ApiKeys> countResponses) { }
 
     @Override
     public Config initialize(FilterFactoryContext context, Config config) throws PluginConfigurationException {
@@ -42,9 +52,6 @@ public class ProtocolCounter implements FilterFactory<Config, Config> {
         return new ProtocolCounterFilter(requestMap, responseMap);
     }
 
-    public record Config(Set<ApiKeys> countRequests,
-                         Set<ApiKeys> countResponses) {
 
-    }
 
 }

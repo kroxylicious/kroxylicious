@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.testplugins;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -46,9 +45,9 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
 
     enum State {
         START,
-        AWAITING_API_VERSIONS,
-        AWAITING_SASL_HANDSHAKE,
-        AWAITING_SASL_AUTHENTICATE,
+        AWAITING_SERVER_API_VERSIONS,
+        AWAITING_SERVER_SASL_HANDSHAKE,
+        AWAITING_SERVER_SASL_AUTHENTICATE,
         FORWARDING
     }
 
@@ -78,12 +77,12 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
         return switch (state) {
             case START -> {
                 if (apiKey == ApiKeys.API_VERSIONS) {
-                    state = State.AWAITING_API_VERSIONS;
+                    state = State.AWAITING_SERVER_API_VERSIONS;
                     LOGGER.info("Forwarding {} request", apiKey);
                     yield context.forwardRequest(header, request);
                 }
                 else {
-                    state = State.AWAITING_API_VERSIONS;
+                    state = State.AWAITING_SERVER_API_VERSIONS;
                     LOGGER.info("Sending {} request", apiKey);
                     yield context.sendRequest(
                             requestHeader(ApiKeys.API_VERSIONS, (short) 4),
@@ -93,8 +92,8 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
                             });
                 }
             }
-            case AWAITING_API_VERSIONS, AWAITING_SASL_HANDSHAKE, AWAITING_SASL_AUTHENTICATE -> {
-                CompletionStage<RequestFilterResult> fut = new CompletableFuture<>();
+            case AWAITING_SERVER_API_VERSIONS, AWAITING_SERVER_SASL_HANDSHAKE, AWAITING_SERVER_SASL_AUTHENTICATE -> {
+                CompletableFuture<RequestFilterResult> fut = new CompletableFuture<>();
                 bufferedRequests.add(new BufferedRequest(header, request, fut));
                 yield fut;
             }
@@ -124,9 +123,9 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
         this.saslAuthenticateVersion = (short) Math.max(authenticateMaxVersion, 2);
         LOGGER.info("Will use handshakeVersion: {}, authenticateVersion: {}", this.saslHandshakeVersion, this.saslAuthenticateVersion);
 
-        if (state == State.AWAITING_API_VERSIONS) {
+        if (state == State.AWAITING_SERVER_API_VERSIONS) {
             LOGGER.info("Sending SASL_HANDSHAKE request");
-            state = State.AWAITING_SASL_HANDSHAKE;
+            state = State.AWAITING_SERVER_SASL_HANDSHAKE;
             return context.<SaslHandshakeResponseData> sendRequest(
                     requestHeader(ApiKeys.SASL_HANDSHAKE, saslHandshakeVersion),
                     new SaslHandshakeRequestData()
@@ -134,7 +133,7 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
                     .thenCompose(handshakeResponse -> {
                         if (handshakeResponse.errorCode() == Errors.NONE.code()) {
                             LOGGER.info("Sending SASL_AUTHENTICATE request");
-                            state = State.AWAITING_SASL_AUTHENTICATE;
+                            state = State.AWAITING_SERVER_SASL_AUTHENTICATE;
                             return context.<SaslAuthenticateResponseData> sendRequest(
                                     requestHeader(ApiKeys.SASL_AUTHENTICATE, saslAuthenticateVersion),
                                     new SaslAuthenticateRequestData()

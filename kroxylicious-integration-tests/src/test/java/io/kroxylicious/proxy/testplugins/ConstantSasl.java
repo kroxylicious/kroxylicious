@@ -57,7 +57,7 @@ public class ConstantSasl implements FilterFactory<Config, Config> {
             return cls.asSubclass(Exception.class);
         }
 
-        Exception newException(String msg) {
+        Exception newException(@Nullable String msg) {
             try {
                 var ctor = exceptionClass().getDeclaredConstructor(String.class);
                 return ctor.newInstance(msg);
