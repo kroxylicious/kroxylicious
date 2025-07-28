@@ -14,57 +14,35 @@ import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
 import edu.umd.cs.findbugs.annotations.DefaultAnnotationForParameters;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 import edu.umd.cs.findbugs.annotations.ReturnValuesAreNonnullByDefault;
 
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)
-public class ClientSaslContextImpl implements ClientSaslContext {
+public class ClientSaslContextImpl {
 
-    private @Nullable String clientAuthorizationId;
-    private @Nullable String mechanism;
+    private record Authorized(
+    String authorizationId,
+    String mechanismName) implements ClientSaslContext {}
+
+    private Authorized clientAuthorization;
 
     public ClientSaslContextImpl() {
-        this.clientAuthorizationId = null;
+        this.clientAuthorization = null;
     }
 
     void clientSaslAuthenticationSuccess(String mechanism,
                                          String clientAuthorizationId) {
         Objects.requireNonNull(mechanism, "mechanism");
         Objects.requireNonNull(clientAuthorizationId, "clientAuthorizationId");
-        this.clientAuthorizationId = clientAuthorizationId;
-        this.mechanism = mechanism;
+        this.clientAuthorization = new Authorized(clientAuthorizationId, mechanism);
     }
 
     void clientSaslAuthenticationFailure() {
-        this.clientAuthorizationId = null;
-        this.mechanism = null;
+        this.clientAuthorization = null;
     }
 
     public Optional<ClientSaslContext> clientSaslContext() {
-        if (clientAuthorizationId != null) {
-            return Optional.of(this);
-        }
-        else {
-            return Optional.empty();
-        }
+        return Optional.ofNullable(clientAuthorization);
     }
-
-    @Override
-    public String mechanismName() {
-        // A Filter implementation should never get an NPE as a result of calling this method
-        // because FilterContext.clientSaslContext() would return an empty
-        // optional if there was no current SASL authentication information.
-        return Objects.requireNonNull(this.mechanism);
-    }
-
-    @Override
-    public String authorizationId() {
-        // A Filter implementation should never get an NPE as a result of calling this method
-        // because FilterContext.clientSaslContext() would return an empty
-        // optional if there was no current SASL authentication information.
-        return Objects.requireNonNull(this.clientAuthorizationId);
-    }
-
 }
