@@ -64,7 +64,8 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
     private short saslAuthenticateVersion = -1;
 
     record BufferedRequest(RequestHeaderData header,
-                           ApiMessage request, CompletionStage<RequestFilterResult> fut) {}
+                           ApiMessage request,
+                           CompletableFuture<RequestFilterResult> fut) {}
 
     private final List<BufferedRequest> bufferedRequests = new ArrayList<>();
 
@@ -149,14 +150,16 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
                                             return context.forwardResponse(header, apiVersionsResponse);
                                         }
                                         else {
-                                            String message = "authenticate failed: " + Errors.forCode(authenticateResponse.errorCode()).name();
-                                            return giveUp(message);
+                                            return giveUp(context, "SaslAuthenticate with the server, using mechanism PLAIN, failed with error " + Errors.forCode(authenticateResponse.errorCode()).name());
                                         }
                                     });
                         }
                         else {
                             // handshake failed
-                            return giveUp("handshake failed: " + Errors.forCode(handshakeResponse.errorCode()).name());
+                            return giveUp(context, "SaslHandshake with the server failed with error "
+                                    + Errors.forCode(handshakeResponse.errorCode()).name()
+                                    + " and mechanisms " + handshakeResponse.mechanisms()
+                            );
                         }
                     });
         }
@@ -166,12 +169,14 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
         }
     }
 
-    private static <T> T giveUp(String message) {
-        // TODO: we should
-        //   log an error,
-        //   respond with an internal server error if possible (the response might not support an error code),
-        //   and disconnect the client
-        // But this is current just test code, so for now we'll simply throw.
-        throw new RuntimeException(message);
+    private <T> CompletionStage<ResponseFilterResult> giveUp(FilterContext context, String message) {
+        LOGGER.error("{}. Disconnecting client.", message);
+        if (!bufferedRequests.isEmpty()) {
+            BufferedRequest bufferedRequest = bufferedRequests.get(0);
+            bufferedRequest.fut().complete(context.requestFilterResultBuilder()
+                    .errorResponse(bufferedRequest.header(), bufferedRequest.request(), Errors.UNKNOWN_SERVER_ERROR.exception())
+                    .build());
+        }
+        return context.responseFilterResultBuilder().drop().completed();
     }
 }

@@ -9,9 +9,13 @@ package io.kroxylicious.proxy;
 import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 
+import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.serialization.Serdes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,16 +34,14 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.GROUP_ID_CONFIG;
-import static org.apache.kafka.clients.producer.ProducerConfig.CLIENT_ID_CONFIG;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
-class SaslInitiationIT {
+class SaslPlainInitiationIT {
     @Test
     void shouldInitiate(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
-                        Topic topic)
-            throws Exception {
+                        Topic topic) {
 
         NamedFilterDefinition saslInitiation = new NamedFilterDefinitionBuilder(
                 SaslPlainInitiation.class.getName(),
@@ -71,6 +73,64 @@ class SaslInitiationIT {
                     .as("record value")
                     .extracting(String::new)
                     .isEqualTo("my-value");
+        }
+    }
+
+    @Test
+    void shouldHandleInvalidPassword(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster) {
+
+        NamedFilterDefinition saslInitiation = new NamedFilterDefinitionBuilder(
+                SaslPlainInitiation.class.getName(),
+                SaslPlainInitiation.class.getName())
+                .withConfig(
+                        "username", "alice",
+                        "password", "WRONG-PASSWORD")
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(saslInitiation)
+                .addToDefaultFilters(saslInitiation.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.admin(Map.of(
+                        CommonClientConfigs.REQUEST_TIMEOUT_MS_CONFIG, "1000",
+                        CommonClientConfigs.DEFAULT_API_TIMEOUT_MS_CONFIG, "1000",
+                        CommonClientConfigs.METADATA_RECOVERY_STRATEGY_CONFIG, "none"))) {
+            assertThat(producer.listTopics().names())
+                    .failsWithin(Duration.ofSeconds(5))
+                    .withThrowableThat()
+                    .isExactlyInstanceOf(ExecutionException.class)
+                    .havingCause()
+                    .isExactlyInstanceOf(TimeoutException.class);
+        }
+    }
+
+    @Test
+    void shouldHandleNoCommonMechanism(@SaslMechanism(value = "SCRAM-SHA-256",
+                                               principals = { @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster)
+            throws Exception {
+
+        NamedFilterDefinition saslInitiation = new NamedFilterDefinitionBuilder(
+                SaslPlainInitiation.class.getName(),
+                SaslPlainInitiation.class.getName())
+                .withConfig(
+                        "username", "alice",
+                        "password", "WRONG-PASSWORD")
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(saslInitiation)
+                .addToDefaultFilters(saslInitiation.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.admin(Map.of(
+                        CommonClientConfigs.REQUEST_TIMEOUT_MS_CONFIG, "1000",
+                        CommonClientConfigs.DEFAULT_API_TIMEOUT_MS_CONFIG, "1000",
+                        CommonClientConfigs.METADATA_RECOVERY_STRATEGY_CONFIG, "none"))) {
+            assertThat(producer.listTopics().names())
+                    .failsWithin(Duration.ofSeconds(5))
+                    .withThrowableThat()
+                    .isExactlyInstanceOf(ExecutionException.class)
+                    .havingCause()
+                    .isExactlyInstanceOf(TimeoutException.class);
         }
     }
 }
