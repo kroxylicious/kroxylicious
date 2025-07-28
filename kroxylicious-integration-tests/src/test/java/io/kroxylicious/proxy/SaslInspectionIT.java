@@ -59,11 +59,10 @@ class SaslInspectionIT {
 
         String mechanism = "PLAIN";
         String clientLoginModule = "org.apache.kafka.common.security.plain.PlainLoginModule";
-        String testName = "shouldInspect";
         String username = "alice";
         String password = "alice-secret";
 
-        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password, testName,
+        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password,
                 2,
                 10_000);
     }
@@ -81,11 +80,10 @@ class SaslInspectionIT {
 
         String mechanism = "PLAIN";
         String clientLoginModule = "org.apache.kafka.common.security.plain.PlainLoginModule";
-        String testName = "shouldInspect";
         String username = "alice";
         String password = "alice-secret";
 
-        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password, testName);
+        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password);
     }
 
     // client handshakes with SCRAM-SHA-256
@@ -101,11 +99,10 @@ class SaslInspectionIT {
 
         String mechanism = "SCRAM-SHA-256";
         String clientLoginModule = "org.apache.kafka.common.security.scram.ScramLoginModule";
-        String testName = "shouldInspect";
         String username = "alice";
         String password = "alice-secret";
 
-        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password, testName);
+        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password);
     }
 
     // client handshakes with SCRAM-SHA-256
@@ -121,11 +118,10 @@ class SaslInspectionIT {
 
         String mechanism = "SCRAM-SHA-512";
         String clientLoginModule = "org.apache.kafka.common.security.scram.ScramLoginModule";
-        String testName = "shouldInspect";
         String username = "alice";
         String password = "alice-secret";
 
-        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password, testName);
+        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password);
     }
 
     // client handshakes with PLAIN
@@ -140,11 +136,10 @@ class SaslInspectionIT {
 
         String mechanism = "PLAIN";
         String clientLoginModule = "org.apache.kafka.common.security.plain.PlainLoginModule";
-        String testName = "shouldInspect";
         String username = "alice";
         String password = "alice-oops";
 
-        assertClientsGetSaslAuthenticationException(cluster, topic, mechanism, clientLoginModule, username, password, testName);
+        assertClientsGetSaslAuthenticationException(cluster, topic, mechanism, clientLoginModule, username, password);
     }
 
     // TODO assert fails if no handshake done at all
@@ -161,13 +156,13 @@ class SaslInspectionIT {
     // reauth attempt by client which didn't use >= v1 Autn req
 
     private static void assertClientsGetSaslAuthenticationException(KafkaCluster cluster, Topic topic, String mechanism, String clientLoginModule, String username,
-                                                                    String password, String testName) {
+                                                                    String password) {
         var config = buildProxyConfig(mechanism, cluster);
 
         String jaasConfig = "%s required%n  username=\"%s\"%n   password=\"%s\";".formatted(clientLoginModule, username, password);
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(
-                        CommonClientConfigs.CLIENT_ID_CONFIG, testName + "-producer",
+                        CommonClientConfigs.CLIENT_ID_CONFIG, mechanism + "-producer",
                         CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
                         SaslConfigs.SASL_MECHANISM, mechanism,
                         SaslConfigs.SASL_JAAS_CONFIG, jaasConfig))) {
@@ -183,12 +178,11 @@ class SaslInspectionIT {
                                                       String mechanism,
                                                       String clientLoginModule,
                                                       String username,
-                                                      String password,
-                                                      String testName)
-            throws InterruptedException, ExecutionException {
+                                                      String password)
+            throws InterruptedException {
         assertClientsCanAccessCluster(cluster, topic, mechanism,
                 clientLoginModule, username, password,
-                testName, 1, 0);
+                1, 0);
     }
 
     @SuppressWarnings("java:S2925") // Impossible to integration test reauth without Thread.sleep
@@ -198,22 +192,21 @@ class SaslInspectionIT {
                                                       String clientLoginModule,
                                                       String username,
                                                       String password,
-                                                      String testName,
                                                       int numBatches,
                                                       long pauseMs)
-            throws InterruptedException, ExecutionException {
+            throws InterruptedException {
         var config = buildProxyConfig(mechanism, cluster);
 
         String jaasConfig = "%s required%n  username=\"%s\"%n   password=\"%s\";".formatted(clientLoginModule, username, password);
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(
-                        CommonClientConfigs.CLIENT_ID_CONFIG, testName + "-producer",
+                        CommonClientConfigs.CLIENT_ID_CONFIG, mechanism + "-producer",
                         CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
                         SaslConfigs.SASL_MECHANISM, mechanism,
                         SaslConfigs.SASL_JAAS_CONFIG, jaasConfig));
                 var consumer = tester
                         .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(
-                                CommonClientConfigs.CLIENT_ID_CONFIG, testName + "-consumer",
+                                CommonClientConfigs.CLIENT_ID_CONFIG, mechanism + "-consumer",
                                 CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
                                 SaslConfigs.SASL_MECHANISM, mechanism,
                                 SaslConfigs.SASL_JAAS_CONFIG, jaasConfig,
@@ -256,13 +249,11 @@ class SaslInspectionIT {
     void shouldNotAuthenticateWhenNoCommonMechanism(@SaslMechanism(value = "PLAIN", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
                                                     Topic topic) {
-        String testName = "shouldInspect";
-
         var config = buildProxyConfig("SCRAM-SHA-256", cluster);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(
-                        CommonClientConfigs.CLIENT_ID_CONFIG, testName + "-producer",
+                        CommonClientConfigs.CLIENT_ID_CONFIG, "PLAIN-producer",
                         CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
                         SaslConfigs.SASL_MECHANISM, "PLAIN",
                         SaslConfigs.SASL_JAAS_CONFIG, """
