@@ -1,0 +1,64 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+name: "Lint Pull Request"
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: 'Set up Java'
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: 'temurin'
+      - name: 'Cache Maven packages'
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: 'Test for unpublished reference release (japicmp)'
+        run: |
+          REFERENCE_RELEASE=$(mvn --quiet -pl kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
+          echo "REFERENCE_RELEASE_UNPUBLISHED=$(mvn --quiet dependency:get -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom 1>/dev/null && echo false || echo true)" >> $GITHUB_ENV
+      - name: 'Compile and lint the project'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mvn -B -Pci -T3 verify -DskipTests -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED}
+      - name: Save PR number to file
+        if: github.event_name == 'pull_request'
+        run: echo ${{ github.event.number }} > PR_NUMBER.txt
+      - name: Archive PR number
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: PR_NUMBER
+          path: PR_NUMBER.txt
