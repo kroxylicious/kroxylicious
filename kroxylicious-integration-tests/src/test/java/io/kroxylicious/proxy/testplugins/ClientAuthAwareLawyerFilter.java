@@ -30,11 +30,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class ClientAuthAwareLawyerFilter
         extends AbstractProduceHeaderInjectionFilter {
 
-    @NonNull
-    private static String headerName(String hashtag) {
-        return ClientAuthAwareLawyerFilter.class.getSimpleName() + hashtag;
-    }
-
     public static final String HEADER_KEY_CLIENT_TLS_IS_PRESENT = headerName("#clientTlsContext.isPresent");
     public static final String HEADER_KEY_CLIENT_TLS_PROXY_X500PRINCIPAL_NAME = headerName("#clientTlsContext.proxyServerCertificate.principalName");
     public static final String HEADER_KEY_CLIENT_TLS_CLIENT_X500PRINCIPAL_NAME = headerName("#clientTlsContext.clientCertificate.principalName");

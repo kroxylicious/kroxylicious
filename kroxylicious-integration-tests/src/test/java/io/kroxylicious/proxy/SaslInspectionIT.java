@@ -19,6 +19,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.errors.UnsupportedSaslMechanismException;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.serialization.Serdes;
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.junit.jupiter.api.Test;
@@ -31,6 +32,8 @@ import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
+import io.kroxylicious.proxy.testplugins.ProtocolCounter;
+import io.kroxylicious.proxy.testplugins.ProtocolCounterFilter;
 import io.kroxylicious.proxy.testplugins.SaslInspection;
 import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -213,6 +216,7 @@ class SaslInspectionIT {
                                 ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
                                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
                                 ConsumerConfig.FETCH_MAX_BYTES_CONFIG, "1"))) {
+            int count = -1;
             while (numBatches > 0) {
                 assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
                         .succeedsWithin(Duration.ofSeconds(5));
@@ -228,6 +232,13 @@ class SaslInspectionIT {
                         .singleElement()
                         .asInstanceOf(new InstanceOfAssertFactory<>(ConsumerRecord.class, KafkaAssertions::assertThat))
                         .headers();
+                int newCount = ProtocolCounterFilter.fromBytes(
+                        recordHeaders.singleHeaderWithKey(ProtocolCounterFilter.requestCountHeaderKey(ApiKeys.SASL_AUTHENTICATE)).value().actual());
+                if (count != -1) {
+                    assertThat(newCount).isGreaterThan(count);
+                }
+                count = newCount;
+
                 recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
                         .hasValueEqualTo("alice");
                 recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
@@ -274,12 +285,16 @@ class SaslInspectionIT {
                 SaslInspection.class.getName())
                 .withConfig("enabledMechanisms", Set.of(e1))
                 .build();
+        NamedFilterDefinition counter = new NamedFilterDefinitionBuilder(
+                ProtocolCounter.class.getName(),
+                ProtocolCounter.class.getName())
+                .build();
         NamedFilterDefinition lawyer = new NamedFilterDefinitionBuilder(
                 ClientTlsAwareLawyer.class.getName(),
                 ClientTlsAwareLawyer.class.getName())
                 .build();
         return proxy(cluster)
-                .addToFilterDefinitions(saslInspection, lawyer)
-                .addToDefaultFilters(saslInspection.name(), lawyer.name());
+                .addToFilterDefinitions(saslInspection, counter, lawyer)
+                .addToDefaultFilters(saslInspection.name(), counter.name(), lawyer.name());
     }
 }
