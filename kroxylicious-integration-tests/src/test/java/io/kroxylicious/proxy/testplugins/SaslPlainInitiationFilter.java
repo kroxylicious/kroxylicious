@@ -143,7 +143,14 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
                                         if (authenticateResponse.errorCode() == Errors.NONE.code()) {
                                             for (BufferedRequest bufferedRequest : bufferedRequests) {
                                                 LOGGER.info("Forwarding buffered {} request", ApiKeys.forId(bufferedRequest.header.apiKey()));
-                                                context.forwardRequest(bufferedRequest.header, bufferedRequest.request);
+                                                context.forwardRequest(bufferedRequest.header, bufferedRequest.request).whenComplete((forwardResult, err) -> {
+                                                    if (err != null) {
+                                                        bufferedRequest.fut.complete(forwardResult);
+                                                    }
+                                                    else {
+                                                        bufferedRequest.fut.completeExceptionally(err);
+                                                    }
+                                                });
                                             }
                                             state = State.FORWARDING;
                                             LOGGER.info("Forwarding API_VERSIONS response");
