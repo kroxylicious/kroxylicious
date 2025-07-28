@@ -39,7 +39,8 @@ public class ClientAuthAwareLawyerFilter
     public static final String HEADER_KEY_CLIENT_TLS_PROXY_X500PRINCIPAL_NAME = headerName("#clientTlsContext.proxyServerCertificate.principalName");
     public static final String HEADER_KEY_CLIENT_TLS_CLIENT_X500PRINCIPAL_NAME = headerName("#clientTlsContext.clientCertificate.principalName");
 
-    public static final String HEADER_KEY_CLIENT_SASL_CLIENT_SASLPRINCIPAL_NAME = headerName("#clientSaslContext.clientPrincipal");
+    public static final String HEADER_KEY_CLIENT_SASL_CONTEXT_PRESENT = headerName("#clientSaslContext.isPresent");
+    public static final String HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID = headerName("#clientSaslContext.authorizationId");
     public static final String HEADER_KEY_CLIENT_SASL_MECH_NAME = headerName("#clientSaslContext.mechanismName");
 
     private static final Map<String, Function<FilterContext, byte[]>> HEADERS = Map.of(
@@ -58,7 +59,9 @@ public class ClientAuthAwareLawyerFilter
                     .map(string -> string.getBytes(StandardCharsets.UTF_8))
                     .orElse(null),
 
-            HEADER_KEY_CLIENT_SASL_CLIENT_SASLPRINCIPAL_NAME,
+            HEADER_KEY_CLIENT_SASL_CONTEXT_PRESENT,
+            context -> context.clientSaslContext().isPresent() ? new byte[]{ 1 } : new byte[]{ 0 },
+            HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID,
             context -> context.clientSaslContext()
                     .map(ClientSaslContext::authorizationId)
                     .map(string -> string.getBytes(StandardCharsets.UTF_8))

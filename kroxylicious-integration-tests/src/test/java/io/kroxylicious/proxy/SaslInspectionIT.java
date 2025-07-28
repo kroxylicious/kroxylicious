@@ -228,7 +228,7 @@ class SaslInspectionIT {
                         .singleElement()
                         .asInstanceOf(new InstanceOfAssertFactory<>(ConsumerRecord.class, KafkaAssertions::assertThat))
                         .headers();
-                recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_CLIENT_SASLPRINCIPAL_NAME)
+                recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
                         .hasValueEqualTo("alice");
                 recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
                         .hasValueEqualTo(mechanism);

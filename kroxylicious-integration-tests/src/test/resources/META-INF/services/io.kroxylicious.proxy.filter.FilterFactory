@@ -11,3 +11,4 @@ io.kroxylicious.proxy.testplugins.SaslPlainTermination
 io.kroxylicious.proxy.testplugins.SaslPlainInitiation
 io.kroxylicious.proxy.testplugins.SaslInspection
 io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer
+io.kroxylicious.proxy.testplugins.ConstantSasl

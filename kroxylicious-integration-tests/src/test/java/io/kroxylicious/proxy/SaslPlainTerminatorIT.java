@@ -145,7 +145,7 @@ public class SaslPlainTerminatorIT extends BaseIT {
                             .singleElement()
                             .asInstanceOf(new InstanceOfAssertFactory<>(ConsumerRecord.class, KafkaAssertions::assertThat))
                             .headers();
-                    recordHeaders.firstHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_CLIENT_SASLPRINCIPAL_NAME).hasValueEqualTo("alice");
+                    recordHeaders.firstHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID).hasValueEqualTo("alice");
                 });
     }
 

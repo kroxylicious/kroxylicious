@@ -83,5 +83,4 @@ class ClientSaslContextImplTest {
         csc2.extracting(ClientSaslContext::authorizationId).isEqualTo("bob");
     }
 
-
 }
