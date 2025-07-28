@@ -37,8 +37,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public abstract class AbstractProduceHeaderInjectionFilter implements ProduceRequestFilter {
 
     @NonNull
-    public static String headerName(String hashtag) {
-        return ClientAuthAwareLawyerFilter.class.getSimpleName() + hashtag;
+    public static String headerName(Class<?> cls, String hashtag) {
+        return cls.getSimpleName() + hashtag;
     }
 
     @NonNull

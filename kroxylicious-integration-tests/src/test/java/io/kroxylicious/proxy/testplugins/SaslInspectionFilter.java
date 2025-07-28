@@ -35,6 +35,13 @@ import io.kroxylicious.proxy.filter.SaslHandshakeResponseFilter;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+/**
+ * A minimal SASL inspection filter supporting the {@code PLAIN},
+ * {@code SCRAM-SHA-256} and {@code SCRAM-SHA-512} mechanisms only.
+ * It may not be secure!
+ * This is only used for integration testing and
+ * is <strong>NOT INTENDED FOR USE IN PRODUCTION.</strong>
+ */
 public class SaslInspectionFilter
         implements
         SaslHandshakeRequestFilter,

@@ -44,11 +44,11 @@ public class ProtocolCounterFilter implements
     }
 
     public static String requestCountHeaderKey(ApiKeys apiKey) {
-        return AbstractProduceHeaderInjectionFilter.headerName("#request." + apiKey);
+        return AbstractProduceHeaderInjectionFilter.headerName(ProtocolCounterFilter.class, "#request." + apiKey);
     }
 
     public static String responseCountHeaderKey(ApiKeys apiKey) {
-        return AbstractProduceHeaderInjectionFilter.headerName("#response." + apiKey);
+        return AbstractProduceHeaderInjectionFilter.headerName(ProtocolCounterFilter.class, "#response." + apiKey);
     }
 
     private final EnumMap<ApiKeys, Integer> requestApisToCount;

@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.testplugins;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 
@@ -32,6 +33,13 @@ import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
+/**
+ * A minimal SASL initiation filter supporting the {@code PLAIN} mechanism only.
+ * It does not support SASL reauthentication (KIP-368).
+ * It may not even be secure!
+ * This is only used for integration testing and
+ * is <strong>NOT INTENDED FOR USE IN PRODUCTION.</strong>
+ */
 public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SaslPlainInitiationFilter.class);
@@ -44,8 +52,13 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
         FORWARDING
     }
 
-    private String username = "alice";
-    private String password = "alice-secret";
+    private final String username;
+    private final String password;
+
+    public SaslPlainInitiationFilter(String username, String password) {
+        this.username = username;
+        this.password = password;
+    }
 
     private State state = State.START;
     private short saslHandshakeVersion = -1;
@@ -137,13 +150,14 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
                                             return context.forwardResponse(header, apiVersionsResponse);
                                         }
                                         else {
-                                            throw new RuntimeException("authenticate failed: " + Errors.forCode(authenticateResponse.errorCode()).name());
+                                            String message = "authenticate failed: " + Errors.forCode(authenticateResponse.errorCode()).name();
+                                            return giveUp(message);
                                         }
                                     });
                         }
                         else {
                             // handshake failed
-                            throw new RuntimeException("handshake failed: " + Errors.forCode(handshakeResponse.errorCode()).name());
+                            return giveUp("handshake failed: " + Errors.forCode(handshakeResponse.errorCode()).name());
                         }
                     });
         }
@@ -151,5 +165,14 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
             LOGGER.info("Forwarding API_VERSIONS response");
             return context.forwardResponse(header, apiVersionsResponse);
         }
+    }
+
+    private static <T> T giveUp(String message) {
+        // TODO: we should
+        //   log an error,
+        //   respond with an internal server error if possible (the response might not support an error code),
+        //   and disconnect the client
+        // But this is current just test code, so for now we'll simply throw.
+        throw new RuntimeException(message);
     }
 }

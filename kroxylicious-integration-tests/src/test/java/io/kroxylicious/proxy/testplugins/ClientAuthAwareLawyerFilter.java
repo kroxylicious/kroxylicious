@@ -30,13 +30,13 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class ClientAuthAwareLawyerFilter
         extends AbstractProduceHeaderInjectionFilter {
 
-    public static final String HEADER_KEY_CLIENT_TLS_IS_PRESENT = headerName("#clientTlsContext.isPresent");
-    public static final String HEADER_KEY_CLIENT_TLS_PROXY_X500PRINCIPAL_NAME = headerName("#clientTlsContext.proxyServerCertificate.principalName");
-    public static final String HEADER_KEY_CLIENT_TLS_CLIENT_X500PRINCIPAL_NAME = headerName("#clientTlsContext.clientCertificate.principalName");
+    public static final String HEADER_KEY_CLIENT_TLS_IS_PRESENT = headerName(ClientAuthAwareLawyerFilter.class, "#clientTlsContext.isPresent");
+    public static final String HEADER_KEY_CLIENT_TLS_PROXY_X500PRINCIPAL_NAME = headerName(ClientAuthAwareLawyerFilter.class, "#clientTlsContext.proxyServerCertificate.principalName");
+    public static final String HEADER_KEY_CLIENT_TLS_CLIENT_X500PRINCIPAL_NAME = headerName(ClientAuthAwareLawyerFilter.class, "#clientTlsContext.clientCertificate.principalName");
 
-    public static final String HEADER_KEY_CLIENT_SASL_CONTEXT_PRESENT = headerName("#clientSaslContext.isPresent");
-    public static final String HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID = headerName("#clientSaslContext.authorizationId");
-    public static final String HEADER_KEY_CLIENT_SASL_MECH_NAME = headerName("#clientSaslContext.mechanismName");
+    public static final String HEADER_KEY_CLIENT_SASL_CONTEXT_PRESENT = headerName(ClientAuthAwareLawyerFilter.class, "#clientSaslContext.isPresent");
+    public static final String HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID = headerName(ClientAuthAwareLawyerFilter.class, "#clientSaslContext.authorizationId");
+    public static final String HEADER_KEY_CLIENT_SASL_MECH_NAME = headerName(ClientAuthAwareLawyerFilter.class, "#clientSaslContext.mechanismName");
 
     private static final Map<String, Function<FilterContext, byte[]>> HEADERS = Map.of(
             HEADER_KEY_CLIENT_TLS_IS_PRESENT,

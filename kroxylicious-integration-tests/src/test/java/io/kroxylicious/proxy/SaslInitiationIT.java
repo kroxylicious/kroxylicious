@@ -40,22 +40,21 @@ class SaslInitiationIT {
     void shouldInitiate(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
                         Topic topic)
             throws Exception {
-        String testName = "shouldInitiate";
 
         NamedFilterDefinition saslInitiation = new NamedFilterDefinitionBuilder(
                 SaslPlainInitiation.class.getName(),
                 SaslPlainInitiation.class.getName())
+                .withConfig("username", "alice",
+                        "password", "alice-secret")
                 .build();
         var config = proxy(cluster)
                 .addToFilterDefinitions(saslInitiation)
                 .addToDefaultFilters(saslInitiation.name());
 
         try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(Map.of(
-                        CLIENT_ID_CONFIG, testName + "-producer"));
+                var producer = tester.producer(Map.of());
                 var consumer = tester
                         .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(
-                                CLIENT_ID_CONFIG, testName + "-consumer",
                                 GROUP_ID_CONFIG, "my-group-id",
                                 AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
             assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))

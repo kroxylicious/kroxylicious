@@ -35,6 +35,13 @@ import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.internal.KafkaAuthnHandler;
 
+/**
+ * A minimal SASL termination filter supporting the {@code PLAIN} mechanism only.
+ * It does not support SASL reauthentication (KIP-368).
+ * It may not even be secure!
+ * This is only used for integration testing and
+ * is <strong>NOT INTENDED FOR USE IN PRODUCTION.</strong>
+ */
 public class SaslPlainTerminationFilter
         implements RequestFilter {
 
@@ -163,7 +170,7 @@ public class SaslPlainTerminationFilter
                 }
                 else {
                     yield context.requestFilterResultBuilder()
-                            .errorResponse(header, request, Errors.CLUSTER_AUTHORIZATION_FAILED.exception())
+                            .errorResponse(header, request, Errors.SASL_AUTHENTICATION_FAILED.exception())
                             .completed();
                 }
             }
