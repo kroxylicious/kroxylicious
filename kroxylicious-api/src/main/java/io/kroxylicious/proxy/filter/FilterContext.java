@@ -163,7 +163,9 @@ public interface FilterContext {
     /**
      * Allows a filter (typically one which implements {@link SaslAuthenticateRequestFilter})
      * to announce a failed authentication outcome with the Kafka client.
-     * It is the filter's responsilbity to return the right error response to a client, and/or disconnect.
+     * After calling this method the result of {@link #clientSaslContext()} will
+     * be empty for this and other filters.
+     * It is the filter's responsibility to return the right error response to a client, and/or disconnect.
      *
      * In order to support reauthentication, calls to this method and
      * {@link #clientSaslAuthenticationSuccess(String, String)}
