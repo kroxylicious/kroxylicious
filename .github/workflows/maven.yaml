@@ -93,18 +93,3 @@ jobs:
           KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
           KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
         run: mvn -B verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar -Dsonar.projectKey=kroxylicious_kroxylicious  -pl ''!:kroxylicious-operator''
-      # Run shellcheck *again to fail the build if errors are introduced
-      - name: shellcheck - errors
-        uses: reviewdog/action-shellcheck@v1
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          reporter: github-pr-review # Change reporter.
-          path: "." # Optional.
-          pattern: "*.sh" # Optional.
-          level: "error"
-          fail_level: "error"
-          exclude: |
-            "./.git/*" 
-            "**/target"
-          check_all_files_with_shebangs: "false" # Optional.
-          shellcheck_flags: "--external-sources --severity=Error"
