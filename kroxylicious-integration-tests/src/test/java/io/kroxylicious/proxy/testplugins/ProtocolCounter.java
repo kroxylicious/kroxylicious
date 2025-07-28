@@ -16,6 +16,7 @@ import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
+import io.kroxylicious.proxy.plugin.Plugins;
 import io.kroxylicious.proxy.testplugins.ProtocolCounter.Config;
 
 @Plugin(configType = Config.class)
@@ -23,7 +24,7 @@ public class ProtocolCounter implements FilterFactory<Config, Config> {
 
     @Override
     public Config initialize(FilterFactoryContext context, Config config) throws PluginConfigurationException {
-        return config;
+        return Plugins.requireConfig(this, config);
     }
 
     @Override

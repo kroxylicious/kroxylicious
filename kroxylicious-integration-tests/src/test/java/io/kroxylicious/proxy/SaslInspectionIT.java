@@ -54,11 +54,16 @@ class SaslInspectionIT {
     // client authenticated with the correct password
     // => client should be able to produce and consume
     @Test
+    // @formatter:off
     void shouldAuthenticateWhenSameMechanism_PLAIN_withReauth(
                                                               @SaslMechanism(value = "PLAIN", principals = {
-                                                                      @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) @BrokerConfig(name = "connections.max.reauth.ms", value = "5000") KafkaCluster cluster,
+                                                                      @SaslMechanism.Principal(user = "alice", password = "alice-secret")
+                                                              })
+                                                              @BrokerConfig(name = "connections.max.reauth.ms", value = "5000")
+                                                              KafkaCluster cluster,
                                                               Topic topic)
             throws Exception {
+        // @formatter:on
 
         String mechanism = "PLAIN";
         String clientLoginModule = "org.apache.kafka.common.security.plain.PlainLoginModule";
@@ -66,7 +71,7 @@ class SaslInspectionIT {
         String password = "alice-secret";
 
         assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password,
-                2,
+                2, 1,
                 10_000);
     }
 
@@ -86,7 +91,7 @@ class SaslInspectionIT {
         String username = "alice";
         String password = "alice-secret";
 
-        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password);
+        assertClientsCanAccessCluster(cluster, topic, mechanism, 1, clientLoginModule, username, password);
     }
 
     // client handshakes with SCRAM-SHA-256
@@ -105,7 +110,7 @@ class SaslInspectionIT {
         String username = "alice";
         String password = "alice-secret";
 
-        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password);
+        assertClientsCanAccessCluster(cluster, topic, mechanism, 2, clientLoginModule, username, password);
     }
 
     // client handshakes with SCRAM-SHA-256
@@ -124,7 +129,7 @@ class SaslInspectionIT {
         String username = "alice";
         String password = "alice-secret";
 
-        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password);
+        assertClientsCanAccessCluster(cluster, topic, mechanism, 2, clientLoginModule, username, password);
     }
 
     // client handshakes with PLAIN
@@ -179,13 +184,14 @@ class SaslInspectionIT {
     private static void assertClientsCanAccessCluster(KafkaCluster cluster,
                                                       Topic topic,
                                                       String mechanism,
+                                                      final int numAuthReqPerAuth,
                                                       String clientLoginModule,
                                                       String username,
                                                       String password)
             throws InterruptedException {
         assertClientsCanAccessCluster(cluster, topic, mechanism,
                 clientLoginModule, username, password,
-                1, 0);
+                1, numAuthReqPerAuth, 0);
     }
 
     @SuppressWarnings("java:S2925") // Impossible to integration test reauth without Thread.sleep
@@ -195,7 +201,8 @@ class SaslInspectionIT {
                                                       String clientLoginModule,
                                                       String username,
                                                       String password,
-                                                      int numBatches,
+                                                      final int numBatches,
+                                                      final int numAuthReqPerAuth,
                                                       long pauseMs)
             throws InterruptedException {
         var config = buildProxyConfig(mechanism, cluster);
@@ -216,8 +223,8 @@ class SaslInspectionIT {
                                 ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
                                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
                                 ConsumerConfig.FETCH_MAX_BYTES_CONFIG, "1"))) {
-            int count = -1;
-            while (numBatches > 0) {
+            int batchNumOneBased = 1;
+            while (batchNumOneBased <= numBatches) {
                 assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
                         .succeedsWithin(Duration.ofSeconds(5));
 
@@ -234,20 +241,20 @@ class SaslInspectionIT {
                         .headers();
                 int newCount = ProtocolCounterFilter.fromBytes(
                         recordHeaders.singleHeaderWithKey(ProtocolCounterFilter.requestCountHeaderKey(ApiKeys.SASL_AUTHENTICATE)).value().actual());
-                if (count != -1) {
-                    assertThat(newCount).isGreaterThan(count);
-                }
-                count = newCount;
+
+                assertThat(newCount)
+                        .as("Observed number of %s requests @ batch #%s", ApiKeys.SASL_AUTHENTICATE, batchNumOneBased)
+                        .isEqualTo(numAuthReqPerAuth * batchNumOneBased);
 
                 recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
                         .hasValueEqualTo("alice");
                 recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
                         .hasValueEqualTo(mechanism);
 
-                numBatches -= 1;
-                if (numBatches > 0) {
+                if (batchNumOneBased < numBatches) {
                     Thread.sleep(pauseMs);
                 }
+                batchNumOneBased += 1;
             }
         }
     }
@@ -288,6 +295,9 @@ class SaslInspectionIT {
         NamedFilterDefinition counter = new NamedFilterDefinitionBuilder(
                 ProtocolCounter.class.getName(),
                 ProtocolCounter.class.getName())
+                .withConfig(
+                        "countRequests", Set.of(ApiKeys.SASL_AUTHENTICATE),
+                        "countResponses", Set.of(ApiKeys.SASL_AUTHENTICATE))
                 .build();
         NamedFilterDefinition lawyer = new NamedFilterDefinitionBuilder(
                 ClientTlsAwareLawyer.class.getName(),
