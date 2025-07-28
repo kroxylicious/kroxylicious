@@ -9,8 +9,6 @@ package io.kroxylicious.proxy.testplugins;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
-import javax.security.sasl.SaslException;
-
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;

@@ -94,8 +94,8 @@ class ConstantSaslIT {
 
     @Test
     void shouldHavePresentClientSaslContextWhenAuthSuccessful(
-            KafkaCluster cluster,
-            Topic topic)  {
+                                                              KafkaCluster cluster,
+                                                              Topic topic) {
         String mechanism = "FOO";
         String authorizedId = "bob";
         Map<String, Object> filterConfig = Map.of("api", ApiKeys.PRODUCE,
@@ -106,8 +106,8 @@ class ConstantSaslIT {
 
     @Test
     void shouldHaveEmptyClientSaslContextWhenAuthFailed(
-            KafkaCluster cluster,
-            Topic topic)  {
+                                                        KafkaCluster cluster,
+                                                        Topic topic) {
         String mechanism = "FOO";
         String authorizedId = "bob";
         Map<String, Object> filterConfig = Map.of("api", ApiKeys.PRODUCE,

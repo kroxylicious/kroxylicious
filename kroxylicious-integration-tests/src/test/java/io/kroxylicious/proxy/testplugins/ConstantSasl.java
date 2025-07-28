@@ -31,12 +31,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class ConstantSasl implements FilterFactory<Config, Config> {
 
     public record Config(
-            ApiKeys api,
-            @Nullable String mechanism,
-            @Nullable String authorizedId,
-            @Nullable String exceptionClassName,
-            @Nullable String exceptionMessage
-    ) {
+                         ApiKeys api,
+                         @Nullable String mechanism,
+                         @Nullable String authorizedId,
+                         @Nullable String exceptionClassName,
+                         @Nullable String exceptionMessage) {
         public Config {
             if (exceptionClassName == null) {
                 Objects.requireNonNull(mechanism);

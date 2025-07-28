@@ -74,7 +74,6 @@ public class ProtocolCounterFilter implements
         this.responseApisToCount = responseApisToCount;
     }
 
-
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
         Integer count = requestApisToCount.get(apiKey);

@@ -6,10 +6,7 @@
 
 package io.kroxylicious.proxy.internal;
 
-import org.assertj.core.api.AbstractObjectAssert;
 import org.junit.jupiter.api.Test;
-
-import io.kroxylicious.proxy.authentication.ClientSaslContext;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
