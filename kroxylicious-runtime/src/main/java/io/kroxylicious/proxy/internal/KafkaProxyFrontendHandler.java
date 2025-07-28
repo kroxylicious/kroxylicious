@@ -19,6 +19,7 @@ import org.apache.kafka.common.message.ApiVersionsResponseDataJsonConverter;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -464,10 +465,12 @@ public class KafkaProxyFrontendHandler
                       List<FilterAndInvoker> filters,
                       KafkaProxyBackendHandler backendHandler) {
         final Channel inboundChannel = clientCtx().channel();
-        // Start the upstream connection attempt.
-        final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
         Attribute<String> attr = inboundChannel.attr(KafkaProxyInitializer.SESSION_ID_ATTRIBUTE_KEY);
         String sessionId = attr.get();
+        MDC.getMDCAdapter().put(KafkaProxyInitializer.SESSION_ID_ATTRIBUTE_KEY.name(), sessionId);
+
+        // Start the upstream connection attempt.
+        final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
 
         LOGGER.trace("Connecting to outbound {}", remote);
         ChannelFuture serverTcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
