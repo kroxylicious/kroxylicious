@@ -64,8 +64,7 @@ public class SaslPlainTerminatorIT extends BaseIT {
                 SaslConfigs.SASL_JAAS_CONFIG, clientJaasCofig);
 
         Map<String, Object> producerConfigs = new HashMap<>(Map.of(
-                CLIENT_ID_CONFIG, "shouldTerminate-producer",
-                DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                CLIENT_ID_CONFIG, "shouldTerminate-producer"));
         producerConfigs.putAll(clientSaslConfigs);
 
         Map<String, Object> consumerConfigs = new HashMap<>(Map.of(CLIENT_ID_CONFIG, "shouldTerminate-consumer",
@@ -134,7 +133,9 @@ public class SaslPlainTerminatorIT extends BaseIT {
         doAThing(cluster, topic, mechanismName, clientJaasCofig,
                 producer -> {
                     Assertions.assertThatCode(() -> {
-                        producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")).get();
+                        assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
+                                .succeedsWithin(Duration.ofSeconds(5));
+
                         producer.flush();
                     }).doesNotThrowAnyException();
                 },
@@ -161,7 +162,8 @@ public class SaslPlainTerminatorIT extends BaseIT {
                 """;
         doAThing(cluster, topic, mechanismName, clientJaasCofig,
                 producer -> {
-                    assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value"))).failsWithin(5, TimeUnit.SECONDS)
+                    assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
+                            .failsWithin(5, TimeUnit.SECONDS)
                             .withThrowableOfType(ExecutionException.class)
                             .withCauseExactlyInstanceOf(SaslAuthenticationException.class);
                 },
@@ -180,7 +182,8 @@ public class SaslPlainTerminatorIT extends BaseIT {
                 """;
         doAThing(cluster, topic, mechanismName, clientJaasCofig,
                 producer -> {
-                    assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value"))).failsWithin(5, TimeUnit.SECONDS)
+                    assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
+                            .failsWithin(5, TimeUnit.SECONDS)
                             .withThrowableOfType(ExecutionException.class)
                             .withCauseExactlyInstanceOf(SaslAuthenticationException.class);
                 },

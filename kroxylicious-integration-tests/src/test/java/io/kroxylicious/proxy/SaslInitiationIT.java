@@ -54,14 +54,14 @@ class SaslInitiationIT {
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(
-                        CLIENT_ID_CONFIG, testName + "-producer",
-                        DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                        CLIENT_ID_CONFIG, testName + "-producer"));
                 var consumer = tester
                         .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(
                                 CLIENT_ID_CONFIG, testName + "-consumer",
                                 GROUP_ID_CONFIG, "my-group-id",
                                 AUTO_OFFSET_RESET_CONFIG, "earliest"))) {
-            producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")).get();
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
+                    .succeedsWithin(Duration.ofSeconds(5));
 
             producer.flush();
 

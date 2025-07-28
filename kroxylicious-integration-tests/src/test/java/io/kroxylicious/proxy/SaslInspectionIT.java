@@ -172,9 +172,9 @@ class SaslInspectionIT {
                         CommonClientConfigs.CLIENT_ID_CONFIG, testName + "-producer",
                         CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
                         SaslConfigs.SASL_MECHANISM, mechanism,
-                        SaslConfigs.SASL_JAAS_CONFIG, jaasConfig,
-                        ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
-            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value"))).failsWithin(5, TimeUnit.SECONDS)
+                        SaslConfigs.SASL_JAAS_CONFIG, jaasConfig))) {
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
+                    .failsWithin(5, TimeUnit.SECONDS)
                     .withThrowableOfType(ExecutionException.class)
                     .withCauseExactlyInstanceOf(SaslAuthenticationException.class);
         }
@@ -212,8 +212,7 @@ class SaslInspectionIT {
                         CommonClientConfigs.CLIENT_ID_CONFIG, testName + "-producer",
                         CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
                         SaslConfigs.SASL_MECHANISM, mechanism,
-                        SaslConfigs.SASL_JAAS_CONFIG, jaasConfig,
-                        ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000));
+                        SaslConfigs.SASL_JAAS_CONFIG, jaasConfig));
                 var consumer = tester
                         .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(
                                 CommonClientConfigs.CLIENT_ID_CONFIG, testName + "-consumer",
@@ -224,7 +223,8 @@ class SaslInspectionIT {
                                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
                                 ConsumerConfig.FETCH_MAX_BYTES_CONFIG, "1"))) {
             while (numBatches > 0) {
-                producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")).get();
+                assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
+                        .succeedsWithin(Duration.ofSeconds(5));
 
                 producer.flush();
 
@@ -271,9 +271,9 @@ class SaslInspectionIT {
                                         org.apache.kafka.common.security.plain.PlainLoginModule required
                                             username="alice"
                                             password="alice-secret";
-                                """,
-                        ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, 3_600_000))) {
-            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value"))).failsWithin(5, TimeUnit.SECONDS)
+                                """))) {
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
+                    .failsWithin(5, TimeUnit.SECONDS)
                     .withThrowableOfType(ExecutionException.class)
                     .withCauseExactlyInstanceOf(UnsupportedSaslMechanismException.class);
         }
