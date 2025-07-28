@@ -85,6 +85,7 @@ public abstract class FilterHarness {
         var inboundChannel = new EmbeddedChannel();
         var channelProcessors = Stream.<ChannelHandler> of(new InternalRequestTracker(), new CorrelationIdIssuer());
 
+        ClientSaslContextImpl csc = new ClientSaslContextImpl();
         var filterHandlers = Arrays.stream(filters)
                 .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addFirst, (d1, d2) -> {
                     d2.addAll(d1);
@@ -92,7 +93,7 @@ public abstract class FilterHarness {
                 })) // reverses order
                 .stream()
                 .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f.getClass().getSimpleName(), f)), timeoutMs, null, testVirtualCluster, inboundChannel,
-                        new ClientSaslContextImpl()))
+                        csc))
                 .map(ChannelHandler.class::cast);
         var handlers = Stream.concat(channelProcessors, filterHandlers);
 
