@@ -30,9 +30,10 @@ class ClientSaslManagerTest {
         // When
         impl.clientSaslAuthenticationSuccess("FOO", "bob");
         // Then
-        AbstractObjectAssert<?, ClientSaslContext> csc = assertThat(impl.clientSaslContext()).get();
-        csc.extracting(ClientSaslContext::mechanismName).isEqualTo("FOO");
-        csc.extracting(ClientSaslContext::authorizationId).isEqualTo("bob");
+        assertThat(impl.clientSaslContext()).hasValueSatisfying(csc -> {
+            assertThat(csc.mechanismName()).isEqualTo("FOO");
+            assertThat(csc.authorizationId()).isEqualTo("bob");
+        });
     }
 
     @Test
@@ -53,9 +54,10 @@ class ClientSaslManagerTest {
         // When
         impl.clientSaslAuthenticationSuccess("BAR", "sue");
         // Then
-        AbstractObjectAssert<?, ClientSaslContext> csc = assertThat(impl.clientSaslContext()).get();
-        csc.extracting(ClientSaslContext::mechanismName).isEqualTo("BAR");
-        csc.extracting(ClientSaslContext::authorizationId).isEqualTo("sue");
+        assertThat(impl.clientSaslContext()).hasValueSatisfying(csc -> {
+            assertThat(csc.mechanismName()).isEqualTo("BAR");
+            assertThat(csc.authorizationId()).isEqualTo("sue");
+        });
     }
 
     @Test
@@ -78,9 +80,10 @@ class ClientSaslManagerTest {
         // When
         impl.clientSaslAuthenticationSuccess("FOO", "bob");
         // Then
-        AbstractObjectAssert<?, ClientSaslContext> csc2 = assertThat(impl.clientSaslContext()).get();
-        csc2.extracting(ClientSaslContext::mechanismName).isEqualTo("FOO");
-        csc2.extracting(ClientSaslContext::authorizationId).isEqualTo("bob");
+        assertThat(impl.clientSaslContext()).hasValueSatisfying(csc -> {
+            assertThat(csc.mechanismName()).isEqualTo("FOO");
+            assertThat(csc.authorizationId()).isEqualTo("bob");
+        });
     }
 
 }
