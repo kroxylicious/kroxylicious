@@ -22,8 +22,9 @@ import edu.umd.cs.findbugs.annotations.ReturnValuesAreNonnullByDefault;
 public class ClientSaslContextImpl {
 
     private record Authorized(
-    String authorizationId,
-    String mechanismName) implements ClientSaslContext {}
+                              String authorizationId,
+                              String mechanismName)
+            implements ClientSaslContext {}
 
     private Authorized clientAuthorization;
 

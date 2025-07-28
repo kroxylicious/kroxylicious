@@ -147,7 +147,6 @@ class SaslInspectionIT {
         assertClientsGetSaslAuthenticationException(cluster, topic, mechanism, clientLoginModule, username, password, testName);
     }
 
-
     // TODO assert fails if no handshake done at all
     // TODO assert fails if client not configured for SASL
     // TODO assert that filters don't get invoked even if a client sends a metadata after getting an error after authenticate

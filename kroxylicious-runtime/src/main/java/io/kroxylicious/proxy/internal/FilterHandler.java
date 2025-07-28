@@ -522,7 +522,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                                                     @NonNull Exception exception) {
             LOGGER.atInfo()
                     .setMessage("{}: Filter '{}' announces client has failed SASL authentication using mechanism '{}' and authorizationId '{}'. Cause message {}."
-                    + (LOGGER.isDebugEnabled() ? "" : " Increase log level to DEBUG for stacktrace."))
+                            + (LOGGER.isDebugEnabled() ? "" : " Increase log level to DEBUG for stacktrace."))
                     .setCause(LOGGER.isDebugEnabled() ? exception : null)
                     .addArgument(channelDescriptor())
                     .addArgument(filterDescriptor())
