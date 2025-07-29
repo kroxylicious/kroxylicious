@@ -33,7 +33,7 @@ public class ConstantSaslFilter implements RequestFilter {
     @Override
     public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
         if (apiKey == ApiKeys.SASL_HANDSHAKE
-                || apiKey ==  ApiKeys.SASL_AUTHENTICATE) {
+                || apiKey == ApiKeys.SASL_AUTHENTICATE) {
             LOGGER.error("{} is not compatible with clients using SASL authentication. Disconnecting!", getClass().getName());
             return context.requestFilterResultBuilder().drop().completed();
         }

@@ -157,7 +157,8 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
                                             return context.forwardResponse(header, apiVersionsResponse);
                                         }
                                         else {
-                                            return giveUp(context, "SaslAuthenticate with the server, using mechanism PLAIN, failed with error " + Errors.forCode(authenticateResponse.errorCode()).name());
+                                            return giveUp(context, "SaslAuthenticate with the server, using mechanism PLAIN, failed with error "
+                                                    + Errors.forCode(authenticateResponse.errorCode()).name());
                                         }
                                     });
                         }
@@ -165,8 +166,7 @@ public class SaslPlainInitiationFilter implements RequestFilter, ApiVersionsResp
                             // handshake failed
                             return giveUp(context, "SaslHandshake with the server failed with error "
                                     + Errors.forCode(handshakeResponse.errorCode()).name()
-                                    + " and mechanisms " + handshakeResponse.mechanisms()
-                            );
+                                    + " and mechanisms " + handshakeResponse.mechanisms());
                         }
                     });
         }

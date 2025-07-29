@@ -30,7 +30,7 @@ import io.kroxylicious.proxy.testplugins.ProtocolCounter.Config;
 public class ProtocolCounter implements FilterFactory<Config, Config> {
 
     public record Config(Set<ApiKeys> countRequests,
-                         Set<ApiKeys> countResponses) { }
+                         Set<ApiKeys> countResponses) {}
 
     @Override
     public Config initialize(FilterFactoryContext context, Config config) throws PluginConfigurationException {
@@ -51,7 +51,5 @@ public class ProtocolCounter implements FilterFactory<Config, Config> {
 
         return new ProtocolCounterFilter(requestMap, responseMap);
     }
-
-
 
 }

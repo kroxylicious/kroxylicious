@@ -104,8 +104,8 @@ class SaslPlainInitiationIT {
     }
 
     @Test
-    void shouldHandleNoCommonMechanism(@SaslMechanism(value = "SCRAM-SHA-256",
-                                               principals = { @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster)
+    void shouldHandleNoCommonMechanism(@SaslMechanism(value = "SCRAM-SHA-256", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster)
             throws Exception {
 
         NamedFilterDefinition saslInitiation = new NamedFilterDefinitionBuilder(

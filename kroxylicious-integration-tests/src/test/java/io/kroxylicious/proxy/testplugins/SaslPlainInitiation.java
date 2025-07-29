@@ -17,7 +17,7 @@ import io.kroxylicious.proxy.testplugins.SaslPlainInitiation.Config;
 @Plugin(configType = Config.class)
 public class SaslPlainInitiation implements FilterFactory<Config, Config> {
 
-    public record Config(String username, String password) { }
+    public record Config(String username, String password) {}
 
     @Override
     public Config initialize(FilterFactoryContext context, Config config) throws PluginConfigurationException {
