@@ -59,7 +59,7 @@ allowEmpty: true                                                 # <4>
 <3> if `true`, the validator allows keys and or values to be `null`. The default is `false`.
 <4> if `true`, the validator allows keys and or values to be empty. The default is `false`.
 
-NOTE: Schema validation mode currently has the capability to enforce only JSON schemas (https://github.com/kroxylicious/kroxylicious/issues/1431[issue])
+NOTE: Schema validation mode currently has the capability to enforce only JSON schemas ({github-issues}/1431[issue])
 
 .Example JSON Syntax Validation Rule Definition
 

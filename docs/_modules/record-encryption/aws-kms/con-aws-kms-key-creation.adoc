@@ -10,7 +10,7 @@ As the administrator, use either the AWS Console or CLI to
 usage.  
 Multi-region keys are supported.  
 
-NOTE: It is not possible to make use of keys from other AWS accounts. For more information on this limitation, see the issue for link:https://github.com/kroxylicious/kroxylicious/issues/1217[AWS KMS serde improvements^].
+NOTE: It is not possible to make use of keys from other AWS accounts. For more information on this limitation, see the issue for link:{github-issues}/1217[AWS KMS serde improvements^].
 
 Give the key an alias as described in xref:con-aws-kms-setup-{context}[].
 
