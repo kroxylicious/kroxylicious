@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2491](https://github.com/kroxylicious/kroxylicious/pull/2491): build(deps): bump io.netty:netty-bom from 4.1.121.Final to 4.1.123.Final
 * [#2472](https://github.com/kroxylicious/kroxylicious/pull/2472): Restrictions on which interfaces Filter implementations an implementation could implement have been relaxed.
 * [#2440](https://github.com/kroxylicious/kroxylicious/issues/2440): Fail fast on unknown properties in proxy configuration file 
 * [#2450](https://github.com/kroxylicious/kroxylicious/issues/2450): fix(proxy): Forward ApiVersions v0 response on UNSUPPORTED_VERSION v0 response from upstream
