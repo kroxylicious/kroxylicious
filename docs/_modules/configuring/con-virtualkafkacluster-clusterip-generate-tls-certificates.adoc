@@ -29,8 +29,8 @@ Assuming a virtual cluster name of `my-cluster`, an ingress name of `cluster-ip`
 ----
 my-cluster-cluster-ip-bootstrap.<namespace>.svc.cluster.local
 my-cluster-cluster-ip-0.<namespace>.svc.cluster.local
-my-cluster-cluster-ip-1<namespace>.svc.cluster.local
-my-cluster-cluster-ip-2<namespace>.svc.cluster.local
+my-cluster-cluster-ip-1.<namespace>.svc.cluster.local
+my-cluster-cluster-ip-2.<namespace>.svc.cluster.local
 ----
 
 include::../../_snippets/snip-create-secret-containing-pem-certificate.adoc[]
