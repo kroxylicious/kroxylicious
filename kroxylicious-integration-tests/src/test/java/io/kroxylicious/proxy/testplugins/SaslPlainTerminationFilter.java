@@ -171,6 +171,7 @@ public class SaslPlainTerminationFilter
                 else {
                     yield context.requestFilterResultBuilder()
                             .errorResponse(header, request, Errors.SASL_AUTHENTICATION_FAILED.exception())
+                            .withCloseConnection()
                             .completed();
                 }
             }
