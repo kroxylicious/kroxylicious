@@ -10,8 +10,6 @@ import java.net.InetSocketAddress;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.channel.Channel;
 import io.netty.channel.DefaultChannelId;
