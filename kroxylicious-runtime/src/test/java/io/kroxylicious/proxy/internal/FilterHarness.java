@@ -54,6 +54,7 @@ public abstract class FilterHarness {
     public static final String TEST_CLIENT = "test-client";
     public static final List<HostPort> TARGET_CLUSTER_BOOTSTRAP = List.of(HostPort.parse("targetCluster:9091"));
     protected EmbeddedChannel channel;
+    protected ClientSaslManager clientSaslManager;
     private final AtomicInteger outboundCorrelationId = new AtomicInteger(1);
     private final Map<Integer, Correlation> pendingInternalRequestMap = new HashMap<>();
     private long timeoutMs = 1000L;
@@ -85,13 +86,15 @@ public abstract class FilterHarness {
         var inboundChannel = new EmbeddedChannel();
         var channelProcessors = Stream.<ChannelHandler> of(new InternalRequestTracker(), new CorrelationIdIssuer());
 
+        clientSaslManager = new ClientSaslManager();
         var filterHandlers = Arrays.stream(filters)
                 .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addFirst, (d1, d2) -> {
                     d2.addAll(d1);
                     return d2;
                 })) // reverses order
                 .stream()
-                .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f.getClass().getSimpleName(), f)), timeoutMs, null, testVirtualCluster, inboundChannel))
+                .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f.getClass().getSimpleName(), f)), timeoutMs, null, testVirtualCluster, inboundChannel,
+                        clientSaslManager))
                 .map(ChannelHandler.class::cast);
         var handlers = Stream.concat(channelProcessors, filterHandlers);
 

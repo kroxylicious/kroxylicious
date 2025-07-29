@@ -17,6 +17,7 @@ import javax.security.auth.x500.X500Principal;
 
 import org.apache.kafka.common.header.internals.RecordHeader;
 
+import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
@@ -29,14 +30,15 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class ClientAuthAwareLawyerFilter
         extends AbstractProduceHeaderInjectionFilter {
 
-    @NonNull
-    private static String headerName(String hashtag) {
-        return ClientAuthAwareLawyerFilter.class.getSimpleName() + hashtag;
-    }
+    public static final String HEADER_KEY_CLIENT_TLS_IS_PRESENT = headerName(ClientAuthAwareLawyerFilter.class, "#clientTlsContext.isPresent");
+    public static final String HEADER_KEY_CLIENT_TLS_PROXY_X500PRINCIPAL_NAME = headerName(ClientAuthAwareLawyerFilter.class,
+            "#clientTlsContext.proxyServerCertificate.principalName");
+    public static final String HEADER_KEY_CLIENT_TLS_CLIENT_X500PRINCIPAL_NAME = headerName(ClientAuthAwareLawyerFilter.class,
+            "#clientTlsContext.clientCertificate.principalName");
 
-    public static final String HEADER_KEY_CLIENT_TLS_IS_PRESENT = headerName("#clientTlsContext.isPresent");
-    public static final String HEADER_KEY_CLIENT_TLS_PROXY_X500PRINCIPAL_NAME = headerName("#clientTlsContext.proxyServerCertificate.principalName");
-    public static final String HEADER_KEY_CLIENT_TLS_CLIENT_X500PRINCIPAL_NAME = headerName("#clientTlsContext.clientCertificate.principalName");
+    public static final String HEADER_KEY_CLIENT_SASL_CONTEXT_PRESENT = headerName(ClientAuthAwareLawyerFilter.class, "#clientSaslContext.isPresent");
+    public static final String HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID = headerName(ClientAuthAwareLawyerFilter.class, "#clientSaslContext.authorizationId");
+    public static final String HEADER_KEY_CLIENT_SASL_MECH_NAME = headerName(ClientAuthAwareLawyerFilter.class, "#clientSaslContext.mechanismName");
 
     private static final Map<String, Function<FilterContext, byte[]>> HEADERS = Map.of(
             HEADER_KEY_CLIENT_TLS_IS_PRESENT,
@@ -51,6 +53,19 @@ public class ClientAuthAwareLawyerFilter
             context -> context.clientTlsContext()
                     .map(ClientTlsContext::clientCertificate)
                     .flatMap(opt -> opt.map(ClientAuthAwareLawyerFilter::principalName))
+                    .map(string -> string.getBytes(StandardCharsets.UTF_8))
+                    .orElse(null),
+
+            HEADER_KEY_CLIENT_SASL_CONTEXT_PRESENT,
+            context -> context.clientSaslContext().isPresent() ? new byte[]{ 1 } : new byte[]{ 0 },
+            HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID,
+            context -> context.clientSaslContext()
+                    .map(ClientSaslContext::authorizationId)
+                    .map(string -> string.getBytes(StandardCharsets.UTF_8))
+                    .orElse(null),
+            HEADER_KEY_CLIENT_SASL_MECH_NAME,
+            context -> context.clientSaslContext()
+                    .map(ClientSaslContext::mechanismName)
                     .map(string -> string.getBytes(StandardCharsets.UTF_8))
                     .orElse(null));
 
