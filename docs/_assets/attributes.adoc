@@ -39,7 +39,6 @@
 :api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-api/{KroxyliciousVersion}
 :kms-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-kms/{KroxyliciousVersion}
 :encryption-api-javadoc: https://javadoc.io/doc/io.kroxylicious/kroxylicious-encryption/{KroxyliciousVersion}
-:start-script: https://github.com/kroxylicious/kroxylicious/blob/{gitRef}/kroxylicious-app/src/assembly/kroxylicious-start.sh
 
 //Kubernetes links
 :KubeTools: link:https://kubernetes.io/docs/tasks/tools/[Install Tools^]
