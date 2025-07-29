@@ -21,9 +21,12 @@
 :toclevels: 2
 :icons: font
 
-//Latest version
-:KroxyliciousVersion: 0.13
-:gitRef: tree/main
+// Latest version
+:KroxyliciousVersion: 0.14.0-SNAPSHOT
+// Used for links to release artifacts, will be 404 during development
+:KroxyliciousReleaseTag: v{KroxyliciousVersion}
+// Used to point at source code and blobs, will point at main during development and at the release tag when deployed
+:KroxyliciousGitRef: main
 :ApicurioVersion: 2.6.x
 :KubernetesVersionMinimum: 1.31
 :OpenShiftVersionMinimum: 4.18
@@ -31,25 +34,33 @@
 :OperatorAssetZipFileName: kroxylicious-operator-{KroxyliciousVersion}.zip
 :OperatorAssetTgzFileName: kroxylicious-operator-{KroxyliciousVersion}.tar.gz
 
-//Proxy links
+// GitHub links
 :github: https://github.com/kroxylicious/kroxylicious
-:OperatorDownloadUrl: {github}/releases[GitHub releases page^]
-:github-releases: {github}/{gitRef}
 :github-issues: {github}/issues
+// GitHub release links
+:github-release-base: {github}/releases
+:github-release: {github-release-base}/{KroxyliciousReleaseTag}
+:github-release-link: {github-release}[GitHub release page^]
+// GitHub source links
+:github-source-tree-root: {github}/tree/{KroxyliciousGitRef}
+:github-blob-root: {github}/blob/{KroxyliciousGitRef}
+:github-raw-root: https://raw.githubusercontent.com/kroxylicious/kroxylicious/{KroxyliciousGitRef}
+
+// Javadoc links
 :javadoc-base: https://javadoc.io/doc
 :api-javadoc: {javadoc-base}/io.kroxylicious/kroxylicious-api/{KroxyliciousVersion}
 :kms-api-javadoc: {javadoc-base}/io.kroxylicious/kroxylicious-kms/{KroxyliciousVersion}
 :encryption-api-javadoc: {javadoc-base}/io.kroxylicious/kroxylicious-encryption/{KroxyliciousVersion}
 
-//Kubernetes links
+// Kubernetes links
 :KubeTools: link:https://kubernetes.io/docs/tasks/tools/[Install Tools^]
 :KubernetesSite: https://kubernetes.io/[Kubernetes website^]
 :OperatorPattern: https://kubernetes.io/docs/concepts/extend-kubernetes/operator/[Operators^]
 
-//Minikube links
+// Minikube links
 :Minikube: https://minikube.sigs.k8s.io/
 
-//Kafka links
+// Kafka links
 :ApacheKafkaSite: https://kafka.apache.org[Apache Kafka website^]
 :kafka-protocol: https://kafka.apache.org/protocol.html
 
@@ -59,14 +70,14 @@
 :tlsProtocolNames: https://docs.oracle.com/en/java/javase/17/docs/specs/security/standard-names.html#sslcontext-algorithms[Oracle documentation: SSLContext names^]
 :cipherSuiteNames: https://docs.oracle.com/en/java/javase/21/docs/specs/security/standard-names.html#jsse-cipher-suite-names[Oracle documentation: JSSE Cipher Suite Names^]
 
-//Vault links
+// Vault links
 :hashicorp-vault: https://developer.hashicorp.com/vault
 
-//Fortanix DSM links
+// Fortanix DSM links
 :fortanix-dsm: https://www.fortanix.com/platform/data-security-manager
 :fortanix-support: https://support.fortanix.com/
 
-//AWS links
+// AWS links
 :aws:  https://docs.aws.amazon.com/
 
 // Apicurio links
@@ -86,7 +97,7 @@
 //:include-olm: 1
 //:OpenShiftOnly: 1
 
-//API stability markers.
+// API stability markers.
 :unstable-api-version: denoted by a major version 0
 :stable-api-version: version 1.0.0
 

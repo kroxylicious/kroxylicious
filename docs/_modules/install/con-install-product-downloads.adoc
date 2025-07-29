@@ -6,7 +6,7 @@
 = Kroxylicious release artifacts
 
 [role="_abstract"]
-To use YAML manifest files to install Kroxylicious, download  {OperatorAssetZipFileName} or {OperatorAssetTgzFileName} file from the {OperatorDownloadUrl}, and extract the files as appropriate (for example using `unzip` or `tar -xzf`).
+To use YAML manifest files to install Kroxylicious, download  {OperatorAssetZipFileName} or {OperatorAssetTgzFileName} file from the {github-release-link}, and extract the files as appropriate (for example using `unzip` or `tar -xzf`).
 
 Each of these archives contains:
 
