@@ -9,6 +9,9 @@ package io.kroxylicious.proxy.internal.net;
 import java.util.Objects;
 import java.util.Optional;
 
+import io.netty.channel.Channel;
+import io.netty.channel.socket.ServerSocketChannel;
+
 /**
  * Represents a network endpoint.  Network endpoints accepts Kafka protocol traffic on behalf of a virtual clusters.
  *
@@ -19,6 +22,15 @@ import java.util.Optional;
 public record Endpoint(Optional<String> bindingAddress, int port, boolean tls) {
     public Endpoint {
         Objects.requireNonNull(bindingAddress);
+    }
+
+    public static Endpoint createEndpoint(Channel ch, boolean tls) {
+        var serverSocketChannel = (ServerSocketChannel) ch.parent();
+        var serverSocketAddress = serverSocketChannel.localAddress();
+        var bindingAddress = serverSocketAddress.getAddress().isAnyLocalAddress() ? Optional.<String> empty()
+                : Optional.of(serverSocketAddress.getAddress().getHostAddress());
+
+        return new Endpoint(bindingAddress, serverSocketAddress.getPort(), tls);
     }
 
     public static Endpoint createEndpoint(Optional<String> bindingAddress, int port, boolean tls) {

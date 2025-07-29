@@ -8,7 +8,6 @@ package io.kroxylicious.proxy.internal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
@@ -20,7 +19,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.socket.ServerSocketChannel;
 import io.netty.handler.codec.haproxy.HAProxyMessageDecoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
@@ -96,34 +94,22 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
         LOGGER.trace("Connection from {} to my address {}", ch.remoteAddress(), ch.localAddress());
 
-        ChannelPipeline pipeline = ch.pipeline();
-
-        var serverSocketChannel = getAcceptingChannel(ch);
-        var serverSocketAddress = serverSocketChannel.localAddress();
-        int targetPort = serverSocketAddress.getPort();
-        var bindingAddress = serverSocketAddress.getAddress().isAnyLocalAddress() ? Optional.<String> empty()
-                : Optional.of(serverSocketAddress.getAddress().getHostAddress());
         if (tls) {
-            initTlsChannel(ch, pipeline, bindingAddress, targetPort);
+            initTlsChannel(ch, ch.pipeline());
         }
         else {
-            initPlainChannel(ch, pipeline, bindingAddress, targetPort);
+            initPlainChannel(ch, ch.pipeline());
         }
-        addLoggingErrorHandler(pipeline);
-    }
-
-    @VisibleForTesting
-    protected ServerSocketChannel getAcceptingChannel(Channel ch) {
-        return (ServerSocketChannel) ch.parent();
+        addLoggingErrorHandler(ch.pipeline());
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private void initPlainChannel(Channel ch, ChannelPipeline pipeline, Optional<String> bindingAddress, int targetPort) {
+    private void initPlainChannel(Channel ch, ChannelPipeline pipeline) {
         pipeline.addLast("plainResolver", new ChannelInboundHandlerAdapter() {
             @Override
             public void channelActive(ChannelHandlerContext ctx) {
 
-                bindingResolver.resolve(Endpoint.createEndpoint(bindingAddress, targetPort, tls), null)
+                bindingResolver.resolve(Endpoint.createEndpoint(ch, tls), null)
                         .handle((binding, t) -> {
                             if (t != null) {
                                 ctx.fireExceptionCaught(t);
@@ -147,11 +133,11 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     // deep inheritance tree of SniHandler not something we can fix
     @SuppressWarnings({ "OptionalUsedAsFieldOrParameterType", "java:S110" })
-    private void initTlsChannel(Channel ch, ChannelPipeline pipeline, Optional<String> bindingAddress, int targetPort) {
+    private void initTlsChannel(Channel ch, ChannelPipeline pipeline) {
         LOGGER.debug("Adding SSL/SNI handler");
         pipeline.addLast("sniResolver", new SniHandler((sniHostname, promise) -> {
             try {
-                Endpoint endpoint = Endpoint.createEndpoint(bindingAddress, targetPort, tls);
+                Endpoint endpoint = Endpoint.createEndpoint(ch, tls);
                 var stage = bindingResolver.resolve(endpoint, sniHostname);
                 // completes the netty promise when then resolution completes (success/otherwise).
                 stage.handle((binding, t) -> {
