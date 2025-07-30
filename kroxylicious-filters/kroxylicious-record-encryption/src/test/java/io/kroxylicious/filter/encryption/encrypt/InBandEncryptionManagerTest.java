@@ -38,6 +38,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class InBandEncryptionManagerTest {
 
+    public static final int RECORD_BUFFER_INITIAL_BYTES = 1024 * 1024;
+
     // this test covers a bug fix where multiple encrypting threads would invalidate the cache key with
     // undefined results. We only need to invalidate each cached DEK once
     @Test
@@ -66,6 +68,65 @@ class InBandEncryptionManagerTest {
         CompletableFuture<Void> all = CompletableFuture.allOf(array);
         assertThat(all).succeedsWithin(10, TimeUnit.SECONDS);
         assertThat(cache.invalidationCount()).isEqualTo(numEncryptionOperations - 1);
+    }
+
+    @Test
+    void shouldGrowBuffer() {
+        // Given
+        InMemoryKms kms = getInMemoryKms();
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        final DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(new AsyncKms<>(kms, executor), 10000);
+        EncryptionDekCache<UUID, InMemoryEdek> cache = new EncryptionDekCache<>(dekManager, executor, EncryptionDekCache.NO_MAX_CACHE_SIZE, Duration.ofHours(1),
+                Duration.ofHours(1));
+        var encryptionManager = createEncryptionManager(dekManager, cache, executor);
+        var kekId = kms.generateKey();
+        var valueLargerThanInitialEncryptionBuffer = new byte[RECORD_BUFFER_INITIAL_BYTES + 1];
+        Record record = RecordTestUtils.record(valueLargerThanInitialEncryptionBuffer);
+
+        List<Record> initial = List.of(record);
+
+        // When
+        CompletionStage<Void> encryptFuture = doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial,
+                new ArrayList<>());
+
+        // Then
+        assertThat(encryptFuture).succeedsWithin(10, TimeUnit.SECONDS);
+    }
+
+    @Test
+    void undersizedBufferAtTheLimitOfDekRotationSucceeds() {
+        // Given
+        InMemoryKms kms = getInMemoryKms();
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        final DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(new AsyncKms<>(kms, executor), 2);
+        EncryptionDekCache<UUID, InMemoryEdek> cache = new EncryptionDekCache<>(dekManager, executor, EncryptionDekCache.NO_MAX_CACHE_SIZE, Duration.ofHours(1),
+                Duration.ofHours(1));
+        var encryptionManager = createEncryptionManager(dekManager, cache, executor);
+        var kekId = kms.generateKey();
+
+        Record smallRecord = RecordTestUtils.record(new byte[1]);
+
+        var valueLargerThanInitialEncryptionBuffer = new byte[RECORD_BUFFER_INITIAL_BYTES + 1];
+        Record oversizedRecord = RecordTestUtils.record(valueLargerThanInitialEncryptionBuffer);
+
+        List<Record> encryptable = List.of(smallRecord);
+        List<Record> oversized = List.of(oversizedRecord);
+
+        // When
+        // encrypt 1 record, bringing remaining encryptions on the DEK to 1
+        CompletionStage<Void> encryptFuture = doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), encryptable,
+                new ArrayList<>());
+
+        // Then
+        assertThat(encryptFuture).succeedsWithin(10, TimeUnit.SECONDS);
+
+        // And When
+        // encrypt 1 oversized record, which consumes 1 operation, fails to encrypt, retries, hits dek exhaustion, rotates dek, retries, succeeds (... phew)
+        CompletionStage<Void> encryptFuture2 = doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), oversized,
+                new ArrayList<>());
+
+        // And Then
+        assertThat(encryptFuture2).succeedsWithin(10, TimeUnit.SECONDS);
     }
 
     @NonNull
@@ -98,7 +159,7 @@ class InBandEncryptionManagerTest {
 
         return new InBandEncryptionManager<>(Encryption.V2,
                 dekManager.edekSerde(),
-                1024 * 1024,
+                RECORD_BUFFER_INITIAL_BYTES,
                 8 * 1024 * 1024,
                 cache,
                 new FilterThreadExecutor(executor));

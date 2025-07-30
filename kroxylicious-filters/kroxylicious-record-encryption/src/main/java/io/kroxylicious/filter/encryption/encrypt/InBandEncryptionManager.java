@@ -118,13 +118,14 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
         return currentDek(encryptionScheme).thenCompose(dek -> {
             // if it's not alive we know a previous encrypt call has removed this stage from the cache and fall through to retry encrypt
             if (!dek.isDestroyed()) {
-                try (Dek<E>.Encryptor encryptor = dek.encryptor(allRecordsCount)) {
+                try {
                     var encryptedMemoryRecords = encryptBatches(
+                            dek,
+                            allRecordsCount,
                             topicName,
                             partition,
                             encryptionScheme,
                             records,
-                            encryptor,
                             bufferAllocator);
                     return CompletableFuture.completedFuture(encryptedMemoryRecords);
                 }
@@ -148,15 +149,18 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     }
 
     @NonNull
-    private MemoryRecords encryptBatches(@NonNull String topicName,
+    private MemoryRecords encryptBatches(Dek<E> dek,
+                                         int allRecordsCount,
+                                         @NonNull String topicName,
                                          int partition,
                                          @NonNull EncryptionScheme<K> encryptionScheme,
                                          @NonNull MemoryRecords memoryRecords,
-                                         @NonNull Dek<E>.Encryptor encryptor,
                                          @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
         ByteBuffer recordBuffer = ByteBuffer.allocate(recordBufferInitialBytes);
         do {
-            try {
+            // create a new encryptor for each attempt as its requested encryption operations may be partially consumed by the attempt
+            // leaving us with too few operations remaining to encrypt the batches
+            try (Dek<E>.Encryptor encryptor = dek.encryptor(allRecordsCount)) {
                 return RecordStream.ofRecords(memoryRecords)
                         .mapConstant(encryptor)
                         .toMemoryRecords(allocateBufferForEncrypt(memoryRecords, bufferAllocator),
