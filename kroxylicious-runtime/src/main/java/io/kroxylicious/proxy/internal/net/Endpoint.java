@@ -34,7 +34,7 @@ public record Endpoint(Optional<String> bindingAddress, int port, boolean tls) {
             }
             else {
                 throw new UnsupportedOperationException(
-                        "Channel is either not ServerSocketChannel or the channel/channel parent is null");
+                        "Channel parent is either not ServerSocketChannel or the channel/channel parent is null");
             }
         }
         catch (Exception e) {

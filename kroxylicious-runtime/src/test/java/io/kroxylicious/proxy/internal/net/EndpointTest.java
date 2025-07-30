@@ -108,11 +108,11 @@ class EndpointTest {
         assertThatThrownBy(() -> Endpoint.createEndpoint(ch, false))
                 .isInstanceOf(EndpointResolutionException.class)
                 .hasMessageContaining(
-                        "Channel is either not ServerSocketChannel or the channel/channel parent is null");
+                        "Channel parent is either not ServerSocketChannel or the channel/channel parent is null");
     }
 
     @Test
-    void shouldNotCreateEndpointFromNonServerSocketChannel() {
+    void shouldNotCreateEndpointParentIsNotAServerSocketChannel() {
         // Given
         Channel ch = new EmbeddedChannel(new NioSocketChannel() {
             @Override
@@ -125,6 +125,6 @@ class EndpointTest {
         assertThatThrownBy(() -> Endpoint.createEndpoint(ch, false))
                 .isInstanceOf(EndpointResolutionException.class)
                 .hasMessageContaining(
-                        "Channel is either not ServerSocketChannel or the channel/channel parent is null");
+                        "Channel parent is either not ServerSocketChannel or the channel/channel parent is null");
     }
 }
