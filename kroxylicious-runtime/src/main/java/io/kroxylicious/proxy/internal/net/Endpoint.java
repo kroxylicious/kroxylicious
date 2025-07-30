@@ -25,12 +25,21 @@ public record Endpoint(Optional<String> bindingAddress, int port, boolean tls) {
     }
 
     public static Endpoint createEndpoint(Channel ch, boolean tls) {
-        var serverSocketChannel = (ServerSocketChannel) ch.parent();
-        var serverSocketAddress = serverSocketChannel.localAddress();
-        var bindingAddress = serverSocketAddress.getAddress().isAnyLocalAddress() ? Optional.<String> empty()
-                : Optional.of(serverSocketAddress.getAddress().getHostAddress());
-
-        return new Endpoint(bindingAddress, serverSocketAddress.getPort(), tls);
+        try {
+            if (ch.parent() instanceof ServerSocketChannel serverSocketChannel) {
+                var serverSocketAddress = serverSocketChannel.localAddress();
+                var bindingAddress = serverSocketAddress.getAddress().isAnyLocalAddress() ? Optional.<String> empty()
+                        : Optional.of(serverSocketAddress.getAddress().getHostAddress());
+                return new Endpoint(bindingAddress, serverSocketAddress.getPort(), tls);
+            }
+            else {
+                throw new UnsupportedOperationException(
+                        "Channel is either not ServerSocketChannel or the channel/channel parent is null");
+            }
+        }
+        catch (Exception e) {
+            throw new EndpointResolutionException("Failed to create endpoint for the channel: " + e.getMessage(), e);
+        }
     }
 
     public static Endpoint createEndpoint(Optional<String> bindingAddress, int port, boolean tls) {

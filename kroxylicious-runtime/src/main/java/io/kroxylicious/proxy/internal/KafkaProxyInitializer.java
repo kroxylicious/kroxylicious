@@ -95,17 +95,17 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         LOGGER.trace("Connection from {} to my address {}", ch.remoteAddress(), ch.localAddress());
 
         if (tls) {
-            initTlsChannel(ch, ch.pipeline());
+            initTlsChannel(ch);
         }
         else {
-            initPlainChannel(ch, ch.pipeline());
+            initPlainChannel(ch);
         }
         addLoggingErrorHandler(ch.pipeline());
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-    private void initPlainChannel(Channel ch, ChannelPipeline pipeline) {
-        pipeline.addLast("plainResolver", new ChannelInboundHandlerAdapter() {
+    private void initPlainChannel(Channel ch) {
+        ch.pipeline().addLast("plainResolver", new ChannelInboundHandlerAdapter() {
             @Override
             public void channelActive(ChannelHandlerContext ctx) {
 
@@ -123,7 +123,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                 ctx.fireExceptionCaught(t1);
                             }
                             finally {
-                                pipeline.remove(this);
+                                ch.pipeline().remove(this);
                             }
                             return null;
                         });
@@ -133,9 +133,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     // deep inheritance tree of SniHandler not something we can fix
     @SuppressWarnings({ "OptionalUsedAsFieldOrParameterType", "java:S110" })
-    private void initTlsChannel(Channel ch, ChannelPipeline pipeline) {
+    private void initTlsChannel(Channel ch) {
         LOGGER.debug("Adding SSL/SNI handler");
-        pipeline.addLast("sniResolver", new SniHandler((sniHostname, promise) -> {
+        ch.pipeline().addLast("sniResolver", new SniHandler((sniHostname, promise) -> {
             try {
                 Endpoint endpoint = Endpoint.createEndpoint(ch, tls);
                 var stage = bindingResolver.resolve(endpoint, sniHostname);

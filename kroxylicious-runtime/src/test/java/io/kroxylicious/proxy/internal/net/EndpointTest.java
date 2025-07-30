@@ -15,8 +15,10 @@ import io.netty.channel.Channel;
 import io.netty.channel.DefaultChannelId;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class EndpointTest {
 
@@ -77,5 +79,52 @@ class EndpointTest {
                             assertThat(endpoint.bindingAddress()).isPresent().hasValue("127.0.0.1");
                             assertThat(endpoint.port()).isEqualTo(1234);
                         });
+    }
+
+    @Test
+    void shouldCreateEndpointFromEmptyBindingAddress() {
+        // Given
+        Optional<String> bindingAddress = Optional.empty();
+
+        // When
+        Endpoint actual = Endpoint.createEndpoint(bindingAddress, 1234, false);
+
+        // Then
+        assertThat(actual)
+                .isNotNull()
+                .satisfies(
+                        endpoint -> {
+                            assertThat(endpoint.bindingAddress()).isEmpty();
+                            assertThat(endpoint.port()).isEqualTo(1234);
+                        });
+    }
+
+    @Test
+    void shouldNotCreateEndpointIfChannelParentIsNull() {
+        // Given
+        Channel ch = new EmbeddedChannel(null, DefaultChannelId.newInstance(), true, false);
+
+        // Then
+        assertThatThrownBy(() -> Endpoint.createEndpoint(ch, false))
+                .isInstanceOf(EndpointResolutionException.class)
+                .hasMessageContaining(
+                        "Channel is either not ServerSocketChannel or the channel/channel parent is null");
+    }
+
+    @Test
+    void shouldNotCreateEndpointFromNonServerSocketChannel() {
+        // Given
+        Channel ch = new EmbeddedChannel(new NioSocketChannel() {
+            @Override
+            public InetSocketAddress localAddress() {
+                return new InetSocketAddress("localhost", 1234);
+            }
+        }, DefaultChannelId.newInstance(), true, false);
+
+        // Then
+        assertThatThrownBy(() -> Endpoint.createEndpoint(ch, false))
+                .isInstanceOf(EndpointResolutionException.class)
+                .hasMessageContaining(
+                        "Channel is either not ServerSocketChannel or the channel/channel parent is null");
     }
 }
