@@ -969,6 +969,30 @@ class InBandDecryptionManagerTest {
         assertThat(doEncrypt(encryptionManager, "topic", 1, scheme1, initial, encrypted))
                 .succeedsWithin(1, TimeUnit.NANOSECONDS);
     }
+    @Test
+    void shouldSucceedIfCanReallocateRecordBufferHappensLater() {
+        // Given
+        InMemoryKms kms = getInMemoryKms();
+        var kek1 = kms.generateKey();
+
+        var encryptionManager = createEncryptionManager(kms,
+                50_000,
+                100,
+                1000,
+                1);
+
+        var value = new byte[]{ 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+        Record record = RecordTestUtils.record(value);
+
+        List<Record> encrypted = new ArrayList<>();
+        List<Record> initial = List.of(record);
+        EncryptionScheme<UUID> scheme1 = new EncryptionScheme<>(kek1, EnumSet.of(RecordField.RECORD_VALUE));
+
+        // When
+        assertThat(doEncrypt(encryptionManager, "topic", 1, scheme1, initial, encrypted))
+                .succeedsWithin(1, TimeUnit.NANOSECONDS);
+    }
+
 
     public TestingDek getSerializedGeneratedEdek(InMemoryKms kms, int i) {
         var generatedEdek = kms.getGeneratedEdek(i);

@@ -310,6 +310,10 @@ public final class Dek<E> {
         public @NonNull CipherManager cipherManager() {
             return cipherManager;
         }
+
+        public void recredit() {
+            ++numEncryptions;
+        }
     }
 
     /**

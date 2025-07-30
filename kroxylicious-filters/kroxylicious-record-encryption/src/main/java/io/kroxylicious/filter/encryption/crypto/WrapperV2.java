@@ -116,6 +116,7 @@ public class WrapperV2 implements Wrapper {
             buffer.position(buffer.position() + ct.remaining());
         }
         catch (BufferOverflowException e) {
+            encryptor.recredit();
             throw new BufferTooSmallException();
         }
     }
