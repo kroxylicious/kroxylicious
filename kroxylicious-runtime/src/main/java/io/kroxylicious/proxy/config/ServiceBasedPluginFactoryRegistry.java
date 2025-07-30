@@ -22,8 +22,6 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * A {@link PluginFactoryRegistry} that is implemented using {@link ServiceLoader} discovery.
  */
@@ -31,8 +29,8 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ServiceBasedPluginFactoryRegistry.class);
 
-    public record ProviderAndConfigType(@NonNull ServiceLoader.Provider<?> provider,
-                                        @NonNull Class<?> config) {
+    public record ProviderAndConfigType(ServiceLoader.Provider<?> provider,
+                                        Class<?> config) {
         public ProviderAndConfigType {
             Objects.requireNonNull(provider);
             Objects.requireNonNull(config);
@@ -41,8 +39,7 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
 
     private final Map<Class<?>, Map<String, ProviderAndConfigType>> pluginInterfaceToNameToProvider = new ConcurrentHashMap<>();
 
-    @NonNull
-    Map<String, ProviderAndConfigType> load(@NonNull Class<?> pluginInterface) {
+    Map<String, ProviderAndConfigType> load(Class<?> pluginInterface) {
         Objects.requireNonNull(pluginInterface);
         return pluginInterfaceToNameToProvider.computeIfAbsent(pluginInterface,
                 i -> loadProviders(pluginInterface));
@@ -86,11 +83,11 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
     }
 
     @Override
-    public <P> @NonNull PluginFactory<P> pluginFactory(@NonNull Class<P> pluginClass) {
+    public <P> PluginFactory<P> pluginFactory(Class<P> pluginClass) {
         var nameToProvider = load(pluginClass);
         return new PluginFactory<>() {
             @Override
-            public @NonNull P pluginInstance(@NonNull String instanceName) {
+            public P pluginInstance(String instanceName) {
                 if (Objects.requireNonNull(instanceName).isEmpty()) {
                     throw new IllegalArgumentException();
                 }
@@ -113,9 +110,8 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                         + "Plugins must be loadable by java.util.ServiceLoader and annotated with @" + Plugin.class.getSimpleName() + ".");
             }
 
-            @NonNull
             @Override
-            public Class<?> configType(@NonNull String instanceName) {
+            public Class<?> configType(String instanceName) {
                 var providerAndConfigType = nameToProvider.get(instanceName);
                 if (providerAndConfigType != null) {
                     return providerAndConfigType.config();

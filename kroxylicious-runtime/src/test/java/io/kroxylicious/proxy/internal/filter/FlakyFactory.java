@@ -20,8 +20,6 @@ import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.plugin.Plugin;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 @Plugin(configType = FlakyConfig.class)
 public class FlakyFactory implements FilterFactory<FlakyConfig, FlakyConfig> {
 
@@ -39,7 +37,6 @@ public class FlakyFactory implements FilterFactory<FlakyConfig, FlakyConfig> {
         return config;
     }
 
-    @NonNull
     @Override
     public Filter createFilter(FilterFactoryContext context, FlakyConfig configuration) {
         Objects.requireNonNull(configuration);

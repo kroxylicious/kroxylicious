@@ -19,6 +19,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * A frame that has been decoded (as opposed to an {@link OpaqueFrame}).
  *
@@ -39,7 +41,7 @@ public abstract class DecodedFrame<H extends ApiMessage, B extends ApiMessage>
 
     private final List<ByteBuf> buffers;
     private int headerAndBodyEncodedLength;
-    private ObjectSerializationCache serializationCache;
+    private @Nullable ObjectSerializationCache serializationCache;
 
     DecodedFrame(short apiVersion, int correlationId, H header, B body) {
         this.apiVersion = apiVersion;

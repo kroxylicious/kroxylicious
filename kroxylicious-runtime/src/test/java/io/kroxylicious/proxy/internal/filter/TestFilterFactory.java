@@ -20,8 +20,6 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 @Plugin(configType = ExampleConfig.class)
 public class TestFilterFactory implements FilterFactory<ExampleConfig, ExampleConfig> {
 
@@ -30,7 +28,6 @@ public class TestFilterFactory implements FilterFactory<ExampleConfig, ExampleCo
         return Plugins.requireConfig(this, config);
     }
 
-    @NonNull
     @Override
     public TestFilterImpl createFilter(FilterFactoryContext context, ExampleConfig configuration) {
         return new TestFilterImpl(context, configuration, this.getClass());

@@ -29,12 +29,11 @@ import io.micrometer.core.instrument.binder.system.UptimeMetrics;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 @Plugin(configType = StandardBindersHook.StandardBindersHookConfig.class)
 public class StandardBindersHook implements MicrometerConfigurationHookService<StandardBindersHook.StandardBindersHookConfig> {
 
-    @NonNull
     @Override
     public MicrometerConfigurationHook build(StandardBindersHookConfig config) {
         return new Hook(config);
@@ -44,7 +43,7 @@ public class StandardBindersHook implements MicrometerConfigurationHookService<S
         private final List<String> binderNames;
 
         @JsonCreator
-        public StandardBindersHookConfig(List<String> binderNames) {
+        public StandardBindersHookConfig(@Nullable List<String> binderNames) {
             this.binderNames = binderNames == null ? List.of() : binderNames;
         }
     }

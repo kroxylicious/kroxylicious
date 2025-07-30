@@ -57,8 +57,6 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static io.kroxylicious.proxy.internal.KafkaProxyInitializer.LOGGING_INBOUND_ERROR_HANDLER_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
@@ -342,9 +340,9 @@ class KafkaProxyInitializerTest {
         assertThatCode(embeddedChannel::checkException).doesNotThrowAnyException();
     }
 
-    private @NonNull KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
-                                                                       EndpointBindingResolver bindingResolver,
-                                                                       Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
+    private KafkaProxyInitializer createKafkaProxyInitializer(boolean tls,
+                                                              EndpointBindingResolver bindingResolver,
+                                                              Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers) {
         return new KafkaProxyInitializer(filterChainFactory,
                 pfr,
                 tls,

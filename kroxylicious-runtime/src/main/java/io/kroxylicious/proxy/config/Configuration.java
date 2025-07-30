@@ -37,7 +37,6 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -60,10 +59,10 @@ public record Configuration(
                             @Nullable @JsonAlias("adminHttp") @JsonDeserialize(using = AdminHttpDeprecationLoggingDeserializer.class) ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
                             @Nullable List<String> defaultFilters,
-                            @NonNull @JsonProperty(required = true) @JsonDeserialize(using = VirtualClusterContainerDeserializer.class) List<VirtualCluster> virtualClusters,
+                            @JsonProperty(required = true) @JsonDeserialize(using = VirtualClusterContainerDeserializer.class) List<VirtualCluster> virtualClusters,
                             @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
-                            @NonNull Optional<Map<String, Object>> development) {
+                            Optional<Map<String, Object>> development) {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 
@@ -143,8 +142,8 @@ public record Configuration(
         }
     }
 
-    private static VirtualClusterModel toVirtualClusterModel(@NonNull VirtualCluster virtualCluster,
-                                                             @NonNull List<NamedFilterDefinition> filterDefinitions) {
+    private static VirtualClusterModel toVirtualClusterModel(VirtualCluster virtualCluster,
+                                                             List<NamedFilterDefinition> filterDefinitions) {
 
         VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualCluster.name(),
                 virtualCluster.targetCluster(),
@@ -174,7 +173,7 @@ public record Configuration(
         return useIoUring();
     }
 
-    public @NonNull List<VirtualClusterModel> virtualClusterModel(PluginFactoryRegistry pfr) {
+    public List<VirtualClusterModel> virtualClusterModel(PluginFactoryRegistry pfr) {
         var filterDefinitionsByName = Optional.ofNullable(this.filterDefinitions()).orElse(List.of())
                 .stream()
                 .collect(Collectors.toMap(NamedFilterDefinition::name, Function.identity()));
@@ -187,7 +186,6 @@ public record Configuration(
                 .toList();
     }
 
-    @NonNull
     private List<NamedFilterDefinition> namedFilterDefinitionsForCluster(Map<String, NamedFilterDefinition> filterDefinitionsByName,
                                                                          VirtualCluster virtualCluster) {
         List<NamedFilterDefinition> filterDefinitions;
@@ -204,7 +202,6 @@ public record Configuration(
         return filterDefinitions;
     }
 
-    @NonNull
     private List<NamedFilterDefinition> resolveFilterNames(Map<String, NamedFilterDefinition> filterDefinitionsByName, List<String> filterNames) {
         return filterNames.stream()
                 // Note: filterDefinitionsByName.get() returns non-null because of constructor post condition

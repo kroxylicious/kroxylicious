@@ -50,8 +50,6 @@ import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyInitializer.class);
@@ -240,7 +238,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         LOGGER.debug("{}: Initial pipeline: {}", ch, pipeline);
     }
 
-    @NonNull
     private KafkaMessageListener buildMetricsMessageListenerForDecode(EndpointBinding binding, VirtualClusterModel virtualCluster) {
         var clusterName = virtualCluster.getClusterName();
         var nodeId = binding.nodeId();
@@ -252,7 +249,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 deprecatedMessageMetricHandler(clusterName));
     }
 
-    @NonNull
     private static MetricEmittingKafkaMessageListener buildMetricsMessageListenerForEncode(EndpointBinding binding, VirtualClusterModel virtualCluster) {
         var clusterName = virtualCluster.getClusterName();
         var nodeId = binding.nodeId();

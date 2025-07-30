@@ -22,18 +22,18 @@ import io.netty.channel.EventLoop;
 
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class NettyFilterDispatchExecutor implements FilterDispatchExecutor {
 
     private final EventLoop eventLoop;
 
-    private NettyFilterDispatchExecutor(@NonNull EventLoop eventLoop) {
+    private NettyFilterDispatchExecutor(EventLoop eventLoop) {
         Objects.requireNonNull(eventLoop, "eventLoop cannot be null");
         this.eventLoop = eventLoop;
     }
 
-    public static FilterDispatchExecutor eventLoopExecutor(@NonNull EventLoop loop) {
+    public static FilterDispatchExecutor eventLoopExecutor(EventLoop loop) {
         return new NettyFilterDispatchExecutor(loop);
     }
 
@@ -47,7 +47,7 @@ public class NettyFilterDispatchExecutor implements FilterDispatchExecutor {
     }
 
     @Override
-    public <T> CompletionStage<T> completeOnFilterDispatchThread(@NonNull CompletionStage<T> completionStage) {
+    public <T> CompletionStage<T> completeOnFilterDispatchThread(CompletionStage<T> completionStage) {
         Objects.requireNonNull(completionStage, "completionStage was null");
         CompletableFuture<T> future = new InternalCompletableFuture<>(this);
         completionStage.whenComplete((value, throwable) -> {
@@ -61,7 +61,7 @@ public class NettyFilterDispatchExecutor implements FilterDispatchExecutor {
         return future.minimalCompletionStage();
     }
 
-    private static <T> void forward(T value, Throwable throwable, CompletableFuture<T> future) {
+    private static <T> void forward(T value, @Nullable Throwable throwable, CompletableFuture<T> future) {
         if (throwable != null) {
             future.completeExceptionally(throwable);
         }
@@ -121,7 +121,6 @@ public class NettyFilterDispatchExecutor implements FilterDispatchExecutor {
         return eventLoop.submit(task);
     }
 
-    @NonNull
     @Override
     public <T> Future<T> submit(Runnable task, T result) {
         return eventLoop.submit(task, result);

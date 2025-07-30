@@ -18,10 +18,12 @@ import io.netty.handler.ssl.SslContextBuilder;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 public class NettyKeyProvider {
 
     interface SslContextBuilderA {
-        SslContextBuilder keyManager(File keyCertChainFile, File keyFile, String keyPassword);
+        SslContextBuilder keyManager(File keyCertChainFile, File keyFile, @Nullable String keyPassword);
     }
 
     interface SslContextBuilderB {

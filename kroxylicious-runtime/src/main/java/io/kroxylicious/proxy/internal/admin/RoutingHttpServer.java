@@ -112,7 +112,7 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
         ctx.close();
     }
 
-    static class RoutingHttpServerBuilder {
+    public static class RoutingHttpServerBuilder {
 
         private final Map<String, Function<HttpRequest, HttpResponse>> routes = new HashMap<>();
 

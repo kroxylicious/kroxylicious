@@ -23,13 +23,11 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class ApiVersionsDowngradeFilter implements ApiVersionsRequestFilter {
 
     private final ApiVersionsServiceImpl apiVersionsService;
 
-    public ApiVersionsDowngradeFilter(@NonNull ApiVersionsServiceImpl apiVersionsService) {
+    public ApiVersionsDowngradeFilter(ApiVersionsServiceImpl apiVersionsService) {
         this.apiVersionsService = Objects.requireNonNull(apiVersionsService);
     }
 

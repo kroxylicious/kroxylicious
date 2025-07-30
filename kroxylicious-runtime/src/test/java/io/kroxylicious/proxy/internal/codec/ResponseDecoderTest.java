@@ -28,8 +28,6 @@ import io.netty.buffer.Unpooled;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static io.kroxylicious.proxy.internal.codec.ByteBufs.writeByteBuf;
 import static io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -107,7 +105,6 @@ class ResponseDecoderTest extends AbstractCodecTest {
         verify(listener).onMessage(isA(OpaqueResponseFrame.class), eq(expectedSizeIncludingLength));
     }
 
-    @NonNull
     private static KafkaResponseDecoder createResponseDecoder(CorrelationManager mgr, int socketFrameMaxSizeBytes) {
         return new KafkaResponseDecoder(mgr, socketFrameMaxSizeBytes, null);
     }

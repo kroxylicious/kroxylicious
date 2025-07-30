@@ -17,7 +17,6 @@ import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.internal.KafkaProxyExceptionMapper;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<RequestHeaderData, RequestFilterResult>
@@ -25,19 +24,19 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
 
     private static final String REQUEST_DATA_NAME_SUFFIX = "RequestData";
     private static final String RESPONSE_DATA_NAME_SUFFIX = "ResponseData";
-    private ResponseHeaderData shortCircuitHeader;
-    private ApiMessage shortCircuitResponse;
+    private @Nullable ResponseHeaderData shortCircuitHeader;
+    private @Nullable ApiMessage shortCircuitResponse;
 
     @Override
     protected void validateForward(RequestHeaderData header, ApiMessage message) {
         super.validateForward(header, message);
-        if (message != null && !message.getClass().getSimpleName().endsWith(REQUEST_DATA_NAME_SUFFIX)) {
+        if (!message.getClass().getSimpleName().endsWith(REQUEST_DATA_NAME_SUFFIX)) {
             throw new IllegalArgumentException("class name " + message.getClass().getName() + " does not have expected suffix " + REQUEST_DATA_NAME_SUFFIX);
         }
     }
 
     @Override
-    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@Nullable ResponseHeaderData header, @NonNull ApiMessage message) {
+    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@Nullable ResponseHeaderData header, ApiMessage message) {
         validateShortCircuitResponse(message);
         this.shortCircuitHeader = header;
         this.shortCircuitResponse = message;
@@ -45,14 +44,14 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
     }
 
     @Override
-    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(@NonNull ApiMessage message) {
+    public CloseOrTerminalStage<RequestFilterResult> shortCircuitResponse(ApiMessage message) {
         validateShortCircuitResponse(message);
         this.shortCircuitResponse = message;
         return this;
     }
 
     @Override
-    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage request, @NonNull ApiException apiException)
+    public CloseOrTerminalStage<RequestFilterResult> errorResponse(RequestHeaderData header, ApiMessage request, ApiException apiException)
             throws IllegalArgumentException {
         final AbstractResponse errorResponseMessage = KafkaProxyExceptionMapper.errorResponseForMessage(header, request, apiException);
         validateShortCircuitResponse(errorResponseMessage.data());
@@ -83,13 +82,12 @@ public class RequestFilterResultBuilderImpl extends FilterResultBuilderImpl<Requ
             }
 
             @Override
-            public ApiMessage header() {
-
+            public @Nullable ApiMessage header() {
                 return shortCircuitResponse == null ? RequestFilterResultBuilderImpl.this.header() : shortCircuitHeader;
             }
 
             @Override
-            public ApiMessage message() {
+            public @Nullable ApiMessage message() {
                 return shortCircuitResponse == null ? RequestFilterResultBuilderImpl.this.message() : shortCircuitResponse;
             }
 

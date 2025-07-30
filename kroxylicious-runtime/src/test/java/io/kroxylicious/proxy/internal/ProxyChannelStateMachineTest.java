@@ -57,8 +57,6 @@ import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
@@ -809,7 +807,6 @@ class ProxyChannelStateMachineTest {
                 backendHandler);
     }
 
-    @NonNull
     private static DecodedRequestFrame<ApiVersionsRequestData> apiVersionsRequest() {
         return new DecodedRequestFrame<>(
                 ApiVersionsResponseData.ApiVersion.HIGHEST_SUPPORTED_VERSION,
@@ -821,7 +818,6 @@ class ProxyChannelStateMachineTest {
                         .setClientSoftwareVersion("1.0.0"));
     }
 
-    @NonNull
     private static DecodedRequestFrame<MetadataRequestData> metadataRequest() {
         return new DecodedRequestFrame<>(
                 MetadataRequestData.HIGHEST_SUPPORTED_VERSION,
@@ -831,7 +827,6 @@ class ProxyChannelStateMachineTest {
                 new MetadataRequestData());
     }
 
-    @NonNull
     private static DecodedResponseFrame<MetadataResponseData> metadataResponse() {
         return new DecodedResponseFrame<>(
                 MetadataRequestData.HIGHEST_SUPPORTED_VERSION,

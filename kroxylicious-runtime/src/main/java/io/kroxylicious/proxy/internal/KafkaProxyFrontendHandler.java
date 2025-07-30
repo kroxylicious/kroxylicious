@@ -57,7 +57,6 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
@@ -108,19 +107,19 @@ public class KafkaProxyFrontendHandler
     }
 
     KafkaProxyFrontendHandler(
-                              @NonNull NetFilter netFilter,
-                              @NonNull SaslDecodePredicate dp,
-                              @NonNull EndpointBinding endpointBinding,
-                              @NonNull String clusterName) {
+                              NetFilter netFilter,
+                              SaslDecodePredicate dp,
+                              EndpointBinding endpointBinding,
+                              String clusterName) {
         this(netFilter, dp, endpointBinding, new ProxyChannelStateMachine(clusterName, endpointBinding.nodeId()));
     }
 
     @VisibleForTesting
     KafkaProxyFrontendHandler(
-                              @NonNull NetFilter netFilter,
-                              @NonNull SaslDecodePredicate dp,
-                              @NonNull EndpointBinding endpointBinding,
-                              @NonNull ProxyChannelStateMachine proxyChannelStateMachine) {
+                              NetFilter netFilter,
+                              SaslDecodePredicate dp,
+                              EndpointBinding endpointBinding,
+                              ProxyChannelStateMachine proxyChannelStateMachine) {
         this.netFilter = netFilter;
         this.dp = dp;
         this.endpointBinding = endpointBinding;
@@ -159,8 +158,8 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public void userEventTriggered(
-                                   @NonNull ChannelHandlerContext ctx,
-                                   @NonNull Object event)
+                                   ChannelHandlerContext ctx,
+                                   Object event)
             throws Exception {
         if (event instanceof SniCompletionEvent sniCompletionEvent) {
             if (sniCompletionEvent.isSuccess()) {
@@ -224,8 +223,8 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public void channelRead(
-                            @NonNull ChannelHandlerContext ctx,
-                            @NonNull Object msg) {
+                            ChannelHandlerContext ctx,
+                            Object msg) {
         proxyChannelStateMachine.onClientRequest(dp, msg);
     }
 
@@ -286,8 +285,8 @@ public class KafkaProxyFrontendHandler
      * if the proxy is handling authentication
      * (i.e. prior to having a backend connection)
      */
-    private void writeApiVersionsResponse(@NonNull ChannelHandlerContext ctx,
-                                          @NonNull DecodedRequestFrame<ApiVersionsRequestData> frame) {
+    private void writeApiVersionsResponse(ChannelHandlerContext ctx,
+                                          DecodedRequestFrame<ApiVersionsRequestData> frame) {
         short apiVersion = frame.apiVersion();
         int correlationId = frame.correlationId();
         ResponseHeaderData header = new ResponseHeaderData()
@@ -397,7 +396,7 @@ public class KafkaProxyFrontendHandler
      * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
      */
     @Override
-    public String authorizedId() {
+    public @Nullable String authorizedId() {
         proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
         return authentication != null ? authentication.authorizationId() : null;
     }
@@ -447,8 +446,8 @@ public class KafkaProxyFrontendHandler
      */
     @Override
     public void initiateConnect(
-                                @NonNull HostPort remote,
-                                @NonNull List<FilterAndInvoker> filters) {
+                                HostPort remote,
+                                List<FilterAndInvoker> filters) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
                     clientCtx().channel().id(), remote, filters);
@@ -460,8 +459,8 @@ public class KafkaProxyFrontendHandler
      * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Connecting} state.
      */
     void inConnecting(
-                      @NonNull HostPort remote,
-                      @NonNull List<FilterAndInvoker> filters,
+                      HostPort remote,
+                      List<FilterAndInvoker> filters,
                       KafkaProxyBackendHandler backendHandler) {
         final Channel inboundChannel = clientCtx().channel();
         // Start the upstream connection attempt.
@@ -515,7 +514,6 @@ public class KafkaProxyFrontendHandler
         });
     }
 
-    @NonNull
     private MetricEmittingKafkaMessageListener buildMetricsMessageListenerForEncode() {
         var clusterName = this.virtualClusterModel.getClusterName();
         var nodeId = endpointBinding.nodeId();
@@ -525,7 +523,6 @@ public class KafkaProxyFrontendHandler
         return new MetricEmittingKafkaMessageListener(proxyToServerMessageCounterProvider, proxyToServerMessageSizeDistributionProvider);
     }
 
-    @NonNull
     private KafkaMessageListener buildMetricsMessageListenerForDecode() {
         var clusterName = virtualClusterModel.getClusterName();
         var nodeId = endpointBinding.nodeId();
@@ -538,14 +535,12 @@ public class KafkaProxyFrontendHandler
                 getDeprecatedUpstreamMessageMetrics(clusterName));
     }
 
-    @NonNull
     @SuppressWarnings("removal")
     private KafkaMessageListener getDeprecatedUpstreamMessageMetrics(String clusterName) {
         return new UpstreamPayloadSizeMetricRecordingKafkaMessageListener(Metrics.payloadSizeBytesDownstreamSummary(clusterName));
     }
 
     /** Ugly hack used for testing */
-    @NonNull
     @VisibleForTesting
     Bootstrap configureBootstrap(KafkaProxyBackendHandler backendHandler, Channel inboundChannel) {
         Bootstrap bootstrap = new Bootstrap();
@@ -680,9 +675,9 @@ public class KafkaProxyFrontendHandler
         return Objects.requireNonNull(this.clientCtx, "clientCtx was null while in state " + this.proxyChannelStateMachine.currentState());
     }
 
-    private static @NonNull ResponseFrame buildErrorResponseFrame(
-                                                                  @NonNull DecodedRequestFrame<?> triggerFrame,
-                                                                  @NonNull Throwable error) {
+    private static ResponseFrame buildErrorResponseFrame(
+                                                         DecodedRequestFrame<?> triggerFrame,
+                                                         Throwable error) {
         var responseData = KafkaProxyExceptionMapper.errorResponseMessage(triggerFrame, error);
         final ResponseHeaderData responseHeaderData = new ResponseHeaderData();
         responseHeaderData.setCorrelationId(triggerFrame.correlationId());
@@ -694,8 +689,8 @@ public class KafkaProxyFrontendHandler
      * @param errorCodeEx The exception
      * @return The response frame
      */
-    private ResponseFrame errorResponse(
-                                        @Nullable Throwable errorCodeEx) {
+    private @Nullable ResponseFrame errorResponse(
+                                                  @Nullable Throwable errorCodeEx) {
         ResponseFrame errorResponse;
         final Object triggerMsg = bufferedMsgs != null && !bufferedMsgs.isEmpty() ? bufferedMsgs.get(0) : null;
         if (errorCodeEx != null && triggerMsg instanceof final DecodedRequestFrame<?> triggerFrame) {

@@ -8,8 +8,6 @@ package io.kroxylicious.proxy.internal.codec;
 
 import io.kroxylicious.proxy.frame.Frame;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Callback invoked by the {@link KafkaMessageEncoder} and {@link KafkaMessageDecoder}
  * on encode or decode of each message.
@@ -23,7 +21,7 @@ public interface KafkaMessageListener {
      * @param wireLength this is the <a href="https://kafka.apache.org/protocol#protocol_common">message size</a> plus
      * the {@link Frame#FRAME_SIZE_LENGTH}.
      */
-    void onMessage(@NonNull Frame frame, int wireLength);
+    void onMessage(Frame frame, int wireLength);
 
     static KafkaMessageListener chainOf(KafkaMessageListener... listeners) {
         return (frame, wireLength) -> {

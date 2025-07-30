@@ -6,9 +6,9 @@
 
 package io.kroxylicious.proxy.internal.net;
 
-import javax.annotation.Nullable;
-
 import io.kroxylicious.proxy.service.HostPort;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * An endpoint binding.

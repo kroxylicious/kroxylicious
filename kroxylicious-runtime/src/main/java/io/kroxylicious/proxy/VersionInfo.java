@@ -12,8 +12,6 @@ import java.util.Properties;
 
 import org.slf4j.LoggerFactory;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public interface VersionInfo {
     VersionInfo VERSION_INFO = getVersionInfo();
 
@@ -46,7 +44,7 @@ public interface VersionInfo {
         private final String version;
         private final String commitId;
 
-        private Info(@NonNull String version, @NonNull String commitId) {
+        private Info(String version, String commitId) {
             this.version = Objects.requireNonNull(version);
             this.commitId = Objects.requireNonNull(commitId);
         }

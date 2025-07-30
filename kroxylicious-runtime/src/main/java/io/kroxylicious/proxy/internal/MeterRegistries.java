@@ -27,8 +27,6 @@ import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHook;
 import io.kroxylicious.proxy.micrometer.MicrometerConfigurationHookService;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class MeterRegistries implements AutoCloseable {
     private final PrometheusMeterRegistry prometheusMeterRegistry;
 
@@ -65,9 +63,8 @@ public class MeterRegistries implements AutoCloseable {
     @VisibleForTesting
     static void preventDifferentTagNameRegistration(CompositeMeterRegistry registry) {
         registry.config().meterFilter(new MeterFilter() {
-            @NonNull
             @Override
-            public MeterFilterReply accept(@NonNull Meter.Id id) {
+            public MeterFilterReply accept(Meter.Id id) {
                 boolean allTagsSame = registry.find(id.getName()).meters().stream().allMatch(meter -> tagNames(meter.getId()).equals(tagNames(id)));
                 if (!allTagsSame) {
                     logger.error("Attempted to register a meter with id {} which is already registered but with a different set of tag names", id);

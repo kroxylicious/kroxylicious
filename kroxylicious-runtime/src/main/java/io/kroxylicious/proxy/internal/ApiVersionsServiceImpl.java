@@ -23,8 +23,6 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class ApiVersionsServiceImpl {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ApiVersionsServiceImpl.class);
@@ -55,7 +53,7 @@ public class ApiVersionsServiceImpl {
         return Stream.of();
     }
 
-    private ApiVersionsServiceImpl(@NonNull Function<ApiKeys, Short> apiKeysShortFunction) {
+    private ApiVersionsServiceImpl(Function<ApiKeys, Short> apiKeysShortFunction) {
         Objects.requireNonNull(apiKeysShortFunction);
         this.apiKeysShortFunction = apiKeysShortFunction;
     }

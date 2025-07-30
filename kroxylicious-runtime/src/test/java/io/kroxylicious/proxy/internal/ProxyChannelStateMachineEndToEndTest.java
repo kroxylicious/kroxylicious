@@ -66,7 +66,6 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -597,7 +596,6 @@ class ProxyChannelStateMachineEndToEndTest {
         assertThat(channel.isOpen()).isTrue();
     }
 
-    @NonNull
     private static DecodedRequestFrame<ApiMessage> decodedRequestFrame(
                                                                        short apiVersion,
                                                                        ApiMessage body,
@@ -646,7 +644,6 @@ class ProxyChannelStateMachineEndToEndTest {
                                               SaslDecodePredicate dp,
                                               EndpointBinding endpointBinding) {
         return new KafkaProxyFrontendHandler(filter, dp, endpointBinding, proxyChannelStateMachine) {
-            @NonNull
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler capturedBackendHandler, Channel inboundChannel) {
                 ProxyChannelStateMachineEndToEndTest.this.backendHandler = capturedBackendHandler;
@@ -745,7 +742,6 @@ class ProxyChannelStateMachineEndToEndTest {
         assertThat(context.srcAddress()).hasToString("embedded"); // hard-coded for EmbeddedChannel
     }
 
-    @NonNull
     private static Answer<Void> selectServerCallsInitiateConnect(boolean sni,
                                                                  boolean haProxy,
                                                                  boolean apiVersions) {
@@ -757,7 +753,6 @@ class ProxyChannelStateMachineEndToEndTest {
         };
     }
 
-    @NonNull
     private static Answer<Void> selectServerCallsInitiateConnectTwice(
                                                                       boolean sni,
                                                                       boolean haProxy) {
@@ -770,7 +765,6 @@ class ProxyChannelStateMachineEndToEndTest {
         };
     }
 
-    @NonNull
     private static Answer<Void> selectServerDoesNotCallInitiateConnect(
                                                                        boolean sni,
                                                                        boolean haProxy) {
@@ -781,7 +775,6 @@ class ProxyChannelStateMachineEndToEndTest {
         };
     }
 
-    @NonNull
     private static Answer<Void> selectServerThrows(Throwable exception) {
         return invocation -> {
             throw exception;
@@ -809,7 +802,7 @@ class ProxyChannelStateMachineEndToEndTest {
     }
 
     private <T extends ApiMessage> void assertClientResponse(int expectedCorrId,
-                                                             @NonNull Class<T> expectedResponseBodyClass,
+                                                             Class<T> expectedResponseBodyClass,
                                                              @Nullable Function<T, Short> errorCodeFn,
                                                              @Nullable Errors expectedErrorCode) {
         if (errorCodeFn != null ^ expectedErrorCode != null) {
@@ -992,7 +985,6 @@ class ProxyChannelStateMachineEndToEndTest {
 
     // TODO backpressure
 
-    @NonNull
     private DecodedRequestFrame<ApiMessage> apiKeyToMessage(ApiKeys firstMessage) {
         return switch (firstMessage) {
             case API_VERSIONS -> decodedRequestFrame(ApiVersionsRequestData.HIGHEST_SUPPORTED_VERSION, new ApiVersionsRequestData()

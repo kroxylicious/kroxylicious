@@ -14,14 +14,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Represents the inclusive set of integers between two integer endpoints. So the range
  * with start 1 and end 3 contains the integers 1, 2, and 3.
  * A Range must be non-empty, end must be greater than start
  */
-public record NamedRange(@NonNull @JsonProperty(required = true) String name,
+public record NamedRange(@JsonProperty(required = true) String name,
                          @JsonProperty(required = true) @JsonInclude(JsonInclude.Include.ALWAYS) int start,
                          @JsonProperty(required = true) @JsonInclude(JsonInclude.Include.ALWAYS) int end) {
 
@@ -45,7 +43,6 @@ public record NamedRange(@NonNull @JsonProperty(required = true) String name,
      * Provides a Stream of values contained in the range
      * @return stream of values
      */
-    @NonNull
     public IntStream values() {
         return IntStream.rangeClosed(start, end);
     }
@@ -56,7 +53,7 @@ public record NamedRange(@NonNull @JsonProperty(required = true) String name,
      * @return true if this range ends before the start of other range
      */
     @VisibleForTesting
-    boolean isEndBeforeStartOf(@NonNull NamedRange range) {
+    boolean isEndBeforeStartOf(NamedRange range) {
         Objects.requireNonNull(range, "range to compare with is null");
         return this.end < range.start;
     }
@@ -67,7 +64,7 @@ public record NamedRange(@NonNull @JsonProperty(required = true) String name,
      * @param range range to compare
      * @return true if this range does not overlap with other range
      */
-    public boolean isDistinctFrom(@NonNull NamedRange range) {
+    public boolean isDistinctFrom(NamedRange range) {
         Objects.requireNonNull(range, "range to compare with is null");
         return isEndBeforeStartOf(range) || range.isEndBeforeStartOf(this);
     }

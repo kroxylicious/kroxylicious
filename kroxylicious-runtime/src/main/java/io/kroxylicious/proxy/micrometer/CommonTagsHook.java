@@ -19,14 +19,13 @@ import io.micrometer.core.instrument.Tag;
 
 import io.kroxylicious.proxy.plugin.Plugin;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 @Plugin(configType = CommonTagsHook.CommonTagsHookConfig.class)
 public class CommonTagsHook implements MicrometerConfigurationHookService<CommonTagsHook.CommonTagsHookConfig> {
 
     private static final Logger log = LoggerFactory.getLogger(CommonTagsHook.class);
 
-    @NonNull
     @Override
     public MicrometerConfigurationHook build(CommonTagsHookConfig config) {
         return new Hook(config);
@@ -36,7 +35,7 @@ public class CommonTagsHook implements MicrometerConfigurationHookService<Common
         private final Map<String, String> commonTags;
 
         @JsonCreator
-        public CommonTagsHookConfig(Map<String, String> commonTags) {
+        public CommonTagsHookConfig(@Nullable Map<String, String> commonTags) {
             this.commonTags = commonTags == null ? Map.of() : commonTags;
         }
     }

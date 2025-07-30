@@ -12,8 +12,6 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 @Plugin(configType = RecordConfig.class)
@@ -24,7 +22,6 @@ public class Record implements FilterFactory<RecordConfig, String> {
         return config.str();
     }
 
-    @NonNull
     @Override
     public Filter createFilter(FilterFactoryContext context, String str) {
         throw new RuntimeException("Not expected to be called");

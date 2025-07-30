@@ -25,8 +25,6 @@ import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -140,7 +138,7 @@ class KafkaProxyTest {
     @ParameterizedTest
     @MethodSource
     @SuppressWarnings("resource")
-    void parametersNonNullable(@NonNull PluginFactoryRegistry pfr, @NonNull Configuration config, @NonNull Features features) {
+    void parametersNonNullable(PluginFactoryRegistry pfr, Configuration config, Features features) {
         assertThatThrownBy(() -> new KafkaProxy(pfr, config, features)).isInstanceOf(NullPointerException.class);
     }
 

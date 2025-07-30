@@ -19,6 +19,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.LITERAL_NODE_ID;
 import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.LITERAL_VIRTUAL_CLUSTER_NAME;
 import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.validatePortSpecifier;
@@ -223,7 +225,7 @@ public class SniHostIdentifiesNodeIdentificationStrategy
         }
 
         @Override
-        public Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
+        public @Nullable Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
             if (brokerAddress.port() != bootstrapAddress.port()) {
                 return null;
             }

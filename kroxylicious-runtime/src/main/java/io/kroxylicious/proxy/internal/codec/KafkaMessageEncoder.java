@@ -5,8 +5,6 @@
  */
 package io.kroxylicious.proxy.internal.codec;
 
-import javax.annotation.Nullable;
-
 import org.slf4j.Logger;
 
 import io.netty.buffer.ByteBuf;
@@ -14,6 +12,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
 
 import io.kroxylicious.proxy.frame.Frame;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Abstraction for request and response encoders.

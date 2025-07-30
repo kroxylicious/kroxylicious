@@ -22,6 +22,8 @@ import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxyBackendHandler.class);
@@ -29,7 +31,8 @@ public class KafkaProxyBackendHandler extends ChannelInboundHandlerAdapter {
     @VisibleForTesting
     final ProxyChannelStateMachine proxyChannelStateMachine;
     @VisibleForTesting
-    final SslContext sslContext;
+    final @Nullable SslContext sslContext;
+    @Nullable
     ChannelHandlerContext serverCtx;
     private boolean pendingServerFlushes;
 

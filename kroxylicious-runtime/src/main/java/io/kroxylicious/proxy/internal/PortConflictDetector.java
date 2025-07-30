@@ -17,8 +17,6 @@ import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Detects potential for port conflicts arising between virtual cluster configurations.
  */
@@ -62,7 +60,7 @@ public class PortConflictDetector {
             }
         }
 
-        private @NonNull IllegalStateException conflictException(CandidateBinding other, String reason) {
+        private IllegalStateException conflictException(CandidateBinding other, String reason) {
             return new IllegalStateException(this + " conflicts with " + other + ": " + reason);
         }
 
@@ -116,7 +114,7 @@ public class PortConflictDetector {
         }
     }
 
-    private static @NonNull List<CandidateBinding> candidateBindings(Collection<VirtualClusterModel> virtualClusterModelMap) {
+    private static List<CandidateBinding> candidateBindings(Collection<VirtualClusterModel> virtualClusterModelMap) {
         return virtualClusterModelMap.stream().sorted(
                 Comparator.comparing(VirtualClusterModel::getClusterName))
                 .flatMap(m -> m.gateways().values().stream().sorted(Comparator.comparing(EndpointGateway::name))).flatMap(gateway -> {

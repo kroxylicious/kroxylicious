@@ -70,7 +70,6 @@ import io.kroxylicious.proxy.internal.KafkaAuthnHandler.SaslMechanism;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
@@ -1250,7 +1249,6 @@ class FilterHandlerTest extends FilterHarness {
 
     }
 
-    @NonNull
     private static SslHandler getSslHandler(@Nullable List<X509Certificate> proxyCertificates,
                                             boolean peerUnverified,
                                             @Nullable List<X509Certificate> clientCertificates)

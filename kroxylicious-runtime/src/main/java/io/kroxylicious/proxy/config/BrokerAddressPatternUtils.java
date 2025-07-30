@@ -16,8 +16,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 final class BrokerAddressPatternUtils {
     static final String LITERAL_NODE_ID = "$(nodeId)";
     static final String LITERAL_VIRTUAL_CLUSTER_NAME = "$(virtualClusterName)";
@@ -80,8 +78,7 @@ final class BrokerAddressPatternUtils {
      * @param address string to parse
      * @return a PatternAndPort
      */
-    @NonNull
-    static PatternAndPort parse(@NonNull String address) {
+    static PatternAndPort parse(String address) {
         Objects.requireNonNull(address);
         var portMatcher = PORT_SPECIFIER_RE.matcher(address);
         if (portMatcher.matches()) {
@@ -101,7 +98,7 @@ final class BrokerAddressPatternUtils {
      * @param addressPattern address pattern, must not be null
      * @param port optional port, must not be null
      */
-    record PatternAndPort(@NonNull String addressPattern, @NonNull Optional<Integer> port) {
+    record PatternAndPort(String addressPattern, Optional<Integer> port) {
         PatternAndPort {
             Objects.requireNonNull(addressPattern);
             Objects.requireNonNull(port);

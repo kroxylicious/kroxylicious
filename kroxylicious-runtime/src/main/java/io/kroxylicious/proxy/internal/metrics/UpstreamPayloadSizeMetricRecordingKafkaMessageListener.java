@@ -16,8 +16,6 @@ import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
 import io.kroxylicious.proxy.internal.util.Metrics;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Emits the deprecated upstream metric kroxylicious_payload_size_bytes
  *
@@ -33,7 +31,7 @@ public class UpstreamPayloadSizeMetricRecordingKafkaMessageListener implements K
 
     @Override
     @SuppressWarnings("removal")
-    public void onMessage(@NonNull Frame frame, int wireLength) {
+    public void onMessage(Frame frame, int wireLength) {
         // This metric records the size of decoded messages only.
         if (frame instanceof DecodedResponseFrame<?> decodedResponseFrame) {
             int size = wireLength - Frame.FRAME_SIZE_LENGTH;

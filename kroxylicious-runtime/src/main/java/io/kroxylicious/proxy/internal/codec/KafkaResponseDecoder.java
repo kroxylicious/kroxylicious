@@ -22,7 +22,6 @@ import io.kroxylicious.proxy.frame.OpaqueFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.internal.InternalResponseFrame;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class KafkaResponseDecoder extends KafkaMessageDecoder {
@@ -89,7 +88,6 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
         return frame;
     }
 
-    @NonNull
     private static ApiMessageVersion decodeBody(ApiKeys apiKey, short apiVersion, ByteBufAccessorImpl accessor) {
         int prev = accessor.readerIndex();
         try {
