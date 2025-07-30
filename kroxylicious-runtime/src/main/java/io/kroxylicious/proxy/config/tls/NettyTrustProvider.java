@@ -20,7 +20,6 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 import io.kroxylicious.proxy.config.secret.PasswordProvider;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class NettyTrustProvider {
@@ -108,7 +107,6 @@ public class NettyTrustProvider {
         });
     }
 
-    @NonNull
     private static ClientAuth toNettyClientAuth(TlsClientAuth clientAuth) {
         return switch (clientAuth) {
             case REQUIRED -> ClientAuth.REQUIRE;

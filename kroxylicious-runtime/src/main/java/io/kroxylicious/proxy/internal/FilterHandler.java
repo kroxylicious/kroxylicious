@@ -57,7 +57,6 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -68,19 +67,19 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
     private final long timeoutMs;
-    private final String sniHostname;
+    private final @Nullable String sniHostname;
     private final VirtualClusterModel virtualClusterModel;
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
     private final ClientSaslManager clientSaslManager;
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
-    private ChannelHandlerContext ctx;
-    private PromiseFactory promiseFactory;
+    private @Nullable ChannelHandlerContext ctx;
+    private @Nullable PromiseFactory promiseFactory;
 
     public FilterHandler(FilterAndInvoker filterAndInvoker,
                          long timeoutMs,
-                         String sniHostname,
+                         @Nullable String sniHostname,
                          VirtualClusterModel virtualClusterModel,
                          Channel inboundChannel,
                          ClientSaslManager clientSaslManager) {
@@ -288,9 +287,11 @@ public class FilterHandler extends ChannelDuplexHandler {
             return responseFilterResult;
         }
 
-        if (responseFilterResult.message() != null) {
-            ResponseHeaderData header = responseFilterResult.header() == null ? decodedFrame.header() : (ResponseHeaderData) responseFilterResult.header();
-            forwardResponse(decodedFrame, header, responseFilterResult.message());
+        ApiMessage message = responseFilterResult.message();
+        if (message != null) {
+            ResponseHeaderData header = responseFilterResult.header() == null ? decodedFrame.header()
+                    : (ResponseHeaderData) Objects.requireNonNull(responseFilterResult.header());
+            forwardResponse(decodedFrame, header, message);
         }
 
         if (responseFilterResult.closeConnection()) {
@@ -326,7 +327,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         return requestFilterResult;
     }
 
-    private <F extends FilterResult> F handleFilteringException(Throwable t, DecodedFrame<?, ?> decodedFrame) {
+    private <F extends FilterResult> @Nullable F handleFilteringException(Throwable t, DecodedFrame<?, ?> decodedFrame) {
         if (LOGGER.isWarnEnabled()) {
             var direction = decodedFrame.header() instanceof RequestHeaderData ? "request" : "response";
             LOGGER.atWarn().setMessage("{}: Filter '{}' for {} {} ended exceptionally - closing connection. Cause message {}")
@@ -424,9 +425,9 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     private void forwardShortCircuitResponse(DecodedRequestFrame<?> decodedFrame, RequestFilterResult requestFilterResult) {
         if (decodedFrame.hasResponse()) {
-            var header = requestFilterResult.header() == null ? new ResponseHeaderData() : ((ResponseHeaderData) requestFilterResult.header());
+            var header = requestFilterResult.header() == null ? new ResponseHeaderData() : Objects.requireNonNull((ResponseHeaderData) requestFilterResult.header());
             header.setCorrelationId(decodedFrame.correlationId());
-            forwardResponse(decodedFrame, header, requestFilterResult.message());
+            forwardResponse(decodedFrame, header, Objects.requireNonNull(requestFilterResult.message()));
         }
         else {
             if (LOGGER.isDebugEnabled()) {
@@ -497,15 +498,15 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
         @Override
-        public @NonNull Optional<ClientTlsContext> clientTlsContext() {
+        public Optional<ClientTlsContext> clientTlsContext() {
             return Optional.ofNullable(inboundChannel.pipeline().get(SslHandler.class))
                     .map(clientFacingSslHandler -> new ClientTlsContextImpl(
                             Objects.requireNonNull(localTlsCertificate(clientFacingSslHandler)), getPeerTlsCertificate(clientFacingSslHandler)));
         }
 
         @Override
-        public void clientSaslAuthenticationSuccess(@NonNull String mechanism,
-                                                    @NonNull String authorizedId) {
+        public void clientSaslAuthenticationSuccess(String mechanism,
+                                                    String authorizedId) {
             LOGGER.atInfo().setMessage("{}: Filter '{}' announces client has passed SASL authentication using mechanism '{}' and authorizationId '{}'.")
                     .addArgument(channelDescriptor())
                     .addArgument(filterDescriptor())
@@ -519,7 +520,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         @Override
         public void clientSaslAuthenticationFailure(@Nullable String mechanism,
                                                     @Nullable String authorizedId,
-                                                    @NonNull Exception exception) {
+                                                    Exception exception) {
             LOGGER.atInfo()
                     .setMessage("{}: Filter '{}' announces client has failed SASL authentication using mechanism '{}' and authorizationId '{}'. Cause message {}."
                             + (LOGGER.isDebugEnabled() ? "" : " Increase log level to DEBUG for stacktrace."))
@@ -535,7 +536,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
         @Override
-        public @NonNull Optional<ClientSaslContext> clientSaslContext() {
+        public Optional<ClientSaslContext> clientSaslContext() {
             return FilterHandler.this.clientSaslManager.clientSaslContext();
         }
 
@@ -559,10 +560,9 @@ public class FilterHandler extends ChannelDuplexHandler {
             return responseFilterResultBuilder().forward(header, response).completed();
         }
 
-        @NonNull
         @Override
-        public <M extends ApiMessage> CompletionStage<M> sendRequest(@NonNull RequestHeaderData header,
-                                                                     @NonNull ApiMessage request) {
+        public <M extends ApiMessage> CompletionStage<M> sendRequest(RequestHeaderData header,
+                                                                     ApiMessage request) {
             Objects.requireNonNull(header);
             Objects.requireNonNull(request);
 

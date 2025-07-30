@@ -20,7 +20,6 @@ import io.micrometer.core.instrument.binder.BaseUnits;
 
 import io.kroxylicious.proxy.VersionInfo;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.micrometer.core.instrument.Metrics.counter;
@@ -217,16 +216,15 @@ public class Metrics {
                 clusterName, nodeId);
     }
 
-    @NonNull
     public static Counter taggedCounter(String counterName, List<Tag> tags) {
         return counter(counterName, tags);
     }
 
-    public static List<Tag> tags(@NonNull String name, String value) {
+    public static List<Tag> tags(String name, String value) {
         return List.of(Tag.of(name, required(value)));
     }
 
-    public static List<Tag> tags(@NonNull String name1, String value1, @NonNull String name2, String value2) {
+    public static List<Tag> tags(String name1, String value1, String name2, String value2) {
         return List.of(Tag.of(name1, required(value1)), Tag.of(name2, required(value2)));
     }
 
@@ -241,7 +239,6 @@ public class Metrics {
         return List.copyOf(tagsList);
     }
 
-    @NonNull
     private static String required(String value) {
         if ((Objects.isNull(value) || value.trim().isEmpty())) {
             throw new IllegalArgumentException("tag value supplied without a value");
@@ -249,12 +246,10 @@ public class Metrics {
         return value;
     }
 
-    @NonNull
     private static String nodeIdToLabelValue(@Nullable Integer nodeId) {
         return Optional.ofNullable(nodeId).map(Object::toString).orElse("bootstrap");
     }
 
-    @NonNull
     private static MeterProvider<Counter> buildCounterMeterProvider(String meterName,
                                                                     String description,
                                                                     String clusterName,
@@ -267,7 +262,6 @@ public class Metrics {
                 .withRegistry(globalRegistry);
     }
 
-    @NonNull
     private static MeterProvider<DistributionSummary> buildDistributionSummaryMeterProvider(String meterName,
                                                                                             String description,
                                                                                             String clusterName,
@@ -287,7 +281,7 @@ public class Metrics {
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
-    public static Counter inboundDownstreamDecodedMessageCounter(@NonNull String clusterName) {
+    public static Counter inboundDownstreamDecodedMessageCounter(String clusterName) {
         return Counter
                 .builder(KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES)
                 .withRegistry(globalRegistry)
@@ -300,7 +294,7 @@ public class Metrics {
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
-    public static Counter inboundDownstreamMessageCounter(@NonNull String clusterName) {
+    public static Counter inboundDownstreamMessageCounter(String clusterName) {
         return Counter
                 .builder(KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES)
                 .withRegistry(globalRegistry)
@@ -314,7 +308,7 @@ public class Metrics {
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
-    public static MeterProvider<DistributionSummary> payloadSizeBytesUpstreamSummary(@NonNull String clusterName) {
+    public static MeterProvider<DistributionSummary> payloadSizeBytesUpstreamSummary(String clusterName) {
         return DistributionSummary.builder(KROXYLICIOUS_PAYLOAD_SIZE_BYTES)
                 .baseUnit(BaseUnits.BYTES)
                 .tag(DEPRECATED_VIRTUAL_CLUSTER_TAG, clusterName)
@@ -327,7 +321,7 @@ public class Metrics {
      */
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
-    public static MeterProvider<DistributionSummary> payloadSizeBytesDownstreamSummary(@NonNull String clusterName) {
+    public static MeterProvider<DistributionSummary> payloadSizeBytesDownstreamSummary(String clusterName) {
         return DistributionSummary.builder(KROXYLICIOUS_PAYLOAD_SIZE_BYTES)
                 .baseUnit(BaseUnits.BYTES)
                 .tag(DEPRECATED_VIRTUAL_CLUSTER_TAG, clusterName)

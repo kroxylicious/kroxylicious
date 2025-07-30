@@ -24,8 +24,6 @@ import io.netty.buffer.Unpooled;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -123,7 +121,6 @@ public class RequestEncoderTest extends AbstractCodecTest {
         new KafkaRequestEncoder(correlationManager, null).encode(null, result.frame(), out);
     }
 
-    @NonNull
     private static GivenRequestFrame createRequestFrame(boolean hasResponse) {
         var produceKey = ApiKeys.PRODUCE;
         short produceVersion = produceKey.latestVersion();

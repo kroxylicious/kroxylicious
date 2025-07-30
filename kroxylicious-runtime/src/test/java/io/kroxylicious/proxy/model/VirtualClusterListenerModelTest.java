@@ -39,8 +39,6 @@ import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayMode
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static io.kroxylicious.proxy.service.HostPort.parse;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -279,7 +277,6 @@ class VirtualClusterListenerModelTest {
                         "The set of exclusive ports described by the Node Identification Strategy must be distinct from those described as shared. Intersection: [9080]");
     }
 
-    @NonNull
     private NodeIdentificationStrategy createTestNodeIdentificationStrategy() {
         return new PortIdentifiesNodeIdentificationStrategy(parse("localhost:1235"), "localhost", 19092,
                 List.of(new NamedRange("default", 0, 0))).buildStrategy("cluster");

@@ -10,6 +10,8 @@ import java.util.List;
 
 import io.kroxylicious.proxy.service.HostPort;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Abstracts some policy/logic for how an upstream connection for a given client connection
  * is made.
@@ -55,6 +57,7 @@ public interface NetFilter {
          * The authorized id, or null if there is no authentication configured for this listener.
          * @return
          */
+        @Nullable
         String authorizedId();
 
         /**

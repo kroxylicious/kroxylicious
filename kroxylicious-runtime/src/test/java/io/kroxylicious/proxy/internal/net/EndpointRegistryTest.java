@@ -297,7 +297,8 @@ class EndpointRegistryTest {
     void resolveBootstrap(@ConvertWith(HostPortConverter.class) HostPort downstreamBootstrap, @ConvertWith(HostPortConverter.class) HostPort upstreamBootstrap,
                           boolean tls, boolean sni)
             throws Exception {
-        configureVirtualClusterMock(virtualClusterModel1, HostPort.parse(downstreamBootstrap.toString()), HostPort.parse(upstreamBootstrap.toString()), tls, sni, null);
+        configureVirtualClusterMock(virtualClusterModel1, HostPort.parse(downstreamBootstrap.toString()), HostPort.parse(upstreamBootstrap.toString()), tls, sni,
+                Map.of());
 
         var f = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(downstreamBootstrap.port(), tls));
@@ -344,7 +345,7 @@ class EndpointRegistryTest {
 
     @Test
     void resolveUsingSniMatch() throws Exception {
-        configureVirtualClusterMock(virtualClusterModel1, SNI_DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true, true, null);
+        configureVirtualClusterMock(virtualClusterModel1, SNI_DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true, true, Map.of());
 
         var regf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(SNI_DOWNSTREAM_BOOTSTRAP.port(), true));
@@ -358,7 +359,7 @@ class EndpointRegistryTest {
 
     @Test
     void resolveUsingSniFailsDueToMismatch() {
-        configureVirtualClusterMock(virtualClusterModel1, SNI_DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true, true, null);
+        configureVirtualClusterMock(virtualClusterModel1, SNI_DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true, true, Map.of());
 
         var regf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(SNI_DOWNSTREAM_BOOTSTRAP.port(), true));
@@ -373,7 +374,7 @@ class EndpointRegistryTest {
 
     @Test
     void resolveIgnoresRestrictedSniMatchAfterReconcile() throws Exception {
-        configureVirtualClusterMock(virtualClusterModel1, SNI_DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true, true, null);
+        configureVirtualClusterMock(virtualClusterModel1, SNI_DOWNSTREAM_BOOTSTRAP, UPSTREAM_BOOTSTRAP, true, true, Map.of());
 
         var regf = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(SNI_DOWNSTREAM_BOOTSTRAP.port(), true));
@@ -726,7 +727,7 @@ class EndpointRegistryTest {
     }
 
     private void configureVirtualClusterMock(EndpointGateway cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls) {
-        configureVirtualClusterMock(cluster, downstreamBootstrap, upstreamBootstrap, tls, tls, null);
+        configureVirtualClusterMock(cluster, downstreamBootstrap, upstreamBootstrap, tls, tls, Map.of());
     }
 
     private void configureVirtualClusterMock(EndpointGateway cluster, HostPort downstreamBootstrap, HostPort upstreamBootstrap, boolean tls, boolean sni,

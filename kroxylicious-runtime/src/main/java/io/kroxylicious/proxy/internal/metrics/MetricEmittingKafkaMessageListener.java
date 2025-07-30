@@ -18,8 +18,6 @@ import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
 import io.kroxylicious.proxy.internal.util.Metrics;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * A kafka message listener that emits message count and message size
  * metrics.
@@ -29,14 +27,14 @@ public class MetricEmittingKafkaMessageListener implements KafkaMessageListener 
     private final Meter.MeterProvider<Counter> messageCounterProvider;
     private final Meter.MeterProvider<DistributionSummary> messageSizeProvider;
 
-    public MetricEmittingKafkaMessageListener(@NonNull Meter.MeterProvider<Counter> messageCounterProvider,
-                                              @NonNull Meter.MeterProvider<DistributionSummary> messageSizeProvider) {
+    public MetricEmittingKafkaMessageListener(Meter.MeterProvider<Counter> messageCounterProvider,
+                                              Meter.MeterProvider<DistributionSummary> messageSizeProvider) {
         this.messageCounterProvider = Objects.requireNonNull(messageCounterProvider);
         this.messageSizeProvider = Objects.requireNonNull(messageSizeProvider);
     }
 
     @Override
-    public void onMessage(@NonNull Frame frame, int wireLength) {
+    public void onMessage(Frame frame, int wireLength) {
         var apiKey = ApiKeys.forId(frame.apiKeyId());
         short version = frame.apiVersion();
         boolean decoded = frame.isDecoded();

@@ -16,6 +16,8 @@ import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * A named filter definition
  * @param name The name of the filter instance.
@@ -26,7 +28,7 @@ import io.kroxylicious.proxy.plugin.PluginImplName;
 public record NamedFilterDefinition(
                                     @JsonProperty(required = true) String name,
                                     @PluginImplName(FilterFactory.class) @JsonProperty(required = true) String type,
-                                    @PluginImplConfig(implNameProperty = "type") Object config) {
+                                    @Nullable @PluginImplConfig(implNameProperty = "type") Object config) {
 
     private static final Pattern NAME_PATTERN = Pattern.compile("[a-z0-9A-Z](?:[a-z0-9A-Z_.-]{0,251}[a-z0-9A-Z])?");
 

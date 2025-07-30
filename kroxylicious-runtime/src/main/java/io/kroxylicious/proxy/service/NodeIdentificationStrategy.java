@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * This is the Strategy for how we expose a virtual kafka cluster on the network. The aim is
  * to manifest network endpoints such that we can identify which gateway and upstream node the
@@ -66,7 +68,7 @@ public interface NodeIdentificationStrategy {
      * @param brokerAddress broker address
      * @return a broker id or null if the broker id cannot be
      */
-    default Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
+    default @Nullable Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
         return null;
     }
 

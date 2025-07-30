@@ -10,7 +10,6 @@ import java.util.Optional;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -43,7 +42,6 @@ public record ManagementConfiguration(@Nullable @JsonAlias("host") @JsonProperty
      * Gets the effective bind address for management taking into account defaults.
      * @return bind address
      */
-    @NonNull
     public String getEffectiveBindAddress() {
         return Optional.ofNullable(bindAddress).orElse(DEFAULT_BIND_ADDRESS);
     }

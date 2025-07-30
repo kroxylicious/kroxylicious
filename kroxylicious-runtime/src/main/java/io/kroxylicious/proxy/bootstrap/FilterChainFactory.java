@@ -21,7 +21,6 @@ import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -85,7 +84,7 @@ public class FilterChainFactory implements AutoCloseable {
 
     private final Map<String, Wrapper> initialized;
 
-    public FilterChainFactory(PluginFactoryRegistry pfr, List<NamedFilterDefinition> filterDefinitions) {
+    public FilterChainFactory(PluginFactoryRegistry pfr, @Nullable List<NamedFilterDefinition> filterDefinitions) {
         @SuppressWarnings({ "unchecked", "rawtypes" })
         Class<FilterFactory<? super Object, ? super Object>> type = (Class) FilterFactory.class;
         PluginFactory<FilterFactory<? super Object, ? super Object>> pluginFactory = pfr.pluginFactory(type);
@@ -101,7 +100,7 @@ public class FilterChainFactory implements AutoCloseable {
                 }
 
                 @Override
-                public <P> @NonNull P pluginInstance(@NonNull Class<P> pluginClass, @NonNull String instanceName) {
+                public <P> P pluginInstance(Class<P> pluginClass, String instanceName) {
                     return pfr.pluginFactory(pluginClass).pluginInstance(instanceName);
                 }
             };

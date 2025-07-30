@@ -13,7 +13,6 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -27,8 +26,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param filters filers.
  */
 @SuppressWarnings("java:S1123") // suppressing the spurious warning about missing @deprecated in javadoc. It is the field that is deprecated, not the class.
-public record VirtualCluster(@NonNull @JsonProperty(required = true) String name,
-                             @NonNull @JsonProperty(required = true) TargetCluster targetCluster,
+public record VirtualCluster(@JsonProperty(required = true) String name,
+                             @JsonProperty(required = true) TargetCluster targetCluster,
                              @JsonProperty(required = true) List<VirtualClusterGateway> gateways,
                              boolean logNetwork,
                              boolean logFrames,

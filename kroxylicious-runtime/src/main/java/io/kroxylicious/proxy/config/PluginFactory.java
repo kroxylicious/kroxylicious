@@ -8,8 +8,6 @@ package io.kroxylicious.proxy.config;
 
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * A PluginFactory is able to resolve references to a plugin implementation (i.e. a name) to that implementation.
  * @param <P> The plugin type
@@ -22,8 +20,7 @@ public interface PluginFactory<P> {
      * @return The plugin implementation
      * @throws UnknownPluginInstanceException If the plugin implementation with the given name could not be found
      */
-    @NonNull
-    P pluginInstance(@NonNull String instanceName);
+    P pluginInstance(String instanceName);
 
     /**
      * Resolves a plugin reference to the plugins config type.
@@ -31,6 +28,5 @@ public interface PluginFactory<P> {
      * @return The plugin's config type'
      * @throws UnknownPluginInstanceException If the plugin implementation with the given name could not be found
      */
-    @NonNull
-    Class<?> configType(@NonNull String instanceName);
+    Class<?> configType(String instanceName);
 }

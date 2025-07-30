@@ -11,14 +11,8 @@ import java.util.Optional;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import edu.umd.cs.findbugs.annotations.DefaultAnnotationForParameters;
-import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.ReturnValuesAreNonnullByDefault;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
-@ReturnValuesAreNonnullByDefault
-@DefaultAnnotationForParameters(NonNull.class)
-@DefaultAnnotation(NonNull.class)
 public class ClientSaslManager {
 
     private record Authorized(
@@ -26,7 +20,7 @@ public class ClientSaslManager {
                               String mechanismName)
             implements ClientSaslContext {}
 
-    private Authorized clientAuthorization;
+    private @Nullable Authorized clientAuthorization;
 
     public ClientSaslManager() {
         this.clientAuthorization = null;

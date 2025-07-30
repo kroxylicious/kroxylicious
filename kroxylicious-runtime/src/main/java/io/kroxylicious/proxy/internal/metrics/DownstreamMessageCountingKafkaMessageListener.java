@@ -17,8 +17,6 @@ import io.kroxylicious.proxy.frame.Frame;
 import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
 import io.kroxylicious.proxy.internal.util.Metrics;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Emits the deprecated downstream metrics kroxylicious_inbound_downstream_messages,
  * kroxylicious_inbound_downstream_messages,  kroxylicious_inbound_downstream_decoded_messages, and
@@ -41,7 +39,7 @@ public class DownstreamMessageCountingKafkaMessageListener implements KafkaMessa
     }
 
     @Override
-    public void onMessage(@NonNull Frame frame, int wireLength) {
+    public void onMessage(Frame frame, int wireLength) {
         messageCounter.increment();
         if (frame instanceof DecodedRequestFrame<?> decodedRequestFrame) {
             decodedMessagesCounter.increment();

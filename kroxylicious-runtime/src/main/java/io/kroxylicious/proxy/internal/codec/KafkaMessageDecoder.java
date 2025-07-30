@@ -7,8 +7,6 @@ package io.kroxylicious.proxy.internal.codec;
 
 import java.util.List;
 
-import javax.annotation.Nullable;
-
 import org.slf4j.Logger;
 
 import io.netty.buffer.ByteBuf;
@@ -17,13 +15,15 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 
 import io.kroxylicious.proxy.frame.Frame;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Abstraction for request and response decoders.
  */
 abstract class KafkaMessageDecoder extends ByteToMessageDecoder {
 
     private final int socketFrameMaxSize;
-    private final KafkaMessageListener listener;
+    private final @Nullable KafkaMessageListener listener;
 
     protected abstract Logger log();
 

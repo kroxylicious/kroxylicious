@@ -12,6 +12,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 public class ResponseFilterResultBuilderImpl extends FilterResultBuilderImpl<ResponseHeaderData, ResponseFilterResult>
         implements ResponseFilterResultBuilder {
 
@@ -29,12 +31,12 @@ public class ResponseFilterResultBuilderImpl extends FilterResultBuilderImpl<Res
     public ResponseFilterResult build() {
         return new ResponseFilterResult() {
             @Override
-            public ApiMessage header() {
+            public @Nullable ApiMessage header() {
                 return ResponseFilterResultBuilderImpl.this.header();
             }
 
             @Override
-            public ApiMessage message() {
+            public @Nullable ApiMessage message() {
                 return ResponseFilterResultBuilderImpl.this.message();
             }
 

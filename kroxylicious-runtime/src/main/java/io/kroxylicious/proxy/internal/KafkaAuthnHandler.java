@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 import javax.security.sasl.Sasl;
@@ -41,6 +42,8 @@ import io.kroxylicious.proxy.frame.BareSaslResponse;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * <p>A Netty handler that allows the proxy
@@ -174,6 +177,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
     private final List<String> enabledMechanisms;
 
     @VisibleForTesting
+    @Nullable
     SaslServer saslServer;
 
     private final Map<String, AuthenticateCallbackHandler> mechanismHandlers;
@@ -380,6 +384,7 @@ public class KafkaAuthnHandler extends ChannelInboundHandlerAdapter {
                                       byte[] authBytes)
             throws SaslException {
         final byte[] bytes;
+        Objects.requireNonNull(saslServer);
         try {
             bytes = saslServer.evaluateResponse(authBytes);
         }

@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.filter;
 
 import org.apache.kafka.common.protocol.ApiMessage;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * The result of a filter request or response operation that encapsulates the request or response
  * to be forwarded to the next filter in the chain.  Optionally it carries orders for actions such
@@ -21,12 +23,14 @@ public interface FilterResult {
      *
      * @return header.
      */
+    @Nullable
     ApiMessage header();
 
     /**
      * the message to be forwarded to the next filter in the chain.
      * @return header.
      */
+    @Nullable
     ApiMessage message();
 
     /**

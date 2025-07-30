@@ -28,7 +28,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.config.BrokerAddressPatternUtils.LITERAL_NODE_ID;
@@ -177,7 +176,6 @@ public class PortIdentifiesNodeIdentificationStrategy
     }
 
     private record RangeCollision(NamedRange a, NamedRange b) {
-        @NonNull
         @Override
         public String toString() {
             return "'" + a.name() + ":" + a.toIntervalNotationString() + "' collides with '" + b.name() + ":" + b.toIntervalNotationString() + "'";
@@ -213,7 +211,6 @@ public class PortIdentifiesNodeIdentificationStrategy
     }
 
     @JsonProperty(required = true)
-    @NonNull
     public HostPort getBootstrapAddress() {
         return bootstrapAddress;
     }

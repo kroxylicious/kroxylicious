@@ -23,8 +23,6 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayModel;
 import io.kroxylicious.proxy.service.HostPort;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.params.provider.Arguments.argumentSet;
@@ -164,7 +162,9 @@ class PortConflictDetectorTest {
 
     @ParameterizedTest
     @MethodSource
-    void portConflict(Set<String> expectedExceptionMessages, HostPort otherExclusivePort, List<VirtualClusterModel> clusters) {
+    void portConflict(Set<String> expectedExceptionMessages,
+                      HostPort otherExclusivePort,
+                      List<VirtualClusterModel> clusters) {
         Optional<HostPort> maybeOtherExclusivePort = Optional.ofNullable(otherExclusivePort);
         if (expectedExceptionMessages.isEmpty()) {
             detector.validate(clusters, maybeOtherExclusivePort);
@@ -177,16 +177,23 @@ class PortConflictDetectorTest {
         }
     }
 
-    private static VirtualClusterModel createMockVirtualCluster(String clusterName, Set<Integer> exclusivePorts, Set<Integer> sharedPorts, String bindAddress) {
+    private static VirtualClusterModel createMockVirtualCluster(String clusterName,
+                                                                Set<Integer> exclusivePorts,
+                                                                Set<Integer> sharedPorts,
+                                                                String bindAddress) {
         return createMockVirtualCluster(clusterName, exclusivePorts, sharedPorts, bindAddress, false);
     }
 
-    private static VirtualClusterModel createMockVirtualCluster(String clusterName, Set<Integer> exclusivePorts, Set<Integer> sharedPorts, String bindAddress,
+    private static VirtualClusterModel createMockVirtualCluster(String clusterName,
+                                                                Set<Integer> exclusivePorts,
+                                                                Set<Integer> sharedPorts,
+                                                                String bindAddress,
                                                                 boolean tls) {
         return createMockVirtualCluster(clusterName, getVirtualClusterGatewayModel(exclusivePorts, sharedPorts, bindAddress, tls, "default", true));
     }
 
-    private static VirtualClusterModel createMockVirtualCluster(String clusterName, VirtualClusterGatewayModel... gatewayModel) {
+    private static VirtualClusterModel createMockVirtualCluster(String clusterName,
+                                                                VirtualClusterGatewayModel... gatewayModel) {
         var virtualClusterModel = mock(VirtualClusterModel.class);
         var gatewayMap = Arrays.stream(gatewayModel).collect(Collectors.toMap(VirtualClusterGatewayModel::name, l -> l));
         when(virtualClusterModel.gateways()).thenAnswer(invocation -> gatewayMap);
@@ -195,9 +202,12 @@ class PortConflictDetectorTest {
         return virtualClusterModel;
     }
 
-    @NonNull
-    private static VirtualClusterGatewayModel getVirtualClusterGatewayModel(Set<Integer> exclusivePorts, Set<Integer> sharedPorts, String bindAddress, boolean tls,
-                                                                            String gatewayName, boolean requiresServerNameIndication) {
+    private static VirtualClusterGatewayModel getVirtualClusterGatewayModel(Set<Integer> exclusivePorts,
+                                                                            Set<Integer> sharedPorts,
+                                                                            String bindAddress,
+                                                                            boolean tls,
+                                                                            String gatewayName,
+                                                                            boolean requiresServerNameIndication) {
         var cluster = mock(VirtualClusterGatewayModel.class);
         when(cluster.getExclusivePorts()).thenReturn(exclusivePorts);
         when(cluster.getSharedPorts()).thenReturn(sharedPorts);

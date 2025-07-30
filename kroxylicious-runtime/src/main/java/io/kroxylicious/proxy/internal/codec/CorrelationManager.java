@@ -17,6 +17,8 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Manages correlation ids for a single connection (across the proxy) between a single client
  * and a single broker.
@@ -47,15 +49,15 @@ public class CorrelationManager {
      * @param apiVersion              The API version.
      * @param downstreamCorrelationId The downstream client's correlation id.
      * @param hasResponse             Whether a response is expected.
-     * @param promise
+     * @param promise                 A promise.
      * @param decodeResponse          Whether the response should be decoded.
      */
     public int putBrokerRequest(short apiKey,
                                 short apiVersion,
                                 int downstreamCorrelationId,
                                 boolean hasResponse,
-                                Filter recipient,
-                                CompletableFuture<?> promise,
+                                @Nullable Filter recipient,
+                                @Nullable CompletableFuture<?> promise,
                                 boolean decodeResponse) {
         // need to allocate an id and put in a map for quick lookup, along with the "tag"
         int upstreamCorrelationId = upstreamId++;
@@ -90,15 +92,15 @@ public class CorrelationManager {
 
         private final int downstreamCorrelationId;
         private final boolean decodeResponse;
-        private final Filter recipient;
-        private final CompletableFuture<?> promise;
+        private final @Nullable Filter recipient;
+        private final @Nullable CompletableFuture<?> promise;
 
         private Correlation(short apiKey,
                             short apiVersion,
                             int downstreamCorrelationId,
                             boolean decodeResponse,
-                            Filter recipient,
-                            CompletableFuture<?> promise) {
+                            @Nullable Filter recipient,
+                            @Nullable CompletableFuture<?> promise) {
             this.apiKey = apiKey;
             this.apiVersion = apiVersion;
             this.downstreamCorrelationId = downstreamCorrelationId;
@@ -153,11 +155,11 @@ public class CorrelationManager {
             return decodeResponse;
         }
 
-        public Filter recipient() {
+        public @Nullable Filter recipient() {
             return recipient;
         }
 
-        public CompletableFuture<?> promise() {
+        public @Nullable CompletableFuture<?> promise() {
             return promise;
         }
     }

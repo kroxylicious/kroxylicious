@@ -23,7 +23,6 @@ import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 import io.kroxylicious.proxy.internal.filter.ApiVersionsDowngradeFilter;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class KafkaRequestDecoder extends KafkaMessageDecoder {
@@ -128,8 +127,8 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         return frame;
     }
 
-    private @NonNull DecodedRequestFrame<ApiVersionsRequestData> createV0ApiVersionRequestFrame(ChannelHandlerContext ctx,
-                                                                                                int correlationId) {
+    private DecodedRequestFrame<ApiVersionsRequestData> createV0ApiVersionRequestFrame(ChannelHandlerContext ctx,
+                                                                                       int correlationId) {
         if (log().isTraceEnabled()) { // avoid boxing
             log().trace("{}: downgrading apiVersion request to v0", ctx);
         }

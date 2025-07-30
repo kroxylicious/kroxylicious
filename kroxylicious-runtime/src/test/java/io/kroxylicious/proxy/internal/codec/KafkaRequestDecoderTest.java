@@ -25,8 +25,6 @@ import io.netty.handler.codec.DecoderException;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -129,13 +127,12 @@ class KafkaRequestDecoderTest {
                 .hasMessage("client apiVersion %d ahead of proxy maximum %d for api key: METADATA", unsupportedVersion, maxSupportedVersion);
     }
 
-    @NonNull
     private static EmbeddedChannel newEmbeddedChannel(ApiVersionsServiceImpl apiVersionsService) {
         return new EmbeddedChannel(
                 new KafkaRequestDecoder(RequestDecoderTest.DECODE_EVERYTHING, 1024, apiVersionsService, null));
     }
 
-    private static @NonNull RequestHeaderData latestVersionHeaderWithAllFields(ApiKeys requestApiKey, short requestApiVersion) {
+    private static RequestHeaderData latestVersionHeaderWithAllFields(ApiKeys requestApiKey, short requestApiVersion) {
         RequestHeaderData header = new RequestHeaderData();
         header.setRequestApiKey(requestApiKey.id);
         header.setRequestApiVersion(requestApiVersion);

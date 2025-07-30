@@ -51,7 +51,8 @@ public class KafkaRequestEncoder extends KafkaMessageEncoder<RequestFrame> {
                 downstreamCorrelationId,
                 hasResponse,
                 frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).recipient() : null,
-                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).promise() : null, decodeResponse);
+                frame instanceof InternalRequestFrame ? ((InternalRequestFrame<?>) frame).promise() : null,
+                decodeResponse);
         out.writerIndex(LENGTH + API_KEY + API_VERSION);
         out.writeInt(upstreamCorrelationId);
         if (LOGGER.isDebugEnabled()) {

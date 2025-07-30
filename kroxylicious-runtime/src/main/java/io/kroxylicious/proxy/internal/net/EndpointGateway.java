@@ -16,6 +16,8 @@ import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * A gateway to an endpoint.
  */
@@ -100,6 +102,7 @@ public interface EndpointGateway {
      * @param brokerAddress broker address
      * @return broker id
      */
+    @Nullable
     Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress);
 
     /**

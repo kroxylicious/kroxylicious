@@ -57,8 +57,6 @@ import io.kroxylicious.proxy.model.VirtualClusterModel.VirtualClusterGatewayMode
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.RequestFactory;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static io.kroxylicious.proxy.model.VirtualClusterModel.DEFAULT_SOCKET_FRAME_MAX_SIZE_BYTES;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -93,7 +91,6 @@ class KafkaProxyFrontendHandlerTest {
         inboundChannel.writeInbound(apiMessageDecodedRequestFrame);
     }
 
-    @NonNull
     private DecodedRequestFrame<ApiMessage> decodedRequestFrame(short apiVersion, ApiMessage body, int downstreamCorrelationId) {
         var apiKey = ApiKeys.forId(body.apiKey());
 
@@ -287,7 +284,6 @@ class KafkaProxyFrontendHandlerTest {
     KafkaProxyFrontendHandler handler(NetFilter filter, SaslDecodePredicate dp, EndpointBinding endpointBinding) {
         return new KafkaProxyFrontendHandler(filter, dp, endpointBinding, proxyChannelStateMachine) {
 
-            @NonNull
             @Override
             Bootstrap configureBootstrap(KafkaProxyBackendHandler capturedBackendHandler, Channel inboundChannel) {
                 backendHandler = capturedBackendHandler;
@@ -584,7 +580,6 @@ class KafkaProxyFrontendHandlerTest {
         assertThat(proxyChannelStateMachine.state()).isExactlyInstanceOf(ProxyChannelState.Connecting.class);
     }
 
-    @NonNull
     private static ChannelInboundHandlerAdapter throwOnReadHandler(Exception cause) {
         return new ChannelInboundHandlerAdapter() {
             @Override
@@ -622,7 +617,7 @@ class KafkaProxyFrontendHandlerTest {
         assertThat(proxyChannelStateMachine.state()).isInstanceOf(ProxyChannelState.Closed.class);
     }
 
-    private void getNetFilter(@NonNull NetFilter.NetFilterContext netFilterContext) {
+    private void getNetFilter(NetFilter.NetFilterContext netFilterContext) {
         connectContext.set(netFilterContext);
         netFilterContext.initiateConnect(new HostPort(CLUSTER_HOST, CLUSTER_PORT), List.of());
     }

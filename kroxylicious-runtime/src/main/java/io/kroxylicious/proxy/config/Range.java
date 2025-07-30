@@ -11,8 +11,6 @@ import java.util.stream.IntStream;
 
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Represents the set of integers between two integer endpoints. So the Range
  * with startInclusive 1 and endExclusive 3 contains the integers 1 and 2.
@@ -37,7 +35,6 @@ public record Range(int startInclusive, int endExclusive) {
      * Provides a Stream of values contained in the range
      * @return stream of values
      */
-    @NonNull
     public IntStream values() {
         return IntStream.range(startInclusive, endExclusive);
     }
@@ -48,7 +45,7 @@ public record Range(int startInclusive, int endExclusive) {
      * @return true if this range ends before the start of other range
      */
     @VisibleForTesting
-    boolean isEndBeforeStartOf(@NonNull Range range) {
+    boolean isEndBeforeStartOf(Range range) {
         Objects.requireNonNull(range, "range to compare with is null");
         return this.endExclusive <= range.startInclusive;
     }
@@ -59,7 +56,7 @@ public record Range(int startInclusive, int endExclusive) {
      * @param range range to compare
      * @return true if this range does not overlap with other range
      */
-    public boolean isDistinctFrom(@NonNull Range range) {
+    public boolean isDistinctFrom(Range range) {
         Objects.requireNonNull(range, "range to compare with is null");
         return isEndBeforeStartOf(range) || range.isEndBeforeStartOf(this);
     }

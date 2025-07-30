@@ -37,8 +37,6 @@ import io.kroxylicious.proxy.internal.filter.TestFilter;
 import io.kroxylicious.proxy.internal.filter.TestFilterFactory;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -53,15 +51,13 @@ class FilterChainFactoryTest {
         eventLoop = new DefaultEventLoop();
         config = new ExampleConfig();
         pfr = new PluginFactoryRegistry() {
-            @NonNull
             @SuppressWarnings({ "rawtypes", "unchecked" })
             @Override
-            public <P> PluginFactory<P> pluginFactory(@NonNull Class<P> pluginClass) {
+            public <P> PluginFactory<P> pluginFactory(Class<P> pluginClass) {
                 if (pluginClass == FilterFactory.class) {
                     return new PluginFactory() {
-                        @NonNull
                         @Override
-                        public FilterFactory pluginInstance(@NonNull String instanceName) {
+                        public FilterFactory pluginInstance(String instanceName) {
                             if (instanceName.endsWith(TestFilterFactory.class.getSimpleName())) {
                                 return new TestFilterFactory();
                             }
@@ -77,9 +73,8 @@ class FilterChainFactoryTest {
                             throw new RuntimeException("Unknown FilterFactory: " + instanceName);
                         }
 
-                        @NonNull
                         @Override
-                        public Class<?> configType(@NonNull String instanceName) {
+                        public Class<?> configType(String instanceName) {
                             if (instanceName.endsWith(FlakyFactory.class.getSimpleName())) {
                                 return FlakyConfig.class;
                             }

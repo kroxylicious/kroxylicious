@@ -12,8 +12,6 @@ import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * Represents a host port pair.
  */
@@ -30,7 +28,7 @@ public final class HostPort {
      * @param host Symbolic hostnames, FQDNs, IPv4, and IPv6 forms are supported
      * @param port port number
      */
-    public HostPort(@NonNull String host, int port) {
+    public HostPort(String host, int port) {
         Objects.requireNonNull(host, "host cannot be null");
         this.host = host;
         this.port = port;
@@ -76,19 +74,19 @@ public final class HostPort {
     }
 
     /**
-     * Parses a host port pair from a string representation.
+     * <p>Parses a host port pair from a string representation.</p>
      *
-     * For the host part, symbolic hostname, FQDN, IPv4, and IPv6 forms are supported.  In the case of IPv6,
-     * the notation specified by <a href="https://www.rfc-editor.org/rfc/rfc4038#section-5.1">rfc4038</a> must be used.
+     * <p>For the host part, symbolic hostname, FQDN, IPv4, and IPv6 forms are supported.  In the case of IPv6,
+     * the notation specified by <a href="https://www.rfc-editor.org/rfc/rfc4038#section-5.1">rfc4038</a> must be used.</p>
      *
-     * For the port part, it must be numeric.
+     * <p>For the port part, it must be numeric.</p>
      *
      * @param address stringified form of the host port, separated by colon (:).
      * @return a {@link HostPort}
      */
     @JsonCreator(mode = JsonCreator.Mode.DELEGATING)
     @SuppressWarnings("java:S2583") // java:S2583 warns that the address null check can never fail. This is untrue as the NonNull constraint is advisory.
-    public static HostPort parse(@NonNull String address) {
+    public static HostPort parse(String address) {
         var exceptionText = ("unexpected address formation '%s'." +
                 " Valid formations are 'host:9092', 'host.example.com:9092', or '[::ffff:c0a8:1]:9092', ").formatted(address);
 

@@ -44,7 +44,7 @@ import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class VirtualClusterModel {
@@ -70,7 +70,7 @@ public class VirtualClusterModel {
                                TargetCluster targetCluster,
                                boolean logNetwork,
                                boolean logFrames,
-                               @NonNull List<NamedFilterDefinition> filters) {
+                               List<NamedFilterDefinition> filters) {
         this.clusterName = clusterName;
         this.targetCluster = targetCluster;
         this.logNetwork = logNetwork;
@@ -157,7 +157,6 @@ public class VirtualClusterModel {
         return upstreamSslContext;
     }
 
-    @NonNull
     private static NettyTrustProvider configureTrustProvider(Tls tlsConfiguration) {
         final TrustProvider trustProvider = Optional.ofNullable(tlsConfiguration.trust()).orElse(PlatformTrustProvider.INSTANCE);
         return new NettyTrustProvider(trustProvider);
@@ -250,7 +249,7 @@ public class VirtualClusterModel {
         }
     }
 
-    public @NonNull List<NamedFilterDefinition> getFilters() {
+    public List<NamedFilterDefinition> getFilters() {
         return filters;
     }
 
@@ -346,7 +345,7 @@ public class VirtualClusterModel {
         }
 
         @Override
-        public Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
+        public @Nullable Integer getBrokerIdFromBrokerAddress(HostPort brokerAddress) {
             return getNodeIdentificationStrategy().getBrokerIdFromBrokerAddress(brokerAddress);
         }
 

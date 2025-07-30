@@ -58,7 +58,6 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static java.util.Objects.requireNonNull;
@@ -75,21 +74,21 @@ public final class KafkaProxy implements AutoCloseable {
         }
     }
 
-    private final @NonNull Configuration config;
+    private final Configuration config;
     private final @Nullable ManagementConfiguration managementConfiguration;
-    private final @NonNull List<MicrometerDefinition> micrometerConfig;
-    private final @NonNull List<VirtualClusterModel> virtualClusterModels;
+    private final List<MicrometerDefinition> micrometerConfig;
+    private final List<VirtualClusterModel> virtualClusterModels;
     private final AtomicBoolean running = new AtomicBoolean();
     private final CompletableFuture<Void> shutdown = new CompletableFuture<>();
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
-    private final @NonNull PluginFactoryRegistry pfr;
+    private final PluginFactoryRegistry pfr;
     private @Nullable MeterRegistries meterRegistries;
     private @Nullable FilterChainFactory filterChainFactory;
     private @Nullable EventGroupConfig managementEventGroup;
     private @Nullable EventGroupConfig serverEventGroup;
 
-    public KafkaProxy(@NonNull PluginFactoryRegistry pfr, @NonNull Configuration config, @NonNull Features features) {
+    public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
         this.virtualClusterModels = config.virtualClusterModel(pfr);
@@ -231,7 +230,6 @@ public final class KafkaProxy implements AutoCloseable {
         return new EventGroupConfig(name, bossGroup, workerGroup, channelClass);
     }
 
-    @NonNull
     private CompletableFuture<Void> maybeStartManagementListener(EventGroupConfig eventGroupConfig, MeterRegistries meterRegistries) {
         return Optional.ofNullable(managementConfiguration)
                 .map(mc -> {

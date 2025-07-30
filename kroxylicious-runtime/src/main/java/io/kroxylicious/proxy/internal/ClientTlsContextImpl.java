@@ -11,15 +11,8 @@ import java.util.Optional;
 
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import edu.umd.cs.findbugs.annotations.DefaultAnnotationForParameters;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
-import edu.umd.cs.findbugs.annotations.ReturnValuesAreNonnullByDefault;
 
-@ReturnValuesAreNonnullByDefault
-@DefaultAnnotationForParameters(NonNull.class)
-@DefaultAnnotation(NonNull.class)
 class ClientTlsContextImpl implements ClientTlsContext {
     private final X509Certificate proxyCertificate;
     private final @Nullable X509Certificate clientCertificate;

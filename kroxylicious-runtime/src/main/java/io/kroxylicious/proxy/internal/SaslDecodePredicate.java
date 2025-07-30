@@ -11,12 +11,14 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.internal.codec.DecodePredicate;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 class SaslDecodePredicate implements DecodePredicate {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SaslDecodePredicate.class);
 
     private final boolean handleSasl;
-    private DecodePredicate delegate = null;
+    private @Nullable DecodePredicate delegate = null;
 
     SaslDecodePredicate(boolean handleSasl) {
         this.handleSasl = handleSasl;

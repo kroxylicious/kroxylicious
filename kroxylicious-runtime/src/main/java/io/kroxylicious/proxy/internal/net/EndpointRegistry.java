@@ -33,6 +33,8 @@ import io.netty.util.AttributeKey;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * The endpoint registry is responsible for associating network endpoints with broker/bootstrap addresses of virtual clusters.
  * Pictorially the registry looks like this:
@@ -85,7 +87,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     interface RoutingKey {
         RoutingKey NULL_ROUTING_KEY = new NullRoutingKey();
 
-        static RoutingKey createBindingKey(String sniHostname) {
+        static RoutingKey createBindingKey(@Nullable String sniHostname) {
             if (sniHostname == null || sniHostname.isEmpty()) {
                 return NULL_ROUTING_KEY;
             }
@@ -194,7 +196,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         vcr.reconciliationRecord().set(ReconciliationRecord.createEmptyReconcileRecord());
 
         // bind any discovery binding to the bootstrap address
-        var discoveryAddressesMapStage = allOfStage(Optional.ofNullable(virtualClusterModel.discoveryAddressMap()).orElse(Map.of())
+        var discoveryAddressesMapStage = allOfStage(virtualClusterModel.discoveryAddressMap()
                 .entrySet()
                 .stream()
                 .sorted(Map.Entry.comparingByKey()) // ordering not functionality important, but simplifies the unit testing
@@ -406,7 +408,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     private Set<BrokerEndpointBinding> constructPossibleBindingsToCreate(EndpointGateway virtualClusterModel,
                                                                          Map<Integer, HostPort> upstreamNodes) {
         var upstreamBootstrap = virtualClusterModel.targetCluster().bootstrapServersList().get(0);
-        var discoveryBrokerIds = Optional.ofNullable(virtualClusterModel.discoveryAddressMap()).orElse(Map.of());
+        var discoveryBrokerIds = virtualClusterModel.discoveryAddressMap();
         // create possible set of bindings to create
         var creations = upstreamNodes.entrySet()
                 .stream()
@@ -532,7 +534,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
      * @return completion stage yielding the {@link BootstrapEndpointBinding} or exceptionally a EndpointResolutionException.
      */
     @Override
-    public CompletionStage<EndpointBinding> resolve(Endpoint endpoint, String sniHostname) {
+    public CompletionStage<EndpointBinding> resolve(Endpoint endpoint, @Nullable String sniHostname) {
         var lcr = this.listeningChannels.get(endpoint);
         if (lcr == null || lcr.unbindingStage().get() != null) {
             return CompletableFuture.failedStage(buildEndpointResolutionException("Failed to find channel matching", endpoint, sniHostname));
@@ -595,7 +597,9 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                 .toList();
     }
 
-    private EndpointResolutionException buildEndpointResolutionException(String prefix, Endpoint endpoint, String sniHostname) {
+    private EndpointResolutionException buildEndpointResolutionException(String prefix,
+                                                                         Endpoint endpoint,
+                                                                         @Nullable String sniHostname) {
         return new EndpointResolutionException(
                 ("%s binding address: %s, port: %d, sniHostname: %s, tls: %b").formatted(prefix,
                         endpoint.bindingAddress().orElse("<any>"),

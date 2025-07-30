@@ -17,7 +17,6 @@ import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.service.HostPort;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.ApiVersions;
@@ -63,7 +62,7 @@ sealed interface ProxyChannelState permits
          * Transition to {@link HaProxy}, because a PROXY header has been received
          * @return The HaProxy state
          */
-        public @NonNull HaProxy toHaProxy(HAProxyMessage haProxyMessage) {
+        public HaProxy toHaProxy(HAProxyMessage haProxyMessage) {
             return new HaProxy(haProxyMessage);
         }
 
@@ -71,7 +70,6 @@ sealed interface ProxyChannelState permits
          * Transition to {@link ApiVersions}, because an ApiVersions request has been received
          * @return The ApiVersions state
          */
-        @NonNull
         public ApiVersions toApiVersions(
                                          DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
             // TODO check the format of the strings using a regex
@@ -89,7 +87,6 @@ sealed interface ProxyChannelState permits
          * Transition to {@link SelectingServer}, because some non-ApiVersions request has been received
          * @return The Connecting state
          */
-        @NonNull
         public SelectingServer toSelectingServer(@Nullable DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
             return new SelectingServer(
                     null,
@@ -103,15 +100,13 @@ sealed interface ProxyChannelState permits
      * @param haProxyMessage The information in the PROXY header
      */
     record HaProxy(
-
-                   @NonNull HAProxyMessage haProxyMessage)
+                   HAProxyMessage haProxyMessage)
             implements ProxyChannelState {
 
         /**
          * Transition to {@link ApiVersions}, because an ApiVersions request has been received
          * @return The ApiVersions state
          */
-        @NonNull
         public ApiVersions toApiVersions(DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
             // TODO check the format of the strings using a regex
             // Needed to reproduce the exact behaviour for how a broker handles this
@@ -128,7 +123,6 @@ sealed interface ProxyChannelState permits
          * Transition to {@link SelectingServer}, because some non-ApiVersions request has been received
          * @return The Connecting state
          */
-        @NonNull
         public SelectingServer toSelectingServer(@Nullable DecodedRequestFrame<ApiVersionsRequestData> apiVersionsFrame) {
             return new SelectingServer(
                     haProxyMessage,
@@ -152,7 +146,6 @@ sealed interface ProxyChannelState permits
          * Transition to {@link SelectingServer}, because some non-ApiVersions request has been received
          * @return The Connecting state
          */
-        @NonNull
         public SelectingServer toSelectingServer() {
             return new SelectingServer(
                     haProxyMessage,
@@ -180,7 +173,7 @@ sealed interface ProxyChannelState permits
          * {@link io.kroxylicious.proxy.filter.NetFilter.NetFilterContext#initiateConnect(HostPort, List)}.
          * @return The Connecting2 state
          */
-        public Connecting toConnecting(@NonNull HostPort remote) {
+        public Connecting toConnecting(HostPort remote) {
             return new Connecting(haProxyMessage, clientSoftwareName,
                     clientSoftwareVersion, remote);
         }
@@ -198,14 +191,13 @@ sealed interface ProxyChannelState permits
     record Connecting(@Nullable HAProxyMessage haProxyMessage,
                       @Nullable String clientSoftwareName,
                       @Nullable String clientSoftwareVersion,
-                      @NonNull HostPort remote)
+                      HostPort remote)
             implements ProxyChannelState {
 
         /**
          * Transition to {@link Forwarding}
          * @return The Forwarding state
          */
-        @NonNull
         public Forwarding toForwarding() {
             return new Forwarding(
                     haProxyMessage,

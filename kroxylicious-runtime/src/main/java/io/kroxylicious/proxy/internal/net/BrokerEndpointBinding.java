@@ -10,8 +10,6 @@ import java.util.Objects;
 
 import io.kroxylicious.proxy.service.HostPort;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * A broker specific endpoint binding.
  *
@@ -29,7 +27,6 @@ public record BrokerEndpointBinding(EndpointGateway endpointGateway, HostPort up
     }
 
     @Override
-    @NonNull
     @SuppressWarnings("java:S6207") // method's return annotation differs from that of the interface
     public Integer nodeId() {
         return nodeId;

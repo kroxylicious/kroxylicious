@@ -17,7 +17,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 
 public class PrometheusMetricsEndpoint implements Function<HttpRequest, HttpResponse> {
 
-    public static String PATH = "/metrics";
+    public static final String PATH = "/metrics";
 
     private final PrometheusMeterRegistry registry;
 

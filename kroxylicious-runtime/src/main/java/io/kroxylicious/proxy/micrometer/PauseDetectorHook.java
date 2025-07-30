@@ -20,14 +20,13 @@ import io.micrometer.core.instrument.distribution.pause.PauseDetector;
 
 import io.kroxylicious.proxy.plugin.Plugin;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 @Plugin(configType = PauseDetectorHook.PauseDetectorHookConfig.class)
 public class PauseDetectorHook implements MicrometerConfigurationHookService<PauseDetectorHook.PauseDetectorHookConfig> {
 
     private static final Logger log = LoggerFactory.getLogger(PauseDetectorHook.class);
 
-    @NonNull
     @Override
     public MicrometerConfigurationHook build(PauseDetectorHookConfig config) {
         return new Hook(config);
@@ -47,7 +46,7 @@ public class PauseDetectorHook implements MicrometerConfigurationHookService<Pau
 
         @JsonCreator
         @ConstructorProperties({ "sleepIntervalMs", "pauseThresholdMs" })
-        public PauseDetectorHookConfig(final Long sleepIntervalMs, final Long pauseThresholdMs) {
+        public PauseDetectorHookConfig(final @Nullable Long sleepIntervalMs, final @Nullable Long pauseThresholdMs) {
             this.sleepIntervalMs = Duration.ofMillis(sleepIntervalMs != null ? sleepIntervalMs : DEFAULT_SLEEP_INTERVAL_MS);
             this.pauseThresholdMs = Duration.ofMillis(pauseThresholdMs != null ? pauseThresholdMs : DEFAULT_PAUSE_THRESHOLD_MS);
         }
@@ -61,7 +60,7 @@ public class PauseDetectorHook implements MicrometerConfigurationHookService<Pau
         }
     }
 
-    private record Hook(@NonNull PauseDetectorHookConfig config) implements MicrometerConfigurationHook {
+    private record Hook(PauseDetectorHookConfig config) implements MicrometerConfigurationHook {
 
         private Hook {
             Objects.requireNonNull(config, "config must be non null");
