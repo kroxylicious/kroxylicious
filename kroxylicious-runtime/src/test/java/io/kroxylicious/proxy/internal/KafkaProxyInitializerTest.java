@@ -27,10 +27,10 @@ import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.DefaultChannelId;
 import io.netty.channel.EventLoop;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.channel.socket.ServerSocketChannel;
@@ -107,6 +107,7 @@ class KafkaProxyInitializerTest {
         bindingStage = CompletableFuture.completedStage(vcb);
         filterChainFactory = new FilterChainFactory(pfr, List.of());
         final InetSocketAddress localhost = new InetSocketAddress(0);
+        when(channel.parent()).thenReturn(acceptingSocketChannel);
         when(channel.pipeline()).thenReturn(channelPipeline);
         when(channel.eventLoop()).thenReturn(eventLoop);
         when(channel.localAddress()).thenReturn(InetSocketAddress.createUnresolved("localhost", 9099));
@@ -298,7 +299,7 @@ class KafkaProxyInitializerTest {
     void shouldCloseConnectionOnUnrecognizedSniHostName() {
         // Given
         var endpointBindingResolver = mock(EndpointBindingResolver.class);
-        var embeddedChannel = new EmbeddedChannel();
+        var embeddedChannel = new EmbeddedChannel(acceptingSocketChannel, DefaultChannelId.newInstance(), true, false);
         kafkaProxyInitializer = createKafkaProxyInitializer(true, endpointBindingResolver, Map.of());
         kafkaProxyInitializer.initChannel(embeddedChannel);
         when(endpointBindingResolver.resolve(any(), eq("chat4.leancloud.cn"))).thenReturn(CompletableFuture.failedStage(new EndpointResolutionException("not resolved")));
@@ -350,13 +351,8 @@ class KafkaProxyInitializerTest {
                 bindingResolver,
                 (virtualCluster, upstreamNodes) -> null,
                 false,
-                authnMechanismHandlers, new ApiVersionsServiceImpl()) {
-
-            @Override
-            protected ServerSocketChannel getAcceptingChannel(Channel ch) {
-                return acceptingSocketChannel;
-            }
-        };
+                authnMechanismHandlers,
+                new ApiVersionsServiceImpl());
     }
 
     private void assertErrorHandlerAdded() {
