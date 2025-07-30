@@ -15,6 +15,7 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
+import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 /**
@@ -143,5 +144,44 @@ public interface FilterContext {
      * @return The TLS context for the client connection, or empty if the client connection is not TLS.
      */
     Optional<ClientTlsContext> clientTlsContext();
+
+    /**
+     * Allows a filter (typically one which implements {@link SaslAuthenticateRequestFilter})
+     * to announce a successful authentication outcome with the Kafka client to other plugins.
+     * After calling this method the result of {@link #clientSaslContext()} will
+     * be non-empty for this and other filters.
+     *
+     * In order to support reauthentication, calls to this method and
+     * {@link #clientSaslAuthenticationFailure(String, String, Exception)}
+     * may be arbitrarily interleaved during the lifetime of a given filter instance.
+     * @param mechanism The SASL mechanism used
+     * @param authorizedId The authorizedId
+     */
+    void clientSaslAuthenticationSuccess(String mechanism,
+                                         String authorizedId);
+
+    /**
+     * Allows a filter (typically one which implements {@link SaslAuthenticateRequestFilter})
+     * to announce a failed authentication outcome with the Kafka client.
+     * After calling this method the result of {@link #clientSaslContext()} will
+     * be empty for this and other filters.
+     * It is the filter's responsibility to return the right error response to a client, and/or disconnect.
+     *
+     * In order to support reauthentication, calls to this method and
+     * {@link #clientSaslAuthenticationSuccess(String, String)}
+     * may be arbitrarily interleaved during the lifetime of a given filter instance.
+     * @param mechanism The SASL mechanism used, or null if this is not known.
+     * @param authorizedId The authorizedId, or null if this is not known.
+     * @param exception An exception describing the authentication failure.
+     */
+    void clientSaslAuthenticationFailure(@Nullable String mechanism,
+                                         @Nullable String authorizedId,
+                                         Exception exception);
+
+    /**
+     * @return The SASL context for the client connection, or empty if the client
+     * has not successfully authenticated using SASL.
+     */
+    Optional<ClientSaslContext> clientSaslContext();
 
 }

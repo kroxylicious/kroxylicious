@@ -123,23 +123,25 @@ public class CertificateGenerator {
         }
     }
 
-    private static Path buildPkcs12TrustStore(X509Certificate cert, String password) {
+    private static Path buildPkcs12TrustStore(X509Certificate cert, @Nullable String password) {
         return buildTrustStore(cert, password, ".p12", PKCS_12);
     }
 
-    private static Path buildJksTrustStore(X509Certificate cert, String password) {
+    private static Path buildJksTrustStore(X509Certificate cert, @Nullable String password) {
         return buildTrustStore(cert, password, ".jks", JKS);
     }
 
     @NonNull
-    private static Path buildTrustStore(X509Certificate cert, String password, String suffix, String type) {
+    private static Path buildTrustStore(X509Certificate cert, @Nullable String password, String suffix, String type) {
         try {
             File certFile = createTempFile("trust", suffix);
             java.security.KeyStore store = java.security.KeyStore.getInstance(type);
             store.load(null, null);
             store.setCertificateEntry(ALIAS, cert);
             char[] pass = password != null ? password.toCharArray() : null;
-            store.store(new FileOutputStream(certFile), pass);
+            try (FileOutputStream outputStream = new FileOutputStream(certFile)) {
+                store.store(outputStream, pass);
+            }
             return certFile.toPath();
         }
         catch (Exception e) {

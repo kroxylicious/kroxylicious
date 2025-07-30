@@ -25,6 +25,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 
+import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -36,6 +37,8 @@ import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.message.SaslAuthenticateRequestData;
+import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.types.RawTaggedField;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -58,10 +61,12 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.SaslAuthenticateRequestFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
+import io.kroxylicious.proxy.internal.KafkaAuthnHandler.SaslMechanism;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 
@@ -84,6 +89,7 @@ class FilterHandlerTest extends FilterHarness {
     private static final int ARBITRARY_TAG = 500;
     private static final RawTaggedField MARK = createTag(ARBITRARY_TAG, "mark");
     public static final long TIMEOUT_MS = 50L;
+    public static final String AUTHORIZATION_ID = "Bob's yer uncle";
 
     @Test
     void testForwardRequest() {
@@ -1280,5 +1286,49 @@ class FilterHandlerTest extends FilterHarness {
         // then
         assertThat(localCert).isSameAs(proxyCertificate);
         assertThat(peerCert).isSameAs(clientCertificate);
+    }
+
+    @Test
+    void shouldUpdateClientSaslContextOnSaslAuthSuccess() {
+        // Given
+        SaslAuthenticateResponseData responseData = new SaslAuthenticateResponseData().setSessionLifetimeMs(10_000);
+        buildChannel((SaslAuthenticateRequestFilter) (apiVersion, header, request, context) -> {
+            context.clientSaslAuthenticationSuccess(SaslMechanism.SCRAM_SHA_512.name(), AUTHORIZATION_ID);
+            return context.requestFilterResultBuilder().shortCircuitResponse(responseData).completed();
+        });
+
+        // When
+        writeRequest(new SaslAuthenticateRequestData().setAuthBytes("Let me IN!".getBytes(UTF_8)));
+
+        // Then
+        DecodedResponseFrame<?> propagated = channel.readInbound();
+        assertThat(propagated.body()).isEqualTo(responseData);
+
+        assertThat(clientSaslManager.clientSaslContext())
+                .isNotEmpty()
+                .hasValueSatisfying(saslContext -> {
+                    assertThat(saslContext.authorizationId()).isEqualTo(AUTHORIZATION_ID);
+                    assertThat(saslContext.mechanismName()).isEqualTo(SaslMechanism.SCRAM_SHA_512.name());
+                });
+    }
+
+    @Test
+    void shouldUpdateClientSaslContextOnSaslAuthFailure() {
+        // Given
+        SaslAuthenticateResponseData responseData = new SaslAuthenticateResponseData().setErrorMessage("the doors are closed");
+        buildChannel((SaslAuthenticateRequestFilter) (apiVersion, header, request, context) -> {
+            context.clientSaslAuthenticationFailure(SaslMechanism.SCRAM_SHA_512.name(), null, new SaslAuthenticationException("the doors re closed"));
+            return context.requestFilterResultBuilder().shortCircuitResponse(responseData).completed();
+        });
+
+        // When
+        writeRequest(new SaslAuthenticateRequestData().setAuthBytes("Let me IN!".getBytes(UTF_8)));
+
+        // Then
+        DecodedResponseFrame<?> propagated = channel.readInbound();
+        assertThat(propagated.body()).isEqualTo(responseData);
+
+        assertThat(clientSaslManager.clientSaslContext())
+                .isEmpty();
     }
 }

@@ -7,4 +7,9 @@ io.kroxylicious.proxy.filter.GenericRequestSpecificResponseFilterFactory
 io.kroxylicious.proxy.filter.GenericResponseSpecificRequestFilterFactory
 io.kroxylicious.proxy.InvocationCountingFilterFactory
 io.kroxylicious.proxy.CreateTopicRequest
+io.kroxylicious.proxy.testplugins.SaslPlainTermination
+io.kroxylicious.proxy.testplugins.SaslPlainInitiation
+io.kroxylicious.proxy.testplugins.SaslInspection
 io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer
+io.kroxylicious.proxy.testplugins.ConstantSasl
+io.kroxylicious.proxy.testplugins.ProtocolCounter
