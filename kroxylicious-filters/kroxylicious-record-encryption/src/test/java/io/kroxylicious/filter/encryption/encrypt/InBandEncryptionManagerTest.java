@@ -68,6 +68,29 @@ class InBandEncryptionManagerTest {
         assertThat(cache.invalidationCount()).isEqualTo(numEncryptionOperations - 1);
     }
 
+    @Test
+    void shouldGrowBuffer() {
+        // Given
+        InMemoryKms kms = getInMemoryKms();
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        final DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(new AsyncKms<>(kms, executor), 10000 );
+        EncryptionDekCache<UUID, InMemoryEdek> cache = new EncryptionDekCache<>(dekManager, executor, EncryptionDekCache.NO_MAX_CACHE_SIZE, Duration.ofHours(1),
+                Duration.ofHours(1));
+        var encryptionManager = createEncryptionManager(dekManager, cache, executor);
+        var kekId = kms.generateKey();
+        var value = new byte[8 * 1024 * 1024];
+        Record record = RecordTestUtils.record(value);
+
+        List<Record> initial = List.of(record);
+
+        // When
+        CompletionStage<Void> encryptFuture = doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial,
+                new ArrayList<>());
+
+        // Then
+        assertThat(encryptFuture).succeedsWithin(10, TimeUnit.SECONDS);
+    }
+
     @NonNull
     private static InMemoryKms getInMemoryKms() {
         var kmsService = UnitTestingKmsService.newInstance();
