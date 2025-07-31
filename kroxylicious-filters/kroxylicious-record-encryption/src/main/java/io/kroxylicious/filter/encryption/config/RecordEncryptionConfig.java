@@ -24,6 +24,9 @@ public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplN
                                      @PluginImplConfig(implNameProperty = "selector") Object selectorConfig,
                                      @JsonProperty Map<String, Object> experimental,
                                      @JsonProperty UnresolvedKeyPolicy unresolvedKeyPolicy) {
+
+    public static final int RECORD_BUFFER_DEFAULT_INITIAL_BYTES = 1024 * 1024;
+
     public RecordEncryptionConfig {
         experimental = experimental == null ? Map.of() : experimental;
     }
@@ -41,6 +44,12 @@ public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplN
                 resolvedAliasRefreshAfterWriteSeconds, notFoundAliasExpireAfterWriteSeconds, encryptionDekRefreshAfterWriteSeconds, encryptionDekExpireAfterWriteSeconds);
     }
 
+    public EncryptionBufferConfig encryptionBuffer() {
+        Integer minimumBufSize = getExperimentalIntOrElse("encryptionBufferMinimumSizeBytes", RECORD_BUFFER_DEFAULT_INITIAL_BYTES);
+        Integer maximumBufSize = getExperimentalIntOrElse("encryptionBufferMaximumSizeBytes", 1024 * 1024 * 8);
+        return new EncryptionBufferConfig(minimumBufSize, maximumBufSize);
+    }
+
     public DekManagerConfig dekManager() {
         Long maxEncryptionsPerDek = getExperimentalLong("maxEncryptionsPerDek");
         return new DekManagerConfig(maxEncryptionsPerDek);
@@ -49,6 +58,10 @@ public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplN
 
     @Nullable
     private Integer getExperimentalInt(String property) {
+        return getExperimentalIntOrElse(property, null);
+    }
+
+    private Integer getExperimentalIntOrElse(String property, Integer defaultValue) {
         return Optional.ofNullable(experimental.get(property)).map(value -> {
             if (value instanceof Number number) {
                 return number.intValue();
@@ -59,7 +72,7 @@ public record RecordEncryptionConfig(@JsonProperty(required = true) @PluginImplN
             else {
                 throw new IllegalArgumentException("could not convert " + property + " with type " + value.getClass().getSimpleName() + " to Integer");
             }
-        }).orElse(null);
+        }).orElse(defaultValue);
     }
 
     @Nullable
