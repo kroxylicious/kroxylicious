@@ -2,7 +2,7 @@ name: Sonar Scan
 
 on:
   workflow_run:
-    workflows: [ "Build Kroxylicious Operator" ]
+    workflows: [ "Lint Pull Request" ]
     types: [completed]
 
 concurrency:
@@ -55,18 +55,14 @@ jobs:
         with:
           java-version: 21
           distribution: 'temurin'
-      - name: 'Test for unpublished reference release (japicmp)'
-        run: |
-          REFERENCE_RELEASE=$(mvn --quiet -pl kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
-          echo "REFERENCE_RELEASE_UNPUBLISHED=$(mvn --quiet dependency:get -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom 1>/dev/null && echo false || echo true)" >> $GITHUB_ENV
       - name: 'Cache Maven packages'
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
       - name: SonarCloud Scan on PR
-        run: mvn -B clean verify -Pci -DskipITs=true org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} -Dsonar.projectKey=kroxylicious_kroxylicious -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
+        run: mvn -B clean verify -Pci -DskipITs=true org.sonarsource.scanner.maven:sonar-maven-plugin:5.1.0.4751:sonar -Djapicmp.skip=true -Dsonar.projectKey=kroxylicious_kroxylicious -Dsonar.scm.revision=${{ github.event.workflow_run.head_sha }} -Dsonar.pullrequest.key=${{ fromJson(steps.get_pr_data.outputs.data).number }} -Dsonar.pullrequest.branch=${{ fromJson(steps.get_pr_data.outputs.data).head.ref }} -Dsonar.pullrequest.base=${{ fromJson(steps.get_pr_data.outputs.data).base.ref }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
