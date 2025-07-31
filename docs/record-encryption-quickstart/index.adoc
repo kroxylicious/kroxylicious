@@ -1,0 +1,93 @@
+:experimental:
+include::_assets/attributes.adoc[]
+
+:context: record-encryption-quickstart
+:quickstart: record-encryption
+
+[id="quickstart-{context}"]
+= Record Encryption Quickstart
+
+[role="_abstract"]
+
+You want an encryption-at-rest solution for data stored in your Apache Kafka?
+This quickstart guide will show you how to do that on Kubernetes ... from scratch.
+You'll be up and running in a snap!
+
+== Objectives
+
+* Deploy a Kafka Cluster to a Kubernetes cluster.
+* Deploy a KMS (we'll show you how with HashiCorp Vault or AWS Localstack)
+* Deploy Kroxylicious and configure it to proxy the cluster and apply Record Encryption.
+* Produce/consume records to Kafka.
+* Verify that the records are encrypted on the broker.
+
+== Before you begin
+
+You'll need the following a developer machine with the following installed.
+
+* https://minikube.sigs.k8s.io/docs/start[Minikube]
+* https://helm.sh/docs/intro/install/[Helm]
+
+== Start Minikube
+
+Let's get the Kubernetes Cluster up and running.  Minikube defaults work just fine for this quickstart.
+
+[source,shell]
+----
+minikube start
+----
+
+== Install a KMS
+
+Record Encryption needs somewhere to store its encryption keys, so you need to provide a KMS.
+Choose to install either HashiCorp Vault or AWS LocalStack.
+
+=== HashiCorp Vault
+
+[source,shell]
+----
+helm repo add hashicorp https://helm.releases.hashicorp.com
+helm upgrade --install vault hashicorp/vault --namespace vault -set server.dev.enabled=true,server.dev.devRootToken=myroottoken --wait
+----
+
+=== AWS Local Stack
+
+== Install Strimzi
+
+
+TODO
+
+
+
+
+include::_modules/multi-tenancy/con-about-{guide}-guide.adoc[leveloffset=+1]
+
+Kroxylicious’s Multi-tenancy filter presents a single Kafka cluster to tenants as if it were multiple clusters.
+Operations are isolated to a single tenant by prefixing resources with an identifier.
+
+NOTE: This filter is currently in incubation and available as a preview.
+We would not recommend using it in a production environment.
+
+The Multi-tenancy filter works by intercepting all Kafka RPCs (remote procedure calls) that reference resources, such as topic names and consumer group names:
+
+Request path:: On the request path, resource names are prefixed with a tenant identifier.
+Response path:: On the response path, the prefix is removed.
+
+Kafka RPCs that list resources are filtered so that only resources belonging to the tenant are returned, effectively creating a private cluster experience for each tenant.
+
+To set up the filter, configure it in Kroxylicious.
+
+IMPORTANT: While the Multi-tenancy filter isolates operations on resources, it does not isolate user identities across tenants.
+User authentication and ACLs (Access Control Lists) are shared across all tenants, meaning that identity is not scoped to individual tenants.
+For more information on open issues related to this filter, see {github-issues}[Kroxylicious issues^].
+
+NOTE: For more information on Kafka's support for multi-tenancy, see the {ApacheKafkaSite}.
+
+//configuring the multi-tenancy filter
+include::_assemblies/assembly-configuring-multi-tenancy-filter.adoc[leveloffset=+1]
+
+//monitoring the multi-tenancy filter
+//operational issues affecting the multi-tenancy filter
+
+//trademark notices
+include::_assets/trademarks.adoc[leveloffset=+1]

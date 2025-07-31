@@ -1,0 +1,8 @@
+$schema: https://kroxylicious.io/doc-schema.yaml
+title: Record Encryption quickstart
+description: Apply encryption at rest to Apache Kafka
+tags:
+  - record-encryption
+  - encryption-at-rest
+path: /quickstarts
+rank: "011"
