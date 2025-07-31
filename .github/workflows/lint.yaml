@@ -54,7 +54,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn -B -Pci -T3 verify -DskipTests -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED}
+          mvn -B -Pci -T1.5C verify -DskipTests -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED}
       - name: shellcheck
         uses: reviewdog/action-shellcheck@v1
         with:
