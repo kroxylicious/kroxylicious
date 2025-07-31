@@ -71,6 +71,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
     });
     private static final KmsMetrics kmsMetrics = MicrometerKmsMetrics.create(Metrics.globalRegistry);
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordEncryption.class);
+    public static final int RECORD_BUFFER_INITIAL_BYTES = 1024 * 1024;
 
     /**
      * Checks that we can build a Cipher for all known CipherSpecs. This prevents us from
@@ -128,7 +129,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
         FilterThreadExecutor executor = new FilterThreadExecutor(filterThreadExecutor);
         var encryptionManager = new InBandEncryptionManager<>(Encryption.V2,
                 sharedEncryptionContext.dekManager().edekSerde(),
-                1024 * 1024,
+                RECORD_BUFFER_INITIAL_BYTES,
                 8 * 1024 * 1024,
                 sharedEncryptionContext.encryptionDekCache(),
                 executor);
