@@ -105,7 +105,7 @@ import io.kroxylicious.proxy.filter.TxnOffsetCommitRequestFilter;
 import io.kroxylicious.proxy.filter.TxnOffsetCommitResponseFilter;
 import io.kroxylicious.proxy.filter.multitenant.config.MultiTenantConfig;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Simple multi-tenant filter.
@@ -144,7 +144,7 @@ class MultiTenantFilter
         AddOffsetsToTxnRequestFilter,
         TxnOffsetCommitRequestFilter, TxnOffsetCommitResponseFilter {
     private final String prefixResourceNameSeparator;
-    private String kafkaResourcePrefix;
+    private @Nullable String kafkaResourcePrefix;
 
     @Override
     public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData response,
@@ -540,7 +540,7 @@ class MultiTenantFilter
         return kafkaResourcePrefix;
     }
 
-    MultiTenantFilter(@NonNull MultiTenantConfig configuration) {
+    MultiTenantFilter(MultiTenantConfig configuration) {
         Objects.requireNonNull(configuration);
         this.prefixResourceNameSeparator = configuration.prefixResourceNameSeparator();
     }

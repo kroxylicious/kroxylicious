@@ -7,6 +7,8 @@ package io.kroxylicious.proxy.filter;
 
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
+import edu.umd.cs.findbugs.annotations.UnknownNullness;
+
 /**
  * <p>A pluggable source of {@link Filter} instances.</p>
  * <p>FilterFactories are:</p>
@@ -44,7 +46,8 @@ public interface FilterFactory<C, I> {
      * @return A configuration state object, specific to the given {@code config}, which will be passed to the other methods of this interface.
      * @throws PluginConfigurationException when the configuration is invalid
      */
-    I initialize(FilterFactoryContext context, C config) throws PluginConfigurationException;
+    @UnknownNullness
+    I initialize(FilterFactoryContext context, @UnknownNullness C config) throws PluginConfigurationException;
 
     /**
      * Creates an instance of the Filter.
@@ -57,7 +60,7 @@ public interface FilterFactory<C, I> {
      * @param initializationData The initialization data that was returned from {@link #initialize(FilterFactoryContext, Object)}.
      * @return the Filter instance.
      */
-    Filter createFilter(FilterFactoryContext context, I initializationData);
+    Filter createFilter(FilterFactoryContext context, @UnknownNullness I initializationData);
 
     /**
      * Called by the runtime to release any resources associated with the given {@code initializationData}.
@@ -65,6 +68,6 @@ public interface FilterFactory<C, I> {
      * Once this method has been called {@link #createFilter(FilterFactoryContext, Object)} won't be called again.
      * @param initializationData The initialization data that was returned from {@link #initialize(FilterFactoryContext, Object)}.
      */
-    default void close(I initializationData) {
+    default void close(@UnknownNullness I initializationData) {
     }
 }

@@ -8,10 +8,13 @@ package io.kroxylicious.proxy.filter.multitenant;
 
 import java.util.Objects;
 
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.multitenant.config.MultiTenantConfig;
 import io.kroxylicious.proxy.plugin.Plugin;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A {@link FilterFactory} for {@link MultiTenantFilter}.
@@ -22,12 +25,12 @@ public class MultiTenant implements FilterFactory<MultiTenantConfig, MultiTenant
     private static final MultiTenantConfig DEFAULT_TENANT_CONFIG = new MultiTenantConfig(null);
 
     @Override
-    public MultiTenantConfig initialize(FilterFactoryContext context, MultiTenantConfig config) {
+    public @Nullable MultiTenantConfig initialize(FilterFactoryContext context, @Nullable MultiTenantConfig config) {
         return config;
     }
 
     @Override
-    public MultiTenantFilter createFilter(FilterFactoryContext context, MultiTenantConfig configuration) {
+    public Filter createFilter(FilterFactoryContext context, @Nullable MultiTenantConfig configuration) {
         return new MultiTenantFilter(Objects.requireNonNullElse(configuration, DEFAULT_TENANT_CONFIG));
     }
 }
