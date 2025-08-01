@@ -161,7 +161,6 @@ public class Environment {
             KROXYLICIOUS_OPERATOR_INSTALL_DIR_DEFAULT);
     public static final String CURL_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(CURL_IMAGE_ENV, CURL_IMAGE_DEFAULT);
 
-
     private static String readMetadataProperty(String property) {
         var p = new Properties();
         var metadataProps = "/metadata.properties";
