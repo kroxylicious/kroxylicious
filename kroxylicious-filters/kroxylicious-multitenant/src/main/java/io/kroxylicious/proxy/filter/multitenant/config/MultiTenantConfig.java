@@ -10,6 +10,8 @@ import java.util.Objects;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Configuration for the Multi Tenant Filter.
  * @param prefixResourceNameSeparator separator character used to form the prefixed resource name, if not null
@@ -19,7 +21,7 @@ public record MultiTenantConfig(String prefixResourceNameSeparator) {
 
     public static final String DEFAULT_SEPARATOR = "-";
 
-    public MultiTenantConfig(@JsonProperty(required = false) String prefixResourceNameSeparator) {
+    public MultiTenantConfig(@Nullable @JsonProperty(required = false) String prefixResourceNameSeparator) {
         this.prefixResourceNameSeparator = Objects.requireNonNullElse(prefixResourceNameSeparator, DEFAULT_SEPARATOR);
     }
 }

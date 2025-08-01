@@ -6,8 +6,11 @@
 
 package io.kroxylicious.proxy.filter.simpletransform;
 
+import javax.annotation.Nullable;
+
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation.Config;
@@ -15,6 +18,8 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * A {@link FilterFactory} for {@link ProduceRequestTransformationFilter}.
@@ -29,19 +34,19 @@ public class ProduceRequestTransformation
 
     @Override
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    public ProduceRequestTransformationFilter createFilter(FilterFactoryContext context,
-                                                           Config configuration) {
+    public Filter createFilter(FilterFactoryContext context,
+                               @NonNull Config configuration) {
         ByteBufferTransformationFactory factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
         return new ProduceRequestTransformationFilter(factory.createTransformation(configuration.transformationConfig()));
     }
 
     @Override
     @SuppressWarnings({ "unchecked" })
-    public Config initialize(FilterFactoryContext context, Config config) {
-        Plugins.requireConfig(this, config);
-        var transformationFactory = context.pluginInstance(ByteBufferTransformationFactory.class, config.transformation());
-        transformationFactory.validateConfiguration(config.transformationConfig());
-        return config;
+    public @NonNull Config initialize(FilterFactoryContext context, @Nullable Config config) {
+        var result = Plugins.requireConfig(this, config);
+        var transformationFactory = context.pluginInstance(ByteBufferTransformationFactory.class, result.transformation());
+        transformationFactory.validateConfiguration(result.transformationConfig());
+        return result;
     }
 
 }

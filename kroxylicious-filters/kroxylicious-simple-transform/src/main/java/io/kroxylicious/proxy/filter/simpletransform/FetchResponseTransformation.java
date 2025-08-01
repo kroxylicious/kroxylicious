@@ -18,6 +18,9 @@ import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 import io.kroxylicious.proxy.plugin.Plugins;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * A {@link FilterFactory} for {@link FetchResponseTransformationFilter}.
  */
@@ -25,13 +28,13 @@ import io.kroxylicious.proxy.plugin.Plugins;
 public class FetchResponseTransformation implements FilterFactory<Config, Config> {
 
     @Override
-    public Config initialize(FilterFactoryContext context, Config config) {
+    public @NonNull Config initialize(FilterFactoryContext context, @Nullable Config config) {
         return Plugins.requireConfig(this, config);
     }
 
     @Override
     public FetchResponseTransformationFilter createFilter(FilterFactoryContext context,
-                                                          Config configuration) {
+                                                          @NonNull Config configuration) {
         var factory = context.pluginInstance(ByteBufferTransformationFactory.class, configuration.transformation());
         Objects.requireNonNull(factory, "Violated contract of FilterCreationContext");
         return new FetchResponseTransformationFilter(factory.createTransformation(configuration.transformationConfig()));

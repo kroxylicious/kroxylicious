@@ -57,6 +57,10 @@ class ProduceRequestTransformationFilterTest {
     private static final String EXPECTED_TRANSFORMED_RECORD_VALUE = ORIGINAL_RECORD_VALUE.toUpperCase(Locale.ROOT);
     private static final String RECORD_KEY = "key";
     private ProduceRequestTransformationFilter filter;
+
+    @Mock(strictness = Mock.Strictness.LENIENT)
+    FilterFactoryContext factoryContext;
+
     @Mock(strictness = Mock.Strictness.LENIENT)
     FilterContext context;
 
@@ -92,10 +96,24 @@ class ProduceRequestTransformationFilterTest {
     }
 
     @Test
-    void testFactory() {
+    void testFactoryRejectsNullConfig() {
         var factory = new ProduceRequestTransformation();
         assertThatThrownBy(() -> factory.initialize(null, null)).isInstanceOf(PluginConfigurationException.class)
                 .hasMessage(ProduceRequestTransformation.class.getSimpleName() + " requires configuration, but config object is null");
+    }
+
+    @Test
+    void testFactoryAcceptedValidConfig() {
+        var factory = new ProduceRequestTransformation();
+        var tfactory = mock(ByteBufferTransformationFactory.class);
+        when(factoryContext.pluginInstance(any(), any())).thenReturn(tfactory);
+        var cfg = new ProduceRequestTransformation.Config(null, null);
+        factory.initialize(factoryContext, cfg);
+    }
+
+    @Test
+    void testFactory() {
+        var factory = new ProduceRequestTransformation();
         FilterFactoryContext constructContext = mock(FilterFactoryContext.class);
         doReturn(new UpperCasing()).when(constructContext).pluginInstance(any(), any());
         var config = new ProduceRequestTransformation.Config(UpperCasing.class.getName(),

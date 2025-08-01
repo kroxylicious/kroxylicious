@@ -39,6 +39,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.plugin.Plugins;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule.OAUTHBEARER_MECHANISM;
@@ -69,10 +70,10 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
 
     @Override
     @SuppressWarnings("java:S2245") // secure randomization not needed for exponential backoff
-    public SharedOauthBearerValidationContext initialize(FilterFactoryContext context, Config config) throws PluginConfigurationException {
-        Plugins.requireConfig(this, config);
-        setAllowedSaslOauthbearerSysPropIfNecessary(config.jwksEndpointUrl().toString());
-        Config configWithDefaults = initConfigWithDefaults(config);
+    public SharedOauthBearerValidationContext initialize(FilterFactoryContext context, @Nullable Config config) throws PluginConfigurationException {
+        var cfg = Plugins.requireConfig(this, config);
+        setAllowedSaslOauthbearerSysPropIfNecessary(cfg.jwksEndpointUrl().toString());
+        Config configWithDefaults = initConfigWithDefaults(cfg);
         oauthHandler.configure(
                 createSaslConfigMap(configWithDefaults),
                 OAUTHBEARER_MECHANISM,
@@ -119,7 +120,7 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
     }
 
     @Override
-    public OauthBearerValidationFilter createFilter(FilterFactoryContext context, SharedOauthBearerValidationContext sharedContext) {
+    public OauthBearerValidationFilter createFilter(FilterFactoryContext context, @NonNull SharedOauthBearerValidationContext sharedContext) {
         return new OauthBearerValidationFilter(context.filterDispatchExecutor(), sharedContext);
     }
 
