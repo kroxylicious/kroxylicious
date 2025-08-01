@@ -48,11 +48,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -140,10 +142,11 @@ class OauthBearerValidationFilterTest {
     void mustShortCircuitFailedInitSasl() {
         SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM);
         mockBuilder();
+        SaslException saslException = new SaslException("init failed");
 
         try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
             dummy.when(() -> Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, oauthHandler))
-                    .thenThrow(new SaslException());
+                    .thenThrow(saslException);
             filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenHandshakeRequest, context);
         }
 
@@ -151,6 +154,7 @@ class OauthBearerValidationFilterTest {
             assertThat(actualResponse).isInstanceOf(SaslHandshakeResponseData.class);
             assertThat(((SaslHandshakeResponseData) actualResponse).errorCode()).isEqualTo(UNKNOWN_SERVER_ERROR.code());
         }));
+        verify(context).clientSaslAuthenticationFailure(eq(OAUTHBEARER_MECHANISM), isNull(), eq(saslException));
     }
 
     @Test
@@ -173,6 +177,8 @@ class OauthBearerValidationFilterTest {
             assertThat(actualResponse).isInstanceOf(SaslHandshakeResponseData.class);
             assertThat(((SaslHandshakeResponseData) actualResponse).errorCode()).isEqualTo(ILLEGAL_SASL_STATE.code());
         }));
+        //Duplicate handshake original handshake can still succeed
+        verify(context, times(0)).clientSaslAuthenticationFailure(any(), any(), any());
     }
 
     @Test
@@ -195,7 +201,8 @@ class OauthBearerValidationFilterTest {
         byte[] givenBytes = "just_to_compare".getBytes();
         SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
-        when(saslServer.evaluateResponse(givenBytes)).thenThrow(new SaslAuthenticationException("Authentication failed"));
+        SaslAuthenticationException authenticationFailed = new SaslAuthenticationException("Authentication failed");
+        when(saslServer.evaluateResponse(givenBytes)).thenThrow(authenticationFailed);
         mockBuilder();
         String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);
         when(rateLimiter.get(digest)).thenReturn(new AtomicInteger(0));
@@ -215,6 +222,7 @@ class OauthBearerValidationFilterTest {
             assertThat(actualResponse).isInstanceOf(SaslAuthenticateResponseData.class);
             assertThat(((SaslAuthenticateResponseData) actualResponse).errorCode()).isEqualTo(SASL_AUTHENTICATION_FAILED.code());
         }));
+        verify(context).clientSaslAuthenticationFailure(eq(OAUTHBEARER_MECHANISM), isNull(), eq(authenticationFailed));
     }
 
     @Test
@@ -243,6 +251,7 @@ class OauthBearerValidationFilterTest {
             assertThat(actualResponse).isInstanceOf(SaslAuthenticateResponseData.class);
             assertThat(((SaslAuthenticateResponseData) actualResponse).errorCode()).isEqualTo(SASL_AUTHENTICATION_FAILED.code());
         }));
+        verify(context).clientSaslAuthenticationFailure(eq(OAUTHBEARER_MECHANISM), isNull(), any(SaslAuthenticationException.class));
     }
 
     @Test
@@ -262,6 +271,7 @@ class OauthBearerValidationFilterTest {
             assertThat(((SaslAuthenticateResponseData) actualResponse).errorCode()).isEqualTo(ILLEGAL_SASL_STATE.code());
         }));
         verifyNoInteractions(executor, rateLimiter, strategy);
+        verify(context).clientSaslAuthenticationFailure(eq(OAUTHBEARER_MECHANISM), isNull(), any(SaslAuthenticationException.class));
 
     }
 
@@ -300,7 +310,8 @@ class OauthBearerValidationFilterTest {
     @Test
     void willShortCircuitResponseWhenSaslFailed() throws Exception {
         // given
-        doThrow(new SaslException("SASL failed")).when(saslServer).dispose();
+        SaslException saslException = new SaslException("SASL failed");
+        doThrow(saslException).when(saslServer).dispose();
         byte[] givenBytes = "just_to_compare".getBytes();
         SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
@@ -323,6 +334,8 @@ class OauthBearerValidationFilterTest {
             assertThat(actualResponse).isInstanceOf(SaslAuthenticateResponseData.class);
             assertEquals(UNKNOWN_SERVER_ERROR.code(), ((SaslAuthenticateResponseData) actualResponse).errorCode());
         }));
+        //TODO should this case notify the context?
+        //        verify(context).clientSaslAuthenticationFailure(eq(OAUTHBEARER_MECHANISM), isNull(), eq(saslException));
     }
 
     @SuppressWarnings("unchecked")
