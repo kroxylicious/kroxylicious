@@ -33,7 +33,8 @@ public interface FilterResultBuilder<H extends ApiMessage, R extends FilterResul
     CloseOrTerminalStage<R> forward(H header, ApiMessage message) throws IllegalArgumentException;
 
     /**
-     * Signals the desire of the filter that the connection is closed.
+     * Signals the filter's wish that the message is dropped i.e. not forwarded to the next filter
+     * in the chain.
      *
      * @return last stage in the fluent API.
      */

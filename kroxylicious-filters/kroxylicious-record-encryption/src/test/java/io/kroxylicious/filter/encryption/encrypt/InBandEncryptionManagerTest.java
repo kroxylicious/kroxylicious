@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.encryption.encrypt;
 
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -23,6 +24,7 @@ import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.config.RecordField;
 import io.kroxylicious.filter.encryption.crypto.Encryption;
@@ -35,6 +37,7 @@ import io.kroxylicious.test.record.RecordTestUtils;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class InBandEncryptionManagerTest {
 
@@ -68,6 +71,29 @@ class InBandEncryptionManagerTest {
         CompletableFuture<Void> all = CompletableFuture.allOf(array);
         assertThat(all).succeedsWithin(10, TimeUnit.SECONDS);
         assertThat(cache.invalidationCount()).isEqualTo(numEncryptionOperations - 1);
+    }
+
+    @Test
+    void testGrowBufferCannotGrowBeyondMaximum() {
+        ByteBuffer priorBuffer = ByteBuffer.allocate(2);
+        assertThatThrownBy(() -> InBandEncryptionManager.growBuffer(priorBuffer, 2)).isInstanceOf(EncryptionException.class)
+                .hasMessage("Record buffer cannot grow greater than 2 bytes");
+    }
+
+    @Test
+    void testGrowBufferDoubles() {
+        ByteBuffer priorBuffer = ByteBuffer.allocate(2);
+        ByteBuffer grown = InBandEncryptionManager.growBuffer(priorBuffer, 8);
+        assertThat(grown.capacity()).isEqualTo(4);
+        ByteBuffer regrown = InBandEncryptionManager.growBuffer(grown, 8);
+        assertThat(regrown.capacity()).isEqualTo(8);
+    }
+
+    @Test
+    void testGrowBufferWillCapGrowthAtMaximum() {
+        ByteBuffer priorBuffer = ByteBuffer.allocate(5);
+        ByteBuffer grown = InBandEncryptionManager.growBuffer(priorBuffer, 8);
+        assertThat(grown.capacity()).isEqualTo(8);
     }
 
     @Test

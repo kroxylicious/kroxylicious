@@ -172,13 +172,21 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                                         recordBuffer));
             }
             catch (BufferTooSmallException e) {
-                int newCapacity = 2 * recordBuffer.capacity();
-                if (newCapacity > recordBufferMaxBytes) {
-                    throw new EncryptionException("Record buffer cannot grow greater than " + recordBufferMaxBytes + " bytes");
-                }
-                recordBuffer = ByteBuffer.allocate(newCapacity);
+                recordBuffer = growBuffer(recordBuffer, recordBufferMaxBytes);
             }
         } while (true);
+    }
+
+    @VisibleForTesting
+    @NonNull
+    static ByteBuffer growBuffer(ByteBuffer recordBuffer, int maxBytes) {
+        if (recordBuffer.capacity() == maxBytes) {
+            throw new EncryptionException("Record buffer cannot grow greater than " + maxBytes + " bytes");
+        }
+        // we should make an attempt at the max buffer size. now that the min and max are configurable it's not guaranteed that the numbers
+        // will neatly line up.
+        int newCapacity = Math.min(maxBytes, 2 * recordBuffer.capacity());
+        return ByteBuffer.allocate(newCapacity);
     }
 
     private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme,
