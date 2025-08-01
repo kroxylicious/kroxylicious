@@ -103,8 +103,8 @@ RELEASE_TAG="v${RELEASE_VERSION}"
 WEBSITE_TMP=$(mktemp -d)
 
 # Use a `/.` at the end of the source path to avoid the source path being appended to the destination path if the `.../_files/` folder already exists
-KROXYLICIOUS_DOCS_LOCATION="${ORIGINAL_WORKING_DIR}/docs/."
-WEBSITE_DOCS_LOCATION="${WEBSITE_TMP}/docs/${RELEASE_TAG}"
+KROXYLICIOUS_DOCS_LOCATION="${ORIGINAL_WORKING_DIR}/target/web"
+WEBSITE_DOCS_LOCATION="${WEBSITE_TMP}/"
 
 if [[ "${DRY_RUN:-false}" == true ]]; then
     #Disable the shell check as the colour codes only work with interpolation.
@@ -121,6 +121,9 @@ git config -l | grep 'http\..*\.extraheader' | cut -d= -f1 | xargs -L1 git confi
 echo "Checking out tags/${RELEASE_TAG} in  in $(git remote get-url "${REPOSITORY}")"
 git checkout "tags/${RELEASE_TAG}"
 
+# Run docs build
+mvn -Dquick -P dist clean package --non-recursive
+
 # Move to temp directory so we don't end up with website files in the main repository
 cd "${WEBSITE_TMP}"
 echo "In '$(pwd)', cloning website repository at ${WEBSITE_REPO_URL}"
@@ -131,40 +134,12 @@ ORIGINAL_WEBSITE_WORKING_BRANCH=$(git branch --show-current)
 echo "Creating branch ${RELEASE_DOCS_BRANCH} from ${BRANCH_FROM} in $(git remote get-url "${REPOSITORY}")"
 git checkout -b "${RELEASE_DOCS_BRANCH}"
 
-echo "Copying release docs from ${KROXYLICIOUS_DOCS_LOCATION} to ${WEBSITE_DOCS_LOCATION}/_files"
-mkdir -p "${WEBSITE_DOCS_LOCATION}/"
-cp -R "${KROXYLICIOUS_DOCS_LOCATION}" "${WEBSITE_DOCS_LOCATION}/_files"
-# Remove README.md from copied files
-rm -f "${WEBSITE_DOCS_LOCATION}/_files/README.md"
-
-echo "Creating AsciiDoc entrypoint file at ${WEBSITE_DOCS_LOCATION}/index.adoc"
-RELEASE_DOCS_INDEX_TEMPLATE="---
-title: Kroxylicious Proxy ${RELEASE_TAG}
----
-
-include::_files/index.adoc[leveloffset=0]
-"
-echo "${RELEASE_DOCS_INDEX_TEMPLATE}" > "${WEBSITE_DOCS_LOCATION}/index.adoc"
-
-echo "Creating AsciiDoc entrypoint file at ${WEBSITE_DOCS_LOCATION}/kroxylicious-proxy/index.adoc"
-RELEASE_DOCS_INDEX_TEMPLATE="---
-title: Kroxylicious Proxy ${RELEASE_TAG}
----
-
-include::../_files/kroxylicious-proxy/index.adoc[leveloffset=0]
-"
-mkdir -p "${WEBSITE_DOCS_LOCATION}/kroxylicious-proxy"
-echo "${RELEASE_DOCS_INDEX_TEMPLATE}" > "${WEBSITE_DOCS_LOCATION}/kroxylicious-proxy/index.adoc"
-
-echo "Update _data/kroxylicious.yml to add new version to website navigation"
-match="url: '\/kroxylicious'"
-insert="  - title: '${RELEASE_TAG}'\n    url: '\/docs\/${RELEASE_TAG}\/'"
-KROXYLICIOUS_NAV_FILE="_data/kroxylicious.yml"
-${SED} -i "s/$match/$match\n$insert/" "${KROXYLICIOUS_NAV_FILE}"
+echo "Copying release docs from ${KROXYLICIOUS_DOCS_LOCATION} to ${WEBSITE_DOCS_LOCATION}"
+cp -R "${KROXYLICIOUS_DOCS_LOCATION}"/* "${WEBSITE_DOCS_LOCATION}"
 
 echo "Committing release documentation to git"
 # Commit and push changes to branch in `kroxylicious/kroxylicious.github.io`
-git add "${WEBSITE_DOCS_LOCATION}" "${KROXYLICIOUS_NAV_FILE}"
+git add "${WEBSITE_DOCS_LOCATION}"
 git commit --message "Prepare ${RELEASE_TAG} release documentation" --signoff
 git push "${REPOSITORY}" "${RELEASE_DOCS_BRANCH}" ${GIT_DRYRUN:-}
 
