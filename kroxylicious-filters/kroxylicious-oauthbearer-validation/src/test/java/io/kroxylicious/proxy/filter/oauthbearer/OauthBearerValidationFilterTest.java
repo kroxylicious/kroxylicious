@@ -45,6 +45,7 @@ import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModul
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.eq;
@@ -177,7 +178,7 @@ class OauthBearerValidationFilterTest {
             assertThat(actualResponse).isInstanceOf(SaslHandshakeResponseData.class);
             assertThat(((SaslHandshakeResponseData) actualResponse).errorCode()).isEqualTo(ILLEGAL_SASL_STATE.code());
         }));
-        //Duplicate handshake original handshake can still succeed
+        // Duplicate handshake original handshake can still succeed
         verify(context, times(0)).clientSaslAuthenticationFailure(any(), any(), any());
     }
 
@@ -192,6 +193,7 @@ class OauthBearerValidationFilterTest {
 
         verify(context).forwardResponse(any(ResponseHeaderData.class), eq(givenAuthenticateResponse));
         verify(context).forwardRequest(any(RequestHeaderData.class), eq(givenAuthenticateRequest));
+        verify(context).clientSaslAuthenticationSuccess(eq(OAUTHBEARER_MECHANISM), anyString());
         verifyNoInteractions(executor, rateLimiter, strategy);
     }
 
@@ -334,8 +336,8 @@ class OauthBearerValidationFilterTest {
             assertThat(actualResponse).isInstanceOf(SaslAuthenticateResponseData.class);
             assertEquals(UNKNOWN_SERVER_ERROR.code(), ((SaslAuthenticateResponseData) actualResponse).errorCode());
         }));
-        //TODO should this case notify the context?
-        //        verify(context).clientSaslAuthenticationFailure(eq(OAUTHBEARER_MECHANISM), isNull(), eq(saslException));
+        // TODO should this case notify the context?
+        // verify(context).clientSaslAuthenticationFailure(eq(OAUTHBEARER_MECHANISM), isNull(), eq(saslException));
     }
 
     @SuppressWarnings("unchecked")

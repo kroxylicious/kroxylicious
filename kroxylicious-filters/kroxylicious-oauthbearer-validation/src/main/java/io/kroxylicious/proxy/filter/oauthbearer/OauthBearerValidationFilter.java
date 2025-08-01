@@ -163,6 +163,8 @@ public class OauthBearerValidationFilter
                                                                             SaslAuthenticateResponseData response, FilterContext context) {
         if (response.errorCode() == NONE.code()) {
             this.validateAuthentication = false;
+            //TODO response parsing?
+            context.clientSaslAuthenticationSuccess(OAUTHBEARER_MECHANISM, "");
         }
         return context.forwardResponse(header, response);
     }
