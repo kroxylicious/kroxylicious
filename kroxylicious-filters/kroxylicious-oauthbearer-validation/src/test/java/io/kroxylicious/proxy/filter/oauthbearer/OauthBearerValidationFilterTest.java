@@ -45,7 +45,6 @@ import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModul
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.eq;
@@ -63,6 +62,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class OauthBearerValidationFilterTest {
 
+    public static final String AUTHORIZIED_ID = "successfullyAuthorized";
     @Mock(strictness = LENIENT)
     private FilterContext context;
 
@@ -187,13 +187,19 @@ class OauthBearerValidationFilterTest {
         byte[] givenBytes = "just_to_compare".getBytes();
         SaslAuthenticateResponseData givenAuthenticateResponse = new SaslAuthenticateResponseData().setAuthBytes(givenBytes);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
+        when(saslServer.getMechanismName()).thenReturn(OAUTHBEARER_MECHANISM);
+        when(saslServer.getAuthorizationID()).thenReturn(AUTHORIZIED_ID);
 
-        filter.onSaslAuthenticateResponse(SaslAuthenticateResponseData.HIGHEST_SUPPORTED_VERSION, new ResponseHeaderData(), givenAuthenticateResponse, context);
-        filter.onSaslAuthenticateRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
+        try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
+            dummy.when(() -> Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, oauthHandler))
+                    .thenReturn(saslServer);
+            filter.onSaslAuthenticateResponse(SaslAuthenticateResponseData.HIGHEST_SUPPORTED_VERSION, new ResponseHeaderData(), givenAuthenticateResponse, context);
+            filter.onSaslAuthenticateRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
+        }
 
         verify(context).forwardResponse(any(ResponseHeaderData.class), eq(givenAuthenticateResponse));
         verify(context).forwardRequest(any(RequestHeaderData.class), eq(givenAuthenticateRequest));
-        verify(context).clientSaslAuthenticationSuccess(eq(OAUTHBEARER_MECHANISM), anyString());
+        verify(context).clientSaslAuthenticationSuccess(eq(OAUTHBEARER_MECHANISM), eq(AUTHORIZIED_ID));
         verifyNoInteractions(executor, rateLimiter, strategy);
     }
 

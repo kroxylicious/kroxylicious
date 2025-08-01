@@ -145,7 +145,7 @@ public class OauthBearerValidationFilter
                         }
                         else {
                             LOGGER.debug("SASL error : {}", e.getMessage(), e);
-                            //TODO should we notify the context here?
+                            // TODO should we notify the context here?
                             return context.requestFilterResultBuilder()
                                     .shortCircuitResponse(
                                             new SaslAuthenticateResponseData()
@@ -163,8 +163,19 @@ public class OauthBearerValidationFilter
                                                                             SaslAuthenticateResponseData response, FilterContext context) {
         if (response.errorCode() == NONE.code()) {
             this.validateAuthentication = false;
-            //TODO response parsing?
-            context.clientSaslAuthenticationSuccess(OAUTHBEARER_MECHANISM, "");
+            try {
+                SaslServer responseServer = Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, this.oauthHandler);
+                try {
+                    responseServer.evaluateResponse(response.authBytes());
+                    context.clientSaslAuthenticationSuccess(responseServer.getMechanismName(), responseServer.getAuthorizationID());
+                }
+                finally {
+                    responseServer.dispose();
+                }
+            }
+            catch (SaslException e) {
+                LOGGER.debug("SASL error : {}", e.getMessage(), e);
+            }
         }
         return context.forwardResponse(header, response);
     }
