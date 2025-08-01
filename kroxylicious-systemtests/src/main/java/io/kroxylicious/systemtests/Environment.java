@@ -58,6 +58,7 @@ public class Environment {
     private static final String TEST_CLIENTS_PULL_SECRET_ENV = "TEST_CLIENTS_PULL_SECRET";
     private static final String ARCHITECTURE_ENV = "ARCHITECTURE";
     private static final String KROXYLICIOUS_OPERATOR_INSTALL_DIR_ENV = "KROXYLICIOUS_OPERATOR_INSTALL_DIR";
+    private static final String CURL_IMAGE_ENV = "CURL_IMAGE";
 
     /**
      * The kafka version default value
@@ -108,6 +109,7 @@ public class Environment {
     private static final boolean SYNC_RESOURCES_DELETION_DEFAULT = false;
     private static final String ARCHITECTURE_DEFAULT = System.getProperty("os.arch");
     private static final String KROXYLICIOUS_OPERATOR_INSTALL_DIR_DEFAULT = System.getProperty("user.dir") + "/../kroxylicious-operator/target/packaged/install/";
+    public static final String CURL_IMAGE_DEFAULT = Constants.DOCKER_REGISTRY_GCR_MIRROR + "/curlimages/curl:8.13.0";
 
     public static final String KAFKA_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KAFKA_VERSION_ENV, KAFKA_VERSION_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_VERSION_ENV, KROXYLICIOUS_VERSION_DEFAULT);
@@ -157,6 +159,8 @@ public class Environment {
     public static final String ARCHITECTURE = ENVIRONMENT_VARIABLES.getOrDefault(ARCHITECTURE_ENV, ARCHITECTURE_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_INSTALL_DIR = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_INSTALL_DIR_ENV,
             KROXYLICIOUS_OPERATOR_INSTALL_DIR_DEFAULT);
+    public static final String CURL_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(CURL_IMAGE_ENV, CURL_IMAGE_DEFAULT);
+
 
     private static String readMetadataProperty(String property) {
         var p = new Properties();
