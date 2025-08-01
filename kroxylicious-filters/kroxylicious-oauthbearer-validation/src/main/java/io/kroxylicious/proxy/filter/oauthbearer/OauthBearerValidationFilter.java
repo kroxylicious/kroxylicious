@@ -63,7 +63,7 @@ public class OauthBearerValidationFilter
         SaslAuthenticateResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OauthBearerValidationFilter.class);
-
+    private static final SaslAuthenticationException INVALID_SASL_STATE_EXCEPTION = new SaslAuthenticationException("invalid sasl state");
     private final ScheduledExecutorService executorService;
     private final BackoffStrategy strategy;
     private final LoadingCache<String, AtomicInteger> rateLimiter;
@@ -102,6 +102,7 @@ public class OauthBearerValidationFilter
         }
         catch (SaslException e) {
             LOGGER.debug("SASL error : {}", e.getMessage(), e);
+            context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, null, e);
             return context.requestFilterResultBuilder()
                     .shortCircuitResponse(new SaslHandshakeResponseData().setErrorCode(UNKNOWN_SERVER_ERROR.code()))
                     .withCloseConnection()
@@ -125,6 +126,7 @@ public class OauthBearerValidationFilter
                         .setErrorMessage("Unexpected SASL request")
                         .setAuthBytes(request.authBytes());
                 LOGGER.debug("SASL invalid state");
+                context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, null, INVALID_SASL_STATE_EXCEPTION);
                 return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
             }
             this.saslServer = null;
@@ -138,10 +140,12 @@ public class OauthBearerValidationFilter
                                     .setErrorMessage(e.getMessage())
                                     .setAuthBytes(request.authBytes());
                             LOGGER.debug("SASL Authentication failed : {}", e.getMessage(), e);
+                            context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, null, (Exception) e.getCause());
                             return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
                         }
                         else {
                             LOGGER.debug("SASL error : {}", e.getMessage(), e);
+                            //TODO should we notify the context here?
                             return context.requestFilterResultBuilder()
                                     .shortCircuitResponse(
                                             new SaslAuthenticateResponseData()
