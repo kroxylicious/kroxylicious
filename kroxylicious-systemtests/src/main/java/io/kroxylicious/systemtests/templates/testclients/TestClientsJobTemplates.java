@@ -7,11 +7,14 @@
 package io.kroxylicious.systemtests.templates.testclients;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
+import io.fabric8.kubernetes.api.model.LocalObjectReference;
+import io.fabric8.kubernetes.api.model.PodSpecBuilder;
 import io.fabric8.kubernetes.api.model.batch.v1.JobBuilder;
 
 import io.kroxylicious.systemtests.Constants;
@@ -41,27 +44,37 @@ public class TestClientsJobTemplates {
 
     private static JobBuilder baseClientJob(String jobName) {
         Map<String, String> labelSelector = Map.of("app", jobName);
+
+        PodSpecBuilder podSpecBuilder = new PodSpecBuilder();
+
+        if (Environment.TEST_CLIENTS_PULL_SECRET != null && !Environment.TEST_CLIENTS_PULL_SECRET.isEmpty()) {
+            List<LocalObjectReference> imagePullSecrets = Collections.singletonList(new LocalObjectReference(Environment.TEST_CLIENTS_PULL_SECRET));
+            podSpecBuilder.withImagePullSecrets(imagePullSecrets);
+        }
+
+        // @formatter:off
         return new JobBuilder()
                 .withApiVersion("batch/v1")
                 .withKind(Constants.JOB)
                 .withNewMetadata()
-                .withName(jobName)
-                .addToLabels(labelSelector)
+                    .withName(jobName)
+                    .addToLabels(labelSelector)
                 .endMetadata()
                 .withNewSpec()
-                .withBackoffLimit(0)
-                .withCompletions(1)
-                .withParallelism(1)
-                .withNewTemplate()
-                .withNewMetadata()
-                .withLabels(labelSelector)
-                .withName(jobName)
-                .endMetadata()
-                .withNewSpec()
-                .withRestartPolicy(Constants.RESTART_POLICY_NEVER)
-                .endSpec()
-                .endTemplate()
+                    .withBackoffLimit(0)
+                    .withCompletions(1)
+                    .withParallelism(1)
+                    .withNewTemplate()
+                        .withNewMetadata()
+                            .withLabels(labelSelector)
+                            .withName(jobName)
+                        .endMetadata()
+                        .withNewSpecLike(podSpecBuilder.build())
+                            .withRestartPolicy(Constants.RESTART_POLICY_NEVER)
+                        .endSpec()
+                    .endTemplate()
                 .endSpec();
+        // @formatter:on
     }
 
     /**

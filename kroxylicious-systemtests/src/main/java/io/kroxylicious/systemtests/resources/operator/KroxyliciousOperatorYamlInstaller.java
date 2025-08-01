@@ -40,7 +40,6 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.skodjob.testframe.enums.InstallType;
 import io.skodjob.testframe.installation.InstallationMethod;
 import io.skodjob.testframe.resources.KubeResourceManager;
-import io.skodjob.testframe.utils.ImageUtils;
 import io.skodjob.testframe.utils.PodUtils;
 import io.skodjob.testframe.utils.TestFrameUtils;
 
@@ -91,7 +90,7 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
     @NonNull
     private static List<Path> installFilesMatching(Predicate<Path> matcher) {
         List<Path> crdFiles;
-        try (var fileStream = Files.list(Path.of(Constants.OPERATOR_INSTALL_DIR))) {
+        try (var fileStream = Files.list(Path.of(Environment.KROXYLICIOUS_OPERATOR_INSTALL_DIR))) {
             crdFiles = fileStream.filter(Files::isRegularFile)
                     .filter(matcher)
                     .sorted()
@@ -147,14 +146,6 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
         Deployment operatorDeployment = TestFrameUtils.configFromYaml(installDeploymentFile(),
                 Deployment.class);
 
-        String deploymentImage = operatorDeployment
-                .getSpec()
-                .getTemplate()
-                .getSpec()
-                .getContainers()
-                .get(0)
-                .getImage();
-
         String debugPortName = "remote-debug";
         //@formatter:off
         operatorDeployment = new DeploymentBuilder(operatorDeployment)
@@ -174,8 +165,6 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
                 .endMetadata()
                 .editSpec()
                 .editFirstContainer()
-                .withImage(ImageUtils.changeRegistryOrgImageAndTag(deploymentImage, Environment.KROXYLICIOUS_OPERATOR_REGISTRY,
-                        Environment.KROXYLICIOUS_OPERATOR_ORG, Environment.KROXYLICIOUS_OPERATOR_IMAGE, Environment.KROXYLICIOUS_OPERATOR_VERSION))
                 .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
                 .addToEnv(new EnvVarBuilder().withName("JAVA_OPTIONS").withValue("-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:" + DEBUG_PORT_NUMBER)
                         .build())

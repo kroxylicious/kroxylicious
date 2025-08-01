@@ -76,8 +76,18 @@
       "fileMatch": ["kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Constants.java"],
       "matchStrings": [
         "(?<depName>quay.io/kroxylicious/kcat):(?<currentValue>\\d+\\.\\d+\\.\\d+)",
-        "(?<depName>quay.io/kroxylicious/kaf):(?<currentValue>\\d+\\.\\d+\\.\\d+)",
-        "(?<depName>mirror.gcr.io/curlimages/curl):(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+        "(?<depName>quay.io/kroxylicious/kaf):(?<currentValue>\\d+\\.\\d+\\.\\d+)"
+      ],
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": [
+        "kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java",
+        "DEV_GUIDE.md"
+      ],
+      "matchStrings": [
+        "(?<depName>curlimages/curl):(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
       "datasourceTemplate": "docker"
     },

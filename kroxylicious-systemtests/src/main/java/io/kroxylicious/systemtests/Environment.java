@@ -34,9 +34,6 @@ public class Environment {
      * Env. variables names
      */
     private static final String KAFKA_VERSION_ENV = "KAFKA_VERSION";
-    private static final String KROXYLICIOUS_OPERATOR_IMAGE_ENV = "KROXYLICIOUS_OPERATOR_IMAGE_NAME";
-    private static final String KROXYLICIOUS_OPERATOR_ORG_ENV = "KROXYLICIOUS_OPERATOR_ORG";
-    private static final String KROXYLICIOUS_OPERATOR_REGISTRY_ENV = "KROXYLICIOUS_OPERATOR_REGISTRY";
     private static final String KROXYLICIOUS_OPERATOR_VERSION_ENV = "KROXYLICIOUS_OPERATOR_VERSION";
     public static final String SKIP_TEARDOWN_ENV = "SKIP_TEARDOWN";
     private static final String CONTAINER_CONFIG_PATH_ENV = "CONTAINER_CONFIG_PATH";
@@ -58,6 +55,10 @@ public class Environment {
     private static final String CATALOG_NAMESPACE_ENV = "CATALOG_NAMESPACE";
     private static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME_ENV = "KROXYLICIOUS_OLM_DEPLOYMENT_NAME";
     private static final String SYNC_RESOURCES_DELETION_ENV = "SYNC_RESOURCES_DELETION";
+    private static final String TEST_CLIENTS_PULL_SECRET_ENV = "TEST_CLIENTS_PULL_SECRET";
+    private static final String ARCHITECTURE_ENV = "ARCHITECTURE";
+    private static final String KROXYLICIOUS_OPERATOR_INSTALL_DIR_ENV = "KROXYLICIOUS_OPERATOR_INSTALL_DIR";
+    private static final String CURL_IMAGE_ENV = "CURL_IMAGE";
 
     /**
      * The kafka version default value
@@ -87,17 +88,9 @@ public class Environment {
     }
 
     /**
-     * The url where kroxylicious image lives to be downloaded.
-     */
-    private static final String KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT = "quay.io/kroxylicious/operator";
-
-    /**
      * The default value for skipping the teardown locally.
      */
     private static final boolean SKIP_TEARDOWN_DEFAULT = false;
-    public static final String KROXYLICIOUS_OPERATOR_IMAGE_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/")[2];
-    public static final String KROXYLICIOUS_OPERATOR_ORG_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/")[1];
-    public static final String KROXYLICIOUS_OPERATOR_REGISTRY_DEFAULT = KROXYLICIOUS_OPERATOR_IMAGE_REPO_DEFAULT.split("/")[0];
     private static final String CONTAINER_CONFIG_PATH_DEFAULT = System.getProperty("user.home") + "/.docker/config.json";
     private static final boolean SKIP_STRIMZI_INSTALL_DEFAULT = false;
     private static final String KAFKA_CLIENT_DEFAULT = "strimzi_test_client";
@@ -114,6 +107,9 @@ public class Environment {
     private static final String KROXYLICIOUS_OLM_DEPLOYMENT_NAME_DEFAULT = "kroxylicious-operator";
     private static final String CATALOG_NAMESPACE_DEFAULT = "openshift-marketplace";
     private static final boolean SYNC_RESOURCES_DELETION_DEFAULT = false;
+    private static final String ARCHITECTURE_DEFAULT = System.getProperty("os.arch");
+    private static final String KROXYLICIOUS_OPERATOR_INSTALL_DIR_DEFAULT = System.getProperty("user.dir") + "/../kroxylicious-operator/target/packaged/install/";
+    public static final String CURL_IMAGE_DEFAULT = Constants.DOCKER_REGISTRY_GCR_MIRROR + "/curlimages/curl:8.13.0";
 
     public static final String KAFKA_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KAFKA_VERSION_ENV, KAFKA_VERSION_DEFAULT);
     public static final String KROXYLICIOUS_OPERATOR_VERSION = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_VERSION_ENV, KROXYLICIOUS_VERSION_DEFAULT);
@@ -149,14 +145,10 @@ public class Environment {
 
     public static final String AWS_REGION = ENVIRONMENT_VARIABLES.getOrDefault(AWS_REGION_ENV, AWS_REGION_DEFAULT);
 
-    public static final String KROXYLICIOUS_OPERATOR_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_IMAGE_ENV, KROXYLICIOUS_OPERATOR_IMAGE_DEFAULT);
-    public static final String KROXYLICIOUS_OPERATOR_ORG = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_ORG_ENV, KROXYLICIOUS_OPERATOR_ORG_DEFAULT);
-    public static final String KROXYLICIOUS_OPERATOR_REGISTRY = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_REGISTRY_ENV,
-            KROXYLICIOUS_OPERATOR_REGISTRY_DEFAULT);
-
     public static final String KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_BUNDLE_IMAGE_ENV, "");
 
     public static final String TEST_CLIENTS_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(TEST_CLIENTS_IMAGE_ENV, TEST_CLIENTS_IMAGE_DEFAULT);
+    public static final String TEST_CLIENTS_PULL_SECRET = ENVIRONMENT_VARIABLES.getOrDefault(TEST_CLIENTS_PULL_SECRET_ENV, "");
     public static final String OLM_OPERATOR_CHANNEL = ENVIRONMENT_VARIABLES.getOrDefault(OLM_OPERATOR_CHANNEL_ENV, OLM_OPERATOR_CHANNEL_DEFAULT);
     public static final String CATALOG_SOURCE_NAME = ENVIRONMENT_VARIABLES.getOrDefault(CATALOG_SOURCE_NAME_ENV, CATALOG_SOURCE_NAME_DEFAULT);
     public static final String CATALOG_NAMESPACE = ENVIRONMENT_VARIABLES.getOrDefault(CATALOG_NAMESPACE_ENV, CATALOG_NAMESPACE_DEFAULT);
@@ -164,6 +156,10 @@ public class Environment {
             KROXYLICIOUS_OLM_DEPLOYMENT_NAME_DEFAULT);
     public static final boolean SYNC_RESOURCES_DELETION = ENVIRONMENT_VARIABLES.getOrDefault(SYNC_RESOURCES_DELETION_ENV, Boolean::parseBoolean,
             SYNC_RESOURCES_DELETION_DEFAULT);
+    public static final String ARCHITECTURE = ENVIRONMENT_VARIABLES.getOrDefault(ARCHITECTURE_ENV, ARCHITECTURE_DEFAULT);
+    public static final String KROXYLICIOUS_OPERATOR_INSTALL_DIR = ENVIRONMENT_VARIABLES.getOrDefault(KROXYLICIOUS_OPERATOR_INSTALL_DIR_ENV,
+            KROXYLICIOUS_OPERATOR_INSTALL_DIR_DEFAULT);
+    public static final String CURL_IMAGE = ENVIRONMENT_VARIABLES.getOrDefault(CURL_IMAGE_ENV, CURL_IMAGE_DEFAULT);
 
     private static String readMetadataProperty(String property) {
         var p = new Properties();
