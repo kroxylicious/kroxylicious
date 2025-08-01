@@ -334,10 +334,9 @@ has been applied ineffectively.
 * [OPTIONAL] aws cli ([install guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)): in case an AWS Cloud account is used for KMS.
 
 ### Environment variables
-* `KROXYLICIOUS_OPERATOR_REGISTRY`: url to the registry where the image of kroxylicious operator is located. Default value: `quay.io`
-* `KROXYLICIOUS_OPERATOR_ORG`: name of the organisation in the registry where kroxylicious operator is located. Default value: `kroxylicious`
-* `KROXYLICIOUS_OPERATOR_IMAGE_NAME`: name of the image of kroxylicious operator to be used. Default value: `operator`
+* `ARCHITECTURE`: architecture of the cluster where the test clients are deployed. Default value: `System.getProperty("os.arch")`
 * `KROXYLICIOUS_OPERATOR_VERSION`: version of kroxylicious operator to be used. Default value: `${project.version}` in pom file
+* `KROXYLICIOUS_OPERATOR_INSTALL_DIR`: directory of the operator install files. Used for operator yaml installation. Default value: `System.getProperty("user.dir") + "/../kroxylicious-operator/target/packaged/install/"`
 * `KROXYLICIOUS_IMAGE`: image location of the kroxylicious (proxy) image. Defaults to `quay.io/kroxylicious/kroxylicious:${project.version}`
 * `KAFKA_VERSION`: kafka version to be used. Default value: `${kafka.version}` in pom file
 * `STRIMZI_VERSION`: strimzi version to be used. Default value: `${strimzi.version}` in pom file

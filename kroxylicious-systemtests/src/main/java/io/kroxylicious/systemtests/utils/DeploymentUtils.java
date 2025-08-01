@@ -249,6 +249,13 @@ public class DeploymentUtils {
             kubeClient().getClient().secrets().inNamespace(namespace).resource(secret).create();
             await().atMost(Duration.ofSeconds(10)).until(() -> kubeClient().getClient().secrets().inNamespace(namespace).resource(secret).get() != null);
         }
+
+        if (Environment.TEST_CLIENTS_PULL_SECRET != null && !Environment.TEST_CLIENTS_PULL_SECRET.isEmpty()) {
+            LOGGER.atInfo().setMessage("Creating '{}' secret").addArgument(Environment.TEST_CLIENTS_PULL_SECRET).log();
+            Secret testClientSecret = kubeClient().getClient().secrets().withName(Environment.TEST_CLIENTS_PULL_SECRET).get();
+            testClientSecret.getMetadata().setResourceVersion("");
+            kubeClient().getClient().secrets().inNamespace(namespace).resource(testClientSecret).create();
+        }
     }
 
     /**

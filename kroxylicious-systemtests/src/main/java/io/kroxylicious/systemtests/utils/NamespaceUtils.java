@@ -55,6 +55,10 @@ public class NamespaceUtils {
     private static void deleteNamespace(String namespace, boolean wait) {
         if (!Environment.SKIP_TEARDOWN) {
             LOGGER.info("Deleting namespace: {}", namespace);
+            if (namespace.equals(Environment.STRIMZI_NAMESPACE) && Environment.SKIP_STRIMZI_INSTALL) {
+                LOGGER.info("Skipped namespace: {}, because SKIP_STRIMZI_INSTALL is true", namespace);
+                return;
+            }
             kubeClient().deleteNamespace(namespace);
             if (wait) {
                 await().atMost(Constants.GLOBAL_TIMEOUT).pollInterval(Constants.GLOBAL_POLL_INTERVAL)
