@@ -36,7 +36,7 @@ NOTE: Error conditions signaled _within_ the Kafka protocol response (such as `R
 |===
 |Metric Name |Type |Labels|Description
 
-|`kroxylicious_client_to_proxy_connection_total`
+|`kroxylicious_client_to_proxy_connections_total`
 |Counter
 |`virtual_cluster`, `node_id`
 |Incremented by one every time a connection is accepted from a client by the proxy. +
@@ -77,9 +77,9 @@ Use these metrics to help understand:
 
 * Upstream metrics
 ** `kroxylicious_proxy_to_server_request_total` counts requests as they go to the broker.
-** `kroxylicious_proxy_to_server_response_total` counts responses as they are returned by the broker.
+** `kroxylicious_server_to_proxy_response_total` counts responses as they are returned by the broker.
 ** `kroxylicious_proxy_to_server_request_size_bytes` is incremented by the size of each request as it goes to the broker.
-** `kroxylicious_proxy_to_server_response_size_bytes` is incremented by the size of each response as it is returned by the broker.
+** `kroxylicious_server_to_proxy_response_size_bytes` is incremented by the size of each response as it is returned by the broker.
 
 The size recorded is the encoded size of the protocol message. It includes the 4 byte {kafka-protocol}#protocol_common[message size].
 
