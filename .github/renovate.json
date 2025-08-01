@@ -82,7 +82,10 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java"],
+      "fileMatch": [
+        "kroxylicious-systemtests/src/main/java/io/kroxylicious/systemtests/Environment.java",
+        "DEV_GUIDE.md"
+      ],
       "matchStrings": [
         "(?<depName>curlimages/curl):(?<currentValue>\\d+\\.\\d+\\.\\d+)"
       ],
