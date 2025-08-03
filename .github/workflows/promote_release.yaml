@@ -63,6 +63,12 @@ jobs:
           fetch-tags: true
           fetch-depth: 0
 
+      - name: 'Require promote-release to be run on base repository'
+        if: ${{ inputs.command == 'promote-release' && github.repository != 'kroxylicious/kroxylicious' }}
+        run: |
+          echo "The 'promote-release' command can only be run from the 'kroxylicious/kroxylicious' repository."
+          exit 1
+
       - name: 'Check team membership'
         if: ${{ github.repository == 'kroxylicious/kroxylicious' }}
         uses: tspascoal/get-user-teams-membership@v3
