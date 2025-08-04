@@ -137,6 +137,9 @@ git checkout -b "${RELEASE_DOCS_BRANCH}"
 echo "Copying release docs from ${KROXYLICIOUS_DOCS_LOCATION} to ${WEBSITE_DOCS_LOCATION}"
 cp -R "${KROXYLICIOUS_DOCS_LOCATION}"/* "${WEBSITE_DOCS_LOCATION}"
 
+echo "Updating latest release to ${RELEASE_VERSION}"
+${SED} -i -e "s/^latestRelease: .*$/latestRelease: ${RELEASE_VERSION}/g" _data/kroxylicious.yml
+
 echo "Committing release documentation to git"
 # Commit and push changes to branch in `kroxylicious/kroxylicious.github.io`
 git add "${WEBSITE_DOCS_LOCATION}"
