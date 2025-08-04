@@ -49,18 +49,13 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
             isNotNull().value().isNull();
         }
         else {
-            String existingDescription = descriptionText();
-            isNotNull().value()
-                    .asInstanceOf(InstanceOfAssertFactories.BYTE_ARRAY)
-                    .asString(StandardCharsets.UTF_8)
-                    .as(existingDescription + " value")
-                    .isEqualTo(expected);
+            hasStringValueSatisfying(val -> Assertions.assertThat(val).isEqualTo(expected));
         }
         return this;
     }
 
     public HeaderAssert hasValueEqualTo(byte[] expected) {
-        isNotNull().value().isEqualTo(expected);
+        hasByteValueSatisfying(val -> Assertions.assertThat(val).isEqualTo(expected));
         return this;
     }
 
