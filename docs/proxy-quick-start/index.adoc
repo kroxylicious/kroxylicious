@@ -43,11 +43,11 @@ TIP: For Linux or macOS, you might find the {AppAssetTgzLink}[.tar.gz] format ea
 
 == Configure the Proxy
 
-Kroxylicious uses a YAML file for configuration. You can define virtual brokers, specify target Kafka clusters, and enable filters.
+Kroxylicious uses a YAML file for configuration. You can define virtual clusters, specify target Kafka clusters, and enable filters.
 
 For this quick start, we'll use the example configuration file located at `+config/example-proxy-config.yaml+`. This file is pre-configured for a local Kafka cluster running on default ports.
 
-NOTE: If your Kafka cluster uses custom ports or runs on a different machine, you'll need to adjust the settings in the YAML file. See the full documentation for more advanced configuration options.
+NOTE: If your Kafka cluster uses custom ports or runs on a different machine, you'll need to adjust the settings in the YAML file. See the {ProxyGuide} for more advanced configuration options.
 
 '''
 
@@ -66,9 +66,7 @@ To use a custom configuration, simply replace the file path after the `--config`
 
 == Configure Kafka clients to connect to the proxy
 
-Finally, point your Kafka clients to the proxy's bootstrap address instead of the actual Kafka cluster's address.
-
-IMPORTANT: In the commands below, substitute `$KROXYLICIOUS_BOOTSTRAP` with the bootstrap address defined in your Kroxylicious configuration (e.g., `localhost:9292`).
+Finally, point your Kafka clients to the proxy's bootstrap address and send it some requests.
 
 === Create a Topic
 
@@ -77,7 +75,7 @@ Use the `kafka-topics.sh` client to create a topic named `my_topic` through the 
 [source,bash]
 ----
 bin/kafka-topics.sh --create --topic my_topic \
---bootstrap-server $KROXYLICIOUS_BOOTSTRAP
+--bootstrap-server localhost:9292
 ----
 
 === Produce a Message
@@ -87,7 +85,7 @@ Send "hello world" to your new topic using the console producer.
 [source,bash]
 ----
 echo "hello world" | bin/kafka-console-producer.sh --topic my_topic \
---bootstrap-server $KROXYLICIOUS_BOOTSTRAP
+--bootstrap-server localhost:9292
 ----
 
 === Consume the Message
@@ -97,5 +95,5 @@ Read the message back from your topic using the console consumer.
 [source,bash]
 ----
 bin/kafka-console-consumer.sh --topic my_topic --from-beginning \
---bootstrap-server $KROXYLICIOUS_BOOTSTRAP
+--bootstrap-server localhost:9292
 ----
