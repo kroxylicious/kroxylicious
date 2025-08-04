@@ -14,11 +14,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
@@ -54,7 +54,6 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.InstanceOfAssertFactories.DOUBLE;
 
 /**
@@ -138,7 +137,9 @@ class OauthBearerValidationIT {
         try (var tester = kroxyliciousTester(getConfiguredProxyBuilder());
                 var admin = tester.admin(config);
                 var ahc = tester.getManagementClient()) {
-            performClusterOperation(admin);
+            assertThat(performClusterOperation(admin))
+                    .succeedsWithin(10, TimeUnit.SECONDS)
+                    .isNotNull();
 
             var allMetrics = ahc.scrapeMetrics();
 
@@ -170,9 +171,12 @@ class OauthBearerValidationIT {
         try (var tester = kroxyliciousTester(getConfiguredProxyBuilder());
                 var admin = tester.admin(config);
                 var ahc = tester.getManagementClient()) {
-            assertThatThrownBy(() -> performClusterOperation(admin))
-                    .isInstanceOf(SaslAuthenticationException.class)
-                    .hasMessageContaining("invalid_token");
+
+            assertThat(performClusterOperation(admin))
+                    .failsWithin(10, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseInstanceOf(SaslAuthenticationException.class)
+                    .withMessageContaining("invalid_token");
 
             var allMetrics = ahc.scrapeMetrics();
 
@@ -231,26 +235,8 @@ class OauthBearerValidationIT {
      * Pings the cluster in order to assert connectivity. We don't care about the result.
      * @param admin admin
      */
-    private void performClusterOperation(Admin admin) {
-        try {
-            var unused = admin.describeCluster().nodes().toCompletionStage().toCompletableFuture().get(10, TimeUnit.SECONDS);
-            assertThat(unused).isNotNull();
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException(e);
-        }
-        catch (ExecutionException e) {
-            if (e.getCause() instanceof RuntimeException re) {
-                throw re;
-            }
-            else {
-                throw new RuntimeException(e.getCause());
-            }
-        }
-        catch (TimeoutException e) {
-            throw new RuntimeException(e);
-        }
+    private KafkaFuture<?> performClusterOperation(Admin admin) {
+        return admin.describeCluster().nodes();
     }
 
     private static class OauthServerContainer extends GenericContainer<OauthServerContainer> {
