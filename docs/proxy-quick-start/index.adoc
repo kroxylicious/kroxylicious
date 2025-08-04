@@ -3,7 +3,7 @@ include::_assets/attributes.adoc[]
 
 = Proxy Quick Start
 
-Get Kroxylicious, a proxy for Apache Kafka®, up and running in minutes.
+Get Kroxylicious, the snappy open source proxy for Apache Kafka®, up and running in minutes.
 
 '''
 
