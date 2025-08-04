@@ -13,7 +13,6 @@ import org.assertj.core.api.ThrowingConsumer;
 import org.junit.jupiter.api.Test;
 
 import static io.kroxylicious.test.assertj.Assertions.throwsAssertionErrorContaining;
-import static org.assertj.core.api.Assertions.*;
 
 class HeaderAssertTest {
 
@@ -62,8 +61,8 @@ class HeaderAssertTest {
         HeaderAssert nonNullValueAssert = KafkaAssertions.assertThat(nonNullValue);
 
         nonNullValueAssert.hasValueEqualTo(expectedBytes);
-        throwsAssertionErrorContaining(() -> nonNullValueAssert.hasByteValueSatisfying(val -> assertThat(val).isEmpty()), "[header value]");
-        nonNullValueAssert.hasByteValueSatisfying(val -> assertThat(val).isEqualTo(expectedBytes));
+        throwsAssertionErrorContaining(() -> nonNullValueAssert.hasByteValueSatisfying(val -> org.assertj.core.api.Assertions.assertThat(val).isEmpty()), "[header value]");
+        nonNullValueAssert.hasByteValueSatisfying(val -> org.assertj.core.api.Assertions.assertThat(val).isEqualTo(expectedBytes));
     }
 
     @Test
@@ -74,8 +73,8 @@ class HeaderAssertTest {
         HeaderAssert nonNullValueAssert = KafkaAssertions.assertThat(nonNullValue);
 
         nonNullValueAssert.hasValueEqualTo(expectedBytes);
-        throwsAssertionErrorContaining(() -> nonNullValueAssert.hasStringValueSatisfying(val -> assertThat(val).isEmpty()), "[header value]");
-        nonNullValueAssert.hasStringValueSatisfying(val -> assertThat(val).isEqualTo(expectedStr));
+        throwsAssertionErrorContaining(() -> nonNullValueAssert.hasStringValueSatisfying(val -> org.assertj.core.api.Assertions.assertThat(val).isEmpty()), "[header value]");
+        nonNullValueAssert.hasStringValueSatisfying(val -> org.assertj.core.api.Assertions.assertThat(val).isEqualTo(expectedStr));
     }
 
     void assertThrowsIfHeaderNull(ThrowingConsumer<HeaderAssert> action) {
