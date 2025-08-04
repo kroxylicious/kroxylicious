@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.filter.oauthbearer;
 
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -120,17 +121,7 @@ class OauthBearerValidationFilterTest {
         byte[] givenBytes = "just_to_compare".getBytes();
         SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
-        String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);
-        when(rateLimiter.get(digest)).thenReturn(new AtomicInteger(0));
-        when(strategy.getDelay(0)).thenReturn(Duration.ZERO);
-        when(saslServer.isComplete()).thenReturn(true);
-
-        // when
-        try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
-            dummy.when(() -> Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, oauthHandler))
-                    .thenReturn(saslServer);
-            filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenHandshakeRequest, context);
-        }
+        expectValidSaslHandshake(givenBytes);
         filter.onSaslAuthenticateRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
 
         // then
@@ -198,18 +189,19 @@ class OauthBearerValidationFilterTest {
     }
 
     @Test
-    void shouldNotifyContextOfSuccessfulAuthResponse() {
+    void shouldNotifyContextOfSuccessfulAuthResponse() throws NoSuchAlgorithmException {
         byte[] givenBytes = "just_to_compare".getBytes();
         SaslAuthenticateResponseData givenAuthenticateResponse = new SaslAuthenticateResponseData().setAuthBytes(givenBytes);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
-
+        expectValidSaslHandshake(givenBytes);
         filter.onSaslAuthenticateRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
+
+        // When
         filter.onSaslAuthenticateResponse(SaslAuthenticateResponseData.HIGHEST_SUPPORTED_VERSION, new ResponseHeaderData(), givenAuthenticateResponse, context);
 
         verify(context).forwardResponse(any(ResponseHeaderData.class), eq(givenAuthenticateResponse));
         verify(context).forwardRequest(any(RequestHeaderData.class), eq(givenAuthenticateRequest));
         verify(context).clientSaslAuthenticationSuccess(eq(OAUTHBEARER_MECHANISM), anyString());
-        verifyNoInteractions(executor, rateLimiter, strategy);
     }
 
     @Test
@@ -361,5 +353,19 @@ class OauthBearerValidationFilterTest {
         when(closeOrTerminalStage.withCloseConnection()).thenReturn(mock(TerminalStage.class));
         when(builder.shortCircuitResponse(any())).thenReturn(closeOrTerminalStage);
         when(context.requestFilterResultBuilder()).thenReturn(builder);
+    }
+
+    private void expectValidSaslHandshake(byte[] givenBytes) throws NoSuchAlgorithmException {
+        SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM);
+        String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);
+        when(rateLimiter.get(digest)).thenReturn(new AtomicInteger(0));
+        when(strategy.getDelay(0)).thenReturn(Duration.ZERO);
+        when(saslServer.isComplete()).thenReturn(true);
+
+        try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
+            dummy.when(() -> Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, oauthHandler))
+                    .thenReturn(saslServer);
+            filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenHandshakeRequest, context);
+        }
     }
 }
