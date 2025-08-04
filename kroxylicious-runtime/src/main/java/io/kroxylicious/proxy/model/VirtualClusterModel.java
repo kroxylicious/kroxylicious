@@ -12,6 +12,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -71,8 +72,8 @@ public class VirtualClusterModel {
                                boolean logNetwork,
                                boolean logFrames,
                                List<NamedFilterDefinition> filters) {
-        this.clusterName = clusterName;
-        this.targetCluster = targetCluster;
+        this.clusterName = Objects.requireNonNull(clusterName);
+        this.targetCluster = Objects.requireNonNull(targetCluster);
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.filters = filters;
