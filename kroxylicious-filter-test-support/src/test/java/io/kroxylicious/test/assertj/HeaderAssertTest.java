@@ -61,7 +61,8 @@ class HeaderAssertTest {
         HeaderAssert nonNullValueAssert = KafkaAssertions.assertThat(nonNullValue);
 
         nonNullValueAssert.hasValueEqualTo(expectedBytes);
-        throwsAssertionErrorContaining(() -> nonNullValueAssert.hasByteValueSatisfying(val -> org.assertj.core.api.Assertions.assertThat(val).isEmpty()), "[header value]");
+        throwsAssertionErrorContaining(() -> nonNullValueAssert.hasByteValueSatisfying(val -> org.assertj.core.api.Assertions.assertThat(val).isEmpty()),
+                "[header value]");
         nonNullValueAssert.hasByteValueSatisfying(val -> org.assertj.core.api.Assertions.assertThat(val).isEqualTo(expectedBytes));
     }
 
@@ -73,7 +74,8 @@ class HeaderAssertTest {
         HeaderAssert nonNullValueAssert = KafkaAssertions.assertThat(nonNullValue);
 
         nonNullValueAssert.hasValueEqualTo(expectedBytes);
-        throwsAssertionErrorContaining(() -> nonNullValueAssert.hasStringValueSatisfying(val -> org.assertj.core.api.Assertions.assertThat(val).isEmpty()), "[header value]");
+        throwsAssertionErrorContaining(() -> nonNullValueAssert.hasStringValueSatisfying(val -> org.assertj.core.api.Assertions.assertThat(val).isEmpty()),
+                "[header value]");
         nonNullValueAssert.hasStringValueSatisfying(val -> org.assertj.core.api.Assertions.assertThat(val).isEqualTo(expectedStr));
     }
 

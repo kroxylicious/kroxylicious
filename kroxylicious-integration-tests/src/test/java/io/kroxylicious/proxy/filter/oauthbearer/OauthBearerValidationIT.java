@@ -90,10 +90,10 @@ class OauthBearerValidationIT {
     private static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC = "kroxylicious_payload_size_bytes_count";
     private static final Predicate<SimpleMetric> UPSTREAM_SASL_HANDSHAKE_LABELS_PREDICATE = m -> m.name().equals(KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC)
             && m.labels().entrySet().containsAll(
-            Map.of("ApiKey", "SASL_HANDSHAKE", "flowing", "upstream").entrySet());
+                    Map.of("ApiKey", "SASL_HANDSHAKE", "flowing", "upstream").entrySet());
     private static final Predicate<SimpleMetric> DOWNSTREAM_SASL_AUTHENTICATE_PREDICATE = m -> m.name().equals(KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC)
             && m.labels().entrySet().containsAll(
-            Map.of("ApiKey", "SASL_AUTHENTICATE", "flowing", "downstream").entrySet());
+                    Map.of("ApiKey", "SASL_AUTHENTICATE", "flowing", "downstream").entrySet());
     private static final String ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG = "org.apache.kafka.sasl.oauthbearer.allowed.urls";
     @SaslMechanism(value = OAuthBearerLoginModule.OAUTHBEARER_MECHANISM)
     @BrokerConfig(name = "listener.name.external.sasl.oauthbearer.jwks.endpoint.url", value = JWKS_ENDPOINT_URL)
@@ -174,8 +174,7 @@ class OauthBearerValidationIT {
     void shouldProduceAndConsume(Topic topic) {
         try (var tester = kroxyliciousTester(getConfiguredProxyBuilder());
                 var producer = tester.producer(getProducerConfig());
-                var consumer = tester.consumer(getConsumerConfig());
-        ) {
+                var consumer = tester.consumer(getConsumerConfig());) {
             assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
                     .succeedsWithin(Duration.ofSeconds(5));
 
@@ -250,8 +249,8 @@ class OauthBearerValidationIT {
                 ClientTlsAwareLawyer.class.getName())
                 .build();
 
-        //        recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
-        //                .hasValueEqualTo("alice");
+        // recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
+        // .hasValueEqualTo("alice");
         return proxy(cluster)
                 .withNewManagement()
                 .withNewEndpoints()
