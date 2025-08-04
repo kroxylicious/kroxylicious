@@ -1,4 +1,6 @@
 :experimental:
+:kafka-version: 4.0.0
+:kafka-image: apache/kafka:{kafka-version}
 include::_assets/attributes.adoc[]
 
 = Proxy Quick Start
@@ -24,11 +26,26 @@ NOTE: If this command fails, you may need to install a JRE or add it to your sys
 
 * **An Apache Kafka® Cluster**
 +
-Kroxylicious needs a running Kafka cluster to proxy. If you don't have one, the official Apache Kafka® https://kafka.apache.org/quickstart[quick start] provides instructions for setting up a local cluster.
+Kroxylicious needs a running Kafka cluster to proxy.
++
+If you don't have one already, and you have a container engine like `docker`
+or `podman` installed, then the easiest way to deploy a Kafka service is in a
+container like:
++
+[source,bash,subs="attributes"]
+----
+podman pull {kafka-image}
+podman run -p 9092:9092 {kafka-image}
+----
++
+Otherwise, the official Apache Kafka® https://kafka.apache.org/quickstart[quick start] provides further
+instructions for setting up a local cluster using the Kafka binary distribution.
 
 * **Kafka Binary Distribution**
 +
-To interact with your Kafka cluster and test the proxy, you will need the Kafka command-line tools. Obtain the binary distribution from the official Apache Kafka website: https://kafka.apache.org/downloads[Apache Kafka Downloads].
+To interact with your Kafka cluster and test the proxy, you will need the Kafka command-line tools. Obtain the
+https://archive.apache.org/dist/kafka/{kafka-version}/kafka_2.13-{kafka-version}.tgz[binary distribution] from the official Apache Kafka website:
+https://kafka.apache.org/downloads[Apache Kafka Downloads].
 
 '''
 
