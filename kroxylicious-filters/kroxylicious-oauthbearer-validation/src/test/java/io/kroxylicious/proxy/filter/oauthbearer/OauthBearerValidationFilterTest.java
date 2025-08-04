@@ -198,6 +198,21 @@ class OauthBearerValidationFilterTest {
     }
 
     @Test
+    void shouldNotifyContextOfSuccessfulAuthResponse() {
+        byte[] givenBytes = "just_to_compare".getBytes();
+        SaslAuthenticateResponseData givenAuthenticateResponse = new SaslAuthenticateResponseData().setAuthBytes(givenBytes);
+        SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
+
+        filter.onSaslAuthenticateRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
+        filter.onSaslAuthenticateResponse(SaslAuthenticateResponseData.HIGHEST_SUPPORTED_VERSION, new ResponseHeaderData(), givenAuthenticateResponse, context);
+
+        verify(context).forwardResponse(any(ResponseHeaderData.class), eq(givenAuthenticateResponse));
+        verify(context).forwardRequest(any(RequestHeaderData.class), eq(givenAuthenticateRequest));
+        verify(context).clientSaslAuthenticationSuccess(eq(OAUTHBEARER_MECHANISM), anyString());
+        verifyNoInteractions(executor, rateLimiter, strategy);
+    }
+
+    @Test
     void willShortCircuitResponseOnTokenValidationFailed() throws Exception {
         // given
         byte[] givenBytes = "just_to_compare".getBytes();

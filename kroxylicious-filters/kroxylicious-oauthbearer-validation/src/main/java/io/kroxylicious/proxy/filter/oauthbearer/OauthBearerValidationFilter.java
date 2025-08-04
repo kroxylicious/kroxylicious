@@ -70,6 +70,7 @@ public class OauthBearerValidationFilter
     private final OAuthBearerValidatorCallbackHandler oauthHandler;
     private @Nullable SaslServer saslServer;
     private boolean validateAuthentication = true;
+        private @Nullable String authorizationId;
 
     public OauthBearerValidationFilter(ScheduledExecutorService executorService, SharedOauthBearerValidationContext sharedContext) {
         this.executorService = executorService;
@@ -172,8 +173,7 @@ public class OauthBearerValidationFilter
                                                                             SaslAuthenticateResponseData response, FilterContext context) {
         if (response.errorCode() == NONE.code()) {
             this.validateAuthentication = false;
-            //TODO response parsing?
-            context.clientSaslAuthenticationSuccess(OAUTHBEARER_MECHANISM, "");
+            context.clientSaslAuthenticationSuccess(OAUTHBEARER_MECHANISM, authorizationId != null ? authorizationId : "<UNKNOWN AUTHORIZATION_ID>");
         }
         return context.forwardResponse(header, response);
     }
@@ -208,6 +208,7 @@ public class OauthBearerValidationFilter
     private byte[] doAuthenticate(SaslServer server, byte[] authBytes) throws SaslException {
         try {
             byte[] bytes = server.evaluateResponse(authBytes);
+            this.authorizationId = server.getAuthorizationID();
             if (!server.isComplete()) {
                 // at this step bytes would be a jsonResponseError from SASL server
                 throw new SaslAuthenticationException("SASL failed : " + new String(bytes, StandardCharsets.UTF_8));
