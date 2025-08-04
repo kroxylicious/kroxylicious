@@ -53,10 +53,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestTemplate;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import com.google.common.base.Strings;
+
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
 import io.kroxylicious.filter.encryption.RecordEncryption;
 import io.kroxylicious.filter.encryption.TemplateKekSelector;
+import io.kroxylicious.filter.encryption.config.RecordEncryptionConfig;
 import io.kroxylicious.filter.encryption.config.UnresolvedKeyPolicy;
 import io.kroxylicious.filter.encryption.crypto.Encryption;
 import io.kroxylicious.filter.encryption.crypto.EncryptionHeader;
@@ -120,6 +123,37 @@ class RecordEncryptionFilterIT {
                     .singleElement()
                     .extracting(ConsumerRecord::value)
                     .isEqualTo(HELLO_WORLD);
+        }
+    }
+
+    // Covers a bug, #2504, where large record batches failed to be encrypted. This occurred when the encrypted output for a record batch exceeded
+    // io.kroxylicious.filter.encryption.config.RecordEncryptionConfig#RECORD_BUFFER_DEFAULT_INITIAL_BYTES
+    @TestTemplate
+    void roundTripBigRecord(@BrokerConfig(name = "message.max.bytes", value = "2000000") KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade)
+            throws Exception {
+        var testKekManager = testKmsFacade.getTestKekManager();
+        testKekManager.generateKek(topic.name());
+
+        var builder = proxy(cluster);
+
+        NamedFilterDefinition namedFilterDefinition = buildEncryptionFilterDefinition(testKmsFacade, UnresolvedKeyPolicy.PASSTHROUGH_UNENCRYPTED);
+        builder.addToFilterDefinitions(namedFilterDefinition);
+        builder.addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(builder);
+                var producer = tester.producer(Map.of(ProducerConfig.MAX_REQUEST_SIZE_CONFIG, 2000000));
+                var consumer = tester.consumer()) {
+
+            String largerThanInitialEncryptionBuffer = Strings.repeat("a", RecordEncryptionConfig.RECORD_BUFFER_DEFAULT_INITIAL_BYTES + 1);
+            producer.send(new ProducerRecord<>(topic.name(), largerThanInitialEncryptionBuffer)).get(5, TimeUnit.SECONDS);
+
+            consumer.subscribe(List.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(2));
+            assertThat(records.iterator())
+                    .toIterable()
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo(largerThanInitialEncryptionBuffer);
         }
     }
 

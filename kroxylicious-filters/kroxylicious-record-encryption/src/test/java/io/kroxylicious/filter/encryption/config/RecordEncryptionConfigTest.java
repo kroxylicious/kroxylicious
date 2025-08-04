@@ -22,10 +22,14 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class RecordEncryptionConfigTest {
 
-    static Stream<Arguments> experimentalConfig() {
+    public static final int DEFAULT_MAX_BUFFER_SIZE = 1024 * 1024 * 8;
+    public static final int DEFAULT_MIN_BUFFER_SIZE = 1024 * 1024;
+
+    static Stream<Arguments> experimentalKmsCacheConfig() {
         return Stream.of(
                 Arguments.of("decryptedDekCacheSize", 2, 2, (Function<KmsCacheConfig, Integer>) KmsCacheConfig::decryptedDekCacheSize),
                 Arguments.of("decryptedDekCacheSize", "3", 3, (Function<KmsCacheConfig, Integer>) KmsCacheConfig::decryptedDekCacheSize),
@@ -73,11 +77,11 @@ class RecordEncryptionConfigTest {
 
     @ParameterizedTest(name = "{0} - {1}")
     @MethodSource
-    void experimentalConfig(String configKey, Object configValue, Object expectedKmsConfig, Function<KmsCacheConfig, Object> accessor) {
+    void experimentalKmsCacheConfig(String configKey, Object configValue, Object expectedKmsConfig, Function<KmsCacheConfig, Object> accessor) {
         assertThat(accessor.apply(getKmsCacheConfig(configKey, configValue))).isEqualTo(expectedKmsConfig);
     }
 
-    static Stream<Arguments> invalidExperimentalConfig() {
+    static Stream<Arguments> invalidExperimentalKmsCacheConfig() {
         return Stream.of(
                 Arguments.of("decryptedDekCacheSize", List.of()),
                 Arguments.of("decryptedDekCacheSize", "banana"),
@@ -99,9 +103,42 @@ class RecordEncryptionConfigTest {
 
     @ParameterizedTest(name = "{0} - {1}")
     @MethodSource
-    void invalidExperimentalConfig(String configKey, Object configValue) {
+    void invalidExperimentalKmsCacheConfig(String configKey, Object configValue) {
         RecordEncryptionConfig config = createConfig(Map.of(configKey, configValue));
         assertThatThrownBy(config::kmsCache).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    static Stream<Arguments> invalidExperimentalEncryptionBufferConfig() {
+        return Stream.of(argumentSet("min size greater than default max", Map.of("encryptionBufferMinimumSizeBytes", "9000000")),
+                argumentSet("min size zero", Map.of("encryptionBufferMinimumSizeBytes", "0")),
+                argumentSet("min size negative", Map.of("encryptionBufferMinimumSizeBytes", "-1")),
+                argumentSet("max size less min", Map.of("encryptionBufferMinimumSizeBytes", "3", "encryptionBufferMaximumSizeBytes", "2")),
+                argumentSet("max size less than default min", Map.of("encryptionBufferMaximumSizeBytes", "" + (DEFAULT_MIN_BUFFER_SIZE - 1))),
+                argumentSet("max size zero", Map.of("encryptionBufferMaximumSizeBytes", "0")),
+                argumentSet("max size negative", Map.of("encryptionBufferMaximumSizeBytes", "-1")));
+    }
+
+    @ParameterizedTest()
+    @MethodSource
+    void invalidExperimentalEncryptionBufferConfig(Map<String, Object> configMap) {
+        RecordEncryptionConfig config = createConfig(configMap);
+        assertThatThrownBy(config::encryptionBuffer).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    static Stream<Arguments> validExperimentalEncryptionBufferConfig() {
+        return Stream.of(argumentSet("min size set", Map.of("encryptionBufferMinimumSizeBytes", "500"), 500, DEFAULT_MAX_BUFFER_SIZE),
+                argumentSet("max size set", Map.of("encryptionBufferMaximumSizeBytes", "2000000"), DEFAULT_MIN_BUFFER_SIZE, 2000000),
+                argumentSet("both set", Map.of("encryptionBufferMinimumSizeBytes", "1", "encryptionBufferMaximumSizeBytes", "2"), 1, 2),
+                argumentSet("equal minimum and maximum", Map.of("encryptionBufferMinimumSizeBytes", "1", "encryptionBufferMaximumSizeBytes", "1"), 1, 1));
+    }
+
+    @ParameterizedTest()
+    @MethodSource
+    void validExperimentalEncryptionBufferConfig(Map<String, Object> configMap, int expectedMinSize, int expectedMaxSize) {
+        RecordEncryptionConfig config = createConfig(configMap);
+        EncryptionBufferConfig buffer = config.encryptionBuffer();
+        assertThat(buffer.minSizeBytes()).isEqualTo(expectedMinSize);
+        assertThat(buffer.maxSizeBytes()).isEqualTo(expectedMaxSize);
     }
 
     @Test

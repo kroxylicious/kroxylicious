@@ -8,11 +8,14 @@ package io.kroxylicious.systemtests.installation.kroxylicious;
 
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.apps.Deployment;
+import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.kms.service.TestKmsFacade;
@@ -230,13 +233,16 @@ public class Kroxylicious {
     }
 
     /**
-     * Gets number of replicas.
+     * Gets number of replicas from the underlying deployment.
      *
      * @return the number of replicas
      */
     public int getNumberOfReplicas() {
         LOGGER.info("Getting number of replicas..");
-        return kubeClient().getDeployment(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME).getStatus().getReplicas();
+        return await().atMost(Duration.ofSeconds(30)).pollInterval(Duration.ofSeconds(1))
+                .until(() -> Optional.ofNullable(kubeClient().getDeployment(deploymentNamespace, Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME))
+                        .map(Deployment::getStatus)
+                        .map(DeploymentStatus::getReplicas).orElseThrow(), Objects::nonNull);
     }
 
     /**

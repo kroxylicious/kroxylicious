@@ -27,6 +27,7 @@ import io.micrometer.core.instrument.Metrics;
 
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.config.CipherSpec;
+import io.kroxylicious.filter.encryption.config.EncryptionBufferConfig;
 import io.kroxylicious.filter.encryption.config.EncryptionConfigurationException;
 import io.kroxylicious.filter.encryption.config.KekSelectorService;
 import io.kroxylicious.filter.encryption.config.KmsCacheConfig;
@@ -104,6 +105,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
     public SharedEncryptionContext<K, E> initialize(FilterFactoryContext context,
                                                     RecordEncryptionConfig configuration)
             throws PluginConfigurationException {
+        LOGGER.debug("Record encryption buffer size configuration: {}", configuration.encryptionBuffer());
         checkCipherSuite();
         KmsService<Object, K, E> kmsPlugin = context.pluginInstance(KmsService.class, configuration.kms());
         kmsPlugin.initialize(configuration.kmsConfig());
@@ -126,10 +128,11 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
 
         ScheduledExecutorService filterThreadExecutor = context.filterDispatchExecutor();
         FilterThreadExecutor executor = new FilterThreadExecutor(filterThreadExecutor);
+        EncryptionBufferConfig encryptionBufferConfig = sharedEncryptionContext.configuration().encryptionBuffer();
         var encryptionManager = new InBandEncryptionManager<>(Encryption.V2,
                 sharedEncryptionContext.dekManager().edekSerde(),
-                1024 * 1024,
-                8 * 1024 * 1024,
+                encryptionBufferConfig.minSizeBytes(),
+                encryptionBufferConfig.maxSizeBytes(),
                 sharedEncryptionContext.encryptionDekCache(),
                 executor);
 

@@ -41,7 +41,7 @@ public interface FilterResult {
     boolean closeConnection();
 
     /**
-     * signals the filter's wish that message is dropped i.e. not forward to the next filter
+     * signals the filter's wish that message is dropped i.e. not forwarded to the next filter
      * in the chain.
      * @return true if message is to be dropped.
      */

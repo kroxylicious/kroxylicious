@@ -118,13 +118,14 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
         return currentDek(encryptionScheme).thenCompose(dek -> {
             // if it's not alive we know a previous encrypt call has removed this stage from the cache and fall through to retry encrypt
             if (!dek.isDestroyed()) {
-                try (Dek<E>.Encryptor encryptor = dek.encryptor(allRecordsCount)) {
+                try {
                     var encryptedMemoryRecords = encryptBatches(
+                            dek,
+                            allRecordsCount,
                             topicName,
                             partition,
                             encryptionScheme,
                             records,
-                            encryptor,
                             bufferAllocator);
                     return CompletableFuture.completedFuture(encryptedMemoryRecords);
                 }
@@ -148,15 +149,18 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
     }
 
     @NonNull
-    private MemoryRecords encryptBatches(@NonNull String topicName,
+    private MemoryRecords encryptBatches(Dek<E> dek,
+                                         int allRecordsCount,
+                                         @NonNull String topicName,
                                          int partition,
                                          @NonNull EncryptionScheme<K> encryptionScheme,
                                          @NonNull MemoryRecords memoryRecords,
-                                         @NonNull Dek<E>.Encryptor encryptor,
                                          @NonNull IntFunction<ByteBufferOutputStream> bufferAllocator) {
         ByteBuffer recordBuffer = ByteBuffer.allocate(recordBufferInitialBytes);
         do {
-            try {
+            // create a new encryptor for each attempt as its requested encryption operations may be partially consumed by the attempt
+            // leaving us with too few operations remaining to encrypt the batches
+            try (Dek<E>.Encryptor encryptor = dek.encryptor(allRecordsCount)) {
                 return RecordStream.ofRecords(memoryRecords)
                         .mapConstant(encryptor)
                         .toMemoryRecords(allocateBufferForEncrypt(memoryRecords, bufferAllocator),
@@ -168,13 +172,21 @@ public class InBandEncryptionManager<K, E> implements EncryptionManager<K> {
                                         recordBuffer));
             }
             catch (BufferTooSmallException e) {
-                int newCapacity = 2 * recordBuffer.capacity();
-                if (newCapacity > recordBufferMaxBytes) {
-                    throw new EncryptionException("Record buffer cannot grow greater than " + recordBufferMaxBytes + " bytes");
-                }
-                recordBuffer = ByteBuffer.allocate(newCapacity);
+                recordBuffer = growBuffer(recordBuffer, recordBufferMaxBytes);
             }
         } while (true);
+    }
+
+    @VisibleForTesting
+    @NonNull
+    static ByteBuffer growBuffer(ByteBuffer recordBuffer, int maxBytes) {
+        if (recordBuffer.capacity() == maxBytes) {
+            throw new EncryptionException("Record buffer cannot grow greater than " + maxBytes + " bytes");
+        }
+        // we should make an attempt at the max buffer size. now that the min and max are configurable it's not guaranteed that the numbers
+        // will neatly line up.
+        int newCapacity = Math.min(maxBytes, 2 * recordBuffer.capacity());
+        return ByteBuffer.allocate(newCapacity);
     }
 
     private void rotateKeyContext(@NonNull EncryptionScheme<K> encryptionScheme,

@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filter.encryption.encrypt;
 
+import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -23,6 +24,7 @@ import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.filter.encryption.common.EncryptionException;
 import io.kroxylicious.filter.encryption.common.FilterThreadExecutor;
 import io.kroxylicious.filter.encryption.config.RecordField;
 import io.kroxylicious.filter.encryption.crypto.Encryption;
@@ -35,8 +37,11 @@ import io.kroxylicious.test.record.RecordTestUtils;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class InBandEncryptionManagerTest {
+
+    public static final int RECORD_BUFFER_INITIAL_BYTES = 1024 * 1024;
 
     // this test covers a bug fix where multiple encrypting threads would invalidate the cache key with
     // undefined results. We only need to invalidate each cached DEK once
@@ -66,6 +71,88 @@ class InBandEncryptionManagerTest {
         CompletableFuture<Void> all = CompletableFuture.allOf(array);
         assertThat(all).succeedsWithin(10, TimeUnit.SECONDS);
         assertThat(cache.invalidationCount()).isEqualTo(numEncryptionOperations - 1);
+    }
+
+    @Test
+    void testGrowBufferCannotGrowBeyondMaximum() {
+        ByteBuffer priorBuffer = ByteBuffer.allocate(2);
+        assertThatThrownBy(() -> InBandEncryptionManager.growBuffer(priorBuffer, 2)).isInstanceOf(EncryptionException.class)
+                .hasMessage("Record buffer cannot grow greater than 2 bytes");
+    }
+
+    @Test
+    void testGrowBufferDoubles() {
+        ByteBuffer priorBuffer = ByteBuffer.allocate(2);
+        ByteBuffer grown = InBandEncryptionManager.growBuffer(priorBuffer, 8);
+        assertThat(grown.capacity()).isEqualTo(4);
+        ByteBuffer regrown = InBandEncryptionManager.growBuffer(grown, 8);
+        assertThat(regrown.capacity()).isEqualTo(8);
+    }
+
+    @Test
+    void testGrowBufferWillCapGrowthAtMaximum() {
+        ByteBuffer priorBuffer = ByteBuffer.allocate(5);
+        ByteBuffer grown = InBandEncryptionManager.growBuffer(priorBuffer, 8);
+        assertThat(grown.capacity()).isEqualTo(8);
+    }
+
+    @Test
+    void shouldGrowBuffer() {
+        // Given
+        InMemoryKms kms = getInMemoryKms();
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        final DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(new AsyncKms<>(kms, executor), 10000);
+        EncryptionDekCache<UUID, InMemoryEdek> cache = new EncryptionDekCache<>(dekManager, executor, EncryptionDekCache.NO_MAX_CACHE_SIZE, Duration.ofHours(1),
+                Duration.ofHours(1));
+        var encryptionManager = createEncryptionManager(dekManager, cache, executor);
+        var kekId = kms.generateKey();
+        var valueLargerThanInitialEncryptionBuffer = new byte[RECORD_BUFFER_INITIAL_BYTES + 1];
+        Record record = RecordTestUtils.record(valueLargerThanInitialEncryptionBuffer);
+
+        List<Record> initial = List.of(record);
+
+        // When
+        CompletionStage<Void> encryptFuture = doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), initial,
+                new ArrayList<>());
+
+        // Then
+        assertThat(encryptFuture).succeedsWithin(10, TimeUnit.SECONDS);
+    }
+
+    @Test
+    void undersizedBufferAtTheLimitOfDekRotationSucceeds() {
+        // Given
+        InMemoryKms kms = getInMemoryKms();
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        final DekManager<UUID, InMemoryEdek> dekManager = new DekManager<>(new AsyncKms<>(kms, executor), 2);
+        EncryptionDekCache<UUID, InMemoryEdek> cache = new EncryptionDekCache<>(dekManager, executor, EncryptionDekCache.NO_MAX_CACHE_SIZE, Duration.ofHours(1),
+                Duration.ofHours(1));
+        var encryptionManager = createEncryptionManager(dekManager, cache, executor);
+        var kekId = kms.generateKey();
+
+        Record smallRecord = RecordTestUtils.record(new byte[1]);
+
+        var valueLargerThanInitialEncryptionBuffer = new byte[RECORD_BUFFER_INITIAL_BYTES + 1];
+        Record oversizedRecord = RecordTestUtils.record(valueLargerThanInitialEncryptionBuffer);
+
+        List<Record> encryptable = List.of(smallRecord);
+        List<Record> oversized = List.of(oversizedRecord);
+
+        // When
+        // encrypt 1 record, bringing remaining encryptions on the DEK to 1
+        CompletionStage<Void> encryptFuture = doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), encryptable,
+                new ArrayList<>());
+
+        // Then
+        assertThat(encryptFuture).succeedsWithin(10, TimeUnit.SECONDS);
+
+        // And When
+        // encrypt 1 oversized record, which consumes 1 operation, fails to encrypt, retries, hits dek exhaustion, rotates dek, retries, succeeds (... phew)
+        CompletionStage<Void> encryptFuture2 = doEncrypt(encryptionManager, "topic", 1, new EncryptionScheme<>(kekId, EnumSet.of(RecordField.RECORD_VALUE)), oversized,
+                new ArrayList<>());
+
+        // And Then
+        assertThat(encryptFuture2).succeedsWithin(10, TimeUnit.SECONDS);
     }
 
     @NonNull
@@ -98,7 +185,7 @@ class InBandEncryptionManagerTest {
 
         return new InBandEncryptionManager<>(Encryption.V2,
                 dekManager.edekSerde(),
-                1024 * 1024,
+                RECORD_BUFFER_INITIAL_BYTES,
                 8 * 1024 * 1024,
                 cache,
                 new FilterThreadExecutor(executor));
