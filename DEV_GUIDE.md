@@ -334,10 +334,9 @@ has been applied ineffectively.
 * [OPTIONAL] aws cli ([install guide](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)): in case an AWS Cloud account is used for KMS.
 
 ### Environment variables
-* `KROXYLICIOUS_OPERATOR_REGISTRY`: url to the registry where the image of kroxylicious operator is located. Default value: `quay.io`
-* `KROXYLICIOUS_OPERATOR_ORG`: name of the organisation in the registry where kroxylicious operator is located. Default value: `kroxylicious`
-* `KROXYLICIOUS_OPERATOR_IMAGE_NAME`: name of the image of kroxylicious operator to be used. Default value: `operator`
+* `ARCHITECTURE`: architecture of the cluster where the test clients are deployed. Default value: `System.getProperty("os.arch")`
 * `KROXYLICIOUS_OPERATOR_VERSION`: version of kroxylicious operator to be used. Default value: `${project.version}` in pom file
+* `KROXYLICIOUS_OPERATOR_INSTALL_DIR`: directory of the operator install files. Used for operator yaml installation. Default value: `System.getProperty("user.dir") + "/../kroxylicious-operator/target/packaged/install/"`
 * `KROXYLICIOUS_IMAGE`: image location of the kroxylicious (proxy) image. Defaults to `quay.io/kroxylicious/kroxylicious:${project.version}`
 * `KAFKA_VERSION`: kafka version to be used. Default value: `${kafka.version}` in pom file
 * `STRIMZI_VERSION`: strimzi version to be used. Default value: `${strimzi.version}` in pom file
@@ -355,6 +354,7 @@ the container engine. Default value: `$HOME/.docker/config.json`
 * `AWS_SECRET_ACCESS_KEY`: secret access key of the aws account with admin permissions to be used for KMS management. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
 * `AWS_KROXYLICIOUS_ACCESS_KEY_ID`: key id of the aws account to be used for Kroxylicious config Map to encrypt/decrypt the messages. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
 * `AWS_KROXYLICIOUS_SECRET_ACCESS_KEY`: secret access key of the aws account to be used for Kroxylicious config Map to encrypt/decrypt the messages. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
+* `CURL_IMAGE`: curl image to be used in the corresponding arch for metrics tests. Default value: `mirror.gcr.io/curlimages/curl:8.13.0`
 
 ### Launch system tests
 First of all, the code must be compiled and the distribution artifacts created:
