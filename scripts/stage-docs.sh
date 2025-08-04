@@ -159,7 +159,8 @@ gh repo set-default "$(git remote get-url "${REPOSITORY}")"
 
 echo "Creating pull request to publish release documentation to website."
 # Open PR to merge branch to `main` in `kroxylicious/kroxylicious.github.io`
-BODY="Prepare ${RELEASE_TAG} release documentation for publishing to website"
+UNDERSCORED_VERSION=${RELEASE_VERSION//./_}
+BODY="Prepare ${RELEASE_TAG} release documentation for publishing to website. Remember to replace the container image SHAs in \`_data/release/${UNDERSCORED_VERSION}.yaml\` once they are available, before merging!"
 gh pr create --head "${RELEASE_DOCS_BRANCH}" \
              --base "${BRANCH_FROM}" \
              --title "Kroxylicious ${RELEASE_TAG} release documentation ${RELEASE_DATE}" \
