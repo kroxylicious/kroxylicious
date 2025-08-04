@@ -14,7 +14,9 @@ import org.assertj.core.api.AbstractByteArrayAssert;
 import org.assertj.core.api.AbstractStringAssert;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.assertj.core.api.ThrowingConsumer;
 
+@SuppressWarnings("UnusedReturnValue")
 public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
     protected HeaderAssert(Header header) {
         super(header, HeaderAssert.class);
@@ -64,6 +66,27 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
 
     public HeaderAssert hasNullValue() {
         isNotNull().value().isNull();
+        return this;
+    }
+
+    public HeaderAssert hasStringValueSatisfying(ThrowingConsumer<String> assertion) {
+        String existingDescription = descriptionText();
+        isNotNull().value()
+                .asInstanceOf(InstanceOfAssertFactories.BYTE_ARRAY)
+                .asString(StandardCharsets.UTF_8)
+                .as(existingDescription + " value")
+                .satisfies(assertion::accept);
+
+        return this;
+    }
+
+    public HeaderAssert hasByteValueSatisfying(ThrowingConsumer<byte[]> assertion) {
+        String existingDescription = descriptionText();
+        isNotNull().value()
+                .asInstanceOf(InstanceOfAssertFactories.BYTE_ARRAY)
+                .as(existingDescription + " value")
+                .satisfies(assertion::accept);
+
         return this;
     }
 

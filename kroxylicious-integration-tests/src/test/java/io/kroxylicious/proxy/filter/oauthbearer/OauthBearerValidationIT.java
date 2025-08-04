@@ -8,16 +8,21 @@ package io.kroxylicious.proxy.filter.oauthbearer;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
@@ -25,6 +30,7 @@ import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginCallbackHandler;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
+import org.assertj.core.api.InstanceOfAssertFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -43,11 +49,15 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
+import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
+import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.test.tester.SimpleMetric;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
 import io.kroxylicious.testing.kafka.common.SaslMechanism;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
+import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -80,10 +90,10 @@ class OauthBearerValidationIT {
     private static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC = "kroxylicious_payload_size_bytes_count";
     private static final Predicate<SimpleMetric> UPSTREAM_SASL_HANDSHAKE_LABELS_PREDICATE = m -> m.name().equals(KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC)
             && m.labels().entrySet().containsAll(
-                    Map.of("ApiKey", "SASL_HANDSHAKE", "flowing", "upstream").entrySet());
+            Map.of("ApiKey", "SASL_HANDSHAKE", "flowing", "upstream").entrySet());
     private static final Predicate<SimpleMetric> DOWNSTREAM_SASL_AUTHENTICATE_PREDICATE = m -> m.name().equals(KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC)
             && m.labels().entrySet().containsAll(
-                    Map.of("ApiKey", "SASL_AUTHENTICATE", "flowing", "downstream").entrySet());
+            Map.of("ApiKey", "SASL_AUTHENTICATE", "flowing", "downstream").entrySet());
     private static final String ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG = "org.apache.kafka.sasl.oauthbearer.allowed.urls";
     @SaslMechanism(value = OAuthBearerLoginModule.OAUTHBEARER_MECHANISM)
     @BrokerConfig(name = "listener.name.external.sasl.oauthbearer.jwks.endpoint.url", value = JWKS_ENDPOINT_URL)
@@ -131,7 +141,7 @@ class OauthBearerValidationIT {
     }
 
     @Test
-    void successfulAuthWithValidToken() {
+    void successfulAuthWithValidToken(Topic topic) {
         var config = getClientConfig(TOKEN_ENDPOINT_URL);
 
         try (var tester = kroxyliciousTester(getConfiguredProxyBuilder());
@@ -157,6 +167,33 @@ class OauthBearerValidationIT {
                     .get(DOUBLE)
                     .withFailMessage("Expecting proxy to have seen at the same number of authentication responses from the broker as were handshake requests")
                     .isEqualTo(saslHandshakeRequestsGoingUpCount.get());
+        }
+    }
+
+    @Test
+    void shouldProduceAndConsume(Topic topic) {
+        try (var tester = kroxyliciousTester(getConfiguredProxyBuilder());
+                var producer = tester.producer(getProducerConfig());
+                var consumer = tester.consumer(getConsumerConfig());
+        ) {
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
+                    .succeedsWithin(Duration.ofSeconds(5));
+
+            consumer.subscribe(Set.of(topic.name()));
+            var records = consumer.poll(Duration.ofSeconds(10));
+
+            assertThat(records).hasSize(1);
+            var recordHeaders = assertThat(records.records(topic.name()))
+                    .as("topic %s records", topic.name())
+                    .singleElement()
+                    .asInstanceOf(new InstanceOfAssertFactory<>(ConsumerRecord.class, KafkaAssertions::assertThat))
+                    .headers();
+
+            recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_CONTEXT_PRESENT)
+                    .hasByteValueSatisfying(val -> assertThat(val).isEqualTo(ClientAuthAwareLawyerFilter.TRUE));
+
+            recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
+                    .hasValueEqualTo("clientIdIgnore");
         }
     }
 
@@ -202,12 +239,19 @@ class OauthBearerValidationIT {
     }
 
     private ConfigurationBuilder getConfiguredProxyBuilder() {
-        NamedFilterDefinition filterDefinition = new NamedFilterDefinitionBuilder(
+        NamedFilterDefinition oauthValidationFilter = new NamedFilterDefinitionBuilder(
                 "oauth",
                 OauthBearerValidation.class.getName())
                 .withConfig("jwksEndpointUrl", JWKS_ENDPOINT_URL,
                         "expectedAudience", EXPECTED_AUDIENCE)
                 .build();
+        NamedFilterDefinition lawyer = new NamedFilterDefinitionBuilder(
+                ClientTlsAwareLawyer.class.getName(),
+                ClientTlsAwareLawyer.class.getName())
+                .build();
+
+        //        recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
+        //                .hasValueEqualTo("alice");
         return proxy(cluster)
                 .withNewManagement()
                 .withNewEndpoints()
@@ -215,11 +259,26 @@ class OauthBearerValidationIT {
                 .endPrometheus()
                 .endEndpoints()
                 .endManagement()
-                .addToFilterDefinitions(filterDefinition)
-                .addToDefaultFilters(filterDefinition.name());
+                .addToFilterDefinitions(oauthValidationFilter, lawyer)
+                .addToDefaultFilters(oauthValidationFilter.name(), lawyer.name());
     }
 
     @NonNull
+    private Map<String, Object> getProducerConfig() {
+        Map<String, Object> clientConfig = getClientConfig(OauthBearerValidationIT.TOKEN_ENDPOINT_URL);
+        clientConfig.put(CommonClientConfigs.CLIENT_ID_CONFIG, "producer");
+        return clientConfig;
+    }
+
+    @NonNull
+    private Map<String, Object> getConsumerConfig() {
+        Map<String, Object> clientConfig = getClientConfig(OauthBearerValidationIT.TOKEN_ENDPOINT_URL);
+        clientConfig.put(CommonClientConfigs.CLIENT_ID_CONFIG, "consumer");
+        clientConfig.put(ConsumerConfig.GROUP_ID_CONFIG, "my-consumer-group");
+        clientConfig.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+        return clientConfig;
+    }
+
     private Map<String, Object> getClientConfig(URI tokenEndpointUrl) {
         var oauthClientConfig = new HashMap<String, Object>();
         oauthClientConfig.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name());

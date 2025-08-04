@@ -70,7 +70,7 @@ public class OauthBearerValidationFilter
     private final OAuthBearerValidatorCallbackHandler oauthHandler;
     private @Nullable SaslServer saslServer;
     private boolean validateAuthentication = true;
-        private @Nullable String authorizationId;
+    private @Nullable String authorizationId;
 
     public OauthBearerValidationFilter(ScheduledExecutorService executorService, SharedOauthBearerValidationContext sharedContext) {
         this.executorService = executorService;
