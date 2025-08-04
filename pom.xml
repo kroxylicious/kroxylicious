@@ -47,7 +47,7 @@
         <junit.version>5.13.0</junit.version>
         <kafka.version>4.0.0</kafka.version>
         <kroxy.extension.version>0.11.0</kroxy.extension.version>
-        <log4j.version>2.24.3</log4j.version>
+        <log4j.version>2.25.1</log4j.version>
         <caffeine.version>3.2.0</caffeine.version>
         <picocli.version>4.7.7</picocli.version>
         <netty.version>4.1.123.Final</netty.version>
