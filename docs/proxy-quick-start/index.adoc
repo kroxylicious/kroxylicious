@@ -33,11 +33,20 @@ To interact with your Kafka cluster and test the proxy, you will need the Kafka 
 '''
 
 == Download and Install the Proxy
-. Download the {AppAssetZipLink}[binary distribution] from the {github-release}[GitHub release page].
+. Download the {AppAssetTgzLink}[binary distribution] from the {github-release}[GitHub release page].
++
+[source,bash,subs="attributes"]
+----
+curl -OL {AppAssetTgzLink}
+----
 . Extract the archive into your desired installation directory.
-. Ensure the `kroxylicious-start.sh` and `run-java.sh` scripts in the `+bin/+` directory are executable (`r-x`).
++
+[source,bash,subs="attributes"]
+----
+tar -zxf {AppAssetTgzFileName}
+----
 
-TIP: For Linux or macOS, you might find the {AppAssetTgzLink}[.tar.gz] format easier to work with.
+TIP: For Windows, you might find the {AppAssetZipLink}[.zip] format easier to work with.
 
 '''
 
@@ -55,8 +64,10 @@ NOTE: If your Kafka cluster uses custom ports or runs on a different machine, yo
 
 From your Kroxylicious installation directory, run the start script and point it to your configuration file.
 
-[source,bash]
+[source,bash,subs="attributes"]
 ----
+cd kroxylicious-app-{KroxyliciousVersion}
+
 ./bin/kroxylicious-start.sh --config config/example-proxy-config.yaml
 ----
 
