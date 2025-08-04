@@ -31,7 +31,7 @@ name: Promote Release
 #
 # secrets:
 # KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD - Sonatype Access User Token Password
-# KROXYLICIOUS_RELEASE_TOKEN             - GitHub PAT wih content/createPullRequest permission for Kroxylicious repo.
+# KROXYLICIOUS_RELEASE_TOKEN           - GitHub PAT, see RELEASING.md for required permissions
 #
 
 on:

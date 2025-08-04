@@ -27,7 +27,7 @@ name: Stage Release
 # variables:
 # KROXYLICIOUS_SONATYPE_TOKEN_USERNAME        - Sonatype Access User Token Username
 # secrets:
-# KROXYLICIOUS_RELEASE_TOKEN                  - GitHub PAT wih content/createPullRequest permission for Kroxylicious repo.
+# KROXYLICIOUS_RELEASE_TOKEN                  - GitHub PAT, see RELEASING.md for required permissions
 # KROXYLICIOUS_RELEASE_PRIVATE_KEY            - Private key of the project admin conducting the release
 # KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE - Passphrase used to protect the private key
 # KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD        - Sonatype Access User Token Password
