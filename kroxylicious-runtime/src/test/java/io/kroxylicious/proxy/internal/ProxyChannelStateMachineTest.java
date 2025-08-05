@@ -37,6 +37,7 @@ import org.mockito.ArgumentMatchers;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
@@ -722,6 +723,70 @@ class ProxyChannelStateMachineTest {
         // Then
     }
 
+    @ParameterizedTest
+    @MethodSource("connectedStates")
+    void shouldStartServerTimerWhenClientIsUnwritable(Runnable givenState) {
+        // Given
+        givenState.run();
+
+        // When
+        proxyChannelStateMachine.onClientUnwritable();
+
+        // Then
+        assertThat(proxyChannelStateMachine.serverBackpressureTimer)
+                .isInstanceOf(Timer.Sample.class);
+    }
+
+    @ParameterizedTest
+    @MethodSource("connectedStates")
+    void shouldStopServerTimerWhenClientIsWritable(Runnable givenState) {
+        // Given
+        givenState.run();
+        proxyChannelStateMachine.onClientUnwritable();
+
+        // When
+        proxyChannelStateMachine.onClientWritable();
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_connection_blocked").timer())
+                .isInstanceOf(Timer.class)
+                .satisfies(timer -> assertThat(timer.count()).isGreaterThanOrEqualTo(1)
+                // Count is incremented when the timer is stopped
+                );
+    }
+
+    @ParameterizedTest
+    @MethodSource("givenStates")
+    void shouldStartClientTimerWhenServerIsUnwritable(Runnable givenState) {
+        // Given
+        givenState.run();
+
+        // When
+        proxyChannelStateMachine.onServerUnwritable();
+
+        // Then
+        assertThat(proxyChannelStateMachine.clientToProxyBackpressureTimer)
+                .isInstanceOf(Timer.Sample.class);
+    }
+
+    @ParameterizedTest
+    @MethodSource("givenStates")
+    void shouldStopClientTimerWhenServerIsWritable(Runnable givenState) {
+        // Given
+        givenState.run();
+        proxyChannelStateMachine.onServerUnwritable();
+
+        // When
+        proxyChannelStateMachine.onServerWritable();
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_connection_blocked").timer())
+                .isInstanceOf(Timer.class)
+                .satisfies(timer -> assertThat(timer.count()).isGreaterThanOrEqualTo(1)
+                // Count is incremented when the timer is stopped
+                );
+    }
+
     public Stream<Arguments> clientErrorStates() {
         return Stream.of(
                 argumentSet("STARTING TLS on", (Runnable) () -> {
@@ -752,6 +817,13 @@ class ProxyChannelStateMachineTest {
                 argumentSet("HA Proxy", (Runnable) this::stateMachineInHaProxy),
                 argumentSet("Connecting", (Runnable) this::stateMachineInConnecting),
                 argumentSet("ClientActive ", (Runnable) this::stateMachineInClientActive),
+                argumentSet("Forwarding", (Runnable) this::stateMachineInForwarding),
+                argumentSet("Closed", (Runnable) this::stateMachineInClosed));
+    }
+
+    public Stream<Arguments> connectedStates() {
+        return Stream.of(
+                argumentSet("Connecting", (Runnable) this::stateMachineInConnecting),
                 argumentSet("Forwarding", (Runnable) this::stateMachineInForwarding),
                 argumentSet("Closed", (Runnable) this::stateMachineInClosed));
     }

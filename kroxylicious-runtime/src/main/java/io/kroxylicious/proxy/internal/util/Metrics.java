@@ -16,6 +16,7 @@ import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.binder.BaseUnits;
 
 import io.kroxylicious.proxy.VersionInfo;
@@ -54,6 +55,8 @@ public class Metrics {
     private static final String PROXY_TO_SERVER_ERROR_BASE_METER_NAME = "kroxylicious_proxy_to_server_errors";
     private static final String CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME = "kroxylicious_client_to_proxy_connections";
     private static final String PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME = "kroxylicious_proxy_to_server_connections";
+    private static final String PROXY_TO_SERVER_CONNECTION_BLOCKED_METER_NAME = "kroxylicious_proxy_to_server_connection_blocked";
+    private static final String CLIENT_TO_PROXY_CONNECTION_BLOCKED_METER_NAME = "kroxylicious_client_to_proxy_connection_blocked";
     private static final String SIZE_SUFFIX = "_size";
 
     /**
@@ -129,14 +132,6 @@ public class Metrics {
     @Deprecated(since = "0.13.0", forRemoval = true)
     @SuppressWarnings("java:S1133")
     public static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES = "kroxylicious_payload_size_bytes";
-
-    public static final String FLOWING_TAG = "flowing";
-
-    public static final String VIRTUAL_CLUSTER_TAG = "virtualCluster";
-
-    public static final String DOWNSTREAM = "downstream";
-
-    public static final String UPSTREAM = "upstream";
 
     private Metrics() {
         // unused
@@ -216,6 +211,18 @@ public class Metrics {
                 clusterName, nodeId);
     }
 
+    public static MeterProvider<Timer> proxyToServerBackpressureTimer(String clusterName, @Nullable Integer nodeId) {
+        return buildTimerMeterProvider(PROXY_TO_SERVER_CONNECTION_BLOCKED_METER_NAME,
+                "Timer showing how long an upstream connection from the proxy is blocked.",
+                clusterName, nodeId);
+    }
+
+    public static MeterProvider<Timer> clientToProxyBackpressureTimer(String clusterName, @Nullable Integer nodeId) {
+        return buildTimerMeterProvider(CLIENT_TO_PROXY_CONNECTION_BLOCKED_METER_NAME,
+                "Timer showing how long a downstream connection to the proxy is blocked.",
+                clusterName, nodeId);
+    }
+
     public static Counter taggedCounter(String counterName, List<Tag> tags) {
         return counter(counterName, tags);
     }
@@ -255,6 +262,18 @@ public class Metrics {
                                                                     String clusterName,
                                                                     @Nullable Integer nodeId) {
         return Counter
+                .builder(meterName)
+                .description(description)
+                .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
+                .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
+                .withRegistry(globalRegistry);
+    }
+
+    private static MeterProvider<Timer> buildTimerMeterProvider(String meterName,
+                                                                String description,
+                                                                String clusterName,
+                                                                @Nullable Integer nodeId) {
+        return Timer
                 .builder(meterName)
                 .description(description)
                 .tag(VIRTUAL_CLUSTER_LABEL, clusterName)

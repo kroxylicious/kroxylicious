@@ -18,6 +18,7 @@ import org.slf4j.Logger;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Tag;
+import io.micrometer.core.instrument.Timer;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
@@ -142,6 +143,16 @@ public class ProxyChannelStateMachine {
     private final Counter clientToProxyConnectionCounter;
     private final Counter proxyToServerConnectionCounter;
     private final Counter proxyToServerErrorCounter;
+    private final Timer proxyToServerBackpressureMeter;
+    private final Timer clientToProxyBackPressureMeter;
+
+    @VisibleForTesting
+    @Nullable
+    Timer.Sample clientToProxyBackpressureTimer;
+
+    @VisibleForTesting
+    @Nullable
+    Timer.Sample serverBackpressureTimer;
 
     @SuppressWarnings("java:S5738")
     public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
@@ -150,6 +161,8 @@ public class ProxyChannelStateMachine {
         clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
         proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
         proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
+        proxyToServerBackpressureMeter = Metrics.proxyToServerBackpressureTimer(clusterName, nodeId).withTags();
+        clientToProxyBackPressureMeter = Metrics.clientToProxyBackpressureTimer(clusterName, nodeId).withTags();
 
         // These connections metrics are deprecated and are replaced by the metrics mentioned above
         List<Tag> tags = Metrics.tags(Metrics.DEPRECATED_VIRTUAL_CLUSTER_TAG, clusterName);
@@ -228,6 +241,7 @@ public class ProxyChannelStateMachine {
     public void onClientUnwritable() {
         if (!serverReadsBlocked) {
             serverReadsBlocked = true;
+            serverBackpressureTimer = Timer.start();
             Objects.requireNonNull(backendHandler).applyBackpressure();
         }
     }
@@ -238,6 +252,9 @@ public class ProxyChannelStateMachine {
     public void onClientWritable() {
         if (serverReadsBlocked) {
             serverReadsBlocked = false;
+            if (serverBackpressureTimer != null) {
+                serverBackpressureTimer.stop(proxyToServerBackpressureMeter);
+            }
             Objects.requireNonNull(backendHandler).relieveBackpressure();
         }
     }
@@ -248,6 +265,7 @@ public class ProxyChannelStateMachine {
     public void onServerUnwritable() {
         if (!clientReadsBlocked) {
             clientReadsBlocked = true;
+            clientToProxyBackpressureTimer = Timer.start();
             Objects.requireNonNull(frontendHandler).applyBackpressure();
         }
     }
@@ -258,6 +276,9 @@ public class ProxyChannelStateMachine {
     public void onServerWritable() {
         if (clientReadsBlocked) {
             clientReadsBlocked = false;
+            if (clientToProxyBackpressureTimer != null) {
+                clientToProxyBackpressureTimer.stop(clientToProxyBackPressureMeter);
+            }
             Objects.requireNonNull(frontendHandler).relieveBackpressure();
         }
     }
@@ -429,7 +450,7 @@ public class ProxyChannelStateMachine {
      * @param cause the exception that triggered the issue
      */
     @SuppressWarnings("java:S5738")
-    void onServerException(Throwable cause) {
+    void onServerException(@Nullable Throwable cause) {
         LOGGER.atWarn()
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
                 .addArgument(cause != null ? cause.getMessage() : "")
@@ -447,7 +468,7 @@ public class ProxyChannelStateMachine {
      * @param cause the exception that triggered the issue
      */
     @SuppressWarnings("java:S5738")
-    void onClientException(Throwable cause, boolean tlsEnabled) {
+    void onClientException(@Nullable Throwable cause, boolean tlsEnabled) {
         ApiException errorCodeEx;
         if (cause instanceof DecoderException de
                 && de.getCause() instanceof FrameOversizedException e) {
@@ -595,7 +616,6 @@ public class ProxyChannelStateMachine {
         Objects.requireNonNull(frontendHandler).inSelectingServer();
     }
 
-    @SuppressWarnings("ConstantValue")
     private void toClosed(@Nullable Throwable errorCodeEx) {
         if (state instanceof Closed) {
             return;
