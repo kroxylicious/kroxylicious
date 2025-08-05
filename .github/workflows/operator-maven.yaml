@@ -58,6 +58,7 @@ jobs:
       - name: 'Set up Docker Buildx'
         uses: docker/setup-buildx-action@v3
       - name: 'Configure build environment'
+        id: build_configuration
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -65,23 +66,22 @@ jobs:
           IMAGE_TAG="dev-git-${GIT_HASH}"
           KROXYLICIOUS_VERSION="$(mvn org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)"
           KROXYLICIOUS_IMAGE="quay.io/kroxylicious/kroxylicious:${IMAGE_TAG}"
-          echo "KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION}" >> "$GITHUB_ENV"
-          # KROXYLICIOUS_IMAGE env var is used by the Operator ITs
-          echo "KROXYLICIOUS_IMAGE=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_ENV"
+          echo "kroxylicious_version=${KROXYLICIOUS_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "kroxylicious_image=${KROXYLICIOUS_IMAGE}" >> "$GITHUB_OUTPUT"
       - name: 'Build tagged Kroxylicious Operand Docker image'
         uses: docker/build-push-action@v6
         with:
           file: Dockerfile
           context: .
           build-args:
-            KROXYLICIOUS_VERSION=${{ env.KROXYLICIOUS_VERSION }}
-          tags: ${{ env.KROXYLICIOUS_IMAGE }}
+            KROXYLICIOUS_VERSION=${{ steps.build_configuration.outputs.kroxylicious_version }}
+          tags: ${{ steps.build_configuration.outputs.kroxylicious_image }}
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max,compression=zstd
           load: 'true'
       - name: 'Load Kroxylicious Operand Docker Image in Minikube'
-        run: minikube image load  ${{ env.KROXYLICIOUS_IMAGE }}
+        run: minikube image load  ${{ steps.build_configuration.outputs.kroxylicious_image }}
       - name: Cache SonarCloud packages
         uses: actions/cache@v4
         if: github.ref_name == 'main' || env.SONAR_TOKEN_SET == 'true'
@@ -98,6 +98,7 @@ jobs:
       - name: 'Build & test Kroxylicious operator'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KROXYLICIOUS_IMAGE: ${{ steps.build_configuration.outputs.kroxylicious_image }}
         run: |
           mvn -B install -Pci -Djapicmp.skip=true -pl ':kroxylicious-operator' -am
       - name: 'Build Kroxylicious maven project on main with Sonar'
@@ -105,6 +106,7 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KROXYLICIOUS_IMAGE: ${{ steps.build_configuration.outputs.kroxylicious_image }}
         run: mvn -B verify -Pci -Djapicmp.skip=true org.sonarsource.scanner.maven:sonar-maven-plugin:5.0.0.4389:sonar -Dsonar.projectKey=kroxylicious_kroxylicious  -pl ':kroxylicious-operator,:kroxylicious-parent'
       - name: Save PR number to file
         if: github.event_name == 'pull_request'
