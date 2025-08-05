@@ -39,7 +39,7 @@ To build all of Kroxylicious, including the sample:
 mvn verify -Pdist -Dquick
 ----
 
-Note that the quick flag prevents tests from running. For more instructions about working with the build, see the {github-blob-root}/DEV_GUIDE.md#build[Development Guide].
+Note that the `quick` flag prevents tests from running. For more instructions about working with the build, see the {github-blob-root}/DEV_GUIDE.md#build[Development Guide].
 
 == Run the built sample Filter in a Proxy
 
