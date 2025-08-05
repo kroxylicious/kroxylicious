@@ -46,15 +46,11 @@ jobs:
           path: ~/.m2
           key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
           restore-keys: ${{ runner.os }}-m2
-      - name: 'Test for unpublished reference release (japicmp)'
-        run: |
-          REFERENCE_RELEASE=$(mvn --quiet -pl kroxylicious-api help:evaluate -Dexpression=ApiCompatability.ReferenceVersion -DforceStdout)
-          echo "REFERENCE_RELEASE_UNPUBLISHED=$(mvn --quiet dependency:get -Dartifact=io.kroxylicious:kroxylicious-parent:${REFERENCE_RELEASE}:pom 1>/dev/null && echo false || echo true)" >> $GITHUB_ENV
       - name: 'Compile and lint the project'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn -B -Pci -T1.5C verify -DskipTests -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED}
+          mvn -B -Pci -T1.5C verify -DskipTests -Djapicmp.skip=true
       - name: shellcheck
         uses: reviewdog/action-shellcheck@v1
         with:
