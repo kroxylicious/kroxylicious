@@ -208,11 +208,11 @@ public class OauthBearerValidationFilter
     private byte[] doAuthenticate(SaslServer server, byte[] authBytes) throws SaslException {
         try {
             byte[] bytes = server.evaluateResponse(authBytes);
-            this.authorizationId = server.getAuthorizationID();
             if (!server.isComplete()) {
                 // at this step bytes would be a jsonResponseError from SASL server
                 throw new SaslAuthenticationException("SASL failed : " + new String(bytes, StandardCharsets.UTF_8));
             }
+            this.authorizationId = server.getAuthorizationID();
             return bytes;
         }
         finally {
