@@ -249,8 +249,6 @@ class OauthBearerValidationIT {
                 ClientTlsAwareLawyer.class.getName())
                 .build();
 
-        // recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
-        // .hasValueEqualTo("alice");
         return proxy(cluster)
                 .withNewManagement()
                 .withNewEndpoints()
