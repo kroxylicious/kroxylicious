@@ -1,0 +1,127 @@
+:experimental:
+:kafka-version: 4.0.0
+:kafka-image: apache/kafka:{kafka-version}
+include::_assets/attributes.adoc[]
+
+= Proxy Quick Start
+
+Get Kroxylicious, the snappy open source proxy for Apache Kafka®, up and running in minutes.
+
+'''
+
+== Prerequisites
+
+Before you begin, ensure you have the following installed and configured.
+
+* **Java 17+**
++
+Kroxylicious requires a Java Runtime Environment (JRE) version 17 or higher. To check your version, run:
++
+[source,bash]
+----
+java -version
+----
++
+NOTE: If this command fails, you may need to install a JRE or add it to your system's `PATH` variable.
+
+* **An Apache Kafka® Cluster**
++
+Kroxylicious needs a running Kafka cluster to proxy.
++
+If you don't have one already, and you have a container engine like `docker`
+or `podman` installed, then the easiest way to deploy a Kafka service is in a
+container like:
++
+[source,bash,subs="attributes"]
+----
+podman pull {kafka-image}
+podman run -p 9092:9092 {kafka-image}
+----
++
+Otherwise, the official Apache Kafka® https://kafka.apache.org/quickstart[quick start] provides further
+instructions for setting up a local cluster using the Kafka binary distribution.
+
+* **Kafka Binary Distribution**
++
+To interact with your Kafka cluster and test the proxy, you will need the Kafka command-line tools. Obtain the
+https://archive.apache.org/dist/kafka/{kafka-version}/kafka_2.13-{kafka-version}.tgz[binary distribution] from the official Apache Kafka website:
+https://kafka.apache.org/downloads[Apache Kafka Downloads].
+
+'''
+
+== Download and Install the Proxy
+. Download the {AppAssetTgzLink}[binary distribution] from the {github-release}[GitHub release page].
++
+[source,bash,subs="attributes"]
+----
+curl -OL {AppAssetTgzLink}
+----
+. Extract the archive into your desired installation directory.
++
+[source,bash,subs="attributes"]
+----
+tar -zxf {AppAssetTgzFileName}
+----
+
+TIP: For Windows, you might find the {AppAssetZipLink}[.zip] format easier to work with.
+
+'''
+
+== Configure the Proxy
+
+Kroxylicious uses a YAML file for configuration. You can define virtual clusters, specify target Kafka clusters, and enable filters.
+
+For this quick start, we'll use the example configuration file located at `+config/example-proxy-config.yaml+`. This file is pre-configured for a local Kafka cluster running on default ports.
+
+NOTE: If your Kafka cluster uses custom ports or runs on a different machine, you'll need to adjust the settings in the YAML file. See the {ProxyGuide} for more advanced configuration options.
+
+'''
+
+== Start the Proxy
+
+From your Kroxylicious installation directory, run the start script and point it to your configuration file.
+
+[source,bash,subs="attributes"]
+----
+cd kroxylicious-app-{KroxyliciousVersion}
+
+./bin/kroxylicious-start.sh --config config/example-proxy-config.yaml
+----
+
+To use a custom configuration, simply replace the file path after the `--config` flag.
+
+'''
+
+== Configure Kafka clients to connect to the proxy
+
+Finally, point your Kafka clients to the proxy's bootstrap address and send it some requests.
+
+=== Create a Topic
+
+Use the `kafka-topics.sh` client to create a topic named `my_topic` through the proxy.
+
+[source,bash]
+----
+bin/kafka-topics.sh --create --topic my_topic \
+--bootstrap-server localhost:9292
+----
+
+=== Produce a Message
+
+Send "hello world" to your new topic using the console producer.
+
+[source,bash]
+----
+echo "hello world" | bin/kafka-console-producer.sh --topic my_topic \
+--bootstrap-server localhost:9292
+----
+
+=== Consume the Message
+
+Read the message back from your topic using the console consumer.
+
+[source,bash]
+----
+bin/kafka-console-consumer.sh --topic my_topic --from-beginning \
+--bootstrap-server localhost:9292
+----

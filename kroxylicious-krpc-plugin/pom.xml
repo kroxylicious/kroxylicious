@@ -23,7 +23,7 @@
     <packaging>maven-plugin</packaging>
 
     <properties>
-        <maven-plugin-api.version>3.9.10</maven-plugin-api.version>
+        <maven-plugin-api.version>3.9.11</maven-plugin-api.version>
         <maven-plugin-annotations.version>3.15.1</maven-plugin-annotations.version>
         <plexus-build-api.version>1.2.0</plexus-build-api.version>
     </properties>

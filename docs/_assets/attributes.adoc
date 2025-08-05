@@ -32,7 +32,9 @@
 :OpenShiftVersionMinimum: 4.18
 
 :OperatorAssetZipFileName: kroxylicious-operator-{KroxyliciousVersion}.zip
+:AppAssetZipFileName: kroxylicious-app-{KroxyliciousVersion}-bin.zip
 :OperatorAssetTgzFileName: kroxylicious-operator-{KroxyliciousVersion}.tar.gz
+:AppAssetTgzFileName: kroxylicious-app-{KroxyliciousVersion}-bin.tar.gz
 
 // GitHub links
 :github: https://github.com/kroxylicious/kroxylicious
@@ -40,7 +42,11 @@
 // GitHub release links
 :github-release-base: {github}/releases
 :github-release: {github-release-base}/{KroxyliciousReleaseTag}
+:github-release-downloads: {github-release-base}/download/{KroxyliciousReleaseTag}
 :github-release-link: {github-release}[GitHub release page^]
+:AppAssetZipLink: {github-release-downloads}/{AppAssetZipFileName}
+:AppAssetTgzLink: {github-release-downloads}/{AppAssetTgzFileName}
+
 // GitHub source links
 :github-source-tree-root: {github}/tree/{KroxyliciousGitRef}
 :github-blob-root: {github}/blob/{KroxyliciousGitRef}

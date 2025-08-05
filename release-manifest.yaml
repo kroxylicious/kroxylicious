@@ -1,0 +1,34 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+releaseNotesUrl: https://github.com/kroxylicious/kroxylicious/releases/tag/v$(VERSION)/
+assetBaseUrl: https://github.com/kroxylicious/kroxylicious/releases/download/v$(VERSION)/
+assets:
+  - name: Proxy
+    description: The proxy application.
+    downloads:
+      - format: zip
+        path: kroxylicious-app-$(VERSION)-bin.zip
+      - format: tar.gz
+        path: kroxylicious-app-$(VERSION)-bin.tar.gz
+  - name: Operator
+    description: The Kubernetes operator.
+    downloads:
+      - format: zip
+        path: kroxylicious-operator-$(VERSION).zip
+      - format: tar.gz
+        path: kroxylicious-operator-$(VERSION).tar.gz
+images:
+  - name: Proxy
+    url: https://quay.io/repository/kroxylicious/kroxylicious?tab=tags
+    registry: quay.io/kroxylicious/kroxylicious
+    tag: $(VERSION)
+    digest: sha256:REPLACE_WITH_SHA_AFTER_IMAGE_RELEASE
+  - name: Operator
+    url: https://quay.io/repository/kroxylicious/operator?tab=tags
+    registry: quay.io/kroxylicious/operator
+    tag: $(VERSION)
+    digest: sha256:REPLACE_WITH_SHA_AFTER_IMAGE_RELEASE
