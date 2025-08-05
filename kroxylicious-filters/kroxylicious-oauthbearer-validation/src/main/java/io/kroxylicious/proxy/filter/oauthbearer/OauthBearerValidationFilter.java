@@ -12,6 +12,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -44,6 +45,7 @@ import io.kroxylicious.proxy.filter.SaslHandshakeRequestFilter;
 import io.kroxylicious.proxy.filter.oauthbearer.sasl.BackoffStrategy;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.apache.kafka.common.protocol.Errors.ILLEGAL_SASL_STATE;
@@ -61,6 +63,8 @@ import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModul
 public class OauthBearerValidationFilter
         implements SaslHandshakeRequestFilter, SaslAuthenticateRequestFilter,
         SaslAuthenticateResponseFilter {
+
+    private static final String UNKNOWN_AUTHORIZATION_ID = "<UNKNOWN AUTHORIZATION_ID>";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OauthBearerValidationFilter.class);
     private static final SaslAuthenticationException INVALID_SASL_STATE_EXCEPTION = new SaslAuthenticationException("invalid sasl state");
@@ -146,7 +150,12 @@ public class OauthBearerValidationFilter
                         }
                         else {
                             LOGGER.debug("SASL error : {}", e.getMessage(), e);
-                            notifyThrowable(context, e);
+                            if (e instanceof CompletionException) {
+                                notifyThrowable(context, e.getCause());
+                            }
+                            else {
+                                notifyThrowable(context, e);
+                            }
                             return context.requestFilterResultBuilder()
                                     .shortCircuitResponse(
                                             new SaslAuthenticateResponseData()
@@ -159,12 +168,12 @@ public class OauthBearerValidationFilter
         }
     }
 
-    private static void notifyThrowable(FilterContext context, Throwable e) {
+    private void notifyThrowable(FilterContext context, Throwable e) {
         if (e instanceof Exception ex) {
-            context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, null, ex);
+            context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, getAuthorizedId(), ex);
         }
         else {
-            context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, null, new RuntimeException(e));
+            context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, getAuthorizedId(), new RuntimeException(e));
         }
     }
 
@@ -173,9 +182,14 @@ public class OauthBearerValidationFilter
                                                                             SaslAuthenticateResponseData response, FilterContext context) {
         if (response.errorCode() == NONE.code()) {
             this.validateAuthentication = false;
-            context.clientSaslAuthenticationSuccess(OAUTHBEARER_MECHANISM, authorizationId != null ? authorizationId : "<UNKNOWN AUTHORIZATION_ID>");
+            context.clientSaslAuthenticationSuccess(OAUTHBEARER_MECHANISM, getAuthorizedId());
         }
         return context.forwardResponse(header, response);
+    }
+
+    @NonNull
+    private String getAuthorizedId() {
+        return authorizationId != null ? authorizationId : UNKNOWN_AUTHORIZATION_ID;
     }
 
     private CompletionStage<byte[]> authenticate(SaslServer server, byte[] authBytes) {

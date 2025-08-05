@@ -321,20 +321,12 @@ class OauthBearerValidationFilterTest {
         // given
         SaslException saslException = new SaslException("SASL failed");
         doThrow(saslException).when(saslServer).dispose();
-        byte[] givenBytes = "just_to_compare".getBytes();
-        SaslHandshakeRequestData givenHandshakeRequest = new SaslHandshakeRequestData().setMechanism(OAUTHBEARER_MECHANISM);
-        SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
         mockBuilder();
-        String digest = OauthBearerValidationFilter.createCacheKey(givenBytes);
-        when(rateLimiter.get(digest)).thenReturn(new AtomicInteger(0));
-        when(strategy.getDelay(0)).thenReturn(Duration.ZERO);
+        byte[] givenBytes = "just_to_compare".getBytes();
+        SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
+        expectValidSaslHandshake(givenBytes);
 
         // when
-        try (MockedStatic<Sasl> dummy = mockStatic(Sasl.class)) {
-            dummy.when(() -> Sasl.createSaslServer(OAUTHBEARER_MECHANISM, "kafka", null, null, oauthHandler))
-                    .thenReturn(saslServer);
-            filter.onSaslHandshakeRequest(SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenHandshakeRequest, context);
-        }
         filter.onSaslAuthenticateRequest(
                 SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
 
@@ -343,8 +335,7 @@ class OauthBearerValidationFilterTest {
             assertThat(actualResponse).isInstanceOf(SaslAuthenticateResponseData.class);
             assertEquals(UNKNOWN_SERVER_ERROR.code(), ((SaslAuthenticateResponseData) actualResponse).errorCode());
         }));
-        // TODO should this case notify the context?
-        // verify(context).clientSaslAuthenticationFailure(eq(OAUTHBEARER_MECHANISM), isNull(), eq(saslException));
+        verify(context).clientSaslAuthenticationFailure(eq(OAUTHBEARER_MECHANISM), eq("<UNKNOWN AUTHORIZATION_ID>"), eq(saslException));
     }
 
     @SuppressWarnings("unchecked")
