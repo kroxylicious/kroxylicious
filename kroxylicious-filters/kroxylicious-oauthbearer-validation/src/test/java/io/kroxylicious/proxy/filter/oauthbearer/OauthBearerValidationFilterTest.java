@@ -335,7 +335,7 @@ class OauthBearerValidationFilterTest {
             assertThat(actualResponse).isInstanceOf(SaslAuthenticateResponseData.class);
             assertEquals(UNKNOWN_SERVER_ERROR.code(), ((SaslAuthenticateResponseData) actualResponse).errorCode());
         }));
-        verify(context).clientSaslAuthenticationFailure(eq(OAUTHBEARER_MECHANISM), eq("<UNKNOWN AUTHORIZATION_ID>"), eq(saslException));
+        verify(context).clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, "<UNKNOWN AUTHORIZATION_ID>", saslException);
     }
 
     @SuppressWarnings("unchecked")
