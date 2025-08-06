@@ -254,6 +254,7 @@ public class ProxyChannelStateMachine {
             serverReadsBlocked = false;
             if (serverBackpressureTimer != null) {
                 serverBackpressureTimer.stop(proxyToServerBackpressureMeter);
+                serverBackpressureTimer = null;
             }
             Objects.requireNonNull(backendHandler).relieveBackpressure();
         }
@@ -278,6 +279,7 @@ public class ProxyChannelStateMachine {
             clientReadsBlocked = false;
             if (clientToProxyBackpressureTimer != null) {
                 clientToProxyBackpressureTimer.stop(clientToProxyBackPressureMeter);
+                clientToProxyBackpressureTimer = null;
             }
             Objects.requireNonNull(frontendHandler).relieveBackpressure();
         }

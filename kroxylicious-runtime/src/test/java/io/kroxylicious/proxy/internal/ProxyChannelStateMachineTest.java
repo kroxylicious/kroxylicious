@@ -753,6 +753,7 @@ class ProxyChannelStateMachineTest {
                 .satisfies(timer -> assertThat(timer.count()).isGreaterThanOrEqualTo(1)
                 // Count is incremented when the timer is stopped
                 );
+        assertThat(proxyChannelStateMachine.serverBackpressureTimer).isNull();
     }
 
     @ParameterizedTest
@@ -785,6 +786,7 @@ class ProxyChannelStateMachineTest {
                 .satisfies(timer -> assertThat(timer.count()).isGreaterThanOrEqualTo(1)
                 // Count is incremented when the timer is stopped
                 );
+        assertThat(proxyChannelStateMachine.clientToProxyBackpressureTimer).isNull();
     }
 
     public Stream<Arguments> clientErrorStates() {
