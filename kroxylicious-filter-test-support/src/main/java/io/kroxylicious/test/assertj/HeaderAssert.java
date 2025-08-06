@@ -31,12 +31,14 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
         return new HeaderAssert(actual);
     }
 
+    @SuppressWarnings("java:S1452")
     private AbstractStringAssert<?> key() {
         var existingDescription = descriptionText();
         return Assertions.assertThat(actual.key())
                 .describedAs("%s %s", existingDescription, KEY_SUFFIX);
     }
 
+    @SuppressWarnings("java:S1452")
     public AbstractByteArrayAssert<?> value() {
         var existingDescription = descriptionText();
         return Assertions.assertThat(actual.value())
