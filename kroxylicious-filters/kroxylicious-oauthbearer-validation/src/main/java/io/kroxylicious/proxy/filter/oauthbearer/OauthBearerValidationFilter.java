@@ -107,7 +107,7 @@ public class OauthBearerValidationFilter
         }
         catch (SaslException e) {
             LOGGER.debug("SASL error : {}", e.getMessage(), e);
-            context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, null, e);
+            notifyThrowable(context, e);
             return context.requestFilterResultBuilder()
                     .shortCircuitResponse(new SaslHandshakeResponseData().setErrorCode(UNKNOWN_SERVER_ERROR.code()))
                     .withCloseConnection()
@@ -131,7 +131,7 @@ public class OauthBearerValidationFilter
                         .setErrorMessage("Unexpected SASL request")
                         .setAuthBytes(request.authBytes());
                 LOGGER.debug("SASL invalid state");
-                context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, null, INVALID_SASL_STATE_EXCEPTION);
+                notifyThrowable(context, INVALID_SASL_STATE_EXCEPTION);
                 return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
             }
             this.saslServer = null;
@@ -145,7 +145,7 @@ public class OauthBearerValidationFilter
                                     .setErrorMessage(e.getMessage())
                                     .setAuthBytes(request.authBytes());
                             LOGGER.debug("SASL Authentication failed : {}", e.getMessage(), e);
-                            context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, null, cause);
+                            notifyThrowable(context, cause);
                             return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
                         }
                         else {
@@ -170,10 +170,10 @@ public class OauthBearerValidationFilter
 
     private void notifyThrowable(FilterContext context, Throwable e) {
         if (e instanceof Exception ex) {
-            context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, getAuthorizedId(), ex);
+            context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, authorizationId, ex);
         }
         else {
-            context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, getAuthorizedId(), new RuntimeException(e));
+            context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, authorizationId, new RuntimeException(e));
         }
     }
 
