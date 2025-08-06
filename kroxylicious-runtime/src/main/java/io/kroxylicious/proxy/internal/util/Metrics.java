@@ -213,13 +213,13 @@ public class Metrics {
 
     public static MeterProvider<Timer> proxyToServerBackpressureTimer(String clusterName, @Nullable Integer nodeId) {
         return buildTimerMeterProvider(PROXY_TO_SERVER_CONNECTION_BLOCKED_METER_NAME,
-                "Timer showing how long an upstream connection from the proxy is blocked.",
+                "Timer showing how long an upstream connection from the proxy is prevented from accepting writes because the downstream connection is unwriteable.",
                 clusterName, nodeId);
     }
 
     public static MeterProvider<Timer> clientToProxyBackpressureTimer(String clusterName, @Nullable Integer nodeId) {
         return buildTimerMeterProvider(CLIENT_TO_PROXY_CONNECTION_BLOCKED_METER_NAME,
-                "Timer showing how long a downstream connection to the proxy is blocked.",
+                "Timer showing how long a downstream connection to the proxy is prevented from accepting writes because the upstream connection is unwriteable.",
                 clusterName, nodeId);
     }
 
