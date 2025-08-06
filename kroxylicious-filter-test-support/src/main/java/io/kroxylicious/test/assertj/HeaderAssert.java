@@ -19,8 +19,8 @@ import org.assertj.core.api.ThrowingConsumer;
 @SuppressWarnings("UnusedReturnValue")
 public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
 
-    private static final String VALUE_SUFFIX = " value";
-    private static final String KEY_SUFFIX = " key";
+    private static final String VALUE_SUFFIX = "value";
+    private static final String KEY_SUFFIX = "key";
 
     protected HeaderAssert(Header header) {
         super(header, HeaderAssert.class);
@@ -34,13 +34,13 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
     private AbstractStringAssert<?> key() {
         var existingDescription = descriptionText();
         return Assertions.assertThat(actual.key())
-                .describedAs(existingDescription + KEY_SUFFIX);
+                .describedAs("%s %s", existingDescription, KEY_SUFFIX);
     }
 
     public AbstractByteArrayAssert<?> value() {
         var existingDescription = descriptionText();
         return Assertions.assertThat(actual.value())
-                .describedAs(existingDescription + VALUE_SUFFIX);
+                .describedAs("%s %s", existingDescription, VALUE_SUFFIX);
     }
 
     public HeaderAssert hasKeyEqualTo(String expected) {
@@ -73,7 +73,7 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
         isNotNull().value()
                 .asInstanceOf(InstanceOfAssertFactories.BYTE_ARRAY)
                 .asString(StandardCharsets.UTF_8)
-                .as(existingDescription + VALUE_SUFFIX)
+                .as("%s %s", existingDescription, VALUE_SUFFIX)
                 .satisfies(assertion::accept);
 
         return this;
@@ -83,7 +83,7 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
         String existingDescription = descriptionText();
         isNotNull().value()
                 .asInstanceOf(InstanceOfAssertFactories.BYTE_ARRAY)
-                .as(existingDescription + VALUE_SUFFIX)
+                .as("%s %s", existingDescription, VALUE_SUFFIX)
                 .satisfies(assertion::accept);
 
         return this;
