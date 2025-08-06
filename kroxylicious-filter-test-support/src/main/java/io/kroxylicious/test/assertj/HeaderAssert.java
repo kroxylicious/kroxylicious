@@ -21,6 +21,7 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
 
     private static final String VALUE_SUFFIX = "value";
     private static final String KEY_SUFFIX = "key";
+    public static final String DESCRIBED_AS_PATTERN = "%s %s";
 
     protected HeaderAssert(Header header) {
         super(header, HeaderAssert.class);
@@ -35,14 +36,14 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
     private AbstractStringAssert<?> key() {
         var existingDescription = descriptionText();
         return Assertions.assertThat(actual.key())
-                .describedAs("%s %s", existingDescription, KEY_SUFFIX);
+                .describedAs(DESCRIBED_AS_PATTERN, existingDescription, KEY_SUFFIX);
     }
 
     @SuppressWarnings("java:S1452")
     public AbstractByteArrayAssert<?> value() {
         var existingDescription = descriptionText();
         return Assertions.assertThat(actual.value())
-                .describedAs("%s %s", existingDescription, VALUE_SUFFIX);
+                .describedAs(DESCRIBED_AS_PATTERN, existingDescription, VALUE_SUFFIX);
     }
 
     public HeaderAssert hasKeyEqualTo(String expected) {
@@ -75,7 +76,7 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
         isNotNull().value()
                 .asInstanceOf(InstanceOfAssertFactories.BYTE_ARRAY)
                 .asString(StandardCharsets.UTF_8)
-                .as("%s %s", existingDescription, VALUE_SUFFIX)
+                .as(DESCRIBED_AS_PATTERN, existingDescription, VALUE_SUFFIX)
                 .satisfies(assertion::accept);
 
         return this;
@@ -85,7 +86,7 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
         String existingDescription = descriptionText();
         isNotNull().value()
                 .asInstanceOf(InstanceOfAssertFactories.BYTE_ARRAY)
-                .as("%s %s", existingDescription, VALUE_SUFFIX)
+                .as(DESCRIBED_AS_PATTERN, existingDescription, VALUE_SUFFIX)
                 .satisfies(assertion::accept);
 
         return this;
