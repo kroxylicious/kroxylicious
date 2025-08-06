@@ -11,6 +11,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
@@ -45,7 +46,6 @@ import io.kroxylicious.proxy.filter.SaslHandshakeRequestFilter;
 import io.kroxylicious.proxy.filter.oauthbearer.sasl.BackoffStrategy;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.apache.kafka.common.protocol.Errors.ILLEGAL_SASL_STATE;
@@ -63,8 +63,6 @@ import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModul
 public class OauthBearerValidationFilter
         implements SaslHandshakeRequestFilter, SaslAuthenticateRequestFilter,
         SaslAuthenticateResponseFilter {
-
-    private static final String UNKNOWN_AUTHORIZATION_ID = "<UNKNOWN AUTHORIZATION_ID>";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OauthBearerValidationFilter.class);
     private static final SaslAuthenticationException INVALID_SASL_STATE_EXCEPTION = new SaslAuthenticationException("invalid sasl state");
@@ -182,14 +180,9 @@ public class OauthBearerValidationFilter
                                                                             SaslAuthenticateResponseData response, FilterContext context) {
         if (response.errorCode() == NONE.code()) {
             this.validateAuthentication = false;
-            context.clientSaslAuthenticationSuccess(OAUTHBEARER_MECHANISM, getAuthorizedId());
+            context.clientSaslAuthenticationSuccess(OAUTHBEARER_MECHANISM, Objects.requireNonNull(authorizationId));
         }
         return context.forwardResponse(header, response);
-    }
-
-    @NonNull
-    private String getAuthorizedId() {
-        return authorizationId != null ? authorizationId : UNKNOWN_AUTHORIZATION_ID;
     }
 
     private CompletionStage<byte[]> authenticate(SaslServer server, byte[] authBytes) {

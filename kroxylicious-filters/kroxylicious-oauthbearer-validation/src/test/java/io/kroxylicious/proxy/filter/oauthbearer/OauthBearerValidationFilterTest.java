@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.filter.oauthbearer;
 
+import java.nio.charset.StandardCharsets;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.concurrent.ScheduledExecutorService;
@@ -46,7 +47,6 @@ import static org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModul
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.eq;
@@ -64,6 +64,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class OauthBearerValidationFilterTest {
 
+    public static final String AUTHORIZED_ID = "authorized_id";
     @Mock(strictness = LENIENT)
     private FilterContext context;
 
@@ -174,7 +175,8 @@ class OauthBearerValidationFilterTest {
     }
 
     @Test
-    void mustLetPassWhenAlreadyAuthenticated() {
+    void mustLetPassWhenAlreadyAuthenticated() throws NoSuchAlgorithmException {
+        stubInitialAuthentication();
         byte[] givenBytes = "just_to_compare".getBytes();
         SaslAuthenticateResponseData givenAuthenticateResponse = new SaslAuthenticateResponseData().setAuthBytes(givenBytes);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
@@ -184,8 +186,15 @@ class OauthBearerValidationFilterTest {
 
         verify(context).forwardResponse(any(ResponseHeaderData.class), eq(givenAuthenticateResponse));
         verify(context).forwardRequest(any(RequestHeaderData.class), eq(givenAuthenticateRequest));
-        verify(context).clientSaslAuthenticationSuccess(eq(OAUTHBEARER_MECHANISM), anyString());
-        verifyNoInteractions(executor, rateLimiter, strategy);
+        verify(context).clientSaslAuthenticationSuccess(OAUTHBEARER_MECHANISM, AUTHORIZED_ID);
+    }
+
+    private void stubInitialAuthentication() throws NoSuchAlgorithmException {
+        byte[] authBytes = "initialBytes".getBytes(StandardCharsets.UTF_8);
+        expectValidSaslHandshake(authBytes);
+        when(saslServer.getAuthorizationID()).thenReturn(AUTHORIZED_ID);
+        filter.onSaslAuthenticateRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), new SaslAuthenticateRequestData().setAuthBytes(
+                authBytes), context);
     }
 
     @Test
@@ -194,6 +203,7 @@ class OauthBearerValidationFilterTest {
         SaslAuthenticateResponseData givenAuthenticateResponse = new SaslAuthenticateResponseData().setAuthBytes(givenBytes);
         SaslAuthenticateRequestData givenAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(givenBytes);
         expectValidSaslHandshake(givenBytes);
+        when(saslServer.getAuthorizationID()).thenReturn(AUTHORIZED_ID);
         filter.onSaslAuthenticateRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION, new RequestHeaderData(), givenAuthenticateRequest, context);
 
         // When
@@ -201,7 +211,7 @@ class OauthBearerValidationFilterTest {
 
         verify(context).forwardResponse(any(ResponseHeaderData.class), eq(givenAuthenticateResponse));
         verify(context).forwardRequest(any(RequestHeaderData.class), eq(givenAuthenticateRequest));
-        verify(context).clientSaslAuthenticationSuccess(eq(OAUTHBEARER_MECHANISM), anyString());
+        verify(context).clientSaslAuthenticationSuccess(OAUTHBEARER_MECHANISM, AUTHORIZED_ID);
     }
 
     @Test
