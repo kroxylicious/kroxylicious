@@ -40,7 +40,7 @@ RUN set -ex; \
 COPY . .
 RUN mvn -q -B clean package -Pdist -Dquick -DskipDocker=true -DskipDocs=true
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6-1754356396
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6-1754456323
 
 ARG JAVA_VERSION=17
 ARG KROXYLICIOUS_VERSION
