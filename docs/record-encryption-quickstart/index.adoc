@@ -22,7 +22,7 @@ You'll be encrypting in a snap!
 * Verify that the records are encrypted on the broker.
 
 WARNING: You *really don't* want to use this quickstart to deploy an environment that will be used in *production*.
-The quickstart deliberately keeps things quick and simple... there's no authentication, no TLS, no redundancy... Development purposes only - please!.
+The quickstart deliberately keeps things quick and simple... there's no authentication, no TLS, no redundancy... Development purposes only - please!
 Refer to the documentation for Kroxylicious, Strimzi and your KMS for production best practices.
 
 == Before you begin
@@ -63,8 +63,8 @@ You also need to enable the Transit Secrets Engine in Vault.
 kubectl exec -n vault statefulsets/vault -- vault secrets enable transit
 ----
 
-==== AWS Local Stack
-[LocalStack](https://localstack.cloud/) is a cloud service emulator that runs in a single container on your laptop or in your CI environment. 
+==== AWS LocalStack
+https://localstack.cloud/[LocalStack] is an AWS cloud service emulator that runs in a single container on your laptop or in your CI environment.
 It's intended for developing and testing cloud & Serverless apps offline.
 [source,shell]
 ----
@@ -74,7 +74,7 @@ helm upgrade --install localstack localstack-repo/localstack --namespace localst
 
 === Install the Strimzi Operator
 
-We are going to use Strimzi to deploy the Kafka Cluster that will be proxied.
+We are going to use https://strimzi.io/[Strimzi] to deploy the Kafka Cluster that will be proxied.
 Let's install Strimzi next:
 
 [source,shell]
@@ -82,6 +82,7 @@ Let's install Strimzi next:
 kubectl apply -f https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.47.0/strimzi-cluster-operator-0.47.0.yaml
 ----
 
+[#install_the_operator]
 === Install the Kroxylicious Operator
 
 First, create a temporary directory for some working files.  We use a directory called `ko-install` beneath `/tmp`, but you can use any name and location you like.
@@ -102,6 +103,7 @@ kubectl apply -f install
 kubectl wait --namespace kroxylicious-operator deployment/kroxylicious-operator --for=condition=Available=True --timeout=300s
 ----
 
+[#deploy_the_cluster]
 == Deploy the Kafka Cluster
 
 Now we need a Kafka Cluster.
@@ -122,13 +124,13 @@ We'll need the boostrap server address of the cluster later, so let's assign a v
 DIRECT_CLUSTER_BOOTSTRAP_SERVERS=$(kubectl get -n kafka kafka my-cluster -o=jsonpath='{.status.listeners[0].bootstrapServers}')
 ----
 
-
+[#deploy_the_proxy]
 == Deploy the Proxy with Record Encryption
 
-Next, we'll deploy a Kroxylicious proxy instance using the record encryption example included in the install zip you download above.
+Next, we'll deploy a Kroxylicious proxy instance using the record encryption example included in the install zip you downloaded when you <<install_the_operator,installed the operator>>
 
-It will create an instance of Kroxylicious that will proxy the kafka cluster you created a above, and configure it to
-apply the Record Encryption filter to encrypt as records are sent by producers and decrypt them as records get fetched by consumers.
+It will create an instance of Kroxylicious that will proxy the kafka cluster you <<deploy_the_cluster,created above>>.
+It will configure it to use the Record Encryption filter to encrypt as records are sent by producers and decrypt them as records get fetched by consumers.
 The proxy will be created the `my-proxy` namespace
 
 [source,shell]
@@ -189,6 +191,7 @@ KEY_ID=$(kubectl -n localstack exec deployments/localstack --  awslocal kms crea
 kubectl -n localstack exec deployments/localstack -- awslocal kms create-alias --alias-name alias/KEK_trades --target-key-id ${KEY_ID}
 ----
 
+[#produce_some_messages]
 == Produce some messages
 
 Now let's use Kafka's console producer CLI to send a few records to a topic called `trades`.
@@ -204,7 +207,7 @@ echo 'IBM:100\nAPPLE:99' | kubectl run -n my-proxy -qi proxy-producer --image=qu
 == Consume the messages
 
 Now let's use Kafka's console consumer to fetch the records.
-You'll see the two records we sent above.
+You'll see the two records we <<produce_some_messages,sent above>>.
 The Record Encryption filter will decrypt the records before they reach consumer, but this is completely transparent to the console consumer.
 
 [source,shell]
@@ -254,5 +257,7 @@ helm uninstall -n vault vault --ignore-not-found
 
 == What next?
 
-Learn more about Record Encryption by referring to the document.
-You are also welcome to come talk to us about it.  Find us in slack or start a Github Discussion.
+Learn more from the {RecordEncryptionGuide} and from the {OperatorGuide}
+
+You are also welcome to come talk to us.
+Chat with us in {slack} or start a {github-discussions}[Github Discussion].
