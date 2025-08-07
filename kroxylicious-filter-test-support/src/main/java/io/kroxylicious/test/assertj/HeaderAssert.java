@@ -14,8 +14,15 @@ import org.assertj.core.api.AbstractByteArrayAssert;
 import org.assertj.core.api.AbstractStringAssert;
 import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.assertj.core.api.ThrowingConsumer;
 
+@SuppressWarnings("UnusedReturnValue")
 public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
+
+    private static final String VALUE_SUFFIX = "value";
+    private static final String KEY_SUFFIX = "key";
+    public static final String DESCRIBED_AS_PATTERN = "%s %s";
+
     protected HeaderAssert(Header header) {
         super(header, HeaderAssert.class);
         describedAs(header == null ? "null header" : "header");
@@ -25,16 +32,18 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
         return new HeaderAssert(actual);
     }
 
+    @SuppressWarnings("java:S1452")
     private AbstractStringAssert<?> key() {
         var existingDescription = descriptionText();
         return Assertions.assertThat(actual.key())
-                .describedAs(existingDescription + " key");
+                .describedAs(DESCRIBED_AS_PATTERN, existingDescription, KEY_SUFFIX);
     }
 
+    @SuppressWarnings("java:S1452")
     public AbstractByteArrayAssert<?> value() {
         var existingDescription = descriptionText();
         return Assertions.assertThat(actual.value())
-                .describedAs(existingDescription + " value");
+                .describedAs(DESCRIBED_AS_PATTERN, existingDescription, VALUE_SUFFIX);
     }
 
     public HeaderAssert hasKeyEqualTo(String expected) {
@@ -47,23 +56,39 @@ public class HeaderAssert extends AbstractAssert<HeaderAssert, Header> {
             isNotNull().value().isNull();
         }
         else {
-            String existingDescription = descriptionText();
-            isNotNull().value()
-                    .asInstanceOf(InstanceOfAssertFactories.BYTE_ARRAY)
-                    .asString(StandardCharsets.UTF_8)
-                    .as(existingDescription + " value")
-                    .isEqualTo(expected);
+            hasStringValueSatisfying(val -> Assertions.assertThat(val).isEqualTo(expected));
         }
         return this;
     }
 
     public HeaderAssert hasValueEqualTo(byte[] expected) {
-        isNotNull().value().isEqualTo(expected);
+        hasByteValueSatisfying(val -> Assertions.assertThat(val).isEqualTo(expected));
         return this;
     }
 
     public HeaderAssert hasNullValue() {
         isNotNull().value().isNull();
+        return this;
+    }
+
+    public HeaderAssert hasStringValueSatisfying(ThrowingConsumer<String> assertion) {
+        String existingDescription = descriptionText();
+        isNotNull().value()
+                .asInstanceOf(InstanceOfAssertFactories.BYTE_ARRAY)
+                .asString(StandardCharsets.UTF_8)
+                .as(DESCRIBED_AS_PATTERN, existingDescription, VALUE_SUFFIX)
+                .satisfies(assertion::accept);
+
+        return this;
+    }
+
+    public HeaderAssert hasByteValueSatisfying(ThrowingConsumer<byte[]> assertion) {
+        String existingDescription = descriptionText();
+        isNotNull().value()
+                .asInstanceOf(InstanceOfAssertFactories.BYTE_ARRAY)
+                .as(DESCRIBED_AS_PATTERN, existingDescription, VALUE_SUFFIX)
+                .satisfies(assertion::accept);
+
         return this;
     }
 

@@ -11,7 +11,9 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.HexFormat;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -63,13 +65,14 @@ public class OauthBearerValidationFilter
         SaslAuthenticateResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(OauthBearerValidationFilter.class);
-
+    private static final SaslAuthenticationException INVALID_SASL_STATE_EXCEPTION = new SaslAuthenticationException("invalid sasl state");
     private final ScheduledExecutorService executorService;
     private final BackoffStrategy strategy;
     private final LoadingCache<String, AtomicInteger> rateLimiter;
     private final OAuthBearerValidatorCallbackHandler oauthHandler;
     private @Nullable SaslServer saslServer;
     private boolean validateAuthentication = true;
+    private @Nullable String authorizationId;
 
     public OauthBearerValidationFilter(ScheduledExecutorService executorService, SharedOauthBearerValidationContext sharedContext) {
         this.executorService = executorService;
@@ -102,6 +105,7 @@ public class OauthBearerValidationFilter
         }
         catch (SaslException e) {
             LOGGER.debug("SASL error : {}", e.getMessage(), e);
+            notifyThrowable(context, e);
             return context.requestFilterResultBuilder()
                     .shortCircuitResponse(new SaslHandshakeResponseData().setErrorCode(UNKNOWN_SERVER_ERROR.code()))
                     .withCloseConnection()
@@ -125,6 +129,7 @@ public class OauthBearerValidationFilter
                         .setErrorMessage("Unexpected SASL request")
                         .setAuthBytes(request.authBytes());
                 LOGGER.debug("SASL invalid state");
+                notifyThrowable(context, INVALID_SASL_STATE_EXCEPTION);
                 return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
             }
             this.saslServer = null;
@@ -132,16 +137,23 @@ public class OauthBearerValidationFilter
             return authenticate(server, request.authBytes())
                     .thenCompose(bytes -> context.forwardRequest(header, request))
                     .exceptionallyCompose(e -> {
-                        if (e.getCause() instanceof SaslAuthenticationException) {
+                        if (e.getCause() instanceof SaslAuthenticationException cause) {
                             SaslAuthenticateResponseData failedResponse = new SaslAuthenticateResponseData()
                                     .setErrorCode(SASL_AUTHENTICATION_FAILED.code())
                                     .setErrorMessage(e.getMessage())
                                     .setAuthBytes(request.authBytes());
                             LOGGER.debug("SASL Authentication failed : {}", e.getMessage(), e);
+                            notifyThrowable(context, cause);
                             return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
                         }
                         else {
                             LOGGER.debug("SASL error : {}", e.getMessage(), e);
+                            if (e instanceof CompletionException) {
+                                notifyThrowable(context, e.getCause());
+                            }
+                            else {
+                                notifyThrowable(context, e);
+                            }
                             return context.requestFilterResultBuilder()
                                     .shortCircuitResponse(
                                             new SaslAuthenticateResponseData()
@@ -154,11 +166,21 @@ public class OauthBearerValidationFilter
         }
     }
 
+    private void notifyThrowable(FilterContext context, Throwable e) {
+        if (e instanceof Exception ex) {
+            context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, authorizationId, ex);
+        }
+        else {
+            context.clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, authorizationId, new RuntimeException(e));
+        }
+    }
+
     @Override
     public CompletionStage<ResponseFilterResult> onSaslAuthenticateResponse(short apiVersion, ResponseHeaderData header,
                                                                             SaslAuthenticateResponseData response, FilterContext context) {
         if (response.errorCode() == NONE.code()) {
             this.validateAuthentication = false;
+            context.clientSaslAuthenticationSuccess(OAUTHBEARER_MECHANISM, Objects.requireNonNull(authorizationId));
         }
         return context.forwardResponse(header, response);
     }
@@ -197,6 +219,7 @@ public class OauthBearerValidationFilter
                 // at this step bytes would be a jsonResponseError from SASL server
                 throw new SaslAuthenticationException("SASL failed : " + new String(bytes, StandardCharsets.UTF_8));
             }
+            this.authorizationId = server.getAuthorizationID();
             return bytes;
         }
         finally {
