@@ -16,7 +16,7 @@ You'll be encrypting in a snap!
 == Objectives
 
 * Deploy a Kafka Cluster to a Kubernetes cluster.
-* Deploy a Key Management Service (KMS) - we'll show you how with either HashiCorp Vault or AWS Localstack.
+* Deploy a Key Management Service (KMS) - we'll show you how, with either HashiCorp Vault or AWS Localstack.
 * Deploy Kroxylicious and configure it to proxy the cluster and apply Record Encryption.
 * Produce/consume records to Kafka via the proxy demonstrating the transparent encryption.
 * Verify that the records are encrypted on the broker.
@@ -27,7 +27,7 @@ Refer to the documentation for Kroxylicious, Strimzi and your KMS for production
 
 == Before you begin
 
-You'll need the following a developer machine with the following software installed.
+You'll need the following software installed:
 
 * https://minikube.sigs.k8s.io/docs/start[Minikube]
 * https://helm.sh/docs/intro/install/[Helm]
@@ -64,7 +64,8 @@ kubectl exec -n vault statefulsets/vault -- vault secrets enable transit
 ----
 
 ==== AWS Local Stack
-
+[LocalStack](https://localstack.cloud/) is a cloud service emulator that runs in a single container on your laptop or in your CI environment. 
+It's intended for developing and testing cloud & Serverless apps offline.
 [source,shell]
 ----
 helm repo add --force-update localstack-repo https://helm.localstack.cloud
@@ -128,7 +129,7 @@ DIRECT_CLUSTER_BOOTSTRAP_SERVERS=$(kubectl get -n kafka kafka my-cluster -o=json
 Next, we'll deploy a Kroxylicious proxy instance using the record encryption example included in the install zip you download above.
 
 It will create an instance of Kroxylicious that will proxy the kafka cluster you created a above, and configure it to
-apply the Record Encryption filter to encrypt as they are sent by producers and decrypt them as they get fetched by consumers.
+apply the Record Encryption filter to encrypt as records are sent by producers and decrypt them as records get fetched by consumers.
 The proxy will be created the `my-proxy` namespace
 
 [source,shell]
@@ -193,7 +194,8 @@ kubectl -n localstack exec deployments/localstack -- awslocal kms create-alias -
 
 Now let's use Kafka's console producer CLI to send a few records to a topic called `trades`.
 The Record Encryption filter will encrypt the records before they reach broker, but this is completely transparent to the console producer.
-Ignore the warning about the UNKNOWN_TOPIC_OR_PARTITION, the topic will be created automatically.
+
+NOTE: You can safely ignore the warning about the UNKNOWN_TOPIC_OR_PARTITION, the topic will be created automatically.
 
 [source,shell]
 ----
@@ -213,7 +215,10 @@ kubectl run -n my-proxy -qi proxy-consumer --image=quay.io/strimzi/kafka:0.47.0-
 
 == Verify that the records are encrypted on the broker
 
-You want to see that the records are truly encrypted on the broker, right.  Let's use the console consumer again,
+Consuming the same records we wrote is a bit underwhelming! 
+And, in fact, it's what we'd expect to see with a vanilla, unproxied, Kafka cluster.
+So how do we know the records really encrypted on the broker?  
+Let's use the console consumer again,
 but this time we'll consume straight from the Kafka cluster, bypassing the proxy.
 We'll get back the records, but they'll contain ciphertext, rather than the plaintext.
 
