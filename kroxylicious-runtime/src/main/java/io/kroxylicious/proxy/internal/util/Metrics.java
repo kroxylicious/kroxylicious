@@ -213,13 +213,13 @@ public class Metrics {
 
     public static MeterProvider<Timer> serverToProxyBackpressureTimer(String clusterName, @Nullable Integer nodeId) {
         return buildTimerMeterProvider(KROXYLICIOUS_SERVER_TO_PROXY_READS_PAUSED_NAME,
-                "Timer showing how long an proxy has paused reading from a upstream connection because the downstream connection is unwriteable",
+                "Timer showing how long a proxy has paused reading from a upstream connection because the downstream connection is unwriteable",
                 clusterName, nodeId);
     }
 
     public static MeterProvider<Timer> clientToProxyBackpressureTimer(String clusterName, @Nullable Integer nodeId) {
         return buildTimerMeterProvider(KROXYLICIOUS_CLIENT_TO_PROXY_READS_PAUSED_NAME,
-                "Timer showing how long an proxy has paused reading from a downstream connection because the upstream connection is unwriteable",
+                "Timer showing how long a proxy has paused reading from a downstream connection because the upstream connection is unwriteable",
                 clusterName, nodeId);
     }
 
