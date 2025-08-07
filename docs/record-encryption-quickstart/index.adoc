@@ -79,8 +79,7 @@ Let's install Strimzi next:
 
 [source,shell]
 ----
-helm repo add --force-update strimzi https://strimzi.io/charts/
-helm upgrade --install strimzi-operator strimzi/strimzi-kafka-operator --namespace kafka --create-namespace --version 0.47.0
+kubectl apply -f https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.47.0/strimzi-cluster-operator-0.47.0.yaml
 ----
 
 === Install the Kroxylicious Operator
@@ -164,7 +163,7 @@ We'll use this later when to produce and consumer records through the proxy.
 [source,shell]
 ----
 kubectl wait -n my-proxy virtualkafkacluster my-cluster --for=jsonpath='{.status.ingresses[0].bootstrapServer}'
-PROXIED_CLUSTER_BOOTSTRAP_SERVER=$(oc get -n my-proxy virtualkafkacluster my-cluster -o=jsonpath='{.status.ingresses[0].bootstrapServer}')
+PROXIED_CLUSTER_BOOTSTRAP_SERVER=$(kubectl get -n my-proxy virtualkafkacluster my-cluster -o=jsonpath='{.status.ingresses[0].bootstrapServer}')
 ----
 
 == Create an encryption key in the KMS
@@ -227,7 +226,7 @@ We'll get back the records, but they'll contain ciphertext, rather than the plai
 kubectl run -n kafka -qi cluster-consumer --image=quay.io/strimzi/kafka:0.47.0-kafka-4.0.0 --rm=true --restart=Never -- ./bin/kafka-console-consumer.sh  --bootstrap-server ${DIRECT_CLUSTER_BOOTSTRAP_SERVERS} --topic trades --from-beginning --timeout-ms 10000
 ----
 
-= Cleaning up
+== Cleaning up
 
 To clean up, remove the proxy and the kafka cluster
 
@@ -244,16 +243,16 @@ Remove the Kroxylicious Operator.
 kubectl delete -f install
 ----
 
-Use Helm to uninstall the remaining operators:
+And finally the other Operators.
 
 [source,shell]
 ----
-helm uninstall -n kafka strimzi-operator --ignore-not-found
+kubectl delete -f https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.47.0/strimzi-cluster-operator-0.47.0.yaml
 helm uninstall -n localstack localstack --ignore-not-found
 helm uninstall -n vault vault --ignore-not-found
 ----
 
-= What next?
+== What next?
 
-Learn more about Record Encryption by referring to the the document.
+Learn more about Record Encryption by referring to the document.
 You are also welcome to come talk to us about it.  Find us in slack or start a Github Discussion.
