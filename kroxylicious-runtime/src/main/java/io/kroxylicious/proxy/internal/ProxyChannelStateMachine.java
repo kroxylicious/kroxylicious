@@ -143,7 +143,7 @@ public class ProxyChannelStateMachine {
     private final Counter clientToProxyConnectionCounter;
     private final Counter proxyToServerConnectionCounter;
     private final Counter proxyToServerErrorCounter;
-    private final Timer proxyToServerBackpressureMeter;
+    private final Timer serverToProxyBackpressureMeter;
     private final Timer clientToProxyBackPressureMeter;
 
     @VisibleForTesting
@@ -161,7 +161,7 @@ public class ProxyChannelStateMachine {
         clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
         proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
         proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
-        proxyToServerBackpressureMeter = Metrics.proxyToServerBackpressureTimer(clusterName, nodeId).withTags();
+        serverToProxyBackpressureMeter = Metrics.serverToProxyBackpressureTimer(clusterName, nodeId).withTags();
         clientToProxyBackPressureMeter = Metrics.clientToProxyBackpressureTimer(clusterName, nodeId).withTags();
 
         // These connections metrics are deprecated and are replaced by the metrics mentioned above
@@ -253,7 +253,7 @@ public class ProxyChannelStateMachine {
         if (serverReadsBlocked) {
             serverReadsBlocked = false;
             if (serverBackpressureTimer != null) {
-                serverBackpressureTimer.stop(proxyToServerBackpressureMeter);
+                serverBackpressureTimer.stop(serverToProxyBackpressureMeter);
                 serverBackpressureTimer = null;
             }
             Objects.requireNonNull(backendHandler).relieveBackpressure();

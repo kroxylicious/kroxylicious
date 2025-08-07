@@ -55,8 +55,8 @@ public class Metrics {
     private static final String PROXY_TO_SERVER_ERROR_BASE_METER_NAME = "kroxylicious_proxy_to_server_errors";
     private static final String CLIENT_TO_PROXY_CONNECTION_BASE_METER_NAME = "kroxylicious_client_to_proxy_connections";
     private static final String PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME = "kroxylicious_proxy_to_server_connections";
-    private static final String PROXY_TO_SERVER_CONNECTION_BLOCKED_METER_NAME = "kroxylicious_proxy_to_server_connection_blocked";
-    private static final String CLIENT_TO_PROXY_CONNECTION_BLOCKED_METER_NAME = "kroxylicious_client_to_proxy_connection_blocked";
+    private static final String KROXYLICIOUS_SERVER_TO_PROXY_READS_PAUSED_NAME = "kroxylicious_server_to_proxy_reads_paused";
+    private static final String KROXYLICIOUS_CLIENT_TO_PROXY_READS_PAUSED_NAME = "kroxylicious_client_to_proxy_reads_paused";
     private static final String SIZE_SUFFIX = "_size";
 
     /**
@@ -211,15 +211,15 @@ public class Metrics {
                 clusterName, nodeId);
     }
 
-    public static MeterProvider<Timer> proxyToServerBackpressureTimer(String clusterName, @Nullable Integer nodeId) {
-        return buildTimerMeterProvider(PROXY_TO_SERVER_CONNECTION_BLOCKED_METER_NAME,
-                "Timer showing how long an upstream connection from the proxy is prevented from accepting writes because the downstream connection is unwriteable.",
+    public static MeterProvider<Timer> serverToProxyBackpressureTimer(String clusterName, @Nullable Integer nodeId) {
+        return buildTimerMeterProvider(KROXYLICIOUS_SERVER_TO_PROXY_READS_PAUSED_NAME,
+                "Timer showing how long an proxy has paused reading from a upstream connection because the downstream connection is unwriteable",
                 clusterName, nodeId);
     }
 
     public static MeterProvider<Timer> clientToProxyBackpressureTimer(String clusterName, @Nullable Integer nodeId) {
-        return buildTimerMeterProvider(CLIENT_TO_PROXY_CONNECTION_BLOCKED_METER_NAME,
-                "Timer showing how long a downstream connection to the proxy is prevented from accepting writes because the upstream connection is unwriteable.",
+        return buildTimerMeterProvider(KROXYLICIOUS_CLIENT_TO_PROXY_READS_PAUSED_NAME,
+                "Timer showing how long an proxy has paused reading from a downstream connection because the upstream connection is unwriteable",
                 clusterName, nodeId);
     }
 

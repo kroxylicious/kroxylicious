@@ -748,7 +748,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onClientWritable();
 
         // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_connection_blocked").timer())
+        assertThat(Metrics.globalRegistry.get("kroxylicious_server_to_proxy_reads_paused").timer())
                 .isInstanceOf(Timer.class)
                 .satisfies(timer -> assertThat(timer.count()).isGreaterThanOrEqualTo(1)
                 // Count is incremented when the timer is stopped
@@ -781,7 +781,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onServerWritable();
 
         // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_connection_blocked").timer())
+        assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_reads_paused").timer())
                 .isInstanceOf(Timer.class)
                 .satisfies(timer -> assertThat(timer.count()).isGreaterThanOrEqualTo(1)
                 // Count is incremented when the timer is stopped
