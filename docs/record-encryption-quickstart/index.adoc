@@ -50,7 +50,7 @@ Use Helm to install either HashiCorp Vault or AWS LocalStack.
 
 ==== HashiCorp Vault
 
-[source,console]
+[source,console,variant="vault"]
 ----
 $ helm repo add --force-update hashicorp https://helm.releases.hashicorp.com
 $ helm upgrade --install vault hashicorp/vault --namespace vault --create-namespace --version 0.30.1 --set server.dev.enabled=true,server.dev.devRootToken=myroottoken --wait
@@ -58,7 +58,7 @@ $ helm upgrade --install vault hashicorp/vault --namespace vault --create-namesp
 
 You also need to enable the Transit Secrets Engine in Vault.
 
-[source,console]
+[source,console,variant="vault"]
 ----
 $ kubectl exec -n vault statefulsets/vault -- vault secrets enable transit
 ----
@@ -66,7 +66,7 @@ $ kubectl exec -n vault statefulsets/vault -- vault secrets enable transit
 ==== AWS LocalStack
 https://localstack.cloud/[LocalStack] is an AWS cloud service emulator that runs in a single container on your laptop or in your CI environment.
 It's intended for developing and testing cloud & Serverless apps offline.
-[source,shell]
+[source,console,variant="localstack"]
 ----
 $ helm repo add --force-update localstack-repo https://helm.localstack.cloud
 $ helm upgrade --install localstack localstack-repo/localstack --namespace localstack --create-namespace --version 0.6.24 --set service.type=ClusterIP --wait
@@ -148,14 +148,14 @@ You need to update the example to know about your chosen KMS.
 
 If you are using Vault:
 
-[source,console]
+[source,console,variant="vault"]
 ----
 $ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"VaultKmsService","kmsConfig":{"vaultToken":{"password":"myroottoken"},"vaultTransitEngineUrl":"http://vault.vault.svc.cluster.local:8200/v1/transit"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK_$(topicName)"}}}}' --type merge
 ----
 
 If you are using LocalStack:
 
-[source,console]
+[source,console,variant="localstack"]
 ----
 $ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"AwsKmsService","kmsConfig":{"longTermCredentials":{"accessKeyId":{"password":"unused"},"secretAccessKey": {"password":"unused"}},"endpointUrl":"http://localstack.localstack.svc.cluster.local:4566/", "region" : "us-east-1"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK_$(topicName)"}}}}' --type merge
 ----
@@ -184,14 +184,14 @@ We are going to be using a topic called `trades` so we will create a key that ca
 
 If you are using Vault:
 
-[source,console]
+[source,console,variant="vault"]
 ----
 $ kubectl exec -n vault statefulsets/vault -- vault write -f transit/keys/KEK_trades
 ----
 
 If you are using LocalStack, you need to create a key and an alias to that key.
 
-[source,console]
+[source,console,variant="localstack"]
 ----
 $ KEY_ID=$(kubectl -n localstack exec deployments/localstack --  awslocal kms create-key --query KeyMetadata.KeyId --output text)
 $ kubectl -n localstack exec deployments/localstack -- awslocal kms create-alias --alias-name alias/KEK_trades --target-key-id ${KEY_ID}
