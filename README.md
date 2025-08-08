@@ -14,6 +14,7 @@ Kroxylicious is a Kafka protocol proxy, addressing use cases such as encryption,
   * [Performance Testing](#performance-testing)
   * [Kroxylicious Samples](#kroxylicious-samples)
   * [Kubernetes Examples](#kubernetes-examples)
+  * [Contributing](#contributing)
 <!-- TOC -->
 
 ## Quick Links
@@ -50,3 +51,14 @@ See [kroxylicious-sample](kroxylicious-sample) to learn more about sample filter
 
 [kubernetes-examples](kubernetes-examples/README.md) illustrate Kroxylicious running inside a Kubernetes
 Cluster integrated with components such as Strimzi and cert-manager.
+
+## Contributing
+
+You can contribute by:
+
+* Raising any issues you find in the [Issue tracker](https://github.com/kroxylicious/kroxylicious/issues)
+* Fixing issues by opening Pull Requests
+* Improving documentation
+* Talking about Kroxylicious
+
+Check out our [Join Us](https://kroxylicious.io/join-us/) page for more information on contributing to the project!
