@@ -5,6 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## SNAPSHOT
 ## 0.14.0
 
 * [#2541](https://github.com/kroxylicious/kroxylicious/issues/2541): feat(metrics): Add duration metrics for how long the proxy is applying back pressure on connections.
