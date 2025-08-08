@@ -1,6 +1,7 @@
 :experimental:
 :kafka-version: 4.0.0
 :kafka-image: apache/kafka:{kafka-version}
+:proxy-bootstrap: localhost:9192
 include::_assets/attributes.adoc[]
 
 = Proxy Quick Start
@@ -100,28 +101,28 @@ Finally, point your Kafka clients to the proxy's bootstrap address and send it s
 
 Use the `kafka-topics.sh` client to create a topic named `my_topic` through the proxy.
 
-[source,bash]
+[source,bash,subs="attributes"]
 ----
 bin/kafka-topics.sh --create --topic my_topic \
---bootstrap-server localhost:9292
+--bootstrap-server {proxy-bootstrap}
 ----
 
 === Produce a Message
 
 Send "hello world" to your new topic using the console producer.
 
-[source,bash]
+[source,bash,subs="attributes"]
 ----
 echo "hello world" | bin/kafka-console-producer.sh --topic my_topic \
---bootstrap-server localhost:9292
+--bootstrap-server {proxy-bootstrap}
 ----
 
 === Consume the Message
 
 Read the message back from your topic using the console consumer.
 
-[source,bash]
+[source,bash,subs="attributes"]
 ----
 bin/kafka-console-consumer.sh --topic my_topic --from-beginning \
---bootstrap-server localhost:9292
+--bootstrap-server {proxy-bootstrap}
 ----
