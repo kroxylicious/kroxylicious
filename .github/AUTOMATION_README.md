@@ -24,22 +24,6 @@ that user initiated actions can, you have to create a separate set of Secrets at
 [docs](https://docs.github.com/en/code-security/dependabot/working-with-dependabot/configuring-access-to-private-registries-for-dependabot).
 In practice this means we have some duplicated secrets across `Actions` and `Dependabot`.
 
-## Sonatype / Maven Central
-
-In order to release to Maven Central, the Kroxylicious Robot has an account at https://central.sonatype.com/.
-This is used by the release stage and promote workflows.
-The credentials for the Kroxylicious Robot are in the 1Password safe.
-
-The workflows themselves authenticate using a Sonatype *user token* belonging to the  Kroxylicious Robot.  There's no
-expiration on the token.
-
-To refresh the token:
-
-1. Login to https://central.sonatype.com/ as the Kroxylicious Robot.
-2. Navigate to "View Account".
-3. Select "Generate user token"
-4. Store the username and password at the Github organisational level in variable/secret `KROXYLICIOUS_SONATYPE_TOKEN_USERNAME` and `KROXYLICIOUS_SONATYPE_TOKEN_PASSWORD`
-
 ## Fortanix DSM Integration Tests
 
 In order for CI to execute the Fortanix DSM Integration Tests, a Fortanix DSM SaaS account has been created.  kroxylicious-admin@.. is an
