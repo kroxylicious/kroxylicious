@@ -1034,6 +1034,7 @@
                 <extensions>true</extensions>
                 <configuration>
                     <publishingServerId>central</publishingServerId>
+                    <waitMaxTime>3600</waitMaxTime>
                 </configuration>
             </plugin>
         </plugins>
