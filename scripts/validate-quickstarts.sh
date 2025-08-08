@@ -12,36 +12,38 @@ set -euo pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/common.sh"
 
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NOCOLOR='\033[0m'
 BLOCKTYPE=${BLOCKTYPE:-console}
 DOCS_DIR=${DOCS_DIR:-${SCRIPT_DIR}/../docs}
 
 #Find the files and then pass them to GAWK as args so it knows the file names
 
-cleanup() {
-    echo "Cleanup"
+err() {
+    echo -e  "${RED}Failed validating ${QUICKSTART}}${NOCOLOR}"
 }
 
-trap cleanup EXIT
+trap err ERR
 
 
 for QUICKSTART in $(find ${DOCS_DIR} -path "*quickstart/index.adoc")
 do
-  echo Testing ${QUICKSTART}
+  echo -e  "${GREEN}Validating ${QUICKSTART}}${NOCOLOR}"
+
   ${GAWK} -v CHECK_CMD=cat -v BLOCKTYPE=${BLOCKTYPE} -v EXCLUDED_ATTRS="variant=localstack" -f ${SCRIPT_DIR}/extract-asciidoc-codeblock.awk ${QUICKSTART} | \
      ${SED} -e 's/^\$ //g' | \
      tee /tmp/kw |
      (
-#        while read -r CMD
-#        do
-#            echo "Executing '${CMD}'"
-#        done
         while read -r CMD
         do
-            echo "Executing '${CMD}'"
+            echo -e  "${YELLOW}Executing '${CMD}${NOCOLOR}"
+
             eval ${CMD}
-            echo "Finished executing, return code $?"
+            echo -e  "${YELLOW}Finished executing '${CMD}${NOCOLOR}"
         done
-        echo "Done cmd loop"
      )
 done
-echo "Done quickstart loop"
+
+echo -e "${GREEN}All done${NOCOLOR}"
