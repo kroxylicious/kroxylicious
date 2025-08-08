@@ -122,8 +122,7 @@ It will create a cluster in the `kafka` namespace
 
 [source,console]
 ----
-$ kubectl apply -n kafka -f https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/heads/main/examples/kafka/kafka-single-node.yaml
-$ #kubectl apply -n kafka -f https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/0.47.0/examples/kafka/kafka-single-node.yaml
+$ kubectl apply -n kafka -f https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/0.47.0/examples/kafka/kafka-single-node.yaml
 $ kubectl wait -n kafka kafka/my-cluster --for=condition=Ready --timeout=300s
 ----
 
