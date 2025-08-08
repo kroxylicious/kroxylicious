@@ -54,14 +54,14 @@ Use Helm to install either HashiCorp Vault or AWS LocalStack.
 [source,console,variant="vault"]
 ----
 $ helm repo add --force-update hashicorp https://helm.releases.hashicorp.com
-$ helm upgrade --install vault hashicorp/vault --namespace vault --create-namespace --version 0.30.1 --set server.dev.enabled=true,server.dev.devRootToken=myroottoken --wait
+$ helm upgrade --install vault hashicorp/vault --namespace kms --create-namespace --version 0.30.1 --set server.dev.enabled=true,server.dev.devRootToken=myroottoken --wait
 ----
 
 You also need to enable the Transit Secrets Engine in Vault.
 
 [source,console,variant="vault"]
 ----
-$ kubectl exec -n vault statefulsets/vault -- vault secrets enable transit
+$ kubectl exec -n kms statefulsets/vault -- vault secrets enable transit
 ----
 
 ==== AWS LocalStack
@@ -70,7 +70,7 @@ It's intended for developing and testing cloud & Serverless apps offline.
 [source,console,variant="localstack"]
 ----
 $ helm repo add --force-update localstack-repo https://helm.localstack.cloud
-$ helm upgrade --install localstack localstack-repo/localstack --namespace localstack --create-namespace --version 0.6.24 --set service.type=ClusterIP --wait
+$ helm upgrade --install localstack localstack-repo/localstack --namespace kms --create-namespace --version 0.6.24 --set service.type=ClusterIP --wait
 ----
 
 === Install the Strimzi Operator
@@ -153,14 +153,14 @@ If you are using Vault:
 
 [source,console,variant="vault"]
 ----
-$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"VaultKmsService","kmsConfig":{"vaultToken":{"password":"myroottoken"},"vaultTransitEngineUrl":"http://vault.vault.svc.cluster.local:8200/v1/transit"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK_$(topicName)"}}}}' --type merge
+$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"VaultKmsService","kmsConfig":{"vaultToken":{"password":"myroottoken"},"vaultTransitEngineUrl":"http://vault.kms.svc.cluster.local:8200/v1/transit"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK_$(topicName)"}}}}' --type merge
 ----
 
 If you are using LocalStack:
 
 [source,console,variant="localstack"]
 ----
-$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"AwsKmsService","kmsConfig":{"longTermCredentials":{"accessKeyId":{"password":"unused"},"secretAccessKey": {"password":"unused"}},"endpointUrl":"http://localstack.localstack.svc.cluster.local:4566/", "region" : "us-east-1"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK_$(topicName)"}}}}' --type merge
+$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"AwsKmsService","kmsConfig":{"longTermCredentials":{"accessKeyId":{"password":"unused"},"secretAccessKey": {"password":"unused"}},"endpointUrl":"http://localstack.kms.svc.cluster.local:4566/", "region" : "us-east-1"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK_$(topicName)"}}}}' --type merge
 ----
 
 [source,console]
@@ -189,15 +189,15 @@ If you are using Vault:
 
 [source,console,variant="vault"]
 ----
-$ kubectl exec -n vault statefulsets/vault -- vault write -f transit/keys/KEK_trades
+$ kubectl exec -n kms statefulsets/vault -- vault write -f transit/keys/KEK_trades
 ----
 
 If you are using LocalStack, you need to create a key and an alias to that key.
 
 [source,console,variant="localstack"]
 ----
-$ KEY_ID=$(kubectl -n localstack exec deployments/localstack --  awslocal kms create-key --query KeyMetadata.KeyId --output text)
-$ kubectl -n localstack exec deployments/localstack -- awslocal kms create-alias --alias-name alias/KEK_trades --target-key-id ${KEY_ID}
+$ KEY_ID=$(kubectl -n kms exec deployments/localstack --  awslocal kms create-key --query KeyMetadata.KeyId --output text)
+$ kubectl -n kms exec deployments/localstack -- awslocal kms create-alias --alias-name alias/KEK_trades --target-key-id ${KEY_ID}
 ----
 
 [#produce_some_messages]
@@ -260,15 +260,15 @@ And finally the other Operators.
 [source,console,variant="vault"]
 ----
 $ helm uninstall -n kafka strimzi-operator --ignore-not-found
-$ helm uninstall -n vault vault --ignore-not-found
-$ kubectl delete ns kafka vault
+$ helm uninstall -n kms vault --ignore-not-found
+$ kubectl delete ns kafka kms
 ----
 
 [source,console,variant="localstack"]
 ----
 $ helm uninstall -n kafka strimzi-operator --ignore-not-found
-$ helm uninstall -n localstack localstack --ignore-not-found
-$ kubectl delete ns kafka localstack
+$ helm uninstall -n kms localstack --ignore-not-found
+$ kubectl delete ns kafka kms
 ----
 
 == What next?
