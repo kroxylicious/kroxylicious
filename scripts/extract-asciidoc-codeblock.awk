@@ -3,7 +3,11 @@
 #
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
-# Extracts Asciidoc code blocks, passing each one to a unix command.
+# Extracts Asciidoc code blocks, passing each one to a unix command provided by CHECK_CMD.
+#
+# If INC_LABELLED_CBS is comma separate listed of attribute names/values.  If INC_LABELLED_CBS is set to 'A=B', codeblocks
+# with attribute A will only be extracted if the attribute value is B. Codeblocks without attribute A are extracted regardless.
+
 BEGIN {CODEBLOCK = 0; SNIPPET = 0; EXIT_CODE = 0}
 BEGINFILE {
     if (!CHECK_CMD) {
@@ -15,10 +19,10 @@ BEGINFILE {
         exit 1
     }
 
-    split(EXCLUDED_ATTRS, excludeAttrList, ",")
-    for(idx in excludeAttrList){
-        split(excludeAttrList[idx], pair, "=")
-        excludedAttrs[pair[1]] = pair[2]
+    split(INC_LABELLED_CBS, includedAttrList, ",")
+    for(idx in includedAttrList){
+        split(includedAttrList[idx], pair, "=")
+        includedAttrs[pair[1]] = pair[2]
     }
 
     if (ERRNO != "") {
@@ -28,18 +32,18 @@ BEGINFILE {
 }
 $0 ~ "^\\[source," BLOCKTYPE ",?.*\\]"                   {
      split(gensub(/^\[(.+)\]$/, "\\1", "g", $0), attrs, ",")
-     blockExcluded = 0;
+     blockIncluded = 1;
      for(key in attrs) {
           split(attrs[key], pair, "=")
           attrName = pair[1]
           attrValue = gensub(/^"(.+)"$/, "\\1", "g", pair[2])
-          if ( attrName in excludedAttrs && (excludedAttrs[attrName] == attrValue || excludedAttrs[attrName] == "")) {
-             blockExcluded = 1;
-             break
+          if ( attrName in includedAttrs && (includedAttrs[attrName] != attrValue)) {
+              blockIncluded = 0;
+              break
           }
      }
 
-     if (blockExcluded == 0) {
+     if (blockIncluded) {
          SNIPPET = FNR;
      }
      next

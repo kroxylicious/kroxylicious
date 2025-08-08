@@ -1,3 +1,4 @@
+// variants: localstack|vault
 :experimental:
 include::_assets/attributes.adoc[]
 
