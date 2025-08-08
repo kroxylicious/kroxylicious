@@ -49,7 +49,7 @@ CODEBLOCK && /[-]{4}/                                    {
     print buf |& CHECK_CMD
     close(CHECK_CMD, "to")
     while ((CHECK_CMD |& getline outbuf) > 0) {
-       print outbuf
+       if (outbuf) print outbuf
     }
     ext = close(CHECK_CMD, "from")
     if (ext != 0) {

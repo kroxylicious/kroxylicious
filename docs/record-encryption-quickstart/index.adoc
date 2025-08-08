@@ -79,18 +79,20 @@ Let's install Strimzi next:
 
 [source,console]
 ----
-$ kubectl apply -f https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.47.0/strimzi-cluster-operator-0.47.0.yaml
+$ helm repo add --force-update strimzi https://strimzi.io/charts/
+$ helm upgrade --install strimzi-operator strimzi/strimzi-kafka-operator --namespace kafka --create-namespace --version 0.47.0
 ----
 
 [#install_the_operator]
 === Install the Kroxylicious Operator
 
-First, create a temporary directory for some working files.  We use a directory called `ko-install` beneath `/tmp`, but you can use any name and location you like.
+First, create a temporary directory for some working files.  We use a directory called `ko-install-nnnnn` beneath `/tmp`, but you can use any name and location you like.
 
 [source,console]
 ----
-$ mkdir /tmp/ko-install
-$ cd /tmp/ko-install
+$ QUICKSTART_DIR=/tmp/ko-install-${RANDOM}
+$ mkdir ${QUICKSTART_DIR}
+$ cd ${QUICKSTART_DIR}
 ----
 
 Now let's download and unpack the Kroxylicious Operator
@@ -119,7 +121,8 @@ It will create a cluster in the `kafka` namespace
 
 [source,console]
 ----
-$ kubectl apply -n kafka -f https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/0.47.0/examples/kafka/kafka-single-node.yaml
+$ kubectl apply -n kafka -f https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/heads/main/examples/kafka/kafka-single-node.yaml
+$ #kubectl apply -n kafka -f https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/0.47.0/examples/kafka/kafka-single-node.yaml
 $ kubectl wait -n kafka kafka/my-cluster --for=condition=Ready --timeout=300s
 ----
 
@@ -170,8 +173,8 @@ We'll use this later when to produce and consumer records through the proxy.
 
 [source,console]
 ----
-$ kubectl wait -n my-proxy virtualkafkacluster my-cluster --for=jsonpath='{.status.ingresses[0].bootstrapServer}'
-$ PROXIED_CLUSTER_BOOTSTRAP_SERVER=$(kubectl get -n my-proxy virtualkafkacluster my-cluster -o=jsonpath='{.status.ingresses[0].bootstrapServer}')
+$ kubectl wait -n my-proxy virtualkafkacluster my-cluster --for=jsonpath='{.status.ingresses[?(@.name=="cluster-ip")]}'
+$ PROXIED_CLUSTER_BOOTSTRAP_SERVER=$(kubectl get -n my-proxy virtualkafkacluster my-cluster -o=jsonpath='{.status.ingresses[?(@.name=="cluster-ip")].bootstrapServer}')
 ----
 
 == Create an encryption key in the KMS
@@ -216,9 +219,9 @@ Now let's use Kafka's console consumer to fetch the records.
 You'll see the two records we <<produce_some_messages,sent above>>.
 The Record Encryption filter will decrypt the records before they reach consumer, but this is completely transparent to the console consumer.
 
-[source,console]
-----
-$ kubectl run -n my-proxy -qi proxy-consumer --image=quay.io/strimzi/kafka:0.47.0-kafka-4.0.0 --rm=true --restart=Never -- ./bin/kafka-console-consumer.sh  --bootstrap-server ${PROXIED_CLUSTER_BOOTSTRAP_SERVER} --topic trades --from-beginning --timeout-ms 10000
+// [source,console]
+// ----
+// $ kubectl run -n my-proxy -qi proxy-consumer --image=quay.io/strimzi/kafka:0.47.0-kafka-4.0.0 --rm=true --restart=Never -- ./bin/kafka-console-consumer.sh  --bootstrap-server ${PROXIED_CLUSTER_BOOTSTRAP_SERVER} --topic trades --from-beginning --timeout-ms 10000
 ----
 
 == Verify that the records are encrypted on the broker
@@ -230,10 +233,10 @@ Let's use the console consumer again,
 but this time we'll consume straight from the Kafka cluster, bypassing the proxy.
 We'll get back the records, but they'll contain ciphertext, rather than the plaintext.
 
-[source,console]
-----
-$ kubectl run -n kafka -qi cluster-consumer --image=quay.io/strimzi/kafka:0.47.0-kafka-4.0.0 --rm=true --restart=Never -- ./bin/kafka-console-consumer.sh  --bootstrap-server ${DIRECT_CLUSTER_BOOTSTRAP_SERVERS} --topic trades --from-beginning --timeout-ms 10000
-----
+// [source,console]
+// ----
+// $ kubectl run -n kafka -qi cluster-consumer --image=quay.io/strimzi/kafka:0.47.0-kafka-4.0.0 --rm=true --restart=Never -- ./bin/kafka-console-consumer.sh  --bootstrap-server ${DIRECT_CLUSTER_BOOTSTRAP_SERVERS} --topic trades --from-beginning --timeout-ms 10000
+// ----
 
 == Cleaning up
 
@@ -254,11 +257,18 @@ $ kubectl delete -f install
 
 And finally the other Operators.
 
-[source,console]
+[source,console,variant="vault"]
 ----
-$ kubectl delete -f https://github.com/strimzi/strimzi-kafka-operator/releases/download/0.47.0/strimzi-cluster-operator-0.47.0.yaml
-$ helm uninstall -n localstack localstack --ignore-not-found
+$ helm uninstall -n kafka strimzi-operator --ignore-not-found
 $ helm uninstall -n vault vault --ignore-not-found
+$ kubectl delete ns kafka vault
+----
+
+[source,console,variant="localstack"]
+----
+$ helm uninstall -n kafka strimzi-operator --ignore-not-found
+$ helm uninstall -n localstack localstack --ignore-not-found
+$ kubectl delete ns kafka localstack
 ----
 
 == What next?
