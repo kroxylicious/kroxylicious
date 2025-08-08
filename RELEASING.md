@@ -27,10 +27,11 @@ You will need to upload your GPG **public** key to some keyservers. You can foll
 
 Create-or-update the following repository secrets:
 
-| Secret                                        | Description                                                                |
-|-----------------------------------------------|----------------------------------------------------------------------------|
-| `KROXYLICIOUS_RELEASE_PRIVATE_KEY`            | Private key, in armor format, of the project admin conducting the release. |
-| `KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE` | Passphrase used to protect the private key                                 |
+| Secret                                        | Description                                                                                                                               |
+|-----------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| `KROXYLICIOUS_RELEASE_PRIVATE_KEY`            | Private key, in armor format, of the project admin conducting the release.                                                                |
+| `KROXYLICIOUS_RELEASE_PRIVATE_KEY_PASSPHRASE` | Passphrase used to protect the private key                                                                                                |
+| `KROXYLICIOUS_RELEASE_TOKEN`                  | GitHub PAT with write permissions for content, commit status, pull-requests for this repository and the kroxylicious.github.io repository |
 
 
 To export your key run something like
@@ -42,7 +43,7 @@ While `pbcopy` is macOS specific, similar utilities exist for Linux see [StackEx
 
 ## Prepare the release blog post
 
-Prepare the release blog post by opening a PR [kroxylicious.github.io](https://github.com/kroxylicious/kroxylicious.github.io.  Get the PR
+Prepare the release blog post by opening a PR [kroxylicious.github.io](https://github.com/kroxylicious/kroxylicious.github.io).  Get the PR
 reviewed by your peers, addressing any comments, until the content is agreed.  Don't merge it yet.
 
 ## Release steps
@@ -69,7 +70,7 @@ If anything goes wrong, follow the steps in [Failed Releases](#failed-releases)
 You can validate the staged artefacts by using a test application, `T`, use the Maven artefacts.   The [kroxylicious-wasm](https://github.com/andreaTP/kroxylicious-wasm) from the
 [community-gallery](https://github.com/kroxylicious/kroxylicious-community-gallery) is a suitable choice.
 
-1. [Configure Maven](https://central.sonatype.org/publish/publish-portal-api/#verify-status-of-the-deployment)) to download staged artefacts from Central Publishing Portal.
+1. [Configure Maven](https://central.sonatype.org/publish/publish-portal-api/#verify-status-of-the-deployment) to download staged artefacts from Central Publishing Portal.
 1. Run `T` build/test cycle but use an alternative cache location to be sure artefacts are being fetched.  Check the build output, you'll see the
    kroxylicious comes from the staging location.
 ```bash
