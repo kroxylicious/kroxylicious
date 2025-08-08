@@ -22,11 +22,11 @@
 :icons: font
 
 // Latest version
-:KroxyliciousVersion: 0.14.0
+:KroxyliciousVersion: 0.15.0-SNAPSHOT
 // Used for links to release artifacts, will be 404 during development
 :KroxyliciousReleaseTag: v{KroxyliciousVersion}
 // Used to point at source code and blobs, will point at main during development and at the release tag when deployed
-:KroxyliciousGitRef: v0.14.0
+:KroxyliciousGitRef: main
 :ApicurioVersion: 2.6.x
 :KubernetesVersionMinimum: 1.31
 :OpenShiftVersionMinimum: 4.18
