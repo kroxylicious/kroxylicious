@@ -1339,7 +1339,7 @@
                                 <configuration>
                                     <skip>${skip-validate-yaml-snippets}</skip>
                                     <!--suppress MavenModelInspection -->
-                                    <executable>${rootdir}/scripts/extract-yaml-fencedcodeblocks.sh</executable>
+                                    <executable>${rootdir}/scripts/validate-yaml-fencedcodeblocks.sh</executable>
                                 </configuration>
                             </execution>
                         </executions>

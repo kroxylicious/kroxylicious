@@ -39,6 +39,7 @@
 // GitHub links
 :github: https://github.com/kroxylicious/kroxylicious
 :github-issues: {github}/issues
+:github-discussions: {github}/discussions
 // GitHub release links
 :github-release-base: {github}/releases
 :github-release: {github-release-base}/{KroxyliciousReleaseTag}
@@ -51,6 +52,9 @@
 :github-source-tree-root: {github}/tree/{KroxyliciousGitRef}
 :github-blob-root: {github}/blob/{KroxyliciousGitRef}
 :github-raw-root: https://raw.githubusercontent.com/kroxylicious/kroxylicious/{KroxyliciousGitRef}
+
+// Slack
+:slack: link:https://kubernetes.slack.com//[Slack]
 
 // Javadoc links
 :javadoc-base: https://javadoc.io/doc
