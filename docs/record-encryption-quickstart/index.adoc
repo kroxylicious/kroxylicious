@@ -10,7 +10,7 @@ include::_assets/attributes.adoc[]
 
 [role="_abstract"]
 
-You want an encryption-at-rest solution for data stored in your Apache Kafka?
+You want an https://kroxylicious.io/use-cases/#encryption-at-rest[encryption-at-rest solution] for data stored in your Apache Kafka?
 This quickstart guide will show you how to do that on Kubernetes ... from scratch ... without external dependencies.
 You'll be encrypting in a snap!
 
@@ -25,6 +25,19 @@ You'll be encrypting in a snap!
 WARNING: You *really don't* want to use this quickstart to deploy an environment that will be used in *production*.
 The quickstart deliberately keeps things quick and simple... there's no authentication, no TLS, no redundancy... Development purposes only - please!
 Refer to the documentation for Kroxylicious, Strimzi and your KMS for production best practices.
+
+== Overview
+
+This diagram shows the important resources that will be deployed by the quickstart.
+Arrows on the diagrams explain the flows explain the important flows between them.
+The pods shown in yellow run the kafka producer and kafka consumers.
+These pods are used to demonstrate the record encryption in action.
+
+The diagram omits the operators.
+
+.Important resources and the flows between them
+image::{realimagesdir}/quickstart-record-encryption.svg["Diagram showing the important kubernetes resources deployed by the quickstart and the flows between them"]
+
 
 == Before you begin
 
@@ -165,7 +178,7 @@ $ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --pa
 
 [source,console]
 ----
-$ kubectl wait -n my-proxy kafkaproxy/simple --for=condition=Ready=True --timeout=300s
+    $ kubectl wait -n my-proxy kafkaproxy/simple --for=condition=Ready=True --timeout=300s
 ----
 
 Let's wait for the proxy virtual cluster to be ready for connections, and then assign a variable containing the address.
