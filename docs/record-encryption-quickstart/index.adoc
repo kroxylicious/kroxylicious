@@ -261,26 +261,32 @@ $ kubectl delete -f examples/record-encryption/
 $ kubectl delete -n kafka -f https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/0.47.0/examples/kafka/kafka-single-node.yaml
 ----
 
-Remove the Kroxylicious Operator.
+Remove the Kroxylicious and Strimzi Operator.
 
 [source,console]
 ----
 $ kubectl delete -f install
+$ helm uninstall -n kafka strimzi-operator --ignore-not-found
 ----
 
-And finally the other Operators.
+Remove the KMSs.
 
+If you are using Vault:
 [source,console,variant="vault"]
 ----
-$ helm uninstall -n kafka strimzi-operator --ignore-not-found
 $ helm uninstall -n kms vault --ignore-not-found
-$ kubectl delete ns kafka kms
 ----
 
+If you are using Localstack:
 [source,console,variant="localstack"]
 ----
-$ helm uninstall -n kafka strimzi-operator --ignore-not-found
 $ helm uninstall -n kms localstack --ignore-not-found
+----
+
+And finally remove the namespaces.
+
+[source,console]
+----
 $ kubectl delete ns kafka kms
 ----
 
