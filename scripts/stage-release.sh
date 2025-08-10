@@ -6,6 +6,7 @@
 #
 
 set -e
+set -o pipefail
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 . "${SCRIPT_DIR}/common.sh"
 # Tmp fix - revert the nounset change made by common to match the expectations of this script.
