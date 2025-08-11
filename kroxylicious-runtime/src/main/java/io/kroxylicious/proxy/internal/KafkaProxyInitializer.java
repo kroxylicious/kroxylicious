@@ -200,7 +200,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         ChannelPipeline pipeline = ch.pipeline();
         pipeline.remove(LOGGING_INBOUND_ERROR_HANDLER_NAME);
         if (virtualCluster.isLogNetwork()) {
-            pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger - " + sessionId, LogLevel.INFO));
+            pipeline.addLast("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.DownstreamNetworkLogger-" + sessionId, LogLevel.INFO));
         }
 
         // Add handler here
@@ -222,7 +222,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder(encoderListener));
         pipeline.addLast("responseOrderer", new ResponseOrderer());
         if (virtualCluster.isLogFrames()) {
-            pipeline.addLast("frameLogger", new FameLoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger - " + sessionId, LogLevel.INFO));
+            pipeline.addLast("frameLogger", new FameLoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger-" + sessionId, LogLevel.INFO));
         }
 
         if (!authnHandlers.isEmpty()) {
