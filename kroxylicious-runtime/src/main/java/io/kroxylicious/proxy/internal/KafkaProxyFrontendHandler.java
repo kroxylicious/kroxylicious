@@ -484,7 +484,7 @@ public class KafkaProxyFrontendHandler
         // reads Kafka requests, as the message flows are reversed. This is also the opposite of the order that Filters are declared in the Kroxylicious configuration
         // file. The Netty Channel pipeline documentation provides an illustration https://netty.io/4.0/api/io/netty/channel/ChannelPipeline.html
         if (logFrames) {
-            pipeline.addFirst("frameLogger", new FameLoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger-" + sessionId, LogLevel.INFO));
+            pipeline.addFirst("frameLogger", new FrameLoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger-" + sessionId, LogLevel.INFO));
         }
         addFiltersToPipeline(filters, pipeline, inboundChannel);
 

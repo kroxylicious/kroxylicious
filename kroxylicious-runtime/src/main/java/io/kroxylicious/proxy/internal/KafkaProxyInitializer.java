@@ -222,7 +222,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         pipeline.addLast("responseEncoder", new KafkaResponseEncoder(encoderListener));
         pipeline.addLast("responseOrderer", new ResponseOrderer());
         if (virtualCluster.isLogFrames()) {
-            pipeline.addLast("frameLogger", new FameLoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger-" + sessionId, LogLevel.INFO));
+            pipeline.addLast("frameLogger", new FrameLoggingHandler("io.kroxylicious.proxy.internal.DownstreamFrameLogger-" + sessionId, LogLevel.INFO));
         }
 
         if (!authnHandlers.isEmpty()) {

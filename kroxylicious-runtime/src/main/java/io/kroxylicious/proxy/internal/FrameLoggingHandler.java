@@ -12,10 +12,10 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.internal.logging.InternalLogLevel;
 
-public class FameLoggingHandler extends LoggingHandler {
+public class FrameLoggingHandler extends LoggingHandler {
     private final InternalLogLevel frameLevel;
 
-    public FameLoggingHandler(String name, LogLevel frameLevel) {
+    public FrameLoggingHandler(String name, LogLevel frameLevel) {
         super(name);
         this.frameLevel = frameLevel.toInternalLevel();
     }
