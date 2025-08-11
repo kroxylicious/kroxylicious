@@ -15,7 +15,6 @@ import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
-import org.slf4j.MDC;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Tag;
@@ -633,7 +632,6 @@ public class ProxyChannelStateMachine {
         if (frontendHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)
             frontendHandler.inClosed(errorCodeEx);
         }
-        MDC.clear();
     }
 
     private void setState(ProxyChannelState state) {
