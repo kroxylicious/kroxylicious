@@ -61,7 +61,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private static final ChannelInboundHandlerAdapter LOGGING_INBOUND_ERROR_HANDLER = new LoggingInboundErrorHandler();
     @VisibleForTesting
     static final String LOGGING_INBOUND_ERROR_HANDLER_NAME = "loggingInboundErrorHandler";
-    public static final AttributeKey<String> SESSION_ID_ATTRIBUTE_KEY = AttributeKey.valueOf("io.kroxylicious.sessionId");
+    public static final AttributeKey<String> SESSION_ID_ATTRIBUTE_KEY = AttributeKey.valueOf("sessionId");
 
     private final boolean haproxyProtocol;
     private final Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnHandlers;
@@ -96,7 +96,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     public void initChannel(Channel ch) {
         if (!ch.hasAttr(SESSION_ID_ATTRIBUTE_KEY)) {
             String sessionId = MobyNamesGenerator.getRandomName() + "_" + ch.id().asShortText();
-            MDC.getMDCAdapter().put(SESSION_ID_ATTRIBUTE_KEY.name(), sessionId);
+            MDC.put(SESSION_ID_ATTRIBUTE_KEY.name(), sessionId);
             LOGGER.info("Allocating sessionId: {} to channel: {}", sessionId, ch);
             ch.attr(SESSION_ID_ATTRIBUTE_KEY).setIfAbsent(sessionId);
         }
