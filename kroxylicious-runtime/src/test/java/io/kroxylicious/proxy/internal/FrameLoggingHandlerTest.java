@@ -56,7 +56,7 @@ class FrameLoggingHandlerTest {
     }
 
     @Test
-    void shouldNotLogReadIfLevelDisabled() throws Exception {
+    void shouldNotLogReadIfLevelDisabled() {
         // Given
         when(nettyLogger.isEnabled(InternalLogLevel.INFO)).thenReturn(false);
 
@@ -69,7 +69,7 @@ class FrameLoggingHandlerTest {
     }
 
     @Test
-    void shouldLogReadIfLevelEnabled() throws Exception {
+    void shouldLogReadIfLevelEnabled() {
         // Given
         when(nettyLogger.isEnabled(InternalLogLevel.INFO)).thenReturn(true);
 
@@ -81,7 +81,7 @@ class FrameLoggingHandlerTest {
     }
 
     @Test
-    void shouldNotLogWriteIfLevelDisabled() throws Exception {
+    void shouldNotLogWriteIfLevelDisabled() {
         // Given
         when(nettyLogger.isEnabled(InternalLogLevel.INFO)).thenReturn(false);
 
@@ -94,7 +94,7 @@ class FrameLoggingHandlerTest {
     }
 
     @Test
-    void shouldLogWriteIfLevelEnabled() throws Exception {
+    void shouldLogWriteIfLevelEnabled() {
         // Given
         when(nettyLogger.isEnabled(InternalLogLevel.INFO)).thenReturn(true);
 
