@@ -19,6 +19,7 @@ public class FameLoggingHandler extends LoggingHandler {
         super(name);
         this.frameLevel = frameLevel.toInternalLevel();
     }
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (logger.isEnabled(frameLevel)) {
