@@ -5,8 +5,10 @@
  */
 package io.kroxylicious.proxy.filter.multitenant;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -58,6 +60,7 @@ import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 
+import io.kroxylicious.kafka.transform.ApiVersionsResponseTransformer;
 import io.kroxylicious.proxy.filter.AddOffsetsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnRequestFilter;
 import io.kroxylicious.proxy.filter.AddPartitionsToTxnResponseFilter;
@@ -107,6 +110,9 @@ import io.kroxylicious.proxy.filter.multitenant.config.MultiTenantConfig;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.kafka.transform.ApiVersionsResponseTransformers.limitMaxVersionForApiKeys;
+import static io.kroxylicious.kafka.transform.ApiVersionsResponseTransformers.removeApiKeys;
+
 /**
  * Simple multi-tenant filter.
  * <br/>
@@ -146,13 +152,18 @@ class MultiTenantFilter
     private final String prefixResourceNameSeparator;
     private @Nullable String kafkaResourcePrefix;
 
+    // https://github.com/kroxylicious/kroxylicious/issues/1364 (KIP-966)
+    // Exclude DESCRIBE_TOPIC_PARTITIONS as we are not ready to implement cursoring yet.
+    private static final ApiVersionsResponseTransformer responseInterceptor = removeApiKeys(Set.of(ApiKeys.DESCRIBE_TOPIC_PARTITIONS))
+            // currently we must downgrade to a produce request version that does not support topic ids, we rely on
+            // rely on mangling topic names.
+            // todo support topic ids in produce requests
+            .and(limitMaxVersionForApiKeys(Map.of(ApiKeys.PRODUCE, (short) 12)));
+
     @Override
     public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData response,
                                                                        FilterContext context) {
-        // https://github.com/kroxylicious/kroxylicious/issues/1364 (KIP-966)
-        // Exclude DESCRIBE_TOPIC_PARTITIONS as we are not ready to implement cursoring yet.
-        response.apiKeys().removeIf(x -> x.apiKey() == ApiKeys.DESCRIBE_TOPIC_PARTITIONS.id);
-        return context.forwardResponse(header, response);
+        return context.forwardResponse(header, responseInterceptor.transform(response));
     }
 
     @Override
