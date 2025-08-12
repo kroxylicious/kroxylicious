@@ -1,0 +1,11 @@
+#
+# Test configuration demonstrating multiple bootstrap servers
+#
+virtualClusters:
+  demo:
+    targetCluster:
+      bootstrapServers: server1:9092,server2:9092,server3:9092
+    gateways:
+      testgateway:
+        portIdentifiesNode:
+          bootstrapAddress: localhost:9192
