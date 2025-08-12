@@ -152,6 +152,14 @@ class MultiTenantFilter
         // https://github.com/kroxylicious/kroxylicious/issues/1364 (KIP-966)
         // Exclude DESCRIBE_TOPIC_PARTITIONS as we are not ready to implement cursoring yet.
         response.apiKeys().removeIf(x -> x.apiKey() == ApiKeys.DESCRIBE_TOPIC_PARTITIONS.id);
+
+        // currently we must downgrade to a produce request version that does not support topic ids, we rely on
+        // rely on mangling topic names.
+        // todo support topic ids in produce requests
+        ApiVersionsResponseData.ApiVersion produceVersion = response.apiKeys().find(ApiKeys.PRODUCE.id);
+        if (produceVersion != null && produceVersion.maxVersion() > (short) 12) {
+            produceVersion.setMaxVersion((short) 12);
+        }
         return context.forwardResponse(header, response);
     }
 
