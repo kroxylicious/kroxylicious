@@ -21,7 +21,7 @@
     <description>An operator for running the Kroxylicious Proxy on Kubernetes</description>
 
     <properties>
-        <josdk.version>5.0.4</josdk.version>
+        <josdk.version>5.1.2</josdk.version>
         <prometheus-metrics.version>1.3.10</prometheus-metrics.version>
         <io.kroxylicious.operator.image.name>quay.io/kroxylicious/operator:${project.version}</io.kroxylicious.operator.image.name>
         <io.kroxylicious.operator.image.archive>target/kroxylicious-operator.img.tar.gz</io.kroxylicious.operator.image.archive>
