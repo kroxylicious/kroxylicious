@@ -83,7 +83,10 @@ public class VirtualClusterModel {
     }
 
     public void logVirtualClusterSummary() {
-        var upstreamHostPort = targetCluster.bootstrapServersList().get(0);
+        var upstreamBootstrapServers = targetCluster.bootstrapServersList();
+        var upstreamSummary = upstreamBootstrapServers.size() == 1 
+            ? upstreamBootstrapServers.get(0).toString()
+            : upstreamBootstrapServers.size() + " servers: " + upstreamBootstrapServers.toString();
         var upstreamTlsSummary = generateTlsSummary(targetCluster.tls());
 
         LOGGER.info("Virtual Cluster '{}' - gateway summary", clusterName);
@@ -93,7 +96,7 @@ public class VirtualClusterModel {
             var downstreamTlsSummary = generateTlsSummary(gateway.getTls());
 
             LOGGER.info("Gateway: {}, Downstream {}{} => Upstream {}{}",
-                    name, downstreamBootstrap, downstreamTlsSummary, upstreamHostPort, upstreamTlsSummary);
+                    name, downstreamBootstrap, downstreamTlsSummary, upstreamSummary, upstreamTlsSummary);
         });
     }
 

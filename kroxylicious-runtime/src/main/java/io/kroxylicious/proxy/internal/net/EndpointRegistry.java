@@ -188,7 +188,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         }
 
         var key = Endpoint.createEndpoint(virtualClusterModel.getBindAddress(), virtualClusterModel.getClusterBootstrapAddress().port(), virtualClusterModel.isUseTls());
-        var upstreamBootstrap = virtualClusterModel.targetCluster().bootstrapServersList().get(0);
+        var upstreamBootstrap = selectBootstrapServer(virtualClusterModel.targetCluster().bootstrapServersList());
         var bootstrapEndpointFuture = registerBinding(key,
                 virtualClusterModel.getClusterBootstrapAddress().host(),
                 new BootstrapEndpointBinding(virtualClusterModel, upstreamBootstrap)).toCompletableFuture();
@@ -407,7 +407,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
 
     private Set<BrokerEndpointBinding> constructPossibleBindingsToCreate(EndpointGateway virtualClusterModel,
                                                                          Map<Integer, HostPort> upstreamNodes) {
-        var upstreamBootstrap = virtualClusterModel.targetCluster().bootstrapServersList().get(0);
+        var upstreamBootstrap = selectBootstrapServer(virtualClusterModel.targetCluster().bootstrapServersList());
         var discoveryBrokerIds = virtualClusterModel.discoveryAddressMap();
         // create possible set of bindings to create
         var creations = upstreamNodes.entrySet()
@@ -616,6 +616,28 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
      */
     public CompletionStage<Void> shutdown() {
         return allOfStage(registeredVirtualClusters.keySet().stream().map(this::deregisterVirtualCluster));
+    }
+
+    /**
+     * Selects a bootstrap server from the list using a round-robin approach based on the current time.
+     * This distributes load across multiple bootstrap servers and provides better resilience when one server is down.
+     * 
+     * @param bootstrapServers the list of bootstrap servers
+     * @return the selected bootstrap server
+     */
+    private HostPort selectBootstrapServer(List<HostPort> bootstrapServers) {
+        if (bootstrapServers == null || bootstrapServers.isEmpty()) {
+            throw new IllegalArgumentException("Bootstrap servers list cannot be null or empty");
+        }
+        
+        if (bootstrapServers.size() == 1) {
+            return bootstrapServers.get(0);
+        }
+        
+        // Use current time as a source of variation to distribute across servers
+        // This provides better distribution than always using the first server
+        int index = (int) (System.currentTimeMillis() % bootstrapServers.size());
+        return bootstrapServers.get(index);
     }
 
     @Override
