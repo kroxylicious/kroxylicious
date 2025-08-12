@@ -17,6 +17,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.common.errors.ApiException;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
@@ -24,6 +25,7 @@ import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.slf4j.Logger;
@@ -42,6 +44,7 @@ import io.kroxylicious.filter.encryption.decrypt.DecryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionManager;
 import io.kroxylicious.filter.encryption.encrypt.EncryptionScheme;
 import io.kroxylicious.kms.service.UnknownKeyException;
+import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
@@ -57,7 +60,7 @@ import static org.slf4j.LoggerFactory.getLogger;
  * @param <K> The type of KEK reference
  */
 public class RecordEncryptionFilter<K>
-        implements ProduceRequestFilter, FetchResponseFilter {
+        implements ProduceRequestFilter, FetchResponseFilter, ApiVersionsResponseFilter {
     private static final Logger log = getLogger(RecordEncryptionFilter.class);
     private final TopicNameBasedKekSelector<K> kekSelector;
 
@@ -246,5 +249,21 @@ public class RecordEncryptionFilter<K>
 
     private static boolean isEncryptionException(Throwable throwable) {
         return throwable instanceof EncryptionException;
+    }
+
+    // currently we must downgrade to a produce request version that does not support topic ids, we rely on
+    // topic names in the messages when selecting keks.
+    // todo remove once we have a facility to look up the topic name for a topic id
+    @Override
+    public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData response,
+                                                                       FilterContext context) {
+        if (!response.apiKeys().isEmpty()) {
+            short produceId = ApiKeys.PRODUCE.id;
+            ApiVersionsResponseData.ApiVersion produceVersion = response.apiKeys().find(produceId);
+            if (produceVersion != null && produceVersion.maxVersion() > (short) 12) {
+                produceVersion.setMaxVersion((short) 12);
+            }
+        }
+        return context.forwardResponse(header, response);
     }
 }

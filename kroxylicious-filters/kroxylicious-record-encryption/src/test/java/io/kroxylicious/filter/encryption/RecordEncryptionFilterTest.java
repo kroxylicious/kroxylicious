@@ -27,6 +27,7 @@ import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.errors.ApiException;
 import org.apache.kafka.common.errors.NetworkException;
 import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.FetchResponseData.FetchableTopicResponse;
 import org.apache.kafka.common.message.FetchResponseData.PartitionData;
@@ -35,6 +36,7 @@ import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
 import org.apache.kafka.common.message.ProduceRequestData.TopicProduceData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.MemoryRecords;
@@ -88,6 +90,7 @@ import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mock.Strictness.LENIENT;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -494,6 +497,47 @@ class RecordEncryptionFilterTest {
         // Then
         verify(context).forwardRequest(any(), argThat(request -> assertThat(request)
                 .has(produceRequestMatching(pr -> pr.topicData().stream().anyMatch(td -> ENCRYPTED_TOPIC.equals(td.name()))))));
+    }
+
+    @Test
+    void produceRequestVersionCappedTo12() {
+        when(context.forwardResponse(any(ResponseHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
+            var filterResult = mock(ResponseFilterResult.class);
+            lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
+            return CompletableFuture.completedFuture(filterResult);
+        });
+        ApiVersionsResponseData response = new ApiVersionsResponseData();
+        response.apiKeys().add(new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.PRODUCE.id).setMinVersion(ApiKeys.PRODUCE.id).setMaxVersion((short) 13));
+        CompletionStage<ResponseFilterResult> responseStage = encryptionFilter.onApiVersionsResponse(ApiKeys.API_VERSIONS.latestVersion(), new ResponseHeaderData(),
+                response,
+                context);
+        assertThat(responseStage).succeedsWithin(Duration.ofSeconds(1)).satisfies(responseFilterResult -> {
+            ApiMessage message = responseFilterResult.message();
+            assertThat(message).isInstanceOfSatisfying(ApiVersionsResponseData.class, apiVersionsResponseData -> {
+                assertThat(apiVersionsResponseData.apiKeys().find(ApiKeys.PRODUCE.id)).satisfies(apiKey -> {
+                    assertThat(apiKey.maxVersion()).isEqualTo((short) 12);
+                });
+            });
+        });
+    }
+
+    @Test
+    void produceRequestVersionHandlesMissingApi() {
+        when(context.forwardResponse(any(ResponseHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
+            var filterResult = mock(ResponseFilterResult.class);
+            lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
+            return CompletableFuture.completedFuture(filterResult);
+        });
+        ApiVersionsResponseData response = new ApiVersionsResponseData();
+        CompletionStage<ResponseFilterResult> responseStage = encryptionFilter.onApiVersionsResponse(ApiKeys.API_VERSIONS.latestVersion(), new ResponseHeaderData(),
+                response,
+                context);
+        assertThat(responseStage).succeedsWithin(Duration.ofSeconds(1)).satisfies(responseFilterResult -> {
+            ApiMessage message = responseFilterResult.message();
+            assertThat(message).isInstanceOfSatisfying(ApiVersionsResponseData.class, apiVersionsResponseData -> {
+                assertThat(apiVersionsResponseData.apiKeys()).isEmpty();
+            });
+        });
     }
 
     @NonNull
