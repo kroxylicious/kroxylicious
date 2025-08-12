@@ -1,0 +1,62 @@
+// Module included in the following assemblies:
+//
+// assemblies/assembly-operator-install.adoc
+
+[id='proc-deploying-operator-olm-ui-{context}']
+= Installing the operator from the OperatorHub
+
+[role="_abstract"]
+This procedure describes how to install and subscribe to the Streams for Apache Kafka Proxy operator using the OperatorHub in the OpenShift Container Platform web console.
+
+The procedure describes how to create a project and install the operator to that project.
+A project is a representation of a namespace.
+For manageability, it is a good practice to use namespaces to separate functions.
+
+WARNING: Make sure you use the appropriate update channel.
+If you are on a supported version of OpenShift, installing the operator from the default `alpha` channel is generally safe.
+However, we do not recommend enabling automatic updates on the `alpha` channel. 
+An automatic upgrade will skip any necessary steps prior to upgrade.
+Use automatic upgrades only on version-specific channels.
+
+.Prerequisites
+
+* xref:install-prereqs-{context}[Deployment prerequisites].
+
+.Procedure
+
+. Navigate in the OpenShift web console to the *Home > Projects* page and create a project (namespace) for the installation.
++
+We use a project named `streams-kafka-proxy` in this example.
+
+. Navigate to the *Operators > OperatorHub* page.
+
+. Scroll or type a keyword into the *Filter by keyword* box to find the *Streams for Apache Kafka Proxy* operator.
++
+The operator is located in the *Other* category.
+
+. Click *Streams for Apache Kafka Proxy* to display the operator information.
+
+. Read the information about the operator and click *Install*.
+
+. On the *Install Operator* page, choose from the following installation and update options:
+
+* *Update Channel*: Choose the update channel for the operator.
+
+** The (default) *alpha* channel contains all the latest updates and releases, including major, minor, and micro releases, which are assumed to be well tested and stable.
+** An *amq-streams-__X__.x* channel contains the minor and micro release updates for a major release, where _X_ is the major release version number.
+** An *amq-streams-__X.Y__.x* channel contains the micro release updates for a minor release, where _X_ is the major release version number and _Y_ is the minor release version number.
+
+* *Installation Mode*: Install the operator to all namespaces in the OpenShift cluster.
++
+A single instance of the operator will watch and manage proxies created throughout the OpenShift cluster.
+
+* *Update approval*: By default, the Streams for Apache Kafka Proxy operator is automatically upgraded to the latest proxy version by the Operator Lifecycle Manager (OLM). Optionally, select *Manual* if you want to manually approve future upgrades. For more information on operators, see the {OpenShiftDocs}.
+
+. Click *Install* to install the operator to your selected namespace.
+
+. After the operator is ready for use, navigate to *Operators > Installed Operators* to verify that the operator has installed to the selected namespace.
++
+The status will show as *Succeeded*.
+
+. Use the proxy operator xref:assembly-operator-deploying-a-proxy-{context}[to deploy a proxy].
+
