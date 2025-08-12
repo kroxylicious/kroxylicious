@@ -11,14 +11,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
@@ -35,7 +38,7 @@ import io.kroxylicious.proxy.filter.validation.validators.topic.TopicValidationR
  * validation fails, the whole produce request is rejected and the producing application receives an error
  * response {@link Errors#INVALID_RECORD}.  The broker does not receive rejected produce requests.
  */
-public class RecordValidationFilter implements ProduceRequestFilter, ProduceResponseFilter {
+public class RecordValidationFilter implements ProduceRequestFilter, ProduceResponseFilter, ApiVersionsResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordValidationFilter.class);
     private final ProduceRequestValidator validator;
@@ -138,6 +141,7 @@ public class RecordValidationFilter implements ProduceRequestFilter, ProduceResp
 
     private void augmentResponseWithInvalidTopicPartitions(ProduceResponseData response, ProduceRequestValidationResult produceRequestValidationResult) {
         produceRequestValidationResult.topicsWithInvalidPartitions().forEach(topicWithInvalidPartitions -> {
+            // TODO intercept and downgrade
             ProduceResponseData.TopicProduceResponse topicProduceResponse = response.responses().find(topicWithInvalidPartitions.topicName());
             if (topicProduceResponse == null) {
                 topicProduceResponse = new ProduceResponseData.TopicProduceResponse();
@@ -162,4 +166,19 @@ public class RecordValidationFilter implements ProduceRequestFilter, ProduceResp
         });
     }
 
+    // currently we must downgrade to a produce request version that does not support topic ids, we rely on
+    // topic names in the messages when deciding what rules to apply.
+    // todo remove once we have a facility to look up the topic name for a topic id
+    @Override
+    public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData response,
+                                                                       FilterContext context) {
+        if (!response.apiKeys().isEmpty()) {
+            short produceId = ApiKeys.PRODUCE.id;
+            ApiVersionsResponseData.ApiVersion produceVersion = response.apiKeys().find(produceId);
+            if (produceVersion != null && produceVersion.maxVersion() > (short) 12) {
+                produceVersion.setMaxVersion((short) 12);
+            }
+        }
+        return context.forwardResponse(header, response);
+    }
 }
