@@ -6,6 +6,9 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+
+* [#2565](https://github.com/kroxylicious/kroxylicious/pull/2565): build(deps): bump io.javaoperatorsdk:operator-framework-bom from 5.0.4 to 5.1.2
+
 ## 0.14.0
 
 * [#2541](https://github.com/kroxylicious/kroxylicious/issues/2541): feat(metrics): Add duration metrics for how long the proxy is applying back pressure on connections.
