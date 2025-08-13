@@ -11,7 +11,7 @@ import java.util.List;
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
- * Strategy which chooses a random upstream target as the bootstrap server.
+ * {@link BootstrapSelectionStrategy} which selects a random server from the given list of servers as the bootstrap server.
  */
 public class RandomBootstrapSelectionStrategy implements BootstrapSelectionStrategy {
 

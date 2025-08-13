@@ -13,6 +13,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.service.HostPort;
 
+/**
+ * {@link BootstrapSelectionStrategy} that selects a fixed server from the given list of servers as the bootstrap server
+ * based on the given choice.
+ *
+ * @param choice zero based index of the server to be selected.
+ */
 public record FixedBootstrapSelectionStrategy(int choice) implements BootstrapSelectionStrategy {
 
     @JsonCreator

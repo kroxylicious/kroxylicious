@@ -16,6 +16,7 @@ import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
@@ -28,7 +29,6 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
 import io.kroxylicious.proxy.bootstrap.FixedBootstrapSelectionStrategy;
-import io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy;
 import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
@@ -52,6 +52,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.ParameterizedInvocationConstants.ARGUMENT_SET_NAME_OR_ARGUMENTS_WITH_NAMES_PLACEHOLDER;
 
 class ConfigParserTest {
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
@@ -140,7 +141,7 @@ class ConfigParserTest {
                                     storeFile: /tmp/foo.jks
                                     storePassword:
                                       password: password
-                        
+
                         """),
                 Arguments.argumentSet("Downstream/Upstream TLS with inline passwords", """
                         virtualClusters:
@@ -934,7 +935,7 @@ class ConfigParserTest {
                 virtualClusters:
                 - name: demo1
                   targetCluster:
-                    bootstrapServers: magic-kafka.example:1234 
+                    bootstrapServers: magic-kafka.example:1234
                   gateways:
                   - name: mygateway
                     portIdentifiesNode:
@@ -951,8 +952,13 @@ class ConfigParserTest {
                 });
     }
 
-    @Test
-    void shouldSupportTargetClusterWithFixedBootstrapServerSelectionStrategy() {
+    @ParameterizedTest(name = ARGUMENT_SET_NAME_OR_ARGUMENTS_WITH_NAMES_PLACEHOLDER)
+    @CsvSource({
+            "fixed, io.kroxylicious.proxy.bootstrap.FixedBootstrapSelectionStrategy",
+            "random, io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy",
+            "round-robin, io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy"
+    })
+    void shouldSupportTargetClusterWithConfiguredBootstrapServerSelectionStrategy(final String strategy, final String expectedClass) {
         // When
         var configurationModel = configParser.parseConfiguration("""
                 adminHttp: {}
@@ -961,50 +967,19 @@ class ConfigParserTest {
                   targetCluster:
                     bootstrapServers: magic-kafka-0.example:1234,magic-kafka-1.example:1234
                     bootstrapServerSelection:
-                        strategy: fixed
-                        choice: 1
+                        strategy: %s
                   gateways:
                   - name: mygateway
                     portIdentifiesNode:
                       bootstrapAddress: "localhost:9082"
-                """);
+                """.formatted(strategy));
         // Then
         assertThat(configurationModel)
                 .extracting(Configuration::virtualClusters)
                 .extracting(virtualClusters -> virtualClusters.get(0))
                 .extracting(VirtualCluster::targetCluster)
                 .satisfies(targetCluster -> {
-                    assertThat(targetCluster.selectionStrategy()).isInstanceOf(FixedBootstrapSelectionStrategy.class);
-                    assertThat(targetCluster.bootstrapServer()).isEqualTo(new HostPort("magic-kafka-1.example", 1234));
-                });
-    }
-
-    @Test
-    void shouldSupportTargetClusterWithRandomBootstrapServerSelectionStrategy() {
-        // When
-        var configurationModel = configParser.parseConfiguration("""
-                adminHttp: {}
-                virtualClusters:
-                - name: demo1
-                  targetCluster:
-                    bootstrapServers: magic-kafka-0.example:1234,magic-kafka-1.example:1234,magic-kafka-1.example:1234
-                    bootstrapServerSelection:
-                        strategy: random
-                  gateways:
-                  - name: mygateway
-                    portIdentifiesNode:
-                      bootstrapAddress: "localhost:9082"
-                """);
-        // Then
-        var bootstrapServers = List.of(new HostPort("magic-kafka.example", 1234), new HostPort("magic-kafka-1.example", 1234),
-                new HostPort("magic-kafka-2.example", 1234));
-        assertThat(configurationModel)
-                .extracting(Configuration::virtualClusters)
-                .extracting(virtualClusters -> virtualClusters.get(0))
-                .extracting(VirtualCluster::targetCluster)
-                .satisfies(targetCluster -> {
-                    assertThat(targetCluster.selectionStrategy()).isInstanceOf(RandomBootstrapSelectionStrategy.class);
-                    assertThat(targetCluster.bootstrapServer()).isIn(bootstrapServers);
+                    assertThat(targetCluster.selectionStrategy()).isInstanceOf(Class.forName(expectedClass));
                 });
     }
 

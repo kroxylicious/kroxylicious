@@ -13,24 +13,17 @@ import org.junit.jupiter.api.Test;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-class FixedBootstrapSelectionStrategyTest {
-
-    @Test
-    void shouldRejectNegativeValuesForChoice() {
-        assertThatThrownBy(() -> new FixedBootstrapSelectionStrategy(-1))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
+class RandomBootstrapSelectionStrategyTest {
 
     @Test
-    void shouldSelectBootstrapServerBasedOnGivenChoice() {
+    void shouldReturnARandomServerChosenFromTheList() {
         final var bootstrapServers = List.of(
                 new HostPort("host0", 9092),
                 new HostPort("host1", 9093),
                 new HostPort("host2", 9094));
-        final int choice = 1;
-        final var strategy = new FixedBootstrapSelectionStrategy(choice);
-        assertThat(strategy.apply(bootstrapServers)).isEqualTo(bootstrapServers.get(choice));
+        final var strategy = new RandomBootstrapSelectionStrategy();
+        assertThat(strategy.apply(bootstrapServers)).isIn(bootstrapServers);
     }
+
 }
