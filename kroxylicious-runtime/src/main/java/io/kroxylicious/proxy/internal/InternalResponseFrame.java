@@ -19,11 +19,14 @@ public class InternalResponseFrame<B extends ApiMessage> extends DecodedResponse
     private final Filter recipient;
 
     private final CompletableFuture<?> future;
+    private final boolean cacheable;
 
-    public InternalResponseFrame(Filter recipient, short apiVersion, int correlationId, ResponseHeaderData header, B body, CompletableFuture<?> future) {
+    public InternalResponseFrame(Filter recipient, short apiVersion, int correlationId, ResponseHeaderData header, B body, CompletableFuture<?> future,
+                                 boolean cacheable) {
         super(apiVersion, correlationId, header, body);
         this.recipient = Objects.requireNonNull(recipient);
         this.future = future;
+        this.cacheable = cacheable;
     }
 
     public boolean isRecipient(Filter candidate) {
@@ -48,5 +51,9 @@ public class InternalResponseFrame<B extends ApiMessage> extends DecodedResponse
                 ", header=" + header +
                 ", body=" + body +
                 ')';
+    }
+
+    public boolean isCacheable() {
+        return cacheable;
     }
 }

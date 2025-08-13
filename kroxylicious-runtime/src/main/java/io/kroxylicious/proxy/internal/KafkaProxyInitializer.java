@@ -30,7 +30,9 @@ import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
+import io.kroxylicious.proxy.filter.FilterOptions;
 import io.kroxylicious.proxy.filter.NetFilter;
+import io.kroxylicious.proxy.filter.TargetMessageClass;
 import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestDecoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseEncoder;
@@ -39,6 +41,7 @@ import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
+import io.kroxylicious.proxy.internal.filter.TopicNameLearner;
 import io.kroxylicious.proxy.internal.metrics.DownstreamMessageCountingKafkaMessageListener;
 import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener;
 import io.kroxylicious.proxy.internal.net.Endpoint;
@@ -308,18 +311,20 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         @Override
         public void selectServer(NetFilter.NetFilterContext context) {
             List<FilterAndInvoker> apiVersionFilters = decodePredicate.isAuthenticationOffloadEnabled() ? List.of()
-                    : FilterAndInvoker.build("ApiVersionsIntersect (internal)", apiVersionsIntersectFilter);
+                    : FilterAndInvoker.build(new FilterOptions("ApiVersionsIntersect (internal)", TargetMessageClass.ALL), apiVersionsIntersectFilter);
 
             NettyFilterContext filterContext = new NettyFilterContext(ch.eventLoop(), pfr);
             List<FilterAndInvoker> filterChain = filterChainFactory.createFilters(filterContext, filterDefinitions);
-            List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build("BrokerAddress (internal)", new BrokerAddressFilter(gateway, endpointReconciler));
+            List<FilterAndInvoker> brokerAddressFilters = FilterAndInvoker.build(new FilterOptions("BrokerAddress (internal)", TargetMessageClass.ALL),
+                    new BrokerAddressFilter(gateway, endpointReconciler));
             var filters = new ArrayList<>(apiVersionFilters);
-            filters.addAll(FilterAndInvoker.build("ApiVersionsDowngrade (internal)", apiVersionsDowngradeFilter));
+            filters.addAll(FilterAndInvoker.build(new FilterOptions("ApiVersionsDowngrade (internal)", TargetMessageClass.ALL), apiVersionsDowngradeFilter));
             filters.addAll(filterChain);
             if (binding.restrictUpstreamToMetadataDiscovery()) {
-                filters.addAll(FilterAndInvoker.build("EagerMetadataLearner (internal)", new EagerMetadataLearner()));
+                filters.addAll(FilterAndInvoker.build(new FilterOptions("EagerMetadataLearner (internal)", TargetMessageClass.ALL), new EagerMetadataLearner()));
             }
             filters.addAll(brokerAddressFilters);
+            filters.addAll(FilterAndInvoker.build(new FilterOptions("TopicNameLearner (internal)", TargetMessageClass.INTERNAL_EDGE_CACHEABLE), new TopicNameLearner()));
 
             var target = binding.upstreamTarget();
             if (target == null) {

@@ -66,6 +66,6 @@ class InternalRequestFrameTest {
         header.setCorrelationId(CORRELATION_ID);
         MetadataRequestData request = new MetadataRequestData();
         return new InternalRequestFrame<>(API_VERSION, CORRELATION_ID,
-                true, filter, PROMISE, header, request);
+                true, filter, PROMISE, header, request, false);
     }
 }

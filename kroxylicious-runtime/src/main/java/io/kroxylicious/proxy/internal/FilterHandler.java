@@ -7,20 +7,28 @@ package io.kroxylicious.proxy.internal;
 
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 
+import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +50,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
+import io.kroxylicious.proxy.filter.TargetMessageClass;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -56,6 +65,7 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -71,10 +81,13 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
     private final ClientSaslManager clientSaslManager;
+    private final TargetMessageClass targetMessageClass;
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private @Nullable ChannelHandlerContext ctx;
     private @Nullable PromiseFactory promiseFactory;
+    // Version 12 was the first version that uses topic ids.
+    private static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
 
     public FilterHandler(FilterAndInvoker filterAndInvoker,
                          long timeoutMs,
@@ -83,6 +96,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                          Channel inboundChannel,
                          ClientSaslManager clientSaslManager) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
+        this.targetMessageClass = filterAndInvoker.filterOptions().targetMessageClass();
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
         this.virtualClusterModel = virtualClusterModel;
@@ -227,14 +241,35 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     private CompletableFuture<ResponseFilterResult> dispatchDecodedResponseFrame(DecodedResponseFrame<?> decodedFrame, InternalFilterContext filterContext) {
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Dispatching upstream {} response to filter '{}': {}",
-                    channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
+
+        if (filterTargetResponseMessage(decodedFrame)) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("{}: Dispatching upstream {} response to filter '{}': {}",
+                        channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
+            }
+            var stage = filterAndInvoker.invoker().onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(),
+                    decodedFrame.header(), decodedFrame.body(), filterContext);
+            return stage instanceof InternalCompletionStage ? ((InternalCompletionStage<ResponseFilterResult>) stage).getUnderlyingCompletableFuture()
+                    : stage.toCompletableFuture();
         }
-        var stage = filterAndInvoker.invoker().onResponse(decodedFrame.apiKey(), decodedFrame.apiVersion(),
-                decodedFrame.header(), decodedFrame.body(), filterContext);
-        return stage instanceof InternalCompletionStage ? ((InternalCompletionStage<ResponseFilterResult>) stage).getUnderlyingCompletableFuture()
-                : stage.toCompletableFuture();
+        else {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("{}: Filter {} does not target this {} message, forwarding", channelDescriptor(), filterDescriptor(), decodedFrame.apiKey());
+            }
+            return filterContext.forwardResponse(decodedFrame.header(), decodedFrame.body()).toCompletableFuture();
+        }
+    }
+
+    private boolean filterTargetRequestMessage(DecodedRequestFrame<?> decodedFrame) {
+        return targetMessageClass == TargetMessageClass.ALL
+                || (targetMessageClass == TargetMessageClass.INTERNAL_EDGE_CACHEABLE && decodedFrame instanceof InternalRequestFrame<?> internalRequestFrame
+                        && internalRequestFrame.isCacheable());
+    }
+
+    private boolean filterTargetResponseMessage(DecodedResponseFrame<?> decodedFrame) {
+        return targetMessageClass == TargetMessageClass.ALL
+                || (targetMessageClass == TargetMessageClass.INTERNAL_EDGE_CACHEABLE && decodedFrame instanceof InternalResponseFrame<?> internalResponseFrame
+                        && internalResponseFrame.isCacheable());
     }
 
     private CompletableFuture<ResponseFilterResult> configureResponseFilterChain(DecodedResponseFrame<?> decodedFrame, CompletableFuture<ResponseFilterResult> future) {
@@ -259,15 +294,20 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     private CompletableFuture<RequestFilterResult> dispatchDecodedRequest(DecodedRequestFrame<?> decodedFrame, InternalFilterContext filterContext) {
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("{}: Dispatching downstream {} request to filter '{}': {}",
-                    channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
+        if (filterTargetRequestMessage(decodedFrame)) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("{}: Dispatching downstream {} request to filter '{}': {}",
+                        channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
+            }
+            var stage = filterAndInvoker.invoker().onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(),
+                    decodedFrame.body(), filterContext);
+            return stage instanceof InternalCompletionStage ? ((InternalCompletionStage<RequestFilterResult>) stage).getUnderlyingCompletableFuture()
+                    : stage.toCompletableFuture();
         }
-
-        var stage = filterAndInvoker.invoker().onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(),
-                decodedFrame.body(), filterContext);
-        return stage instanceof InternalCompletionStage ? ((InternalCompletionStage<RequestFilterResult>) stage).getUnderlyingCompletableFuture()
-                : stage.toCompletableFuture();
+        else {
+            LOGGER.debug("{}: Filter {} does not target this {} message, forwarding", channelDescriptor(), filterDescriptor(), decodedFrame.apiKey());
+            return filterContext.forwardRequest(decodedFrame.header(), decodedFrame.body()).toCompletableFuture();
+        }
     }
 
     private CompletableFuture<RequestFilterResult> configureRequestFilterChain(DecodedRequestFrame<?> decodedFrame, ChannelPromise promise,
@@ -561,6 +601,10 @@ public class FilterHandler extends ChannelDuplexHandler {
         @Override
         public <M extends ApiMessage> CompletionStage<M> sendRequest(RequestHeaderData header,
                                                                      ApiMessage request) {
+            return sendRequest(header, request, false);
+        }
+
+        private <M extends ApiMessage> @NonNull CompletionStage<M> sendRequest(RequestHeaderData header, ApiMessage request, boolean cacheable) {
             Objects.requireNonNull(header);
             Objects.requireNonNull(request);
 
@@ -579,7 +623,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     () -> "Asynchronous %s request made by filter '%s' failed to complete within %s ms.".formatted(apiKey, filterDescriptor(), timeoutMs));
             var frame = new InternalRequestFrame<>(
                     header.requestApiVersion(), header.correlationId(), hasResponse,
-                    filterAndInvoker.filter(), filterPromise, header, request);
+                    filterAndInvoker.filter(), filterPromise, header, request, cacheable);
 
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Filter '{}' sending request: {}", FilterHandler.this.channelDescriptor(), filterDescriptor(), msgDescriptor(frame));
@@ -605,6 +649,54 @@ public class FilterHandler extends ChannelDuplexHandler {
             return filterPromise.minimalCompletionStage();
         }
 
+        @Override
+        public CompletionStage<Map<Uuid, String>> getTopicNames(Set<Uuid> topicIds) {
+            Objects.requireNonNull(topicIds);
+            return requestTopicMetadata(topicIds).thenApply(f -> extractTopicNames(topicIds, f));
+        }
+
+        private CompletionStage<ApiMessage> requestTopicMetadata(Set<Uuid> topicIds) {
+            MetadataRequestData request = new MetadataRequestData();
+            request.setTopics(topicIds.stream().map(topicId -> new MetadataRequestData.MetadataRequestTopic().setTopicId(topicId)).toList());
+            request.setAllowAutoTopicCreation(false);
+            request.setIncludeClusterAuthorizedOperations(false);
+            request.setIncludeTopicAuthorizedOperations(false);
+            RequestHeaderData requestHeaderData = new RequestHeaderData();
+            requestHeaderData.setRequestApiKey(ApiKeys.METADATA.id);
+            requestHeaderData.setRequestApiVersion(METADATA_API_VER_WITH_TOPIC_ID_SUPPORT);
+            return sendRequest(requestHeaderData, request, true);
+        }
+
+    }
+
+    @VisibleForTesting
+    static Map<Uuid, String> extractTopicNames(Set<Uuid> topicIds, ApiMessage metadataResponse) {
+        if (metadataResponse instanceof MetadataResponseData d) {
+            Errors errors = Errors.forCode(d.errorCode());
+            if (errors != Errors.NONE) {
+                throw new TopicNameLookupException("error retrieving metadata", errors.exception());
+            }
+            else {
+                List<MetadataResponseData.MetadataResponseTopic> failedTopicResponses = d.topics().stream().filter(metadataResponseTopic -> {
+                    Errors topicError = Errors.forCode(metadataResponseTopic.errorCode());
+                    return topicError != Errors.NONE;
+                }).toList();
+                if (!failedTopicResponses.isEmpty()) {
+                    String failures = failedTopicResponses.stream().map(r -> r.topicId() + ": " + Errors.forCode(r.errorCode()).name())
+                            .collect(Collectors.joining("),(", "(", ")"));
+                    throw new TopicNameLookupException("Some requested topic id lookups failed: " + failures);
+                }
+                Map<Uuid, String> uuidToName = d.topics().stream()
+                        .collect(Collectors.toMap(MetadataResponseData.MetadataResponseTopic::topicId, MetadataResponseData.MetadataResponseTopic::name));
+                if (!uuidToName.keySet().equals(topicIds)) {
+                    throw new TopicNameLookupException("despite metadata request succeeding we could not obtain names for all topic ids");
+                }
+                return uuidToName;
+            }
+        }
+        else {
+            throw new TopicNameLookupException("Unexpected response type " + metadataResponse.getClass());
+        }
     }
 
     @VisibleForTesting

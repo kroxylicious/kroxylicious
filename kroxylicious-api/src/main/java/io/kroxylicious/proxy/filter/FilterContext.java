@@ -5,11 +5,14 @@
  */
 package io.kroxylicious.proxy.filter;
 
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
 import javax.annotation.Nullable;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -105,6 +108,14 @@ public interface FilterContext {
      */
     <M extends ApiMessage> CompletionStage<M> sendRequest(RequestHeaderData header,
                                                           ApiMessage request);
+
+    /**
+     * Resolves all topicUuids in a Set to topic names.
+     * @param topicUuids topic uuids to resolve
+     * @return CompletionStage for a map containing an entry for each topicUuid, mapping the uuid to the topicName. The Map is unmodifiable.
+     * The stage will be completed exceptionally if a mapping for any uuid in the Set cannot be resolved.
+     */
+    CompletionStage<Map<Uuid, String>> getTopicNames(Set<Uuid> topicUuids);
 
     /**
      * Generates a completed filter results containing the given header and response.  When

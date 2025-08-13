@@ -78,7 +78,8 @@ public class KafkaResponseDecoder extends KafkaMessageDecoder {
                 frame = new DecodedResponseFrame<>(body.apiVersion(), correlationId, header, body.apiMessage());
             }
             else {
-                frame = new InternalResponseFrame<>(recipient, body.apiVersion(), correlationId, header, body.apiMessage(), correlation.promise());
+                frame = new InternalResponseFrame<>(recipient, body.apiVersion(), correlationId, header, body.apiMessage(), correlation.promise(),
+                        correlation.isCacheable());
             }
         }
         else {

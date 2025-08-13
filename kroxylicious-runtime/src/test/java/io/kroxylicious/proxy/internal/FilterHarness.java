@@ -148,7 +148,8 @@ public abstract class FilterHarness {
     }
 
     protected <B extends ApiMessage> InternalRequestFrame<B> writeInternalRequest(RequestHeaderData headerData, B data, Filter recipient) {
-        var frame = new InternalRequestFrame<>(headerData.requestApiVersion(), headerData.correlationId(), false, recipient, new CompletableFuture<>(), headerData, data);
+        var frame = new InternalRequestFrame<>(headerData.requestApiVersion(), headerData.correlationId(), false, recipient, new CompletableFuture<>(), headerData, data,
+                false);
         writeRequest(frame);
         return frame;
     }
@@ -230,7 +231,8 @@ public abstract class FilterHarness {
         if (correlation == null) {
             throw new IllegalStateException("No corresponding internal request known " + requestCorrelationId);
         }
-        var frame = new InternalResponseFrame<>(correlation.recipient(), apiKey.latestVersion(), requestCorrelationId, header, data, correlation.promise());
+        var frame = new InternalResponseFrame<>(correlation.recipient(), apiKey.latestVersion(), requestCorrelationId, header, data, correlation.promise(),
+                false);
         channel.writeInbound(frame);
         return frame;
 

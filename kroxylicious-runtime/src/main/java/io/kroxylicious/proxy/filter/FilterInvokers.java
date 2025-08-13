@@ -35,48 +35,50 @@ public class FilterInvokers {
      * @throws IllegalArgumentException if there is an invalid combination of Filter interfaces
      * @throws IllegalArgumentException if none of the supported interfaces are implemented
      * @param filter the Filter to create an invoker for
+     * @param filterOptions options for this filter
      * @return the invoker
      */
-    static List<FilterAndInvoker> from(String filterName, Filter filter) {
-        List<FilterAndInvoker> filterInvokers = invokersForFilter(filterName, filter);
+    static List<FilterAndInvoker> from(FilterOptions filterOptions, Filter filter) {
+        List<FilterAndInvoker> filterInvokers = invokersForFilter(filterOptions, filter);
         // all invokers are wrapped in safe invoker so that clients can safely call onRequest/onResponse
         // even if the invoker isn't interested in that message.
         return wrapAllInSafeInvoker(filterInvokers).toList();
     }
 
-    private static List<FilterAndInvoker> invokersForFilter(String filterName, Filter filter) {
+    private static List<FilterAndInvoker> invokersForFilter(FilterOptions filterOptions, Filter filter) {
+        String filterName = filterOptions.filterName();
         FilterCharacteristics characteristics = FilterCharacteristics.describeCharacteristics(filter);
         validateFilter(filterName, characteristics);
-        Optional<FilterAndInvoker> genericInvoker = maybeGenericInvoker(filterName, filter, characteristics);
-        Optional<FilterAndInvoker> specificInvoker = maybeSpecificInvoker(filterName, filter, characteristics);
+        Optional<FilterAndInvoker> genericInvoker = maybeGenericInvoker(filterOptions, filter, characteristics);
+        Optional<FilterAndInvoker> specificInvoker = maybeSpecificInvoker(filterOptions, filter, characteristics);
         return Stream.concat(genericInvoker.stream(), specificInvoker.stream()).toList();
     }
 
-    private static Optional<FilterAndInvoker> maybeSpecificInvoker(String filterName, Filter filter, FilterCharacteristics characteristics) {
+    private static Optional<FilterAndInvoker> maybeSpecificInvoker(FilterOptions filterOptions, Filter filter, FilterCharacteristics characteristics) {
         if (characteristics.isSpecificRequestFilter || characteristics.isSpecificResponseFilter) {
-            return Optional.of(getFilterAndInvoker(filterName, filter, arrayInvoker(filter)));
+            return Optional.of(getFilterAndInvoker(filterOptions, filter, arrayInvoker(filter)));
         }
         else {
             return Optional.empty();
         }
     }
 
-    private static Optional<FilterAndInvoker> maybeGenericInvoker(String filterName, Filter filter, FilterCharacteristics characteristics) {
+    private static Optional<FilterAndInvoker> maybeGenericInvoker(FilterOptions filterOptions, Filter filter, FilterCharacteristics characteristics) {
         if (characteristics.isAnyRequestFilter && characteristics.isAnyResponseFilter) {
-            return Optional.of(getFilterAndInvoker(filterName, filter, new RequestResponseInvoker((RequestFilter) filter, (ResponseFilter) filter)));
+            return Optional.of(getFilterAndInvoker(filterOptions, filter, new RequestResponseInvoker((RequestFilter) filter, (ResponseFilter) filter)));
         }
         else if (characteristics.isAnyResponseFilter) {
-            return Optional.of(getFilterAndInvoker(filterName, filter, new ResponseFilterInvoker((ResponseFilter) filter)));
+            return Optional.of(getFilterAndInvoker(filterOptions, filter, new ResponseFilterInvoker((ResponseFilter) filter)));
         }
         else if (characteristics.isAnyRequestFilter) {
-            return Optional.of(getFilterAndInvoker(filterName, filter, new RequestFilterInvoker((RequestFilter) filter)));
+            return Optional.of(getFilterAndInvoker(filterOptions, filter, new RequestFilterInvoker((RequestFilter) filter)));
         }
         return Optional.empty();
     }
 
     private static Stream<FilterAndInvoker> wrapAllInSafeInvoker(List<FilterAndInvoker> filterInvokers) {
         return filterInvokers.stream()
-                .map(filterAndInvoker -> getFilterAndInvoker(filterAndInvoker.filterName(), filterAndInvoker.filter(), new SafeInvoker(filterAndInvoker.invoker())));
+                .map(filterAndInvoker -> getFilterAndInvoker(filterAndInvoker.filterOptions(), filterAndInvoker.filter(), new SafeInvoker(filterAndInvoker.invoker())));
     }
 
     private static void validateFilter(String filterName, FilterCharacteristics characteristics) {
@@ -97,8 +99,8 @@ public class FilterInvokers {
         }
     }
 
-    private static FilterAndInvoker getFilterAndInvoker(String filterName, Filter filter, FilterInvoker invoker) {
-        return new FilterAndInvoker(filterName, filter, invoker);
+    private static FilterAndInvoker getFilterAndInvoker(FilterOptions filterOptions, Filter filter, FilterInvoker invoker) {
+        return new FilterAndInvoker(filterOptions, filter, invoker);
     }
 
     /**
