@@ -103,3 +103,7 @@ fabric.properties
 docs/*.html
 .sdkmanrc
 .releaseNotes
+kroxylicious.log
+kroxylicious-debug.log
+.java-version
+
