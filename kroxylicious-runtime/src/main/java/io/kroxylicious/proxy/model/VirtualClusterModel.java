@@ -84,9 +84,9 @@ public class VirtualClusterModel {
 
     public void logVirtualClusterSummary() {
         var upstreamBootstrapServers = targetCluster.bootstrapServersList();
-        var upstreamSummary = upstreamBootstrapServers.size() == 1 
-            ? upstreamBootstrapServers.get(0).toString()
-            : upstreamBootstrapServers.size() + " servers: " + upstreamBootstrapServers.toString();
+        var upstreamSummary = String.join(", ", upstreamBootstrapServers.stream()
+            .map(Object::toString)
+            .toList());
         var upstreamTlsSummary = generateTlsSummary(targetCluster.tls());
 
         LOGGER.info("Virtual Cluster '{}' - gateway summary", clusterName);
