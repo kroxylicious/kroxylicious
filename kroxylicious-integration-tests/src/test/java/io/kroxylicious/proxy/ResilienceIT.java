@@ -89,8 +89,22 @@ class ResilienceIT extends BaseIT {
     }
 
     @Test
+    void kafkaProducerShouldTolerateKroxyliciousRestartingWithFirstBootstrapUnavailable(Topic randomTopic) throws Exception {
+        try (var immediateCloseServer = new ImmediateCloseSocketServer()) {
+            testProducerCanSurviveARestart(proxy(immediateCloseServer.getHostPort() + "," + cluster.getBootstrapServers()), randomTopic);
+        }
+    }
+
+    @Test
     void kafkaConsumerShouldTolerateKroxyliciousRestarting(Topic randomTopic) throws Exception {
         testConsumerCanSurviveKroxyliciousRestart(proxy(cluster), randomTopic);
+    }
+
+    @Test
+    void kafkaConsumerShouldTolerateKroxyliciousRestartingWithFirstBootstrapUnavailable(Topic randomTopic) throws Exception {
+        try (var immediateCloseServer = new ImmediateCloseSocketServer()) {
+            testConsumerCanSurviveKroxyliciousRestart(proxy(immediateCloseServer.getHostPort() + "," + cluster.getBootstrapServers()), randomTopic);
+        }
     }
 
     @Test
