@@ -155,7 +155,10 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>info.schnatterer.moby-names-generator</groupId>
+            <artifactId>moby-names-generator</artifactId>
+        </dependency>
         <!-- third party dependencies - test -->
 
         <dependency>

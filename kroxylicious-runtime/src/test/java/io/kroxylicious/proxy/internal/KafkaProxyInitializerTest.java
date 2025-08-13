@@ -28,6 +28,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.DefaultChannelId;
@@ -105,6 +106,8 @@ class KafkaProxyInitializerTest {
         bindingStage = CompletableFuture.completedStage(vcb);
         filterChainFactory = new FilterChainFactory(pfr, List.of());
         final InetSocketAddress localhost = new InetSocketAddress(0);
+        ChannelId channelId = DefaultChannelId.newInstance();
+        when(channel.id()).thenReturn(channelId);
         when(channel.parent()).thenReturn(acceptingSocketChannel);
         when(channel.pipeline()).thenReturn(channelPipeline);
         when(channel.eventLoop()).thenReturn(eventLoop);
