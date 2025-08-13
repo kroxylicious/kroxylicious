@@ -188,7 +188,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         }
 
         var key = Endpoint.createEndpoint(virtualClusterModel.getBindAddress(), virtualClusterModel.getClusterBootstrapAddress().port(), virtualClusterModel.isUseTls());
-        var upstreamBootstrap = virtualClusterModel.targetCluster().bootstrapServersList().get(0);
+        var upstreamBootstrap = virtualClusterModel.targetCluster().bootstrapServer();
         var bootstrapEndpointFuture = registerBinding(key,
                 virtualClusterModel.getClusterBootstrapAddress().host(),
                 new BootstrapEndpointBinding(virtualClusterModel, upstreamBootstrap)).toCompletableFuture();
@@ -407,7 +407,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
 
     private Set<BrokerEndpointBinding> constructPossibleBindingsToCreate(EndpointGateway virtualClusterModel,
                                                                          Map<Integer, HostPort> upstreamNodes) {
-        var upstreamBootstrap = virtualClusterModel.targetCluster().bootstrapServersList().get(0);
+        var upstreamBootstrap = virtualClusterModel.targetCluster().bootstrapServer();
         var discoveryBrokerIds = virtualClusterModel.discoveryAddressMap();
         // create possible set of bindings to create
         var creations = upstreamNodes.entrySet()

@@ -7,10 +7,13 @@ package io.kroxylicious.proxy.config;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.bootstrap.BootstrapSelectionStrategy;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -21,12 +24,18 @@ import io.kroxylicious.proxy.service.HostPort;
  * @param tls tls configuration if a secure connection is to be used.
  */
 public record TargetCluster(@JsonProperty(value = "bootstrapServers", required = true) String bootstrapServers,
-                            @JsonProperty(value = "tls") Optional<Tls> tls) {
+                            @JsonProperty(value = "tls") Optional<Tls> tls,
+                            @JsonProperty(value = "bootstrapServerSelection") BootstrapSelectionStrategy selectionStrategy) {
 
+    @JsonCreator
     public TargetCluster {
         if (bootstrapServers == null) {
             throw new IllegalArgumentException("'bootstrapServers' is required in a target cluster.");
         }
+    }
+
+    public TargetCluster(String bootstrapServers, @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Tls> tls) {
+        this(bootstrapServers, tls, BootstrapSelectionStrategy.FIRST_BOOTSTRAP_SERVER_SELECTION_STRATEGY);
     }
 
     /**
@@ -42,6 +51,15 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
 
     public List<HostPort> bootstrapServersList() {
         return Arrays.stream(bootstrapServers.split(",")).map(HostPort::parse).toList();
+    }
+
+    @Override
+    public BootstrapSelectionStrategy selectionStrategy() {
+        return Objects.requireNonNullElse(selectionStrategy, BootstrapSelectionStrategy.FIRST_BOOTSTRAP_SERVER_SELECTION_STRATEGY);
+    }
+
+    public HostPort bootstrapServer() {
+        return selectionStrategy().apply(bootstrapServersList());
     }
 
     @Override
