@@ -400,6 +400,7 @@ public class KafkaProxyFrontendHandler
      * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
      */
     @Override
+    @Nullable
     public String clientSoftwareName() {
         return proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE).clientSoftwareName();
     }
@@ -411,6 +412,7 @@ public class KafkaProxyFrontendHandler
      * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
      */
     @Override
+    @Nullable
     public String clientSoftwareVersion() {
         return proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE).clientSoftwareVersion();
     }
@@ -422,6 +424,7 @@ public class KafkaProxyFrontendHandler
      * @throws IllegalStateException if {@link #proxyChannelStateMachine} is not {@link SelectingServer}.
      */
     @Override
+    @Nullable
     public String sniHostname() {
         proxyChannelStateMachine.enforceInSelectingServer(NET_FILTER_INVOKED_IN_WRONG_STATE);
         return sniHostname;
@@ -558,7 +561,7 @@ public class KafkaProxyFrontendHandler
 
         if (pendingReadComplete) {
             pendingReadComplete = false;
-            channelReadComplete(this.clientCtx);
+            channelReadComplete(Objects.requireNonNull(this.clientCtx));
         }
 
         if (isClientBlocked) {
