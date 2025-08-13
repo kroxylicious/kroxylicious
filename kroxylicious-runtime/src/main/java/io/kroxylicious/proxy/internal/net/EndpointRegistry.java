@@ -630,13 +630,14 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
             throw new IllegalArgumentException("Bootstrap servers list cannot be null or empty");
         }
         
-        if (bootstrapServers.size() == 1) {
+        int size = bootstrapServers.size();
+        if (size == 1) {
             return bootstrapServers.get(0);
         }
         
         // Use current time as a source of variation to distribute across servers
         // This provides better distribution than always using the first server
-        int index = (int) (System.currentTimeMillis() % bootstrapServers.size());
+        int index = (int) (System.currentTimeMillis() % size);
         return bootstrapServers.get(index);
     }
 
