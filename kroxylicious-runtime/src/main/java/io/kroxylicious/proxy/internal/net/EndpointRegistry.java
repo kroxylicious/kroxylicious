@@ -645,10 +645,6 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
      */
     @VisibleForTesting
     static HostPort selectBootstrapServer(List<HostPort> bootstrapServers, long counter) {
-        if (bootstrapServers == null || bootstrapServers.isEmpty()) {
-            throw new IllegalArgumentException("Bootstrap servers list cannot be null or empty");
-        }
-
         int index = (int) (Math.abs(counter) % bootstrapServers.size());
         return bootstrapServers.get(index);
     }
