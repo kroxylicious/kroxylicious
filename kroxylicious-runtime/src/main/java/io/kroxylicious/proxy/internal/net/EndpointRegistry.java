@@ -629,21 +629,12 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
      * @param bootstrapServers the list of bootstrap servers
      * @return the selected bootstrap server
      */
-    @VisibleForTesting
     static HostPort selectBootstrapServer(List<HostPort> bootstrapServers) {
-        if (bootstrapServers == null || bootstrapServers.isEmpty()) {
-            throw new IllegalArgumentException("Bootstrap servers list cannot be null or empty");
-        }
-        
-        // Use simple round-robin selection
-        int size = bootstrapServers.size();
-        long counter = roundRobinCounter.getAndIncrement();
-        int index = (int) (counter % size);
-        return bootstrapServers.get(index);
+        return selectBootstrapServer(bootstrapServers, roundRobinCounter.getAndIncrement());
     }
 
     /**
-     * Selects a bootstrap server from the list using a simple round-robin approach for testing.
+     * Selects a bootstrap server from the list using a simple round-robin approach.
      * This version accepts a counter value for deterministic testing.
      * 
      * @param bootstrapServers the list of bootstrap servers
