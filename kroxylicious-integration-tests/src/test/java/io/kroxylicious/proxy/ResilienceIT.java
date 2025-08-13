@@ -11,9 +11,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.DescribeClusterOptions;
+import org.apache.kafka.clients.admin.DescribeClusterResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -51,6 +53,35 @@ class ResilienceIT extends BaseIT {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResilienceIT.class);
 
     static @BrokerCluster(numBrokers = 3) KafkaCluster cluster;
+
+    @Test
+    void shouldBeAbleToBootstrapIfFirstBootstrapUnavailable(KafkaCluster myCluster)
+            throws ExecutionException, InterruptedException, java.util.concurrent.TimeoutException {
+        // Create a config where the first bootstrap server is a non-existent host,
+        // followed by the real cluster bootstrap servers. This tests our round-robin
+        // bootstrap server selection fix.
+        String invalidFirstBootstrap = "localhost:19999"; // Non-existent port
+        ConfigurationBuilder config = proxy(invalidFirstBootstrap + "," + myCluster.getBootstrapServers());
+        
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin()) {
+            
+            // This should succeed because our round-robin implementation will try
+            // different bootstrap servers, not just the first one
+            DescribeClusterResult describeClusterResult = admin.describeCluster();
+            assertThat(describeClusterResult.clusterId().get(5, TimeUnit.SECONDS)).isNotBlank();
+            
+            // Also verify we can create and list topics to ensure full functionality
+            var testTopic = admin.createTopics(List.of(new NewTopic("bootstrap-test-topic", Optional.empty(), Optional.empty()))).all();
+            assertThat(testTopic).succeedsWithin(Duration.ofSeconds(10));
+            
+            var topics = admin.listTopics().names();
+            assertThat(topics)
+                    .succeedsWithin(Duration.ofSeconds(10))
+                    .asInstanceOf(InstanceOfAssertFactories.set(String.class))
+                    .contains("bootstrap-test-topic");
+        }
+    }
 
     @Test
     void kafkaProducerShouldTolerateKroxyliciousRestarting(Topic randomTopic) throws Exception {
@@ -147,7 +178,7 @@ class ResilienceIT extends BaseIT {
                 producer = tester.producer(producerConfig);
                 consumer = tester.consumer(consumerConfig);
                 consumer.subscribe(Set.of(randomTopic.name()));
-                var response = producer.send(new ProducerRecord<>(randomTopic.name(), "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
+                producer.send(new ProducerRecord<>(randomTopic.name(), "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
 
                 LOGGER.debug("Restarting proxy");
                 tester.restartProxy();
