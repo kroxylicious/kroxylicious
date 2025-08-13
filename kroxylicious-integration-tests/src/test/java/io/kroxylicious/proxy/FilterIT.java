@@ -20,8 +20,10 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.clients.admin.Admin;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.clients.admin.TopicDescription;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.errors.InvalidTopicException;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -34,6 +36,7 @@ import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.protocol.types.RawTaggedField;
 import org.apache.kafka.common.serialization.Serdes;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -57,6 +60,8 @@ import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilterFactory;
 import io.kroxylicious.proxy.filter.simpletransform.FetchResponseTransformation;
 import io.kroxylicious.proxy.filter.simpletransform.ProduceRequestTransformation;
+import io.kroxylicious.proxy.testplugins.TopicIdToNameResponseStamper;
+import io.kroxylicious.proxy.testplugins.TopicNameMetadataPrefixer;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
@@ -101,6 +106,110 @@ class FilterIT {
     private static final NamedFilterDefinitionBuilder GENERIC_RESPONSE_SPECIFIC_REQUEST = new NamedFilterDefinitionBuilder(
             GenericResponseSpecificRequestFilterFactory.class.getName(),
             GenericResponseSpecificRequestFilterFactory.class.getName());
+
+    @Test
+    void filtersCanLookUpTopicNames(KafkaCluster cluster, Topic topic1, Topic topic2, Admin admin) throws Exception {
+
+        Map<String, TopicDescription> descriptionMap = admin.describeTopics(List.of(topic1.name(), topic2.name())).allTopicNames().get(5, TimeUnit.SECONDS);
+        Uuid topic1Id = descriptionMap.get(topic1.name()).topicId();
+        Uuid topic2Id = descriptionMap.get(topic2.name()).topicId();
+
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder("topicIdLookup",
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            MetadataRequestData message = new MetadataRequestData();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, (topic1Id.toString() + "," + topic2Id.toString()).getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
+            List<String> tags = unknownTaggedFieldsToStrings(response.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
+            assertThat(tags).hasSize(1);
+            String tag = tags.getFirst();
+            String[] topicNames = tag.split(",");
+            assertThat(topicNames).containsExactlyInAnyOrder(topic1.name(), topic2.name());
+        }
+    }
+
+    @Test
+    void metadataLookupsCached() {
+
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder("topicIdLookup",
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        try (var tester = mockKafkaKroxyliciousTester(s -> proxy(s).addToFilterDefinitions(namedFilterDefinition).addToDefaultFilters(namedFilterDefinition.name()));
+                var client = tester.simpleTestClient()) {
+            tester.addMockResponseForApiKey(new ResponsePayload(API_VERSIONS, API_VERSIONS.latestVersion(),
+                    new ApiVersionsResponseData()));
+            String topicname = "topicname";
+            Uuid uuid = Uuid.randomUuid();
+            MetadataResponseData metadataResponseData = new MetadataResponseData();
+            metadataResponseData.topics().add(new MetadataResponseData.MetadataResponseTopic().setTopicId(
+                    uuid).setName(
+                            topicname));
+            tester.addMockResponseForApiKey(new ResponsePayload(METADATA, (short) 12, metadataResponseData));
+
+            ApiVersionsRequestData message = new ApiVersionsRequestData().setClientSoftwareVersion("v").setClientSoftwareName("n");
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, uuid.toString().getBytes(StandardCharsets.UTF_8)));
+
+            Response response = client.getSync(
+                    new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "id", message));
+            List<String> tags = unknownTaggedFieldsToStrings(response.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
+            assertThat(tags).hasSize(1);
+            String tag = tags.getFirst();
+            String[] topicNames = tag.split(",");
+            assertThat(topicNames).containsExactlyInAnyOrder(topicname);
+            assertThat(tester.getRequestsForApiKey(API_VERSIONS)).hasSize(1);
+            assertThat(tester.getRequestsForApiKey(METADATA)).hasSize(1);
+            Response response2 = client.getSync(
+                    new Request(API_VERSIONS, API_VERSIONS.latestVersion(), "id", message));
+            List<String> tags2 = unknownTaggedFieldsToStrings(response2.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
+            assertThat(tags2).hasSize(1);
+            String tag2 = tags2.getFirst();
+            String[] topicNames2 = tag2.split(",");
+            assertThat(topicNames2).containsExactlyInAnyOrder(topicname);
+            assertThat(tester.getRequestsForApiKey(API_VERSIONS)).hasSize(2);
+            // we did not need to make the metadata call to the mock a second time
+            assertThat(tester.getRequestsForApiKey(METADATA)).hasSize(1);
+        }
+    }
+
+    @Test
+    void topicNameLookupComposesWithOtherFilters(KafkaCluster cluster, Topic topic1, Topic topic2, Admin admin) throws Exception {
+
+        Map<String, TopicDescription> descriptionMap = admin.describeTopics(List.of(topic1.name(), topic2.name())).allTopicNames().get(5, TimeUnit.SECONDS);
+        Uuid topic1Id = descriptionMap.get(topic1.name()).topicId();
+        Uuid topic2Id = descriptionMap.get(topic2.name()).topicId();
+
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder("topicIdLookup",
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        NamedFilterDefinition topicNamePrefixer = new NamedFilterDefinitionBuilder("topicNamePrefixer",
+                TopicNameMetadataPrefixer.class.getName())
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToFilterDefinitions(topicNamePrefixer)
+                .addToDefaultFilters(namedFilterDefinition.name(), topicNamePrefixer.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            MetadataRequestData message = new MetadataRequestData();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, (topic1Id.toString() + "," + topic2Id.toString()).getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
+            List<String> tags = unknownTaggedFieldsToStrings(response.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
+            assertThat(tags).hasSize(1);
+            String tag = tags.getFirst();
+            String[] topicNames = tag.split(",");
+            assertThat(topicNames).containsExactlyInAnyOrder(TopicNameMetadataPrefixer.PREFIX + topic1.name(), TopicNameMetadataPrefixer.PREFIX + topic2.name());
+        }
+    }
 
     @Test
     void reversibleEncryption() {
@@ -176,7 +285,8 @@ class FilterIT {
     }
 
     @Test
-    @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
+    @SuppressWarnings("java:S5841")
+    // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxying(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
                 .addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())
@@ -354,7 +464,8 @@ class FilterIT {
     }
 
     @Test
-    @SuppressWarnings("java:S5841") // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
+    @SuppressWarnings("java:S5841")
+    // java:S5841 warns that doesNotContain passes for the empty case. Which is what we want here.
     void requestFiltersCanRespondWithoutProxyingDoesntLeakBuffers(KafkaCluster cluster, Admin admin) throws Exception {
         var config = proxy(cluster)
                 .addToFilterDefinitions(REJECTING_CREATE_TOPIC_FILTER.build())

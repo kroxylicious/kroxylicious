@@ -19,6 +19,8 @@ import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.filter.FilterOptions;
+import io.kroxylicious.proxy.filter.TargetMessageClass;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -164,7 +166,7 @@ public class FilterChainFactory implements AutoCloseable {
         return filterChain
                 .stream()
                 .flatMap(filterDefinition -> FilterAndInvoker.build(
-                        filterDefinition.name(),
+                        new FilterOptions(filterDefinition.name(), TargetMessageClass.ALL),
                         initialized.get(filterDefinition.name()).create(context))
                         .stream())
                 .toList();

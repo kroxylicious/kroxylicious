@@ -56,7 +56,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     void testApiVersionsExactlyOneFrame_decoded(short apiVersion) {
-        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, true);
+        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, true, false);
         assertEquals(52, exactlyOneFrame_decoded(apiVersion,
                 ApiKeys.API_VERSIONS::responseHeaderVersion,
                 v -> AbstractCodecTest.exampleResponseHeader(),
@@ -72,7 +72,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
     @ParameterizedTest
     @MethodSource("requestApiVersions")
     void testApiVersionsExactlyOneFrame_opaque(short apiVersion) throws Exception {
-        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, false);
+        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, apiVersion, 52, true, null, null, false, false);
         assertEquals(52, exactlyOneFrame_encoded(apiVersion,
                 ApiKeys.API_VERSIONS::responseHeaderVersion,
                 v -> AbstractCodecTest.exampleResponseHeader(),
@@ -164,7 +164,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
 
     @Test
     void supportsFallbackToApiResponseV0() {
-        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, null, true);
+        mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, null, true, false);
 
         // given
         ByteBuf buffer = Unpooled.wrappedBuffer(serializeUsingKafkaApis((short) 0,
@@ -186,7 +186,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
 
     @Test
     void throwsOnUndecodableV0ApiVersionsResponse() throws IOException {
-        int upstreamCorrelationId = mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 0, 52, true, null, null, true);
+        int upstreamCorrelationId = mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 0, 52, true, null, null, true, false);
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream);
         dataOutputStream.writeInt(4); // framesize
@@ -205,7 +205,7 @@ class ResponseDecoderTest extends AbstractCodecTest {
 
     @Test
     void throwsOnUndecodableNonV0ApiVersionsResponse() throws IOException {
-        int upstreamCorrelationId = mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, null, true);
+        int upstreamCorrelationId = mgr.putBrokerRequest(ApiKeys.API_VERSIONS.id, (short) 3, 52, true, null, null, true, false);
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         DataOutputStream dataOutputStream = new DataOutputStream(byteArrayOutputStream);
         dataOutputStream.writeInt(4); // framesize
