@@ -28,6 +28,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelId;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -56,6 +57,7 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.CheckReturnValue;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Connecting;
@@ -105,15 +107,6 @@ public class KafkaProxyFrontendHandler
         }
     }
 
-    KafkaProxyFrontendHandler(
-                              NetFilter netFilter,
-                              SaslDecodePredicate dp,
-                              EndpointBinding endpointBinding,
-                              String clusterName) {
-        this(netFilter, dp, endpointBinding, new ProxyChannelStateMachine(clusterName, endpointBinding.nodeId()));
-    }
-
-    @VisibleForTesting
     KafkaProxyFrontendHandler(
                               NetFilter netFilter,
                               SaslDecodePredicate dp,
@@ -465,7 +458,7 @@ public class KafkaProxyFrontendHandler
         // Start the upstream connection attempt.
         final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
 
-        LOGGER.trace("Connecting to outbound {}", remote);
+        LOGGER.debug("{}: Connecting to outbound {}", this.proxyChannelStateMachine.sessionId(), remote);
         ChannelFuture serverTcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
         Channel outboundChannel = serverTcpConnectFuture.channel();
         ChannelPipeline pipeline = outboundChannel.pipeline();
@@ -554,6 +547,7 @@ public class KafkaProxyFrontendHandler
      * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Forwarding} state.
      */
     void inForwarding() {
+        LOGGER.debug("{}: Connected to {}", this.proxyChannelStateMachine.sessionId(), Objects.requireNonNull(channelId()).asLongText());
         // connection is complete, so first forward the buffered message
         if (bufferedMsgs != null) {
             for (Object bufferedMsg : bufferedMsgs) {
@@ -692,5 +686,16 @@ public class KafkaProxyFrontendHandler
             errorResponse = null;
         }
         return errorResponse;
+    }
+
+    /**
+     * Get the ID of the frontend channel if available.
+     * @return <code>null</code> if the channel is not yet available
+     */
+    @CheckReturnValue
+    @Nullable
+    public ChannelId channelId() {
+        Channel channel = this.clientCtx != null ? this.clientCtx.channel() : null;
+        return channel == null ? null : channel.id();
     }
 }
