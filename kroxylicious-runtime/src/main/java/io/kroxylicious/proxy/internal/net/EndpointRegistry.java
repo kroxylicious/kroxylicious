@@ -13,6 +13,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
@@ -84,9 +85,10 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     public static final String NO_CHANNEL_BINDINGS_MESSAGE = "No channel bindings found for";
     public static final String VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE = "virtualCluster cannot be null";
     private final NetworkBindingOperationProcessor bindingOperationProcessor;
-    
-    // Static counter for round-robin bootstrap server selection
-    private static final AtomicLong roundRobinCounter = new AtomicLong(0);
+
+    // Static counter for round-robin bootstrap server selection with random starting point
+    // to provide better distribution when multiple instances start simultaneously
+    private static final AtomicLong roundRobinCounter = new AtomicLong(new Random().nextLong(0, 1000));
 
     interface RoutingKey {
         RoutingKey NULL_ROUTING_KEY = new NullRoutingKey();
@@ -625,7 +627,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     /**
      * Selects a bootstrap server from the list using a simple round-robin approach.
      * This distributes load across multiple bootstrap servers and provides better resilience when one server is down.
-     * 
+     *
      * @param bootstrapServers the list of bootstrap servers
      * @return the selected bootstrap server
      */
@@ -634,9 +636,9 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     }
 
     /**
-     * Selects a bootstrap server from the list using a simple round-robin approach.
+     * Selects a bootstrap server from the list using a simple round-robin approach for testing.
      * This version accepts a counter value for deterministic testing.
-     * 
+     *
      * @param bootstrapServers the list of bootstrap servers
      * @param counter the counter value to use for selection
      * @return the selected bootstrap server
@@ -646,9 +648,8 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         if (bootstrapServers == null || bootstrapServers.isEmpty()) {
             throw new IllegalArgumentException("Bootstrap servers list cannot be null or empty");
         }
-        
-        int size = bootstrapServers.size();
-        int index = (int) (counter % size);
+
+        int index = (int) (counter % bootstrapServers.size());
         return bootstrapServers.get(index);
     }
 
