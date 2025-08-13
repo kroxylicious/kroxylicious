@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.internal.net;
 
+import java.time.Clock;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -623,9 +624,11 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
      * This distributes load across multiple bootstrap servers and provides better resilience when one server is down.
      * 
      * @param bootstrapServers the list of bootstrap servers
+     * @param clock the clock to use for time-based selection
      * @return the selected bootstrap server
      */
-    private HostPort selectBootstrapServer(List<HostPort> bootstrapServers) {
+    @VisibleForTesting
+    static HostPort selectBootstrapServer(List<HostPort> bootstrapServers, Clock clock) {
         if (bootstrapServers == null || bootstrapServers.isEmpty()) {
             throw new IllegalArgumentException("Bootstrap servers list cannot be null or empty");
         }
@@ -637,8 +640,18 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         
         // Use current time as a source of variation to distribute across servers
         // This provides better distribution than always using the first server
-        int index = (int) (System.currentTimeMillis() % size);
+        int index = (int) (clock.millis() % size);
         return bootstrapServers.get(index);
+    }
+
+    /**
+     * Selects a bootstrap server from the list using the system clock.
+     * 
+     * @param bootstrapServers the list of bootstrap servers
+     * @return the selected bootstrap server
+     */
+    private HostPort selectBootstrapServer(List<HostPort> bootstrapServers) {
+        return selectBootstrapServer(bootstrapServers, Clock.systemUTC());
     }
 
     @Override
