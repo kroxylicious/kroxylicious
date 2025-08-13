@@ -22,6 +22,7 @@ import io.kroxylicious.proxy.service.HostPort;
  *
  * @param bootstrapServers A list of host/port pairs to use for establishing the initial connection to the target (upstream) Kafka cluster.
  * @param tls tls configuration if a secure connection is to be used.
+ * @param selectionStrategy The strategy used for selecting a bootstrap server when multiple servers are specified.
  */
 public record TargetCluster(@JsonProperty(value = "bootstrapServers", required = true) String bootstrapServers,
                             @JsonProperty(value = "tls") Optional<Tls> tls,
@@ -67,6 +68,7 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
         final StringBuilder sb = new StringBuilder("TargetCluster[");
         sb.append("bootstrapServers='").append(bootstrapServers).append('\'');
         sb.append(", tls=").append(tls.map(Tls::toString).orElse(null));
+        sb.append(", bootstrapServerSelectionStrategy=").append(selectionStrategy().getClass().getSimpleName());
         sb.append(']');
         return sb.toString();
     }
