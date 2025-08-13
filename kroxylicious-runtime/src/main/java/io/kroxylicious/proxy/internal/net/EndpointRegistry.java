@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal.net;
 
-import java.time.Clock;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
@@ -19,6 +18,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -84,6 +84,9 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     public static final String NO_CHANNEL_BINDINGS_MESSAGE = "No channel bindings found for";
     public static final String VIRTUAL_CLUSTER_CANNOT_BE_NULL_MESSAGE = "virtualCluster cannot be null";
     private final NetworkBindingOperationProcessor bindingOperationProcessor;
+    
+    // Static counter for round-robin bootstrap server selection
+    private static final AtomicLong roundRobinCounter = new AtomicLong(0);
 
     interface RoutingKey {
         RoutingKey NULL_ROUTING_KEY = new NullRoutingKey();
@@ -620,38 +623,42 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
     }
 
     /**
-     * Selects a bootstrap server from the list using a round-robin approach based on the current time.
+     * Selects a bootstrap server from the list using a simple round-robin approach.
      * This distributes load across multiple bootstrap servers and provides better resilience when one server is down.
      * 
      * @param bootstrapServers the list of bootstrap servers
-     * @param clock the clock to use for time-based selection
      * @return the selected bootstrap server
      */
     @VisibleForTesting
-    static HostPort selectBootstrapServer(List<HostPort> bootstrapServers, Clock clock) {
+    static HostPort selectBootstrapServer(List<HostPort> bootstrapServers) {
+        if (bootstrapServers == null || bootstrapServers.isEmpty()) {
+            throw new IllegalArgumentException("Bootstrap servers list cannot be null or empty");
+        }
+        
+        // Use simple round-robin selection
+        int size = bootstrapServers.size();
+        long counter = roundRobinCounter.getAndIncrement();
+        int index = (int) (counter % size);
+        return bootstrapServers.get(index);
+    }
+
+    /**
+     * Selects a bootstrap server from the list using a simple round-robin approach for testing.
+     * This version accepts a counter value for deterministic testing.
+     * 
+     * @param bootstrapServers the list of bootstrap servers
+     * @param counter the counter value to use for selection
+     * @return the selected bootstrap server
+     */
+    @VisibleForTesting
+    static HostPort selectBootstrapServer(List<HostPort> bootstrapServers, long counter) {
         if (bootstrapServers == null || bootstrapServers.isEmpty()) {
             throw new IllegalArgumentException("Bootstrap servers list cannot be null or empty");
         }
         
         int size = bootstrapServers.size();
-        if (size == 1) {
-            return bootstrapServers.get(0);
-        }
-        
-        // Use current time as a source of variation to distribute across servers
-        // This provides better distribution than always using the first server
-        int index = (int) (clock.millis() % size);
+        int index = (int) (counter % size);
         return bootstrapServers.get(index);
-    }
-
-    /**
-     * Selects a bootstrap server from the list using the system clock.
-     * 
-     * @param bootstrapServers the list of bootstrap servers
-     * @return the selected bootstrap server
-     */
-    private HostPort selectBootstrapServer(List<HostPort> bootstrapServers) {
-        return selectBootstrapServer(bootstrapServers, Clock.systemUTC());
     }
 
     @Override
