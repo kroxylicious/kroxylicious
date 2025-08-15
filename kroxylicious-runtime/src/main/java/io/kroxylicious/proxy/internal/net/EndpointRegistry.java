@@ -408,9 +408,10 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                                                                    Map<Integer, HostPort> upstreamNodes) {
         var discoveryBrokerIds = virtualClusterModel.discoveryAddressMap();
         // create possible set of bindings to create
-        ConcurrentHashMap.KeySetView<EndpointBinding, Boolean> creations = upstreamNodes.entrySet()
+        var creations = upstreamNodes.entrySet()
                 .stream()
                 .map(e -> new BrokerEndpointBinding(virtualClusterModel, e.getValue(), e.getKey()))
+                .map(EndpointBinding.class::cast)
                 .collect(Collectors.toCollection(ConcurrentHashMap::newKeySet));
         // add bindings corresponding to any pre-bindings. There are marked as restricted and point to bootstrap.
         creations.addAll(discoveryBrokerIds
