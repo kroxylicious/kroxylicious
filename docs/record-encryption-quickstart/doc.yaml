@@ -1,0 +1,7 @@
+$schema: https://kroxylicious.io/doc-schema.yaml
+title: Record Encryption quickstart
+description: Shows how to use the proxy to provide an encryption at rest solution for Apache Kafka
+tags:
+  - record-encryption
+  - encryption-at-rest
+rank: "011"

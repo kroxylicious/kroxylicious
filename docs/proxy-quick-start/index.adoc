@@ -8,8 +8,6 @@ include::_assets/attributes.adoc[]
 
 Get Kroxylicious, the snappy open source proxy for Apache Kafka®, up and running in minutes.
 
-'''
-
 == Prerequisites
 
 Before you begin, ensure you have the following installed and configured.
@@ -48,8 +46,6 @@ To interact with your Kafka cluster and test the proxy, you will need the Kafka 
 https://archive.apache.org/dist/kafka/{kafka-version}/kafka_2.13-{kafka-version}.tgz[binary distribution] from the official Apache Kafka website:
 https://kafka.apache.org/downloads[Apache Kafka Downloads].
 
-'''
-
 == Download and Install the Proxy
 . Download the {AppAssetTgzLink}[binary distribution] from the {github-release}[GitHub release page].
 +
@@ -66,8 +62,6 @@ tar -zxf {AppAssetTgzFileName}
 
 TIP: For Windows, you might find the {AppAssetZipLink}[.zip] format easier to work with.
 
-'''
-
 == Configure the Proxy
 
 Kroxylicious uses a YAML file for configuration. You can define virtual clusters, specify target Kafka clusters, and enable filters.
@@ -75,8 +69,6 @@ Kroxylicious uses a YAML file for configuration. You can define virtual clusters
 For this quick start, we'll use the example configuration file located at `+config/example-proxy-config.yaml+`. This file is pre-configured for a local Kafka cluster running on default ports.
 
 NOTE: If your Kafka cluster uses custom ports or runs on a different machine, you'll need to adjust the settings in the YAML file. See the {ProxyGuide} for more advanced configuration options.
-
-'''
 
 == Start the Proxy
 
@@ -90,8 +82,6 @@ cd kroxylicious-app-{KroxyliciousVersion}
 ----
 
 To use a custom configuration, simply replace the file path after the `--config` flag.
-
-'''
 
 == Configure Kafka clients to connect to the proxy
 

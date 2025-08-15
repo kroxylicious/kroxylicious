@@ -8,7 +8,7 @@
 If your instance of the Kroxylicious Proxy runs directly on an operating system, provide the filter configuration in the `filterDefinitions` list of your proxy configuration.
 Here's a complete example of a `filterDefinitions` entry configured for record validation:
 
-.Example `filterDefinitions` configuration
+// .Example `filterDefinitions` configuration {foo}
 [source,yaml]
 ----
 filterDefinitions:

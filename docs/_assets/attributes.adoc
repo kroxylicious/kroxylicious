@@ -39,6 +39,7 @@
 // GitHub links
 :github: https://github.com/kroxylicious/kroxylicious
 :github-issues: {github}/issues
+:github-discussions: {github}/discussions
 // GitHub release links
 :github-release-base: {github}/releases
 :github-release: {github-release-base}/{KroxyliciousReleaseTag}
@@ -46,11 +47,15 @@
 :github-release-link: {github-release}[GitHub release page^]
 :AppAssetZipLink: {github-release-downloads}/{AppAssetZipFileName}
 :AppAssetTgzLink: {github-release-downloads}/{AppAssetTgzFileName}
+:OperatorAssetZipLink: {github-release-downloads}/{OperatorAssetZipFileName}
 
 // GitHub source links
 :github-source-tree-root: {github}/tree/{KroxyliciousGitRef}
 :github-blob-root: {github}/blob/{KroxyliciousGitRef}
 :github-raw-root: https://raw.githubusercontent.com/kroxylicious/kroxylicious/{KroxyliciousGitRef}
+
+// Slack
+:slack: link:https://kroxylicious.slack.com//[Slack]
 
 // Javadoc links
 :javadoc-base: https://javadoc.io/doc

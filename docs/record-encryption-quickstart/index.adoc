@@ -1,0 +1,341 @@
+:experimental:
+:kafka-version: 4.0.0
+:vault-chart-version: 0.30.1
+:localstack-chart-version: 0.6.24
+:strimzi-version: 0.47.0
+
+include::_assets/attributes.adoc[]
+
+:context: record-encryption-quickstart
+:quickstart: record-encryption
+
+[id="quickstart-{context}"]
+= Record Encryption Quickstart
+
+[role="_abstract"]
+
+Are you looking for an https://kroxylicious.io/use-cases/#encryption-at-rest[encryption-at-rest] solution for data stored in your Apache Kafka?
+
+This quickstart guide will show you how to do that on Kubernetes ... from scratch ... without external dependencies.
+You'll be encrypting in a snap!
+
+== Objectives
+
+* Deploy a Kafka Cluster to a Kubernetes cluster.
+* Deploy a Key Management Service (KMS) - we'll show you how, with either HashiCorp Vault or AWS Localstack.
+* Deploy Kroxylicious and configure it to proxy the cluster and apply Record Encryption.
+* Produce/consume records to Kafka via the proxy demonstrating the transparent encryption.
+* Verify that the records are encrypted on the broker.
+
+WARNING: You *really don't* want to use this quickstart to deploy an environment that will be used in *production*.
+The quickstart deliberately keeps things quick and simple... there's no authentication, no TLS, no redundancy... Development purposes only - please!
+Refer to the documentation for Kroxylicious, Strimzi and your KMS for production best practices.
+
+== Overview
+
+This diagram shows the important components that will be deployed by the quickstart.
+Arrows on the diagrams explain the important flows between them.
+The pods shown in yellow run the kafka console producer and kafka console consumers command line applications.
+These pods are used to demonstrate the record encryption in action.
+
+The diagram omits the operators.
+
+.Important resources and the flows between them
+image::{realimagesdir}/quickstart-record-encryption.svg["Diagram showing the important kubernetes resources deployed by the quickstart and the flows between them"]
+
+
+== Before you begin
+
+You'll need the following software installed:
+
+* https://minikube.sigs.k8s.io/docs/start[Minikube]
+* https://helm.sh/docs/intro/install/[Helm]
+
+== Start Minikube
+
+Let's get the Kubernetes Cluster up and running.  Minikube defaults work just fine for this quickstart.
+
+[source,terminal]
+----
+$ minikube start
+----
+
+== Install the software
+
+=== Install a KMS
+
+Record Encryption needs somewhere to store its encryption keys, so you need to provide a KMS.
+Use Helm to install either HashiCorp Vault or AWS LocalStack.
+
+.AWS LocalStack
+[%collapsible]
+====
+https://localstack.cloud/[LocalStack] is an AWS cloud service emulator that runs in a single container on your laptop or in your CI environment.
+It's intended for developing and testing cloud & Serverless apps offline.
+
+[source,terminal,subs="attributes"]
+----
+$ helm repo add --force-update localstack-repo https://helm.localstack.cloud
+$ helm upgrade --install localstack localstack-repo/localstack --namespace kms --create-namespace --version {localstack-chart-version} --set service.type=ClusterIP --wait
+----
+
+NOTE: After installation, the LocalStack Helm chart prompts you to "Get the application URL". For this quickstart, you can ignore these steps.
+====
+
+.HashiCorp Vault
+[%collapsible]
+====
+
+HashiCorp Vault is available as a Cloud Service or standalone.  In this guide, we take install it standalone on Minikube.
+Note that Record Encryption requires the Transit Secrets Engine, which must be enabled.
+
+[source,terminal,subs="attributes"]
+----
+$ helm repo add --force-update hashicorp https://helm.releases.hashicorp.com
+$ helm upgrade --install vault hashicorp/vault --namespace kms --create-namespace --version {vault-chart-version} --set server.dev.enabled=true,server.dev.devRootToken=myroottoken --wait
+----
+
+And enable the Transit Secrets Engine.
+
+[source,terminal]
+----
+$ kubectl exec -n kms statefulsets/vault -- vault secrets enable transit
+----
+====
+
+=== Install the Strimzi Operator
+
+We are going to use https://strimzi.io/[Strimzi] to deploy the Kafka Cluster that will be proxied.
+Let's install Strimzi next:
+
+[source,terminal,subs="attributes"]
+----
+$ helm repo add --force-update strimzi https://strimzi.io/charts/
+$ helm upgrade --install strimzi-operator strimzi/strimzi-kafka-operator --namespace kafka --create-namespace --version {strimzi-version}
+----
+
+[#install_the_operator]
+=== Install the Kroxylicious Operator
+
+First, create a temporary directory for some working files.  We use a directory called `ko-install-nnnnn` beneath `/tmp`, but you can use any name and location you like.
+
+[source,terminal]
+----
+$ QUICKSTART_DIR=/tmp/ko-install-${RANDOM}
+$ mkdir -p ${QUICKSTART_DIR}
+$ cd ${QUICKSTART_DIR}
+----
+
+Now let's download and unpack the Kroxylicious Operator
+
+[source,terminal,subs="attributes"]
+----
+$ curl --fail --location --silent {OperatorAssetZipLink} --output kroxylicious-operator.zip
+$ unzip -q kroxylicious-operator.zip
+----
+
+And install the Kroxylicious Operator
+
+[source,terminal]
+----
+$ kubectl apply -f install
+$ kubectl wait --namespace kroxylicious-operator deployment/kroxylicious-operator --for=condition=Available=True --timeout=300s
+----
+
+[#deploy_the_cluster]
+== Deploy the Kafka Cluster
+
+Now we need a Kafka Cluster.
+This is the Kafka Cluster that will be proxied.
+We'll just use one from the Strimzi Quickstart.
+It will create a cluster in the `kafka` namespace.
+
+[source,terminal,subs="attributes"]
+----
+$ kubectl apply -n kafka -f https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/{strimzi-version}/examples/kafka/kafka-single-node.yaml
+$ kubectl wait -n kafka kafka/my-cluster --for=condition=Ready --timeout=300s
+----
+
+We'll need the boostrap server address of the kafka cluster later, so let's assign a variable containing it now.
+
+[source,terminal]
+----
+$ DIRECT_CLUSTER_BOOTSTRAP_SERVERS=$(kubectl get -n kafka kafka my-cluster -o=jsonpath='{.status.listeners[0].bootstrapServers}')
+----
+
+[#deploy_the_proxy]
+== Deploy the Proxy with Record Encryption
+
+Next, we'll deploy a Kroxylicious proxy instance using the record encryption example included in the install zip you downloaded when you <<install_the_operator,installed the operator>>
+
+It will create an instance of Kroxylicious that will proxy the kafka cluster you <<deploy_the_cluster,created above>>.
+It will configure it to use the Record Encryption filter to encrypt as records are sent by producers and decrypt them as records get fetched by consumers.
+The proxy will be created the `my-proxy` namespace
+
+[source,terminal]
+----
+$ kubectl apply -f examples/record-encryption/
+----
+
+You need to update the example to find keys in your chosen KMS.
+
+.AWS LocalStack
+[%collapsible]
+====
+[source,terminal]
+----
+$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"AwsKmsService","kmsConfig":{"longTermCredentials":{"accessKeyId":{"password":"unused"},"secretAccessKey": {"password":"unused"}},"endpointUrl":"http://localstack.kms.svc.cluster.local:4566/", "region" : "us-east-1"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK_$(topicName)"}}}}' --type merge
+----
+====
+
+.HashiCorp Vault
+[%collapsible]
+====
+[source,terminal]
+----
+$ kubectl patch -n my-proxy kafkaprotocolfilters.kroxylicious.io encryption --patch '{"spec":{"configTemplate":{"kms":"VaultKmsService","kmsConfig":{"vaultToken":{"password":"myroottoken"},"vaultTransitEngineUrl":"http://vault.kms.svc.cluster.local:8200/v1/transit"}, "selector" : "TemplateKekSelector", "selectorConfig" : {"template": "KEK_$(topicName)"}}}}' --type merge
+----
+====
+
+Let's wait for the Proxy to be ready:
+
+[source,terminal]
+----
+$ kubectl wait -n my-proxy kafkaproxy/simple --for=condition=Ready=True --timeout=300s
+----
+
+and wait for the virtual cluster to be ready for connections.
+
+[source,terminal]
+----
+$ kubectl wait -n my-proxy virtualkafkacluster my-cluster --for=jsonpath='{.status.ingresses[?(@.name=="cluster-ip")]}'
+----
+
+Finally, let's assign a variable containing the virtual cluster's bootstrap address.
+We'll use this later to produce and consumer records through the proxy.
+
+[source,terminal]
+----
+$ PROXIED_CLUSTER_BOOTSTRAP_SERVER=$(kubectl get -n my-proxy virtualkafkacluster my-cluster -o=jsonpath='{.status.ingresses[?(@.name=="cluster-ip")].bootstrapServer}')
+----
+
+== Create an encryption key in the KMS
+
+Record Encryption needs an encryption key to use when encrypting the records produced to the topic.
+Let's create an encryption key in our KMS now.
+
+The filter is configured to expect a key to exist in the KMS with the name `KEK_<topic name>`.
+We are going to be using a topic called `trades` so we will create a key that can be referred to using the name `KEK_trades`.
+
+.AWS LocalStack
+[%collapsible]
+====
+
+With LocalStack, you need to create a key and an alias to that key.
+
+[source,terminal]
+----
+$ KEY_ID=$(kubectl -n kms exec deployments/localstack --  awslocal kms create-key --query KeyMetadata.KeyId --output text)
+$ kubectl -n kms exec deployments/localstack -- awslocal kms create-alias --alias-name alias/KEK_trades --target-key-id ${KEY_ID}
+----
+====
+
+.HashiCorp Vault
+[%collapsible]
+====
+[source,terminal]
+----
+$ kubectl exec -n kms statefulsets/vault -- vault write -f transit/keys/KEK_trades
+----
+====
+
+
+[#produce_some_messages]
+== Produce some messages
+
+Now let's use Kafka's console producer CLI to send a few records to a topic called `trades`.
+The Record Encryption filter will encrypt the records before they reach broker, but this is completely transparent to the console producer.
+
+NOTE: You can safely ignore the warning about the UNKNOWN_TOPIC_OR_PARTITION, the topic will be created automatically.
+
+[source,terminal,subs="attributes"]
+----
+$ (echo 'IBM:100'; echo 'APPLE:99') | kubectl run -n my-proxy --quiet=true --stdin=true proxy-producer --image=quay.io/strimzi/kafka:{strimzi-version}-kafka-{kafka-version} --rm=true --restart=Never -- ./bin/kafka-console-producer.sh --bootstrap-server $\{PROXIED_CLUSTER_BOOTSTRAP_SERVER} --topic trades
+----
+
+== Consume the messages
+
+Now let's use Kafka's console consumer to fetch the records.
+You'll see the two records we <<produce_some_messages,sent above>>.
+The Record Encryption filter will decrypt the records before they reach consumer, but this is completely transparent to the console consumer.
+
+[source,terminal,subs="attributes"]
+----
+$ kubectl run -n my-proxy --quiet=true --attach=true --stdin=false proxy-consumer --image=quay.io/strimzi/kafka:{strimzi-version}-kafka-{kafka-version} --rm=true --restart=Never -- ./bin/kafka-console-consumer.sh  --bootstrap-server $\{PROXIED_CLUSTER_BOOTSTRAP_SERVER} --topic trades --from-beginning --max-messages 2
+----
+
+== Verify that the records are encrypted on the broker
+
+Consuming the same records we wrote is a bit underwhelming! 
+And, in fact, it's what we'd expect to see with a vanilla, unproxied, Kafka cluster.
+So how do we know the records really encrypted on the broker?  
+Let's use the console consumer again,
+but this time we'll consume straight from the Kafka cluster, bypassing the proxy.
+We'll get back the records, but they'll contain ciphertext, rather than the plaintext.
+
+[source,terminal,subs="attributes"]
+----
+$ kubectl run -n kafka --quiet=true --attach=true --stdin=false cluster-consumer --image=quay.io/strimzi/kafka:{strimzi-version}-kafka-{kafka-version} --rm=true --restart=Never -- ./bin/kafka-console-consumer.sh  --bootstrap-server $\{DIRECT_CLUSTER_BOOTSTRAP_SERVERS} --topic trades --from-beginning --max-messages 2
+----
+
+== Cleaning up
+
+To clean up, remove the proxy and the kafka cluster
+
+[source,terminal,subs="attributes"]
+----
+$ kubectl delete -f examples/record-encryption/
+$ kubectl delete -n kafka -f https://raw.githubusercontent.com/strimzi/strimzi-kafka-operator/refs/tags/{strimzi-version}/examples/kafka/kafka-single-node.yaml
+----
+
+Remove the Kroxylicious and Strimzi Operator.
+
+[source,terminal]
+----
+$ kubectl delete -f install
+$ helm uninstall -n kafka strimzi-operator --ignore-not-found
+----
+
+Remove the KMS.
+
+.AWS LocalStack
+[%collapsible]
+====
+[source,terminal]
+----
+$ helm uninstall -n kms localstack --ignore-not-found
+----
+====
+
+.HashiCorp Vault
+[%collapsible]
+====
+[source,terminal]
+----
+$ helm uninstall -n kms vault --ignore-not-found
+----
+====
+
+And finally remove the namespaces.
+
+[source,terminal]
+----
+$ kubectl delete ns kafka kms
+----
+
+== What next?
+
+Learn more from the {RecordEncryptionGuide} and from the {OperatorGuide}
+
+You are also welcome to come talk to us.
+Chat with us in {slack} or start a {github-discussions}[Github Discussion].
