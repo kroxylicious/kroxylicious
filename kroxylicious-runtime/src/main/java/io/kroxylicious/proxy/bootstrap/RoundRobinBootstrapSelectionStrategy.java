@@ -8,6 +8,8 @@ package io.kroxylicious.proxy.bootstrap;
 
 import java.util.List;
 
+import javax.annotation.concurrent.NotThreadSafe;
+
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
@@ -17,6 +19,7 @@ import io.kroxylicious.proxy.service.HostPort;
  * {@link io.kroxylicious.proxy.config.VirtualCluster} will start from <code>0</code>.
  *
  */
+@NotThreadSafe
 public class RoundRobinBootstrapSelectionStrategy implements BootstrapSelectionStrategy {
 
     private long counter;
@@ -31,7 +34,7 @@ public class RoundRobinBootstrapSelectionStrategy implements BootstrapSelectionS
         return hostPorts.get(choice);
     }
 
-    private synchronized long getNext(long ceil) {
+    private long getNext(long ceil) {
         this.counter++;
         if (counter >= ceil) {
             this.counter = 0;
