@@ -54,13 +54,8 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
         return Arrays.stream(bootstrapServers.split(",")).map(HostPort::parse).toList();
     }
 
-    @Override
-    public BootstrapSelectionStrategy selectionStrategy() {
-        return Objects.requireNonNullElse(selectionStrategy, BootstrapSelectionStrategy.FIRST_BOOTSTRAP_SERVER_SELECTION_STRATEGY);
-    }
-
     public HostPort bootstrapServer() {
-        return selectionStrategy().apply(bootstrapServersList());
+        return resolveSelectionStrategy().apply(bootstrapServersList());
     }
 
     @Override
@@ -68,8 +63,13 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
         final StringBuilder sb = new StringBuilder("TargetCluster[");
         sb.append("bootstrapServers='").append(bootstrapServers).append('\'');
         sb.append(", tls=").append(tls.map(Tls::toString).orElse(null));
-        sb.append(", bootstrapServerSelectionStrategy=").append(selectionStrategy().getClass().getSimpleName());
+        sb.append(", bootstrapServerSelectionStrategy=").append(resolveSelectionStrategy().getClass().getSimpleName());
         sb.append(']');
         return sb.toString();
+    }
+
+    // we don't apply this to the field itself so that we can maintain fidelity between the fluent API and the yaml config.
+    private BootstrapSelectionStrategy resolveSelectionStrategy() {
+        return Objects.requireNonNullElse(selectionStrategy, BootstrapSelectionStrategy.FIRST_BOOTSTRAP_SERVER_SELECTION_STRATEGY);
     }
 }
