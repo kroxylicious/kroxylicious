@@ -10,6 +10,8 @@ import java.util.List;
 
 import javax.annotation.concurrent.NotThreadSafe;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import io.kroxylicious.proxy.service.HostPort;
 
 /**
@@ -22,6 +24,7 @@ import io.kroxylicious.proxy.service.HostPort;
 @NotThreadSafe
 public class RoundRobinBootstrapSelectionStrategy implements BootstrapSelectionStrategy {
 
+    @JsonIgnore
     private long counter;
 
     public RoundRobinBootstrapSelectionStrategy() {
@@ -32,6 +35,11 @@ public class RoundRobinBootstrapSelectionStrategy implements BootstrapSelectionS
     public HostPort apply(List<HostPort> hostPorts) {
         int choice = (int) getNext(hostPorts.size());
         return hostPorts.get(choice);
+    }
+
+    @Override
+    public String getStrategy() {
+        return "round-robin";
     }
 
     private long getNext(long ceil) {

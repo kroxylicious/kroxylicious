@@ -51,6 +51,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.params.provider.Arguments.argumentSet;
 
 class ConfigParserTest {
     private static final ObjectMapper MAPPER = new ObjectMapper(new YAMLFactory());
@@ -58,7 +59,7 @@ class ConfigParserTest {
     private final ConfigParser configParser = new ConfigParser();
 
     static Stream<Arguments> yamlDeserializeSerializeFidelity() {
-        return Stream.of(Arguments.argumentSet("With IoUring", """
+        return Stream.of(argumentSet("With IoUring", """
                 useIoUring: true
                 virtualClusters:
                 - name: demo1
@@ -69,7 +70,7 @@ class ConfigParserTest {
                     portIdentifiesNode:
                       bootstrapAddress: "localhost:9082"
                 """),
-                Arguments.argumentSet("Virtual cluster (portIdentifiesNode - minimal)", """
+                argumentSet("Virtual cluster (portIdentifiesNode - minimal)", """
                         virtualClusters:
                           - name: demo1
                             targetCluster:
@@ -79,7 +80,7 @@ class ConfigParserTest {
                               portIdentifiesNode:
                                   bootstrapAddress: cluster1:9192
                         """),
-                Arguments.argumentSet("Virtual cluster (portIdentifiesNode with start port)", """
+                argumentSet("Virtual cluster (portIdentifiesNode with start port)", """
                         virtualClusters:
                           - name: demo1
                             targetCluster:
@@ -91,7 +92,7 @@ class ConfigParserTest {
                                   advertisedBrokerAddressPattern: localhost
                                   nodeStartPort: 9193
                         """),
-                Arguments.argumentSet("Virtual cluster (portIdentifiesNode with ranges)", """
+                argumentSet("Virtual cluster (portIdentifiesNode with ranges)", """
                         virtualClusters:
                           - name: demo1
                             targetCluster:
@@ -108,7 +109,7 @@ class ConfigParserTest {
                                   start: 5
                                   end: 9
                         """),
-                Arguments.argumentSet("Virtual cluster (portIdentifiesNode with range and start port)", """
+                argumentSet("Virtual cluster (portIdentifiesNode with range and start port)", """
                         virtualClusters:
                           - name: demo1
                             targetCluster:
@@ -124,7 +125,7 @@ class ConfigParserTest {
                                   start: 0
                                   end: 3
                         """),
-                Arguments.argumentSet("Virtual cluster (sniHostIdentifiesNode)", """
+                argumentSet("Virtual cluster (sniHostIdentifiesNode)", """
                         virtualClusters:
                           - name: demo1
                             targetCluster:
@@ -141,7 +142,7 @@ class ConfigParserTest {
                                       password: password
 
                         """),
-                Arguments.argumentSet("Downstream/Upstream TLS with inline passwords", """
+                argumentSet("Downstream/Upstream TLS with inline passwords", """
                         virtualClusters:
                           - name: demo1
                             targetCluster:
@@ -164,7 +165,7 @@ class ConfigParserTest {
                                       password: password
                                     storeType: JKS
                         """),
-                Arguments.argumentSet("Downstream/Upstream TLS with password files", """
+                argumentSet("Downstream/Upstream TLS with password files", """
                         virtualClusters:
                           - name: demo1
                             targetCluster:
@@ -187,7 +188,7 @@ class ConfigParserTest {
                                       passwordFile: /tmp/password.txt
                                     storeType: JKS
                         """),
-                Arguments.argumentSet("Filters", """
+                argumentSet("Filters", """
                         filterDefinitions:
                         - name: myfilter
                           type: TestFilterFactory
@@ -202,7 +203,7 @@ class ConfigParserTest {
                             portIdentifiesNode:
                               bootstrapAddress: "localhost:9082"
                         """),
-                Arguments.argumentSet("Management minimal", """
+                argumentSet("Management minimal", """
                         management: {}
                         virtualClusters:
                         - name: demo1
@@ -213,7 +214,7 @@ class ConfigParserTest {
                             portIdentifiesNode:
                               bootstrapAddress: "localhost:9082"
                         """),
-                Arguments.argumentSet("Management", """
+                argumentSet("Management", """
                         management:
                           bindAddress: 164.0.0.0
                           port: 1000
@@ -227,7 +228,7 @@ class ConfigParserTest {
                             portIdentifiesNode:
                               bootstrapAddress: "localhost:9082"
                         """),
-                Arguments.argumentSet("Management with Prometheus", """
+                argumentSet("Management with Prometheus", """
                         management:
                           endpoints:
                             prometheus: {}
@@ -240,7 +241,7 @@ class ConfigParserTest {
                             portIdentifiesNode:
                               bootstrapAddress: "localhost:9082"
                         """),
-                Arguments.argumentSet("Micrometer", """
+                argumentSet("Micrometer", """
                         micrometer:
                         - type: CommonTagsHook
                           config:
@@ -251,6 +252,24 @@ class ConfigParserTest {
                         - name: demo1
                           targetCluster:
                             bootstrapServers: magic-kafka.example:1234
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
+                        """),
+                argumentSet("BootstrapSelectionStrategy", """
+                        micrometer:
+                        - type: CommonTagsHook
+                          config:
+                            commonTags:
+                              zone: "euc-1a"
+                              owner: "becky"
+                        virtualClusters:
+                        - name: demo1
+                          targetCluster:
+                            bootstrapServers: magic-kafka.example:1234
+                            bootstrapServerSelection:
+                                strategy: round-robin
                           gateways:
                           - name: mygateway
                             portIdentifiesNode:
@@ -666,7 +685,7 @@ class ConfigParserTest {
     }
 
     static Stream<Arguments> shouldWorkWithDifferentConfigCreators() {
-        return Stream.of(Arguments.argumentSet("constructor injection",
+        return Stream.of(argumentSet("constructor injection",
                 """
                         filterDefinitions:
                         - name: ctor-injection
@@ -685,7 +704,7 @@ class ConfigParserTest {
                               bootstrapAddress: "localhost:9082"
                         """,
                 ConstructorInjectionConfig.class),
-                Arguments.argumentSet("factory method",
+                argumentSet("factory method",
                         """
                                 filterDefinitions:
                                 - name: factory-method
@@ -704,7 +723,7 @@ class ConfigParserTest {
                                       bootstrapAddress: "localhost:9082"
                                 """,
                         FactoryMethodConfig.class),
-                Arguments.argumentSet("field injection",
+                argumentSet("field injection",
                         """
                                 filterDefinitions:
                                 - name: field-injection
@@ -723,7 +742,7 @@ class ConfigParserTest {
                                       bootstrapAddress: "localhost:9082"
                                 """,
                         FieldInjectionConfig.class),
-                Arguments.argumentSet("record",
+                argumentSet("record",
                         """
                                 filterDefinitions:
                                 - name: record
@@ -742,7 +761,7 @@ class ConfigParserTest {
                                       bootstrapAddress: "localhost:9082"
                                 """,
                         RecordConfig.class),
-                Arguments.argumentSet("setter injection",
+                argumentSet("setter injection",
                         """
                                 filterDefinitions:
                                 - name: setter-injection

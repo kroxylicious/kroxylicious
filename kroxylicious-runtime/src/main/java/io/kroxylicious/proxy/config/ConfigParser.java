@@ -37,6 +37,7 @@ import com.fasterxml.jackson.databind.jsontype.TypeResolverBuilder;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import com.fasterxml.jackson.dataformat.yaml.YAMLGenerator;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.fasterxml.jackson.module.paramnames.ParameterNamesModule;
 
@@ -96,7 +97,9 @@ public class ConfigParser implements PluginFactoryRegistry {
      */
     @VisibleForTesting
     public static ObjectMapper createBaseObjectMapper() {
-        return new ObjectMapper(new YAMLFactory())
+        YAMLFactory yamlFactory = new YAMLFactory();
+        yamlFactory.configure(YAMLGenerator.Feature.USE_NATIVE_TYPE_ID, false);
+        return new ObjectMapper(yamlFactory)
                 .registerModule(new ParameterNamesModule())
                 .registerModule(new Jdk8Module())
                 .registerModule(new SimpleModule().addSerializer(HostPort.class, new ToStringSerializer()))

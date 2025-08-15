@@ -20,4 +20,9 @@ public class RandomBootstrapSelectionStrategy implements BootstrapSelectionStrat
         final int choice = (int) (Math.random() * hostPorts.size());
         return hostPorts.get(choice);
     }
+
+    @Override
+    public String getStrategy() {
+        return "random";
+    }
 }

@@ -18,6 +18,8 @@ import io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.service.HostPort;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Represents the target (upstream) kafka cluster.
  *
@@ -27,7 +29,7 @@ import io.kroxylicious.proxy.service.HostPort;
  */
 public record TargetCluster(@JsonProperty(value = "bootstrapServers", required = true) String bootstrapServers,
                             @JsonProperty(value = "tls") Optional<Tls> tls,
-                            @JsonProperty(value = "bootstrapServerSelection") BootstrapSelectionStrategy selectionStrategy) {
+                            @Nullable @JsonProperty(value = "bootstrapServerSelection") BootstrapSelectionStrategy selectionStrategy) {
 
     private static final BootstrapSelectionStrategy DEFAULT_SELECTION_STRATEGY = new RoundRobinBootstrapSelectionStrategy();
 
