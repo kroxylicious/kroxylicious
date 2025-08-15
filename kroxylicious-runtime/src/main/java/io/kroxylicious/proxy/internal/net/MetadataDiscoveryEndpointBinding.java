@@ -10,27 +10,31 @@ import java.util.Objects;
 
 import io.kroxylicious.proxy.service.HostPort;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 /**
  * A bootstrap binding.
  *
  * @param endpointGateway the endpoint gateway
  */
-public record BootstrapEndpointBinding(EndpointGateway endpointGateway) implements EndpointBinding {
+public record MetadataDiscoveryEndpointBinding(EndpointGateway endpointGateway, Integer nodeId)
+        implements NodeSpecificEndpointBinding {
 
-    public BootstrapEndpointBinding {
+    public MetadataDiscoveryEndpointBinding {
         Objects.requireNonNull(endpointGateway, "endpointGateway cannot be null");
+        Objects.requireNonNull(nodeId, "nodeId must not be null");
     }
 
     @Override
     public HostPort upstreamTarget() {
-        return endpointGateway().targetCluster().bootstrapServer();
+        return endpointGateway.targetCluster().bootstrapServer();
     }
 
-    @Nullable
     @Override
     public Integer nodeId() {
-        return null;
+        return nodeId;
+    }
+
+    @Override
+    public boolean restrictUpstreamToMetadataDiscovery() {
+        return true;
     }
 }
