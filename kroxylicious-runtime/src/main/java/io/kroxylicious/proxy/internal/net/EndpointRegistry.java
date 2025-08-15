@@ -188,10 +188,9 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         }
 
         var key = Endpoint.createEndpoint(virtualClusterModel.getBindAddress(), virtualClusterModel.getClusterBootstrapAddress().port(), virtualClusterModel.isUseTls());
-        var upstreamBootstrap = virtualClusterModel.targetCluster().bootstrapServer();
         var bootstrapEndpointFuture = registerBinding(key,
                 virtualClusterModel.getClusterBootstrapAddress().host(),
-                new BootstrapEndpointBinding(virtualClusterModel, upstreamBootstrap)).toCompletableFuture();
+                new BootstrapEndpointBinding(virtualClusterModel)).toCompletableFuture();
 
         vcr.reconciliationRecord().set(ReconciliationRecord.createEmptyReconcileRecord());
 
@@ -204,7 +203,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                     var nodeId = e.getKey();
                     var bhp = e.getValue();
                     return registerBinding(new Endpoint(virtualClusterModel.getBindAddress(), bhp.port(), virtualClusterModel.isUseTls()), bhp.host(),
-                            new BrokerEndpointBinding(virtualClusterModel, upstreamBootstrap, nodeId, true));
+                            new MetadataDiscoveryEndpointBinding(virtualClusterModel, nodeId));
                 }));
 
         bootstrapEndpointFuture.thenCombine(discoveryAddressesMapStage, (bef, bps) -> bef)
@@ -378,11 +377,11 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
 
                             return allOfStage(bindingMap.values().stream()
                                     .filter(vcb -> vcb.endpointGateway().equals(virtualClusterModel))
-                                    .filter(BrokerEndpointBinding.class::isInstance)
-                                    .map(BrokerEndpointBinding.class::cast)
+                                    .filter(NodeSpecificEndpointBinding.class::isInstance)
+                                    .map(NodeSpecificEndpointBinding.class::cast)
                                     .peek(creations::remove) // side effect
-                                    .filter(vcbb -> !allBrokerIds.contains(vcbb.nodeId()))
-                                    .map(vcbb -> deregisterBinding(virtualClusterModel, vcbb::equals)));
+                                    .filter(eb -> !allBrokerIds.contains(eb.nodeId()))
+                                    .map(eb -> deregisterBinding(virtualClusterModel, eb::equals)));
                         }))));
 
         // chain any binding registrations and organise for the reconciliations entry to complete
@@ -405,21 +404,21 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                 });
     }
 
-    private Set<BrokerEndpointBinding> constructPossibleBindingsToCreate(EndpointGateway virtualClusterModel,
-                                                                         Map<Integer, HostPort> upstreamNodes) {
-        var upstreamBootstrap = virtualClusterModel.targetCluster().bootstrapServer();
+    private Set<EndpointBinding> constructPossibleBindingsToCreate(EndpointGateway virtualClusterModel,
+                                                                   Map<Integer, HostPort> upstreamNodes) {
         var discoveryBrokerIds = virtualClusterModel.discoveryAddressMap();
         // create possible set of bindings to create
-        var creations = upstreamNodes.entrySet()
+        ConcurrentHashMap.KeySetView<EndpointBinding, Boolean> creations = upstreamNodes.entrySet()
                 .stream()
-                .map(e -> new BrokerEndpointBinding(virtualClusterModel, e.getValue(), e.getKey(), false))
+                .map(e -> new BrokerEndpointBinding(virtualClusterModel, e.getValue(), e.getKey()))
                 .collect(Collectors.toCollection(ConcurrentHashMap::newKeySet));
         // add bindings corresponding to any pre-bindings. There are marked as restricted and point to bootstrap.
         creations.addAll(discoveryBrokerIds
                 .keySet()
                 .stream()
                 .filter(Predicate.not(upstreamNodes::containsKey))
-                .map(nodeId -> new BrokerEndpointBinding(virtualClusterModel, upstreamBootstrap, nodeId, true)).toList());
+                .map(nodeId -> new MetadataDiscoveryEndpointBinding(virtualClusterModel, nodeId))
+                .toList());
         return creations;
     }
 
@@ -473,7 +472,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                 // knows to tear down the acceptorChannel when the map becomes empty.
                 var existing = bindingMap.putIfAbsent(bindingKey, virtualClusterBinding);
 
-                if (existing instanceof BrokerEndpointBinding existingVcbb && virtualClusterBinding instanceof BrokerEndpointBinding vcbb
+                if (existing instanceof NodeSpecificEndpointBinding existingVcbb && virtualClusterBinding instanceof NodeSpecificEndpointBinding vcbb
                         && existingVcbb.refersToSameVirtualClusterAndNode(vcbb)) {
                     // special case to support update of the upstream target
                     bindingMap.put(bindingKey, virtualClusterBinding);
@@ -568,11 +567,11 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         });
     }
 
-    private static BrokerEndpointBinding buildBootstrapBinding(Map<BootstrapEndpointBinding, Integer> bootstrapToBrokerId) {
+    private static EndpointBinding buildBootstrapBinding(Map<BootstrapEndpointBinding, Integer> bootstrapToBrokerId) {
         var e = bootstrapToBrokerId.entrySet().iterator().next();
         var bootstrapBinding = e.getKey();
         var nodeId = e.getValue();
-        return new BrokerEndpointBinding(bootstrapBinding.endpointGateway(), bootstrapBinding.upstreamTarget(), nodeId, true);
+        return new MetadataDiscoveryEndpointBinding(bootstrapBinding.endpointGateway(), nodeId);
     }
 
     private HashMap<BootstrapEndpointBinding, Integer> findBootstrapBindings(Endpoint endpoint,
