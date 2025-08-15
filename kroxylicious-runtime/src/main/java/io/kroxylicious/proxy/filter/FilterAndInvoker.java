@@ -44,7 +44,7 @@ public record FilterAndInvoker(FilterOptions filterOptions, Filter filter, Filte
      * @return a filter and its respective invoker
      */
     public static List<FilterAndInvoker> build(FilterOptions options, Filter filter) {
-        return FilterInvokers.from(new FilterOptions(options.filterName(), TargetMessageClass.ALL), filter);
+        return FilterInvokers.from(options, filter);
     }
 
     public String filterName() {

@@ -263,14 +263,14 @@ public class FilterHandler extends ChannelDuplexHandler {
 
     private boolean filterTargetRequestMessage(DecodedRequestFrame<?> decodedFrame) {
         return targetMessageClass == TargetMessageClass.ALL
-                || targetMessageClass == TargetMessageClass.INTERNAL_EDGE_CACHEABLE && decodedFrame instanceof InternalRequestFrame<?> internalRequestFrame
-                        && internalRequestFrame.isCacheable();
+                || (targetMessageClass == TargetMessageClass.INTERNAL_EDGE_CACHEABLE && decodedFrame instanceof InternalRequestFrame<?> internalRequestFrame
+                        && internalRequestFrame.isCacheable());
     }
 
     private boolean filterTargetResponseMessage(DecodedResponseFrame<?> decodedFrame) {
         return targetMessageClass == TargetMessageClass.ALL
-                || targetMessageClass == TargetMessageClass.INTERNAL_EDGE_CACHEABLE && decodedFrame instanceof InternalResponseFrame<?> internalResponseFrame
-                        && internalResponseFrame.isCacheable();
+                || (targetMessageClass == TargetMessageClass.INTERNAL_EDGE_CACHEABLE && decodedFrame instanceof InternalResponseFrame<?> internalResponseFrame
+                        && internalResponseFrame.isCacheable());
     }
 
     private CompletableFuture<ResponseFilterResult> configureResponseFilterChain(DecodedResponseFrame<?> decodedFrame, CompletableFuture<ResponseFilterResult> future) {
