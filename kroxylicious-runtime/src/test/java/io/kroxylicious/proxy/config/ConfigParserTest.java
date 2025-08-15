@@ -28,7 +28,6 @@ import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
-import io.kroxylicious.proxy.bootstrap.FixedBootstrapSelectionStrategy;
 import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
@@ -60,16 +59,16 @@ class ConfigParserTest {
 
     static Stream<Arguments> yamlDeserializeSerializeFidelity() {
         return Stream.of(Arguments.argumentSet("With IoUring", """
-                        useIoUring: true
-                        virtualClusters:
-                        - name: demo1
-                          targetCluster:
-                            bootstrapServers: magic-kafka.example:1234
-                          gateways:
-                          - name: mygateway
-                            portIdentifiesNode:
-                              bootstrapAddress: "localhost:9082"
-                        """),
+                useIoUring: true
+                virtualClusters:
+                - name: demo1
+                  targetCluster:
+                    bootstrapServers: magic-kafka.example:1234
+                  gateways:
+                  - name: mygateway
+                    portIdentifiesNode:
+                      bootstrapAddress: "localhost:9082"
+                """),
                 Arguments.argumentSet("Virtual cluster (portIdentifiesNode - minimal)", """
                         virtualClusters:
                           - name: demo1
@@ -140,7 +139,7 @@ class ConfigParserTest {
                                     storeFile: /tmp/foo.jks
                                     storePassword:
                                       password: password
-                        
+
                         """),
                 Arguments.argumentSet("Downstream/Upstream TLS with inline passwords", """
                         virtualClusters:
@@ -434,24 +433,24 @@ class ConfigParserTest {
     void shouldDetectDuplicateClusterNodeNames() {
         // Given
         assertThatThrownBy(() ->
-                // When
-                configParser.parseConfiguration("""
-                        virtualClusters:
-                          - name: demo1
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
-                            gateways:
-                            - name: default
-                              portIdentifiesNode:
-                                bootstrapAddress: cluster1:9192
-                          - name: demo1
-                            targetCluster:
-                              bootstrapServers: magic-kafka.example:1234
-                            gateways:
-                            - name: default
-                              portIdentifiesNode:
-                                bootstrapAddress: cluster1:9192
-                        """))
+        // When
+        configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: demo1
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                  - name: demo1
+                    targetCluster:
+                      bootstrapServers: magic-kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """))
                 // Then
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasCauseInstanceOf(JsonMappingException.class) // Debatable to enforce the wrapped JsonMappingException
@@ -463,24 +462,24 @@ class ConfigParserTest {
     void shouldDetectDuplicateClusterNodeNamesCaseInsensitively() {
         // Given
         assertThatThrownBy(() ->
-                // When
-                configParser.parseConfiguration("""
-                        virtualClusters:
-                          - name: demo1
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
-                            gateways:
-                            - name: default
-                              portIdentifiesNode:
-                                bootstrapAddress: cluster1:9192
-                          - name: dEmO1
-                            targetCluster:
-                              bootstrapServers: magic-kafka.example:1234
-                            gateways:
-                            - name: default
-                              portIdentifiesNode:
-                                bootstrapAddress: cluster1:9192
-                        """))
+        // When
+        configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: demo1
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                  - name: dEmO1
+                    targetCluster:
+                      bootstrapServers: magic-kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """))
                 // Then
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasCauseInstanceOf(JsonMappingException.class) // Debatable to enforce the wrapped JsonMappingException
@@ -492,16 +491,16 @@ class ConfigParserTest {
     void shouldDetectMissingClusterName() {
         // Given
         assertThatThrownBy(() ->
-                // When
-                configParser.parseConfiguration("""
-                        virtualClusters:
-                          - targetCluster:
-                              bootstrapServers: kafka.example:1234
-                            gateways:
-                            - name: default
-                              portIdentifiesNode:
-                                bootstrapAddress: cluster1:9192
-                        """))
+        // When
+        configParser.parseConfiguration("""
+                virtualClusters:
+                  - targetCluster:
+                      bootstrapServers: kafka.example:1234
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """))
                 // Then
                 .isInstanceOf(IllegalArgumentException.class)
                 .cause()
@@ -512,18 +511,18 @@ class ConfigParserTest {
     void shouldErrorOnAnyUnknownProperties() {
         // Given
         assertThatThrownBy(() ->
-                // When
-                configParser.parseConfiguration("""
-                        virtualClusters:
-                          - name: demo1
-                            targetCluster:
-                              bootstrapServers: kafka.example:1234
-                              unknownProperty: unknownProperty
-                            gateways:
-                            - name: default
-                              portIdentifiesNode:
-                                bootstrapAddress: cluster1:9192
-                        """))
+        // When
+        configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: demo1
+                    targetCluster:
+                      bootstrapServers: kafka.example:1234
+                      unknownProperty: unknownProperty
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """))
                 // Then
                 .isInstanceOf(IllegalArgumentException.class)
                 .cause()
@@ -534,15 +533,15 @@ class ConfigParserTest {
     void shouldDetectMissingTargetCluster() {
         // Given
         assertThatThrownBy(() ->
-                // When
-                configParser.parseConfiguration("""
-                        virtualClusters:
-                          - name: demo
-                            gateways:
-                            - name: default
-                              portIdentifiesNode:
-                                bootstrapAddress: cluster1:9192
-                        """))
+        // When
+        configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: demo
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """))
                 // Then
                 .isInstanceOf(IllegalArgumentException.class)
                 .cause()
@@ -553,16 +552,16 @@ class ConfigParserTest {
     void shouldDetectMissingTargetClusterBootstrapServers() {
         // Given
         assertThatThrownBy(() ->
-                // When
-                configParser.parseConfiguration("""
-                        virtualClusters:
-                          - name: demo
-                            targetCluster: {}
-                            gateways:
-                            - name: default
-                              portIdentifiesNode:
-                                bootstrapAddress: cluster1:9192
-                        """))
+        // When
+        configParser.parseConfiguration("""
+                virtualClusters:
+                  - name: demo
+                    targetCluster: {}
+                    gateways:
+                    - name: default
+                      portIdentifiesNode:
+                        bootstrapAddress: cluster1:9192
+                """))
                 // Then
                 .isInstanceOf(IllegalArgumentException.class)
                 .cause()
@@ -582,8 +581,8 @@ class ConfigParserTest {
     void shouldRequireAtLeastOneVirtualCluster(String config) {
         // Given
         assertThatThrownBy(() ->
-                // When
-                configParser.parseConfiguration(config))
+        // When
+        configParser.parseConfiguration(config))
                 // Then
                 .isInstanceOf(IllegalArgumentException.class)
                 .cause()
@@ -633,15 +632,15 @@ class ConfigParserTest {
                   type: NestedPluginConfigFactory
                   config:
                     examplePlugin: NotAKnownPlugin
-                
+
                 """));
         var vie = assertInstanceOf(ValueInstantiationException.class, iae.getCause());
         var upie = assertInstanceOf(UnknownPluginInstanceException.class, vie.getCause());
         assertEquals("Unknown io.kroxylicious.proxy.internal.filter.ExamplePluginFactory plugin instance for "
-                        + "name 'NotAKnownPlugin'. "
-                        + "Known plugin instances are [ExamplePluginInstance, io.kroxylicious.proxy.internal.filter.ExamplePluginInstance]. "
-                        + "Plugins must be loadable by java.util.ServiceLoader and annotated with "
-                        + "@Plugin.",
+                + "name 'NotAKnownPlugin'. "
+                + "Known plugin instances are [ExamplePluginInstance, io.kroxylicious.proxy.internal.filter.ExamplePluginInstance]. "
+                + "Plugins must be loadable by java.util.ServiceLoader and annotated with "
+                + "@Plugin.",
                 upie.getMessage());
     }
 
@@ -668,24 +667,24 @@ class ConfigParserTest {
 
     static Stream<Arguments> shouldWorkWithDifferentConfigCreators() {
         return Stream.of(Arguments.argumentSet("constructor injection",
-                        """
-                                filterDefinitions:
-                                - name: ctor-injection
-                                  type: ConstructorInjection
-                                  config:
-                                    str: hello, world
-                                defaultFilters:
-                                -  ctor-injection
-                                virtualClusters:
-                                - name: demo1
-                                  targetCluster:
-                                    bootstrapServers: magic-kafka.example:1234
-                                  gateways:
-                                  - name: mygateway
-                                    portIdentifiesNode:
-                                      bootstrapAddress: "localhost:9082"
-                                """,
-                        ConstructorInjectionConfig.class),
+                """
+                        filterDefinitions:
+                        - name: ctor-injection
+                          type: ConstructorInjection
+                          config:
+                            str: hello, world
+                        defaultFilters:
+                        -  ctor-injection
+                        virtualClusters:
+                        - name: demo1
+                          targetCluster:
+                            bootstrapServers: magic-kafka.example:1234
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
+                        """,
+                ConstructorInjectionConfig.class),
                 Arguments.argumentSet("factory method",
                         """
                                 filterDefinitions:
@@ -935,18 +934,18 @@ class ConfigParserTest {
                 """);
         // Then
         assertThat(configurationModel)
-                .extracting(Configuration::virtualClusters)
-                .extracting(virtualClusters -> virtualClusters.get(0))
+                .extracting(Configuration::virtualClusters, InstanceOfAssertFactories.collection(VirtualCluster.class))
+                .singleElement()
                 .extracting(VirtualCluster::targetCluster)
                 .satisfies(targetCluster -> {
-                    assertThat(targetCluster.selectionStrategy()).isInstanceOf(FixedBootstrapSelectionStrategy.class);
+                    // because we want to preserve fidelity between the config model and yaml version the field returns null
+                    assertThat(targetCluster.selectionStrategy()).isNull();
                     assertThat(targetCluster.bootstrapServer()).isEqualTo(new HostPort("magic-kafka.example", 1234));
                 });
     }
 
     @ParameterizedTest(name = "Strategy: {0}")
     @CsvSource({
-            "first, io.kroxylicious.proxy.bootstrap.FixedBootstrapSelectionStrategy",
             "random, io.kroxylicious.proxy.bootstrap.RandomBootstrapSelectionStrategy",
             "round-robin, io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy"
     })

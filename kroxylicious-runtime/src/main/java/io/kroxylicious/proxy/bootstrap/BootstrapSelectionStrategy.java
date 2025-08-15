@@ -20,7 +20,6 @@ import io.kroxylicious.proxy.service.HostPort;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, defaultImpl = RoundRobinBootstrapSelectionStrategy.class, property = "strategy")
 @JsonSubTypes({
-        @JsonSubTypes.Type(value = FixedBootstrapSelectionStrategy.class, name = "first"),
         @JsonSubTypes.Type(value = RandomBootstrapSelectionStrategy.class, name = "random"),
         @JsonSubTypes.Type(value = RoundRobinBootstrapSelectionStrategy.class, name = "round-robin")
 })
