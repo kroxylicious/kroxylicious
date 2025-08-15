@@ -314,8 +314,9 @@ class ConfigParserTest {
                             .singleElement()
                             .satisfies(vcl -> {
                                 assertThat(vcl.name()).isEqualTo("mygateway");
-                                assertThat(vcl.portIdentifiesNode()).isNotNull().satisfies(
-                                        strategy -> assertThat(strategy.getBootstrapAddress()).isEqualTo(HostPort.parse("localhost:9192")));
+                                assertThat(vcl.portIdentifiesNode())
+                                        .isNotNull()
+                                        .satisfies(strategy -> assertThat(strategy.getBootstrapAddress()).isEqualTo(HostPort.parse("localhost:9192")));
                             });
                 });
     }
@@ -425,7 +426,9 @@ class ConfigParserTest {
                 """);
         ServiceBasedPluginFactoryRegistry registry = new ServiceBasedPluginFactoryRegistry();
         // When/Then
-        assertThatThrownBy(() -> configuration.virtualClusterModel(registry)).isInstanceOf(IllegalConfigurationException.class)
+        assertThatThrownBy(() -> {
+            configuration.virtualClusterModel(registry);
+        }).isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageStartingWith("Virtual cluster 'mycluster1', gateway 'default': 'tls' object is missing the mandatory attribute 'key'.");
         // We can't assert the full message as the link will change with every release
     }
@@ -433,17 +436,20 @@ class ConfigParserTest {
     @Test
     void shouldDetectInconsistentClusterNameInDeprecatedVirtualClusterMap() {
         // When/Then
-        assertThatThrownBy(() -> configParser.parseConfiguration("""
-                virtualClusters:
-                  mycluster:
-                    name: mycluster1
-                    targetCluster:
-                      bootstrapServers: kafka1.example:1234
-                    gateways:
-                    - name: default
-                      portIdentifiesNode:
-                        bootstrapAddress: cluster1:9192
-                """)).hasRootCauseInstanceOf(IllegalConfigurationException.class)
+        assertThatThrownBy(() -> {
+            configParser.parseConfiguration("""
+                    virtualClusters:
+                      mycluster:
+                        name: mycluster1
+                        targetCluster:
+                          bootstrapServers: kafka1.example:1234
+                        gateways:
+                        - name: default
+                          portIdentifiesNode:
+                            bootstrapAddress: cluster1:9192
+                    """);
+
+        }).hasRootCauseInstanceOf(IllegalConfigurationException.class)
                 .hasRootCauseMessage(
                         "Inconsistent virtual cluster configuration. Configuration property 'virtualClusters' refers to a map, but the key name 'mycluster' is different to the value of the 'name' field 'mycluster1' in the value.");
     }
