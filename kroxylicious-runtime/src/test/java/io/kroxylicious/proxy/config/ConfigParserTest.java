@@ -926,7 +926,7 @@ class ConfigParserTest {
                 virtualClusters:
                 - name: demo1
                   targetCluster:
-                    bootstrapServers: magic-kafka.example:1234
+                    bootstrapServers: magic-kafka.example:1234,magic-kafka-1.example:1234
                   gateways:
                   - name: mygateway
                     portIdentifiesNode:
@@ -940,6 +940,9 @@ class ConfigParserTest {
                 .satisfies(targetCluster -> {
                     // because we want to preserve fidelity between the config model and yaml version the field returns null
                     assertThat(targetCluster.selectionStrategy()).isNull();
+                    // indirectly asserting that the strategy defaults to round-robin
+                    assertThat(targetCluster.bootstrapServer()).isEqualTo(new HostPort("magic-kafka.example", 1234));
+                    assertThat(targetCluster.bootstrapServer()).isEqualTo(new HostPort("magic-kafka-1.example", 1234));
                     assertThat(targetCluster.bootstrapServer()).isEqualTo(new HostPort("magic-kafka.example", 1234));
                 });
     }
