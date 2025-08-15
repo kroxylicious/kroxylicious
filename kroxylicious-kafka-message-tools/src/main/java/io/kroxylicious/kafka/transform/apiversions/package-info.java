@@ -5,12 +5,12 @@
  */
 
 /**
- * <p>Utilities for transforming components of Kafka RPCs</p>
+ * <p>Utilities for transforming ApiVersions RPCs</p>
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)
 @DefaultAnnotation(NonNull.class)
-package io.kroxylicious.kafka.transform;
+package io.kroxylicious.kafka.transform.apiversions;
 
 import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
 import edu.umd.cs.findbugs.annotations.DefaultAnnotationForParameters;

@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -19,6 +20,8 @@ import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.kafka.transform.apiversions.ApiVersionsResponseTransformer;
+import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.ProduceResponseFilter;
@@ -30,14 +33,20 @@ import io.kroxylicious.proxy.filter.validation.validators.topic.PartitionValidat
 import io.kroxylicious.proxy.filter.validation.validators.topic.RecordValidationFailure;
 import io.kroxylicious.proxy.filter.validation.validators.topic.TopicValidationResult;
 
+import static io.kroxylicious.kafka.transform.apiversions.ApiVersionsResponseTransformers.preventTopicIdBearingProduceRequests;
+
 /**
  * The filter intercepts the produce requests and subject the records contained within them to validation. If the
  * validation fails, the whole produce request is rejected and the producing application receives an error
  * response {@link Errors#INVALID_RECORD}.  The broker does not receive rejected produce requests.
  */
-public class RecordValidationFilter implements ProduceRequestFilter, ProduceResponseFilter {
+public class RecordValidationFilter implements ProduceRequestFilter, ProduceResponseFilter, ApiVersionsResponseFilter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordValidationFilter.class);
+    // currently we must downgrade to a produce request version that does not support topic ids, we rely on
+    // topic names in the messages when deciding what rules to apply.
+    // todo remove once we have a facility to look up the topic name for a topic id
+    private static final ApiVersionsResponseTransformer DOWNGRADE = preventTopicIdBearingProduceRequests();
     private final ProduceRequestValidator validator;
     private final Map<Integer, ProduceRequestValidationResult> correlatedResults = new HashMap<>();
 
@@ -162,4 +171,9 @@ public class RecordValidationFilter implements ProduceRequestFilter, ProduceResp
         });
     }
 
+    @Override
+    public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData response,
+                                                                       FilterContext context) {
+        return context.forwardResponse(header, DOWNGRADE.onApiVersionsResponse(response));
+    }
 }
