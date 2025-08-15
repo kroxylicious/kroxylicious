@@ -15,5 +15,7 @@ spec:
   configTemplate:
     kms: Foo
     kmsConfig: {}
-    selector: Bar
-    selectorConfig: {}
+    unresolvedKeyPolicy: REJECT
+    selector: TemplateKekSelector
+    selectorConfig:
+      template: "KEK_$(topicName)"
