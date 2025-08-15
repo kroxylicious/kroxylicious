@@ -28,6 +28,9 @@ public record FixedBootstrapSelectionStrategy(int choice) implements BootstrapSe
 
     @Override
     public HostPort apply(List<HostPort> hostPorts) {
+        if (choice > hostPorts.size()) {
+            throw new IllegalStateException("Configured to use a server entry which is not available.");
+        }
         return hostPorts.get(choice);
     }
 
