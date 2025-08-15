@@ -214,8 +214,9 @@ jobs:
           There are a couple of steps to do before the release is completed.
           
           * [ ] Let the CI workflow on this PR complete
-          * [ ] [Kick the tyres](https://github.com/kroxylicious/kroxylicious/blob/main/RELEASING.md#making-the-release-public) using the staged Maven artefacts (available at `${REPO}`).
-                You can use this Maven snippet in your test project's pom.xml to configure Maven to download from the Portal. You also need to configure Maven to [authenticate](https://central.sonatype.org/publish/publish-portal-api/#maven).
+          * [ ] [Kick the tyres](https://github.com/kroxylicious/kroxylicious/blob/main/RELEASING.md#verify-the-release) using the staged Maven artefacts (available at `${REPO}`).
+                You can use this Maven snippet in your test project's pom.xml to configure Maven to download from the Portal. You also need to configure Maven to [authenticate](https://central.sonatype.org/publish/publish-portal-api/#maven) using
+                your [Sonatype user token](https://central.sonatype.com/account).
             ```
             <repositories>
               <repository>
