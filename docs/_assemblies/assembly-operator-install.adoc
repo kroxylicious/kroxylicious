@@ -3,13 +3,27 @@
 // kroxylicious-operator/index.adoc
 
 [id='assembly-installing-{context}']
-= Installing the operator
+= Installing the Kroxylicious Operator
 
+[role="_abstract"]
 This section provides instructions for installing the Kroxylicious Operator.
+
+ifndef::OpenShiftOnly[]
+Install the proxy operator by applying the proxy installation files
+endif::OpenShiftOnly[]
+
+ifdef::OpenShiftOnly[]
+Install the proxy operator using one of the following methods:
+
+* By applying the proxy installation files
+* From the OperatorHub in the OpenShift web console (Openshift Clusters only)
+endif::OpenShiftOnly[]
 
 Installation options and procedures are demonstrated using the example files included with Kroxylicious.
 
 include::../_modules/install/con-install-prereqs.adoc[leveloffset=+1]
 include::../_modules/install/con-install-product-downloads.adoc[leveloffset=+1]
 include::../_modules/install/proc-install-operator.adoc[leveloffset=+1]
-
+ifdef::OpenShiftOnly[]
+include::../_modules/install/proc-install-operator-olm.adoc[leveloffset=+1]
+endif::OpenShiftOnly[]

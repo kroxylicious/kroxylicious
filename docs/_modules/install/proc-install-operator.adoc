@@ -3,7 +3,7 @@
 // _assemblies/assembly-operator-install.adoc
 
 [id='install-cluster-operator-{context}']
-= Installing the Kroxylicious Operator
+= Installing the operator using installation files
 
 [role="_abstract"]
 This procedure shows how to install the Kroxylicious Operator in your Kubernetes cluster.
