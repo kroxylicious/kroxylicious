@@ -30,4 +30,9 @@ public record FixedBootstrapSelectionStrategy(int choice) implements BootstrapSe
     public HostPort apply(List<HostPort> hostPorts) {
         return hostPorts.get(choice);
     }
+
+    @Override
+    public String getStrategy() {
+        return "fixed";
+    }
 }
