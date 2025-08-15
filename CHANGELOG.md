@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2402](https://github.com/kroxylicious/kroxylicious/issues/2402): feat(docs): quickstart guide for record encryption on Kubernetes
 * [#2565](https://github.com/kroxylicious/kroxylicious/pull/2565): build(deps): bump io.javaoperatorsdk:operator-framework-bom from 5.0.4 to 5.1.2
 
 ## 0.14.0
