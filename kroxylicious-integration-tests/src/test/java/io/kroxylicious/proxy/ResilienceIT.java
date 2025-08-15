@@ -20,7 +20,6 @@ import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.TimeoutException;
 import org.assertj.core.api.InstanceOfAssertFactories;
@@ -93,8 +92,7 @@ class ResilienceIT extends BaseIT {
     }
 
     @Test
-    void shouldBeAbleToBootstrapIfMultipleBootstrapUnavailable(KafkaCluster myCluster)
-            throws ExecutionException, InterruptedException, java.util.concurrent.TimeoutException {
+    void shouldBeAbleToBootstrapIfMultipleBootstrapUnavailable(KafkaCluster myCluster) {
 
         try (var immediateCloseServer = new ImmediateCloseSocketServer();
                 var immediateCloseServer2 = new ImmediateCloseSocketServer();
@@ -105,14 +103,14 @@ class ResilienceIT extends BaseIT {
             try (var tester = kroxyliciousTester(config);
                     var admin = tester.admin()) {
                 DescribeClusterResult describeClusterResult = admin.describeCluster();
-                assertThat(describeClusterResult.clusterId().get(5, TimeUnit.SECONDS)).isNotBlank();
+                assertThat(describeClusterResult.clusterId()).succeedsWithin(10, TimeUnit.SECONDS, InstanceOfAssertFactories.STRING)
+                        .isNotBlank();
             }
         }
     }
 
     @Test
-    void shouldBeAbleToBootstrapIfFirstBootstrapNodeGoesDown(@BrokerCluster(numBrokers = 3) KafkaCluster myCluster)
-            throws ExecutionException, InterruptedException, java.util.concurrent.TimeoutException {
+    void shouldBeAbleToBootstrapIfFirstBootstrapNodeGoesDown(@BrokerCluster(numBrokers = 3) KafkaCluster myCluster) {
         // we can't shutdown node 0 because it's the controller, so we flip it so node 2 is the first bootstrap server
         // this is to prove that we don't need the first bootstrap server up to bootstrap
         List<String> bootstraps = List.of(myCluster.getBootstrapServers().split(","));
@@ -120,11 +118,12 @@ class ResilienceIT extends BaseIT {
         try (var tester = kroxyliciousTester(proxy(bootstrapServers));
                 var admin = tester.admin()) {
             DescribeClusterResult describeClusterResult = admin.describeCluster();
-            assertThat(describeClusterResult.clusterId().get(5, TimeUnit.SECONDS)).isNotBlank();
+            assertThat(describeClusterResult.clusterId()).succeedsWithin(10, TimeUnit.SECONDS, InstanceOfAssertFactories.STRING).isNotBlank();
             myCluster.stopNodes(nodeId -> nodeId == 2, TerminationStyle.GRACEFUL);
             try (var admin2 = tester.admin()) {
                 DescribeClusterResult describeClusterResult2 = admin2.describeCluster();
-                assertThat(describeClusterResult2.clusterId().get(5, TimeUnit.SECONDS)).isNotBlank();
+                assertThat(describeClusterResult2.clusterId()).succeedsWithin(10, TimeUnit.SECONDS, InstanceOfAssertFactories.STRING)
+                        .isNotBlank();
             }
         }
     }
@@ -206,39 +205,22 @@ class ResilienceIT extends BaseIT {
                 ConsumerConfig.GROUP_ID_CONFIG, "mygroup",
                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
 
-        Producer<String, String> producer = null;
-        Consumer<String, String> consumer = null;
+        try (var tester = kroxyliciousTester(builder)) {
+            var producer = tester.producer(producerConfig);
+            var consumer = tester.consumer(consumerConfig);
+            consumer.subscribe(Set.of(randomTopic.name()));
+            var response = producer.send(new ProducerRecord<>(randomTopic.name(), "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
 
-        try {
-            try (var tester = kroxyliciousTester(builder)) {
-                producer = tester.producer(producerConfig);
-                consumer = tester.consumer(consumerConfig);
-                consumer.subscribe(Set.of(randomTopic.name()));
-                var response = producer.send(new ProducerRecord<>(randomTopic.name(), "my-key", "Hello, world!")).get(10, TimeUnit.SECONDS);
-
-                LOGGER.debug("Restarting proxy");
-                tester.restartProxy();
-                // re-use the existing producer and consumer (made through Kroxylicious's first incarnation). This provides us the assurance
-                // that they were able to reconnect successfully.
-                producer.send(new ProducerRecord<>(randomTopic.name(), "my-key", "Hello, again!")).get(10, TimeUnit.SECONDS);
-                producer.close();
-                var records = consumer.poll(Duration.ofSeconds(20));
-                consumer.close();
-                assertThat(records).hasSize(2);
-                assertThat(records.iterator()).toIterable().map(ConsumerRecord::value).containsExactly("Hello, world!", "Hello, again!");
-            }
-        }
-        finally {
-            try {
-                if (producer != null) {
-                    producer.close();
-                }
-            }
-            finally {
-                if (consumer != null) {
-                    consumer.close();
-                }
-            }
+            LOGGER.debug("Restarting proxy");
+            tester.restartProxy();
+            // re-use the existing producer and consumer (made through Kroxylicious's first incarnation). This provides us the assurance
+            // that they were able to reconnect successfully.
+            producer.send(new ProducerRecord<>(randomTopic.name(), "my-key", "Hello, again!")).get(10, TimeUnit.SECONDS);
+            producer.close();
+            var records = consumer.poll(Duration.ofSeconds(20));
+            consumer.close();
+            assertThat(records).hasSize(2);
+            assertThat(records.iterator()).toIterable().map(ConsumerRecord::value).containsExactly("Hello, world!", "Hello, again!");
         }
     }
 }

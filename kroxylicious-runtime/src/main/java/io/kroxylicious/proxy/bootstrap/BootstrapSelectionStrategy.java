@@ -18,15 +18,13 @@ import io.kroxylicious.proxy.service.HostPort;
 /**
  * Strategy for selecting an upstream target from a given list of upstream targets for bootstrapping.
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, defaultImpl = FixedBootstrapSelectionStrategy.class, property = "strategy")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, defaultImpl = RoundRobinBootstrapSelectionStrategy.class, property = "strategy")
 @JsonSubTypes({
         @JsonSubTypes.Type(value = FixedBootstrapSelectionStrategy.class, name = "first"),
         @JsonSubTypes.Type(value = RandomBootstrapSelectionStrategy.class, name = "random"),
         @JsonSubTypes.Type(value = RoundRobinBootstrapSelectionStrategy.class, name = "round-robin")
 })
 public interface BootstrapSelectionStrategy extends Function<List<HostPort>, HostPort> {
-
-    BootstrapSelectionStrategy FIRST_BOOTSTRAP_SERVER_SELECTION_STRATEGY = new FixedBootstrapSelectionStrategy(0);
 
     HostPort apply(List<HostPort> hostPorts);
 
