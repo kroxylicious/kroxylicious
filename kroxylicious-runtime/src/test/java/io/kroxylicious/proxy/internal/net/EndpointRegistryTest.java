@@ -358,7 +358,7 @@ class EndpointRegistryTest {
 
         assertThat(endpointRegistry.resolve(Endpoint.createEndpoint(SNI_DOWNSTREAM_BROKER_0.port(), true), SNI_DOWNSTREAM_BROKER_0.host()))
                 .succeedsWithin(Duration.ofSeconds(1))
-                .isEqualTo(new MetadataDiscoveryEndpointBinding(virtualClusterModel1, 0));
+                .isEqualTo(new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel1, 0));
     }
 
     @Test
@@ -399,7 +399,7 @@ class EndpointRegistryTest {
         var sniMatchBinding = endpointRegistry.resolve(Endpoint.createEndpoint(SNI_DOWNSTREAM_BROKER_1.port(), true), SNI_DOWNSTREAM_BROKER_1.host())
                 .toCompletableFuture()
                 .get();
-        assertThat(sniMatchBinding).isEqualTo(new MetadataDiscoveryEndpointBinding(virtualClusterModel1, 1));
+        assertThat(sniMatchBinding).isEqualTo(new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel1, 1));
     }
 
     @Test
@@ -484,7 +484,7 @@ class EndpointRegistryTest {
         assertThat(endpointRegistry.listeningChannelCount()).isEqualTo(2);
 
         var binding = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
-        assertThat(binding).isEqualTo(new MetadataDiscoveryEndpointBinding(virtualClusterModel1, 0));
+        assertThat(binding).isEqualTo(new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel1, 0));
     }
 
     @Test
@@ -561,7 +561,7 @@ class EndpointRegistryTest {
         var resolveBroker0BeforeReconcile = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_0.port(), false), null).toCompletableFuture().get();
         assertThat(resolveBroker0BeforeReconcile)
                 .describedAs("Resolving pre-bound broker 0 should yield the upstream address for bootstrap")
-                .isEqualTo(new MetadataDiscoveryEndpointBinding(virtualClusterModel1, 0));
+                .isEqualTo(new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel1, 0));
 
         // Reconcile learns that upstream broker topology actually has only one broker
         // DOWNSTREAM_BROKER_0 binding has to be updated
@@ -580,7 +580,7 @@ class EndpointRegistryTest {
         var resolveBroker1AfterReconcile = endpointRegistry.resolve(Endpoint.createEndpoint(DOWNSTREAM_BROKER_1.port(), false), null).toCompletableFuture().get();
         assertThat(resolveBroker1AfterReconcile)
                 .describedAs("Resolving reconciled broker 1 should still yield bootstrap")
-                .isEqualTo(new MetadataDiscoveryEndpointBinding(virtualClusterModel1, 1));
+                .isEqualTo(new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel1, 1));
 
     }
 

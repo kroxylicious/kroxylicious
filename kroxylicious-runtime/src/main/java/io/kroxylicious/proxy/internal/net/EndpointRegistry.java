@@ -203,7 +203,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                     var nodeId = e.getKey();
                     var bhp = e.getValue();
                     return registerBinding(new Endpoint(virtualClusterModel.getBindAddress(), bhp.port(), virtualClusterModel.isUseTls()), bhp.host(),
-                            new MetadataDiscoveryEndpointBinding(virtualClusterModel, nodeId));
+                            new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel, nodeId));
                 }));
 
         bootstrapEndpointFuture.thenCombine(discoveryAddressesMapStage, (bef, bps) -> bef)
@@ -418,7 +418,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
                 .keySet()
                 .stream()
                 .filter(Predicate.not(upstreamNodes::containsKey))
-                .map(nodeId -> new MetadataDiscoveryEndpointBinding(virtualClusterModel, nodeId))
+                .map(nodeId -> new MetadataDiscoveryBrokerEndpointBinding(virtualClusterModel, nodeId))
                 .toList());
         return creations;
     }
@@ -572,7 +572,7 @@ public class EndpointRegistry implements EndpointReconciler, EndpointBindingReso
         var e = bootstrapToBrokerId.entrySet().iterator().next();
         var bootstrapBinding = e.getKey();
         var nodeId = e.getValue();
-        return new MetadataDiscoveryEndpointBinding(bootstrapBinding.endpointGateway(), nodeId);
+        return new MetadataDiscoveryBrokerEndpointBinding(bootstrapBinding.endpointGateway(), nodeId);
     }
 
     private HashMap<BootstrapEndpointBinding, Integer> findBootstrapBindings(Endpoint endpoint,
