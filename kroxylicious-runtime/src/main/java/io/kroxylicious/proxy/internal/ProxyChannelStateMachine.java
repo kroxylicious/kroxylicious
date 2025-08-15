@@ -475,7 +475,8 @@ public class ProxyChannelStateMachine {
                     connecting.clientSoftwareName(),
                     connecting.clientSoftwareVersion());
             toSelectingServer(selectingServer);
-        } else {
+        }
+        else {
             LOGGER.warn("onBootstrapServerRetry called but state is not Connecting: {}", state.getClass().getSimpleName());
         }
     }
