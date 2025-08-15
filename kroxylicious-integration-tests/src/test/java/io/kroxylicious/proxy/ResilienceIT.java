@@ -11,9 +11,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.admin.DescribeClusterOptions;
+import org.apache.kafka.clients.admin.DescribeClusterResult;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -58,8 +60,73 @@ class ResilienceIT extends BaseIT {
     }
 
     @Test
+    void kafkaProducerShouldTolerateKroxyliciousRestartingWithFirstBootstrapUnavailable(Topic randomTopic) throws Exception {
+        try (var immediateCloseServer = new ImmediateCloseSocketServer()) {
+            testProducerCanSurviveARestart(proxy(immediateCloseServer.getHostPort() + "," + cluster.getBootstrapServers()), randomTopic);
+        }
+    }
+
+    @Test
     void kafkaConsumerShouldTolerateKroxyliciousRestarting(Topic randomTopic) throws Exception {
         testConsumerCanSurviveKroxyliciousRestart(proxy(cluster), randomTopic);
+    }
+
+    @Test
+    void kafkaConsumerShouldTolerateKroxyliciousRestartingWithFirstBootstrapUnavailable(Topic randomTopic) throws Exception {
+        try (var immediateCloseServer = new ImmediateCloseSocketServer()) {
+            testConsumerCanSurviveKroxyliciousRestart(proxy(immediateCloseServer.getHostPort() + "," + cluster.getBootstrapServers()), randomTopic);
+        }
+    }
+
+    @Test
+    void shouldBeAbleToBootstrapIfFirstBootstrapUnavailable(KafkaCluster myCluster)
+            throws ExecutionException, InterruptedException, java.util.concurrent.TimeoutException {
+
+        try (var immediateCloseServer = new ImmediateCloseSocketServer()) {
+            ConfigurationBuilder config = proxy(immediateCloseServer.getHostPort() + "," + myCluster.getBootstrapServers());
+            try (var tester = kroxyliciousTester(config);
+                    var admin = tester.admin()) {
+                DescribeClusterResult describeClusterResult = admin.describeCluster();
+                assertThat(describeClusterResult.clusterId().get(5, TimeUnit.SECONDS)).isNotBlank();
+            }
+        }
+    }
+
+    @Test
+    void shouldBeAbleToBootstrapIfMultipleBootstrapUnavailable(KafkaCluster myCluster)
+            throws ExecutionException, InterruptedException, java.util.concurrent.TimeoutException {
+
+        try (var immediateCloseServer = new ImmediateCloseSocketServer();
+                var immediateCloseServer2 = new ImmediateCloseSocketServer();
+                var immediateCloseServer3 = new ImmediateCloseSocketServer()) {
+            ConfigurationBuilder config = proxy(
+                    immediateCloseServer.getHostPort() + "," + immediateCloseServer2.getHostPort() + "," + immediateCloseServer3.getHostPort() + ","
+                            + myCluster.getBootstrapServers());
+            try (var tester = kroxyliciousTester(config);
+                    var admin = tester.admin()) {
+                DescribeClusterResult describeClusterResult = admin.describeCluster();
+                assertThat(describeClusterResult.clusterId().get(5, TimeUnit.SECONDS)).isNotBlank();
+            }
+        }
+    }
+
+    @Test
+    void shouldBeAbleToBootstrapIfFirstBootstrapNodeGoesDown(@BrokerCluster(numBrokers = 3) KafkaCluster myCluster)
+            throws ExecutionException, InterruptedException, java.util.concurrent.TimeoutException {
+        // we can't shutdown node 0 because it's the controller, so we flip it so node 2 is the first bootstrap server
+        // this is to prove that we don't need the first bootstrap server up to bootstrap
+        List<String> bootstraps = List.of(myCluster.getBootstrapServers().split(","));
+        String bootstrapServers = String.join(",", bootstraps.reversed());
+        try (var tester = kroxyliciousTester(proxy(bootstrapServers));
+                var admin = tester.admin()) {
+            DescribeClusterResult describeClusterResult = admin.describeCluster();
+            assertThat(describeClusterResult.clusterId().get(5, TimeUnit.SECONDS)).isNotBlank();
+            myCluster.stopNodes(nodeId -> nodeId == 2, TerminationStyle.GRACEFUL);
+            try (var admin2 = tester.admin()) {
+                DescribeClusterResult describeClusterResult2 = admin2.describeCluster();
+                assertThat(describeClusterResult2.clusterId().get(5, TimeUnit.SECONDS)).isNotBlank();
+            }
+        }
     }
 
     @Test
