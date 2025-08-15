@@ -14,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.bootstrap.BootstrapSelectionStrategy;
+import io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -28,6 +29,8 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
                             @JsonProperty(value = "tls") Optional<Tls> tls,
                             @JsonProperty(value = "bootstrapServerSelection") BootstrapSelectionStrategy selectionStrategy) {
 
+    private static final BootstrapSelectionStrategy DEFAULT_SELECTION_STRATEGY = new RoundRobinBootstrapSelectionStrategy();
+
     @JsonCreator
     public TargetCluster {
         if (bootstrapServers == null) {
@@ -36,7 +39,7 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
     }
 
     public TargetCluster(String bootstrapServers, @SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<Tls> tls) {
-        this(bootstrapServers, tls, BootstrapSelectionStrategy.FIRST_BOOTSTRAP_SERVER_SELECTION_STRATEGY);
+        this(bootstrapServers, tls, DEFAULT_SELECTION_STRATEGY);
     }
 
     /**
@@ -70,6 +73,6 @@ public record TargetCluster(@JsonProperty(value = "bootstrapServers", required =
 
     // we don't apply this to the field itself so that we can maintain fidelity between the fluent API and the yaml config.
     private BootstrapSelectionStrategy resolveSelectionStrategy() {
-        return Objects.requireNonNullElse(selectionStrategy, BootstrapSelectionStrategy.FIRST_BOOTSTRAP_SERVER_SELECTION_STRATEGY);
+        return Objects.requireNonNullElse(selectionStrategy, DEFAULT_SELECTION_STRATEGY);
     }
 }
