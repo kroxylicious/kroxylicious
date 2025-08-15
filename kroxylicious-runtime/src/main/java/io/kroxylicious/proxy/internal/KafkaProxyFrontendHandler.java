@@ -89,6 +89,11 @@ public class KafkaProxyFrontendHandler
     private @Nullable AuthenticationEvent authentication;
     private @Nullable String sniHostname;
 
+    // Bootstrap server failover support
+    private @Nullable List<HostPort> availableBootstrapServers;
+    private @Nullable List<FilterAndInvoker> pendingFilters;
+    private int bootstrapServerAttemptIndex = 0;
+
     // Flag if we receive a channelReadComplete() prior to outbound connection activation
     // so we can perform the channelReadComplete()/outbound flush & auto_read
     // once the outbound channel is active
@@ -452,6 +457,16 @@ public class KafkaProxyFrontendHandler
             LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
                     clientCtx().channel().id(), remote, filters);
         }
+        
+        // Store the full list of bootstrap servers for failover support
+        // This allows us to retry with other bootstrap servers if the connection fails
+        if (endpointBinding.restrictUpstreamToMetadataDiscovery()) {
+            this.availableBootstrapServers = endpointBinding.endpointGateway().targetCluster().bootstrapServersList();
+            this.pendingFilters = filters;
+            // Find the index of the currently selected server for retry logic
+            this.bootstrapServerAttemptIndex = Math.max(0, availableBootstrapServers.indexOf(remote));
+        }
+        
         this.proxyChannelStateMachine.onNetFilterInitiateConnect(remote, filters, virtualClusterModel, netFilter);
     }
 
@@ -509,7 +524,10 @@ public class KafkaProxyFrontendHandler
                 // That happens when the backend filter call #onUpstreamChannelActive(ChannelHandlerContext).
             }
             else {
-                proxyChannelStateMachine.onServerException(future.cause());
+                // Try the next bootstrap server if available, otherwise fail
+                if (!tryNextBootstrapServer(future.cause())) {
+                    proxyChannelStateMachine.onServerException(future.cause());
+                }
             }
         });
     }
@@ -538,6 +556,49 @@ public class KafkaProxyFrontendHandler
     @SuppressWarnings("removal")
     private KafkaMessageListener getDeprecatedUpstreamMessageMetrics(String clusterName) {
         return new UpstreamPayloadSizeMetricRecordingKafkaMessageListener(Metrics.payloadSizeBytesDownstreamSummary(clusterName));
+    }
+
+    /**
+     * Attempts to connect to the next bootstrap server in the list when the current connection fails.
+     * This implements bootstrap server failover by trying each server in sequence.
+     * 
+     * @param connectionFailureCause the cause of the connection failure to the current server
+     * @return true if a retry was attempted with the next server, false if no more servers are available
+     */
+    private boolean tryNextBootstrapServer(Throwable connectionFailureCause) {
+        // Only retry for bootstrap connections (metadata discovery)
+        if (availableBootstrapServers == null || pendingFilters == null) {
+            return false;
+        }
+        
+        int bootstrapServersCount = availableBootstrapServers.size();
+        if (bootstrapServersCount <= 1) {
+            return false;
+        }
+
+        // Try the next bootstrap server in the list
+        bootstrapServerAttemptIndex++;
+        if (bootstrapServerAttemptIndex >= bootstrapServersCount) {
+            // We've tried all bootstrap servers, give up
+            LOGGER.warn("{}: Failed to connect to all {} bootstrap servers, exhausted retry attempts", 
+                    clientCtx().channel().id(), bootstrapServersCount);
+            return false;
+        }
+
+        HostPort nextBootstrapServer = availableBootstrapServers.get(bootstrapServerAttemptIndex);
+        LOGGER.info("{}: Connection to bootstrap server failed ({}), trying next server: {} (attempt {}/{})",
+                clientCtx().channel().id(), 
+                connectionFailureCause.getMessage(),
+                nextBootstrapServer,
+                bootstrapServerAttemptIndex + 1,
+                bootstrapServersCount);
+
+        // Reset the state machine back to SelectingServer and retry with the next bootstrap server
+        proxyChannelStateMachine.onBootstrapServerRetry();
+        
+        // Initiate connection to the next bootstrap server
+        proxyChannelStateMachine.onNetFilterInitiateConnect(nextBootstrapServer, pendingFilters, virtualClusterModel, netFilter);
+        return true;
     }
 
     /** Ugly hack used for testing */

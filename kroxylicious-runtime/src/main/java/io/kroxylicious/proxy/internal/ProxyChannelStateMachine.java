@@ -466,6 +466,21 @@ public class ProxyChannelStateMachine {
     }
 
     /**
+     * Reset the state machine from Connecting back to SelectingServer for bootstrap server retry
+     */
+    void onBootstrapServerRetry() {
+        if (state instanceof ProxyChannelState.Connecting connecting) {
+            ProxyChannelState.SelectingServer selectingServer = new ProxyChannelState.SelectingServer(
+                    connecting.haProxyMessage(),
+                    connecting.clientSoftwareName(),
+                    connecting.clientSoftwareVersion());
+            toSelectingServer(selectingServer);
+        } else {
+            LOGGER.warn("onBootstrapServerRetry called but state is not Connecting: {}", state.getClass().getSimpleName());
+        }
+    }
+
+    /**
      * Notify the state machine that something exceptional and un-recoverable has happened on the downstream side.
      * @param cause the exception that triggered the issue
      */
