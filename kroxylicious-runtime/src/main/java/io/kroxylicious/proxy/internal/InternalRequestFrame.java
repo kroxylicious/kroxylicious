@@ -18,6 +18,7 @@ public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFr
 
     private final CompletableFuture<?> promise;
     private final Filter recipient;
+    private final boolean cacheable;
 
     public InternalRequestFrame(short apiVersion,
                                 int correlationId,
@@ -25,10 +26,12 @@ public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFr
                                 Filter recipient,
                                 CompletableFuture<?> promise,
                                 RequestHeaderData header,
-                                B body) {
+                                B body,
+                                boolean cacheable) {
         super(apiVersion, correlationId, decodeResponse, header, body);
         this.promise = promise;
         this.recipient = Objects.requireNonNull(recipient);
+        this.cacheable = cacheable;
     }
 
     public Filter recipient() {
@@ -37,5 +40,9 @@ public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFr
 
     public CompletableFuture<?> promise() {
         return promise;
+    }
+
+    public boolean isCacheable() {
+        return cacheable;
     }
 }

@@ -51,6 +51,7 @@ public class CorrelationManager {
      * @param hasResponse             Whether a response is expected.
      * @param promise                 A promise.
      * @param decodeResponse          Whether the response should be decoded.
+     * @param cacheable               Whether the framework is allowed to cache the upstream response
      */
     public int putBrokerRequest(short apiKey,
                                 short apiVersion,
@@ -58,13 +59,14 @@ public class CorrelationManager {
                                 boolean hasResponse,
                                 @Nullable Filter recipient,
                                 @Nullable CompletableFuture<?> promise,
-                                boolean decodeResponse) {
+                                boolean decodeResponse,
+                                boolean cacheable) {
         // need to allocate an id and put in a map for quick lookup, along with the "tag"
         int upstreamCorrelationId = upstreamId++;
         LOGGER.trace("Allocated upstream id {} for downstream id {}", upstreamCorrelationId, downstreamCorrelationId);
         if (hasResponse) {
             Correlation existing = this.brokerRequests.put(upstreamCorrelationId,
-                    new Correlation(apiKey, apiVersion, downstreamCorrelationId, decodeResponse, recipient, promise));
+                    new Correlation(apiKey, apiVersion, downstreamCorrelationId, decodeResponse, recipient, promise, cacheable));
             if (existing != null) {
                 LOGGER.error("Duplicate upstream correlation id {}", upstreamCorrelationId);
             }
@@ -94,19 +96,22 @@ public class CorrelationManager {
         private final boolean decodeResponse;
         private final @Nullable Filter recipient;
         private final @Nullable CompletableFuture<?> promise;
+        private final boolean cacheable;
 
         private Correlation(short apiKey,
                             short apiVersion,
                             int downstreamCorrelationId,
                             boolean decodeResponse,
                             @Nullable Filter recipient,
-                            @Nullable CompletableFuture<?> promise) {
+                            @Nullable CompletableFuture<?> promise,
+                            boolean cacheable) {
             this.apiKey = apiKey;
             this.apiVersion = apiVersion;
             this.downstreamCorrelationId = downstreamCorrelationId;
             this.decodeResponse = decodeResponse;
             this.recipient = recipient;
             this.promise = promise;
+            this.cacheable = cacheable;
         }
 
         public int downstreamCorrelationId() {
@@ -161,6 +166,10 @@ public class CorrelationManager {
 
         public @Nullable CompletableFuture<?> promise() {
             return promise;
+        }
+
+        public boolean isCacheable() {
+            return cacheable;
         }
     }
 }
