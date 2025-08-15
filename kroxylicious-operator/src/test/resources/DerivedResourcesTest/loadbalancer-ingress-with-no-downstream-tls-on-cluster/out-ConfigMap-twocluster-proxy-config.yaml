@@ -29,6 +29,8 @@ data:
     - name: "bar"
       targetCluster:
         bootstrapServers: "first-kafka.kafka1.svc.cluster.local:9092"
+        bootstrapServerSelection:
+          strategy: "round-robin"
       gateways:
       - name: "load-balancer"
         sniHostIdentifiesNode:

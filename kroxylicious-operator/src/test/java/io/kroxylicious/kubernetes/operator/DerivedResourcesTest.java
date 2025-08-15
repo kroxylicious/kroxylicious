@@ -56,6 +56,7 @@ import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.kubernetes.operator.ProxyDeploymentDependentResource.KROXYLICIOUS_IMAGE_ENV_VAR;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
@@ -70,6 +71,7 @@ class DerivedResourcesTest {
     static final ObjectMapper YAML_MAPPER = new YAMLMapper()
             .disable(YAMLGenerator.Feature.WRITE_DOC_START_MARKER)
             .enable(YAMLGenerator.Feature.LITERAL_BLOCK_STYLE)
+            .disable(YAMLGenerator.Feature.USE_NATIVE_TYPE_ID)
             .registerModule(new JavaTimeModule());
 
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
@@ -128,7 +130,7 @@ class DerivedResourcesTest {
     record SingletonDependentResourceDesiredFn<D extends KubernetesDependentResource<R, P>, P extends HasMetadata, R extends HasMetadata>(
                                                                                                                                           D dependentResource,
                                                                                                                                           String dependentResourceKind,
-                                                                                                                                          io.javaoperatorsdk.operator.processing.dependent.workflow.Condition<R, P> reconcilePrecondition,
+                                                                                                                                          @Nullable io.javaoperatorsdk.operator.processing.dependent.workflow.Condition<R, P> reconcilePrecondition,
                                                                                                                                           TriFunction<D, P, Context<P>, R> fn)
             implements DesiredFn<P, R> {
         @Override

@@ -15,4 +15,11 @@ public class Assertions {
         }
         return num;
     }
+
+    public static long requirePositive(long num, String what) {
+        if (num < 0) {
+            throw new IllegalArgumentException(what + " must to be >= 0");
+        }
+        return num;
+    }
 }

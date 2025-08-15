@@ -49,6 +49,8 @@ data:
           protocols:
             denied:
             - "TLS1.2"
+        bootstrapServerSelection:
+          strategy: "round-robin"
       gateways:
       - name: "cluster-ip"
         portIdentifiesNode:

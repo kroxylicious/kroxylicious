@@ -24,6 +24,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fasterxml.jackson.datatype.jdk8.Jdk8Module;
 import com.flipkart.zjsonpatch.JsonDiff;
 
+import io.kroxylicious.proxy.bootstrap.RoundRobinBootstrapSelectionStrategy;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
@@ -399,6 +400,35 @@ class ConfigurationTest {
                                   - name: demo
                                     targetCluster:
                                       bootstrapServers: kafka.example:1234
+                                      tls:
+                                         trust:
+                                            insecure: true
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: cluster1:9192
+                                """),
+                argumentSet("BootstrapServerSelection",
+                        new ConfigurationBuilder()
+                                .addToVirtualClusters(new VirtualClusterBuilder()
+                                        .withName("demo")
+                                        .withNewTargetCluster()
+                                        .withBootstrapServers("kafka.example:1234")
+                                        .withNewTls()
+                                        .withNewInsecureTlsTrust(true)
+                                        .endTls()
+                                        .withSelectionStrategy(new RoundRobinBootstrapSelectionStrategy())
+                                        .endTargetCluster()
+                                        .addToGateways(defaultPortIdentifiesNodeGatewayBuilder("cluster1:9192").build())
+                                        .build())
+                                .build(),
+                        """
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                      bootstrapServerSelection:
+                                        strategy: round-robin
                                       tls:
                                          trust:
                                             insecure: true

@@ -40,6 +40,8 @@ data:
     - name: "foo"
       targetCluster:
         bootstrapServers: "my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092"
+        bootstrapServerSelection:
+          strategy: "round-robin"
       gateways:
       - name: "cluster-ip"
         portIdentifiesNode:
