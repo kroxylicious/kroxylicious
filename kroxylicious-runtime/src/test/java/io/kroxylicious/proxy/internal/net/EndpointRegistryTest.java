@@ -318,8 +318,7 @@ class EndpointRegistryTest {
                                             @ConvertWith(HostPortConverter.class) HostPort downstreamBootstrap,
                                             @ConvertWith(HostPortConverter.class) HostPort upstreamBootstrap,
                                             @ConvertWith(HostPortConverter.class) HostPort resolveAddress) {
-        configureVirtualClusterMock(virtualClusterModel1, HostPort.parse(downstreamBootstrap.toString()), HostPort.parse(upstreamBootstrap.toString()), true
-        );
+        configureVirtualClusterMock(virtualClusterModel1, HostPort.parse(downstreamBootstrap.toString()), HostPort.parse(upstreamBootstrap.toString()), true);
 
         var f = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(downstreamBootstrap.port(), true));
@@ -337,8 +336,7 @@ class EndpointRegistryTest {
                                                  @ConvertWith(HostPortConverter.class) HostPort upstreamBootstrap,
                                                  @ConvertWith(HostPortConverter.class) HostPort resolveAddress)
             throws Exception {
-        configureVirtualClusterMock(virtualClusterModel1, HostPort.parse(downstreamBootstrap.toString()), HostPort.parse(upstreamBootstrap.toString()), true
-        );
+        configureVirtualClusterMock(virtualClusterModel1, HostPort.parse(downstreamBootstrap.toString()), HostPort.parse(upstreamBootstrap.toString()), true);
 
         var f = endpointRegistry.registerVirtualCluster(virtualClusterModel1).toCompletableFuture();
         verifyAndProcessNetworkEventQueue(createTestNetworkBindRequest(downstreamBootstrap.port(), true));
@@ -407,8 +405,7 @@ class EndpointRegistryTest {
     @Test
     void bindingAddressEndpointSeparation() throws Exception {
         var bindingAddress1 = Optional.of("127.0.0.1");
-        configureVirtualClusterMock(virtualClusterModel1, HostPort.parse("localhost:9192"), HostPort.parse("upstream1:9192"), false
-        );
+        configureVirtualClusterMock(virtualClusterModel1, HostPort.parse("localhost:9192"), HostPort.parse("upstream1:9192"), false);
         when(virtualClusterModel1.getBindAddress()).thenReturn(bindingAddress1);
 
         var bindingAddress2 = Optional.of("192.168.0.1");
