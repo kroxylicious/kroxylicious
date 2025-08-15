@@ -16,6 +16,7 @@ import io.kroxylicious.proxy.service.HostPort;
 public class RandomBootstrapSelectionStrategy implements BootstrapSelectionStrategy {
 
     @Override
+    @SuppressWarnings("java:S2245") // using Math.random is entirely appropriate here.
     public HostPort apply(List<HostPort> hostPorts) {
         final int choice = (int) (Math.random() * hostPorts.size());
         return hostPorts.get(choice);
