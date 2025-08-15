@@ -16,7 +16,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,6 +32,7 @@ import io.netty.util.AttributeKey;
 
 import io.kroxylicious.proxy.HostPortConverter;
 import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.internal.TestAttribute;
 import io.kroxylicious.proxy.service.HostPort;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -750,51 +750,7 @@ class EndpointRegistryTest {
     }
 
     private <U> Attribute<U> createTestAttribute(final AttributeKey<U> key) {
-        return new Attribute<>() {
-            final AtomicReference<U> map = new AtomicReference<>();
-
-            @Override
-            public AttributeKey<U> key() {
-                return key;
-            }
-
-            @Override
-            public U get() {
-                return map.get();
-            }
-
-            @Override
-            public void set(U value) {
-                map.set(value);
-            }
-
-            @Override
-            public U getAndSet(U value) {
-
-                return map.getAndSet(value);
-            }
-
-            @Override
-            public U setIfAbsent(U value) {
-                return map.compareAndExchange(null, value);
-            }
-
-            @Override
-            public U getAndRemove() {
-                return map.compareAndExchange(map.get(), null);
-            }
-
-            @Override
-            public boolean compareAndSet(U oldValue,
-                                         U newValue) {
-                return map.compareAndSet(oldValue, newValue);
-            }
-
-            @Override
-            public void remove() {
-                map.set(null);
-            }
-        };
+        return new TestAttribute<>(key);
     }
 
     private static class TestNetworkBindingOperationProcessor implements NetworkBindingOperationProcessor {
@@ -852,4 +808,5 @@ class EndpointRegistryTest {
 
         }
     }
+
 }
