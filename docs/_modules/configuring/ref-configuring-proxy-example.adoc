@@ -37,17 +37,19 @@ virtualClusters: # <5>
   - name: my-cluster-proxy # <6>
     targetCluster:
       bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9093 # <7>
-      tls: # <8>
+      bootstrapServerSelection:
+        strategy: "round-robin" # <8>
+      tls: # <9>
         trust:
           storeFile: /opt/proxy/trust/ca.p12
           storePassword:
             passwordFile: /opt/proxy/trust/ca.password
-    gateways: # <9>
+    gateways: # <10>
     - name: mygateway
-      sniHostIdentifiesNode: # <10>
-        bootstrapAddress: my-cluster-proxy.kafka:9092 # <11>
+      sniHostIdentifiesNode: # <11>
+        bootstrapAddress: my-cluster-proxy.kafka:9092 # <12>
         advertisedBrokerAddressPattern: broker$(nodeId).my-cluster-proxy.kafka
-      tls: # <12>
+      tls: # <13>
         key:
           storeFile: /opt/proxy/server/key-material/keystore.p12
           storePassword:
@@ -59,10 +61,11 @@ virtualClusters: # <5>
 <4> If required, you can also specify the credentials for TLS authentication with the KMS, with key names under which TLS certificates are stored.
 <5> Virtual cluster configuration.
 <6> The name of the virtual cluster.
-<7> The bootstrap address of the target physical Kafka Cluster being proxied.
-<8> TLS configuration for the connection to the target cluster.
-<9> The gateway of the virtual cluster defining how the virtual cluster is presented to the network.
-<10> The identification scheme used to route traffic to brokers, which can be `sniHostIdentifiesNode` or `portIdentifiesNode`.
-<11> The hostname and port of the bootstrap used by the Kafka clients to connect to the gateway. The hostname must be resolved by the clients.
-<12> TLS encryption used by the gateway for securing connections with the clients.
+<7> The bootstrap addresses of the target physical Kafka Cluster being proxied.
+<8> The strategy used for selecting an address from 'bootstrapServers' when the proxy receives a client connection. Options are 'round-robin' (default) or 'random'.
+<9> TLS configuration for the connection to the target cluster.
+<10> The gateway of the virtual cluster defining how the virtual cluster is presented to the network.
+<11> The identification scheme used to route traffic to brokers, which can be `sniHostIdentifiesNode` or `portIdentifiesNode`.
+<12> The hostname and port of the bootstrap used by the Kafka clients to connect to the gateway. The hostname must be resolved by the clients.
+<13> TLS encryption used by the gateway for securing connections with the clients.
 
