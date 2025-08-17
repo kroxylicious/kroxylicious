@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2585](https://github.com/kroxylicious/kroxylicious/pull/2585) feat(runtime): Optional configurable policy for selecting the upstream bootstrap server from the bootstrap servers list on connection to the proxies bootstrap address. Available options are `round-robin` (default) and `random`.
 * [#2402](https://github.com/kroxylicious/kroxylicious/issues/2402): feat(docs): Encryption-at-rest quickstart
 * [#2565](https://github.com/kroxylicious/kroxylicious/pull/2565): build(deps): bump io.javaoperatorsdk:operator-framework-bom from 5.0.4 to 5.1.2
 
