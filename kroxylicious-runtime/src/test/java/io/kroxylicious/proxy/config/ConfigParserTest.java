@@ -257,7 +257,7 @@ class ConfigParserTest {
                             portIdentifiesNode:
                               bootstrapAddress: "localhost:9082"
                         """),
-                argumentSet("BootstrapSelectionStrategy", """
+                argumentSet("BootstrapSelectionStrategy round-robin", """
                         micrometer:
                         - type: CommonTagsHook
                           config:
@@ -270,6 +270,24 @@ class ConfigParserTest {
                             bootstrapServers: magic-kafka.example:1234
                             bootstrapServerSelection:
                                 strategy: round-robin
+                          gateways:
+                          - name: mygateway
+                            portIdentifiesNode:
+                              bootstrapAddress: "localhost:9082"
+                        """),
+                argumentSet("BootstrapSelectionStrategy random", """
+                        micrometer:
+                        - type: CommonTagsHook
+                          config:
+                            commonTags:
+                              zone: "euc-1a"
+                              owner: "becky"
+                        virtualClusters:
+                        - name: demo1
+                          targetCluster:
+                            bootstrapServers: magic-kafka.example:1234
+                            bootstrapServerSelection:
+                                strategy: random
                           gateways:
                           - name: mygateway
                             portIdentifiesNode:
