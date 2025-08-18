@@ -449,6 +449,7 @@
         <module>kroxylicious-kms-provider-kroxylicious-inmemory-test-support</module>
         <module>kroxylicious-kms-provider-hashicorp-vault</module>
         <module>kroxylicious-kms-provider-hashicorp-vault-test-support</module>
+        <module>kroxylicious-labels</module>
         <module>kroxylicious-bom</module>
         <module>kroxylicious-api</module>
         <module>kroxylicious-app</module>

@@ -45,6 +45,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
+import io.kroxylicious.proxy.labels.LabelService;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
@@ -199,6 +200,11 @@ public class InvokerDispatchBenchmark {
         @Override
         public Optional<ClientSaslContext> clientSaslContext() {
             return Optional.empty();
+        }
+
+        @Override
+        public LabelService labels() {
+            throw new RuntimeException("not implemented");
         }
 
         @Override

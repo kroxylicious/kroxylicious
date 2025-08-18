@@ -16,6 +16,7 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
+import io.kroxylicious.proxy.labels.LabelService;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 /**
@@ -183,5 +184,7 @@ public interface FilterContext {
      * has not successfully authenticated using SASL.
      */
     Optional<ClientSaslContext> clientSaslContext();
+
+    LabelService labels();
 
 }

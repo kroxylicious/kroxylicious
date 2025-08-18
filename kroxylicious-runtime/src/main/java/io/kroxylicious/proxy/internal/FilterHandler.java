@@ -53,6 +53,7 @@ import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
+import io.kroxylicious.proxy.labels.LabelService;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
@@ -538,6 +539,11 @@ public class FilterHandler extends ChannelDuplexHandler {
         @Override
         public Optional<ClientSaslContext> clientSaslContext() {
             return FilterHandler.this.clientSaslManager.clientSaslContext();
+        }
+
+        @Override
+        public LabelService labels() {
+            throw new RuntimeException("not implemented yet");
         }
 
         @Override
