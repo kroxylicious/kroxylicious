@@ -5,6 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## SNAPSHOT
 ## 0.15.0
 
 * [#2585](https://github.com/kroxylicious/kroxylicious/pull/2585) feat(runtime): Optional configurable policy for selecting the upstream bootstrap server from the bootstrap servers list on connection to the proxies bootstrap address. Available options are `round-robin` (default) and `random`.
