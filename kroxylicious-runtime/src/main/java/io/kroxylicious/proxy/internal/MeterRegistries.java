@@ -96,5 +96,6 @@ public class MeterRegistries implements AutoCloseable {
         var copy = List.copyOf(prometheusMeterRegistry.getMeters());
         copy.forEach(Metrics.globalRegistry::remove);
         Metrics.removeRegistry(prometheusMeterRegistry);
+        io.kroxylicious.proxy.internal.util.Metrics.clear();
     }
 }
