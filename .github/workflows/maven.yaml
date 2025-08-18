@@ -37,7 +37,7 @@ jobs:
         run: |
           echo "SONAR_TOKEN_SET=$(test ${SONAR_TOKEN} && echo true)" >> $GITHUB_ENV
       - name: 'Check out repository'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: 'true'
           fetch-depth: 0
