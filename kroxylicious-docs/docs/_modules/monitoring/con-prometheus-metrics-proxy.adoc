@@ -19,7 +19,7 @@ They allow users to assess the impact of the proxy and its filters on their Kafk
 Connection metrics count the TCP connections made from the client to the proxy (`kroxylicious_client_to_proxy_request_total`) and from the proxy to the broker (`kroxylicious_proxy_to_server_connections_total`).
 These metrics count connection _attempts_, so the connection count is incremented even if the connection attempt ultimately fails.
 
-In addition to the count metrics, there are error metrics.
+In addition to the count metrics, there are active connection gauge metrics that track the current number of open connections, and error metrics.
 
 * If an error occurs whilst the proxy is accepting a connection from the client the `kroxylicious_client_to_proxy_errors_total` metric is incremented by one.
 * If an error occurs whilst the proxy is attempting a connection to a broker the `kroxylicious_proxy_to_server_errors_total` metric is incremented by one.
@@ -31,6 +31,13 @@ The `kroxylicious_client_to_proxy_errors_total` metric also counts connection er
 For these specific errors, the `virtual_cluster` and `node_id` labels are set to an empty string ("").
 
 NOTE: Error conditions signaled _within_ the Kafka protocol response (such as `RESOURCE_NOT_FOUND` or `UNKNOWN_TOPIC_ID`) are not classed as errors by these metrics.
+
+=== Understanding connection counter vs gauge metrics
+
+The proxy provides both counter and gauge metrics for connections:
+
+* **Connection counters** (`kroxylicious_*_connections_total`) track the total number of connection attempts over time. These values only increase and provide a historical view of connection activity.
+* **Active connection gauges** (`kroxylicious_*_active_connections`) show the current number of open connections at any given moment. These values increase when connections are established and decrease when connections are closed.
 
 .Connection metrics for client and broker interactions
 |===
@@ -57,6 +64,18 @@ NOTE: Error conditions signaled _within_ the Kafka protocol response (such as `R
 |Counter
 |`virtual_cluster`, `node_id`
 |Incremented by one every time a connection is closed due to any upstream error.
+
+|`kroxylicious_client_to_proxy_active_connections`
+|Gauge
+|`virtual_cluster`, `node_id`
+|Shows the current number of active TCP connections from clients to the proxy. +
+ This gauge reflects real-time connection state and decreases when connections are closed.
+
+|`kroxylicious_proxy_to_server_active_connections`
+|Gauge
+|`virtual_cluster`, `node_id`
+|Shows the current number of active TCP connections from the proxy to servers. +
+ This gauge reflects real-time connection state and decreases when connections are closed.
 |===
 
 == Message metrics

@@ -10,6 +10,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
@@ -57,6 +59,8 @@ public class Metrics {
     private static final String PROXY_TO_SERVER_CONNECTION_BASE_METER_NAME = "kroxylicious_proxy_to_server_connections";
     private static final String KROXYLICIOUS_SERVER_TO_PROXY_READS_PAUSED_NAME = "kroxylicious_server_to_proxy_reads_paused";
     private static final String KROXYLICIOUS_CLIENT_TO_PROXY_READS_PAUSED_NAME = "kroxylicious_client_to_proxy_reads_paused";
+    private static final String CLIENT_TO_PROXY_ACTIVE_CONNECTION_BASE_METER_NAME = "kroxylicious_client_to_proxy_active_connections";
+    private static final String PROXY_TO_SERVER_ACTIVE_CONNECTION_BASE_METER_NAME = "kroxylicious_proxy_to_server_active_connections";
     private static final String SIZE_SUFFIX = "_size";
 
     /**
@@ -65,6 +69,18 @@ public class Metrics {
      * name emitted by Prometheus will be called {@code kroxylicious_build_info}.
      */
     private static final String INFO_METRIC_NAME = "kroxylicious_build.info";
+
+    /**
+     * Cache for tracking the number of active connections from clients to the proxy.
+     * This is used to provide metrics on the number of active connections per virtual cluster node.
+     */
+    private static final ConcurrentHashMap<VirtualClusterNode, AtomicInteger> CLIENT_TO_PROXY_CONNECTION_CACHE = new ConcurrentHashMap<>();
+
+    /**
+     * Cache for tracking the number of active connections from the proxy to servers.
+     * This is used to provide metrics on the number of active connections per virtual cluster node.
+     */
+    private static final ConcurrentHashMap<VirtualClusterNode, AtomicInteger> PROXY_TO_SERVER_CONNECTION_CACHE = new ConcurrentHashMap<>();
 
     /**
      * @deprecated use kroxylicious_client_to_proxy_request_count instead.
@@ -223,6 +239,42 @@ public class Metrics {
                 clusterName, nodeId);
     }
 
+    public static ActivationToken clientToProxyConnectionToken(VirtualClusterNode node) {
+        AtomicInteger currentCounter = clientToProxyConnectionCounter(node);
+        return new ActivationToken(currentCounter);
+    }
+
+    public static AtomicInteger clientToProxyConnectionCounter(VirtualClusterNode node) {
+        return CLIENT_TO_PROXY_CONNECTION_CACHE.computeIfAbsent(node, n -> {
+            AtomicInteger activeCount = new AtomicInteger();
+            Gauge.builder(CLIENT_TO_PROXY_ACTIVE_CONNECTION_BASE_METER_NAME, activeCount, AtomicInteger::get)
+                    .strongReference(true)
+                    .description("Number of currently active connections from the client to the proxy.")
+                    .tag(VIRTUAL_CLUSTER_LABEL, node.clusterName())
+                    .tag(NODE_ID_LABEL, nodeIdToLabelValue(node.nodeId()))
+                    .register(globalRegistry);
+            return activeCount;
+        });
+    }
+
+    public static ActivationToken proxyToServerConnectionToken(VirtualClusterNode node) {
+        AtomicInteger currentCounter = proxyToServerConnectionCounter(node);
+        return new ActivationToken(currentCounter);
+    }
+
+    public static AtomicInteger proxyToServerConnectionCounter(VirtualClusterNode node) {
+        return PROXY_TO_SERVER_CONNECTION_CACHE.computeIfAbsent(node, n -> {
+            AtomicInteger activeCount = new AtomicInteger();
+            Gauge.builder(PROXY_TO_SERVER_ACTIVE_CONNECTION_BASE_METER_NAME, activeCount, AtomicInteger::get)
+                    .strongReference(true)
+                    .description("Number of currently active connections from the proxy to the server.")
+                    .tag(VIRTUAL_CLUSTER_LABEL, node.clusterName())
+                    .tag(NODE_ID_LABEL, nodeIdToLabelValue(node.nodeId()))
+                    .register(globalRegistry);
+            return activeCount;
+        });
+    }
+
     public static Counter taggedCounter(String counterName, List<Tag> tags) {
         return counter(counterName, tags);
     }
@@ -360,5 +412,10 @@ public class Metrics {
                 .tag("commit_id", versionInfo.commitId())
                 .strongReference(true)
                 .register(globalRegistry);
+    }
+
+    public static void clear() {
+        CLIENT_TO_PROXY_CONNECTION_CACHE.clear();
+        PROXY_TO_SERVER_CONNECTION_CACHE.clear();
     }
 }

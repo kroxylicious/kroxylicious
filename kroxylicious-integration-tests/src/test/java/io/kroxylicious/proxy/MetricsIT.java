@@ -776,6 +776,98 @@ class MetricsIT {
     }
 
     @Test
+    void shouldTrackClientToProxyActiveConnections(KafkaCluster cluster, Topic topic) {
+        var config = configWithMetrics(cluster);
+
+        try (var tester = kroxyliciousTester(config);
+                var managementClient = tester.getManagementClient()) {
+
+            var initialMetrics = managementClient.scrapeMetrics();
+            assertThat(initialMetrics)
+                    .hasNoMetricMatching("kroxylicious_client_to_proxy_active_connections", Map.of(
+                            NODE_ID_LABEL, "bootstrap"));
+
+            try (var producer = tester.producer()) {
+                var future = producer.send(new ProducerRecord<>(topic.name(), "key", "value"));
+                assertThat(future).succeedsWithin(Duration.ofSeconds(5));
+
+                await().atMost(Duration.ofSeconds(10))
+                        .untilAsserted(() -> {
+                            var metrics = managementClient.scrapeMetrics();
+                            assertThat(metrics)
+                                    .withUniqueMetric("kroxylicious_client_to_proxy_active_connections", Map.of(
+                                            NODE_ID_LABEL, "bootstrap"))
+                                    .value()
+                                    .isGreaterThanOrEqualTo(1.0);
+                        });
+
+                var activeMetrics = managementClient.scrapeMetrics();
+                assertThat(activeMetrics)
+                        .withUniqueMetric("kroxylicious_client_to_proxy_active_connections", Map.of(
+                                NODE_ID_LABEL, "bootstrap"))
+                        .value()
+                        .isGreaterThanOrEqualTo(1.0);
+            }
+
+            await().atMost(Duration.ofSeconds(10))
+                    .untilAsserted(() -> {
+                        var finalMetrics = managementClient.scrapeMetrics();
+                        assertThat(finalMetrics)
+                                .withUniqueMetric("kroxylicious_client_to_proxy_active_connections", Map.of(
+                                        NODE_ID_LABEL, "bootstrap"))
+                                .value()
+                                .isEqualTo(0.0);
+                    });
+        }
+    }
+
+    @Test
+    void shouldTrackProxyToServerActiveConnections(KafkaCluster cluster, Topic topic) {
+        var config = configWithMetrics(cluster);
+
+        try (var tester = kroxyliciousTester(config);
+                var managementClient = tester.getManagementClient()) {
+
+            var initialMetrics = managementClient.scrapeMetrics();
+            assertThat(initialMetrics)
+                    .hasNoMetricMatching("kroxylicious_proxy_to_server_active_connections", Map.of(
+                            NODE_ID_LABEL, "bootstrap"));
+
+            try (var producer = tester.producer()) {
+                var future = producer.send(new ProducerRecord<>(topic.name(), "key", "value"));
+                assertThat(future).succeedsWithin(Duration.ofSeconds(5));
+
+                await().atMost(Duration.ofSeconds(10))
+                        .untilAsserted(() -> {
+                            var metrics = managementClient.scrapeMetrics();
+                            assertThat(metrics)
+                                    .withUniqueMetric("kroxylicious_proxy_to_server_active_connections", Map.of(
+                                            NODE_ID_LABEL, "bootstrap"))
+                                    .value()
+                                    .isGreaterThanOrEqualTo(1.0);
+                        });
+
+                var activeMetrics = managementClient.scrapeMetrics();
+                assertThat(activeMetrics)
+                        .withUniqueMetric("kroxylicious_proxy_to_server_active_connections", Map.of(
+                                NODE_ID_LABEL, "bootstrap"))
+                        .value()
+                        .isGreaterThanOrEqualTo(1.0);
+            }
+
+            await().atMost(Duration.ofSeconds(10))
+                    .untilAsserted(() -> {
+                        var finalMetrics = managementClient.scrapeMetrics();
+                        assertThat(finalMetrics)
+                                .withUniqueMetric("kroxylicious_proxy_to_server_active_connections", Map.of(
+                                        NODE_ID_LABEL, "bootstrap"))
+                                .value()
+                                .isEqualTo(0.0);
+                    });
+        }
+    }
+
+    @Test
     @Deprecated(since = "0.13.0", forRemoval = true)
     void shouldIncrementDownstreamMessagesOnProduceRequestWithoutFilter(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
         var config = configWithMetrics(cluster);
