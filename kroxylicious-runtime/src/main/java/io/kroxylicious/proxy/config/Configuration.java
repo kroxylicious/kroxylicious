@@ -35,8 +35,13 @@ import com.fasterxml.jackson.databind.node.TextNode;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
+import io.kroxylicious.proxy.labels.source.LabelSource;
+import io.kroxylicious.proxy.labels.source.LabelSourceFactory;
+import io.kroxylicious.proxy.labels.source.LabelSourceFactoryContext;
+import io.kroxylicious.proxy.model.InitializedLabelSource;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -143,18 +148,38 @@ public record Configuration(
     }
 
     private static VirtualClusterModel toVirtualClusterModel(VirtualCluster virtualCluster,
-                                                             List<NamedFilterDefinition> filterDefinitions) {
+                                                             List<NamedFilterDefinition> filterDefinitions, PluginFactoryRegistry pfr) {
+
+        List<InitializedLabelSource> initializedLabelSources = getInitializedLabelSources(virtualCluster, pfr);
 
         VirtualClusterModel virtualClusterModel = new VirtualClusterModel(virtualCluster.name(),
                 virtualCluster.targetCluster(),
                 virtualCluster.logNetwork(),
                 virtualCluster.logFrames(),
-                filterDefinitions);
+                filterDefinitions,
+                initializedLabelSources);
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();
 
         return virtualClusterModel;
+    }
+
+    @SuppressWarnings({ "unchecked", "rawtypes" }) // nature of the plugin beast
+    @NonNull
+    private static List<InitializedLabelSource> getInitializedLabelSources(VirtualCluster virtualCluster, PluginFactoryRegistry pfr) {
+        return virtualCluster.labelSources().stream().map(namedLabelSourceDefinition -> {
+            PluginFactory<LabelSourceFactory> factory = pfr.pluginFactory(LabelSourceFactory.class);
+            LabelSourceFactory labelSourceFactory = factory.pluginInstance(namedLabelSourceDefinition.type());
+            Object initialize = labelSourceFactory.initialize(new LabelSourceFactoryContext() {
+                @Override
+                public <P> P pluginInstance(Class<P> pluginClass, String instanceName) {
+                    return pfr.pluginFactory(pluginClass).pluginInstance(instanceName);
+                }
+            }, namedLabelSourceDefinition.config());
+            LabelSource labelSource = labelSourceFactory.create(initialize);
+            return new InitializedLabelSource(labelSourceFactory, labelSource);
+        }).toList();
     }
 
     private static void addGateways(List<VirtualClusterGateway> gateways, VirtualClusterModel virtualClusterModel) {
@@ -181,7 +206,7 @@ public record Configuration(
         return virtualClusters.stream()
                 .map(virtualCluster -> {
                     List<NamedFilterDefinition> filterDefinitions = namedFilterDefinitionsForCluster(filterDefinitionsByName, virtualCluster);
-                    return toVirtualClusterModel(virtualCluster, filterDefinitions);
+                    return toVirtualClusterModel(virtualCluster, filterDefinitions, pfr);
                 })
                 .toList();
     }

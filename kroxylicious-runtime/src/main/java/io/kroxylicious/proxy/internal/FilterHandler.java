@@ -9,9 +9,11 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
@@ -53,7 +55,9 @@ import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
+import io.kroxylicious.proxy.labels.Label;
 import io.kroxylicious.proxy.labels.LabelService;
+import io.kroxylicious.proxy.labels.LabelledResource;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
@@ -468,7 +472,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         });
     }
 
-    private class InternalFilterContext implements FilterContext {
+    private class InternalFilterContext implements FilterContext, io.kroxylicious.proxy.labels.source.LabellingContext {
 
         private final DecodedFrame<?, ?> decodedFrame;
 
@@ -543,7 +547,14 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public LabelService labels() {
-            throw new RuntimeException("not implemented yet");
+            return new LabelService() {
+                @Override
+                public Set<Label> labels(LabelledResource resource, String resourceName) {
+                    return virtualClusterModel.getLabelSources().stream()
+                            .flatMap(initializedLabelSource -> initializedLabelSource.labels(resource, resourceName, InternalFilterContext.this).stream())
+                            .collect(Collectors.toSet());
+                }
+            };
         }
 
         @Override

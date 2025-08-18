@@ -64,6 +64,7 @@ public class VirtualClusterModel {
     private final Map<String, VirtualClusterGatewayModel> gateways = new HashMap<>();
 
     private final List<NamedFilterDefinition> filters;
+    private final List<InitializedLabelSource> labelSources;
 
     private final Optional<SslContext> upstreamSslContext;
 
@@ -71,13 +72,14 @@ public class VirtualClusterModel {
                                TargetCluster targetCluster,
                                boolean logNetwork,
                                boolean logFrames,
-                               List<NamedFilterDefinition> filters) {
+                               List<NamedFilterDefinition> filters,
+                               List<InitializedLabelSource> initializedLabelSources) {
         this.clusterName = Objects.requireNonNull(clusterName);
         this.targetCluster = Objects.requireNonNull(targetCluster);
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.filters = filters;
-
+        this.labelSources = initializedLabelSources;
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
     }
@@ -256,6 +258,10 @@ public class VirtualClusterModel {
 
     public Map<String, EndpointGateway> gateways() {
         return Collections.unmodifiableMap(gateways);
+    }
+
+    public List<InitializedLabelSource> getLabelSources() {
+        return labelSources;
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
