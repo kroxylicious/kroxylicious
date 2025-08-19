@@ -48,7 +48,6 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
-import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.Assertions;
@@ -393,14 +392,13 @@ public class FilterHandler extends ChannelDuplexHandler {
         if (!name.endsWith("ResponseData")) {
             throw new AssertionError("Filter '" + filterDescriptor() + "': Attempt to use forwardResponse with a non-response: " + name);
         }
-        if (decodedFrame instanceof RequestFrame) {
+        if (decodedFrame instanceof DecodedRequestFrame<?> decodedRequestFrame) {
             if (message.apiKey() != decodedFrame.apiKeyId()) {
                 throw new AssertionError(
                         "Filter '" + filterDescriptor() + "': Attempt to respond with ApiMessage of type " + ApiKeys.forId(message.apiKey()) + " but request is of type "
                                 + decodedFrame.apiKey());
             }
-            DecodedResponseFrame<?> responseFrame = new DecodedResponseFrame<>(decodedFrame.apiVersion(), decodedFrame.correlationId(),
-                    header, message);
+            DecodedResponseFrame<?> responseFrame = decodedRequestFrame.responseFrame(header, message);
             decodedFrame.transferBuffersTo(responseFrame);
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("{}: Filter '{}' forwarding response: {}", channelDescriptor(), filterDescriptor(), msgDescriptor(decodedFrame));

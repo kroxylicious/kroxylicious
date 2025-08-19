@@ -9,10 +9,12 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
+import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 
 public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFrame<B> {
 
@@ -37,5 +39,10 @@ public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFr
 
     public CompletableFuture<?> promise() {
         return promise;
+    }
+
+    @Override
+    public DecodedResponseFrame<?> responseFrame(ResponseHeaderData header, ApiMessage message) {
+        return new InternalResponseFrame<>(recipient, apiVersion, correlationId, header, message, promise);
     }
 }
