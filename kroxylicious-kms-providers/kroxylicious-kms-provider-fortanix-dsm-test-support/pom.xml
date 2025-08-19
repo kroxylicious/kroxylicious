@@ -11,15 +11,18 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
+
     <parent>
         <groupId>io.kroxylicious</groupId>
-        <artifactId>kroxylicious-parent</artifactId>
+        <artifactId>kroxylicious-kms-providers</artifactId>
         <version>0.16.0-SNAPSHOT</version>
+        <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>kroxylicious-kms-provider-hashicorp-vault-test-support</artifactId>
-    <name>HashiCorp Vault KMS test support</name>
-    <description>Test support code for modules testing the HashiCorp Vault KMS</description>
+    <artifactId>kroxylicious-kms-provider-fortanix-dsm-test-support</artifactId>
+
+    <name>Fortanix DSM KMS test support</name>
+    <description>Test support code for modules testing the Fortanix DSM KMS</description>
 
     <dependencies>
         <!-- project dependencies - runtime and compile -->
@@ -29,7 +32,7 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kms-provider-hashicorp-vault</artifactId>
+            <artifactId>kroxylicious-kms-provider-fortanix-dsm</artifactId>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
@@ -54,12 +57,8 @@
             <artifactId>jackson-annotations</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>testcontainers</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>vault</artifactId>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
         </dependency>
         <!-- third party dependencies - test -->
         <dependency>
@@ -75,6 +74,11 @@
         <dependency>
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock</artifactId>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 

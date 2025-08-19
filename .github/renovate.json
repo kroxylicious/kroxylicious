@@ -17,8 +17,8 @@
     {
       "customType": "regex",
       "fileMatch": [
-        "kroxylicious-kms-provider-hashicorp-vault-test-support/src/main/java/io/kroxylicious/kms/provider/hashicorp/vault/VaultTestKmsFacade.java",
-        "kroxylicious-kms-provider-hashicorp-vault/src/test/java/io/kroxylicious/kms/provider/hashicorp/vault/TestVault.java",
+        "kroxylicious-kms-providers/kroxylicious-kms-provider-hashicorp-vault-test-support/src/main/java/io/kroxylicious/kms/provider/hashicorp/vault/VaultTestKmsFacade.java",
+        "kroxylicious-kms-providers/kroxylicious-kms-provider-hashicorp-vault/src/test/java/io/kroxylicious/kms/provider/hashicorp/vault/TestVault.java",
         "kroxylicious-systemtests/src/main/resources/helm_vault_overrides.yaml",
         "performance-tests/perf-tests.sh"
       ],
@@ -44,7 +44,7 @@
     {
       "customType": "regex",
       "fileMatch": [
-        "kroxylicious-kms-provider-aws-kms-test-support/src/main/java/io/kroxylicious/kms/provider/aws/kms/AwsKmsTestKmsFacade.java",
+        "kroxylicious-kms-providers/kroxylicious-kms-provider-aws-kms-test-support/src/main/java/io/kroxylicious/kms/provider/aws/kms/AwsKmsTestKmsFacade.java",
         "kroxylicious-systemtests/src/main/resources/helm_localstack_overrides.yaml"],
       "matchStrings": [
         "DockerImageName\\.parse\\(\"localstack/localstack:(?<currentValue>\\d+\\.\\d+.\\d+)\"\\)",
