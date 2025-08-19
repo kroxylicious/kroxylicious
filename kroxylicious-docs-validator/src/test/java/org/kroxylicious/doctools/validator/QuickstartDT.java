@@ -12,6 +12,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
+import java.net.MalformedURLException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -32,18 +33,33 @@ import org.kroxylicious.doctools.asciidoc.Block;
 import org.kroxylicious.doctools.asciidoc.BlockExtractor;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.kroxylicious.doctools.validator.Utils.OPERATOR_ZIP;
 
 /** Executes the quickstart commands in sequence. Test will fail if any command fails. */
-class QuickstartTest {
+class QuickstartDT {
+
     private static Stream<Arguments> quickstarts() {
         try (var blockExtractor = new BlockExtractor()) {
 
+            assertThat(OPERATOR_ZIP).exists();
+
             // FIXME - should point to zip built by build.
-            blockExtractor.withAttributes(Attributes.builder().attribute("OperatorAssetZipLink", "https://github.com/kroxylicious/kroxylicious/releases/download/v0.15.0/kroxylicious-operator-0.15.0.zip").build());
+            blockExtractor.withAttributes(Attributes.builder()
+                    .attribute("OperatorAssetZipLink", pathToFileUrl(OPERATOR_ZIP))
+                    .build());
 
             var recordEncryptionQuickstart = Utils.DOCS_ROOTDIR.resolve("record-encryption-quickstart").resolve("index.adoc");
             var quickstarts = List.of(new Quickstart("record-encryption-quickstart(vault)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "vault")));
             return quickstarts.stream().map((q) -> extractCodeBlocks(blockExtractor, q));
+        }
+    }
+
+    private static String pathToFileUrl(Path path)  {
+        try {
+            return path.toFile().toURI().toURL().toString();
+        }
+        catch (MalformedURLException e) {
+            throw new UncheckedIOException("Failed to express %s as a URL".formatted(path), e);
         }
     }
 
@@ -162,6 +178,5 @@ class QuickstartTest {
         }
     }
 
-    record Quickstart(String name, Path path, Predicate<StructuralNode> selector) {
-    };
+    record Quickstart(String name, Path path, Predicate<StructuralNode> selector) {};
 }

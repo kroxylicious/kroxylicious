@@ -17,10 +17,12 @@
     </parent>
 
     <artifactId>kroxylicious-docs-validator</artifactId>
-    <description>Utility module responsible for validating the docs</description>
+    <description>Utility module responsible for validating codeblocks within AsciiDoc based documentation.</description>
     <properties>
+        <skipDTs>false</skipDTs>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <asciidoctorj.version>3.0.0</asciidoctorj.version>
+        <snakeyaml.version>2.3</snakeyaml.version>
     </properties>
     <dependencies>
         <dependency>
@@ -52,9 +54,72 @@
         <dependency>
             <groupId>org.yaml</groupId>
             <artifactId>snakeyaml</artifactId>
-            <version>2.2</version>
+            <version>${snakeyaml.version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
-
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <extensions>true</extensions>
+                <configuration>
+                    <skipPublishing>true</skipPublishing>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-kroxylicious-operator-zip</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>copy</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <artifactItems>
+                        <artifactItem>
+                            <groupId>io.kroxylicious</groupId>
+                            <artifactId>kroxylicious-operator-dist</artifactId>
+                            <version>${project.version}</version>
+                            <type>zip</type>
+                            <overWrite>false</overWrite>
+                            <outputDirectory>${project.build.directory}/kroxylicious-operator-dist</outputDirectory>
+                            <destFileName>kroxylicious-operator.zip</destFileName>
+                        </artifactItem>
+                    </artifactItems>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <!-- run the tests which depend on having an operator image + target/packaged/install -->
+                    <execution>
+                        <id>documentation-integration-test</id>
+                        <phase>integration-test</phase>
+                        <goals>
+                            <goal>integration-test</goal>
+                        </goals>
+                        <configuration>
+                            <includes>
+                                <include>**/DT*.java</include>
+                                <include>**/*DT.java</include>
+                                <include>**/*DTCase.java</include>
+                            </includes>
+                            <!--suppress MavenModelInspection -->
+                            <skipITs>${skipDTs}</skipITs>
+                            <!--suppress MavenModelInspection -->
+                            <skip>${skipDTs}</skip>
+                            <!--suppress MavenModelInspection -->
+                            <skipTests>${skipDTs}</skipTests>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

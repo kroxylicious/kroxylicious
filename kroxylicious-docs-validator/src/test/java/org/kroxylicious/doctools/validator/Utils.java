@@ -21,7 +21,12 @@ import java.util.stream.Stream;
 public class Utils {
 
     static final Predicate<Path> ALL_ASCIIDOC_FILES = f -> f.getFileName().toString().endsWith(".adoc");
-    static final Path DOCS_ROOTDIR = Path.of("").toAbsolutePath().getParent().resolve("docs");
+    static final Path MODULE_ROOT = Path.of("").toAbsolutePath();
+    static final Path DOCS_ROOTDIR = MODULE_ROOT.getParent().resolve("docs");
+
+    // This is Zip artefact containing the Operator.  The Maven copy-kroxylicious-operator-zip copies the artefact
+    // from the kroxylicious-operator-dist module to this module with a stable name.
+    static final Path OPERATOR_ZIP = MODULE_ROOT.resolve("target").resolve("kroxylicious-operator-dist").resolve("kroxylicious-operator.zip");
 
     static Stream<Path> asciiDocFilesMatching(final Predicate<Path> pathPredicate) {
 
