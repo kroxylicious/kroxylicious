@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package org.kroxylicious.doctools.validator;
+package io.kroxylicious.doctools.validator;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -26,14 +26,14 @@ import java.util.stream.Stream;
 
 import org.asciidoctor.Attributes;
 import org.asciidoctor.ast.StructuralNode;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.kroxylicious.doctools.asciidoc.Block;
-import org.kroxylicious.doctools.asciidoc.BlockExtractor;
+import io.kroxylicious.doctools.asciidoc.Block;
+import io.kroxylicious.doctools.asciidoc.BlockExtractor;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.kroxylicious.doctools.validator.Utils.OPERATOR_ZIP;
 
 /** Executes the quickstart commands in sequence. Test will fail if any command fails. */
 class QuickstartDT {
@@ -41,11 +41,11 @@ class QuickstartDT {
     private static Stream<Arguments> quickstarts() {
         try (var blockExtractor = new BlockExtractor()) {
 
-            assertThat(OPERATOR_ZIP).exists();
+            Assertions.assertThat(Utils.OPERATOR_ZIP).exists();
 
             // FIXME - should point to zip built by build.
             blockExtractor.withAttributes(Attributes.builder()
-                    .attribute("OperatorAssetZipLink", pathToFileUrl(OPERATOR_ZIP))
+                    .attribute("OperatorAssetZipLink", pathToFileUrl(Utils.OPERATOR_ZIP))
                     .build());
 
             var recordEncryptionQuickstart = Utils.DOCS_ROOTDIR.resolve("record-encryption-quickstart").resolve("index.adoc");
