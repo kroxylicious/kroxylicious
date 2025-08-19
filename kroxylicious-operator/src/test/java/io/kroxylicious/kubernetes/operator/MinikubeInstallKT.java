@@ -16,6 +16,8 @@ import org.junit.jupiter.api.condition.EnabledIf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.test.ShellUtils;
+
 import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.assertj.core.api.Assumptions.assumeThatCode;
 
@@ -50,17 +52,17 @@ class MinikubeInstallKT extends AbstractInstallKT {
                 .exists();
 
         LOGGER.info("Checking whether minikube is available");
-        assumeThatCode(() -> exec("minikube"))
+        assumeThatCode(() -> ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "minikube"))
                 .describedAs("minikube must be available on the path")
                 .doesNotThrowAnyException();
 
         LOGGER.info("Checking whether minikube is running");
-        assumeThatCode(() -> exec("minikube", "status"))
+        assumeThatCode(() -> ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "minikube", "status"))
                 .describedAs("minikube must be running")
                 .doesNotThrowAnyException();
 
         LOGGER.info("Loading {} into minikube registry", IMAGE_ARCHIVE);
-        exec("minikube", "image", "load", IMAGE_ARCHIVE);
+        ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "minikube", "image", "load", IMAGE_ARCHIVE);
         loaded = true;
     }
 
@@ -68,11 +70,11 @@ class MinikubeInstallKT extends AbstractInstallKT {
     static void afterAll() throws IOException, InterruptedException {
         if (loaded) {
             LOGGER.info("Removing {} from minikube registry", IMAGE_NAME);
-            exec("minikube", "image", "rm", IMAGE_NAME);
+            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "minikube", "image", "rm", IMAGE_NAME);
         }
     }
 
     public static boolean isEnvironmentValid() throws IOException, InterruptedException {
-        return validateToolsOnPath("minikube") && validateKubeContext("minikube") && testImageAvailable();
+        return ShellUtils.validateToolsOnPath("minikube") && validateKubeContext("minikube") && testImageAvailable();
     }
 }

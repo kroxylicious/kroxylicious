@@ -97,7 +97,7 @@ $ helm upgrade --install vault hashicorp/vault --namespace kms --create-namespac
 
 And enable the Transit Secrets Engine.
 
-[source,terminal]
+[source,terminal,kms="vault"]
 ----
 $ kubectl exec -n kms statefulsets/vault -- vault secrets enable transit
 ----

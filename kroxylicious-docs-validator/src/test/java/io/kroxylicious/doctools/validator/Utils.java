@@ -24,7 +24,7 @@ public class Utils {
     static final Path MODULE_ROOT = Path.of("").toAbsolutePath();
     static final Path DOCS_ROOTDIR = MODULE_ROOT.getParent().resolve("docs");
 
-    // This is Zip artefact containing the Operator.  The Maven copy-kroxylicious-operator-zip copies the artefact
+    // This is Zip artefact containing the Operator. The Maven copy-kroxylicious-operator-zip copies the artefact
     // from the kroxylicious-operator-dist module to this module with a stable name.
     static final Path OPERATOR_ZIP = MODULE_ROOT.resolve("target").resolve("kroxylicious-operator-dist").resolve("kroxylicious-operator.zip");
 

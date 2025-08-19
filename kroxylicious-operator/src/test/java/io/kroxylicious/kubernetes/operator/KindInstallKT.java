@@ -14,6 +14,8 @@ import org.junit.jupiter.api.condition.EnabledIf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.test.ShellUtils;
+
 /**
  * An installation test which depends on Kind/{@code kind}.
  * This test:
@@ -34,10 +36,7 @@ class KindInstallKT extends AbstractInstallKT {
     @BeforeAll
     static void beforeAll() throws IOException, InterruptedException {
         LOGGER.info("Importing {} into kind", IMAGE_NAME);
-        exec("kind",
-                "load",
-                "image-archive",
-                IMAGE_ARCHIVE);
+        ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kind", "load", "image-archive", IMAGE_ARCHIVE);
     }
 
     @AfterAll
@@ -47,6 +46,6 @@ class KindInstallKT extends AbstractInstallKT {
     }
 
     public static boolean isEnvironmentValid() throws IOException, InterruptedException {
-        return validateToolsOnPath("kind") && validateKubeContext("kind-kind") && testImageAvailable();
+        return ShellUtils.validateToolsOnPath("kind") && validateKubeContext("kind-kind") && testImageAvailable();
     }
 }

@@ -13,9 +13,10 @@ import org.asciidoctor.ast.StructuralNode;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.yaml.snakeyaml.Yaml;
+
 import io.kroxylicious.doctools.asciidoc.Block;
 import io.kroxylicious.doctools.asciidoc.BlockExtractor;
-import org.yaml.snakeyaml.Yaml;
 
 import static org.assertj.core.api.Assertions.assertThatNoException;
 

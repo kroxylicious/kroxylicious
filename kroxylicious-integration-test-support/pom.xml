@@ -189,6 +189,11 @@
             <artifactId>mockito-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.opentest4j</groupId>
+            <artifactId>opentest4j</artifactId>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
