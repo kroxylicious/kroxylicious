@@ -11,10 +11,14 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -32,6 +36,7 @@ import org.asciidoctor.extension.Treeprocessor;
  */
 public class BlockExtractor implements AutoCloseable {
 
+    private static final FileAttribute<Set<PosixFilePermission>> OWNER_DIR_RWX = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
     private final Asciidoctor asciidoctor;
     private Attributes attributes;
 
@@ -58,7 +63,7 @@ public class BlockExtractor implements AutoCloseable {
 
         Path tempDirectory;
         try {
-            tempDirectory = Files.createTempDirectory(asciiDocFile.getFileName().toString());
+            tempDirectory = Files.createTempDirectory(asciiDocFile.getFileName().toString(), OWNER_DIR_RWX);
             try {
                 var optionsBuilder = Options.builder()
                         .option(Options.SOURCEMAP, "true") // required so source file/line number information is available
