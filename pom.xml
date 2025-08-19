@@ -834,6 +834,7 @@
                 <version>3.5.1</version>
             </plugin>
             <plugin>
+                <inherited>false</inherited>
                 <groupId>org.asciidoctor</groupId>
                 <artifactId>asciidoctor-maven-plugin</artifactId>
                 <version>3.1.1</version>
@@ -908,6 +909,7 @@
                 </executions>
             </plugin>
             <plugin>
+                <inherited>false</inherited>
                 <groupId>dev.jbang</groupId>
                 <artifactId>jbang-maven-plugin</artifactId>
                 <executions>
@@ -941,6 +943,7 @@
                         </configuration>
                     </execution>
                     <execution>
+                        <inherited>false</inherited>
                         <id>websiteReleaseAssets</id>
                         <phase>package</phase>
                         <goals>
