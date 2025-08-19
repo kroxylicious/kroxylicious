@@ -35,7 +35,10 @@ import io.kroxylicious.doctools.asciidoc.BlockExtractor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-/** Executes the quickstart commands in sequence. Test will fail if any command fails. */
+/**
+ * Executes the shell commands found within quickstart, in sequence, which a single shell.
+ * Test will fail if any command fails.
+ */
 class QuickstartDT {
 
     private static Stream<Arguments> quickstarts() {
@@ -43,15 +46,24 @@ class QuickstartDT {
 
             Assertions.assertThat(Utils.OPERATOR_ZIP).exists();
 
-            // FIXME - should point to zip built by build.
+            // Some quickstarts rely on the {OperatorAssetZipLink} variable
             blockExtractor.withAttributes(Attributes.builder()
                     .attribute("OperatorAssetZipLink", pathToFileUrl(Utils.OPERATOR_ZIP))
                     .build());
 
             var recordEncryptionQuickstart = Utils.DOCS_ROOTDIR.resolve("record-encryption-quickstart").resolve("index.adoc");
-            var quickstarts = List.of(new Quickstart("record-encryption-quickstart(vault)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "vault")));
+            var quickstarts = List.of(new Quickstart("record-encryption-quickstart(vault)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "vault")),
+                    new Quickstart("record-encryption-quickstart(localstack)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "localstack")));
             return quickstarts.stream().map((q) -> extractCodeBlocks(blockExtractor, q));
         }
+    }
+
+    @ParameterizedTest
+    @MethodSource("quickstarts")
+    void quickstart(List<Block> shellBlocks) {
+        Path shellScript = writeShellScript(shellBlocks);
+
+        executeScript(shellScript);
     }
 
     private static String pathToFileUrl(Path path)  {
@@ -79,14 +91,6 @@ class QuickstartDT {
     private static Predicate<StructuralNode> isShellBlock() {
         return sn -> Objects.equals(sn.getAttribute("style", null), "source") &&
                 Objects.equals(sn.getAttribute("language", null), "terminal");
-    }
-
-    @ParameterizedTest
-    @MethodSource("quickstarts")
-    void quickstart(List<Block> shellBlocks) {
-        Path shellScript = writeShellScript(shellBlocks);
-
-        executeScript(shellScript);
     }
 
     private void executeScript(Path shellScript) {

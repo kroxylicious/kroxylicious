@@ -32,11 +32,6 @@ class YamlCodeblockValidationDT {
         }
     }
 
-    private static boolean isYamlBlock(StructuralNode sn) {
-        return Objects.equals(sn.getAttribute("style", null), "source") &&
-                Objects.equals(sn.getAttribute("language", null), "yaml");
-    }
-
     @ParameterizedTest
     @MethodSource("yamlSourceBlocks")
     void shouldBeValidYaml(Block yamlBlock) {
@@ -44,5 +39,10 @@ class YamlCodeblockValidationDT {
         assertThatNoException()
                 .as("Failed to parse yaml at {} line {}", yamlBlock.asciiDocFile(), yamlBlock.lineNumber())
                 .isThrownBy(() -> this.yaml.load(content));
+    }
+
+    private static boolean isYamlBlock(StructuralNode sn) {
+        return Objects.equals(sn.getAttribute("style", null), "source") &&
+                Objects.equals(sn.getAttribute("language", null), "yaml");
     }
 }
