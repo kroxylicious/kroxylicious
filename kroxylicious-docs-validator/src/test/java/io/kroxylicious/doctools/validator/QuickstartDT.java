@@ -27,11 +27,14 @@ import java.util.stream.Stream;
 import org.asciidoctor.Attributes;
 import org.asciidoctor.ast.StructuralNode;
 import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+
 import io.kroxylicious.doctools.asciidoc.Block;
 import io.kroxylicious.doctools.asciidoc.BlockExtractor;
+import io.kroxylicious.test.ShellUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -39,6 +42,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Executes the shell commands found within quickstart, in sequence, which a single shell.
  * Test will fail if any command fails.
  */
+@EnabledIf("io.kroxylicious.doctools.validator.QuickstartDT#isEnvironmentValid")
 class QuickstartDT {
 
     private static Stream<Arguments> quickstarts() {
@@ -66,7 +70,7 @@ class QuickstartDT {
         executeScript(shellScript);
     }
 
-    private static String pathToFileUrl(Path path)  {
+    private static String pathToFileUrl(Path path) {
         try {
             return path.toFile().toURI().toURL().toString();
         }
@@ -162,7 +166,6 @@ class QuickstartDT {
                                 """.formatted(block.asciiDocFile(), block.lineNumber()));
                         writer.newLine();
                         while ((line = reader.readLine()) != null) {
-                            // no support for line continuations
                             line = line.replaceAll("^\\$ *", ""); // chomp the shell prompt
                             writer.write(line);
                             writer.newLine();
@@ -182,5 +185,10 @@ class QuickstartDT {
         }
     }
 
-    record Quickstart(String name, Path path, Predicate<StructuralNode> selector) {};
+    record Quickstart(String name, Path path, Predicate<StructuralNode> selector) {}
+
+    public static boolean isEnvironmentValid() {
+        return ShellUtils.validateToolsOnPath("minikube") && ShellUtils.validateKubeContext("minikube");
+    }
+
 }

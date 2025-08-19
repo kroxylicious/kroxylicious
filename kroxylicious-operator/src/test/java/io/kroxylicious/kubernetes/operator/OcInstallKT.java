@@ -16,6 +16,8 @@ import org.junit.jupiter.api.condition.EnabledIf;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.test.ShellUtils;
+
 import static org.assertj.core.api.Assumptions.assumeThatCode;
 
 /**
@@ -44,16 +46,12 @@ class OcInstallKT extends AbstractInstallKT {
         });
 
         LOGGER.info("Logging into oc registry");
-        assumeThatCode(() -> exec("oc", "registry", "login", "--insecure=true"))
+        assumeThatCode(() -> ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "oc", "registry", "login", "--insecure=true"))
                 .describedAs("oc registry login")
                 .doesNotThrowAnyException();
 
         LOGGER.info("Importing {} into oc registry", IMAGE_NAME);
-        exec("oc",
-                "import-image",
-                IMAGE_STREAM_NAME,
-                "--from=" + IMAGE_NAME,
-                "--confirm");
+        ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "oc", "import-image", IMAGE_STREAM_NAME, "--from=" + IMAGE_NAME, "--confirm");
         loaded = true;
     }
 
@@ -61,12 +59,12 @@ class OcInstallKT extends AbstractInstallKT {
     static void afterAll() throws IOException, InterruptedException {
         if (loaded) {
             LOGGER.info("Deleting imagestream {}", IMAGE_STREAM_NAME);
-            exec("oc", "delete", "imagestream", IMAGE_STREAM_NAME);
+            ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "oc", "delete", "imagestream", IMAGE_STREAM_NAME);
         }
     }
 
-    public static boolean isEnvironmentValid() throws IOException, InterruptedException {
-        return validateToolsOnPath("oc") && execValidate(OcInstallKT::checkKubeContext, ALWAYS_VALID, "oc", "whoami", "-c")
+    public static boolean isEnvironmentValid() {
+        return ShellUtils.validateToolsOnPath("oc") && ShellUtils.execValidate(OcInstallKT::checkKubeContext, ALWAYS_VALID, "oc", "whoami", "-c")
                 && testImageAvailable();
     }
 
