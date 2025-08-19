@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package org.kroxylicious.doctools.validator;
+package io.kroxylicious.doctools.validator;
 
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -13,8 +13,8 @@ import org.asciidoctor.ast.StructuralNode;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.kroxylicious.doctools.asciidoc.Block;
-import org.kroxylicious.doctools.asciidoc.BlockExtractor;
+import io.kroxylicious.doctools.asciidoc.Block;
+import io.kroxylicious.doctools.asciidoc.BlockExtractor;
 import org.yaml.snakeyaml.Yaml;
 
 import static org.assertj.core.api.Assertions.assertThatNoException;

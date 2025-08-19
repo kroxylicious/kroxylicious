@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package org.kroxylicious.doctools.validator;
+package io.kroxylicious.doctools.validator;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
