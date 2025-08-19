@@ -20,14 +20,14 @@ import org.yaml.snakeyaml.Yaml;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /** Tests that all yaml source blocks within the documentation are valid yaml */
-class YamlCodeblockValidationTest {
+class YamlCodeblockValidationDT {
 
     private final Yaml yaml = new Yaml();
 
     static Stream<Arguments> yamlSourceBlocks() {
         try (var extractor = new BlockExtractor()) {
             return Utils.asciiDocFilesMatching(Utils.ALL_ASCIIDOC_FILES)
-                    .flatMap(p -> extractor.extract(p, YamlCodeblockValidationTest::isYamlBlock).stream())
+                    .flatMap(p -> extractor.extract(p, YamlCodeblockValidationDT::isYamlBlock).stream())
                     .map(Arguments::of);
         }
     }

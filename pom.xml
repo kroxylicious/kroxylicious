@@ -124,7 +124,6 @@
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
-
             <dependency>
                 <groupId>io.kroxylicious.testing</groupId>
                 <artifactId>testing-junit5-extension</artifactId>
