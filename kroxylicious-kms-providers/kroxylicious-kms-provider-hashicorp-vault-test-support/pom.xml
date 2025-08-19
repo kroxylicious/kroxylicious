@@ -13,15 +13,13 @@
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>io.kroxylicious</groupId>
-        <artifactId>kroxylicious-parent</artifactId>
+        <artifactId>kroxylicious-kms-providers</artifactId>
         <version>0.16.0-SNAPSHOT</version>
-        <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>kroxylicious-kms-provider-fortanix-dsm</artifactId>
-
-    <name>Fortanix DSM KMS</name>
-    <description>A KMS provider backed by a remote instance of Fortanix Data Security Manager (DSM)</description>
+    <artifactId>kroxylicious-kms-provider-hashicorp-vault-test-support</artifactId>
+    <name>HashiCorp Vault KMS test support</name>
+    <description>Test support code for modules testing the HashiCorp Vault KMS</description>
 
     <dependencies>
         <!-- project dependencies - runtime and compile -->
@@ -31,29 +29,18 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-annotations</artifactId>
+            <artifactId>kroxylicious-kms-provider-hashicorp-vault</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms-test-support</artifactId>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
         </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kms-tls-support</artifactId>
-        </dependency>
 
-        <!-- project dependencies - test -->
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kms-test-support</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <!-- third party dependencies - build and compile -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-        </dependency>
+        <!-- third party dependencies - runtime and compile -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-core</artifactId>
@@ -62,50 +49,32 @@
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
-        <!-- For ByteUtils used by the Serde etc -->
         <dependency>
-            <groupId>org.apache.kafka</groupId>
-            <artifactId>kafka-clients</artifactId>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.github.spotbugs</groupId>
-            <artifactId>spotbugs-annotations</artifactId>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>vault</artifactId>
         </dependency>
-
         <!-- third party dependencies - test -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-api</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter-params</artifactId>
-            <scope>test</scope>
-        </dependency>
         <dependency>
             <groupId>org.assertj</groupId>
             <artifactId>assertj-core</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.wiremock</groupId>
-            <artifactId>wiremock</artifactId>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.awaitility</groupId>
-            <artifactId>awaitility</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-core</artifactId>
-            <scope>test</scope>
+            <groupId>com.github.spotbugs</groupId>
+            <artifactId>spotbugs-annotations</artifactId>
         </dependency>
     </dependencies>
 
@@ -117,5 +86,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>

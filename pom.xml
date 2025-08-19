@@ -441,14 +441,7 @@
         <module>kroxylicious-kms</module>
         <module>kroxylicious-kms-test-support</module>
         <module>kroxylicious-kms-tls-support</module>
-        <module>kroxylicious-kms-provider-aws-kms</module>
-        <module>kroxylicious-kms-provider-aws-kms-test-support</module>
-        <module>kroxylicious-kms-provider-fortanix-dsm</module>
-        <module>kroxylicious-kms-provider-fortanix-dsm-test-support</module>
-        <module>kroxylicious-kms-provider-kroxylicious-inmemory</module>
-        <module>kroxylicious-kms-provider-kroxylicious-inmemory-test-support</module>
-        <module>kroxylicious-kms-provider-hashicorp-vault</module>
-        <module>kroxylicious-kms-provider-hashicorp-vault-test-support</module>
+        <module>kroxylicious-kms-providers</module>
         <module>kroxylicious-bom</module>
         <module>kroxylicious-api</module>
         <module>kroxylicious-app</module>

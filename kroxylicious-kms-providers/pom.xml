@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.kroxylicious</groupId>
+        <artifactId>kroxylicious-parent</artifactId>
+        <version>0.16.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>kroxylicious-kms-providers</artifactId>
+
+    <name>KMS provider implementations</name>
+    <description>KMS provider implementations</description>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>kroxylicious-kms-provider-aws-kms</module>
+        <module>kroxylicious-kms-provider-aws-kms-test-support</module>
+        <module>kroxylicious-kms-provider-fortanix-dsm</module>
+        <module>kroxylicious-kms-provider-fortanix-dsm-test-support</module>
+        <module>kroxylicious-kms-provider-kroxylicious-inmemory</module>
+        <module>kroxylicious-kms-provider-kroxylicious-inmemory-test-support</module>
+        <module>kroxylicious-kms-provider-hashicorp-vault</module>
+        <module>kroxylicious-kms-provider-hashicorp-vault-test-support</module>
+    </modules>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>kms-use-public-api</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <bannedDependencies>
+                                    <excludes>
+                                        <exclude>io.kroxylicious</exclude>
+                                    </excludes>
+                                    <includes combine.children="append">
+                                        <include>io.kroxylicious:kroxylicious-kms</include>
+                                        <include>io.kroxylicious:kroxylicious-kms-test-support:test</include>
+                                        <include>io.kroxylicious:kroxylicious-kms-tls-support</include>
+                                        <include>io.kroxylicious:kroxylicious-api</include>
+                                        <include>io.kroxylicious:kroxylicious-annotations</include>
+                                        <include>io.kroxylicious:kroxylicious-kms-provider-aws-kms</include>
+                                        <include>io.kroxylicious:kroxylicious-kms-provider-hashicorp-vault</include>
+                                        <include>io.kroxylicious:kroxylicious-kms-provider-fortanix-dsm</include>
+                                        <include>io.kroxylicious:kroxylicious-kms-provider-kroxylicious-inmemory</include>
+                                    </includes>
+                                </bannedDependencies>
+                            </rules>
+                            <fail>true</fail>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

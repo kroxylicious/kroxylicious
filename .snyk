@@ -13,4 +13,4 @@ exclude:
   global:
     # CWE-547 java/HardcodedSecret in InMemoryKms.java,  kroxylicious.inmemory.* is non-production code therefore exclusion is reasonable
     - >-
-      ./kroxylicious-kms-provider-kroxylicious-inmemory/src/main/java/io/kroxylicious/kms/provider/kroxylicious/inmemory/InMemoryKms.java
+      ./kroxylicious-kms-providers/kroxylicious-kms-provider-kroxylicious-inmemory/src/main/java/io/kroxylicious/kms/provider/kroxylicious/inmemory/InMemoryKms.java
