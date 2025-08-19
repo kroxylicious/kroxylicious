@@ -20,6 +20,8 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
@@ -74,14 +76,17 @@ public class OutOfBandRequestIT {
         }
     }
 
-    @Test
-    void testOutOfBandMessageComposesWithErrorResponse() {
-        // this filter should not intercept the out-of-band request or response, it will not either message with its name
+    @EnumSource(ShortCircuitErrorResponse.ResponseMechanism.class)
+    @ParameterizedTest
+    void shouldTolerateOutOfBandMessageWithShortCircuitResponse(ShortCircuitErrorResponse.ResponseMechanism responseMechanism) {
+        // 1. tag each DESCRIBE_CLUSTER request and response with filter name
         NamedFilterDefinition downstreamFilter = addAddUnknownTaggedFieldToMessagesWithApiKey("downstreamOfOutOfBandFilter", DESCRIBE_CLUSTER);
+        // 2. send an out-of-band CREATE_TOPICS request
         NamedFilterDefinition outOfBandSender = outOfBandSender(CREATE_TOPICS, FILTER_NAME_TAG);
-        // this filter short-circuit responds with a failure
+        // 3. short-circuit with a failure response to every request
         String className = ShortCircuitErrorResponse.class.getName();
-        NamedFilterDefinition upstreamFilter = new NamedFilterDefinitionBuilder(className + "-" + "upstreamOfOutOfBandFilter", className).build();
+        NamedFilterDefinition upstreamFilter = new NamedFilterDefinitionBuilder(className + "-" + "upstreamShortCircuit", className)
+                .withConfig("responseMechanism", responseMechanism).build();
         try (var tester = createMockTesterWithFilters(downstreamFilter, outOfBandSender, upstreamFilter);
                 var client = tester.simpleTestClient()) {
             DescribeClusterResponseData responseData = whenDescribeCluster(client);

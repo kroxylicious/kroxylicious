@@ -42,7 +42,7 @@ public class InternalRequestFrame<B extends ApiMessage> extends DecodedRequestFr
     }
 
     @Override
-    public DecodedResponseFrame<?> responseFrame(ResponseHeaderData header, ApiMessage message) {
+    protected DecodedResponseFrame<? extends ApiMessage> createResponseFrame(ResponseHeaderData header, ApiMessage message) {
         return new InternalResponseFrame<>(recipient, apiVersion, correlationId, header, message, promise);
     }
 }
