@@ -57,7 +57,7 @@ class KafkaProxyBackendHandlerTest {
     void setUp() {
         outboundChannel = new EmbeddedChannel();
         var virtualClusterModel = new VirtualClusterModel(CLUSTER_NAME, new TargetCluster("localhost:9090", Optional.empty()), false, false,
-                List.of());
+                List.of(), List.of());
         virtualClusterModel.addGateway("default", NODE_IDENTIFICATION_STRATEGY, Optional.empty());
         kafkaProxyBackendHandler = new KafkaProxyBackendHandler(proxyChannelStateMachine,
                 virtualClusterModel);

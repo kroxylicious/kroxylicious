@@ -67,7 +67,7 @@ class VirtualClusterModelTest {
         final TargetCluster targetCluster = new TargetCluster("bootstrap:9092", downstreamTls);
 
         // When/Then
-        assertThatThrownBy(() -> new VirtualClusterModel("wibble", targetCluster, false, false, EMPTY_FILTERS))
+        assertThatThrownBy(() -> new VirtualClusterModel("wibble", targetCluster, false, false, EMPTY_FILTERS, List.of()))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageContaining("Cannot apply trust options");
     }

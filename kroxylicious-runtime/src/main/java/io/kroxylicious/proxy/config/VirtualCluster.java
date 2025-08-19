@@ -24,6 +24,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param logNetwork if true, network will be logged
  * @param logFrames if true, kafka rpcs will be logged
  * @param filters filers.
+ * @param labelSources
  */
 @SuppressWarnings("java:S1123") // suppressing the spurious warning about missing @deprecated in javadoc. It is the field that is deprecated, not the class.
 public record VirtualCluster(@JsonProperty(required = true) String name,
@@ -31,7 +32,8 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
                              @JsonProperty(required = true) List<VirtualClusterGateway> gateways,
                              boolean logNetwork,
                              boolean logFrames,
-                             @Nullable List<String> filters) {
+                             @Nullable List<String> filters,
+                             @Nullable List<NamedLabelSourceDefinition> labelSources) {
 
     private static final Pattern DNS_LABEL_PATTERN = Pattern.compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", Pattern.CASE_INSENSITIVE);
 
@@ -76,4 +78,8 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
         }
     }
 
+    @Override
+    public List<NamedLabelSourceDefinition> labelSources() {
+        return labelSources == null ? List.of() : labelSources;
+    }
 }

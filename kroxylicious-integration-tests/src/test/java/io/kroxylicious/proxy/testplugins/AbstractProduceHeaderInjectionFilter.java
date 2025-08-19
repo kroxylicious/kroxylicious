@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -42,7 +43,14 @@ public abstract class AbstractProduceHeaderInjectionFilter implements ProduceReq
     }
 
     @NonNull
-    protected abstract List<RecordHeader> headersToAdd(FilterContext context);
+    protected List<RecordHeader> headersToAdd(FilterContext context) {
+        return List.of();
+    }
+
+    @NonNull
+    protected List<RecordHeader> headersToAdd(Record record, String topic, int partition, FilterContext context) {
+        return List.of();
+    }
 
     @Override
     public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion,
@@ -98,7 +106,9 @@ public abstract class AbstractProduceHeaderInjectionFilter implements ProduceReq
                                     @Nullable
                                     @Override
                                     public Header[] transformHeaders(Record record) {
-                                        return getHeaders(record, headers);
+                                        List<RecordHeader> recordHeaders = headersToAdd(record, topicDatum.name(), partitionDatum.index(), context);
+                                        List<RecordHeader> all = Stream.concat(headers.stream(), recordHeaders.stream()).toList();
+                                        return getHeaders(record, all);
                                     }
                                 }));
             }

@@ -102,7 +102,7 @@ class OperatorAssertionsTest {
                                 Optional.empty())),
                         false,
                         false,
-                        List.of())),
+                        List.of(), null)),
                 List.of(),
                 false,
                 Optional.empty());

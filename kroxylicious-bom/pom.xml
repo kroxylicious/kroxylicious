@@ -161,6 +161,12 @@
 
             <dependency>
                 <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-labels</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-multitenant</artifactId>
                 <version>${project.version}</version>
             </dependency>

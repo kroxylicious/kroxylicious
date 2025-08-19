@@ -814,7 +814,7 @@ class ConfigParserTest {
         var config = new Configuration(null,
                 List.of(new NamedFilterDefinition("foo", "", new NonSerializableConfig(""))),
                 List.of("foo"),
-                List.of(new VirtualCluster("demo", targetCluster, List.of(gateway), false, false, List.of())),
+                List.of(new VirtualCluster("demo", targetCluster, List.of(gateway), false, false, List.of(), null)),
                 null,
                 false,
                 Optional.empty());

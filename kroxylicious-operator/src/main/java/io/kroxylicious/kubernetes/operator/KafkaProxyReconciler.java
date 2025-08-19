@@ -273,7 +273,7 @@ public class KafkaProxyReconciler implements
                         clusterCfs,
                         false,
                         false,
-                        filterNamesForCluster(cluster))));
+                        filterNamesForCluster(cluster), null)));
         return ConfigurationFragment.combine(virtualClusterConfigurationFragment,
                 gatewayFragments,
                 (virtualCluster, gateways) -> virtualCluster);
