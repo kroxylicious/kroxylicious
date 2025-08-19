@@ -26,9 +26,13 @@ import org.asciidoctor.ast.Document;
 import org.asciidoctor.ast.StructuralNode;
 import org.asciidoctor.extension.Treeprocessor;
 
+/**
+ * Extract <a href="https://docs.asciidoctor.org/asciidoc/latest/blocks/">blocks</a> matching a predicate from an AsciiDoc source file.
+ * Typically used to extract source code or config snippets so they can be subjected to validation.
+ */
 public class BlockExtractor implements AutoCloseable {
 
-    private Asciidoctor asciidoctor;
+    private final Asciidoctor asciidoctor;
     private Attributes attributes;
 
     public BlockExtractor() {
@@ -57,8 +61,8 @@ public class BlockExtractor implements AutoCloseable {
             tempDirectory = Files.createTempDirectory(asciiDocFile.getFileName().toString());
             try {
                 var optionsBuilder = Options.builder()
-                        .option(Options.SOURCEMAP, "true") // require so source file/line number information is available
-                        .option(Options.TO_DIR, tempDirectory.toString()) // don't want the output
+                        .option(Options.SOURCEMAP, "true") // required so source file/line number information is available
+                        .option(Options.TO_DIR, tempDirectory.toString()) // don't need the output files
                         .safe(SafeMode.UNSAFE) // Required to write the output to temp location
                         .backend("adoc");
 
@@ -115,6 +119,6 @@ public class BlockExtractor implements AutoCloseable {
 
     @Override
     public void close() {
-        // asciidoctor.close();
+        asciidoctor.close();
     }
 }
