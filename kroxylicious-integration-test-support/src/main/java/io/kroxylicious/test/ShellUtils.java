@@ -9,6 +9,9 @@ package io.kroxylicious.test;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -26,6 +29,8 @@ import static org.assertj.core.api.Assumptions.assumeThatCode;
 public final class ShellUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(ShellUtils.class);
 
+    private static final FileAttribute<Set<PosixFilePermission>> OWNER_RW = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------"));
+
     private static final Function<Stream<String>, Boolean> ALWAYS_VALID = lines -> true;
 
     private ShellUtils() {
@@ -41,8 +46,8 @@ public final class ShellUtils {
         try {
             List<String> argList = List.of(args);
             LOGGER.info("Executing '{}'", String.join(" ", argList));
-            var out = Files.createTempFile(ShellUtils.class.getSimpleName(), ".out");
-            var err = Files.createTempFile(ShellUtils.class.getSimpleName(), ".err");
+            var out = Files.createTempFile(ShellUtils.class.getSimpleName(), ".out", OWNER_RW);
+            var err = Files.createTempFile(ShellUtils.class.getSimpleName(), ".err", OWNER_RW);
             process = new ProcessBuilder()
                     .command(argList)
                     .redirectOutput(out.toFile())
