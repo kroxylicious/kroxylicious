@@ -120,6 +120,21 @@ class FilterHandlerTest extends FilterHarness {
         assertEquals(responseData, propagated.body(), "expected ApiVersionsResponseData to be forwarded");
     }
 
+    @Test
+    void testShortCircuitInternalResponse() {
+        ApiVersionsResponseData responseData = new ApiVersionsResponseData();
+        ApiVersionsRequestFilter filter = (apiVersion, header, request, context) -> context.requestFilterResultBuilder().shortCircuitResponse(responseData)
+                .completed();
+        buildChannel(filter);
+        InternalRequestFrame<ApiVersionsRequestData> request = writeInternalRequest(new ApiVersionsRequestData(), filter);
+        DecodedResponseFrame<?> propagated = channel.readInbound();
+        assertEquals(responseData, propagated.body(), "expected ApiVersionsResponseData to be forwarded");
+        assertThat(propagated).isInstanceOfSatisfying(InternalResponseFrame.class, internalResponse -> {
+            assertThat(internalResponse.recipient()).isSameAs(request.recipient());
+            assertThat(internalResponse.promise()).isSameAs(request.promise());
+        });
+    }
+
     // We want to prevent a Kroxylicious filter unexpectedly responding to zero-ack produce requests
     @Test
     void testShortCircuitResponseZeroAcksProduceResponseDropped() {

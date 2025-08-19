@@ -120,6 +120,23 @@ public abstract class FilterHarness {
 
     /**
      * Write a client request to the pipeline.
+     * @param data The request body.
+     * @return The frame that was sent.
+     * @param <B> The type of the request.
+     */
+    protected <B extends ApiMessage> InternalRequestFrame<B> writeInternalRequest(B data, Filter recipient) {
+        var apiKey = ApiKeys.forId(data.apiKey());
+        var header = new RequestHeaderData();
+        int correlationId = 42;
+        header.setCorrelationId(correlationId);
+        header.setRequestApiKey(apiKey.id);
+        header.setRequestApiVersion(apiKey.latestVersion());
+        header.setClientId(TEST_CLIENT);
+        return writeInternalRequest(header, data, recipient);
+    }
+
+    /**
+     * Write a client request to the pipeline.
      * @param headerData The request header.
      * @param data The request body.
      * @return The frame that was sent.
@@ -128,6 +145,12 @@ public abstract class FilterHarness {
     protected <B extends ApiMessage> DecodedRequestFrame<B> writeRequest(RequestHeaderData headerData, B data) {
         var frame = new DecodedRequestFrame<>(headerData.requestApiVersion(), headerData.correlationId(), false, headerData, data);
         return writeRequest(frame);
+    }
+
+    protected <B extends ApiMessage> InternalRequestFrame<B> writeInternalRequest(RequestHeaderData headerData, B data, Filter recipient) {
+        var frame = new InternalRequestFrame<>(headerData.requestApiVersion(), headerData.correlationId(), false, recipient, new CompletableFuture<>(), headerData, data);
+        writeRequest(frame);
+        return frame;
     }
 
     /**

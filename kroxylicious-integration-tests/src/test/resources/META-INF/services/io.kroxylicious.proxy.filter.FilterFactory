@@ -13,3 +13,4 @@ io.kroxylicious.proxy.testplugins.SaslInspection
 io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer
 io.kroxylicious.proxy.testplugins.ConstantSasl
 io.kroxylicious.proxy.testplugins.ProtocolCounter
+io.kroxylicious.proxy.testplugins.ShortCircuitErrorResponse

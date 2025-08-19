@@ -8,6 +8,7 @@ package io.kroxylicious.proxy;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -27,6 +28,7 @@ import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.filter.OutOfBandSendFilterFactory;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilter;
 import io.kroxylicious.proxy.filter.RequestResponseMarkingFilterFactory;
+import io.kroxylicious.proxy.testplugins.ShortCircuitErrorResponse;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.Response;
 import io.kroxylicious.test.ResponsePayload;
@@ -39,6 +41,7 @@ import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 import static io.kroxylicious.proxy.filter.RequestResponseMarkingFilter.FILTER_NAME_TAG;
 import static org.apache.kafka.common.protocol.ApiKeys.CREATE_TOPICS;
 import static org.apache.kafka.common.protocol.ApiKeys.DESCRIBE_CLUSTER;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 /**
@@ -68,6 +71,24 @@ public class OutOfBandRequestIT {
             thenResponseContainsTagsAugmentedInByUpstreamFilterOnly(responseData);
             andMessageFromOutOfBandRequestToMockHadTagAddedByUpstreamFilterOnly(tester);
             tester.assertAllMockInteractionsInvoked();
+        }
+    }
+
+    @Test
+    void testOutOfBandMessageComposesWithErrorResponse() {
+        // this filter should not intercept the out-of-band request or response, it will not either message with its name
+        NamedFilterDefinition downstreamFilter = addAddUnknownTaggedFieldToMessagesWithApiKey("downstreamOfOutOfBandFilter", DESCRIBE_CLUSTER);
+        NamedFilterDefinition outOfBandSender = outOfBandSender(CREATE_TOPICS, FILTER_NAME_TAG);
+        // this filter short-circuit responds with a failure
+        String className = ShortCircuitErrorResponse.class.getName();
+        NamedFilterDefinition upstreamFilter = new NamedFilterDefinitionBuilder(className + "-" + "upstreamOfOutOfBandFilter", className).build();
+        try (var tester = createMockTesterWithFilters(downstreamFilter, outOfBandSender, upstreamFilter);
+                var client = tester.simpleTestClient()) {
+            DescribeClusterResponseData responseData = whenDescribeCluster(client);
+            assertThat(responseData.errorCode()).isEqualTo(Errors.UNKNOWN_SERVER_ERROR.code());
+            assertThat(unknownTaggedFieldsToStrings(responseData, FILTER_NAME_TAG)).containsExactly(
+                    RequestResponseMarkingFilter.class.getSimpleName() + "-%s-%s".formatted("downstreamOfOutOfBandFilter",
+                            RequestResponseMarkingFilterFactory.Direction.RESPONSE.toString().toLowerCase(Locale.ROOT)));
         }
     }
 

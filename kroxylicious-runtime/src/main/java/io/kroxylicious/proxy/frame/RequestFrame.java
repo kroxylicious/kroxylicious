@@ -20,5 +20,4 @@ public interface RequestFrame extends Frame {
     default boolean hasResponse() {
         return true;
     }
-
 }
