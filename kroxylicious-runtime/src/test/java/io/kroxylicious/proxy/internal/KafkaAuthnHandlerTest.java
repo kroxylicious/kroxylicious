@@ -216,7 +216,7 @@ public class KafkaAuthnHandlerTest {
 
                 return null;
             }
-        }, new CompletableFuture<>(), true);
+        }, new CompletableFuture<>(), true, false);
 
         channel.writeInbound(new DecodedRequestFrame<>(apiVersion, corrId, true, header, body));
     }

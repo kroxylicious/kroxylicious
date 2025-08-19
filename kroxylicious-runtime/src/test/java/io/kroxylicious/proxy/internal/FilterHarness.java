@@ -207,7 +207,8 @@ public abstract class FilterHarness {
         if (correlation == null) {
             throw new IllegalStateException("No corresponding internal request known " + requestCorrelationId);
         }
-        var frame = new InternalResponseFrame<>(correlation.recipient(), apiKey.latestVersion(), requestCorrelationId, header, data, correlation.promise());
+        var frame = new InternalResponseFrame<>(correlation.recipient(), apiKey.latestVersion(), requestCorrelationId, header, data, correlation.promise(),
+                false);
         channel.writeInbound(frame);
         return frame;
 
