@@ -34,12 +34,7 @@ class AdocNodeConverter {
     private static final String ATTR_FORMAT = "format";
     private static final String ATTR_CITETITLE = "citetitle";
     private static final String ATTR_ATTRIBUTION = "attribution";
-
-    private final String mode;
-
-    AdocNodeConverter(String engineName, String mode) {
-        this.mode = mode;
-    }
+    private static final String ATTR_LINE_COMMENT = "line-comment";
 
     public String convertDocumentNode(Document document) {
         StringBuilder result = new StringBuilder();
@@ -132,7 +127,7 @@ class AdocNodeConverter {
         result.append(getBlockNodeTitle(block));
         // option
         result.append(getBlockQuoteOption(block));
-        // content
+        // contexnt
         String text = block.getContent().toString();
         return result
                 .append("____")
@@ -411,10 +406,10 @@ class AdocNodeConverter {
 
         // AsciiDoc API seemingly doesn't let us recover the comment character that proceeded the callout.
         var parent = phrase.getParent();
-        var commentChar = Optional.ofNullable(parent.getAttribute("line-comment")).map(String::valueOf);
+        var commentChar = Optional.ofNullable(parent.getAttribute(ATTR_LINE_COMMENT)).map(String::valueOf);
 
         if (commentChar.isEmpty()) {
-            commentChar = Optional.ofNullable(parent.getAttribute("language")).map(String::valueOf).map(AdocNodeConverter::langToCommentChar);
+            commentChar = Optional.ofNullable(parent.getAttribute(ATTR_LANG)).map(String::valueOf).map(AdocNodeConverter::langToCommentChar);
         }
 
         var stringBuilder = new StringBuilder();
