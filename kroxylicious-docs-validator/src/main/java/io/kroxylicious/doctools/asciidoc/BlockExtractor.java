@@ -32,7 +32,7 @@ import org.asciidoctor.extension.Treeprocessor;
 
 /**
  * Extract <a href="https://docs.asciidoctor.org/asciidoc/latest/blocks/">blocks</a> matching a predicate from an AsciiDoc source file.
- * Typically used to extract source code or config snippets so they can be subjected to validation.
+ * Typically used to extract source code or config snippets, so they can be subjected to validation.
  */
 public class BlockExtractor implements AutoCloseable {
 

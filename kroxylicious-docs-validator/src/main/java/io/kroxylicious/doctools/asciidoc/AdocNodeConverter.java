@@ -9,8 +9,10 @@ package io.kroxylicious.doctools.asciidoc;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.asciidoctor.ast.Block;
 import org.asciidoctor.ast.DescriptionList;
@@ -356,9 +358,24 @@ class AdocNodeConverter {
             String text = dlist.getTitle();
             result.append(".").append(text).append(LINE_SEPARATOR);
         }
-        // ListItem
-        dlist.getItems().forEach(item -> result.append(convertListItem(item.getDescription())));
+        // DListItems
+        dlist.getItems().forEach(item -> {
+            var terms = item.getTerms().stream()
+                    .filter(Objects::nonNull)
+                    .map(this::convertDListTerm)
+                    .collect(Collectors.joining(","));
+            result.append(terms);
+            result.append(":: ");
+            result.append(convertListItem(item.getDescription()));
+        });
         return result.append(LINE_SEPARATOR).toString();
+    }
+
+    public String convertDListTerm(ListItem term) {
+        if (term == null || !term.hasText()) {
+            return "";
+        }
+        return term.getText();
     }
 
     // ListItemを marker text のフォーマットで変換する.
@@ -367,13 +384,15 @@ class AdocNodeConverter {
         if (listItem == null || !listItem.hasText()) {
             return "";
         }
-        String text = listItem.getText();
-        return new StringBuilder()
-                .append(listItem.getMarker())
-                .append(" ")
-                .append(text)
-                .append(LINE_SEPARATOR)
-                .toString();
+
+        var stringBuilder = new StringBuilder();
+        if (listItem.getMarker() != null) {
+            stringBuilder.append(listItem.getMarker())
+                    .append(" ");
+        }
+        stringBuilder.append(listItem.getText())
+                .append(LINE_SEPARATOR);
+        return stringBuilder.toString();
     }
 
     // PhraseNodeを [[id, text]] のフォーマットで変換する.
