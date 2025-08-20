@@ -7,7 +7,7 @@
 package io.kroxylicious.kubernetes.operator;
 
 import java.nio.file.Path;
-import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -25,7 +25,7 @@ import static org.assertj.core.api.Assumptions.assumeThat;
  */
 abstract class AbstractInstallKT {
     private static final Logger LOGGER = LoggerFactory.getLogger(AbstractInstallKT.class);
-    static final Function<Stream<String>, Boolean> ALWAYS_VALID = lines -> true;
+    static final Predicate<Stream<String>> ALWAYS_VALID = lines -> true;
 
     static boolean testImageAvailable() {
         String imageArchive = OperatorInfo.fromResource().imageArchive();

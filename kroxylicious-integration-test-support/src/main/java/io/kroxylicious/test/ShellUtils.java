@@ -15,7 +15,7 @@ import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Stream;
 
 import org.assertj.core.util.Sets;
@@ -31,7 +31,7 @@ public final class ShellUtils {
 
     private static final FileAttribute<Set<PosixFilePermission>> OWNER_RW = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rw-------"));
 
-    private static final Function<Stream<String>, Boolean> ALWAYS_VALID = lines -> true;
+    private static final Predicate<Stream<String>> ALWAYS_VALID = lines -> true;
 
     private ShellUtils() {
         throw new UnsupportedOperationException();
@@ -41,11 +41,11 @@ public final class ShellUtils {
         execValidate(ALWAYS_VALID, ALWAYS_VALID, args);
     }
 
-    public static boolean execValidate(Function<Stream<String>, Boolean> stdOutValidator, Function<Stream<String>, Boolean> stdErrValidator, String... args) {
+    public static boolean execValidate(Predicate<Stream<String>> stdOutValidator, Predicate<Stream<String>> stdErrValidator, String... args) {
         Process process = null;
         try {
             List<String> argList = List.of(args);
-            LOGGER.info("Executing '{}'", String.join(" ", argList));
+            LOGGER.atInfo().setMessage("Executing '{}'").addArgument(() -> String.join(" ", argList)).log();
             var out = Files.createTempFile(ShellUtils.class.getSimpleName(), ".out", OWNER_RW);
             var err = Files.createTempFile(ShellUtils.class.getSimpleName(), ".err", OWNER_RW);
             process = new ProcessBuilder()
@@ -70,8 +70,8 @@ public final class ShellUtils {
                     LOGGER.info(description);
                 }
                 assertThat(process.exitValue()).describedAs(argList + " should have 0 exit code").isZero();
-                var rtnValue = stdOutValidator.apply(Files.lines(out));
-                rtnValue &= stdErrValidator.apply(Files.lines(err));
+                var rtnValue = stdOutValidator.test(Files.lines(out));
+                rtnValue &= stdErrValidator.test(Files.lines(err));
                 return rtnValue;
             }
             else {
