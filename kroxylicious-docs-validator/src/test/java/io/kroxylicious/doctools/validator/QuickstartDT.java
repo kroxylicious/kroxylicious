@@ -43,6 +43,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Test will fail if any command fails.
  */
 @EnabledIf("io.kroxylicious.doctools.validator.QuickstartDT#isEnvironmentValid")
+@SuppressWarnings("java:S3577") // ignoring naming convention for the test class
 class QuickstartDT {
 
     private static Stream<Arguments> quickstarts() {
@@ -58,7 +59,7 @@ class QuickstartDT {
             var recordEncryptionQuickstart = Utils.DOCS_ROOTDIR.resolve("record-encryption-quickstart").resolve("index.adoc");
             var quickstarts = List.of(new Quickstart("record-encryption-quickstart(vault)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "vault")),
                     new Quickstart("record-encryption-quickstart(localstack)", recordEncryptionQuickstart, blockIsInvariantOrMatches("kms", "localstack")));
-            return quickstarts.stream().map((q) -> extractCodeBlocks(blockExtractor, q));
+            return quickstarts.stream().map(q -> extractCodeBlocks(blockExtractor, q));
         }
     }
 
@@ -80,7 +81,7 @@ class QuickstartDT {
     }
 
     private static Predicate<StructuralNode> blockIsInvariantOrMatches(String variantKey, String variantValue) {
-        return (sn) -> {
+        return sn -> {
             var value = sn.getAttribute(variantKey);
             return value == null || Objects.equals(variantValue, value);
         };

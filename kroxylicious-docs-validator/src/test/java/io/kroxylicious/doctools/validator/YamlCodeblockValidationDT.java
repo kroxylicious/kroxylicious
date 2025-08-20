@@ -21,6 +21,7 @@ import io.kroxylicious.doctools.asciidoc.BlockExtractor;
 import static org.assertj.core.api.Assertions.assertThatNoException;
 
 /** Tests that all yaml source blocks within the documentation are valid yaml */
+@SuppressWarnings("java:S3577") // ignoring naming convention for the test class
 class YamlCodeblockValidationDT {
 
     private final Yaml yaml = new Yaml();

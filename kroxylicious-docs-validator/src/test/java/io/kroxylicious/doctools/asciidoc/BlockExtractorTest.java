@@ -43,7 +43,7 @@ class BlockExtractorTest {
                                 foo: {}
                                 ----
                                 """,
-                        (Predicate<StructuralNode>) (sn) -> true,
+                        (Predicate<StructuralNode>) sn -> true,
                         (Consumer<List<Block>>) blocks -> assertThat(blocks)
                                 .singleElement()
                                 .satisfies(b -> assertThat(b.content()).isEqualTo("foo: {}"))),
@@ -58,7 +58,7 @@ class BlockExtractorTest {
                                 bar: {}
                                 ----
                                 """,
-                        (Predicate<StructuralNode>) (sn) -> true,
+                        (Predicate<StructuralNode>) sn -> true,
                         (Consumer<List<Block>>) blocks -> assertThat(blocks)
                                 .satisfies(bs -> assertThat(bs)
                                         .map(Block::content)
@@ -75,7 +75,7 @@ class BlockExtractorTest {
                                 bar: {}
                                 ----
                                 """,
-                        (Predicate<StructuralNode>) (sn) -> hasAttributeMatching(sn, "language", "mylang2"),
+                        (Predicate<StructuralNode>) sn -> hasAttributeMatching(sn, "language", "mylang2"),
                         (Consumer<List<Block>>) blocks -> assertThat(blocks)
                                 .singleElement()
                                 .satisfies(b -> assertThat(b.content()).isEqualTo("bar: {}"))),
@@ -87,7 +87,7 @@ class BlockExtractorTest {
                                 ----
                                 <1>: foothing
                                 """,
-                        (Predicate<StructuralNode>) (sn) -> hasAttributeMatching(sn, "language", "yaml"),
+                        (Predicate<StructuralNode>) sn -> hasAttributeMatching(sn, "language", "yaml"),
                         (Consumer<List<Block>>) blocks -> assertThat(blocks)
                                 .singleElement()
                                 .satisfies(b -> assertThat(b.content()).isEqualTo("foo: {} # <1>"))),
@@ -102,7 +102,7 @@ class BlockExtractorTest {
                                 foo: {}
                                 ----
                                 """,
-                        (Predicate<StructuralNode>) (sn) -> hasAttributeMatching(sn, "language", "mylang1"),
+                        (Predicate<StructuralNode>) sn -> hasAttributeMatching(sn, "language", "mylang1"),
                         (Consumer<List<Block>>) blocks -> assertThat(blocks)
                                 .singleElement()
                                 .satisfies(b -> assertThat(b.content()).isEqualTo("foo: {}"))),
@@ -118,7 +118,7 @@ class BlockExtractorTest {
                                 bar: {}
                                 ----
                                 """,
-                        (Predicate<StructuralNode>) (sn) -> hasAttributeMatching(sn, "language", "mylang"),
+                        (Predicate<StructuralNode>) sn -> hasAttributeMatching(sn, "language", "mylang"),
                         (Consumer<List<Block>>) blocks -> assertThat(blocks)
                                 .singleElement()
                                 .satisfies(bs -> assertThat(bs.lineNumber()).isEqualTo(7))));
@@ -130,6 +130,7 @@ class BlockExtractorTest {
 
     @ParameterizedTest
     @MethodSource("sourceBlocks")
+    @SuppressWarnings("java:S2699") // Tests should include assertion - they are being provided by the consumer.
     void canExtractSourceBlocks(String asciiDoc, Predicate<StructuralNode> snPredicate, Consumer<List<Block>> assertion) throws Exception {
         // Given
         var input = Files.createTempFile(tempDir, "input", ".adoc", OWNER_RW);
@@ -155,7 +156,7 @@ class BlockExtractorTest {
         Attributes attrs = Attributes.builder().attribute("animal", "lamb").build();
         try (var blockExtractor = new BlockExtractor().withAttributes(attrs)) {
             // When
-            var blocks = blockExtractor.extract(input, (sn) -> true);
+            var blocks = blockExtractor.extract(input, sn -> true);
 
             // Then
             assertThat(blocks)

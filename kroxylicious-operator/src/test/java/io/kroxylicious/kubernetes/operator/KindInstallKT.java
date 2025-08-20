@@ -6,8 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.io.IOException;
-
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.condition.EnabledIf;
@@ -34,7 +32,7 @@ class KindInstallKT extends AbstractInstallKT {
     private static final String IMAGE_ARCHIVE = OperatorInfo.fromResource().imageArchive();
 
     @BeforeAll
-    static void beforeAll() throws IOException, InterruptedException {
+    static void beforeAll() {
         LOGGER.info("Importing {} into kind", IMAGE_NAME);
         ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kind", "load", "image-archive", IMAGE_ARCHIVE);
     }
@@ -45,7 +43,7 @@ class KindInstallKT extends AbstractInstallKT {
         // but for that to work we need to know the container engine docker -vs- podman and the tag (which we don't currently have in the properties)
     }
 
-    public static boolean isEnvironmentValid() throws IOException, InterruptedException {
+    public static boolean isEnvironmentValid() {
         return ShellUtils.validateToolsOnPath("kind") && validateKubeContext("kind-kind") && testImageAvailable();
     }
 }

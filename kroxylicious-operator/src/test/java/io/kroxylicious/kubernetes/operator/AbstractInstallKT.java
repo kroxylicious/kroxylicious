@@ -37,7 +37,7 @@ abstract class AbstractInstallKT {
     }
 
     @Test
-    void shouldInstallFromYamlManifests() throws Exception {
+    void shouldInstallFromYamlManifests() {
         try {
             ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "kubectl", "apply", "-f", "target/packaged/install");
 

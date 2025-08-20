@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.io.IOException;
 import java.nio.file.Path;
 
 import org.assertj.core.api.Assertions;
@@ -41,7 +40,7 @@ class MinikubeInstallKT extends AbstractInstallKT {
     private static boolean loaded = false;
 
     @BeforeAll
-    static void beforeAll() throws IOException, InterruptedException {
+    static void beforeAll() {
         Assertions.setDescriptionConsumer(desc -> {
             LOGGER.info("Testing assumption: \"{}\"", desc);
         });
@@ -67,14 +66,14 @@ class MinikubeInstallKT extends AbstractInstallKT {
     }
 
     @AfterAll
-    static void afterAll() throws IOException, InterruptedException {
+    static void afterAll() {
         if (loaded) {
             LOGGER.info("Removing {} from minikube registry", IMAGE_NAME);
             ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "minikube", "image", "rm", IMAGE_NAME);
         }
     }
 
-    public static boolean isEnvironmentValid() throws IOException, InterruptedException {
+    public static boolean isEnvironmentValid() {
         return ShellUtils.validateToolsOnPath("minikube") && validateKubeContext("minikube") && testImageAvailable();
     }
 }

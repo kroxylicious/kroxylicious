@@ -6,7 +6,6 @@
 
 package io.kroxylicious.kubernetes.operator;
 
-import java.io.IOException;
 import java.util.stream.Stream;
 
 import org.assertj.core.api.Assertions;
@@ -40,7 +39,7 @@ class OcInstallKT extends AbstractInstallKT {
     private static boolean loaded = false;
 
     @BeforeAll
-    static void beforeAll() throws IOException, InterruptedException {
+    static void beforeAll() {
         Assertions.setDescriptionConsumer(desc -> {
             LOGGER.info("Testing assumption: \"{}\"", desc);
         });
@@ -56,7 +55,7 @@ class OcInstallKT extends AbstractInstallKT {
     }
 
     @AfterAll
-    static void afterAll() throws IOException, InterruptedException {
+    static void afterAll() {
         if (loaded) {
             LOGGER.info("Deleting imagestream {}", IMAGE_STREAM_NAME);
             ShellUtils.execValidate(ALWAYS_VALID, ALWAYS_VALID, "oc", "delete", "imagestream", IMAGE_STREAM_NAME);
