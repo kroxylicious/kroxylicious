@@ -1,0 +1,201 @@
+= AsciiDoc file sample
+
+== Basic writing style
+
+No special markup is required to list paragraphs.
+Just write continuously from one line to multiple lines.
+
+When starting a new paragraph, include at least one blank line.
+
+=== Line breaks
+
+If a plus is specified at the end of a line, it is meant to be a line break. +
+The color of the ruby is red. +
+The color of topaz is blue.
+
+[%hardbreaks]
+If hardbreaks are specified for a paragraph, line breaks in the text are +
+It is displayed as a line break as is.
+
+=== footnotes
+
+NOTE: Footnote paragraphs provide supplementary information.
+You can use different types of footnotes depending on the label at the beginning of the paragraph.
+
+TIP: Describe chips.
+
+IMPORTANT: Write down the important points.
+
+WARNING: Write a warning.
+
+CAUTION: Describe the attention.
+
+== lists
+
+=== unordered list
+
+.Unordered list title
+* Edgar Allen Poe
+* Sheri S. Tepper
+* Bill Bryson
+
+=== Nested unordered lists
+
+.Unordered list nested titles
+* level 1
+** level 2
+*** level 3
+**** level 4
+***** level 5
+* level 1
+
+=== ordered list
+
+.Ordered List Titles
+. level 1
+.. level 2
+... level 3
+.... level 4
+..... level 5
+. level 1
+
+== rink
+
+=== literal
+
+ For code snippets, insert a space at the beginning of the line.
+
+=== literals (block elements)
+
+ error: An error has occurred
+
+=== Block element with title (with syntax highlighting)
+
+[[app-listing]]
+[source,ruby]
+.app.rb
+----
+require 'sinatra'
+
+get '/hi' do
+  "Hello World!"
+end
+----
+
+=== inline anchor
+
+The [[bookmark-A]] inline anchor makes it possible to reference any content.
+
+[[bookmark-B, last paragraph]] xreflables are used as cross-reference links.
+
+== blocs
+
+=== blockquote
+
+[quote, Abraham Lincoln, Address at the inauguration of the Gettysburg Cemetery]
+____
+Eighty-seven years ago, our ancestors created a new nation on this continent, nurtured by the spirit of freedom and dedicated to the belief that all people are created equal.
+
+____
+
+=== blockquote shorthand
+
+[quote, Thomas Jefferson, Thomas Jefferson Papers: Volume 11]
+____
+I think it&#8217;s good to rebel from time to time.
+And as needed in the political world, like a physical storm.
+
+____
+
+=== sidebar
+
+.AsciiDoc History
+****
+AsciiDoc was released by Stuart Rackham in 2002/11
+AsciiDoc is for creating specialized sentences like DocBook and LaTeX,
+It was designed so that technical sentences could be written with simpler grammar.
+
+****
+
+=== output without conversion
+
+++++
+<p>
+``+``で囲まれたブロックは、変換処理を行わずにそのままHMTLに出力されます。
+</p>
+
+<script src="http://gist.github.com/mojavelinux/5333524.js">
+</script>
+++++
+
+=== open
+
+--
+オープンブロックは汎用的に使えます。
+--
+
+[source]
+----
+puts "これはソースブロック！"
+----
+
+== tables
+
+=== 2×3 with title
+
+.table title
+|===
+|column name 1|column name 2|column name 3
+|cell 11|cell 12|cell 13
+|cell 21|cell 22|cell 23
+|===
+
+=== Title, 2×3 with header, specified by cols
+
+.table title
+[options="header", cols="1,1,2"]
+|===
+|names|category|rubrics
+|Firefox|browsers|It&#8217;s an open source browser.
+It conforms to standard specifications and is characterized by high performance and high portability.
+|Arquillian|tests|It&#8217;s an innovative and highly scalable test platform.
+It makes it easy for developers to create real automated tests.
+|===
+
+=== CSV data import
+
+[options="header", format="csv"]
+|===
+artists,trucks,genres
+Baauer,Harlem Shake,hip hop
+The Lumineers,Ho Hey,folk rock
+|===
+
+== markdown format
+
+It is possible to write in markdown format only in Asciidoctor.
+
+=== fence code block
+
+[source,ruby]
+----
+require 'sinatra'
+
+get '/hi' do
+  "Hello World!"
+end
+----
+
+=== horizon
+
+---
+
+=== Description List
+
+CPU:: The brain of the computer.
+Hard drive:: Permanent storage for operating system and/or user files.
+RAM:: Temporarily stores information the CPU uses during operation.
+Keyboard:: Used to enter text or control items on the screen.
+Mouse:: Used to point to and select items on your computer screen.
+Monitor:: Displays information in visual form using text and graphics.
+
