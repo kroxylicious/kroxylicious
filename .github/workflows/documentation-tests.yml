@@ -60,7 +60,7 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
       - name: 'Build Kroxylicious Operator/Operand Container Images & Operator Zip'
         run: |
-          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -DskipTests clean package -amd
+          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -DskipTests package -amd
       - name: 'Load Kroxylicious Operand Docker Image in Minikube'
         run: |
           minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
@@ -72,4 +72,5 @@ jobs:
           minikube image ls | grep --fixed-strings ${KROXYLICIOUS_PROXY_IMAGE}
           minikube image ls | grep --fixed-strings ${KROXYLICIOUS_OPERATOR_IMAGE}
       - name: 'Run documentation tests'
-        run: mvn --batch-mode verify --activate-profiles dist --projects ':kroxylicious-parent,:kroxylicious-docs-validator' --also-make
+        run: |
+          mvn -DskipUTs=true -DskipITs=true -DskipDTs=false --batch-mode verify --activate-profiles dist --projects ':kroxylicious-parent,:kroxylicious-operator-dist,:kroxylicious-docs-validator' --also-make
