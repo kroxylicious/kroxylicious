@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+    Copyright Kroxylicious Authors.
+
+    Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+
+-->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>io.kroxylicious</groupId>
+        <artifactId>kroxylicious-parent</artifactId>
+        <version>0.16.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>kroxylicious-docs</artifactId>
+    <description>Kroxylicious documentation</description>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.asciidoctor</groupId>
+                <artifactId>asciidoctor-maven-plugin</artifactId>
+                <version>3.1.1</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.asciidoctor</groupId>
+                        <artifactId>asciidoctorj-pdf</artifactId>
+                        <version>2.3.19</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <skip>${skipDocs}</skip>
+                    <preserveDirectories>true</preserveDirectories>
+                    <attributes>
+                        <source-highlighter>coderay</source-highlighter>
+                        <imagesdir>../images</imagesdir>
+                        <toc>left</toc>
+                        <icons>font</icons>
+                        <attribute>revnumber!</attribute>
+                        <attribute>revdate!</attribute>
+                        <attribute>revremark!</attribute>
+                        <attribute-missing>warn</attribute-missing>
+                    </attributes>
+                    <logHandler>
+                        <failIf>
+                            <severity>INFO</severity>
+                        </failIf>
+                    </logHandler>
+                    <standalone>true</standalone>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>html-guides</id>
+                        <goals>
+                            <goal>process-asciidoc</goal>
+                        </goals>
+                        <phase>package</phase>
+                        <configuration combine.self="append">
+                            <sourceDirectory>docs</sourceDirectory>
+                            <outputDirectory>${project.build.directory}/docs/html</outputDirectory>
+                            <standalone>true</standalone>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>embedded-guides</id>
+                        <goals>
+                            <goal>process-asciidoc</goal>
+                        </goals>
+                        <phase>package</phase>
+                        <configuration combine.self="append">
+                            <sourceDirectory>docs</sourceDirectory>
+                            <outputDirectory>${project.build.directory}/docs/embedded</outputDirectory>
+                            <standalone>false</standalone>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>pdf-guides</id>
+                        <goals>
+                            <goal>process-asciidoc</goal>
+                        </goals>
+                        <phase>package</phase>
+                        <configuration combine.self="append">
+                            <sourceDirectory>docs</sourceDirectory>
+                            <outputDirectory>${project.build.directory}/docs/pdf</outputDirectory>
+                            <backend>pdf</backend>
+                            <attributes combine.self="override">
+                                <imagesdir>.</imagesdir>
+                                <imagespdfhack>/images</imagespdfhack>
+                            </attributes>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>dev.jbang</groupId>
+                <artifactId>jbang-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>webify</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${skipDocs}</skip>
+                            <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
+                            <!--suppress UnresolvedMavenProperty -->
+                            <script>${rootdir}/scripts/webify.java</script>
+                            <args>
+                                <arg>--project-version=${project.version}</arg>
+                                <!--suppress UnresolvedMavenProperty -->
+                                <arg>--src-dir=${project.build.directory}/docs/embedded/</arg>
+                                <!--suppress UnresolvedMavenProperty -->
+                                <arg>--dest-dir=${rootdir}/target/web</arg>
+                                <arg>--tocify-omit=index.html</arg>
+                                <arg>--tocify-omit=doc-schema.yaml</arg>
+                                <arg>--tocify-omit=README.md</arg>
+                                <arg>--tocify-omit=**/.*</arg>
+                                <arg>--tocify-omit=**/.*/**</arg>
+                                <arg>--tocify=*/index.html</arg>
+                                <arg>--tocify-toc-file=toc.html</arg>
+                                <arg>--tocify-tocless-file=content.html</arg>
+                                <arg>--datafy=*/doc.yaml</arg>
+                            </args>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <inherited>false</inherited>
+                        <id>websiteReleaseAssets</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${skipDocs}</skip>
+                            <!-- jbang plugin has a somewhat funky handling of cwd, https://github.com/jbangdev/jbang/issues/2062 -->
+                            <!--suppress UnresolvedMavenProperty -->
+                            <script>${rootdir}/scripts/websiteReleaseAssets.java</script>
+                            <args>
+                                <arg>--project-version=${project.version}</arg>
+                                <!--suppress UnresolvedMavenProperty -->
+                                <arg>--release-manifest-template-file=${project.basedir}/release-manifest.yaml</arg>
+                                <!--suppress UnresolvedMavenProperty -->
+                                <arg>--dest-dir=${project.build.directory}/web</arg>
+                            </args>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.sonatype.central</groupId>
+                <artifactId>central-publishing-maven-plugin</artifactId>
+                <extensions>true</extensions>
+                <configuration>
+                    <skipPublishing>true</skipPublishing>
+                </configuration>
+            </plugin>
+            <!-- We don't actually care about javadoc for this module, but it needs to be present for
+                 central-publishing-maven-plugin's validatios to pass. so inspired by
+                 https://stackoverflow.com/a/59073656 we skip javadoc generation and attach an empty jar -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <configuration>
+                            <classifier>javadoc</classifier>
+                            <classesDirectory>${project.basedir}/src/main/javadoc</classesDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

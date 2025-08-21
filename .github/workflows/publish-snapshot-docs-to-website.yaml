@@ -65,7 +65,7 @@ jobs:
         working-directory: kroxylicious
       
       - name: Build with Maven
-        run: mvn -Dquick -P dist package --non-recursive
+        run: mvn -Dquick -P dist package --pl kroxylicious-docs
         working-directory: kroxylicious
       
       - name: Checkout Website
@@ -96,7 +96,7 @@ jobs:
         working-directory: kroxylicious.github.io
 
       - name: copy built documentation into website
-        run: cp -r kroxylicious/target/web/* kroxylicious.github.io/
+        run: cp -r kroxylicious/kroxylicious-docs/target/web/* kroxylicious.github.io/
 
       - name: Build with Jekyll
         run: |

@@ -13,4 +13,4 @@ Dockerfile
 .dockerignore
 .github
 README.md
-release-manifest.yaml
+kroxylicious-docs/release-manifest.yaml
