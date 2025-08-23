@@ -436,4 +436,28 @@ class AdocNodeConverter {
         return new StringBuilder().append(text).append(" +").toString();
     }
 
+    public String convertImageNode(Block block) {
+        return "image::" + block.getAttribute("target") + "[" + block.getAttribute("alt", "") + "]" + LINE_SEPARATOR;
+    }
+
+    public String convertFloatingTitle(Block block) {
+        String title = block.getTitle();
+        return new StringBuilder()
+                .append("[")
+                .append(block.getStyle())
+                .append("]")
+                .append(LINE_SEPARATOR)
+                .append(String.join("", Collections.nCopies(block.getLevel() + 1, "=")))
+                .append(" ")
+                .append(title)
+                .append(LINE_SEPARATOR)
+                .toString();
+    }
+
+    String convertOther(String transform, Block node) {
+        if (node.getContent() == null) {
+            throw new IllegalArgumentException("No content for transform " + transform);
+        }
+        return node.getContent().toString();
+    }
 }

@@ -1,3 +1,4 @@
+[id="sample"]
 = AsciiDoc file sample
 
 == Basic writing style
@@ -189,6 +190,12 @@ end
 
 ---
 
+[discrete]
+=== Discrete Heading
+
+A discrete heading is declared and styled in a manner similar to that of a section title.
+
+
 === Description List
 
 CPU:: The brain of the computer.
@@ -197,3 +204,8 @@ RAM:: Temporarily stores information the CPU uses during operation.
 Keyboard:: Used to enter text or control items on the screen.
 Mouse:: Used to point to and select items on your computer screen.
 Monitor:: Displays information in visual form using text and graphics.
+
+=== Image
+
+image::sunset.jpg[Sunset]
+

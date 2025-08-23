@@ -21,7 +21,7 @@ import org.asciidoctor.converter.StringConverter;
 
 /**
  * An AsciiDoc Converter that writes back to AsciiDoc.
- *
+ * <br/>
  * Based on AdocConverter from <a href="https://github.com/project-au-lait/batch-translator">https://github.com/project-au-lait/batch-translator</a>.
  */
 @ConverterFor("adoc")
@@ -63,11 +63,12 @@ public class AdocConverter extends StringConverter {
                 case "listing" -> adocNodeConverter.convertBlockNodeContentBetweenSymbols(block, "----");
                 case "pass" -> adocNodeConverter.convertBlockNodeContentBetweenSymbols(block, "++++");
                 case "sidebar" -> adocNodeConverter.convertBlockNodeContentBetweenSymbols(block, "****");
-                case "image", "floating_title" -> ""; // TODO
+                case "image" -> adocNodeConverter.convertImageNode(block);
+                case "floating_title" -> adocNodeConverter.convertFloatingTitle(block);
                 case "thematic_break" ->
                         // 水平線を出力
                         new StringBuilder().append("---").append("\n").toString();
-                default -> convertOther(transform, block);
+                default -> adocNodeConverter.convertOther(transform, block);
             };
         }
         else if (node instanceof Table table) {
@@ -93,10 +94,4 @@ public class AdocConverter extends StringConverter {
         return "";
     }
 
-    private static String convertOther(String transform, Block node) {
-        if (node.getContent() == null) {
-            throw new IllegalArgumentException("No content for transform " + transform);
-        }
-        return node.getContent().toString();
-    }
 }
