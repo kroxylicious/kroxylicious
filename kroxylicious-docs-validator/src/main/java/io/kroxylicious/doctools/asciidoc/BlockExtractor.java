@@ -40,16 +40,32 @@ public class BlockExtractor implements AutoCloseable {
     private final Asciidoctor asciidoctor;
     private Attributes attributes;
 
+    /**
+     * Constructs a {@link BlockExtractor}.
+     */
     public BlockExtractor() {
         asciidoctor = Asciidoctor.Factory.create();
         asciidoctor.javaConverterRegistry().register(AdocConverter.class);
     }
 
+    /**
+     * Sets the attributes to be passed to the AsciiDoc conversion.
+     *
+     * @param attributes attributes
+     * @return
+     */
     public BlockExtractor withAttributes(Attributes attributes) {
         this.attributes = attributes;
         return this;
     }
 
+    /**
+     * Extracts the blocks from the specified AsciiDoc file which match the predicate.
+     *
+     * @param asciiDocFile asciiDoc file
+     * @param blockPredicate predicate
+     * @return list of blocks, or empty list if the no blocks match the predicate.
+     */
     public List<Block> extract(Path asciiDocFile, final Predicate<StructuralNode> blockPredicate) {
         List<Block> blocks = new ArrayList<>();
         asciidoctor.javaExtensionRegistry().treeprocessor(new Treeprocessor() {
@@ -122,6 +138,9 @@ public class BlockExtractor implements AutoCloseable {
                 .replace("&gt;", ">");
     }
 
+    /**
+     * Closes this resource, relinquishing any underlying resources.
+     */
     @Override
     public void close() {
         asciidoctor.close();
