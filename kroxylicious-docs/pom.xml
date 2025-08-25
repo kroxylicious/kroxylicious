@@ -18,7 +18,8 @@
     </parent>
 
     <artifactId>kroxylicious-docs</artifactId>
-    <description>Kroxylicious documentation</description>
+    <name>Kroxylicious documentation</name>
+    <description>User-facing documentation for the Kroxylicuous project.</description>
 
     <build>
         <plugins>
