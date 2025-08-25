@@ -9,3 +9,7 @@
 - Carles Arnal(https://github.com/carlesarnal)
 - Alan Robinson(https://github.com/alanrobinson-dwp)
 - Hari Mani(https://github.com/The-East-Wind)
+- Hrishabh Gupta(https://github.com/hrishabhg)
+- Robert Young(https://github.com/robobario)
+- Grace Grimwood(https://github.com/gracegrimwood)
+- Paul Mellor(https://github.com/PaulRMellor)
