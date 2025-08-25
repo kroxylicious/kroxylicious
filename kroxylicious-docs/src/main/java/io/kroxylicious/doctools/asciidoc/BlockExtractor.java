@@ -25,7 +25,6 @@ import java.util.function.Predicate;
 import org.asciidoctor.Asciidoctor;
 import org.asciidoctor.Attributes;
 import org.asciidoctor.Options;
-import org.asciidoctor.SafeMode;
 import org.asciidoctor.ast.Document;
 import org.asciidoctor.ast.StructuralNode;
 import org.asciidoctor.extension.Treeprocessor;
@@ -33,6 +32,13 @@ import org.asciidoctor.extension.Treeprocessor;
 /**
  * Extract <a href="https://docs.asciidoctor.org/asciidoc/latest/blocks/">blocks</a> matching a predicate from an AsciiDoc source file.
  * Typically used to extract source code or config snippets, so they can be subjected to validation.
+ * <br/>
+ * Internally the {@link BlockExtractor} relies on the {@link Treeprocessor} plugged into the Asciidoctor parser. The parser processes
+ * the source <code>.adoc</code> files, and tree processor implementation extracts the required blocks. We actually don't need the parsers
+ * output, but there is no way to discard the output, so the output is written to a temporary which is discarded.
+ * <br/>
+ * The {@link BlockExtractor} uses a custom backend ({@link AdocConverter} which converts the AsciiDoc AST back into AsciiDoc. The avoids
+ * the tree-processor seeing HTML for elements such as callouts.
  */
 public class BlockExtractor implements AutoCloseable {
 
@@ -52,7 +58,7 @@ public class BlockExtractor implements AutoCloseable {
      * Sets the attributes to be passed to the AsciiDoc conversion.
      *
      * @param attributes attributes
-     * @return
+     * @return this
      */
     public BlockExtractor withAttributes(Attributes attributes) {
         this.attributes = attributes;
@@ -83,8 +89,8 @@ public class BlockExtractor implements AutoCloseable {
             try {
                 var optionsBuilder = Options.builder()
                         .option(Options.SOURCEMAP, "true") // required so source file/line number information is available
-                        .option(Options.TO_DIR, tempDirectory.toString()) // don't need the output files
-                        .safe(SafeMode.UNSAFE) // Required to write the output to temp location
+                       // .option(Options.TO_DIR, tempDirectory.toString()) // don't need the output files
+                       // .safe(SafeMode.UNSAFE) // Required to write the output to temp location
                         .backend("adoc");
 
                 Optional.ofNullable(attributes).ifPresent(optionsBuilder::attributes);
