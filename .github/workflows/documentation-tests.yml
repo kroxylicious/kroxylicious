@@ -34,7 +34,6 @@ jobs:
       - name: 'Check out repository'
         uses: actions/checkout@v5
         with:
-          submodules: 'true'
           fetch-depth: 0
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
