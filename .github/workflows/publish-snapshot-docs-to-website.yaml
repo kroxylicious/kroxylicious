@@ -108,7 +108,7 @@ jobs:
             bash -c 'eval "$(rbenv init -)" && cp -r /css/_sass/bootstrap /site/_sass/ && bundle exec jekyll build --config=_config.yml,_config-baseurl.yml,_config-overrides.yml'
         working-directory: kroxylicious.github.io
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v4
         with:
           path: kroxylicious.github.io/_site
           retention-days: 14
