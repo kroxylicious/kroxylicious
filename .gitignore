@@ -103,3 +103,5 @@ fabric.properties
 docs/*.html
 .sdkmanrc
 .releaseNotes
+
+.claude/
