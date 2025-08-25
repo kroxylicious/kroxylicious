@@ -28,7 +28,7 @@
             <outputDirectory>/</outputDirectory>
         </fileSet>
         <fileSet>
-            <directory>../target/docs/</directory>
+            <directory>../kroxylicious-docs/target/docs/</directory>
             <outputDirectory>/docs</outputDirectory>
             <includes>
                 <include>html/images/**</include>

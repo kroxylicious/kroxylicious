@@ -103,7 +103,7 @@ RELEASE_TAG="v${RELEASE_VERSION}"
 WEBSITE_TMP=$(mktemp -d)
 
 # Use a `/.` at the end of the source path to avoid the source path being appended to the destination path if the `.../_files/` folder already exists
-KROXYLICIOUS_DOCS_LOCATION="${ORIGINAL_WORKING_DIR}/target/web"
+KROXYLICIOUS_DOCS_LOCATION="${ORIGINAL_WORKING_DIR}/kroxylicious-docs/target/web"
 WEBSITE_DOCS_LOCATION="${WEBSITE_TMP}/"
 
 if [[ "${DRY_RUN:-false}" == true ]]; then

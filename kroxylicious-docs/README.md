@@ -23,10 +23,10 @@ The Kroxylicious documentation is organized into specific **Kroxylicious** guide
 
 The content for the guides are each encapsulated in the index files:
 
-- [kroxylicious-proxy/index.adoc](kroxylicious-proxy/index.adoc)
-- [developer-guide/index.adoc](kroxylicious-proxy/index.adoc)
+- [kroxylicious-proxy/index.adoc](docs/kroxylicious-proxy/index.adoc)
+- [developer-guide/index.adoc](docs/kroxylicious-proxy/index.adoc)
 - [operator-guide/index.adoc](operator-guide/index.adoc)
-- [record-encryption-guide/index.adoc](record-encryption-guide/index.adoc)
+- [record-encryption-guide/index.adoc](docs/record-encryption-guide/index.adoc)
 
 ## Documentation folder structure
 
@@ -47,10 +47,10 @@ A module contains a procedure (`proc-`), concepts (`con-`), or reference (`ref-`
 
 ## Generating the guide
 
-To generate the guides in HTML, run the following Maven command from the project root directory (the parent directory of the `docs` directory).
+To generate the guides in HTML, run the following Maven command from the project root directory (the parent directory of the `kroxylicious-docs` directory).
 
 ```shell
-mvn -P dist package --non-recursive 
+mvn -P dist package --pl kroxylicious-docs 
 ```
 
 The HTML for each guide is output to a subdirectory of `target/docs`. 
