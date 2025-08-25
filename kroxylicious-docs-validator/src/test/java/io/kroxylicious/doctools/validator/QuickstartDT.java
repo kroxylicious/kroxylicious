@@ -20,12 +20,12 @@ import java.nio.file.Path;
 import java.nio.file.attribute.FileAttribute;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
@@ -44,7 +44,7 @@ import io.kroxylicious.test.ShellUtils;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Executes the shell commands found within quickstart, in sequence, which a single shell.
+ * Executes the shell commands found within quickstart, in sequence, within a single shell.
  * Test will fail if any command fails.
  */
 @EnabledIf("io.kroxylicious.doctools.validator.QuickstartDT#isEnvironmentValid")
@@ -73,9 +73,25 @@ class QuickstartDT {
     @ParameterizedTest
     @MethodSource("quickstarts")
     void quickstart(List<Block> shellBlocks) {
+        // Given
         Path shellScript = writeShellScript(shellBlocks);
 
-        executeScript(shellScript);
+        // When
+        var actual = executeScript(shellScript);
+
+        // Then
+        try {
+            assertThat(actual)
+                    .succeedsWithin(Duration.ofMinutes(5))
+                    .satisfies(er -> assertThat(er.exitValue())
+                            .withFailMessage("Script failed - %s", er)
+                            .isZero());
+        }
+        finally {
+            if (!actual.isDone()) {
+                actual.cancel(true);
+            }
+        }
     }
 
     private static String pathToFileUrl(Path path) {
@@ -105,41 +121,43 @@ class QuickstartDT {
                 Objects.equals(sn.getAttribute("language", null), "terminal");
     }
 
-    private void executeScript(Path shellScript) {
-        var builder = new ProcessBuilder(shellScript.toAbsolutePath().toString());
+    private CompletableFuture<ExecutionResult> executeScript(Path shellScript) {
+        return CompletableFuture.supplyAsync(() -> {
+            var builder = new ProcessBuilder(shellScript.toAbsolutePath().toString());
 
-        var stdoutExecutor = Executors.newSingleThreadExecutor();
-        var stderrExecutor = Executors.newSingleThreadExecutor();
+            var stdoutExecutor = Executors.newSingleThreadExecutor();
+            var stderrExecutor = Executors.newSingleThreadExecutor();
+            try {
+                var p = builder.start();
+                return awaitScript(p, CompletableFuture.supplyAsync(() -> streamToString(p.getInputStream()), stdoutExecutor),
+                        CompletableFuture.supplyAsync(() -> streamToString(p.getErrorStream()), stderrExecutor));
+            }
+            catch (IOException e) {
+                throw new UncheckedIOException("Failed to run script containing quickstart commands: %s".formatted(shellScript), e);
+            }
+            finally {
+                stdoutExecutor.shutdown();
+                stderrExecutor.shutdown();
+            }
+        });
+    }
+
+    private static ExecutionResult awaitScript(Process p, CompletableFuture<String> readOutput, CompletableFuture<String> readStderr) {
         try {
-            var p = builder.start();
             try {
                 p.getOutputStream().close();
-
-                var readOutput = CompletableFuture.supplyAsync(() -> streamToString(p.getInputStream()), stdoutExecutor);
-                var readStderr = CompletableFuture.supplyAsync(() -> streamToString(p.getErrorStream()), stderrExecutor);
-
-                p.waitFor(5, TimeUnit.MINUTES);
-                var stdout = readOutput.join();
-                var stderr = readStderr.join();
-
-                assertThat(p.exitValue())
-                        .describedAs("Quickstart failed - examine stdout/stderr for details %s/%s", stdout, stderr)
-                        .isZero();
+                p.waitFor();
+                return new ExecutionResult(p.exitValue(), readOutput.join(), readStderr.join(), null);
             }
             finally {
                 p.destroy();
             }
         }
-        catch (IOException e) {
-            throw new UncheckedIOException("Failed to run script containing quickstart commands: %s".formatted(shellScript), e);
-        }
-        catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Failed to run script containing quickstart commands: %s".formatted(shellScript), e);
-        }
-        finally {
-            stdoutExecutor.shutdown();
-            stderrExecutor.shutdown();
+        catch (IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
+            return new ExecutionResult(-1, readOutput.join(), readStderr.join(), e);
         }
     }
 
@@ -190,4 +208,5 @@ class QuickstartDT {
         return ShellUtils.validateToolsOnPath("minikube") && ShellUtils.validateKubeContext("minikube");
     }
 
+    private record ExecutionResult(int exitValue, String stdout, String stderr, Exception e) {}
 }
