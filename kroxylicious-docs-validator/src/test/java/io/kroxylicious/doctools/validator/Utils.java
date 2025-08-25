@@ -22,7 +22,7 @@ public class Utils {
 
     static final Predicate<Path> ALL_ASCIIDOC_FILES = f -> f.getFileName().toString().endsWith(".adoc");
     static final Path MODULE_ROOT = Path.of("").toAbsolutePath();
-    static final Path DOCS_ROOTDIR = MODULE_ROOT.getParent().resolve("docs");
+    static final Path DOCS_ROOTDIR = MODULE_ROOT.getParent().resolve("kroxylicious-docs").resolve("docs");
 
     // This is Zip artefact containing the Operator. The Maven copy-kroxylicious-operator-zip copies the artefact
     // from the kroxylicious-operator-dist module to this module with a stable name.
