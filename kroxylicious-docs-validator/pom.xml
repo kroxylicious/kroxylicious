@@ -29,7 +29,7 @@
     </properties>
     <dependencies>
 
-        <!-- project dependencies - runtime and compile -->
+        <!-- project dependencies - test -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-integration-test-support</artifactId>
@@ -37,10 +37,6 @@
         </dependency>
 
         <!-- third party dependencies - runtime and compile -->
-        <dependency>
-            <groupId>org.assertj</groupId>
-            <artifactId>assertj-core</artifactId>
-        </dependency>
         <dependency>
             <groupId>org.asciidoctor</groupId>
             <artifactId>asciidoctorj-api</artifactId>
@@ -55,6 +51,10 @@
         </dependency>
 
         <!-- third party dependencies - test -->
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
