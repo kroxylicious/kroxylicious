@@ -30,8 +30,10 @@ import io.kroxylicious.proxy.frame.RequestFrame;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Closed;
 import io.kroxylicious.proxy.internal.ProxyChannelState.Forwarding;
 import io.kroxylicious.proxy.internal.codec.FrameOversizedException;
+import io.kroxylicious.proxy.internal.util.ActivationToken;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
+import io.kroxylicious.proxy.internal.util.VirtualClusterNode;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -146,6 +148,9 @@ public class ProxyChannelStateMachine {
     private final Timer serverToProxyBackpressureMeter;
     private final Timer clientToProxyBackPressureMeter;
 
+    private final ActivationToken clientToProxyConnectionToken;
+    private final ActivationToken proxyToServerConnectionToken;
+
     @VisibleForTesting
     @Nullable
     Timer.Sample clientToProxyBackpressureTimer;
@@ -156,6 +161,7 @@ public class ProxyChannelStateMachine {
 
     @SuppressWarnings("java:S5738")
     public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
+        VirtualClusterNode node = new VirtualClusterNode(clusterName, nodeId);
         // New connection metrics
         clientToProxyConnectionCounter = Metrics.clientToProxyConnectionCounter(clusterName, nodeId).withTags();
         clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
@@ -163,6 +169,8 @@ public class ProxyChannelStateMachine {
         proxyToServerErrorCounter = Metrics.proxyToServerErrorCounter(clusterName, nodeId).withTags();
         serverToProxyBackpressureMeter = Metrics.serverToProxyBackpressureTimer(clusterName, nodeId).withTags();
         clientToProxyBackPressureMeter = Metrics.clientToProxyBackpressureTimer(clusterName, nodeId).withTags();
+        clientToProxyConnectionToken = Metrics.clientToProxyConnectionToken(node);
+        proxyToServerConnectionToken = Metrics.proxyToServerConnectionToken(node);
 
         // These connections metrics are deprecated and are replaced by the metrics mentioned above
         List<Tag> tags = Metrics.tags(Metrics.DEPRECATED_VIRTUAL_CLUSTER_TAG, clusterName);
@@ -506,6 +514,7 @@ public class ProxyChannelStateMachine {
         frontendHandler.inClientActive();
         downstreamConnectionsCounter.increment();
         clientToProxyConnectionCounter.increment();
+        clientToProxyConnectionToken.acquire();
     }
 
     @SuppressWarnings("java:S5738")
@@ -525,6 +534,7 @@ public class ProxyChannelStateMachine {
         setState(forwarding);
         Objects.requireNonNull(frontendHandler).inForwarding();
         upstreamConnectionsCounter.increment();
+        proxyToServerConnectionToken.acquire();
     }
 
     /**
@@ -622,15 +632,18 @@ public class ProxyChannelStateMachine {
         if (state instanceof Closed) {
             return;
         }
+
         setState(new Closed());
         // Close the server connection
         if (backendHandler != null) {
             backendHandler.inClosed();
+            proxyToServerConnectionToken.release();
         }
 
         // Close the client connection with any error code
         if (frontendHandler != null) { // Can be null if the error happens before clientActive (unlikely but possible)
             frontendHandler.inClosed(errorCodeEx);
+            clientToProxyConnectionToken.release();
         }
     }
 
