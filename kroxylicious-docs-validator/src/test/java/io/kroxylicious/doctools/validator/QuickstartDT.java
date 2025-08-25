@@ -144,15 +144,8 @@ class QuickstartDT {
     }
 
     private static String streamToString(InputStream inputStream) {
-        try (var reader = new BufferedReader(new InputStreamReader(inputStream, StandardCharsets.UTF_8))) {
-            StringBuilder builder = new StringBuilder();
-            String line;
-            while ((line = reader.readLine()) != null) {
-                builder.append(line);
-                builder.append(String.format("%n"));
-            }
-
-            return builder.toString();
+          try {
+            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
         }
         catch (IOException e) {
             throw new UncheckedIOException(e);
