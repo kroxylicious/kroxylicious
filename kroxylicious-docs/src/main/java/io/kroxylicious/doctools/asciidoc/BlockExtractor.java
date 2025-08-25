@@ -25,6 +25,7 @@ import java.util.function.Predicate;
 import org.asciidoctor.Asciidoctor;
 import org.asciidoctor.Attributes;
 import org.asciidoctor.Options;
+import org.asciidoctor.SafeMode;
 import org.asciidoctor.ast.Document;
 import org.asciidoctor.ast.StructuralNode;
 import org.asciidoctor.extension.Treeprocessor;
@@ -89,8 +90,8 @@ public class BlockExtractor implements AutoCloseable {
             try {
                 var optionsBuilder = Options.builder()
                         .option(Options.SOURCEMAP, "true") // required so source file/line number information is available
-                       // .option(Options.TO_DIR, tempDirectory.toString()) // don't need the output files
-                       // .safe(SafeMode.UNSAFE) // Required to write the output to temp location
+                        .option(Options.TO_DIR, tempDirectory.toString()) // don't need the output files
+                        .safe(SafeMode.UNSAFE) // Required to write the output to temp location
                         .backend("adoc");
 
                 Optional.ofNullable(attributes).ifPresent(optionsBuilder::attributes);
