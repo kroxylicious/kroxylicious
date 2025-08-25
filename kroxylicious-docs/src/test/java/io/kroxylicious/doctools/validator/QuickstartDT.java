@@ -161,7 +161,7 @@ class QuickstartDT {
     }
 
     private static String streamToString(InputStream inputStream) {
-          try {
+        try {
             return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
         }
         catch (IOException e) {
