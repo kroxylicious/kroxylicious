@@ -10,14 +10,19 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.io.StringReader;
 import java.io.UncheckedIOException;
 import java.net.MalformedURLException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileAttribute;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -45,6 +50,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @EnabledIf("io.kroxylicious.doctools.validator.QuickstartDT#isEnvironmentValid")
 @SuppressWarnings("java:S3577") // ignoring naming convention for the test class
 class QuickstartDT {
+
+    private static final FileAttribute<Set<PosixFilePermission>> OWNER_RWX = PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------"));
 
     private static Stream<Arguments> quickstarts() {
         try (var blockExtractor = new BlockExtractor()) {
@@ -99,7 +106,7 @@ class QuickstartDT {
     }
 
     private void executeScript(Path shellScript) {
-        var builder = new ProcessBuilder("/bin/sh", "-c", "source " + shellScript.toAbsolutePath().toString());
+        var builder = new ProcessBuilder(shellScript.toAbsolutePath().toString());
 
         var stdoutExecutor = Executors.newSingleThreadExecutor();
         var stderrExecutor = Executors.newSingleThreadExecutor();
@@ -154,24 +161,22 @@ class QuickstartDT {
 
     private Path writeShellScript(List<Block> shellBlocks) {
         try {
-            var tempFile = Files.createTempFile("quickstart", ".sh");
-            try (var writer = Files.newBufferedWriter(tempFile, StandardCharsets.UTF_8)) {
-                writer.write("set -e -o pipefail");
-                writer.newLine();
+            var tempFile = Files.createTempFile("quickstart", ".sh", OWNER_RWX);
+            try (var writer = new PrintWriter(Files.newBufferedWriter(tempFile, StandardCharsets.UTF_8))) {
+                writer.println("#!/usr/bin/env sh");
+                writer.println("set -e -v -o pipefail");
                 shellBlocks.forEach(block -> {
                     try (var reader = new BufferedReader(new StringReader(block.content()))) {
-                        String line;
-                        writer.write("""
+                        writer.println("""
                                 echo "##############"
                                 echo "Code block source: %s (line %s)"
                                 """.formatted(block.asciiDocFile(), block.lineNumber()));
-                        writer.newLine();
+                        String line;
                         while ((line = reader.readLine()) != null) {
                             line = line.replaceAll("^\\$ *", ""); // chomp the shell prompt
-                            writer.write(line);
-                            writer.newLine();
+                            writer.println(line);
                         }
-                        writer.newLine();
+                        writer.println();
                     }
                     catch (IOException e) {
                         throw new UncheckedIOException("Failed to write block %s to temporary shell file %s".formatted(block, tempFile), e);
