@@ -33,14 +33,6 @@
         <!-- project dependencies - test -->
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-operator-dist</artifactId>
-            <version>${project.version}</version>
-            <type>zip</type>
-            <scope>runtime</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-integration-test-support</artifactId>
             <scope>test</scope>
         </dependency>
@@ -52,6 +44,7 @@
             <version>${asciidoctorj.version}</version>
             <scope>compile</scope>
         </dependency>
+
         <dependency>
             <groupId>org.asciidoctor</groupId>
             <artifactId>asciidoctorj</artifactId>
@@ -123,6 +116,17 @@
     <profiles>
         <profile>
             <id>dist</id>
+
+            <dependencies>
+                <!-- project dependencies - test -->
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-operator-dist</artifactId>
+                    <version>${project.version}</version>
+                    <type>zip</type>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
 
             <build>
                 <plugins>
