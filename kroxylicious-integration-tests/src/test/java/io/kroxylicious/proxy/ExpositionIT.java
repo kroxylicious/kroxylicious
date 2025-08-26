@@ -67,7 +67,7 @@ import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.net.IntegrationTestInetAddressResolverProvider.TEST_DOMAIN;
+import static io.kroxylicious.net.IntegrationTestInetAddressResolverProvider.INT_KROXYLICIOUS_TEST_DOMAIN;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.DEFAULT_GATEWAY_NAME;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultGatewayBuilder;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.defaultPortIdentifiesNodeGatewayBuilder;
@@ -347,7 +347,7 @@ class ExpositionIT extends BaseIT {
                     Set<HostPort> nodeAdvertisedAddresses = admin.describeCluster().nodes().get(5, TimeUnit.SECONDS).stream()
                             .map(node -> new HostPort(node.host(), node.port()))
                             .collect(Collectors.toSet());
-                    String expectedAdvertisedBrokerHost = "broker-0.%s%s".formatted(clusterName, TEST_DOMAIN);
+                    String expectedAdvertisedBrokerHost = "broker-0.%s%s".formatted(clusterName, INT_KROXYLICIOUS_TEST_DOMAIN);
                     assertThat(nodeAdvertisedAddresses).singleElement().isEqualTo(new HostPort(expectedAdvertisedBrokerHost, 9192));
                 }
             }
