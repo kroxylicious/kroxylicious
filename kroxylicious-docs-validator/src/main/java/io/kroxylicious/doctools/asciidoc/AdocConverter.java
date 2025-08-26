@@ -91,7 +91,7 @@ public class AdocConverter extends StringConverter {
                 return adocNodeConverter.convertInlineBreakNode(phraseNode);
             }
         }
-        return "";
+        throw new IllegalStateException("Unknown node type (%s)  or transform (%s)".formatted(node.getClass().getName(), transform));
     }
 
 }
