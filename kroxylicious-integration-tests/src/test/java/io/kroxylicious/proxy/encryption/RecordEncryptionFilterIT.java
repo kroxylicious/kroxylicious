@@ -77,6 +77,7 @@ import io.kroxylicious.testing.kafka.common.ClientConfig;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 import io.kroxylicious.testing.kafka.junit5ext.TopicConfig;
+import io.kroxylicious.testing.kafka.junit5ext.TopicNameMethodSource;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -100,7 +101,10 @@ class RecordEncryptionFilterIT {
     private static final String HELLO_SECRET = "hello secret";
 
     @TestTemplate
-    void roundTripSingleRecord(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
+    void roundTripSingleRecord(KafkaCluster cluster,
+                               @TopicNameMethodSource Topic topic,
+                               TestKmsFacade<?, ?, ?> testKmsFacade)
+            throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
@@ -129,7 +133,9 @@ class RecordEncryptionFilterIT {
     // Covers a bug, #2504, where large record batches failed to be encrypted. This occurred when the encrypted output for a record batch exceeded
     // io.kroxylicious.filter.encryption.config.RecordEncryptionConfig#RECORD_BUFFER_DEFAULT_INITIAL_BYTES
     @TestTemplate
-    void roundTripBigRecord(@BrokerConfig(name = "message.max.bytes", value = "2000000") KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade)
+    void roundTripBigRecord(@BrokerConfig(name = "message.max.bytes", value = "2000000") KafkaCluster cluster,
+                            @TopicNameMethodSource Topic topic,
+                            TestKmsFacade<?, ?, ?> testKmsFacade)
             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
@@ -158,7 +164,9 @@ class RecordEncryptionFilterIT {
     }
 
     @TestTemplate
-    void roundTripTransactional(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    void roundTripTransactional(KafkaCluster cluster,
+                                @TopicNameMethodSource Topic topic,
+                                TestKmsFacade<?, ?, ?> testKmsFacade) {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
@@ -189,7 +197,9 @@ class RecordEncryptionFilterIT {
 
     // check that records from aborted transaction are not exposed to read_committed clients
     @TestTemplate
-    void roundTripTransactionalAbort(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    void roundTripTransactionalAbort(KafkaCluster cluster,
+                                     @TopicNameMethodSource Topic topic,
+                                     TestKmsFacade<?, ?, ?> testKmsFacade) {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
@@ -227,7 +237,9 @@ class RecordEncryptionFilterIT {
 
     // check that records from uncommitted transaction are not exposed to read_committed clients
     @TestTemplate
-    void roundTripTransactionalIsolation(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    void roundTripTransactionalIsolation(KafkaCluster cluster,
+                                         @TopicNameMethodSource Topic topic,
+                                         TestKmsFacade<?, ?, ?> testKmsFacade) {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
@@ -267,7 +279,10 @@ class RecordEncryptionFilterIT {
     }
 
     @TestTemplate
-    void roundTripManyRecordsFromDifferentProducers(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
+    void roundTripManyRecordsFromDifferentProducers(KafkaCluster cluster,
+                                                    @TopicNameMethodSource Topic topic,
+                                                    TestKmsFacade<?, ?, ?> testKmsFacade)
+            throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
@@ -301,7 +316,9 @@ class RecordEncryptionFilterIT {
     // EDEKs can be configured with a time-based expiry. This gives us the nice property that after a KEK is rotated
     // in the external KMS a new EDEK will be generated using the new key.
     @TestTemplate
-    void edekExpiry(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade,
+    void edekExpiry(KafkaCluster cluster,
+                    @TopicNameMethodSource Topic topic,
+                    TestKmsFacade<?, ?, ?> testKmsFacade,
                     @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "rotation-test") KafkaConsumer<byte[], byte[]> directConsumer)
             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
@@ -338,7 +355,9 @@ class RecordEncryptionFilterIT {
     }
 
     @Test
-    void failedEncryptionRespondsWithError(KafkaCluster cluster, Topic topic, InMemoryTestKmsFacade testKmsFacade)
+    void failedEncryptionRespondsWithError(KafkaCluster cluster,
+                                           @TopicNameMethodSource Topic topic,
+                                           InMemoryTestKmsFacade testKmsFacade)
             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
@@ -408,7 +427,10 @@ class RecordEncryptionFilterIT {
 
     // This ensures the decrypt-ability guarantee, post kek rotation
     @TestTemplate
-    void decryptionAfterKekRotation(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
+    void decryptionAfterKekRotation(KafkaCluster cluster,
+                                    @TopicNameMethodSource Topic topic,
+                                    TestKmsFacade<?, ?, ?> testKmsFacade)
+            throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
@@ -440,7 +462,10 @@ class RecordEncryptionFilterIT {
     }
 
     @TestTemplate
-    void topicRecordsAreUnreadableOnServer(KafkaCluster cluster, Topic topic, KafkaConsumer<String, String> directConsumer, TestKmsFacade<?, ?, ?> testKmsFacade)
+    void topicRecordsAreUnreadableOnServer(KafkaCluster cluster,
+                                           @TopicNameMethodSource Topic topic,
+                                           KafkaConsumer<String, String> directConsumer,
+                                           TestKmsFacade<?, ?, ?> testKmsFacade)
             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
@@ -469,7 +494,10 @@ class RecordEncryptionFilterIT {
     }
 
     @TestTemplate
-    void unencryptedRecordsConsumable(KafkaCluster cluster, KafkaProducer<String, String> directProducer, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade)
+    void unencryptedRecordsConsumable(KafkaCluster cluster,
+                                      KafkaProducer<String, String> directProducer,
+                                      @TopicNameMethodSource Topic topic,
+                                      TestKmsFacade<?, ?, ?> testKmsFacade)
             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
@@ -501,7 +529,8 @@ class RecordEncryptionFilterIT {
     @TestTemplate
     void nullValueRecordProducedAndConsumedSuccessfully(KafkaCluster cluster,
                                                         @ClientConfig(name = ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, value = "earliest") @ClientConfig(name = ConsumerConfig.GROUP_ID_CONFIG, value = "test") Consumer<String, String> directConsumer,
-                                                        Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade)
+                                                        @TopicNameMethodSource Topic topic,
+                                                        TestKmsFacade<?, ?, ?> testKmsFacade)
             throws Exception {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
@@ -535,7 +564,10 @@ class RecordEncryptionFilterIT {
     }
 
     @TestTemplate
-    void produceAndConsumeEncryptedAndPlainTopicsAtSameTime(KafkaCluster cluster, Topic encryptedTopic, Topic plainTopic, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    void produceAndConsumeEncryptedAndPlainTopicsAtSameTime(KafkaCluster cluster,
+                                                            @TopicNameMethodSource Topic encryptedTopic,
+                                                            @TopicNameMethodSource Topic plainTopic,
+                                                            TestKmsFacade<?, ?, ?> testKmsFacade) {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(encryptedTopic.name());
 
@@ -562,7 +594,10 @@ class RecordEncryptionFilterIT {
     }
 
     @TestTemplate
-    void userCanChooseToRejectRecordsWhichWeCannotResolveKeysFor(KafkaCluster cluster, Topic encryptedTopic, Topic plainTopic, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    void userCanChooseToRejectRecordsWhichWeCannotResolveKeysFor(KafkaCluster cluster,
+                                                                 @TopicNameMethodSource Topic encryptedTopic,
+                                                                 @TopicNameMethodSource Topic plainTopic,
+                                                                 TestKmsFacade<?, ?, ?> testKmsFacade) {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(encryptedTopic.name());
 
@@ -594,7 +629,7 @@ class RecordEncryptionFilterIT {
     @TestTemplate
     @SuppressWarnings("java:S2925")
     void offsetFidelity(@BrokerConfig(name = "log.cleaner.backoff.ms", value = "50") KafkaCluster cluster,
-                        @TopicConfig(name = "segment.ms", value = "125") @TopicConfig(name = "cleanup.policy", value = "compact") Topic compactedTopic,
+                        @TopicNameMethodSource @TopicConfig(name = "segment.ms", value = "125") @TopicConfig(name = "cleanup.policy", value = "compact") Topic compactedTopic,
                         Consumer<String, String> directConsumer,
                         TestKmsFacade<?, ?, ?> testKmsFacade)
             throws Exception {
@@ -659,7 +694,10 @@ class RecordEncryptionFilterIT {
 
     // TODO express this test as a unit test and consider doing away with the test as the IT level.
     @TestTemplate
-    void shouldGenerateOneDek(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) throws Exception {
+    void shouldGenerateOneDek(KafkaCluster cluster,
+                              @TopicNameMethodSource Topic topic,
+                              TestKmsFacade<?, ?, ?> testKmsFacade)
+            throws Exception {
         assumeThatCode(testKmsFacade::getKms).doesNotThrowAnyException();
         assertThat(testKmsFacade.getKms()).isInstanceOf(InMemoryKms.class);
 
@@ -705,7 +743,10 @@ class RecordEncryptionFilterIT {
     }
 
     @TestTemplate
-    void checkMetricsIncrementedOnEncryptedAndPlainTopic(KafkaCluster cluster, Topic encryptedTopic, Topic plainTopic, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    void checkMetricsIncrementedOnEncryptedAndPlainTopic(KafkaCluster cluster,
+                                                         @TopicNameMethodSource Topic encryptedTopic,
+                                                         @TopicNameMethodSource Topic plainTopic,
+                                                         TestKmsFacade<?, ?, ?> testKmsFacade) {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(encryptedTopic.name());
 
@@ -748,7 +789,9 @@ class RecordEncryptionFilterIT {
     }
 
     @TestTemplate
-    void consumeFailsAfterKekDeleted(KafkaCluster cluster, Topic topic, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    void consumeFailsAfterKekDeleted(KafkaCluster cluster,
+                                     @TopicNameMethodSource Topic topic,
+                                     TestKmsFacade<?, ?, ?> testKmsFacade) {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(topic.name());
 
@@ -780,7 +823,10 @@ class RecordEncryptionFilterIT {
      * This test ensures that the topic that has suffered the failure to decrypt is the one reported to the client.
      */
     @TestTemplate
-    void consumeFailsForOneTopicOnlyAfterKekDeleted(KafkaCluster cluster, Topic lostKekTopic, Topic otherTopic, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    void consumeFailsForOneTopicOnlyAfterKekDeleted(KafkaCluster cluster,
+                                                    @TopicNameMethodSource Topic lostKekTopic,
+                                                    @TopicNameMethodSource Topic otherTopic,
+                                                    TestKmsFacade<?, ?, ?> testKmsFacade) {
         var testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek(lostKekTopic.name());
         testKekManager.generateKek(otherTopic.name());
@@ -819,6 +865,16 @@ class RecordEncryptionFilterIT {
                 .withConfig("selectorConfig", Map.of("template", TEMPLATE_KEK_SELECTOR_PATTERN))
                 .withConfig("unresolvedKeyPolicy", unresolvedKeyPolicy)
                 .build();
+    }
+
+    /**
+     * We use this to control all the topic names used in this test because Azure Key Vault requires the
+     * key name to contain <code>only 0-9, a-z, A-Z, and -</code>. The test extension uses other characters by default.
+     * The tests make the assumption that the topic name is a valid key/alias identifier for all KMS implementation.
+     */
+    @SuppressWarnings("unused") // used via @TopicNameMethodSource
+    static String topicName() {
+        return UUID.randomUUID().toString();
     }
 
 }
