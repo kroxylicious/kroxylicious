@@ -1210,8 +1210,8 @@
             <modules>
                 <module>kroxylicious-integration-tests</module>
                 <module>kroxylicious-systemtests</module>
+                <module>kroxylicious-docs-tests</module>
                 <module>kroxylicious-microbenchmarks</module>
-                <module>kroxylicious-docs-validator</module>
             </modules>
         </profile>
         <profile>

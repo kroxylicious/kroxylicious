@@ -18,8 +18,9 @@
         <version>0.16.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>kroxylicious-docs-validator</artifactId>
-    <name>Documentation validation</name>
+    <artifactId>kroxylicious-docs-tests</artifactId>
+    <name>Documentation tests</name>
+    <description>Automated tests for programmatic content included in the project's documentation.</description>
 
     <properties>
         <skipDTs>false</skipDTs>
