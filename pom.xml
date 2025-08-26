@@ -78,7 +78,7 @@
         <bouncycastle.version>1.81</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.2.0</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.13.0</wiremock.version>
-        <docker-java.version>3.5.3</docker-java.version>
+        <docker-java.version>3.6.0</docker-java.version>
         <test-frame.version>1.1.0</test-frame.version>
         <junit-pioneer.version>2.3.0</junit-pioneer.version>
         <skip-validate-yaml-snippets>true</skip-validate-yaml-snippets>
