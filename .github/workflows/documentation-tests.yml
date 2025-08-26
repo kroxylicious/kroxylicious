@@ -1,0 +1,75 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+name: Documentation Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build_operator:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 'Check out repository'
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: 'Set up Java'
+        uses: actions/setup-java@v5
+        with:
+          java-version: 21
+          distribution: 'temurin'
+      - name: Setup Minikube
+        uses: manusa/actions-setup-minikube@v2.14.0
+        with:
+          "minikube version": 'v1.35.0'
+          "kubernetes version": 'v1.32.0'
+          "github token": ${{ secrets.GITHUB_TOKEN }}
+          driver: docker
+      - name: 'Set up Docker Buildx'
+        uses: docker/setup-buildx-action@v3
+      - name: 'Cache Maven packages'
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+      - name: 'Build Kroxylicious Operator/Operand Container Images & Operator Zip'
+        run: |
+          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -DskipTests package -amd
+      - name: 'Load Kroxylicious Operand Docker Image in Minikube'
+        run: |
+          minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
+          minikube image load kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
+          
+          # https://github.com/kubernetes/minikube/issues/21393 - minikube image load doesn't fail if the load fails.
+          KROXYLICIOUS_PROXY_IMAGE="$(mvn --quiet --projects kroxylicious-app --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=io.kroxylicious.proxy.image.name -DforceStdout)"
+          KROXYLICIOUS_OPERATOR_IMAGE="$(mvn --quiet --projects kroxylicious-operator --activate-profiles dist org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=io.kroxylicious.operator.image.name -DforceStdout)"
+          minikube image ls | grep --fixed-strings ${KROXYLICIOUS_PROXY_IMAGE}
+          minikube image ls | grep --fixed-strings ${KROXYLICIOUS_OPERATOR_IMAGE}
+      - name: 'Run documentation tests'
+        run: |
+          mvn -DskipUTs=true -DskipITs=true -DskipKTs=true -DskipDTs=false --batch-mode verify --activate-profiles dist --projects ':kroxylicious-docs-tests' --also-make
