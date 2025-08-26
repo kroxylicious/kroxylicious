@@ -7,13 +7,16 @@
 package io.kroxylicious.proxy.filter.multitenant;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ApiMessageType;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -60,6 +63,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.Mock.Strictness.LENIENT;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -257,6 +262,49 @@ class MultiTenantFilterTest {
             multiTenantTransformationFilter.onProduceRequest(
                     ProduceRequestData.HIGHEST_SUPPORTED_VERSION, header, request, filterContext);
         }).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void produceRequestVersionCappedTo12() {
+        when(context.forwardResponse(any(ResponseHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
+            var filterResult = mock(ResponseFilterResult.class);
+            lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
+            return CompletableFuture.completedFuture(filterResult);
+        });
+        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig("$bad$"));
+        ApiVersionsResponseData response = new ApiVersionsResponseData();
+        response.apiKeys().add(new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.PRODUCE.id).setMinVersion(ApiKeys.PRODUCE.id).setMaxVersion((short) 13));
+        CompletionStage<ResponseFilterResult> responseStage = multiTenantTransformationFilter.onApiVersionsResponse(ApiKeys.API_VERSIONS.latestVersion(),
+                new ResponseHeaderData(), response,
+                context);
+        assertThat(responseStage).succeedsWithin(Duration.ofSeconds(1)).satisfies(responseFilterResult -> {
+            ApiMessage message = responseFilterResult.message();
+            assertThat(message).isInstanceOfSatisfying(ApiVersionsResponseData.class, apiVersionsResponseData -> {
+                assertThat(apiVersionsResponseData.apiKeys().find(ApiKeys.PRODUCE.id)).satisfies(apiKey -> {
+                    assertThat(apiKey.maxVersion()).isEqualTo((short) 12);
+                });
+            });
+        });
+    }
+
+    @Test
+    void produceRequestVersionHandlesMissingApi() {
+        when(context.forwardResponse(any(ResponseHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
+            var filterResult = mock(ResponseFilterResult.class);
+            lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
+            return CompletableFuture.completedFuture(filterResult);
+        });
+        ApiVersionsResponseData response = new ApiVersionsResponseData();
+        var multiTenantTransformationFilter = new MultiTenantFilter(new MultiTenantConfig("$bad$"));
+        CompletionStage<ResponseFilterResult> responseStage = multiTenantTransformationFilter.onApiVersionsResponse(ApiKeys.API_VERSIONS.latestVersion(),
+                new ResponseHeaderData(), response,
+                context);
+        assertThat(responseStage).succeedsWithin(Duration.ofSeconds(1)).satisfies(responseFilterResult -> {
+            ApiMessage message = responseFilterResult.message();
+            assertThat(message).isInstanceOfSatisfying(ApiVersionsResponseData.class, apiVersionsResponseData -> {
+                assertThat(apiVersionsResponseData.apiKeys()).isEmpty();
+            });
+        });
     }
 
     private ProduceRequestData createProduceRequest(String topic) {
