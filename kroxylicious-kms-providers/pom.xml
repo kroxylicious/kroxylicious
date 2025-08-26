@@ -25,6 +25,7 @@
     <modules>
         <module>kroxylicious-kms-provider-aws-kms</module>
         <module>kroxylicious-kms-provider-aws-kms-test-support</module>
+        <module>kroxylicious-kms-provider-azure-key-vault-kms</module>
         <module>kroxylicious-kms-provider-fortanix-dsm</module>
         <module>kroxylicious-kms-provider-fortanix-dsm-test-support</module>
         <module>kroxylicious-kms-provider-kroxylicious-inmemory</module>
