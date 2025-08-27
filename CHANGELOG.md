@@ -6,7 +6,14 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+
+* [#1885](https://github.com/kroxylicious/kroxylicious/issues/1885): chore(docs): Remove deprecated support for virtualClusters expressed as a map.
 * [#2598](https://github.com/kroxylicious/kroxylicious/pull/2598): feat(metrics): Add metrics for the number of active connections
+
+### Changes, deprecations and removals
+
+* The `virtualClusters` configuration property now requires a list of `virtualCluster` objects.  The support
+  for supplying a virtual cluster map (which was deprecated at 0.11.0) is now removed.
 
 ## 0.15.0
 
