@@ -29,9 +29,6 @@ import com.fasterxml.jackson.databind.DeserializationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.node.TextNode;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
@@ -59,7 +56,7 @@ public record Configuration(
                             @Nullable @JsonAlias("adminHttp") @JsonDeserialize(using = AdminHttpDeprecationLoggingDeserializer.class) ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
                             @Nullable List<String> defaultFilters,
-                            @JsonProperty(required = true) @JsonDeserialize(using = VirtualClusterContainerDeserializer.class) List<VirtualCluster> virtualClusters,
+                            @JsonProperty(required = true) List<VirtualCluster> virtualClusters,
                             @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
                             Optional<Map<String, Object>> development) {
@@ -207,52 +204,6 @@ public record Configuration(
                 // Note: filterDefinitionsByName.get() returns non-null because of constructor post condition
                 .map(filterDefinitionsByName::get)
                 .toList();
-    }
-
-    /**
-     * Custom deserializer that handles the possibility that the virtualClusters node may contain a list.
-     * This deserializer can be removed once the deprecated map support is removed.
-     */
-    static class VirtualClusterContainerDeserializer extends StdDeserializer<List<VirtualCluster>> {
-        VirtualClusterContainerDeserializer() {
-            super(TypeFactory.defaultInstance().constructParametricType(List.class, VirtualCluster.class));
-        }
-
-        @Override
-        public List<VirtualCluster> deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
-            JsonNode node = jp.getCodec().readTree(jp);
-            if (node instanceof ObjectNode clusterMap) {
-                return convertDeprecatedMapToList(ctxt, clusterMap);
-            }
-            else {
-                return ctxt.readTreeAsValue(node, getValueType(ctxt));
-            }
-        }
-
-        private List<VirtualCluster> convertDeprecatedMapToList(DeserializationContext ctxt, ObjectNode clusterMap) throws IOException {
-            LOGGER.warn("The 'virtualCluster' configuration property with a map as a value is deprecated and support be removed in a future release. "
-                    + "Configurations should be updated to define 'virtualCluster' with a list objects, including a 'name' property.");
-            var clusterArrays = new ArrayNode(ctxt.getNodeFactory());
-            var clusterNames = clusterMap.fieldNames();
-            clusterNames.forEachRemaining(clusterName -> {
-                JsonNode value = clusterMap.get(clusterName);
-                if (value instanceof ObjectNode cluster) {
-                    var currentName = cluster.get("name");
-                    if (currentName == null) {
-                        cluster.set("name", new TextNode(clusterName));
-                    }
-                    else if (!currentName.asText().equals(clusterName)) {
-                        throw new IllegalConfigurationException(
-                                ("Inconsistent virtual cluster configuration. "
-                                        + "Configuration property 'virtualClusters' refers to a map, but the key name '%s' is different to the value of the 'name' field '%s' in the value.")
-                                        .formatted(
-                                                clusterName, currentName.asText()));
-                    }
-                    clusterArrays.add(cluster);
-                }
-            });
-            return ctxt.readTreeAsValue(clusterArrays, _valueType);
-        }
     }
 
     /**

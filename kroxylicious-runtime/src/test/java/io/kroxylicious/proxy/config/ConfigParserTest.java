@@ -40,7 +40,6 @@ import io.kroxylicious.proxy.internal.filter.FieldInjectionConfig;
 import io.kroxylicious.proxy.internal.filter.NestedPluginConfigFactory;
 import io.kroxylicious.proxy.internal.filter.RecordConfig;
 import io.kroxylicious.proxy.internal.filter.SetterInjectionConfig;
-import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 import io.kroxylicious.proxy.service.HostPort;
 
@@ -380,55 +379,6 @@ class ConfigParserTest {
     }
 
     @Test
-    void shouldSupportDeprecatedVirtualClusterMap() {
-        final Configuration configurationModel = configParser.parseConfiguration("""
-                virtualClusters:
-                  mycluster:
-                    targetCluster:
-                      bootstrapServers: kafka1.example:1234
-                    gateways:
-                    - name: default
-                      portIdentifiesNode:
-                        bootstrapAddress: cluster1:9192
-                """);
-        // When
-        var actualValidClusters = configurationModel.virtualClusterModel(new ServiceBasedPluginFactoryRegistry());
-
-        // Then
-        assertThat(actualValidClusters)
-                .singleElement()
-                .satisfies(vc -> {
-                    assertThat(vc.getClusterName()).isEqualTo("mycluster");
-                    assertThat(vc.targetCluster())
-                            .extracting(TargetCluster::bootstrapServers)
-                            .isEqualTo("kafka1.example:1234");
-                });
-    }
-
-    @Test
-    void shouldSupportDeprecatedVirtualClusterMapWithValueProvidingNameToo() {
-        final Configuration configurationModel = configParser.parseConfiguration("""
-                virtualClusters:
-                  mycluster:
-                    name: mycluster # matches key
-                    targetCluster:
-                      bootstrapServers: kafka1.example:1234
-                    gateways:
-                    - name: default
-                      portIdentifiesNode:
-                        bootstrapAddress: cluster1:9192
-                """);
-        // When
-        var actualValidClusters = configurationModel.virtualClusterModel(new ServiceBasedPluginFactoryRegistry());
-
-        // Then
-        assertThat(actualValidClusters)
-                .extracting(VirtualClusterModel::getClusterName)
-                .singleElement()
-                .isEqualTo("mycluster");
-    }
-
-    @Test
     void shouldRequireKeyIfDownstreamTlsObjectPresent() {
         // given
         Configuration configuration = configParser.parseConfiguration("""
@@ -449,27 +399,6 @@ class ConfigParserTest {
         }).isInstanceOf(IllegalConfigurationException.class)
                 .hasMessageStartingWith("Virtual cluster 'mycluster1', gateway 'default': 'tls' object is missing the mandatory attribute 'key'.");
         // We can't assert the full message as the link will change with every release
-    }
-
-    @Test
-    void shouldDetectInconsistentClusterNameInDeprecatedVirtualClusterMap() {
-        // When/Then
-        assertThatThrownBy(() -> {
-            configParser.parseConfiguration("""
-                    virtualClusters:
-                      mycluster:
-                        name: mycluster1
-                        targetCluster:
-                          bootstrapServers: kafka1.example:1234
-                        gateways:
-                        - name: default
-                          portIdentifiesNode:
-                            bootstrapAddress: cluster1:9192
-                    """);
-
-        }).hasRootCauseInstanceOf(IllegalConfigurationException.class)
-                .hasRootCauseMessage(
-                        "Inconsistent virtual cluster configuration. Configuration property 'virtualClusters' refers to a map, but the key name 'mycluster' is different to the value of the 'name' field 'mycluster1' in the value.");
     }
 
     @Test
