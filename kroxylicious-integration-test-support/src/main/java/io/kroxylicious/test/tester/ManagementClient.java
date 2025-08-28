@@ -14,6 +14,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
+import java.util.Objects;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -26,9 +27,11 @@ public class ManagementClient implements Closeable {
     private static final String METRICS = "metrics";
 
     private final HttpClient httpClient = HttpClient.newHttpClient();
+
     private final URI uri;
 
     ManagementClient(@NonNull URI uri) {
+        Objects.requireNonNull(uri, "uri");
         this.uri = uri;
     }
 
@@ -55,6 +58,11 @@ public class ManagementClient implements Closeable {
     public List<SimpleMetric> scrapeMetrics() {
         var text = getFromAdminEndpoint(METRICS).body();
         return SimpleMetric.parse(text);
+    }
+
+    @NonNull
+    public URI getUri() {
+        return uri;
     }
 
     @Override
