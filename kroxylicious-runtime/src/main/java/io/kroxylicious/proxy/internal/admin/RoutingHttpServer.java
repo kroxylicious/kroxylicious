@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal.admin;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 
 import org.slf4j.Logger;
@@ -42,7 +43,8 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
     private final Map<String, Function<HttpRequest, HttpResponse>> routes;
     private static final Logger LOGGER = LoggerFactory.getLogger(RoutingHttpServer.class);
 
-    public RoutingHttpServer(Map<String, Function<HttpRequest, HttpResponse>> routes) {
+    private RoutingHttpServer(Map<String, Function<HttpRequest, HttpResponse>> routes) {
+        Objects.requireNonNull(routes, "routes");
         this.routes = routes;
     }
 
