@@ -7,6 +7,9 @@ package io.kroxylicious.proxy;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -111,6 +114,24 @@ class MetricsIT {
             var notFoundResp = ahc.getFromAdminEndpoint("nonexistent");
             assertThat(notFoundResp.statusCode())
                     .isEqualTo(HttpResponseStatus.NOT_FOUND.code());
+        }
+    }
+
+    @Test
+    void shouldDisallowPost(KafkaCluster cluster) throws Exception {
+        var config = configWithMetrics(cluster);
+
+        try (var tester = kroxyliciousTester(config);
+                var ignored = tester.getManagementClient()) {
+            var client = HttpClient.newHttpClient();
+            var post = HttpRequest.newBuilder()
+                    .uri(tester.getManagementClient().getUri().resolve("/metrics"))
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(new byte[1024]))
+                    .build();
+            var discarding = HttpResponse.BodyHandlers.discarding();
+            var methodNotAllowed = client.send(post, discarding);
+            assertThat(methodNotAllowed.statusCode())
+                    .isEqualTo(HttpResponseStatus.METHOD_NOT_ALLOWED.code());
         }
     }
 

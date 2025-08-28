@@ -20,6 +20,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
@@ -32,6 +33,7 @@ import static io.netty.handler.codec.http.HttpHeaderValues.CLOSE;
 import static io.netty.handler.codec.http.HttpHeaderValues.KEEP_ALIVE;
 import static io.netty.handler.codec.http.HttpHeaderValues.TEXT_PLAIN;
 import static io.netty.handler.codec.http.HttpResponseStatus.INTERNAL_SERVER_ERROR;
+import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
 import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
 import static io.netty.handler.codec.rtsp.RtspHeaderNames.CONTENT_TYPE;
 
@@ -58,7 +60,16 @@ public class RoutingHttpServer extends SimpleChannelInboundHandler<HttpObject> {
         if (msg instanceof HttpRequest req) {
             boolean keepAlive = HttpUtil.isKeepAlive(req);
 
-            HttpResponse response = getResponse(req);
+            HttpResponse response;
+            if (HttpMethod.GET.equals(req.method())) {
+                response = getResponse(req);
+            }
+            else {
+                response = responseWithStatus(req, METHOD_NOT_ALLOWED);
+                // DoS defence - stops the server reading an excessive POST/PUT body to prevent resource allocation,
+                ctx.channel().config().setAutoRead(false);
+                keepAlive = false;
+            }
 
             if (keepAlive) {
                 if (!req.protocolVersion().isKeepAliveDefault()) {
