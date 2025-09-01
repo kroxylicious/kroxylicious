@@ -5,11 +5,14 @@
  */
 package io.kroxylicious.krpccodegen.main;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStreamWriter;
 import java.io.UncheckedIOException;
+import java.io.Writer;
 import java.lang.System.Logger;
 import java.lang.System.Logger.Level;
 import java.nio.charset.Charset;
@@ -17,11 +20,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.Spliterator;
 import java.util.function.Predicate;
@@ -176,6 +181,7 @@ public class KrpcGenerator {
     }
 
     static final ObjectMapper JSON_SERDE = new ObjectMapper();
+
     static {
         JSON_SERDE.configure(SerializationFeature.FAIL_ON_EMPTY_BEANS, false);
         JSON_SERDE.configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true);
@@ -265,20 +271,18 @@ public class KrpcGenerator {
         catch (Exception e) {
             throw new RuntimeException(e);
         }
+        Map<String, Object> dataModel = Map.of(
+                "structRegistry", structRegistry,
+                "messageSpec", messageSpec);
         templateNames.forEach(templateName -> {
             try {
                 logger.log(Level.DEBUG, "Parsing template {0}", templateName);
                 var template = cfg.getTemplate(templateName);
                 // TODO support output to stdout via `-`
-                var outputFile = new File(outputDir, outputFile(outputFilePattern, messageSpec.name(), templateName));
-                logger.log(Level.DEBUG, "Opening output file {0}", outputFile);
-                try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), outputEncoding)) {
-                    logger.log(Level.DEBUG, "Processing message spec {0} with template {1} to {2}", messageSpec.name(), templateName, outputFile);
-                    Map<String, Object> dataModel = Map.of(
-                            "structRegistry", structRegistry,
-                            "messageSpec", messageSpec);
+                writeIfChanged(outputDir, outputFile(outputFilePattern, messageSpec.name(), templateName), (writer, finalFile) -> {
+                    logger.log(Level.DEBUG, "Processing message spec {0} with template {1} to {2}", messageSpec.name(), templateName, finalFile);
                     template.process(dataModel, writer);
-                }
+                });
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
@@ -287,6 +291,64 @@ public class KrpcGenerator {
                 throw new RuntimeException(e);
             }
         });
+    }
+
+    private interface ThrowingWriteAction {
+        void accept(Writer writer, File outputFile) throws TemplateException, IOException;
+    }
+
+    private void writeIfChanged(File outputDir, String finalFileName, ThrowingWriteAction consumer) throws IOException, TemplateException {
+        String tempOutputFileName = finalFileName + ".tmp";
+        var outputFile = new File(outputDir, tempOutputFileName);
+        Path outPath = outputDir.toPath();
+        Path tempPath = outPath.resolve(tempOutputFileName);
+        Path finalPath = outPath.resolve(finalFileName);
+        logger.log(Level.DEBUG, "Opening output file {0}", outputFile);
+        try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), outputEncoding)) {
+            consumer.accept(writer, finalPath.toFile());
+        }
+        if (!filesEqual(tempPath, finalPath)) {
+            logger.log(Level.DEBUG, "File with new content generated, replacing {0}", finalPath);
+            Files.move(tempPath, finalPath, StandardCopyOption.REPLACE_EXISTING);
+        }
+        else {
+            logger.log(Level.DEBUG, "Contents unchanged, deleting temporary file {0}", tempPath);
+            Files.delete(tempPath);
+        }
+    }
+
+    static boolean filesEqual(Path generatedFile, Path finalFile) {
+        Objects.requireNonNull(generatedFile, "generatedFile cannot be null");
+        Objects.requireNonNull(finalFile, "finalFile cannot be null");
+        if (!Files.exists(generatedFile)) {
+            throw new IllegalArgumentException("File " + generatedFile + " does not exist");
+        }
+        if (Files.exists(generatedFile) && !Files.isRegularFile(generatedFile)) {
+            throw new IllegalArgumentException(new IOException("File '" + generatedFile + "' exists but is not a regular file"));
+        }
+        if (Files.exists(finalFile) && !Files.isRegularFile(finalFile)) {
+            throw new IllegalArgumentException(new IOException("File '" + finalFile + "' exists but is not a regular file"));
+        }
+        if (!Files.exists(finalFile)) {
+            return false;
+        }
+        try (InputStream fisA = Files.newInputStream(generatedFile);
+                BufferedInputStream bisA = new BufferedInputStream(fisA);
+                InputStream fisB = Files.newInputStream(finalFile);
+                BufferedInputStream bisB = new BufferedInputStream(fisB)) {
+            int curr;
+            while ((curr = bisA.read()) != -1) {
+                if (curr != bisB.read()) {
+                    // byte[x] in file A and B mismatched
+                    return false;
+                }
+            }
+            // if fileB stream is at end, then we have compared all bytes
+            return bisB.read() == -1;
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     private void renderMulti(Configuration cfg, Set<MessageSpec> messageSpecs) {
@@ -307,16 +369,14 @@ public class KrpcGenerator {
                 logger.log(Level.DEBUG, "Parsing template {0}", templateName);
                 var template = cfg.getTemplate(templateName);
                 // TODO support output to stdout via `-`
-                var outputFile = new File(outputDir, outputFile(outputFilePattern, null, templateName));
-                logger.log(Level.DEBUG, "Opening output file {0}", outputFile);
-                try (var writer = new OutputStreamWriter(new FileOutputStream(outputFile), outputEncoding)) {
+                writeIfChanged(outputDir, outputFile(outputFilePattern, null, templateName), (writer, finalFile) -> {
                     Map<String, Object> dataModel = Map.of(
                             // "structRegistry", structRegistry,
                             "outputPackage", outputPackage,
                             "messageSpecs", messageSpecs,
                             "retrieveApiKey", new RetrieveApiKey());
                     template.process(dataModel, writer);
-                }
+                });
             }
             catch (IOException e) {
                 throw new UncheckedIOException(e);
