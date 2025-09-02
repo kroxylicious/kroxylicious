@@ -222,9 +222,17 @@
                         </goals>
                         <phase>generate-sources</phase>
                         <configuration>
-                            <artifact>org.apache.kafka:kafka-clients:${kafka.version}</artifact>
-                            <includes>common/message/*.json</includes>
-                            <outputDirectory>${project.build.directory}/message-specs</outputDirectory>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.apache.kafka</groupId>
+                                    <artifactId>kafka-clients</artifactId>
+                                    <version>${kafka.version}</version>
+                                    <type>jar</type>
+                                    <overWrite>false</overWrite>
+                                    <includes>common/message/*.json</includes>
+                                    <outputDirectory>${project.build.directory}/message-specs</outputDirectory>
+                                </artifactItem>
+                            </artifactItems>
                         </configuration>
                     </execution>
                 </executions>
