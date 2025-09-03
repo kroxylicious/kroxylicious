@@ -118,12 +118,13 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
     @Override
     public CompletionStage<WrappingKey> resolveAlias(String alias) {
         LOG.debug("Resolving alias {}", alias);
-        return client.getKey(alias).handle((response, throwable) -> {
+        String normalized = alias.replace('_', '-');
+        return client.getKey(normalized).handle((response, throwable) -> {
             if (throwable != null) {
                 if (throwable instanceof UnexpectedHttpStatusCodeException e && e.getStatusCode() == 404) {
                     throw new UnknownAliasException(alias);
                 }
-                throw new KmsException("failed to check existence of '" + alias + "'", throwable);
+                throw new KmsException("failed to check existence of '" + normalized + "'", throwable);
             }
             else if (response == null) {
                 throw new KmsException("get key returned null for: '" + alias + "'");
@@ -133,10 +134,10 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
                 JsonWebKey key = response.key();
                 SupportedKeyType keyType = validateKeyAndExtractType(alias, response, key);
                 if (!keyType.isQuantumResistant()) {
-                    LOG.warn("key {} is of type {} which is not quantum resistant. If you are using Managed HSM consider using an AES key", alias,
+                    LOG.warn("key {} is of type {} which is not quantum resistant. If you are using Managed HSM consider using an AES key", normalized,
                             response.key().keyType());
                 }
-                return WrappingKey.parse(alias, response.key().keyId(), keyType);
+                return WrappingKey.parse(normalized, response.key().keyId(), keyType);
             }
         });
     }

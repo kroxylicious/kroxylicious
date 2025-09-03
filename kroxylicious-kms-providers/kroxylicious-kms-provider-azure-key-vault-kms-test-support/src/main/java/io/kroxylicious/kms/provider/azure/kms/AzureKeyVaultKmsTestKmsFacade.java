@@ -6,6 +6,11 @@
 
 package io.kroxylicious.kms.provider.azure.kms;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.net.Inet4Address;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Set;
 
@@ -31,6 +36,7 @@ import com.github.nagyesta.lowkeyvault.http.ApacheHttpClient;
 import com.github.nagyesta.lowkeyvault.http.AuthorityOverrideFunction;
 import com.github.nagyesta.lowkeyvault.http.management.LowkeyVaultException;
 import com.github.nagyesta.lowkeyvault.testcontainers.LowkeyVaultContainer;
+import com.sun.net.httpserver.HttpServer;
 
 import io.kroxylicious.kms.provider.azure.AzureKeyVaultEdek;
 import io.kroxylicious.kms.provider.azure.AzureKeyVaultKmsService;
@@ -53,6 +59,8 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
     public static final Tls INSECURE_TLS = new Tls(null, new InsecureTls(true), null, null);
     @Nullable
     private LowkeyVaultContainer kms;
+    @Nullable
+    private HttpServer entraMock;
 
     protected AzureKeyVaultKmsTestKmsFacade() {
     }
@@ -64,6 +72,33 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
 
     public void startKms() {
         this.kms = startVault();
+        try {
+            this.entraMock = HttpServer.create();
+            entraMock.createContext("/", exchange -> {
+                exchange.getResponseHeaders().add("Content-type", "application/json");
+                String responseBody = """
+                        {
+                            "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6Ik5HVEZ2ZEstZnl0aEV1Q",
+                            "token_type": "Bearer",
+                            "expires_in": 3599,
+                            "scope": "https%3A%2F%2Fgraph.microsoft.com%2Fmail.read",
+                            "refresh_token": "AwABAAAAvPM1KaPlrEqdFSBzjqfTGAMxZGUTdM0t4B4",
+                            "id_token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJub25lIn0.eyJhdWQiOiIyZDRkMTFhMi1mODE0LTQ2YTctOD"
+                        }
+                        """;
+                exchange.getRequestBody().readAllBytes();
+                exchange.getRequestBody().close();
+                byte[] responseBodyBytes = responseBody.getBytes(StandardCharsets.UTF_8);
+                exchange.sendResponseHeaders(200,  responseBodyBytes.length);
+                exchange.getResponseBody().write(responseBodyBytes);
+                exchange.getResponseBody().close();
+            });
+            entraMock.bind(new InetSocketAddress(Inet4Address.getLocalHost(), 0), 1000);
+            entraMock.start();
+        }
+        catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
     }
 
     public void stopKms() {
@@ -92,8 +127,13 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
         if (kms == null) {
             throw new IllegalStateException("kms is not initialized");
         }
+        if (entraMock == null) {
+            throw new IllegalStateException("entraMock is not initialized");
+        }
+        InetSocketAddress address = entraMock.getAddress();
+        String entraBaseUrl = "http://" + address.getHostName() + ":" + address.getPort();
         return new AzureKeyVaultConfig(
-                new EntraIdentityConfig(kms.getTokenEndpointBaseUrl(), "tenantId", new InlinePassword("abc"), new InlinePassword("def"), null, INSECURE_TLS),
+                new EntraIdentityConfig(entraBaseUrl, "identity", new InlinePassword("abc"), new InlinePassword("def"), null, INSECURE_TLS),
                 kms.getDefaultVaultBaseUrl(), INSECURE_TLS);
     }
 
@@ -112,13 +152,13 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
         if (kms == null) {
             throw new IllegalStateException("kms is not initialized");
         }
-        return new AwsKmsTestKekManager(kms);
+        return new AzureKmsTestKekManager(kms);
     }
 
-    private static class AwsKmsTestKekManager implements TestKekManager {
+    private static class AzureKmsTestKekManager implements TestKekManager {
         KeyClient keyClient;
 
-        private AwsKmsTestKekManager(LowkeyVaultContainer kms) {
+        private AzureKmsTestKekManager(LowkeyVaultContainer kms) {
             keyClient = new KeyClientBuilder().credential(new BasicAuthenticationCredential("abc", "def"))
                     .httpClient(createHttpClient(kms.getEndpointAuthority(), kms.getDefaultVaultAuthority())).vaultUrl(kms.getDefaultVaultBaseUrl())
                     .disableChallengeResourceVerification().buildClient();
@@ -126,47 +166,56 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
 
         @Override
         public void generateKek(String alias) {
+            String normalizedAlias = normalize(alias);
             // createKey succeeds imdempotently, not sure if azure or lowkey behaviour
             try {
                 read(alias);
-                throw new IllegalStateException("key '" + alias + "' already exists");
+                throw new IllegalStateException("key '" + normalizedAlias + "' already exists");
             }
             catch (UnknownAliasException e) {
                 keyClient.createKey(
-                        new CreateKeyOptions(alias, KeyType.RSA).setKeyOperations(KeyOperation.ENCRYPT, KeyOperation.DECRYPT, KeyOperation.WRAP_KEY,
+                        new CreateKeyOptions(normalizedAlias, KeyType.RSA).setKeyOperations(KeyOperation.ENCRYPT, KeyOperation.DECRYPT, KeyOperation.WRAP_KEY,
                                 KeyOperation.UNWRAP_KEY));
             }
         }
 
         @Override
         public KeyVaultKey read(String alias) {
+            String normalizedAlias = normalize(alias);
             try {
-                return keyClient.getKey(alias);
+                return keyClient.getKey(normalizedAlias);
             }
             catch (ResourceNotFoundException e) {
-                throw new UnknownAliasException(alias);
+                throw new UnknownAliasException(normalizedAlias);
             }
         }
 
         @Override
         public void deleteKek(String alias) {
+            String normalizedAlias = normalize(alias);
             try {
-                SyncPoller<DeletedKey, Void> poller = keyClient.beginDeleteKey(alias);
+                SyncPoller<DeletedKey, Void> poller = keyClient.beginDeleteKey(normalizedAlias);
                 poller.waitForCompletion(Duration.ofSeconds(10));
             }
             catch (ResourceNotFoundException e) {
-                throw new UnknownAliasException(alias);
+                throw new UnknownAliasException(normalizedAlias);
             }
         }
 
         @Override
         public void rotateKek(String alias) {
+            String normalizedAlias = normalize(alias);
             try {
-                keyClient.rotateKey(alias);
+                keyClient.rotateKey(normalizedAlias);
             }
             catch (ResourceNotFoundException e) {
-                throw new UnknownAliasException(alias);
+                throw new UnknownAliasException(normalizedAlias);
             }
+        }
+
+        // the existing tests expect topic names containing _ can be used as KEK
+        private static String normalize(String alias) {
+            return alias.replaceAll("_", "-");
         }
 
         private static HttpClient createHttpClient(String clientAuthority, String containerAuthority) {
