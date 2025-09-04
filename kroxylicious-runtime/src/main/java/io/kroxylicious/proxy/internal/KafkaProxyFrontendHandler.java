@@ -35,6 +35,7 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.util.Attribute;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
@@ -465,10 +466,14 @@ public class KafkaProxyFrontendHandler
         final Channel inboundChannel = clientCtx().channel();
         // Start the upstream connection attempt.
         final Bootstrap bootstrap = configureBootstrap(backendHandler, inboundChannel);
+        Attribute<String> attr = inboundChannel.attr(KafkaProxyInitializer.SESSION_ID_ATTRIBUTE_KEY);
+        String sessionId = attr.get();
 
-        LOGGER.trace("Connecting to outbound {}", remote);
+        LOGGER.trace("{}: Connecting to outbound {}", sessionId, remote);
         ChannelFuture serverTcpConnectFuture = initConnection(remote.host(), remote.port(), bootstrap);
         Channel outboundChannel = serverTcpConnectFuture.channel();
+        outboundChannel.attr(KafkaProxyInitializer.SESSION_ID_ATTRIBUTE_KEY).set(sessionId);
+        LOGGER.debug("{}: bound inbound channel {} to outbound channel {}", sessionId, inboundChannel, outboundChannel);
         ChannelPipeline pipeline = outboundChannel.pipeline();
 
         var correlationManager = new CorrelationManager();
@@ -479,7 +484,7 @@ public class KafkaProxyFrontendHandler
         // reads Kafka requests, as the message flows are reversed. This is also the opposite of the order that Filters are declared in the Kroxylicious configuration
         // file. The Netty Channel pipeline documentation provides an illustration https://netty.io/4.0/api/io/netty/channel/ChannelPipeline.html
         if (logFrames) {
-            pipeline.addFirst("frameLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger", LogLevel.INFO));
+            pipeline.addFirst("frameLogger", new FrameLoggingHandler("io.kroxylicious.proxy.internal.UpstreamFrameLogger-" + sessionId, LogLevel.INFO));
         }
         addFiltersToPipeline(filters, pipeline, inboundChannel);
 
@@ -489,7 +494,7 @@ public class KafkaProxyFrontendHandler
         pipeline.addFirst("responseDecoder", new KafkaResponseDecoder(correlationManager, virtualClusterModel.socketFrameMaxSizeBytes(), decoderListener));
         pipeline.addFirst("requestEncoder", new KafkaRequestEncoder(correlationManager, encoderListener));
         if (logNetwork) {
-            pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger", LogLevel.INFO));
+            pipeline.addFirst("networkLogger", new LoggingHandler("io.kroxylicious.proxy.internal.UpstreamNetworkLogger-" + sessionId, LogLevel.INFO));
         }
         virtualClusterModel.getUpstreamSslContext().ifPresent(sslContext -> {
             final SslHandler handler = sslContext.newHandler(outboundChannel.alloc(), remote.host(), remote.port());
