@@ -9,7 +9,9 @@ package io.kroxylicious.kms.provider.azure;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.function.Predicate;
 import java.util.random.RandomGenerator;
 
 import javax.crypto.SecretKey;
@@ -27,6 +29,7 @@ import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
 import io.kroxylicious.kms.service.UnknownAliasException;
+import io.kroxylicious.kms.service.UnknownKeyException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -78,15 +81,41 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
     @Override
     public CompletionStage<SecretKey> decryptEdek(AzureKeyVaultEdek edek) {
         LOG.debug("Decrypting dek pair for key version {}", edek);
-        return client.getKey(edek.keyName())
-                .thenCompose(r -> {
+        String keyName = edek.keyName();
+        return client.getKey(keyName)
+                .handle((secretKey, throwable) -> {
+                    if (isInstanceOfOrCompletionExceptionWithCauseSatisfying(throwable, UnexpectedHttpStatusCodeException.class, e -> e.getStatusCode() == 404)) {
+                        throw new UnknownKeyException("key " + keyName + " not found");
+                    }
+                    else if (throwable != null) {
+                        throw new KmsException("exception getting key '" + keyName + "'", throwable);
+                    }
+                    else {
+                        return secretKey;
+                    }
+                }).thenCompose(r -> {
                     Optional<SupportedKeyType> keyType = r.supportedKeyType();
                     return keyType.map(
                             supportedKeyType -> unwrap(edek, supportedKeyType)).orElseGet(
                                     () -> CompletableFuture.failedFuture(
                                             new KmsException(
-                                                    "key '" + edek.keyName() + "' we are trying to unwrap has type " + r.key().keyType() + " which is not supported")));
+                                                    "key '" + keyName + "' we are trying to unwrap has type " + r.key().keyType() + " which is not supported")));
                 });
+    }
+
+    static <T extends Throwable> boolean isInstanceOfOrCompletionExceptionWithCauseSatisfying(Throwable t, Class<T> type, Predicate<T> predicate) {
+        if (t == null) {
+            return false;
+        }
+        if (type.isAssignableFrom(t.getClass())) {
+            return predicate.test(type.cast(t));
+        }
+        else if (t instanceof CompletionException && t.getCause() != null && type.isAssignableFrom(t.getCause().getClass())) {
+            return predicate.test(type.cast(t.getCause()));
+        }
+        else {
+            return false;
+        }
     }
 
     private CompletionStage<SecretKey> unwrap(AzureKeyVaultEdek edek, SupportedKeyType supportedKeyType) {
@@ -121,7 +150,7 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
         String normalized = alias.replace('_', '-');
         return client.getKey(normalized).handle((response, throwable) -> {
             if (throwable != null) {
-                if (throwable instanceof UnexpectedHttpStatusCodeException e && e.getStatusCode() == 404) {
+                if (isInstanceOfOrCompletionExceptionWithCauseSatisfying(throwable, UnexpectedHttpStatusCodeException.class, e -> e.getStatusCode() == 404)) {
                     throw new UnknownAliasException(alias);
                 }
                 throw new KmsException("failed to check existence of '" + normalized + "'", throwable);

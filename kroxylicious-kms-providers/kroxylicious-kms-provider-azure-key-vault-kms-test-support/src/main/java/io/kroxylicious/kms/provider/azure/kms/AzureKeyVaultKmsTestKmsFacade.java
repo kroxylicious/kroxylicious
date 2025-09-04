@@ -89,7 +89,7 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
                 exchange.getRequestBody().readAllBytes();
                 exchange.getRequestBody().close();
                 byte[] responseBodyBytes = responseBody.getBytes(StandardCharsets.UTF_8);
-                exchange.sendResponseHeaders(200,  responseBodyBytes.length);
+                exchange.sendResponseHeaders(200, responseBodyBytes.length);
                 exchange.getResponseBody().write(responseBodyBytes);
                 exchange.getResponseBody().close();
             });

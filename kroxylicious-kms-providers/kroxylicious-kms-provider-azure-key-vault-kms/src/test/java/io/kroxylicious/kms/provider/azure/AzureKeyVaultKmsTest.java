@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.random.RandomGenerator;
@@ -37,6 +38,7 @@ import io.kroxylicious.kms.provider.azure.keyvault.SupportedKeyType;
 import io.kroxylicious.kms.service.DekPair;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.UnknownAliasException;
+import io.kroxylicious.kms.service.UnknownKeyException;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -126,6 +128,19 @@ class AzureKeyVaultKmsTest {
         // given
         when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
                 CompletableFuture.failedFuture(new UnexpectedHttpStatusCodeException(404)));
+
+        // when
+        CompletionStage<WrappingKey> stage = azureKeyVaultKms.resolveAlias(KEY_NAME);
+        // then
+        assertThat(stage.toCompletableFuture()).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class)
+                .havingCause().isInstanceOf(UnknownAliasException.class).withMessage(KEY_NAME);
+    }
+
+    @Test
+    void resolveAliasKeyIsNotFoundWithCompletionException() {
+        // given
+        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
+                CompletableFuture.failedFuture(new CompletionException(new UnexpectedHttpStatusCodeException(404))));
 
         // when
         CompletionStage<WrappingKey> stage = azureKeyVaultKms.resolveAlias(KEY_NAME);
@@ -268,6 +283,30 @@ class AzureKeyVaultKmsTest {
     }
 
     @Test
+    void decryptEdekGetKeyNotFound() {
+        // given
+        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
+                CompletableFuture.failedFuture(new UnexpectedHttpStatusCodeException(404)));
+        // when
+        CompletionStage<SecretKey> stage = azureKeyVaultKms.decryptEdek(new AzureKeyVaultEdek(KEY_NAME, KEY_VERSION, WRAPPED_DEK_BYTES));
+        // then
+        assertThat(stage.toCompletableFuture()).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class)
+                .havingCause().isInstanceOf(UnknownKeyException.class).withMessage("key " + KEY_NAME + " not found");
+    }
+
+    @Test
+    void decryptEdekGetKeyNotFoundCompletionException() {
+        // given
+        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
+                CompletableFuture.failedFuture(new CompletionException(new UnexpectedHttpStatusCodeException(404))));
+        // when
+        CompletionStage<SecretKey> stage = azureKeyVaultKms.decryptEdek(new AzureKeyVaultEdek(KEY_NAME, KEY_VERSION, WRAPPED_DEK_BYTES));
+        // then
+        assertThat(stage.toCompletableFuture()).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class)
+                .havingCause().isInstanceOf(UnknownKeyException.class).withMessage("key " + KEY_NAME + " not found");
+    }
+
+    @Test
     void decryptEdekUnwrapFailure() {
         // given
         KmsException failedToGetKey = new KmsException("failed to get key");
@@ -276,7 +315,7 @@ class AzureKeyVaultKmsTest {
         CompletionStage<SecretKey> stage = azureKeyVaultKms.decryptEdek(new AzureKeyVaultEdek(KEY_NAME, KEY_VERSION, WRAPPED_DEK_BYTES));
         // then
         assertThat(stage.toCompletableFuture()).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class)
-                .havingCause().isSameAs(failedToGetKey);
+                .havingCause().isInstanceOf(KmsException.class).withMessage("exception getting key '" + KEY_NAME + "'").havingCause().isSameAs(failedToGetKey);
     }
 
     @CsvSource({ "EC", "EC-HSM", "bizarre-new-keytype-of-the-future" })
