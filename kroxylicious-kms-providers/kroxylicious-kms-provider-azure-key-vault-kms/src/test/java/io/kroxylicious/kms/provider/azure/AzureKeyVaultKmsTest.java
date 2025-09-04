@@ -220,7 +220,7 @@ class AzureKeyVaultKmsTest {
         assertThat(stage.toCompletableFuture()).succeedsWithin(Duration.ZERO).satisfies(keyVersion -> {
             SecretKey dek = keyVersion.dek();
             assertThat(dek.getEncoded()).containsExactly(DEK_BYTES);
-            assertThat(dek.getAlgorithm()).isEqualTo("AES");
+            assertThat(dek.getAlgorithm()).isEqualTo("aes");
             assertThat(dek.getFormat()).isEqualTo("RAW");
             AzureKeyVaultEdek edek = keyVersion.edek();
             assertThat(edek.edek()).containsExactly(WRAPPED_DEK_BYTES);
@@ -260,7 +260,7 @@ class AzureKeyVaultKmsTest {
         // then
         assertThat(stage.toCompletableFuture()).succeedsWithin(Duration.ZERO).satisfies(dek -> {
             assertThat(dek.getEncoded()).containsExactly(DEK_BYTES);
-            assertThat(dek.getAlgorithm()).isEqualTo("AES");
+            assertThat(dek.getAlgorithm()).isEqualTo("aes");
             assertThat(dek.getFormat()).isEqualTo("RAW");
         });
         verify(keyVaultClient).unwrap(eq(wrappingKey), argThat(bytes -> Arrays.equals(WRAPPED_DEK_BYTES, bytes)));

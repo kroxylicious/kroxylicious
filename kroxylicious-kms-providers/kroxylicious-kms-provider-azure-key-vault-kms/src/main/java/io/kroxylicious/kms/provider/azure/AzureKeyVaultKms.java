@@ -15,7 +15,6 @@ import java.util.function.Predicate;
 import java.util.random.RandomGenerator;
 
 import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +24,7 @@ import io.kroxylicious.kms.provider.azure.keyvault.JsonWebKey;
 import io.kroxylicious.kms.provider.azure.keyvault.KeyVaultClient;
 import io.kroxylicious.kms.provider.azure.keyvault.SupportedKeyType;
 import io.kroxylicious.kms.service.DekPair;
+import io.kroxylicious.kms.service.DestroyableRawSecretKey;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
@@ -72,10 +72,10 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
     }
 
     @NonNull
-    private static SecretKeySpec recordEncryptionKey(byte[] bytes) {
+    private static SecretKey recordEncryptionKey(byte[] bytes) {
         // note that this algorithm is nothing to do with the KMS wrapping algorithm, this is required for the SecretKey
         // to be usable by the record encryption algorithms.
-        return new SecretKeySpec(bytes, "AES");
+        return DestroyableRawSecretKey.takeOwnershipOf(bytes, "AES");
     }
 
     @Override
