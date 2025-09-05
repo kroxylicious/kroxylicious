@@ -247,6 +247,38 @@ class AzureKeyVaultKmsTest {
                 .havingCause().isSameAs(clientFailure);
     }
 
+    @Test
+    void generateDekPairUnknownKey() {
+        // given
+        mockRandomGeneratorFillsArrayWith(DEK_BYTES);
+        SupportedKeyType supportedKeyType = SupportedKeyType.AES;
+        WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, supportedKeyType);
+        UnexpectedHttpStatusCodeException clientFailure = new UnexpectedHttpStatusCodeException(404);
+        when(keyVaultClient.wrap(eq(wrappingKey), any())).thenReturn(CompletableFuture.failedFuture(clientFailure));
+        // when
+        CompletionStage<DekPair<AzureKeyVaultEdek>> stage = azureKeyVaultKms.generateDekPair(wrappingKey);
+        // then
+        assertThat(stage.toCompletableFuture()).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class)
+                .havingCause().isInstanceOf(UnknownKeyException.class).withMessage(
+                        "key '" + KEY_NAME + "' version '" + KEY_VERSION + "' not found while attempting to wrap");
+    }
+
+    @Test
+    void generateDekPairUnknownKeyInCompletionException() {
+        // given
+        mockRandomGeneratorFillsArrayWith(DEK_BYTES);
+        SupportedKeyType supportedKeyType = SupportedKeyType.AES;
+        WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, supportedKeyType);
+        UnexpectedHttpStatusCodeException clientFailure = new UnexpectedHttpStatusCodeException(404);
+        when(keyVaultClient.wrap(eq(wrappingKey), any())).thenReturn(CompletableFuture.failedFuture(new CompletionException(clientFailure)));
+        // when
+        CompletionStage<DekPair<AzureKeyVaultEdek>> stage = azureKeyVaultKms.generateDekPair(wrappingKey);
+        // then
+        assertThat(stage.toCompletableFuture()).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class)
+                .havingCause().isInstanceOf(UnknownKeyException.class).withMessage(
+                        "key '" + KEY_NAME + "' version '" + KEY_VERSION + "' not found while attempting to wrap");
+    }
+
     @CsvSource({ "RSA,RSA", "RSA-HSM,RSA", "oct,AES", "oct-HSM,AES" })
     @ParameterizedTest
     void decryptEdekSuccess(String keyType, SupportedKeyType expectedSupportedKeyType) {

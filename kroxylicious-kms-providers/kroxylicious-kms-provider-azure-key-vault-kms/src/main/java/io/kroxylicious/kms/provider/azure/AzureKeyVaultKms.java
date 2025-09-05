@@ -32,6 +32,7 @@ import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.kms.service.UnknownKeyException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
 
@@ -54,6 +55,9 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
         byte[] bytes = generateDek();
         CompletionStage<byte[]> wrap = client.wrap(wrappingKey, bytes);
         return wrap.handle((wrappedBytes, throwable) -> {
+            if (isInstanceOfOrCompletionExceptionWithCauseSatisfying(throwable, UnexpectedHttpStatusCodeException.class, e -> e.getStatusCode() == 404)) {
+                throw new UnknownKeyException("key '" + wrappingKey.keyName() + "' version '" + wrappingKey.keyVersion() + "' not found while attempting to wrap");
+            }
             if (throwable != null) {
                 throw new KmsException("request to wrap DEK with key " + wrappingKey + " failed", throwable);
             }
@@ -103,7 +107,7 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
                 });
     }
 
-    static <T extends Throwable> boolean isInstanceOfOrCompletionExceptionWithCauseSatisfying(Throwable t, Class<T> type, Predicate<T> predicate) {
+    static <T extends Throwable> boolean isInstanceOfOrCompletionExceptionWithCauseSatisfying(@Nullable Throwable t, Class<T> type, Predicate<T> predicate) {
         if (t == null) {
             return false;
         }
