@@ -26,7 +26,7 @@
         <skipDTs>false</skipDTs>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <asciidoctorj.version>3.0.0</asciidoctorj.version>
-        <snakeyaml.version>2.3</snakeyaml.version>
+        <snakeyaml.version>2.5</snakeyaml.version>
     </properties>
 
     <dependencies>
