@@ -51,11 +51,22 @@
         <dependency>
             <groupId>com.github.nagyesta.lowkey-vault</groupId>
             <artifactId>lowkey-vault-testcontainers</artifactId>
-            <version>4.0.0</version>
+            <version>4.0.0</version><exclusions>
+            <exclusion>
+                <groupId>com.azure</groupId>
+                <artifactId>azure-core-http-netty</artifactId>
+            </exclusion>
+        </exclusions>
         </dependency>
         <dependency>
             <groupId>com.azure</groupId>
             <artifactId>azure-security-keyvault-keys</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
+                </exclusion>
+            </exclusions>
             <version>4.10.1</version>
         </dependency>
         <dependency>
@@ -77,6 +88,12 @@
             <groupId>com.github.nagyesta.lowkey-vault</groupId>
             <artifactId>lowkey-vault-client</artifactId>
             <version>4.0.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.azure</groupId>
+                    <artifactId>azure-core-http-netty</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <!-- third party dependencies - test -->
         <dependency>
