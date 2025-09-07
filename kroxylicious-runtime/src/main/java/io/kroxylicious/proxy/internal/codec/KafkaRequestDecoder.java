@@ -28,6 +28,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRequestDecoder.class);
+    private static final int CURRENT_PRODUCE_REQUEST_VERSION = 12;
 
     private final DecodePredicate decodePredicate;
 
@@ -140,6 +141,10 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
     }
 
     static short readAcks(ByteBuf in, int startOfMessage, short apiKey, short apiVersion) {
+        if (apiVersion > CURRENT_PRODUCE_REQUEST_VERSION) {
+            // we must test that we can read acks out of new versions and that all variations of preceding fields are skipped
+            throw new AssertionError("Unsupported Produce version: " + apiVersion);
+        }
         // Annoying case: we need to know whether to expect a response so that we know
         // whether to add to the correlation (so that, in turn, we know how to rewrite the correlation
         // id of the client response).
@@ -153,7 +158,9 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
         incrementReaderIndex(in, 4);
         if (headerVersion >= 1) {
             int clientIdLength = in.readShort();
-            incrementReaderIndex(in, clientIdLength);
+            if (clientIdLength > 0) {
+                incrementReaderIndex(in, clientIdLength);
+            }
         }
         if (headerVersion >= 2) {
             int numTaggedFields = ByteBufAccessorImpl.readUnsignedVarint(in);
@@ -163,18 +170,20 @@ public class KafkaRequestDecoder extends KafkaMessageDecoder {
                 incrementReaderIndex(in, size);
             }
         }
+        if (headerVersion >= 3) {
+            // we must test that the new header version can be skipped, handling any new fields or other modifications
+            throw new AssertionError("Unsupported Produce header version: " + headerVersion);
+        }
 
         final short acks;
         if (apiVersion >= 3) { // Transactional id comes before acks
             int transactionIdLength;
             if (apiVersion < 9) { // Last non-flexible version
-                transactionIdLength = in.readShort();
+                short nullableStringLength = in.readShort();
+                transactionIdLength = nullableStringLength == -1 ? 0 : nullableStringLength;
             }
-            else if (apiVersion <= 12) { // Flexible versions
+            else { // Flexible versions
                 transactionIdLength = ByteBufAccessorImpl.readUnsignedVarint(in);
-            }
-            else {
-                throw new AssertionError("Unsupported Produce apiVersion: " + apiVersion);
             }
             incrementReaderIndex(in, transactionIdLength);
         }
