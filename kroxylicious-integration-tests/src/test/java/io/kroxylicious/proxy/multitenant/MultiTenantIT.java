@@ -44,6 +44,7 @@ import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicCollection.TopicNameCollection;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.GroupIdNotFoundException;
+import org.awaitility.Awaitility;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -332,11 +333,12 @@ class MultiTenantIT extends BaseMultiTenantIT {
                 produceAndAssert(tester, this.clientConfig, TENANT_1_CLUSTER,
                         Stream.of(new ProducerRecord<>(TOPIC_1, MY_KEY, "1")),
                         Optional.of(transactionalId));
-
-                var describeTransactionsResult = admin.describeTransactions(List.of(transactionalId));
-                var transactionMap = describeTransactionsResult.all().get();
-                assertThat(transactionMap).hasEntrySatisfying(transactionalId,
-                        allOf(matches(TransactionDescription::state, TransactionState.COMPLETE_COMMIT)));
+                Awaitility.await().untilAsserted(() -> {
+                    var describeTransactionsResult = admin.describeTransactions(List.of(transactionalId));
+                    var transactionMap = describeTransactionsResult.all().get();
+                    assertThat(transactionMap).hasEntrySatisfying(transactionalId,
+                            allOf(matches(TransactionDescription::state, TransactionState.COMPLETE_COMMIT)));
+                });
             }
         }
     }
