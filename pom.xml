@@ -781,6 +781,7 @@
                     <extensions>true</extensions>
                 </plugin>
             </plugins>
+
         </pluginManagement>
         <plugins>
             <plugin>
@@ -824,6 +825,31 @@
                         <goals>
                             <goal>jar-no-fork</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unpack-message-specs</id>
+                        <phase>none</phase>
+                        <goals>
+                            <goal>unpack</goal>
+                        </goals>
+                        <configuration>
+                            <artifactItems>
+                                <artifactItem>
+                                    <groupId>org.apache.kafka</groupId>
+                                    <artifactId>kafka-clients</artifactId>
+                                    <version>${kafka.version}</version>
+                                    <overWrite>false</overWrite>
+                                    <includes>common/message/*.json</includes>
+                                    <outputDirectory>${project.build.directory}/message-specs</outputDirectory>
+                                </artifactItem>
+                            </artifactItems>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

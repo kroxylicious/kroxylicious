@@ -217,23 +217,7 @@
                     </execution>
                     <execution>
                         <id>unpack-message-specs</id>
-                        <goals>
-                            <goal>unpack</goal>
-                        </goals>
                         <phase>generate-sources</phase>
-                        <configuration>
-                            <artifactItems>
-                                <artifactItem>
-                                    <groupId>org.apache.kafka</groupId>
-                                    <artifactId>kafka-clients</artifactId>
-                                    <version>${kafka.version}</version>
-                                    <type>jar</type>
-                                    <overWrite>false</overWrite>
-                                    <includes>common/message/*.json</includes>
-                                    <outputDirectory>${project.build.directory}/message-specs</outputDirectory>
-                                </artifactItem>
-                            </artifactItems>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>
