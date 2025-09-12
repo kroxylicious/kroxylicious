@@ -28,9 +28,6 @@ import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.flipkart.zjsonpatch.JsonDiff;
 
-import io.kroxylicious.proxy.config.admin.EndpointsConfiguration;
-import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
-import io.kroxylicious.proxy.config.admin.PrometheusMetricsConfig;
 import io.kroxylicious.proxy.config.tls.TlsTestConstants;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.internal.filter.ConstructorInjectionConfig;
@@ -835,66 +832,9 @@ class ConfigParserTest {
     }
 
     @Test
-    void shouldSupportDeprecatedManagementConfiguration() {
-        // When
-        var configurationModel = configParser.parseConfiguration("""
-                adminHttp:
-                   host: 1.1.1.1
-                   port: 1234
-                   endpoints:
-                     prometheus: {}
-                virtualClusters:
-                - name: demo1
-                  targetCluster:
-                    bootstrapServers: magic-kafka.example:1234
-                  gateways:
-                  - name: mygateway
-                    portIdentifiesNode:
-                      bootstrapAddress: "localhost:9082"
-                """);
-
-        // Then
-        assertThat(configurationModel)
-                .extracting(Configuration::management)
-                .satisfies(m -> {
-                    assertThat(m.getEffectivePort()).isEqualTo(1234);
-                    assertThat(m.getEffectiveBindAddress()).isEqualTo("1.1.1.1");
-                    assertThat(m.endpoints())
-                            .extracting(EndpointsConfiguration::maybePrometheus, InstanceOfAssertFactories.optional(PrometheusMetricsConfig.class))
-                            .isPresent();
-                });
-    }
-
-    @Test
-    void shouldSupportDeprecatedManagementConfigurationDefaults() {
-        // When
-        var configurationModel = configParser.parseConfiguration("""
-                adminHttp: {}
-                virtualClusters:
-                - name: demo1
-                  targetCluster:
-                    bootstrapServers: magic-kafka.example:1234
-                  gateways:
-                  - name: mygateway
-                    portIdentifiesNode:
-                      bootstrapAddress: "localhost:9082"
-                """);
-
-        // Then
-        assertThat(configurationModel)
-                .extracting(Configuration::management)
-                .satisfies(m -> {
-                    assertThat(m.getEffectivePort()).isEqualTo(ManagementConfiguration.DEFAULT_MANAGEMENT_PORT);
-                    assertThat(m.getEffectiveBindAddress()).isEqualTo(ManagementConfiguration.DEFAULT_BIND_ADDRESS);
-                    assertThat(m.endpoints()).isNull();
-                });
-    }
-
-    @Test
     void shouldSupportTargetClusterWithDefaultBootstrapServerSelectionStrategy() {
         // When
         var configurationModel = configParser.parseConfiguration("""
-                adminHttp: {}
                 virtualClusters:
                 - name: demo1
                   targetCluster:
@@ -927,7 +867,6 @@ class ConfigParserTest {
     void shouldSupportTargetClusterWithConfiguredBootstrapServerSelectionStrategy(final String strategy, final String expectedClass) {
         // When
         var configurationModel = configParser.parseConfiguration("""
-                adminHttp: {}
                 virtualClusters:
                 - name: demo1
                   targetCluster:

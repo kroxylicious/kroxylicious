@@ -556,7 +556,7 @@ class DefaultKroxyliciousTesterTest {
     }
 
     @Test
-    void shouldFailIfAdminHttpNotConfigured() {
+    void shouldFailIfManagementNotConfigured() {
         try (var tester = buildDefaultTester()) {
             assertThatThrownBy(tester::getManagementClient)
                     .isInstanceOf(IllegalStateException.class)
@@ -578,9 +578,9 @@ class DefaultKroxyliciousTesterTest {
 
         try (var tester = (KroxyliciousTester) testerBuilder
                 .createDefaultKroxyliciousTester()) {
-            var adminHttpClient = tester.getManagementClient();
-            assertThat(adminHttpClient).isNotNull();
-            var metrics = adminHttpClient.scrapeMetrics();
+            var managementClient = tester.getManagementClient();
+            assertThat(managementClient).isNotNull();
+            var metrics = managementClient.scrapeMetrics();
             assertThat(metrics).hasSizeGreaterThan(0);
         }
     }
