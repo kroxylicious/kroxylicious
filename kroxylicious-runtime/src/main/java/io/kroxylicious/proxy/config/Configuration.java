@@ -5,7 +5,6 @@
  */
 package io.kroxylicious.proxy.config;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -18,18 +17,8 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
-import com.fasterxml.jackson.databind.type.TypeFactory;
 
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -39,9 +28,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 /**
  * The root of the proxy configuration.
  * <br>
- * <br>
- * Note that {@code adminHttp} is accepted as an alias for {@code management}.  Use of {@code adminHttp} is deprecated since 0.11.0
- * and will be removed in a future release.
  *
  * @param management management configuration
  * @param filterDefinitions A list of named filter definitions (names must be unique)
@@ -53,15 +39,13 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 @JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development" })
 public record Configuration(
-                            @Nullable @JsonAlias("adminHttp") @JsonDeserialize(using = AdminHttpDeprecationLoggingDeserializer.class) ManagementConfiguration management,
+                            @Nullable ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
                             @Nullable List<String> defaultFilters,
                             @JsonProperty(required = true) List<VirtualCluster> virtualClusters,
                             @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
                             Optional<Map<String, Object>> development) {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(Configuration.class);
 
     /**
      * Creates an instance of configuration.
@@ -206,28 +190,4 @@ public record Configuration(
                 .toList();
     }
 
-    /**
-     * Custom deserializer that reports the use of the deprecated configuration property
-     * names {@code adminHttp} and {@code host}.
-     */
-    static class AdminHttpDeprecationLoggingDeserializer extends StdDeserializer<ManagementConfiguration> {
-        AdminHttpDeprecationLoggingDeserializer() {
-            super(TypeFactory.defaultInstance().constructType(ManagementConfiguration.class));
-        }
-
-        @Override
-        public ManagementConfiguration deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException {
-            JsonNode node = jp.getCodec().readTree(jp);
-            String currentName = jp.currentName();
-            if ("adminHttp".equals(currentName)) {
-                LOGGER.warn("The 'adminHttp' configuration property is deprecated and will be removed in a future release. "
-                        + "Configurations should replace 'adminHttp' with 'management'.");
-            }
-            if (node.has("host")) {
-                LOGGER.warn("The 'host' configuration property within the '{}' object  is deprecated and will be removed in a future release. "
-                        + "Configurations should replace 'host' with 'bindAddress'.", currentName);
-            }
-            return ctxt.readTreeAsValue(node, getValueType(ctxt));
-        }
-    }
 }
