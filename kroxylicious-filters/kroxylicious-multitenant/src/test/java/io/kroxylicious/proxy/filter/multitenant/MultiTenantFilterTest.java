@@ -7,13 +7,17 @@
 package io.kroxylicious.proxy.filter.multitenant;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ApiMessageType;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -25,6 +29,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
@@ -60,6 +65,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.assertArg;
 import static org.mockito.Mock.Strictness.LENIENT;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -257,6 +264,61 @@ class MultiTenantFilterTest {
             multiTenantTransformationFilter.onProduceRequest(
                     ProduceRequestData.HIGHEST_SUPPORTED_VERSION, header, request, filterContext);
         }).isInstanceOf(IllegalStateException.class);
+    }
+
+    @CsvSource({ "13,12", "12,12", "11,11" })
+    @ParameterizedTest
+    void produceRequestVersionCappedTo12(short upstreamVersion, short resultVersion) {
+        // given
+        givenForwardResponseMockedToPassOnResultMessage();
+        ApiVersionsResponseData response = apiVersionsResponseData(ApiKeys.PRODUCE, upstreamVersion);
+        // when
+        CompletionStage<ResponseFilterResult> responseStage = filter.onApiVersionsResponse(ApiKeys.API_VERSIONS.latestVersion(),
+                new ResponseHeaderData(), response,
+                context);
+        // then
+        assertThatApiMessageResponseSatisfies(responseStage, apiVersionsResponseData -> {
+            assertThat(apiVersionsResponseData.apiKeys().find(ApiKeys.PRODUCE.id)).satisfies(apiKey -> {
+                assertThat(apiKey.maxVersion()).isEqualTo(resultVersion);
+            });
+        });
+    }
+
+    @Test
+    void produceRequestVersionHandlesMissingApi() {
+        // given
+        givenForwardResponseMockedToPassOnResultMessage();
+        ApiVersionsResponseData emptyResponse = new ApiVersionsResponseData();
+        // when
+        CompletionStage<ResponseFilterResult> responseStage = filter.onApiVersionsResponse(ApiKeys.API_VERSIONS.latestVersion(),
+                new ResponseHeaderData(), emptyResponse,
+                context);
+        // then
+        assertThatApiMessageResponseSatisfies(responseStage, apiVersionsResponseData -> {
+            assertThat(apiVersionsResponseData.apiKeys()).isEmpty();
+        });
+    }
+
+    private static void assertThatApiMessageResponseSatisfies(CompletionStage<ResponseFilterResult> responseStage,
+                                                              Consumer<ApiVersionsResponseData> apiVersionsResponseDataConsumer) {
+        assertThat(responseStage).succeedsWithin(Duration.ofSeconds(1)).satisfies(responseFilterResult -> {
+            ApiMessage message = responseFilterResult.message();
+            assertThat(message).isInstanceOfSatisfying(ApiVersionsResponseData.class, apiVersionsResponseDataConsumer);
+        });
+    }
+
+    private static ApiVersionsResponseData apiVersionsResponseData(ApiKeys apiKey, short maxVersion) {
+        ApiVersionsResponseData response = new ApiVersionsResponseData();
+        response.apiKeys().add(new ApiVersionsResponseData.ApiVersion().setApiKey(apiKey.id).setMinVersion(apiKey.oldestVersion()).setMaxVersion(maxVersion));
+        return response;
+    }
+
+    private void givenForwardResponseMockedToPassOnResultMessage() {
+        when(context.forwardResponse(any(ResponseHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
+            var filterResult = mock(ResponseFilterResult.class);
+            lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
+            return CompletableFuture.completedFuture(filterResult);
+        });
     }
 
     private ProduceRequestData createProduceRequest(String topic) {
