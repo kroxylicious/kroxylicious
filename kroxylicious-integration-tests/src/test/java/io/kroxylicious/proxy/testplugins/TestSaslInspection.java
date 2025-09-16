@@ -22,8 +22,8 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-@Plugin(configType = SaslInspection.Config.class)
-public class SaslInspection implements FilterFactory<SaslInspection.Config, SaslInspection.Config> {
+@Plugin(configType = TestSaslInspection.Config.class)
+public class TestSaslInspection implements FilterFactory<TestSaslInspection.Config, TestSaslInspection.Config> {
     /**
      * @param announceAuthResults Whether the filter should announce authentications via
      * {@link io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(String, String)}
@@ -44,10 +44,10 @@ public class SaslInspection implements FilterFactory<SaslInspection.Config, Sasl
         public Config(boolean announceAuthResults,
                       @Nullable Set<String> enabledMechanisms) {
             if (enabledMechanisms == null) {
-                enabledMechanisms = SaslInspectionFilter.SUPPORTED_MECHANISMS;
+                enabledMechanisms = TestSaslInspectionFilter.SUPPORTED_MECHANISMS;
             }
             var unsupportedMechanisms = new HashSet<>(enabledMechanisms);
-            unsupportedMechanisms.removeAll(SaslInspectionFilter.SUPPORTED_MECHANISMS);
+            unsupportedMechanisms.removeAll(TestSaslInspectionFilter.SUPPORTED_MECHANISMS);
             if (!unsupportedMechanisms.isEmpty()) {
                 throw new IllegalConfigurationException("Unsupported SASL mechanisms: " + unsupportedMechanisms);
             }
@@ -66,6 +66,6 @@ public class SaslInspection implements FilterFactory<SaslInspection.Config, Sasl
     @Override
     public Filter createFilter(FilterFactoryContext context, Config config) {
         Objects.requireNonNull(config);
-        return new SaslInspectionFilter(config);
+        return new TestSaslInspectionFilter(config);
     }
 }

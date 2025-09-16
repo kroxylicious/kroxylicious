@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.proxy.testplugins;
+package io.kroxylicious.filters.sasl.inspection;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -42,7 +42,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
  * This is only used for integration testing and
  * is <strong>NOT INTENDED FOR USE IN PRODUCTION.</strong>
  */
-public class SaslInspectionFilter
+class SaslInspectionFilter
         implements
         SaslHandshakeRequestFilter,
         SaslHandshakeResponseFilter,
@@ -56,7 +56,7 @@ public class SaslInspectionFilter
             Mech.SCRAM_SHA_256.mechanismName(),
             Mech.SCRAM_SHA_512.mechanismName());
 
-    private final SaslInspection.Config config;
+    private final Config config;
 
     enum State {
         /** A SASL handshake request is required. */
@@ -254,7 +254,8 @@ public class SaslInspectionFilter
     private int numAuthenticateSeen;
     private boolean clientSupportsReauthentication;
 
-    public SaslInspectionFilter(SaslInspection.Config config) {
+    SaslInspectionFilter(Config config) {
+        Objects.requireNonNull(config, "config");
         this.config = config;
         this.clientSupportsReauthentication = false;
         resetState();

@@ -34,7 +34,7 @@ import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
 import io.kroxylicious.proxy.testplugins.ProtocolCounter;
 import io.kroxylicious.proxy.testplugins.ProtocolCounterFilter;
-import io.kroxylicious.proxy.testplugins.SaslInspection;
+import io.kroxylicious.proxy.testplugins.TestSaslInspection;
 import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
@@ -286,8 +286,8 @@ class SaslInspectionIT {
 
     private static ConfigurationBuilder buildProxyConfig(String e1, KafkaCluster cluster) {
         NamedFilterDefinition saslInspection = new NamedFilterDefinitionBuilder(
-                SaslInspection.class.getName(),
-                SaslInspection.class.getName())
+                TestSaslInspection.class.getName(),
+                TestSaslInspection.class.getName())
                 .withConfig("enabledMechanisms", Set.of(e1))
                 .build();
         NamedFilterDefinition counter = new NamedFilterDefinitionBuilder(
