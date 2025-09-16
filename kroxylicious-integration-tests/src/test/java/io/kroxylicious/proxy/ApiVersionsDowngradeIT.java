@@ -11,8 +11,12 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.clients.ApiVersions;
 import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.NetworkClient;
 import org.apache.kafka.clients.NodeApiVersions;
+import org.apache.kafka.clients.admin.Admin;
+import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -21,10 +25,11 @@ import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.protocol.ObjectSerializationCache;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
-import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.platform.commons.function.Try;
+import org.junit.platform.commons.util.ReflectionUtils;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.containers.GenericContainer;
 import org.testcontainers.containers.wait.strategy.LogMessageWaitStrategy;
@@ -41,6 +46,7 @@ import io.kroxylicious.test.codec.ByteBufAccessorImpl;
 import io.kroxylicious.test.codec.OpaqueRequestFrame;
 import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.common.SaslMechanism;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
@@ -137,14 +143,25 @@ public class ApiVersionsDowngradeIT {
             final var result = admin.describeCluster().clusterId();
             assertThat(result).as("Unable to get the clusterId from the Kafka cluster").succeedsWithin(Duration.ofSeconds(10));
             // check that the client is actually using the correct version.
-            assertThat(admin)
-                    .extracting("instance")
-                    .extracting("client")
-                    .extracting("apiVersions")
-                    .extracting("nodeApiVersions", InstanceOfAssertFactories.map(String.class, NodeApiVersions.class))
-                    .hasEntrySatisfying("0", nav -> assertThat(nav.apiVersion(ApiKeys.API_VERSIONS).maxVersion())
-                            .isEqualTo(apiVersion));
+            assertThatNodeIdMaxVersionForKeyIs(admin, "0", ApiKeys.API_VERSIONS, apiVersion);
         }
+    }
+
+    private static void assertThatNodeIdMaxVersionForKeyIs(Admin admin, String nodeId, ApiKeys key, short apiVersion) {
+        assertThat(admin).isInstanceOfSatisfying(CloseableAdmin.class, closeableAdmin -> {
+            assertThat(closeableAdmin.instance()).isInstanceOfSatisfying(KafkaAdminClient.class, kafkaAdminClient -> {
+                Try<Object> client = ReflectionUtils.tryToReadFieldValue(KafkaAdminClient.class, "client", kafkaAdminClient);
+                assertThat(client.getOrThrow(RuntimeException::new)).isInstanceOfSatisfying(NetworkClient.class, nc -> {
+                    Try<Object> maybeApiVersions = ReflectionUtils.tryToReadFieldValue(NetworkClient.class, "apiVersions", nc);
+                    Object apiVersions = maybeApiVersions.getOrThrow(RuntimeException::new);
+                    assertThat(apiVersions).isInstanceOfSatisfying(ApiVersions.class, versions -> {
+                        NodeApiVersions nav = versions.get(nodeId);
+                        assertThat(nav.apiVersion(key).maxVersion())
+                                .isEqualTo(apiVersion);
+                    });
+                });
+            });
+        });
     }
 
     /**
@@ -178,13 +195,7 @@ public class ApiVersionsDowngradeIT {
                 final var result = admin.describeCluster().clusterId();
                 assertThat(result).as("Unable to get the clusterId from the Kafka cluster").succeedsWithin(Duration.ofSeconds(10));
                 // check that the client is actually using the correct version.
-                assertThat(admin)
-                        .extracting("instance")
-                        .extracting("client")
-                        .extracting("apiVersions")
-                        .extracting("nodeApiVersions", InstanceOfAssertFactories.map(String.class, NodeApiVersions.class))
-                        .hasEntrySatisfying("-1", nav -> assertThat(nav.apiVersion(ApiKeys.API_VERSIONS).maxVersion())
-                                .isEqualTo(redpandaApiVersion));
+                assertThatNodeIdMaxVersionForKeyIs(admin, "-1", ApiKeys.API_VERSIONS, redpandaApiVersion);
             }
 
         }
