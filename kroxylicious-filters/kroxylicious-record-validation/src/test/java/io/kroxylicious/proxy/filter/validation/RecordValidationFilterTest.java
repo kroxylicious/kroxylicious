@@ -13,10 +13,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.junit.jupiter.api.BeforeEach;
@@ -30,6 +34,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 import io.kroxylicious.proxy.filter.validation.validators.request.ProduceRequestValidationResult;
 import io.kroxylicious.proxy.filter.validation.validators.request.ProduceRequestValidator;
@@ -67,6 +72,12 @@ class RecordValidationFilterTest {
     void setUp() {
         when(context.forwardRequest(any(RequestHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
             var filterResult = mock(RequestFilterResult.class);
+            lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
+            return CompletableFuture.completedFuture(filterResult);
+        });
+
+        when(context.forwardResponse(any(ResponseHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
+            var filterResult = mock(ResponseFilterResult.class);
             lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
             return CompletableFuture.completedFuture(filterResult);
         });
@@ -245,6 +256,37 @@ class RecordValidationFilterTest {
                                         .matches(pr -> pr.errorCode() == Errors.INVALID_RECORD.code());
                             });
                 });
+    }
+
+    @Test
+    void capsMaxProduceRequestVersionAt12() {
+        var validator = new RecordValidationFilter(produceRequestValidator);
+        ApiVersionsResponseData response = new ApiVersionsResponseData();
+        response.apiKeys().add(new ApiVersionsResponseData.ApiVersion().setApiKey(ApiKeys.PRODUCE.id).setMinVersion(ApiKeys.PRODUCE.id).setMaxVersion((short) 13));
+        CompletionStage<ResponseFilterResult> responseStage = validator.onApiVersionsResponse(ApiKeys.API_VERSIONS.latestVersion(), new ResponseHeaderData(), response,
+                context);
+        assertThat(responseStage).succeedsWithin(Duration.ofSeconds(1)).satisfies(responseFilterResult -> {
+            ApiMessage message = responseFilterResult.message();
+            assertThat(message).isInstanceOfSatisfying(ApiVersionsResponseData.class, apiVersionsResponseData -> {
+                assertThat(apiVersionsResponseData.apiKeys().find(ApiKeys.PRODUCE.id)).satisfies(apiKey -> {
+                    assertThat(apiKey.maxVersion()).isEqualTo((short) 12);
+                });
+            });
+        });
+    }
+
+    @Test
+    void handlesProduceVersionMissingInRespones() {
+        var validator = new RecordValidationFilter(produceRequestValidator);
+        ApiVersionsResponseData response = new ApiVersionsResponseData();
+        CompletionStage<ResponseFilterResult> responseStage = validator.onApiVersionsResponse(ApiKeys.API_VERSIONS.latestVersion(), new ResponseHeaderData(), response,
+                context);
+        assertThat(responseStage).succeedsWithin(Duration.ofSeconds(1)).satisfies(responseFilterResult -> {
+            ApiMessage message = responseFilterResult.message();
+            assertThat(message).isInstanceOfSatisfying(ApiVersionsResponseData.class, apiVersionsResponseData -> {
+                assertThat(apiVersionsResponseData.apiKeys()).isEmpty();
+            });
+        });
     }
 
     @Test
