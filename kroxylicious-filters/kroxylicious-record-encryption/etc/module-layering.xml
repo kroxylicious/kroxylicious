@@ -18,6 +18,7 @@
     <allow pkg="io.micrometer.core.instrument"/>
     <allow pkg="io.kroxylicious.proxy.tag"/>
     <allow pkg="io.kroxylicious.filter.encryption.common"/>
+    <allow pkg="io.kroxylicious.kafka.transform"/>
 
     <!-- top level package (these are all local-only=true)  -->
     <allow pkg="org.apache.kafka.common.message" local-only="true"/>

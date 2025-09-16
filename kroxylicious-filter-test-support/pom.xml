@@ -90,15 +90,7 @@
                 <executions>
                     <execution>
                         <id>unpack-message-specs</id>
-                        <goals>
-                            <goal>unpack</goal>
-                        </goals>
                         <phase>generate-sources</phase>
-                        <configuration>
-                            <artifact>org.apache.kafka:kafka-clients:${kafka.version}</artifact>
-                            <includes>common/message/*.json</includes>
-                            <outputDirectory>${project.build.directory}/message-specs</outputDirectory>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>

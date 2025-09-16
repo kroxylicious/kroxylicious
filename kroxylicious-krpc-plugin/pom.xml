@@ -105,22 +105,13 @@
                     <excludePackageNames>io.kroxylicious.krpccodegen.schema</excludePackageNames>
                 </configuration>
             </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
                     <execution>
                         <id>unpack-message-specs</id>
-                        <goals>
-                            <goal>unpack</goal>
-                        </goals>
                         <phase>generate-sources</phase>
-                        <configuration>
-                            <artifact>org.apache.kafka:kafka-clients:${kafka.version}</artifact>
-                            <includes>common/message/*.json</includes>
-                            <outputDirectory>${project.build.directory}/message-specs</outputDirectory>
-                        </configuration>
                     </execution>
                 </executions>
             </plugin>

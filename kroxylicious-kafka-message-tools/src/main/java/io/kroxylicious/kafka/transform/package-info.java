@@ -5,8 +5,7 @@
  */
 
 /**
- * <p>Utilities for dealing with {@link org.apache.kafka.common.record.Record}s, {@link org.apache.kafka.common.record.RecordBatch}es
- * and {@link org.apache.kafka.common.record.MemoryRecords}.</p>
+ * <p>Utilities for transforming components of Kafka RPCs</p>
  */
 @ReturnValuesAreNonnullByDefault
 @DefaultAnnotationForParameters(NonNull.class)

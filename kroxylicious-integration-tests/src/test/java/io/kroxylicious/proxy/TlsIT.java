@@ -21,8 +21,10 @@ import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLSession;
 
 import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.NetworkClient;
 import org.apache.kafka.clients.admin.CreateTopicsResult;
 import org.apache.kafka.clients.admin.DescribeClusterOptions;
+import org.apache.kafka.clients.admin.KafkaAdminClient;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.errors.SslAuthenticationException;
 import org.apache.kafka.common.errors.TimeoutException;
@@ -34,6 +36,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.platform.commons.function.Try;
+import org.junit.platform.commons.util.ReflectionUtils;
 
 import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
@@ -45,6 +49,7 @@ import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+import io.kroxylicious.testing.kafka.clients.CloseableAdmin;
 import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 import io.kroxylicious.testing.kafka.common.Tls;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
@@ -324,20 +329,23 @@ class TlsIT extends AbstractTlsIT {
             assertThat(createTopicsResult.all()).isDone();
 
             // verify that the admin is actually using the intended protocol
-            assertThat(admin)
-                    .extracting("instance")
-                    .extracting("client")
-                    .extracting("selector")
-                    .extracting("channels", InstanceOfAssertFactories.map(String.class, Object.class))
-                    .anySatisfy((id, channel) -> {
-                        assertThat(channel)
-                                .extracting("transportLayer")
-                                .extracting("sslEngine", InstanceOfAssertFactories.type(SSLEngine.class))
-                                .extracting(SSLEngine::getSession)
-                                .extracting(SSLSession::getProtocol)
-                                .isEqualTo("TLSv1.2");
+            assertThat(admin).isInstanceOfSatisfying(CloseableAdmin.class, closeableAdmin -> {
+                assertThat(closeableAdmin.instance()).isInstanceOfSatisfying(KafkaAdminClient.class, kafkaAdminClient -> {
+                    Try<Object> client = ReflectionUtils.tryToReadFieldValue(KafkaAdminClient.class, "client", kafkaAdminClient);
+                    assertThat(client.getOrThrow(RuntimeException::new)).isInstanceOfSatisfying(NetworkClient.class, nc -> {
+                        assertThat(nc).extracting("selector")
+                                .extracting("channels", InstanceOfAssertFactories.map(String.class, Object.class))
+                                .anySatisfy((id, channel) -> {
+                                    assertThat(channel)
+                                            .extracting("transportLayer")
+                                            .extracting("sslEngine", InstanceOfAssertFactories.type(SSLEngine.class))
+                                            .extracting(SSLEngine::getSession)
+                                            .extracting(SSLSession::getProtocol)
+                                            .isEqualTo("TLSv1.2");
+                                });
                     });
-
+                });
+            });
         }
     }
 
@@ -584,19 +592,24 @@ class TlsIT extends AbstractTlsIT {
             assertThat(createTopicsResult.all()).isDone();
 
             // verify that the admin is actually using the intended cipher
-            assertThat(admin)
-                    .extracting("instance")
-                    .extracting("client")
-                    .extracting("selector")
-                    .extracting("channels", InstanceOfAssertFactories.map(String.class, Object.class))
-                    .anySatisfy((id, channel) -> {
-                        assertThat(channel)
-                                .extracting("transportLayer")
-                                .extracting("sslEngine", InstanceOfAssertFactories.type(SSLEngine.class))
-                                .extracting(SSLEngine::getSession)
-                                .extracting(SSLSession::getCipherSuite)
-                                .isEqualTo("TLS_CHACHA20_POLY1305_SHA256");
+
+            assertThat(admin).isInstanceOfSatisfying(CloseableAdmin.class, closeableAdmin -> {
+                assertThat(closeableAdmin.instance()).isInstanceOfSatisfying(KafkaAdminClient.class, kafkaAdminClient -> {
+                    Try<Object> client = ReflectionUtils.tryToReadFieldValue(KafkaAdminClient.class, "client", kafkaAdminClient);
+                    assertThat(client.getOrThrow(RuntimeException::new)).isInstanceOfSatisfying(NetworkClient.class, nc -> {
+                        assertThat(nc).extracting("selector")
+                                .extracting("channels", InstanceOfAssertFactories.map(String.class, Object.class))
+                                .anySatisfy((id, channel) -> {
+                                    assertThat(channel)
+                                            .extracting("transportLayer")
+                                            .extracting("sslEngine", InstanceOfAssertFactories.type(SSLEngine.class))
+                                            .extracting(SSLEngine::getSession)
+                                            .extracting(SSLSession::getCipherSuite)
+                                            .isEqualTo("TLS_CHACHA20_POLY1305_SHA256");
+                                });
                     });
+                });
+            });
 
         }
     }
