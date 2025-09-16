@@ -13,11 +13,13 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.DescribeClusterOptions;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
+import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.UnsupportedSaslMechanismException;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.serialization.Serdes;
@@ -27,6 +29,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.filters.sasl.inspection.SaslInspection;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
@@ -34,7 +37,6 @@ import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
 import io.kroxylicious.proxy.testplugins.ProtocolCounter;
 import io.kroxylicious.proxy.testplugins.ProtocolCounterFilter;
-import io.kroxylicious.proxy.testplugins.SaslInspection;
 import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
@@ -46,43 +48,22 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Integration test for the SASL Inspection Filter.
+ */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
+@SuppressWarnings("java:S5976") // Ignoring 'replace these n tests with a single parameterized one' - we are using the annotated parameters that a parameterized test wouldn't handle nicely.
 class SaslInspectionIT {
-    // client handshakes with PLAIN
-    // proxy and broker have PLAIN enabled
-    // client authenticated with the correct password
-    // => client should be able to produce and consume
+    /**
+     * client handshakes with PLAIN
+     * proxy and broker have PLAIN enabled
+     * client authenticated with the correct password
+     * => client should be able to produce and consume
+     */
     @Test
-    // @formatter:off
-    void shouldAuthenticateWhenSameMechanism_PLAIN_withReauth(
-                                                              @SaslMechanism(value = "PLAIN", principals = {
-                                                                      @SaslMechanism.Principal(user = "alice", password = "alice-secret")
-                                                              })
-                                                              @BrokerConfig(name = "connections.max.reauth.ms", value = "5000")
-                                                              KafkaCluster cluster,
-                                                              Topic topic)
-            throws Exception {
-        // @formatter:on
-
-        String mechanism = "PLAIN";
-        String clientLoginModule = "org.apache.kafka.common.security.plain.PlainLoginModule";
-        String username = "alice";
-        String password = "alice-secret";
-
-        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password,
-                2, 1,
-                10_000);
-    }
-
-    // client handshakes with PLAIN
-    // proxy and broker have PLAIN enabled
-    // client authenticated with the correct password
-    // => client should be able to produce and consume
-    @Test
-    void shouldAuthenticateWhenSameMechanism_PLAIN(
-                                                   @SaslMechanism(value = "PLAIN", principals = {
-                                                           @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+    void shouldAuthenticateWhenSameMechanism_PLAIN(@SaslMechanism(value = "PLAIN", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
                                                    Topic topic)
             throws Exception {
 
@@ -94,14 +75,15 @@ class SaslInspectionIT {
         assertClientsCanAccessCluster(cluster, topic, mechanism, 1, clientLoginModule, username, password);
     }
 
-    // client handshakes with SCRAM-SHA-256
-    // proxy and broker have SCRAM-SHA-256 enabled
-    // client authenticated with the correct password
-    // => client should be able to produce and consume
+    /**
+     * client handshakes with SCRAM-SHA-256
+     * proxy and broker have SCRAM-SHA-256 enabled
+     * client authenticated with the correct password
+     * => client should be able to produce and consume
+     */
     @Test
-    void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_256(
-                                                           @SaslMechanism(value = "SCRAM-SHA-256", principals = {
-                                                                   @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+    void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_256(@SaslMechanism(value = "SCRAM-SHA-256", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
                                                            Topic topic)
             throws Exception {
 
@@ -113,14 +95,15 @@ class SaslInspectionIT {
         assertClientsCanAccessCluster(cluster, topic, mechanism, 2, clientLoginModule, username, password);
     }
 
-    // client handshakes with SCRAM-SHA-256
-    // proxy and broker have SCRAM-SHA-256 enabled
-    // client authenticated with the correct password
-    // => client should be able to produce and consume
+    /**
+     * client handshakes with SCRAM-SHA-256
+     * proxy and broker have SCRAM-SHA-256 enabled
+     * client authenticated with the correct password
+     * => client should be able to produce and consume
+     */
     @Test
-    void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_512(
-                                                           @SaslMechanism(value = "SCRAM-SHA-512", principals = {
-                                                                   @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+    void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_512(@SaslMechanism(value = "SCRAM-SHA-512", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
                                                            Topic topic)
             throws Exception {
 
@@ -132,14 +115,15 @@ class SaslInspectionIT {
         assertClientsCanAccessCluster(cluster, topic, mechanism, 2, clientLoginModule, username, password);
     }
 
-    // client handshakes with PLAIN
-    // proxy and broker have PLAIN enabled
-    // client authenticated with the correct password
-    // => client should be able to produce and consume
+    /**
+     * client handshakes with PLAIN
+     * proxy and broker have PLAIN enabled
+     * client authenticated with the correct password
+     * => client should be able to produce and consume
+     */
     @Test
-    void shouldNotAuthenticateWhenSameMechanismButWrongPassword_PLAIN(
-                                                                      @SaslMechanism(value = "PLAIN", principals = {
-                                                                              @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+    void shouldNotAuthenticateWhenSameMechanismButWrongPassword_PLAIN(@SaslMechanism(value = "PLAIN", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
                                                                       Topic topic) {
 
         String mechanism = "PLAIN";
@@ -150,18 +134,103 @@ class SaslInspectionIT {
         assertClientsGetSaslAuthenticationException(cluster, topic, mechanism, clientLoginModule, username, password);
     }
 
-    // TODO assert fails if no handshake done at all
-    // TODO assert fails if client not configured for SASL
-    // TODO assert that filters don't get invoked even if a client sends a metadata after getting an error after authenticate
+    /**
+     * client handshakes with PLAIN
+     * proxy and broker have PLAIN enabled
+     * client authenticated with the correct password
+     * => client should be able to produce and consume
+     */
+    @Test
+    void shouldAuthenticateWhenSameMechanism_PLAIN_withReauth(@SaslMechanism(value = "PLAIN", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret")
+    }) @BrokerConfig(name = "connections.max.reauth.ms", value = "5000") KafkaCluster cluster,
+                                                              Topic topic)
+            throws Exception {
 
-    // TODO client tries one mech (not supported by proxy), then reattempts with the commonly supported mech
-    // TODO client tries one mech (supported by proxy, but not by broker), then reattempts with the commonly supported mech
-    // TODO all these things with older api versions
+        String mechanism = "PLAIN";
+        String clientLoginModule = "org.apache.kafka.common.security.plain.PlainLoginModule";
+        String username = "alice";
+        String password = "alice-secret";
 
-    // TODO reauth:
-    // reauth for scram mechs
-    // reauth without account => that plugins get an empty principal
-    // reauth attempt by client which didn't use >= v1 Autn req
+        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password,
+                2, 1,
+                10_000);
+    }
+
+    /**
+     * client handshakes with SCRAM-SHA-256
+     * proxy and broker have SCRAM-SHA-256 enabled
+     * client authenticated with the correct password
+     * => client should be able to produce and consume
+     */
+    @Test
+    void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_512_withReauth(@SaslMechanism(value = "SCRAM-SHA-256", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret")
+    }) @BrokerConfig(name = "connections.max.reauth.ms", value = "5000") KafkaCluster cluster,
+                                                                      Topic topic)
+            throws Exception {
+
+        String mechanism = "SCRAM-SHA-256";
+        String clientLoginModule = "org.apache.kafka.common.security.scram.ScramLoginModule";
+        String username = "alice";
+        String password = "alice-secret";
+
+        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password,
+                2, 2,
+                10_000);
+    }
+
+    /**
+     * broker has PLAIN enabled
+     * proxy has SCRAM enabled
+     * client handshakes with PLAIN
+     * => client should not complete authentication
+     */
+    @Test
+    void shouldNotAuthenticateWhenNoCommonMechanism(@SaslMechanism(value = "PLAIN", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+                                                    Topic topic) {
+        var config = buildProxyConfig("SCRAM-SHA-256", cluster);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(Map.of(
+                        CommonClientConfigs.CLIENT_ID_CONFIG, "PLAIN-producer",
+                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
+                        SaslConfigs.SASL_MECHANISM, "PLAIN",
+                        SaslConfigs.SASL_JAAS_CONFIG, """
+                                        org.apache.kafka.common.security.plain.PlainLoginModule required
+                                            username="alice"
+                                            password="alice-secret";
+                                """))) {
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
+                    .failsWithin(5, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseExactlyInstanceOf(UnsupportedSaslMechanismException.class);
+        }
+    }
+
+    /**
+     * broker has PLAIN enabled
+     * proxy has PLAIN enabled
+     * client not configured for SASL
+     * => client should not complete authentication
+     */
+    @Test
+    void shouldNotConnectClientNotConfiguredForSasl(@SaslMechanism(value = "PLAIN", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster) {
+        var config = buildProxyConfig("PLAIN", cluster);
+
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin(Map.of(
+                        CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, cluster.getBootstrapServers(),
+                        CommonClientConfigs.CLIENT_ID_CONFIG, "PLAIN-producer",
+                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "PLAINTEXT"))) {
+            assertThat(admin.describeCluster(new DescribeClusterOptions().timeoutMs(1000)).clusterId())
+                    .failsWithin(5, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseExactlyInstanceOf(TimeoutException.class);
+        }
+    }
 
     private static void assertClientsGetSaslAuthenticationException(KafkaCluster cluster, Topic topic, String mechanism, String clientLoginModule, String username,
                                                                     String password) {
@@ -257,38 +326,11 @@ class SaslInspectionIT {
         }
     }
 
-    // broker has PLAIN enabled
-    // proxy has SCRAM enabled
-    // client handshakes with PLAIN
-    // => client should not complete authentication
-    @Test
-    void shouldNotAuthenticateWhenNoCommonMechanism(@SaslMechanism(value = "PLAIN", principals = {
-            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
-                                                    Topic topic) {
-        var config = buildProxyConfig("SCRAM-SHA-256", cluster);
-
-        try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(Map.of(
-                        CommonClientConfigs.CLIENT_ID_CONFIG, "PLAIN-producer",
-                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
-                        SaslConfigs.SASL_MECHANISM, "PLAIN",
-                        SaslConfigs.SASL_JAAS_CONFIG, """
-                                        org.apache.kafka.common.security.plain.PlainLoginModule required
-                                            username="alice"
-                                            password="alice-secret";
-                                """))) {
-            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
-                    .failsWithin(5, TimeUnit.SECONDS)
-                    .withThrowableOfType(ExecutionException.class)
-                    .withCauseExactlyInstanceOf(UnsupportedSaslMechanismException.class);
-        }
-    }
-
-    private static ConfigurationBuilder buildProxyConfig(String e1, KafkaCluster cluster) {
+    private static ConfigurationBuilder buildProxyConfig(String enabledSaslMech, KafkaCluster cluster) {
         NamedFilterDefinition saslInspection = new NamedFilterDefinitionBuilder(
                 SaslInspection.class.getName(),
                 SaslInspection.class.getName())
-                .withConfig("enabledMechanisms", Set.of(e1))
+                .withConfig("enableInsecureMechanisms", "PLAIN".equals(enabledSaslMech))
                 .build();
         NamedFilterDefinition counter = new NamedFilterDefinitionBuilder(
                 ProtocolCounter.class.getName(),

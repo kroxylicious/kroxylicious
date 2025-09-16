@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
@@ -102,6 +103,11 @@ public class FilterChainFactory implements AutoCloseable {
                 @Override
                 public <P> P pluginInstance(Class<P> pluginClass, String instanceName) {
                     return pfr.pluginFactory(pluginClass).pluginInstance(instanceName);
+                }
+
+                @Override
+                public <P> Set<String> pluginInstanceNames(Class<P> pluginClass) {
+                    return pfr.pluginFactory(pluginClass).registeredInstanceNames();
                 }
             };
             this.initialized = new LinkedHashMap<>(filterDefinitions.size());

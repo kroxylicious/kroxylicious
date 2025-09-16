@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.filter;
 
+import java.util.Set;
+
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
 /**
@@ -29,7 +31,16 @@ public interface FilterFactoryContext {
      * @param instanceName The plugin instance name
      * @return The plugin instance
      * @param <P> The plugin manager type
-     * @throws UnknownPluginInstanceException
+     * @throws UnknownPluginInstanceException the plugin with given instance name is unknown
      */
     <P> P pluginInstance(Class<P> pluginClass, String instanceName);
+
+    /**
+     * Returns the names of the registered instances of this plugin.
+     *
+     * @param pluginClass The plugin type
+     * @return set of known instances names registered for the given plugin class.
+     * @param <P> The plugin manager type
+     */
+    <P> Set<String> pluginInstanceNames(Class<P> pluginClass);
 }
