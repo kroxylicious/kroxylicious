@@ -29,6 +29,11 @@
             <artifactId>kroxylicious-api</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kafka-message-tools</artifactId>
+        </dependency>
+
         <!-- third party dependencies - runtime and compile  -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
