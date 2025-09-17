@@ -40,6 +40,7 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 import io.skodjob.testframe.enums.InstallType;
 import io.skodjob.testframe.installation.InstallationMethod;
 import io.skodjob.testframe.resources.KubeResourceManager;
+import io.skodjob.testframe.utils.ImageUtils;
 import io.skodjob.testframe.utils.PodUtils;
 import io.skodjob.testframe.utils.TestFrameUtils;
 
@@ -146,37 +147,53 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
         Deployment operatorDeployment = TestFrameUtils.configFromYaml(installDeploymentFile(),
                 Deployment.class);
 
+        String deploymentImage = operatorDeployment
+                .getSpec()
+                .getTemplate()
+                .getSpec()
+                .getContainers()
+                .get(0)
+                .getImage();
+
+        if (Environment.KROXYLICIOUS_OPERATOR_REGISTRY.equals(Environment.KROXYLICIOUS_OPERATOR_REGISTRY_DEFAULT)) {
+            deploymentImage = ImageUtils.changeRegistryOrgImageAndTag(deploymentImage, Environment.KROXYLICIOUS_OPERATOR_REGISTRY,
+                    Environment.KROXYLICIOUS_OPERATOR_ORG, Environment.KROXYLICIOUS_OPERATOR_IMAGE, Environment.KROXYLICIOUS_OPERATOR_VERSION);
+        }
+
         String debugPortName = "remote-debug";
         //@formatter:off
         operatorDeployment = new DeploymentBuilder(operatorDeployment)
                 .editOrNewMetadata()
-                .withName(kroxyliciousOperatorName)
-                .withNamespace(namespaceInstallTo)
-                .addToLabels(Constants.DEPLOYMENT_TYPE, InstallType.Yaml.name())
+                    .withName(kroxyliciousOperatorName)
+                    .withNamespace(namespaceInstallTo)
+                    .addToLabels(Constants.DEPLOYMENT_TYPE, InstallType.Yaml.name())
                 .endMetadata()
                 .editSpec()
-                .withReplicas(this.replicas)
-                .editOrNewSelector()
-                .addToMatchLabels(this.extraLabels)
-                .endSelector()
-                .editTemplate()
-                .editMetadata()
-                .addToLabels(this.extraLabels)
-                .endMetadata()
-                .editSpec()
-                .editFirstContainer()
-                .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
-                .addToEnv(new EnvVarBuilder().withName("JAVA_OPTIONS").withValue("-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:" + DEBUG_PORT_NUMBER)
-                        .build())
-                .addToPorts(new ContainerPortBuilder().withName(debugPortName).withContainerPort(DEBUG_PORT_NUMBER).build())
-                .endContainer()
-                .withImagePullSecrets(new LocalObjectReferenceBuilder()
-                        .withName("regcred")
-                        .build())
-                .endSpec()
-                .endTemplate()
+                    .withReplicas(this.replicas)
+                    .editOrNewSelector()
+                        .addToMatchLabels(this.extraLabels)
+                    .endSelector()
+                    .editTemplate()
+                        .editMetadata()
+                            .addToLabels(this.extraLabels)
+                        .endMetadata()
+                        .editSpec()
+                            .editFirstContainer()
+                                .withImage(deploymentImage)
+                                .withImagePullPolicy(Constants.PULL_IMAGE_IF_NOT_PRESENT)
+                                .addToEnv(new EnvVarBuilder().withName("JAVA_OPTIONS")
+                                        .withValue("-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:" + DEBUG_PORT_NUMBER)
+                                        .build())
+                                .addToPorts(new ContainerPortBuilder().withName(debugPortName).withContainerPort(DEBUG_PORT_NUMBER).build())
+                            .endContainer()
+                            .withImagePullSecrets(new LocalObjectReferenceBuilder()
+                                    .withName("regcred")
+                                    .build())
+                        .endSpec()
+                    .endTemplate()
                 .endSpec()
                 .build();
+
         Service debugService = new ServiceBuilder()
                 .editOrNewMetadata()
                     .withName("debug-" + kroxyliciousOperatorName)
