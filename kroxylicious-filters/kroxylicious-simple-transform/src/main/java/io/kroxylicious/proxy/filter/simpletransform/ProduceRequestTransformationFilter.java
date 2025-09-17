@@ -6,11 +6,14 @@
 
 package io.kroxylicious.proxy.filter.simpletransform;
 
+import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.compress.Compression;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.record.MemoryRecords;
 import org.apache.kafka.common.record.MemoryRecordsBuilder;
@@ -19,9 +22,13 @@ import org.apache.kafka.common.record.Record;
 import org.apache.kafka.common.record.RecordBatch;
 import org.apache.kafka.common.record.TimestampType;
 
+import io.kroxylicious.kafka.transform.ApiVersionsResponseTransformer;
+import io.kroxylicious.kafka.transform.ApiVersionsResponseTransformers;
+import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ProduceRequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
 
 /**
  * A filter for modifying the key/value/header/topic of {@link ApiKeys#PRODUCE} requests.
@@ -29,8 +36,11 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
  * <strong>Not intended to production use.</strong>
  * </p>
  */
-class ProduceRequestTransformationFilter implements ProduceRequestFilter {
+class ProduceRequestTransformationFilter implements ProduceRequestFilter, ApiVersionsResponseFilter {
 
+    // downgrade to prevent produce requests with topic ids
+    public static final ApiVersionsResponseTransformer DOWNGRADE_PRODUCE_API = ApiVersionsResponseTransformers.limitMaxVersionForApiKeys(
+            Map.of(ApiKeys.PRODUCE, (short) 12));
     /**
      * Transformation to be applied to record value.
      */
@@ -71,4 +81,9 @@ class ProduceRequestTransformationFilter implements ProduceRequestFilter {
         });
     }
 
+    @Override
+    public CompletionStage<ResponseFilterResult> onApiVersionsResponse(short apiVersion, ResponseHeaderData header, ApiVersionsResponseData response,
+                                                                       FilterContext context) {
+        return context.forwardResponse(header, DOWNGRADE_PRODUCE_API.transform(response));
+    }
 }
