@@ -6,8 +6,6 @@
 
 package io.kroxylicious.proxy.internal;
 
-import java.util.stream.Collectors;
-
 import org.apache.kafka.common.ElectionType;
 import org.apache.kafka.common.IsolationLevel;
 import org.apache.kafka.common.TopicPartition;
@@ -25,6 +23,7 @@ import org.apache.kafka.common.message.AlterConfigsRequestData;
 import org.apache.kafka.common.message.AlterPartitionReassignmentsRequestData;
 import org.apache.kafka.common.message.AlterPartitionRequestData;
 import org.apache.kafka.common.message.AlterReplicaLogDirsRequestData;
+import org.apache.kafka.common.message.AlterShareGroupOffsetsRequestData;
 import org.apache.kafka.common.message.AlterUserScramCredentialsRequestData;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.AssignReplicasToDirsRequestData;
@@ -41,6 +40,7 @@ import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.DeleteAclsRequestData;
 import org.apache.kafka.common.message.DeleteGroupsRequestData;
 import org.apache.kafka.common.message.DeleteRecordsRequestData;
+import org.apache.kafka.common.message.DeleteShareGroupOffsetsRequestData;
 import org.apache.kafka.common.message.DeleteShareGroupStateRequestData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DescribeAclsRequestData;
@@ -52,6 +52,7 @@ import org.apache.kafka.common.message.DescribeGroupsRequestData;
 import org.apache.kafka.common.message.DescribeLogDirsRequestData;
 import org.apache.kafka.common.message.DescribeProducersRequestData;
 import org.apache.kafka.common.message.DescribeQuorumRequestData;
+import org.apache.kafka.common.message.DescribeShareGroupOffsetsRequestData;
 import org.apache.kafka.common.message.DescribeTopicPartitionsRequestData;
 import org.apache.kafka.common.message.DescribeTransactionsRequestData;
 import org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData;
@@ -70,7 +71,7 @@ import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitializeShareGroupStateRequestData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
-import org.apache.kafka.common.message.ListClientMetricsResourcesRequestData;
+import org.apache.kafka.common.message.ListConfigResourcesRequestData;
 import org.apache.kafka.common.message.ListGroupsRequestData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.ListPartitionReassignmentsRequestData;
@@ -93,6 +94,8 @@ import org.apache.kafka.common.message.ShareAcknowledgeRequestData;
 import org.apache.kafka.common.message.ShareFetchRequestData;
 import org.apache.kafka.common.message.ShareGroupDescribeRequestData;
 import org.apache.kafka.common.message.ShareGroupHeartbeatRequestData;
+import org.apache.kafka.common.message.StreamsGroupDescribeRequestData;
+import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
 import org.apache.kafka.common.message.UnregisterBrokerRequestData;
@@ -114,6 +117,7 @@ import org.apache.kafka.common.requests.AlterConfigsRequest;
 import org.apache.kafka.common.requests.AlterPartitionReassignmentsRequest;
 import org.apache.kafka.common.requests.AlterPartitionRequest;
 import org.apache.kafka.common.requests.AlterReplicaLogDirsRequest;
+import org.apache.kafka.common.requests.AlterShareGroupOffsetsRequest;
 import org.apache.kafka.common.requests.AlterUserScramCredentialsRequest;
 import org.apache.kafka.common.requests.ApiVersionsRequest;
 import org.apache.kafka.common.requests.AssignReplicasToDirsRequest;
@@ -130,6 +134,7 @@ import org.apache.kafka.common.requests.CreateTopicsRequest;
 import org.apache.kafka.common.requests.DeleteAclsRequest;
 import org.apache.kafka.common.requests.DeleteGroupsRequest;
 import org.apache.kafka.common.requests.DeleteRecordsRequest;
+import org.apache.kafka.common.requests.DeleteShareGroupOffsetsRequest;
 import org.apache.kafka.common.requests.DeleteShareGroupStateRequest;
 import org.apache.kafka.common.requests.DeleteTopicsRequest;
 import org.apache.kafka.common.requests.DescribeAclsRequest;
@@ -141,6 +146,7 @@ import org.apache.kafka.common.requests.DescribeGroupsRequest;
 import org.apache.kafka.common.requests.DescribeLogDirsRequest;
 import org.apache.kafka.common.requests.DescribeProducersRequest;
 import org.apache.kafka.common.requests.DescribeQuorumRequest;
+import org.apache.kafka.common.requests.DescribeShareGroupOffsetsRequest;
 import org.apache.kafka.common.requests.DescribeTopicPartitionsRequest;
 import org.apache.kafka.common.requests.DescribeTransactionsRequest;
 import org.apache.kafka.common.requests.DescribeUserScramCredentialsRequest;
@@ -159,7 +165,7 @@ import org.apache.kafka.common.requests.InitProducerIdRequest;
 import org.apache.kafka.common.requests.InitializeShareGroupStateRequest;
 import org.apache.kafka.common.requests.JoinGroupRequest;
 import org.apache.kafka.common.requests.LeaveGroupRequest;
-import org.apache.kafka.common.requests.ListClientMetricsResourcesRequest;
+import org.apache.kafka.common.requests.ListConfigResourcesRequest;
 import org.apache.kafka.common.requests.ListGroupsRequest;
 import org.apache.kafka.common.requests.ListOffsetsRequest;
 import org.apache.kafka.common.requests.ListPartitionReassignmentsRequest;
@@ -181,6 +187,8 @@ import org.apache.kafka.common.requests.ShareAcknowledgeRequest;
 import org.apache.kafka.common.requests.ShareFetchRequest;
 import org.apache.kafka.common.requests.ShareGroupDescribeRequest;
 import org.apache.kafka.common.requests.ShareGroupHeartbeatRequest;
+import org.apache.kafka.common.requests.StreamsGroupDescribeRequest;
+import org.apache.kafka.common.requests.StreamsGroupHeartbeatRequest;
 import org.apache.kafka.common.requests.SyncGroupRequest;
 import org.apache.kafka.common.requests.TxnOffsetCommitRequest;
 import org.apache.kafka.common.requests.UnregisterBrokerRequest;
@@ -268,31 +276,7 @@ public class KafkaProxyExceptionMapper {
                 break;
             case OFFSET_FETCH:
                 OffsetFetchRequestData offsetFetchRequestData = (OffsetFetchRequestData) reqBody;
-                if (offsetFetchRequestData.groups() != null && !offsetFetchRequestData.groups().isEmpty()) {
-                    req = new OffsetFetchRequest.Builder(
-                            offsetFetchRequestData.groups().stream().collect(Collectors.toMap(
-                                    OffsetFetchRequestData.OffsetFetchRequestGroup::groupId,
-                                    x -> x.topics().stream().flatMap(
-                                            t -> t.partitionIndexes().stream().map(
-                                                    p -> new TopicPartition(t.name(), p)))
-                                            .toList())),
-                            true, false)
-                            .build(apiVersion);
-                }
-                else if (offsetFetchRequestData.topics() != null && !offsetFetchRequestData.topics().isEmpty()) {
-                    req = new OffsetFetchRequest.Builder(
-                            offsetFetchRequestData.groupId(),
-                            offsetFetchRequestData.requireStable(),
-                            offsetFetchRequestData.topics().stream().flatMap(
-                                    x -> x.partitionIndexes().stream().map(
-                                            p -> new TopicPartition(x.name(), p)))
-                                    .toList(),
-                            false)
-                            .build(apiVersion);
-                }
-                else {
-                    throw new IllegalStateException();
-                }
+                req = OffsetFetchRequest.Builder.forTopicIdsOrNames(offsetFetchRequestData, false, true).build(apiVersion);
                 break;
             case FIND_COORDINATOR:
                 req = new FindCoordinatorRequest.Builder((FindCoordinatorRequestData) reqBody)
@@ -527,8 +511,8 @@ public class KafkaProxyExceptionMapper {
             case ASSIGN_REPLICAS_TO_DIRS:
                 req = new AssignReplicasToDirsRequest((AssignReplicasToDirsRequestData) reqBody, apiVersion);
                 break;
-            case LIST_CLIENT_METRICS_RESOURCES:
-                req = new ListClientMetricsResourcesRequest.Builder((ListClientMetricsResourcesRequestData) reqBody).build(apiVersion);
+            case LIST_CONFIG_RESOURCES:
+                req = new ListConfigResourcesRequest.Builder((ListConfigResourcesRequestData) reqBody).build(apiVersion);
                 break;
             case DESCRIBE_TOPIC_PARTITIONS:
                 req = new DescribeTopicPartitionsRequest((DescribeTopicPartitionsRequestData) reqBody, apiVersion);
@@ -569,6 +553,21 @@ public class KafkaProxyExceptionMapper {
                 break;
             case READ_SHARE_GROUP_STATE_SUMMARY:
                 req = new ReadShareGroupStateSummaryRequest((ReadShareGroupStateSummaryRequestData) reqBody, apiVersion);
+                break;
+            case STREAMS_GROUP_HEARTBEAT:
+                req = new StreamsGroupHeartbeatRequest((StreamsGroupHeartbeatRequestData) reqBody, apiVersion);
+                break;
+            case STREAMS_GROUP_DESCRIBE:
+                req = new StreamsGroupDescribeRequest((StreamsGroupDescribeRequestData) reqBody, apiVersion);
+                break;
+            case DESCRIBE_SHARE_GROUP_OFFSETS:
+                req = new DescribeShareGroupOffsetsRequest((DescribeShareGroupOffsetsRequestData) reqBody, apiVersion);
+                break;
+            case ALTER_SHARE_GROUP_OFFSETS:
+                req = new AlterShareGroupOffsetsRequest.Builder((AlterShareGroupOffsetsRequestData) reqBody).build(apiVersion);
+                break;
+            case DELETE_SHARE_GROUP_OFFSETS:
+                req = new DeleteShareGroupOffsetsRequest((DeleteShareGroupOffsetsRequestData) reqBody, apiVersion);
                 break;
             default:
                 throw new IllegalStateException("Unable to generate error for APIKey: " + apiKey);

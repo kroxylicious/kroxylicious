@@ -15,6 +15,7 @@ import org.apache.kafka.common.message.AlterConfigsRequestData;
 import org.apache.kafka.common.message.AlterPartitionReassignmentsRequestData;
 import org.apache.kafka.common.message.AlterPartitionRequestData;
 import org.apache.kafka.common.message.AlterReplicaLogDirsRequestData;
+import org.apache.kafka.common.message.AlterShareGroupOffsetsRequestData;
 import org.apache.kafka.common.message.AlterUserScramCredentialsRequestData;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.AssignReplicasToDirsRequestData;
@@ -31,6 +32,7 @@ import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.DeleteAclsRequestData;
 import org.apache.kafka.common.message.DeleteGroupsRequestData;
 import org.apache.kafka.common.message.DeleteRecordsRequestData;
+import org.apache.kafka.common.message.DeleteShareGroupOffsetsRequestData;
 import org.apache.kafka.common.message.DeleteShareGroupStateRequestData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DescribeAclsRequestData;
@@ -42,6 +44,7 @@ import org.apache.kafka.common.message.DescribeGroupsRequestData;
 import org.apache.kafka.common.message.DescribeLogDirsRequestData;
 import org.apache.kafka.common.message.DescribeProducersRequestData;
 import org.apache.kafka.common.message.DescribeQuorumRequestData;
+import org.apache.kafka.common.message.DescribeShareGroupOffsetsRequestData;
 import org.apache.kafka.common.message.DescribeTopicPartitionsRequestData;
 import org.apache.kafka.common.message.DescribeTransactionsRequestData;
 import org.apache.kafka.common.message.DescribeUserScramCredentialsRequestData;
@@ -60,7 +63,7 @@ import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitializeShareGroupStateRequestData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
-import org.apache.kafka.common.message.ListClientMetricsResourcesRequestData;
+import org.apache.kafka.common.message.ListConfigResourcesRequestData;
 import org.apache.kafka.common.message.ListGroupsRequestData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.ListPartitionReassignmentsRequestData;
@@ -82,6 +85,8 @@ import org.apache.kafka.common.message.ShareAcknowledgeRequestData;
 import org.apache.kafka.common.message.ShareFetchRequestData;
 import org.apache.kafka.common.message.ShareGroupDescribeRequestData;
 import org.apache.kafka.common.message.ShareGroupHeartbeatRequestData;
+import org.apache.kafka.common.message.StreamsGroupDescribeRequestData;
+import org.apache.kafka.common.message.StreamsGroupHeartbeatRequestData;
 import org.apache.kafka.common.message.SyncGroupRequestData;
 import org.apache.kafka.common.message.TxnOffsetCommitRequestData;
 import org.apache.kafka.common.message.UnregisterBrokerRequestData;
@@ -166,6 +171,9 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
             case ALTER_REPLICA_LOG_DIRS:
                 state = ((AlterReplicaLogDirsRequestFilter) this).onAlterReplicaLogDirsRequest((AlterReplicaLogDirsRequestData) decodedFrame.body(), filterContext);
                 break;
+            case ALTER_SHARE_GROUP_OFFSETS:
+                state = ((AlterShareGroupOffsetsRequestFilter) this).onAlterShareGroupOffsetsRequest((AlterShareGroupOffsetsRequestData) decodedFrame.body(), filterContext);
+                break;
             case ALTER_USER_SCRAM_CREDENTIALS:
                 state = ((AlterUserScramCredentialsRequestFilter) this).onAlterUserScramCredentialsRequest((AlterUserScramCredentialsRequestData) decodedFrame.body(), filterContext);
                 break;
@@ -214,6 +222,9 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
             case DELETE_RECORDS:
                 state = ((DeleteRecordsRequestFilter) this).onDeleteRecordsRequest((DeleteRecordsRequestData) decodedFrame.body(), filterContext);
                 break;
+            case DELETE_SHARE_GROUP_OFFSETS:
+                state = ((DeleteShareGroupOffsetsRequestFilter) this).onDeleteShareGroupOffsetsRequest((DeleteShareGroupOffsetsRequestData) decodedFrame.body(), filterContext);
+                break;
             case DELETE_SHARE_GROUP_STATE:
                 state = ((DeleteShareGroupStateRequestFilter) this).onDeleteShareGroupStateRequest((DeleteShareGroupStateRequestData) decodedFrame.body(), filterContext);
                 break;
@@ -246,6 +257,9 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 break;
             case DESCRIBE_QUORUM:
                 state = ((DescribeQuorumRequestFilter) this).onDescribeQuorumRequest((DescribeQuorumRequestData) decodedFrame.body(), filterContext);
+                break;
+            case DESCRIBE_SHARE_GROUP_OFFSETS:
+                state = ((DescribeShareGroupOffsetsRequestFilter) this).onDescribeShareGroupOffsetsRequest((DescribeShareGroupOffsetsRequestData) decodedFrame.body(), filterContext);
                 break;
             case DESCRIBE_TOPIC_PARTITIONS:
                 state = ((DescribeTopicPartitionsRequestFilter) this).onDescribeTopicPartitionsRequest((DescribeTopicPartitionsRequestData) decodedFrame.body(), filterContext);
@@ -301,8 +315,8 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
             case LEAVE_GROUP:
                 state = ((LeaveGroupRequestFilter) this).onLeaveGroupRequest((LeaveGroupRequestData) decodedFrame.body(), filterContext);
                 break;
-            case LIST_CLIENT_METRICS_RESOURCES:
-                state = ((ListClientMetricsResourcesRequestFilter) this).onListClientMetricsResourcesRequest((ListClientMetricsResourcesRequestData) decodedFrame.body(), filterContext);
+            case LIST_CONFIG_RESOURCES:
+                state = ((ListConfigResourcesRequestFilter) this).onListConfigResourcesRequest((ListConfigResourcesRequestData) decodedFrame.body(), filterContext);
                 break;
             case LIST_GROUPS:
                 state = ((ListGroupsRequestFilter) this).onListGroupsRequest((ListGroupsRequestData) decodedFrame.body(), filterContext);
@@ -366,6 +380,12 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 break;
             case SHARE_GROUP_HEARTBEAT:
                 state = ((ShareGroupHeartbeatRequestFilter) this).onShareGroupHeartbeatRequest((ShareGroupHeartbeatRequestData) decodedFrame.body(), filterContext);
+                break;
+            case STREAMS_GROUP_DESCRIBE:
+                state = ((StreamsGroupDescribeRequestFilter) this).onStreamsGroupDescribeRequest((StreamsGroupDescribeRequestData) decodedFrame.body(), filterContext);
+                break;
+            case STREAMS_GROUP_HEARTBEAT:
+                state = ((StreamsGroupHeartbeatRequestFilter) this).onStreamsGroupHeartbeatRequest((StreamsGroupHeartbeatRequestData) decodedFrame.body(), filterContext);
                 break;
             case SYNC_GROUP:
                 state = ((SyncGroupRequestFilter) this).onSyncGroupRequest((SyncGroupRequestData) decodedFrame.body(), filterContext);
@@ -433,6 +453,8 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 return this instanceof AlterPartitionRequestFilter;
             case ALTER_REPLICA_LOG_DIRS:
                 return this instanceof AlterReplicaLogDirsRequestFilter;
+            case ALTER_SHARE_GROUP_OFFSETS:
+                return this instanceof AlterShareGroupOffsetsRequestFilter;
             case ALTER_USER_SCRAM_CREDENTIALS:
                 return this instanceof AlterUserScramCredentialsRequestFilter;
             case API_VERSIONS:
@@ -465,6 +487,8 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 return this instanceof DeleteGroupsRequestFilter;
             case DELETE_RECORDS:
                 return this instanceof DeleteRecordsRequestFilter;
+            case DELETE_SHARE_GROUP_OFFSETS:
+                return this instanceof DeleteShareGroupOffsetsRequestFilter;
             case DELETE_SHARE_GROUP_STATE:
                 return this instanceof DeleteShareGroupStateRequestFilter;
             case DELETE_TOPICS:
@@ -487,6 +511,8 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 return this instanceof DescribeProducersRequestFilter;
             case DESCRIBE_QUORUM:
                 return this instanceof DescribeQuorumRequestFilter;
+            case DESCRIBE_SHARE_GROUP_OFFSETS:
+                return this instanceof DescribeShareGroupOffsetsRequestFilter;
             case DESCRIBE_TOPIC_PARTITIONS:
                 return this instanceof DescribeTopicPartitionsRequestFilter;
             case DESCRIBE_TRANSACTIONS:
@@ -523,8 +549,8 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 return this instanceof JoinGroupRequestFilter;
             case LEAVE_GROUP:
                 return this instanceof LeaveGroupRequestFilter;
-            case LIST_CLIENT_METRICS_RESOURCES:
-                return this instanceof ListClientMetricsResourcesRequestFilter;
+            case LIST_CONFIG_RESOURCES:
+                return this instanceof ListConfigResourcesRequestFilter;
             case LIST_GROUPS:
                 return this instanceof ListGroupsRequestFilter;
             case LIST_OFFSETS:
@@ -567,6 +593,10 @@ public /* sealed */ interface KrpcRequestFilter extends KrpcFilter /* TODO permi
                 return this instanceof ShareGroupDescribeRequestFilter;
             case SHARE_GROUP_HEARTBEAT:
                 return this instanceof ShareGroupHeartbeatRequestFilter;
+            case STREAMS_GROUP_DESCRIBE:
+                return this instanceof StreamsGroupDescribeRequestFilter;
+            case STREAMS_GROUP_HEARTBEAT:
+                return this instanceof StreamsGroupHeartbeatRequestFilter;
             case SYNC_GROUP:
                 return this instanceof SyncGroupRequestFilter;
             case TXN_OFFSET_COMMIT:

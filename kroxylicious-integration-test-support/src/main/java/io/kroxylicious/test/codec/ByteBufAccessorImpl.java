@@ -7,6 +7,8 @@ package io.kroxylicious.test.codec;
 
 import java.nio.ByteBuffer;
 
+import org.apache.kafka.common.protocol.Readable;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 
@@ -176,6 +178,11 @@ public class ByteBufAccessorImpl implements ByteBufAccessor {
     @Override
     public int remaining() {
         return buf.writerIndex() - buf.readerIndex();
+    }
+
+    @Override
+    public Readable slice() {
+        throw new IllegalStateException("slice() not supported");
     }
 
     @Override
