@@ -147,7 +147,7 @@ public class RecordValidationFilter implements ProduceRequestFilter, ProduceResp
 
     private void augmentResponseWithInvalidTopicPartitions(ProduceResponseData response, ProduceRequestValidationResult produceRequestValidationResult) {
         produceRequestValidationResult.topicsWithInvalidPartitions().forEach(topicWithInvalidPartitions -> {
-            ProduceResponseData.TopicProduceResponse topicProduceResponse = response.responses().find(topicWithInvalidPartitions.topicName());
+            ProduceResponseData.TopicProduceResponse topicProduceResponse = response.responses().find(topicWithInvalidPartitions.topicName(), null);
             if (topicProduceResponse == null) {
                 topicProduceResponse = new ProduceResponseData.TopicProduceResponse();
                 topicProduceResponse.setName(topicWithInvalidPartitions.topicName());

@@ -28,7 +28,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class KafkaRequestDecoder extends KafkaMessageDecoder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaRequestDecoder.class);
-    private static final int CURRENT_PRODUCE_REQUEST_VERSION = 12;
+    private static final int CURRENT_PRODUCE_REQUEST_VERSION = 13;
 
     private final DecodePredicate decodePredicate;
 
