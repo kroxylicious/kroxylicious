@@ -65,7 +65,6 @@ public class PythonClient implements KafkaClient {
 
         StringBuilder msg = new StringBuilder();
         for (int i = 0; i < numOfMessages; i++) {
-            recordKey.ifPresent(k -> msg.append(k).append(":"));
             msg.append(message)
                     .append(" - ")
                     .append(i)
@@ -81,7 +80,7 @@ public class PythonClient implements KafkaClient {
                 "--image=" + Constants.PYTHON_CLIENT_IMAGE,
                 "--override-type=strategic",
                 "--overrides=" + jsonOverrides,
-                "--", "python3", "/usr/src/confluent-kafka-python/Producer.py", "-b", bootstrap, "-t", topicName, "-k", "ok"));
+                "--", "python3", "/usr/src/confluent-kafka-python/Producer.py", "-b", bootstrap, "-t", topicName));
         recordKey.ifPresent(key -> {
             executableCommand.add("-k");
             executableCommand.add(key);
