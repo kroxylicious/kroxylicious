@@ -46,17 +46,17 @@ public class PythonClient implements KafkaClient {
     };
     private String deployNamespace;
 
-    /**
-     * Instantiates a new Kcat client.
-     */
-    public PythonClient() {
-        this.deployNamespace = kubeClient().getNamespace();
-    }
-
     @Override
     public KafkaClient inNamespace(String namespace) {
         this.deployNamespace = namespace;
         return this;
+    }
+
+    /**
+     * Instantiates a new python client.
+     */
+    public PythonClient() {
+        this.deployNamespace = kubeClient().getNamespace();
     }
 
     @Override
