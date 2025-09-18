@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.security.auth.login.AppConfigurationEntry;
 
 import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.security.oauthbearer.BrokerJwtValidator;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
 import org.apache.kafka.common.security.oauthbearer.internals.OAuthBearerSaslServerProvider;
 
@@ -143,7 +144,8 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
                          @JsonProperty @Nullable Long authenticateBackOffMaxMs,
                          @JsonProperty @Nullable Long authenticateCacheMaxSize,
                          @JsonProperty @Nullable String expectedAudience,
-                         @JsonProperty @Nullable String expectedIssuer) {}
+                         @JsonProperty @Nullable String expectedIssuer,
+                         @JsonProperty @Nullable String jwtValidatorClass) {}
 
     private Map<String, ?> createSaslConfigMap(Config config) {
         Map<String, Object> saslConfig = new HashMap<>();
@@ -153,6 +155,7 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
         saslConfig.put(SaslConfigs.SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS, config.jwksEndpointRetryBackoffMaxMs());
         saslConfig.put(SaslConfigs.SASL_OAUTHBEARER_SCOPE_CLAIM_NAME, config.scopeClaimName());
         saslConfig.put(SaslConfigs.SASL_OAUTHBEARER_SUB_CLAIM_NAME, config.subClaimName());
+        saslConfig.put(SaslConfigs.SASL_OAUTHBEARER_JWT_VALIDATOR_CLASS, config.jwtValidatorClass());
         if (config.expectedAudience() != null) {
             List<String> audience = Arrays.stream(config.expectedAudience().split(","))
                     .map(String::trim)
@@ -181,7 +184,8 @@ public class OauthBearerValidation implements FilterFactory<OauthBearerValidatio
                 defaultIfNullOrNegative(config.authenticateBackOffMaxMs(), 60000L),
                 defaultIfNullOrNonPositive(config.authenticateCacheMaxSize(), 1000L),
                 defaultIfNullOrEmpty(config.expectedAudience(), null),
-                defaultIfNullOrEmpty(config.expectedIssuer(), null));
+                defaultIfNullOrEmpty(config.expectedIssuer(), null),
+                defaultIfNullOrEmpty(config.jwtValidatorClass(), BrokerJwtValidator.class.getName()));
     }
 
     private @Nullable Long defaultIfNullOrNegative(@Nullable Long value, @Nullable Long defaultValue) {

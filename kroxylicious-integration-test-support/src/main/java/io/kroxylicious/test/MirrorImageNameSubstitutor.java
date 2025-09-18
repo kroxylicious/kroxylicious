@@ -14,7 +14,7 @@ import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.utility.ImageNameSubstitutor;
 
 public class MirrorImageNameSubstitutor extends ImageNameSubstitutor {
-    private static final Set<String> DOMAIN_ALLOW_LIST = Set.of("quay.io", "ghcr.io", "gcr.io");
+    private static final Set<String> DOMAIN_ALLOW_LIST = Set.of("quay.io", "ghcr.io", "gcr.io", "redhat.com");
     private static final String MIRROR_REPOSITORY = "mirror.gcr.io";
     private static final Logger LOGGER = LoggerFactory.getLogger(MirrorImageNameSubstitutor.class);
 

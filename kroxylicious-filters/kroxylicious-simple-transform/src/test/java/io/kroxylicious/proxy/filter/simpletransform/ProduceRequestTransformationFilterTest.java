@@ -15,6 +15,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceRequestData.PartitionProduceData;
@@ -56,6 +57,7 @@ class ProduceRequestTransformationFilterTest {
     private static final String ORIGINAL_RECORD_VALUE = "lowercasevalue";
     private static final String EXPECTED_TRANSFORMED_RECORD_VALUE = ORIGINAL_RECORD_VALUE.toUpperCase(Locale.ROOT);
     private static final String RECORD_KEY = "key";
+    public static final Uuid TOPIC_ID = new Uuid(5L, 5L);
     private ProduceRequestTransformationFilter filter;
 
     @Mock(strictness = Mock.Strictness.LENIENT)
@@ -138,6 +140,35 @@ class ProduceRequestTransformationFilterTest {
                 .hasSameSizeAs(produceRequest.topicData())
                 .withFailMessage("expected topic request to have been augmented with topic name")
                 .anyMatch(ftr -> Objects.equals(ftr.name(), TOPIC_NAME));
+
+        var filteredRecords = requestToRecordStream(filteredRequest).toList();
+        assertThat(filteredRecords)
+                .withFailMessage("unexpected number of records in the filtered request")
+                .hasSize(1);
+
+        var filteredRecord = filteredRecords.get(0);
+        assertThat(decodeUtf8Value(filteredRecord))
+                .withFailMessage("expected record value to have been transformed")
+                .isEqualTo(EXPECTED_TRANSFORMED_RECORD_VALUE);
+    }
+
+    @Test
+    void filterProduceRequestWithTopicId() throws Exception {
+
+        var produceRequest = new ProduceRequestData();
+        produceRequest.topicData().add(createTopicProduceDataWithOneRecord(RECORD_KEY, ORIGINAL_RECORD_VALUE).setTopicId(TOPIC_ID));
+
+        var stage = filter.onProduceRequest(produceRequest.apiKey(), new RequestHeaderData(), produceRequest, context);
+        assertThat(stage).isCompleted();
+
+        var filteredRequest = (ProduceRequestData) stage.toCompletableFuture().get().message();
+
+        // verify that the response now has the topic name
+        assertThat(filteredRequest.topicData())
+                .withFailMessage("expected same number of topics in the request")
+                .hasSameSizeAs(produceRequest.topicData())
+                .withFailMessage("expected topic request to have been augmented with topic name")
+                .anyMatch(ftr -> Objects.equals(ftr.topicId(), TOPIC_ID));
 
         var filteredRecords = requestToRecordStream(filteredRequest).toList();
         assertThat(filteredRecords)

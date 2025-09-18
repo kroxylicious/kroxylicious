@@ -14,6 +14,8 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.security.oauthbearer.BrokerJwtValidator;
+import org.apache.kafka.common.security.oauthbearer.DefaultJwtValidator;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -87,6 +89,7 @@ class OauthBearerValidationTest {
                 -1L,
                 -1L,
                 null,
+                null,
                 null);
         mustInitAndCreateFilter(config);
     }
@@ -107,7 +110,8 @@ class OauthBearerValidationTest {
                 10000L,
                 500L,
                 "https://first.audience, https://second.audience",
-                "https://issuer.endpoint");
+                "https://issuer.endpoint",
+                DefaultJwtValidator.class.getName());
 
         // when
         SharedOauthBearerValidationContext sharedContext = oauthBearerValidation.initialize(ffc, config);
@@ -124,6 +128,7 @@ class OauthBearerValidationTest {
                     assertThat(configMap.get(SaslConfigs.SASL_OAUTHBEARER_SUB_CLAIM_NAME)).isEqualTo("otherClaim");
                     assertThat(configMap.get(SaslConfigs.SASL_OAUTHBEARER_EXPECTED_AUDIENCE)).isEqualTo(List.of("https://first.audience", "https://second.audience"));
                     assertThat(configMap.get(SaslConfigs.SASL_OAUTHBEARER_EXPECTED_ISSUER)).isEqualTo("https://issuer.endpoint");
+                    assertThat(configMap.get(SaslConfigs.SASL_OAUTHBEARER_JWT_VALIDATOR_CLASS)).isEqualTo(DefaultJwtValidator.class.getName());
                 }),
                 eq("OAUTHBEARER"),
                 anyList());
@@ -212,6 +217,7 @@ class OauthBearerValidationTest {
                             .isEqualTo(SaslConfigs.DEFAULT_SASL_OAUTHBEARER_JWKS_ENDPOINT_RETRY_BACKOFF_MAX_MS);
                     assertThat(configMap.get(SaslConfigs.SASL_OAUTHBEARER_SCOPE_CLAIM_NAME)).isEqualTo(SaslConfigs.DEFAULT_SASL_OAUTHBEARER_SCOPE_CLAIM_NAME);
                     assertThat(configMap.get(SaslConfigs.SASL_OAUTHBEARER_SUB_CLAIM_NAME)).isEqualTo(SaslConfigs.DEFAULT_SASL_OAUTHBEARER_SUB_CLAIM_NAME);
+                    assertThat(configMap.get(SaslConfigs.SASL_OAUTHBEARER_JWT_VALIDATOR_CLASS)).isEqualTo(BrokerJwtValidator.class.getName());
                 }),
                 eq("OAUTHBEARER"),
                 anyList());
@@ -227,6 +233,7 @@ class OauthBearerValidationTest {
     private Config defaultConfig(URI jwksEndpointUrl) {
         return new Config(
                 jwksEndpointUrl,
+                null,
                 null,
                 null,
                 null,

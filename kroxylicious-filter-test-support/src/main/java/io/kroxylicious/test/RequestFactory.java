@@ -21,6 +21,7 @@ import java.util.stream.Stream;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
+import org.apache.kafka.common.config.ConfigResource;
 import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
 import org.apache.kafka.common.message.CreateAclsRequestData;
 import org.apache.kafka.common.message.CreateTopicsRequestData;
@@ -31,9 +32,11 @@ import org.apache.kafka.common.message.DeleteShareGroupStateRequestData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
 import org.apache.kafka.common.message.DescribeAclsRequestData;
 import org.apache.kafka.common.message.DescribeGroupsRequestData;
+import org.apache.kafka.common.message.DescribeShareGroupOffsetsRequestData;
 import org.apache.kafka.common.message.InitProducerIdRequestData;
 import org.apache.kafka.common.message.InitializeShareGroupStateRequestData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
+import org.apache.kafka.common.message.ListConfigResourcesRequestData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.OffsetCommitRequestData;
@@ -43,6 +46,7 @@ import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ReadShareGroupStateRequestData;
 import org.apache.kafka.common.message.ReadShareGroupStateSummaryRequestData;
 import org.apache.kafka.common.message.ShareGroupDescribeRequestData;
+import org.apache.kafka.common.message.StreamsGroupDescribeRequestData;
 import org.apache.kafka.common.message.WriteShareGroupStateRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -98,6 +102,9 @@ public class RequestFactory {
         messagePopulators.put(ApiKeys.WRITE_SHARE_GROUP_STATE, RequestFactory::populateWriteShareGroupStateRequest);
         messagePopulators.put(ApiKeys.DELETE_SHARE_GROUP_STATE, RequestFactory::populateDeleteShareGroupStateRequest);
         messagePopulators.put(ApiKeys.READ_SHARE_GROUP_STATE_SUMMARY, RequestFactory::populateReadShareGroupStateSummaryRequest);
+        messagePopulators.put(ApiKeys.STREAMS_GROUP_DESCRIBE, RequestFactory::populateStreamsGroupDescribeRequest);
+        messagePopulators.put(ApiKeys.DESCRIBE_SHARE_GROUP_OFFSETS, RequestFactory::populateDescribeShareGroupOffsetsRequest);
+        messagePopulators.put(ApiKeys.LIST_CONFIG_RESOURCES, RequestFactory::populateListConfigResourcesRequest);
     }
 
     private RequestFactory() {
@@ -178,6 +185,14 @@ public class RequestFactory {
         t1.setPartitionIndexes(List.of(0, 1));
         offsetFetchRequestData.setGroupId(MobyNamesGenerator.getRandomName());
         offsetFetchRequestData.setTopics(List.of(t1));
+        OffsetFetchRequestData.OffsetFetchRequestGroup group = new OffsetFetchRequestData.OffsetFetchRequestGroup();
+        group.setGroupId(MobyNamesGenerator.getRandomName());
+        OffsetFetchRequestData.OffsetFetchRequestTopics topics = new OffsetFetchRequestData.OffsetFetchRequestTopics();
+        topics.setName(MobyNamesGenerator.getRandomName());
+        topics.setTopicId(Uuid.ONE_UUID);
+        topics.setPartitionIndexes(List.of(0, 1));
+        group.setTopics(List.of(topics));
+        offsetFetchRequestData.setGroups(List.of(group));
     }
 
     private static void populateMetadataRequest(ApiMessage apiMessage) {
@@ -342,4 +357,26 @@ public class RequestFactory {
         readStateData.setPartitions(List.of(new ReadShareGroupStateSummaryRequestData.PartitionData()));
         readShareGroupStateSummaryRequestData.setTopics(List.of(readStateData));
     }
+
+    private static void populateStreamsGroupDescribeRequest(ApiMessage apiMessage) {
+        final StreamsGroupDescribeRequestData readShareGroupStateSummaryRequestData = (StreamsGroupDescribeRequestData) apiMessage;
+        readShareGroupStateSummaryRequestData.setGroupIds(List.of(MobyNamesGenerator.getRandomName()));
+    }
+
+    private static void populateDescribeShareGroupOffsetsRequest(ApiMessage apiMessage) {
+        final DescribeShareGroupOffsetsRequestData describeShareGroupOffsetsRequest = (DescribeShareGroupOffsetsRequestData) apiMessage;
+        DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup group = new DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestGroup();
+        group.setGroupId(MobyNamesGenerator.getRandomName());
+        DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestTopic topic = new DescribeShareGroupOffsetsRequestData.DescribeShareGroupOffsetsRequestTopic();
+        topic.setTopicName(MobyNamesGenerator.getRandomName());
+        topic.setPartitions(List.of(1, 2, 3));
+        group.setTopics(List.of(topic));
+        describeShareGroupOffsetsRequest.setGroups(List.of(group));
+    }
+
+    private static void populateListConfigResourcesRequest(ApiMessage apiMessage) {
+        final ListConfigResourcesRequestData listConfigResourcesRequestData = (ListConfigResourcesRequestData) apiMessage;
+        listConfigResourcesRequestData.setResourceTypes(List.of(ConfigResource.Type.CLIENT_METRICS.id())); // the only type you can use with v0 LIST_CONFIG_RESOURCES
+    }
+
 }

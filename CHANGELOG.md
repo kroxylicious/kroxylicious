@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2542](https://github.com/kroxylicious/kroxylicious/issues/2542): Add support for Kafka 4.1.0
 * [#1927](https://github.com/kroxylicious/kroxylicious/issues/1927): chore(docs): Remove deprecated adminHttp configuration property.
 * [#1885](https://github.com/kroxylicious/kroxylicious/issues/1885): chore(docs): Remove deprecated support for virtualClusters expressed as a map.
 * [#2598](https://github.com/kroxylicious/kroxylicious/pull/2598): feat(metrics): Add metrics for the number of active connections
@@ -17,6 +18,9 @@ Format `<github issue/pr number>: <short description>`.
   for supplying a virtual cluster map (which was deprecated at 0.11.0) is now removed.
 * Support for the `adminHttp` configuration property (which was deprecated in 0.11.0) is removed. Use `management` instead.
   Also support for the `host` configuration property within that object (which was also deprecated in 0.11.0) is removed. Use `bindAddress` instead.
+* **breaking** kroxylicious-api change. `ListClientMetricsResourcesResponseFilter` and `ListClientMetricsResourcesRequestFilter` are removed, replaced
+  with `ListConfigResourcesResponseFilter` and `ListConfigResourcesRequestFilter` due to the RPC being renamed in kafka-clients. Filters that implement
+  the old interfaces will be incompatible with this version of the proxy and must migrate to the new interfaces.
 
 ## 0.15.0
 
