@@ -27,6 +27,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.filters.sasl.inspection.SaslInspection;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
@@ -34,7 +35,6 @@ import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
 import io.kroxylicious.proxy.testplugins.ProtocolCounter;
 import io.kroxylicious.proxy.testplugins.ProtocolCounterFilter;
-import io.kroxylicious.proxy.testplugins.TestSaslInspection;
 import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
@@ -286,8 +286,8 @@ class SaslInspectionIT {
 
     private static ConfigurationBuilder buildProxyConfig(String e1, KafkaCluster cluster) {
         NamedFilterDefinition saslInspection = new NamedFilterDefinitionBuilder(
-                TestSaslInspection.class.getName(),
-                TestSaslInspection.class.getName())
+                SaslInspection.class.getName(),
+                SaslInspection.class.getName())
                 .withConfig("enabledMechanisms", Set.of(e1))
                 .build();
         NamedFilterDefinition counter = new NamedFilterDefinitionBuilder(
