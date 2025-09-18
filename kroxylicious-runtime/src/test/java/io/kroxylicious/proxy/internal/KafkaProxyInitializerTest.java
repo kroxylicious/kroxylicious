@@ -105,6 +105,8 @@ class KafkaProxyInitializerTest {
         bindingStage = CompletableFuture.completedStage(vcb);
         filterChainFactory = new FilterChainFactory(pfr, List.of());
         final InetSocketAddress localhost = new InetSocketAddress(0);
+        when(channel.id()).thenReturn(DefaultChannelId.newInstance());
+        when(channel.attr(KafkaProxyInitializer.SESSION_ID_ATTRIBUTE_KEY)).thenReturn(new TestAttribute<>(KafkaProxyInitializer.SESSION_ID_ATTRIBUTE_KEY));
         when(channel.parent()).thenReturn(acceptingSocketChannel);
         when(channel.pipeline()).thenReturn(channelPipeline);
         when(channel.eventLoop()).thenReturn(eventLoop);
