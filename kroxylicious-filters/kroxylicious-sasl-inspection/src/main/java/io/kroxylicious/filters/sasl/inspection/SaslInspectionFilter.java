@@ -22,6 +22,7 @@ import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.message.SaslHandshakeResponseData;
 import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.security.scram.internals.ScramFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,11 +37,8 @@ import io.kroxylicious.proxy.filter.SaslHandshakeResponseFilter;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * A minimal SASL inspection filter supporting the {@code PLAIN},
+ * A SASL inspection filter supporting the {@code PLAIN},
  * {@code SCRAM-SHA-256} and {@code SCRAM-SHA-512} mechanisms only.
- * It may not be secure!
- * This is only used for integration testing and
- * is <strong>NOT INTENDED FOR USE IN PRODUCTION.</strong>
  */
 class SaslInspectionFilter
         implements
@@ -81,7 +79,12 @@ class SaslInspectionFilter
 
     enum Mech {
 
-        BOGUS(0) {
+        /**
+         * This a bogus SASL mechanism used when the proxy receives a handshake for a mechanism
+         * that the proxy doesn't recognise. It sends this bogus mechanism (which we hope won't ever
+         * be registered) to elicit from the server the mechanism(s) it supports.
+         */
+        PROBE_UPSTREAM(0) {
             @Override
             public boolean requestContainsAuthorizationId(int numAuthenticateSeen) {
                 throw new AuthenticationException("Illegal state: Unexpected method call on " + this + " mech");
@@ -184,11 +187,16 @@ class SaslInspectionFilter
             @Override
             public String authorizationId(SaslAuthenticateRequestData request) {
                 // n,,n=user,r=fyko+d2lbbFgONRv9qkxdawL
+                // n,a=ursel,n=testuser,r=fyko+d2lbbFgONRv9qkxdawL
+
                 var clientFirst = new String(request.authBytes(), StandardCharsets.UTF_8);
                 List<String> tokens = parseScramClientFirst(clientFirst);
-                String authorizationIdFromClient = tokens.get(1);
-                String username = tokens.get(2).substring(2);
-                return authorizationIdFromClient.isEmpty() ? username : authorizationIdFromClient;
+                String username = tokens.get(2).startsWith("n=") ? tokens.get(2).substring(2) : null;
+                if (username == null) {
+                    throw new SaslAuthenticationException("Invalid SCRAM client first message, username (n) absent");
+                }
+                String authzid = tokens.get(1).startsWith("a=") ? tokens.get(1).substring(2) : "";
+                return ScramFormatter.username(authzid.isEmpty() ? username : authzid);
             }
 
             @Override
@@ -248,6 +256,7 @@ class SaslInspectionFilter
         public abstract boolean requestContainsAuthorizationId(int numAuthenticateSeen);
     }
 
+    public static final String PROBE_UPSTREAM = Mech.PROBE_UPSTREAM.mechanismName();
     private @NonNull State currentState;
     private Mech chosenMechanism;
     private String authorizationIdFromClient;
@@ -296,7 +305,7 @@ class SaslInspectionFilter
                 // If we do not support this mechanism then we need to find out what mechanisms the server has enabled
                 // so that we eventually return something mutually acceptable to both proxy and server.
                 // To do that we send the server a handshake with a bogus mechanism, so it returns its enabled mechanisms
-                this.chosenMechanism = Mech.BOGUS;
+                this.chosenMechanism = Mech.PROBE_UPSTREAM;
                 LOGGER.info("Client '{}' on channel {} proposes SASL mechanism '{}' {} this filter, proposing mechanism '{}' to server",
                         header.clientId(),
                         context.channelDescriptor(),
@@ -327,7 +336,7 @@ class SaslInspectionFilter
                                                                          FilterContext context) {
         if (currentState == State.AWAITING_HANDSHAKE_RESPONSE) {
             var servedAgreed = response.errorCode() == Errors.NONE.code();
-            if (servedAgreed && !Mech.BOGUS.equals(this.chosenMechanism)) {
+            if (servedAgreed && !Mech.PROBE_UPSTREAM.equals(this.chosenMechanism)) {
                 if (LOGGER.isInfoEnabled()) {
                     LOGGER.info("Server accepts proposed SASL mechanism '{}' on channel {}",
                             chosenMechanism.mechanismName(),
