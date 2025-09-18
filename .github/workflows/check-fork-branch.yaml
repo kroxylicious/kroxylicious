@@ -1,4 +1,4 @@
-name: Check Fork Branch
+name: Ensure PR comes from Branch
 
 on:
   pull_request:
