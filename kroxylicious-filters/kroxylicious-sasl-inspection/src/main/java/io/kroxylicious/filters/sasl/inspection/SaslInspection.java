@@ -23,7 +23,7 @@ public class SaslInspection implements FilterFactory<Config, Config> {
     public Config initialize(FilterFactoryContext context,
                              @Nullable Config config)
             throws PluginConfigurationException {
-        return config == null ? new Config(null, null) : config;
+        return config == null ? new Config(null) : config;
     }
 
     @Override
