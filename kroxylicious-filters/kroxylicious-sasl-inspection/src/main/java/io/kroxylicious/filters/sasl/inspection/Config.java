@@ -9,32 +9,20 @@ package io.kroxylicious.filters.sasl.inspection;
 import java.util.HashSet;
 import java.util.Set;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * @param announceAuthResults Whether the filter should announce authentications via
- * {@link io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(String, String)}
- * and {@link io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationFailure(String, String, Exception)}.
- * \Default is true.
+ * Config for the Sasl Initiation Filter.
+ *
  * @param enabledMechanisms The enabled SASL mechanisms. Defaults to all supported mechanisms.
  */
 public record Config(
-                     boolean announceAuthResults,
                      @NonNull Set<String> enabledMechanisms) {
 
-    @JsonCreator
-    public Config(@Nullable Boolean announceAuthResults,
-                  @Nullable Set<String> enabledMechanisms) {
-        this(announceAuthResults == null || announceAuthResults, enabledMechanisms);
-    }
-
-    public Config(boolean announceAuthResults,
-                  @Nullable Set<String> enabledMechanisms) {
+    public Config(@Nullable Set<String> enabledMechanisms) {
         if (enabledMechanisms == null) {
             enabledMechanisms = SaslInspectionFilter.SUPPORTED_MECHANISMS;
         }
@@ -43,7 +31,6 @@ public record Config(
         if (!unsupportedMechanisms.isEmpty()) {
             throw new PluginConfigurationException("Unsupported SASL mechanisms: " + unsupportedMechanisms);
         }
-        this.announceAuthResults = announceAuthResults;
         this.enabledMechanisms = enabledMechanisms;
     }
 }

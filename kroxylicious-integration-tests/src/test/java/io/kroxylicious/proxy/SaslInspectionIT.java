@@ -57,9 +57,9 @@ class SaslInspectionIT {
      */
     @Test
     void shouldAuthenticateWhenSameMechanism_PLAIN(
-            @SaslMechanism(value = "PLAIN", principals = {
-                    @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
-            Topic topic)
+                                                   @SaslMechanism(value = "PLAIN", principals = {
+                                                           @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+                                                   Topic topic)
             throws Exception {
 
         String mechanism = "PLAIN";
@@ -78,9 +78,9 @@ class SaslInspectionIT {
      */
     @Test
     void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_256(
-            @SaslMechanism(value = "SCRAM-SHA-256", principals = {
-                    @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
-            Topic topic)
+                                                           @SaslMechanism(value = "SCRAM-SHA-256", principals = {
+                                                                   @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+                                                           Topic topic)
             throws Exception {
 
         String mechanism = "SCRAM-SHA-256";
@@ -99,9 +99,9 @@ class SaslInspectionIT {
      */
     @Test
     void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_512(
-            @SaslMechanism(value = "SCRAM-SHA-512", principals = {
-                    @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
-            Topic topic)
+                                                           @SaslMechanism(value = "SCRAM-SHA-512", principals = {
+                                                                   @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+                                                           Topic topic)
             throws Exception {
 
         String mechanism = "SCRAM-SHA-512";
@@ -122,9 +122,7 @@ class SaslInspectionIT {
     void shouldAuthenticateWhenSameMechanism_PLAIN_withReauth(
                                                               @SaslMechanism(value = "PLAIN", principals = {
                                                                       @SaslMechanism.Principal(user = "alice", password = "alice-secret")
-                                                              })
-                                                              @BrokerConfig(name = "connections.max.reauth.ms", value = "5000")
-                                                              KafkaCluster cluster,
+                                                              }) @BrokerConfig(name = "connections.max.reauth.ms", value = "5000") KafkaCluster cluster,
                                                               Topic topic)
             throws Exception {
 

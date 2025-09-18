@@ -106,7 +106,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldForwardHandshakeUpstream() {
         // Given
-        var filter = new SaslInspectionFilter(new Config(true, Set.of("PLAIN")));
+        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
@@ -128,7 +128,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnHandshakeResponseDownstreamWhenMechanismsAgree() {
         // Given
-        var filter = new SaslInspectionFilter(new Config(true, Set.of("PLAIN")));
+        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
@@ -160,7 +160,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnHandshakeErrorResponseDownstreamWhenClientMechanismUnknownToProxy() {
         // Given
-        var filter = new SaslInspectionFilter(new Config(true, Set.of("PLAIN")));
+        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("NOTAMECH");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
@@ -192,7 +192,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnHandshakeErrorResponseDownstreamWhenClientMechanismUnknownToBroker() {
         // Given
-        var filter = new SaslInspectionFilter(new Config(true, Set.of("PLAIN", "SCRAM-SHA-256")));
+        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN", "SCRAM-SHA-256")));
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
@@ -225,7 +225,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnAuthenticationErrorResponseDownstreamWhenBrokerSignalsAuthenticationError() {
         // Given
-        var filter = new SaslInspectionFilter(new Config(true, Set.of("PLAIN")));
+        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
 
         // When
         doSaslHandshakeRequest("PLAIN", filter);
@@ -316,7 +316,7 @@ class SaslInspectionFilterTest {
     @MethodSource("successfulSaslAuthentications")
     void shouldAuthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses, String expectedAuthorizedId) {
         // Given
-        var filter = new SaslInspectionFilter(new Config(true, Set.of(mechanism)));
+        var filter = new SaslInspectionFilter(new Config(Set.of(mechanism)));
 
         // When
         doSaslHandshakeRequest(mechanism, filter);

@@ -257,7 +257,7 @@ class SaslInspectionFilter
     }
 
     public static final String PROBE_UPSTREAM = Mech.PROBE_UPSTREAM.mechanismName();
-    private @NonNull State currentState;
+    private @NonNull State currentState = State.REQUIRING_HANDSHAKE_REQUEST;
     private Mech chosenMechanism;
     private String authorizationIdFromClient;
     private int numAuthenticateSeen;
@@ -296,32 +296,38 @@ class SaslInspectionFilter
             if (isMechanismEnabled(request.mechanism())) {
                 this.chosenMechanism = Mech.fromMechanismName(request.mechanism());
                 // If we support this mechanism then forward to the server to check whether it does
-                LOGGER.info("Client '{}' on channel {} chosen SASL mechanism '{}'",
-                        header.clientId(),
-                        context.channelDescriptor(),
-                        chosenMechanism.mechanismName());
+                LOGGER.atInfo()
+                        .setMessage("Client '{}' on channel {} chosen SASL mechanism '{}'")
+                        .addArgument(header::clientId)
+                        .addArgument(context::channelDescriptor)
+                        .addArgument(() -> chosenMechanism.mechanismName())
+                        .log();
             }
             else {
                 // If we do not support this mechanism then we need to find out what mechanisms the server has enabled
                 // so that we eventually return something mutually acceptable to both proxy and server.
                 // To do that we send the server a handshake with a bogus mechanism, so it returns its enabled mechanisms
                 this.chosenMechanism = Mech.PROBE_UPSTREAM;
-                LOGGER.info("Client '{}' on channel {} proposes SASL mechanism '{}' {} this filter, proposing mechanism '{}' to server",
-                        header.clientId(),
-                        context.channelDescriptor(),
-                        request.mechanism(),
-                        SUPPORTED_MECHANISMS.contains(request.mechanism()) ? "not enabled for" : "not supported by",
-                        this.chosenMechanism);
                 request.setMechanism(this.chosenMechanism.mechanismName());
+                LOGGER.atInfo()
+                        .setMessage("Client '{}' on channel {} proposes SASL mechanism '{}' {} this filter, proposing mechanism '{}' to server")
+                        .addArgument(header::clientId)
+                        .addArgument(context::channelDescriptor)
+                        .addArgument(request::mechanism)
+                        .addArgument(() -> SUPPORTED_MECHANISMS.contains(request.mechanism()) ? "not enabled for" : "not supported by")
+                        .addArgument(() -> this.chosenMechanism)
+                        .log();
             }
             currentState = State.AWAITING_HANDSHAKE_RESPONSE;
             return context.forwardRequest(header, request);
         }
         else {
-            LOGGER.info("Client '{}' on channel {} sent SaslHandshakeRequest unexpectedly, while in state {}",
-                    header.clientId(),
-                    context.channelDescriptor(),
-                    this.currentState);
+            LOGGER.atInfo()
+                    .setMessage("Client '{}' on channel {} sent SaslHandshakeRequest unexpectedly, while in state {}")
+                    .addArgument(header::clientId)
+                    .addArgument(context::channelDescriptor)
+                    .addArgument(() -> this.currentState)
+                    .log();
             return context.requestFilterResultBuilder().shortCircuitResponse(
                     new SaslHandshakeResponseData()
                             .setErrorCode(Errors.ILLEGAL_SASL_STATE.code()))
@@ -346,12 +352,14 @@ class SaslInspectionFilter
             else {
                 var commonMechanisms = new ArrayList<>(config.enabledMechanisms());
                 commonMechanisms.retainAll(response.mechanisms());
-                LOGGER.info("Server rejects proposed SASL mechanism '{}' on channel {} with error {}; supports {}; common mechanisms {}",
-                        chosenMechanism,
-                        context.channelDescriptor(),
-                        Errors.forCode(response.errorCode()).name(),
-                        response.mechanisms(),
-                        commonMechanisms);
+                LOGGER.atInfo()
+                        .setMessage("Server rejects proposed SASL mechanism '{}' on channel {} with error {}; supports {}; common mechanisms {}")
+                        .addArgument(() -> commonMechanisms)
+                        .addArgument(context::channelDescriptor)
+                        .addArgument(() -> Errors.forCode(response.errorCode()).name())
+                        .addArgument(response::mechanisms)
+                        .addArgument(() -> commonMechanisms)
+                        .log();
                 response.setErrorCode(Errors.UNSUPPORTED_SASL_MECHANISM.code())
                         .setMechanisms(commonMechanisms);
             }
@@ -385,11 +393,13 @@ class SaslInspectionFilter
                     else {
                         throw Errors.UNSUPPORTED_SASL_MECHANISM.exception();
                     }
-                    LOGGER.info("Client '{}' on channel {} sent {} authorizationId '{}'; forwarding to server",
-                            header.clientId(),
-                            context.channelDescriptor(),
-                            this.chosenMechanism,
-                            authorizationIdFromClient);
+                    LOGGER.atInfo()
+                            .setMessage("Client '{}' on channel {} sent {} authorizationId '{}'; forwarding to server")
+                            .addArgument(header::clientId)
+                            .addArgument(context::channelDescriptor)
+                            .addArgument(() -> this.chosenMechanism)
+                            .addArgument(() -> authorizationIdFromClient)
+                            .log();
                 }
                 catch (AuthenticationException e) {
                     // TODO what should we do here, if we failed to decode the request property?
@@ -400,10 +410,11 @@ class SaslInspectionFilter
             return context.forwardRequest(header, request);
         }
         else {
-            LOGGER.info("Client '{}' on channel {} sent SaslAuthenticateRequest unexpectedly, while in state {}",
-                    header.clientId(),
-                    context.channelDescriptor(),
-                    this.currentState);
+            LOGGER.atInfo().setMessage("Client '{}' on channel {} sent SaslAuthenticateRequest unexpectedly, while in state {}")
+                    .addArgument(header::clientId)
+                    .addArgument(context::channelDescriptor)
+                    .addArgument(() -> this.currentState)
+                    .log();
             return context.requestFilterResultBuilder().shortCircuitResponse(
                     new SaslAuthenticateResponseData()
                             .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
@@ -423,14 +434,16 @@ class SaslInspectionFilter
                     if (this.authorizationIdFromClient == null) {
                         return closeConnectionDueToIllegalState(header, context);
                     }
-                    LOGGER.info("Server accepts SASL credentials for client on channel {}",
-                            context.channelDescriptor());
-                    if (config.announceAuthResults()) {
-                        LOGGER.info("Announcing that client on channel {} has authorizationId {}",
-                                context.channelDescriptor(),
-                                this.authorizationIdFromClient);
-                        context.clientSaslAuthenticationSuccess(chosenMechanism.mechanismName(), this.authorizationIdFromClient);
-                    }
+                    LOGGER.atInfo()
+                            .setMessage("Server accepts SASL credentials for client on channel {}")
+                            .addArgument(context::channelDescriptor)
+                            .log();
+                    LOGGER.atInfo()
+                            .setMessage("Announcing that client on channel {} has authorizationId {}")
+                            .addArgument(context::channelDescriptor)
+                            .addArgument(() -> this.authorizationIdFromClient)
+                            .log();
+                    context.clientSaslAuthenticationSuccess(chosenMechanism.mechanismName(), this.authorizationIdFromClient);
                 }
 
                 if (this.chosenMechanism.isFinished(this.numAuthenticateSeen)) {
