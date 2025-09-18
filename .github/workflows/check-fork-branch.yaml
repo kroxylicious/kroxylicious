@@ -1,3 +1,8 @@
+# check-fork-branch.yaml - checks the fork branch where the PR is done
+#
+# If the branch is main, the build will fail. We need to avoid PRs
+# done from main branch: Sonar currently breaks if a PR is created from main on a fork.
+
 name: Ensure PR comes from Branch
 
 on:
