@@ -26,6 +26,7 @@ public class KafkaClients {
         return switch (Enum.valueOf(KafkaClientType.class, Environment.KAFKA_CLIENT.toUpperCase())) {
             case KAF -> kaf();
             case KCAT -> kcat();
+            case PYTHON -> python();
             default -> strimziTestClient();
         };
     }
@@ -37,6 +38,10 @@ public class KafkaClients {
      */
     public static KafClient kaf() {
         return new KafClient();
+    }
+
+    public static PythonClient python() {
+        return new PythonClient();
     }
 
     /**
