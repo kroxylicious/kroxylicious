@@ -29,7 +29,13 @@ concurrency:
 jobs:
   build_proxy:
     runs-on: ubuntu-latest
-
+    strategy:
+      matrix:
+        java:
+          - distro: 'temurin'
+            version: '21'
+          - distro: 'corretto'
+            version: '25'
     steps:
       - name: 'Test for Sonar secret'
         env:
@@ -45,8 +51,8 @@ jobs:
       - name: 'Set up Java'
         uses: actions/setup-java@v5
         with:
-          java-version: 21
-          distribution: 'temurin'
+          java-version: ${{ matrix.java.version }}
+          distribution: ${{ matrix.java.distro }}
       - name: Setup Minikube
         uses: manusa/actions-setup-minikube@v2.14.0
         with:

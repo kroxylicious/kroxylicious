@@ -30,7 +30,7 @@
         <josdk.version>5.1.2</josdk.version>
         <log4j.version>2.20.0</log4j.version>
         <fabric8-client.version>7.1.0</fabric8-client.version>
-        <lombok.version>1.18.38</lombok.version>
+        <lombok.version>1.18.42</lombok.version>
     </properties>
 
     <dependencyManagement>
@@ -126,6 +126,14 @@
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <parameters>true</parameters>
+                    <proc>full</proc>
+                </configuration>
+            </plugin>
             <plugin>
                 <!-- Our CRDs are the source of truth for the Kube API; Java code is derived -->
                 <groupId>io.fabric8</groupId>

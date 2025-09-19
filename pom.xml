@@ -55,7 +55,7 @@
         <netty.epoll.classifier>linux-x86_64</netty.epoll.classifier>
         <netty.io_uring.classifier>linux-x86_64</netty.io_uring.classifier>
         <netty.kqueue.classifier>osx-x86_64</netty.kqueue.classifier>
-        <assertj-core.version>3.27.4</assertj-core.version>
+        <assertj-core.version>3.27.5</assertj-core.version>
         <mockito.version>5.19.0</mockito.version>
         <micrometer.version>1.15.4</micrometer.version>
         <slf4j.version>2.0.17</slf4j.version>
@@ -832,6 +832,13 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
+                    <execution>
+                        <id>deps-as-properties</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>properties</goal>
+                        </goals>
+                    </execution>
                     <execution>
                         <id>unpack-message-specs</id>
                         <phase>none</phase>

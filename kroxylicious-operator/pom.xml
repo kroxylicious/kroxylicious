@@ -304,6 +304,7 @@
                          https://maven.apache.org/surefire/maven-surefire-plugin/faq.html#late-property-evaluation (required to propagate Jacoco args etc) -->
                     <argLine>
                         @{jacoco.argline}
+                        -javaagent:${org.mockito:mockito-core:jar}
                         --add-opens java.base/java.util=ALL-UNNAMED
                         --add-opens java.base/java.lang=ALL-UNNAMED
                     </argLine>
