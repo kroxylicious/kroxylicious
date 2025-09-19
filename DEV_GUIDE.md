@@ -191,7 +191,7 @@ To build the proxy and operator image, first build the project using:
 mvn -Pdist package
 ```
 
-Once the project is built you should be able to see `kroxylicious-operator.img.tar.gz` and `kroxylicious-proxy.img.tar.gz` in the `target` folder of `kroxylicious-operator` and `kroxylicious-app` directory.
+Once the project is built you should be able to see `kroxylicious-operator.img.tar.gz` and `kroxylicious-proxy.img.tar.gz` in the `target` folder of `kroxylicious-operator` and `kroxylicious-app` directories.
 
 Now if you want to push the Kroxylicious container and operator image to a specific registry like `quay.io` or `docker.io`, you can follow these steps:
 
@@ -409,7 +409,7 @@ minikube start
 By default, the system tests will pull the Operator from `quay.io/kroxylicious/operator:${project.version}` and the Proxy from `quay.io/kroxylicious/kroxylicious:${project.version}`.
 These will be the latest images built by CI.  You can change this behaviour by setting the environment variables shown in the table above.
 
-Alternatively, to run system tests against locally made changes, push the built operator and proxy images into your Minikube. Refer to section [Building and pushing a Kroxylicious Container Image](#building-and-pushing-a-kroxylicious-container-image).
+Alternatively, to run system tests against locally made changes, push the built operator and proxy images into your Minikube. Refer to section [Building and pushing Kroxylicious Container Images](#building-and-pushing-kroxylicious-container-images).
 
 Run the system tests like this:
 
@@ -509,23 +509,23 @@ You should now be able to run the tests using `mvn`.
 If you want to run the `OperatorMain` (e.g. from your IDE, maybe for debugging) then you'll need to install the CRD:
 
 ```bash
-kubectl apply -f ../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8
+kubectl apply -f kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8
 ```
 
 You should now be able to play around with `KafkaProxy` CRs; read the "Creating a `KafkaProxy`" section.
 
-Alternatively you can build the operator properly and run it within Kube...
+Alternatively you can build the operator and run it within Kubernetes by following the instructions below.
 
 ## Building the operator
 
-Refer to section [Building and pushing a Kroxylicious Container Image](#building-and-pushing-a-kroxylicious-container-image).
+Refer to section [Building and pushing Kroxylicious Container Images](#building-and-pushing-kroxylicious-container-images).
 
 ## Installing the operator
 
 Spin up a minikube custer:
 
 ```bash
-minikube start --kubernetes-version=latest --driver=podman 
+minikube start --kubernetes-version=latest
 ````
 
 ## Installing the operator
@@ -537,7 +537,7 @@ kubectl apply -f kroxylicious-operator/target/packaged/install
 You can check that worked with something like
 
 ```bash
-kubectl logs -n kroxylicious-operator pods/kroxylicious-operator-7cd88454c8-fjcxm operator
+kubectl logs -n kroxylicious-operator deployment/kroxylicious-operator -c operator
 ```
 
 (your pod hash suffix will differ)
@@ -551,7 +551,7 @@ kubectl apply -f kroxylicious-operator/target/packaged/examples/simple/
 You can check that worked with something like
 
 ```bash
-kubectl logs -n my-proxy pods/simple-647d99d9b5-hkwt2 proxy 
+kubectl get proxy simple -n my-proxy -o jsonpath='{.status}'
 ```
 
 (your pod hash suffix will differ)
