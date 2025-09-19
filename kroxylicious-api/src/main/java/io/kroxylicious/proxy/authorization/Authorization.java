@@ -1,0 +1,47 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.proxy.authorization;
+
+import java.util.List;
+import java.util.Objects;
+
+/**
+ * Represents the outcome of a call to {@link Authorizer#authorize(Subject, List)}
+ * @param allowed The allowed actions.
+ * @param denied The denied actions.
+ */
+public record Authorization(
+        List<Action> allowed,
+        List<Action> denied) {
+
+    public Authorization {
+        Objects.requireNonNull(allowed);
+        Objects.requireNonNull(denied);
+    }
+
+    public List<String> allowed(Operation<?> operation) {
+        return allowed().stream()
+                .filter(a -> a.operation().equals(operation))
+                .map(Action::resourceName)
+                .toList();
+    }
+
+    public List<String> denied(Operation<?> operation) {
+        return denied().stream()
+                .filter(a -> a.operation().equals(operation))
+                .map(Action::resourceName)
+                .toList();
+    }
+
+    public Decision decision(Operation<?> operation, String resourceName) {
+        return allowed().stream()
+                .anyMatch(a -> a.operation().equals(operation)
+                        && a.resourceName().equals(resourceName)) ?
+                Decision.ALLOW : Decision.DENY;
+    }
+
+}
