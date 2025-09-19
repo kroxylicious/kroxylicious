@@ -23,6 +23,7 @@
         <java.test.version>17</java.test.version>
         <maven.exec.version>3.1.0</maven.exec.version>
         <maven.compiler.version>3.10.1</maven.compiler.version>
+        <maven.failsafe.version>3.5.4</maven.failsafe.version>
         <maven-dependency-plugin.version>3.9.0</maven-dependency-plugin.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
@@ -453,6 +454,7 @@
         <module>kroxylicious-krpc-plugin</module>
         <module>kroxylicious-integration-test-support</module>
         <module>kroxylicious-filter-test-support</module>
+        <module>kroxylicious-filter-archetype</module>
         <module>kroxylicious-runtime</module>
         <module>kroxylicious-filters</module>
         <module>kroxylicious-sample</module>
@@ -472,6 +474,11 @@
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-javadoc-plugin</artifactId>
                     <version>3.12.0</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-archetype-plugin</artifactId>
+                    <version>3.4.0</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -511,9 +518,11 @@
                                     <exclude>DCO.txt</exclude>
                                     <exclude>LICENSE.txt</exclude>
                                     <exclude>**/.dontdelete</exclude>
+                                    <exclude>**/goal.txt</exclude>
                                     <exclude>**/.jbang/**</exclude>
                                     <exclude>docs/**</exclude>
                                     <exclude>**/*.adoc</exclude>
+                                    <exclude>src/main/resources/archetype-resources/**</exclude>
                                     <!-- Need to keep original copyright for Vert.x classes -->
                                     <exclude>src/main/java/io/kroxylicious/proxy/future/**</exclude>
                                     <exclude>src/main/java/io/kroxylicious/proxy/internal/future/**</exclude>
@@ -614,7 +623,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-failsafe-plugin</artifactId>
-                    <version>3.5.4</version>
+                    <version>${maven.failsafe.version}</version>
                     <configuration>
                         <skipTests>${skipITs}</skipTests>
                         <failIfNoTests>false</failIfNoTests>
@@ -1257,6 +1266,7 @@
             <properties>
                 <skipTests>true</skipTests>
                 <maven.javadoc.skip>true</maven.javadoc.skip>
+                <archetype.test.skip>true</archetype.test.skip>
                 <skipDocs>true</skipDocs>
                 <checkstyle.skip>true</checkstyle.skip>
                 <spotbugs.skip>true</spotbugs.skip>
