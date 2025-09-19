@@ -1,10 +1,4 @@
-/*
- * Copyright Kroxylicious Authors.
- *
- * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
- */
-
-package io.kroxylicious.sample;
+package ${package};
 
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
@@ -36,7 +30,7 @@ import org.mockito.stubbing.Answer;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.sample.config.SampleFilterConfig;
+import ${package}.config.SampleFilterConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.when;
@@ -44,7 +38,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class SampleProduceRequestFilterTest {
 
-    private static final short API_VERSION = ApiMessageType.PRODUCE.highestSupportedVersion(true);
+    private static final short API_VERSION = ApiMessageType.PRODUCE.highestSupportedVersion(true); // this is arbitrary for our filter
     private static final String PRE_TRANSFORM_VALUE = "this is what the value will be transformed from";
     private static final String NO_TRANSFORM_VALUE = "this value will not be transformed";
     private static final String POST_TRANSFORM_VALUE = "this is what the value will be transformed to";
