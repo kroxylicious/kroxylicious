@@ -425,7 +425,7 @@ The whole process looks like this:
 
 ```shell
 # Extract the commands and narration
-./scripts/extract-markdown-fencedcodeblocks.sh < kubernetes-examples/envelope-encryption/README.md > /tmp/cmds
+./scripts/extract-markdown-fencedcodeblocks.sh < path/to/some/markdown.md > /tmp/cmds
 asciinema rec --overwrite --command './scripts/demoizer.sh /tmp/cmds .' demo.cast
 # Uses quantize to reduce lengthy periods of inactivity resulting from awaits for resource to come ready etc.
 asciinema-edit quantize --range 5 demo.cast > demo_processed.cast
