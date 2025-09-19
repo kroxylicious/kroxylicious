@@ -31,6 +31,7 @@ This document gives a detailed breakdown of the various build processes and opti
   - [Continuous Integration](#continuous-integration)
     - [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
   - [DCO Signoff](#dco-signoff)
+- [Developement Guide for Kroxylicious Operator](#development-guide-for-kroxylicious-operator)
 - [Deprecation Policy](#deprecation-policy)
 <!-- TOC -->
 
@@ -184,10 +185,47 @@ Low level network and frame logging is turned off by default for better performa
 
 ## Building and pushing a Kroxylicious Container Image
 
-There is a script to build a Kroxylicious Container Image and push it to a container registry of your choice.
+To build the proxy and operator image, first build the project using:
 
 ```shell
-PUSH_IMAGE=y REGISTRY_DESTINATION=quay.io/$your_quay_org$/kroxylicious ./scripts/build-image.sh
+mvn -Pdist package
+```
+
+Once the project is built you should be able to see `kroxylicious-operator.img.tar.gz` and `kroxylicious-proxy.img.tar.gz` in the `target` folder of `kroxylicious-operator` and `kroxylicious-app` directory.
+
+Now if you want to push the Kroxylicious container and operator image to a specific registry like `quay.io` or `docker.io`, you can follow these steps:
+
+**NOTE: Container runtime are illustrated using podman CLI. If you are using docker, replace podman with docker.**
+
+First load the image from `tar.gz` file into podman daemon:
+
+```shell
+podman load kroxylicious-operator.img.tar.gz
+```
+
+You can check the loaded image using:
+
+```shell
+podman images
+```
+
+Now you can tag the loaded image with the appropriate `quay.io` registry and username:
+
+```shell
+podman tag <loaded-image-name-or-id> quay.io/<your-username>/<repository-name>:<tag>
+```
+
+Once you have tagged the image, now you can push the image to `quay.io`:
+
+```shell
+podman push quay.io/<your-username>/<repository-name>:<tag>
+```
+
+Alternatively, to test locally made changes, push the built operator and proxy images into your Minikube.
+
+```
+minikube image load kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
+minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
 ```
 
 ## IDE setup
@@ -371,12 +409,7 @@ minikube start
 By default, the system tests will pull the Operator from `quay.io/kroxylicious/operator:${project.version}` and the Proxy from `quay.io/kroxylicious/kroxylicious:${project.version}`.
 These will be the latest images built by CI.  You can change this behaviour by setting the environment variables shown in the table above.
 
-Alternatively, to run system tests against locally made changes, push the built operator and proxy images into your Minikube.
-
-```
-minikube image load kroxylicious-operator/target/kroxylicious-operator.img.tar.gz
-minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
-```
+Alternatively, to run system tests against locally made changes, push the built operator and proxy images into your Minikube. Refer to section [Building and pushing a Kroxylicious Container Image](#building-and-pushing-a-kroxylicious-container-image).
 
 Run the system tests like this:
 
@@ -456,6 +489,92 @@ Certificate of Origin (DCO)](./DCO.txt).
 
 This can be done using `git commit -s` for each commit
 in your pull request. Alternatively, to signoff a bunch of commits you can use `git rebase --signoff _your-branch_`.
+
+# Development Guide for Kroxylicious Operator
+
+This is the development guide for Kroxylicious operator for Kubernetes.
+
+## Hacking and Debugging
+
+If you want to iterate quickly on the operator the simplest way is to run it as a process on your host (i.e. *not* running it within a Kubernetes cluster).
+
+Note: The Integration Tests will only run if your kubectl context is pointing at a cluster. For development, we recommend using  `minikube`, for example:
+
+```bash
+minikube start --kubernetes-version=latest --driver=podman 
+````
+
+You should now be able to run the tests using `mvn`.
+
+If you want to run the `OperatorMain` (e.g. from your IDE, maybe for debugging) then you'll need to install the CRD:
+
+```bash
+kubectl apply -f ../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8
+```
+
+You should now be able to play around with `KafkaProxy` CRs; read the "Creating a `KafkaProxy`" section.
+
+Alternatively you can build the operator properly and run it within Kube...
+
+## Building the operator
+
+Refer to section [Building and pushing a Kroxylicious Container Image](#building-and-pushing-a-kroxylicious-container-image).
+
+## Installing the operator
+
+Spin up a minikube custer:
+
+```bash
+minikube start --kubernetes-version=latest --driver=podman 
+````
+
+## Installing the operator
+
+```bash
+kubectl apply -f kroxylicious-operator/target/packaged/install 
+```
+
+You can check that worked with something like
+
+```bash
+kubectl logs -n kroxylicious-operator pods/kroxylicious-operator-7cd88454c8-fjcxm operator
+```
+
+(your pod hash suffix will differ)
+
+## Creating a `KafkaProxy`
+
+```bash
+kubectl apply -f kroxylicious-operator/target/packaged/examples/simple/
+```
+
+You can check that worked with something like
+
+```bash
+kubectl logs -n my-proxy pods/simple-647d99d9b5-hkwt2 proxy 
+```
+
+(your pod hash suffix will differ)
+
+Note that on its own the proxy won't try to connect to the Kafka cluster.
+
+## Testing
+
+To test things properly you'll need to point your virtual clusters at a running Kafka and also run a Kafka client so the proxy is handling some load.
+
+### System Tests
+
+The Kroxylicious system test suite uses the operator to deploy resources, so tests can be written in
+java and executed locally in one's IDE. They do however require access to a Kubernetes clusters (usually minikube) and
+helm, with the appropriate RBAC permissions to install operators and provision resources.
+
+System tests are slow running things and are often difficult to diagnose issues just from external observation. To
+support developers working with the operator while the tests execute the system test framework will enable remote debug
+connections to the Kroxylicious Operator and create a LoadBalancer service (`debug-kroxylicious-operator`) to expose it.
+Running `minikube tunnel` will make that available to the IDE, thus allowing developers to connect to the operator and
+add breakpoints and step through execution. Note if we find ourselves doing this regularly we should look at improving
+our unit test coverage and logging to make the diagnosis and avoidance of such issues much easier in less accessible
+environments.
 
 # Deprecation Policy
 
