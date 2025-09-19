@@ -501,7 +501,7 @@ If you want to iterate quickly on the operator the simplest way is to run it as 
 Note: The Integration Tests will only run if your kubectl context is pointing at a cluster. For development, we recommend using  `minikube`, for example:
 
 ```bash
-minikube start --kubernetes-version=latest --driver=podman 
+minikube start --kubernetes-version=latest
 ````
 
 You should now be able to run the tests using `mvn`.
