@@ -27,6 +27,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.filters.sasl.inspection.SaslInspection;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
@@ -34,7 +35,6 @@ import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
 import io.kroxylicious.proxy.testplugins.ProtocolCounter;
 import io.kroxylicious.proxy.testplugins.ProtocolCounterFilter;
-import io.kroxylicious.proxy.testplugins.SaslInspection;
 import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
@@ -49,36 +49,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
 class SaslInspectionIT {
-    // client handshakes with PLAIN
-    // proxy and broker have PLAIN enabled
-    // client authenticated with the correct password
-    // => client should be able to produce and consume
-    @Test
-    // @formatter:off
-    void shouldAuthenticateWhenSameMechanism_PLAIN_withReauth(
-                                                              @SaslMechanism(value = "PLAIN", principals = {
-                                                                      @SaslMechanism.Principal(user = "alice", password = "alice-secret")
-                                                              })
-                                                              @BrokerConfig(name = "connections.max.reauth.ms", value = "5000")
-                                                              KafkaCluster cluster,
-                                                              Topic topic)
-            throws Exception {
-        // @formatter:on
-
-        String mechanism = "PLAIN";
-        String clientLoginModule = "org.apache.kafka.common.security.plain.PlainLoginModule";
-        String username = "alice";
-        String password = "alice-secret";
-
-        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password,
-                2, 1,
-                10_000);
-    }
-
-    // client handshakes with PLAIN
-    // proxy and broker have PLAIN enabled
-    // client authenticated with the correct password
-    // => client should be able to produce and consume
+    /**
+     * client handshakes with PLAIN
+     * proxy and broker have PLAIN enabled
+     * client authenticated with the correct password
+     * => client should be able to produce and consume
+     */
     @Test
     void shouldAuthenticateWhenSameMechanism_PLAIN(
                                                    @SaslMechanism(value = "PLAIN", principals = {
@@ -94,10 +70,12 @@ class SaslInspectionIT {
         assertClientsCanAccessCluster(cluster, topic, mechanism, 1, clientLoginModule, username, password);
     }
 
-    // client handshakes with SCRAM-SHA-256
-    // proxy and broker have SCRAM-SHA-256 enabled
-    // client authenticated with the correct password
-    // => client should be able to produce and consume
+    /**
+     * client handshakes with SCRAM-SHA-256
+     * proxy and broker have SCRAM-SHA-256 enabled
+     * client authenticated with the correct password
+     * => client should be able to produce and consume
+     */
     @Test
     void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_256(
                                                            @SaslMechanism(value = "SCRAM-SHA-256", principals = {
@@ -113,10 +91,12 @@ class SaslInspectionIT {
         assertClientsCanAccessCluster(cluster, topic, mechanism, 2, clientLoginModule, username, password);
     }
 
-    // client handshakes with SCRAM-SHA-256
-    // proxy and broker have SCRAM-SHA-256 enabled
-    // client authenticated with the correct password
-    // => client should be able to produce and consume
+    /**
+     * client handshakes with SCRAM-SHA-256
+     * proxy and broker have SCRAM-SHA-256 enabled
+     * client authenticated with the correct password
+     * => client should be able to produce and consume
+     */
     @Test
     void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_512(
                                                            @SaslMechanism(value = "SCRAM-SHA-512", principals = {
@@ -130,6 +110,30 @@ class SaslInspectionIT {
         String password = "alice-secret";
 
         assertClientsCanAccessCluster(cluster, topic, mechanism, 2, clientLoginModule, username, password);
+    }
+
+    /**
+     * client handshakes with PLAIN
+     * proxy and broker have PLAIN enabled
+     * client authenticated with the correct password
+     * => client should be able to produce and consume
+     */
+    @Test
+    void shouldAuthenticateWhenSameMechanism_PLAIN_withReauth(
+                                                              @SaslMechanism(value = "PLAIN", principals = {
+                                                                      @SaslMechanism.Principal(user = "alice", password = "alice-secret")
+                                                              }) @BrokerConfig(name = "connections.max.reauth.ms", value = "5000") KafkaCluster cluster,
+                                                              Topic topic)
+            throws Exception {
+
+        String mechanism = "PLAIN";
+        String clientLoginModule = "org.apache.kafka.common.security.plain.PlainLoginModule";
+        String username = "alice";
+        String password = "alice-secret";
+
+        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password,
+                2, 1,
+                10_000);
     }
 
     // client handshakes with PLAIN
@@ -150,17 +154,47 @@ class SaslInspectionIT {
         assertClientsGetSaslAuthenticationException(cluster, topic, mechanism, clientLoginModule, username, password);
     }
 
+    /**
+     * broker has PLAIN enabled
+     * proxy has SCRAM enabled
+     * client handshakes with PLAIN
+     * => client should not complete authentication
+     */
+    @Test
+    void shouldNotAuthenticateWhenNoCommonMechanism(@SaslMechanism(value = "PLAIN", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+                                                    Topic topic) {
+        var config = buildProxyConfig("SCRAM-SHA-256", cluster);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer(Map.of(
+                        CommonClientConfigs.CLIENT_ID_CONFIG, "PLAIN-producer",
+                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
+                        SaslConfigs.SASL_MECHANISM, "PLAIN",
+                        SaslConfigs.SASL_JAAS_CONFIG, """
+                                        org.apache.kafka.common.security.plain.PlainLoginModule required
+                                            username="alice"
+                                            password="alice-secret";
+                                """))) {
+            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
+                    .failsWithin(5, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseExactlyInstanceOf(UnsupportedSaslMechanismException.class);
+        }
+    }
+
     // TODO assert fails if no handshake done at all
     // TODO assert fails if client not configured for SASL
-    // TODO assert that filters don't get invoked even if a client sends a metadata after getting an error after authenticate
 
+    // TODO assert that filters don't get invoked even if a client sends a metadata after getting an error after authenticate
     // TODO client tries one mech (not supported by proxy), then reattempts with the commonly supported mech
     // TODO client tries one mech (supported by proxy, but not by broker), then reattempts with the commonly supported mech
-    // TODO all these things with older api versions
 
+    // TODO all these things with older api versions
     // TODO reauth:
     // reauth for scram mechs
     // reauth without account => that plugins get an empty principal
+
     // reauth attempt by client which didn't use >= v1 Autn req
 
     private static void assertClientsGetSaslAuthenticationException(KafkaCluster cluster, Topic topic, String mechanism, String clientLoginModule, String username,
@@ -254,33 +288,6 @@ class SaslInspectionIT {
                 }
                 batchNumOneBased += 1;
             }
-        }
-    }
-
-    // broker has PLAIN enabled
-    // proxy has SCRAM enabled
-    // client handshakes with PLAIN
-    // => client should not complete authentication
-    @Test
-    void shouldNotAuthenticateWhenNoCommonMechanism(@SaslMechanism(value = "PLAIN", principals = {
-            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
-                                                    Topic topic) {
-        var config = buildProxyConfig("SCRAM-SHA-256", cluster);
-
-        try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(Map.of(
-                        CommonClientConfigs.CLIENT_ID_CONFIG, "PLAIN-producer",
-                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
-                        SaslConfigs.SASL_MECHANISM, "PLAIN",
-                        SaslConfigs.SASL_JAAS_CONFIG, """
-                                        org.apache.kafka.common.security.plain.PlainLoginModule required
-                                            username="alice"
-                                            password="alice-secret";
-                                """))) {
-            assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
-                    .failsWithin(5, TimeUnit.SECONDS)
-                    .withThrowableOfType(ExecutionException.class)
-                    .withCauseExactlyInstanceOf(UnsupportedSaslMechanismException.class);
         }
     }
 
