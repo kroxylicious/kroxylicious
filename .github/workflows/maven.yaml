@@ -33,8 +33,6 @@ jobs:
       matrix:
         java:
           - distro: 'temurin'
-            version: '17'
-          - distro: 'temurin'
             version: '21'
           - distro: 'corretto'
             version: '25'
