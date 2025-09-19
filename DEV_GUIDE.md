@@ -11,7 +11,7 @@ This document gives a detailed breakdown of the various build processes and opti
     - [Logging Conventions](#logging-conventions)
   - [Run](#run)
     - [Debugging](#debugging)
-  - [Building and pushing a Kroxylicious Container Image](#building-and-pushing-a-kroxylicious-container-image)
+  - [Building and pushing Kroxylicious Container Images](#building-and-pushing-kroxylicious-container-images)
   - [IDE setup](#ide-setup)
     - [Intellij](#intellij)
   - [Setting Up in Windows Using WSL](#setting-up-in-windows-using-wsl)
@@ -183,7 +183,7 @@ Low level network and frame logging is turned off by default for better performa
   logFrames: true
 ```
 
-## Building and pushing a Kroxylicious Container Image
+## Building and pushing Kroxylicious Container Images
 
 To build the proxy and operator image, first build the project using:
 
@@ -200,7 +200,7 @@ Now if you want to push the Kroxylicious container and operator image to a speci
 First load the image from `tar.gz` file into podman daemon:
 
 ```shell
-podman load kroxylicious-operator.img.tar.gz
+podman load <kroxylicious-operator.img.tar.gz-or-kroxylicious-proxy.img.tar.gz>
 ```
 
 You can check the loaded image using:
