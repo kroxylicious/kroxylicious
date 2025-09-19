@@ -6,7 +6,7 @@
 
 package io.kroxylicious.proxy.authorization;
 
-enum TopicResource implements Operation<TopicResource> {
+public enum TopicResource implements Operation<TopicResource> {
     READ,
     WRITE,
     CREATE,

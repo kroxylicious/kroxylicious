@@ -20,6 +20,16 @@ public interface Authorizer {
      */
     Authorization authorize(Subject subject, List<Action> actions);
 
+    default Decision decision(Subject subject, Action action) {
+        return authorize(subject, List.of(action)).decision(action.operation(), action.resourceName());
+    }
+
+    default Decision decision(Subject subject, Operation<?> operation,
+                              String resourceName) {
+        var action = new Action(operation, resourceName);
+        return authorize(subject, List.of(action)).decision(operation, resourceName);
+    }
+
     static void main(String[] args) {
         // Config schema and parser
         // resource name patterns

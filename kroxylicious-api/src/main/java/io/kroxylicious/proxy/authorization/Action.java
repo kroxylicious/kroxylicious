@@ -22,7 +22,7 @@ public record Action(
         Objects.requireNonNull(resourceName);
     }
 
-    Class<? extends Operation<?>>  resourceType() {
+    public Class<? extends Operation<?>>  resourceType() {
         return (Class) operation.getClass();
     }
 
