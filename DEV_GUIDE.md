@@ -185,11 +185,13 @@ Low level network and frame logging is turned off by default for better performa
 
 ## Building and pushing Kroxylicious Container Images
 
-To build the proxy and operator image, first build the project using:
+To build the proxy and operator image, first build the project using :
 
 ```shell
 mvn -Pdist package
 ```
+
+as Maven will be responsible to build the container images as tgz files.
 
 Once the project is built you should be able to see `kroxylicious-operator.img.tar.gz` and `kroxylicious-proxy.img.tar.gz` in the `target` folder of `kroxylicious-operator` and `kroxylicious-app` directories.
 
@@ -540,8 +542,6 @@ You can check that worked with something like
 kubectl logs -n kroxylicious-operator deployment/kroxylicious-operator -c operator
 ```
 
-(your pod hash suffix will differ)
-
 ## Creating a `KafkaProxy`
 
 ```bash
@@ -553,10 +553,6 @@ You can check that worked with something like
 ```bash
 kubectl get proxy simple -n my-proxy -o jsonpath='{.status}'
 ```
-
-(your pod hash suffix will differ)
-
-Note that on its own the proxy won't try to connect to the Kafka cluster.
 
 ## Testing
 
