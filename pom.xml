@@ -75,7 +75,7 @@
         <maven.core.version>3.9.11</maven.core.version>
         <awaitility.version>4.3.0</awaitility.version>
         <testcontainers.version>1.21.3</testcontainers.version>
-        <bouncycastle.version>1.81</bouncycastle.version>
+        <bouncycastle.version>1.82</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.2.0</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.13.0</wiremock.version>
         <docker-java.version>3.6.0</docker-java.version>
