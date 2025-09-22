@@ -63,8 +63,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Integration tests focused on Kroxylicious ability to use TLS for both the upstream and downstream.
- * <p>
- * TODO add integration tests covering kroylicious's ability to use JKS and PEM material. Needs <a href="https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/120">issues#120</a>
  */
 @ExtendWith(KafkaClusterExtension.class)
 class TlsIT extends AbstractTlsIT {
