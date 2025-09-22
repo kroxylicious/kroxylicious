@@ -11,6 +11,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import io.kroxylicious.proxy.authorization.Action;
 import io.kroxylicious.proxy.authorization.Authorization;
@@ -24,7 +25,30 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class SimpleAuthorizer implements Authorizer {
 
-    TypeNameMap<Principal, TypeNameMap<Operation<?>, EnumSet<? extends Operation<?>>>> perPrincipal = new TypeNameMap<>();
+    enum Pred {
+        ANY(TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY),
+        EQ(TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL),
+        STARTS(TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH),
+        MATCH(null);
+
+        final TypeNameMap.Predicate predicate;
+
+        Pred(TypeNameMap.Predicate predicate) {
+            this.predicate = predicate;
+        }
+
+        public TypeNameMap.Predicate toNameMatchPredicate() {
+            return predicate;
+        }
+    }
+
+    record PrincipalGrants(
+            TypeNameMap<Operation<?>, EnumSet<? extends Operation<?>>> nameMatches,
+            TypePatternMatch patternMatch) {
+
+    }
+
+    TypeNameMap<Principal, PrincipalGrants> perPrincipal = new TypeNameMap<>();
 
     // TODO allow a way to say "grant * on {T} with {any name} to subject with {com.example.UserPrincipal in (bob, sue)}"
     // TODO allow a way to say "grant * on {any resource} with {any name} to subject with {com.example.UserPrincipal in (bob, sue)}"
@@ -37,7 +61,7 @@ public class SimpleAuthorizer implements Authorizer {
     public static class PrincipalSelectorBuilder<O extends Enum<O> & Operation> {
         private final Builder builder;
         private final Set<O> operations;
-        private final TypeNameMap.Predicate resourceNamePredicate;
+        private final Pred resourceNamePredicate;
         private final Set<String> resourceNamesOrPrefixes;
         private final Class<? extends Principal> principalClass;
 
@@ -45,7 +69,7 @@ public class SimpleAuthorizer implements Authorizer {
         public PrincipalSelectorBuilder(Builder builder,
                                         //Class<O> operationType,
                                         Set<O> operations,
-                                        TypeNameMap.Predicate resourceNamePredicate,
+                                        Pred resourceNamePredicate,
                                         Set<String> resourceNames,
                                         Class<? extends Principal> principalClass) {
             this.builder = builder;
@@ -57,7 +81,7 @@ public class SimpleAuthorizer implements Authorizer {
 
         public Builder withNameEqualTo(String principalName) {
 
-            if (resourceNamePredicate == TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY) {
+            if (resourceNamePredicate == Pred.ANY) {
                 builder.simpleAuthorizer.internalGrant(principalClass,
                         TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
                         principalName,
@@ -86,11 +110,11 @@ public class SimpleAuthorizer implements Authorizer {
         private final Builder builder;
         private final Set<O> operations;
         private final Set<String> resourceNamesOrPrefixes;
-        private final TypeNameMap.Predicate resourceNamePredicate;
+        private final Pred resourceNamePredicate;
 
         private SubjectSelectorBuilder(Builder builder,
                                        Set<O> operations,
-                                       TypeNameMap.Predicate resourceNamePredicate,
+                                       Pred resourceNamePredicate,
                                        Set<String> resourceNames) {
             this.builder = builder;
             this.operations = operations;
@@ -119,28 +143,35 @@ public class SimpleAuthorizer implements Authorizer {
         public SubjectSelectorBuilder<O> forResourcesWithNameIn(Set<String> resourceNames) {
             return new SubjectSelectorBuilder<>(builder,
                     operations,
-                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
+                    Pred.EQ,
                     resourceNames);
         }
 
         public SubjectSelectorBuilder<O> forResourceWithNameEqualTo(String resourceName) {
             return new SubjectSelectorBuilder<>(builder,
                     operations,
-                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
+                    Pred.EQ,
                     Set.of(resourceName));
         }
 
         public SubjectSelectorBuilder<O> forResourcesWithNameStartingWith(String resourceNamePrefix) {
             return new SubjectSelectorBuilder<>(builder,
                     operations,
-                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH,
+                    Pred.STARTS,
                     Set.of(resourceNamePrefix));
+        }
+
+        public SubjectSelectorBuilder<O> forResourcesWithNameMatching(String resourceNameRegex) {
+            return new SubjectSelectorBuilder<>(builder,
+                    operations,
+                    Pred.MATCH,
+                    Set.of(resourceNameRegex));
         }
 
         public SubjectSelectorBuilder<O> forAllResources() {
             return new SubjectSelectorBuilder<>(builder,
                     operations,
-                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY,
+                    Pred.ANY,
                     Set.of());
         }
     }
@@ -194,7 +225,7 @@ public class SimpleAuthorizer implements Authorizer {
             internalGrant(p.getClass(),
                     TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, p.name(),
                     (Class) operations.iterator().next().getClass(),
-                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, resourceName,
+                    Pred.EQ, resourceName,
                     operations
             );
         }
@@ -207,27 +238,49 @@ public class SimpleAuthorizer implements Authorizer {
         internalGrant(principalType,
                 TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY, null,
                 (Class) operations.iterator().next().getClass(),
-                TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, resourceName,
+                Pred.EQ, resourceName,
                 operations
         );
 
     }
 
     private <O extends Enum<O> & Operation<O>> void internalGrant(Class<? extends Principal> principalType,
-                                                                  TypeNameMap.Predicate principalPredicate, String principalName,
+                                                                  TypeNameMap.Predicate principalPredicate,
+                                                                  @Nullable String principalName,
                                                                   Class<O> opType,
-                                                                  TypeNameMap.Predicate resourceNamePredicate, String resourceName,
+                                                                  Pred resourceNamePredicate,
+                                                                  @Nullable String resourceName,
                                                                   Set<O> operations) {
+        // TODO fix the prefix stuff so we don't bother adding redundant prefixes
         var es = EnumSet.copyOf(operations);
-        perPrincipal.computeIfAbsent(principalType, principalName, principalPredicate,
-                TypeNameMap::new).compute(opType, resourceName, resourceNamePredicate,
-                v -> {
-                    if (v == null) {
-                        return es;
+        PrincipalGrants compute = perPrincipal.compute(principalType, principalName, principalPredicate,
+                g -> {
+                    if (g == null) {
+                        return new PrincipalGrants(resourceNamePredicate == Pred.MATCH ? null : new TypeNameMap<>(),
+                                resourceNamePredicate == Pred.MATCH ? new TypePatternMatch() : null);
                     }
-                    es.addAll((EnumSet) v);
-                    return v;
+                    else if (g.patternMatch() == null && resourceNamePredicate == Pred.MATCH) {
+                        return new PrincipalGrants(g.nameMatches(), new TypePatternMatch());
+                    }
+                    else if (g.nameMatches() == null && resourceNamePredicate != Pred.MATCH) {
+                        return new PrincipalGrants(new TypeNameMap<>(), g.patternMatch());
+                    }
+                    return g;
                 });
+
+        if (resourceNamePredicate == Pred.MATCH) {
+            compute.patternMatch().compute(opType, Pattern.compile(resourceName), operations);
+        }
+        else {
+            compute.nameMatches().compute(opType, resourceName, resourceNamePredicate.toNameMatchPredicate(),
+                    v -> {
+                        if (v == null) {
+                            return es;
+                        }
+                        es.addAll((EnumSet) v);
+                        return v;
+                    });
+        }
     }
 
     private Decision authorize(Subject subject, Action action) {
@@ -235,7 +288,7 @@ public class SimpleAuthorizer implements Authorizer {
 
             Decision allow;
             var grant = perPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, p.name());
-            if (grant != null) {
+            if (grant != null && grant.nameMatches() != null) {
                 allow = getDecision(action, grant);
                 if (allow != null) {
                     return allow;
@@ -261,24 +314,35 @@ public class SimpleAuthorizer implements Authorizer {
 
     @Nullable
     private static Decision getDecision(Action action,
-                                        TypeNameMap<Operation<?>, EnumSet<? extends Operation<?>>> grant) {
-        EnumSet<? extends Operation<?>> operations = grant.lookup(action.resourceType(),
-                TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
-                action.resourceName());
-        if (operations != null && operations.contains(action.operation())) {
-            return Decision.ALLOW;
+                                        PrincipalGrants grants) {
+        Set<? extends Operation<?>> operations;
+        var typeNameMap = grants.nameMatches();
+        if (typeNameMap != null) {
+            operations = typeNameMap.lookup(action.resourceType(),
+                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
+                    action.resourceName());
+            if (operations != null && operations.contains(action.operation())) {
+                return Decision.ALLOW;
+            }
+            operations = typeNameMap.lookup(action.resourceType(),
+                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY,
+                    null);
+            if (operations != null && operations.contains(action.operation())) {
+                return Decision.ALLOW;
+            }
+            operations = typeNameMap.lookup(action.resourceType(),
+                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH,
+                    action.resourceName());
+            if (operations != null && operations.contains(action.operation())) {
+                return Decision.ALLOW;
+            }
         }
-        operations = grant.lookup(action.resourceType(),
-                TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY,
-                null);
-        if (operations != null && operations.contains(action.operation())) {
-            return Decision.ALLOW;
-        }
-        operations = grant.lookup(action.resourceType(),
-                TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH,
-                action.resourceName());
-        if (operations != null && operations.contains(action.operation())) {
-            return Decision.ALLOW;
+        var patternMatch = grants.patternMatch();
+        if (patternMatch != null) {
+            operations = patternMatch.lookup(action.resourceType(), action.resourceName());
+            if (operations != null && operations.contains(action.operation())) {
+                return Decision.ALLOW;
+            }
         }
         return null;
     }

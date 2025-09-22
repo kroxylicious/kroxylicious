@@ -189,6 +189,50 @@ class SimpleAuthorizerTest {
         }
     }
 
+    @Test
+    void builderAllOperationsAndResourceNameMatchingAndPrincipalNameEqual() {
+        // Given
+        EnumSet<TopicResource> shouldBeAllowed = EnumSet.allOf(TopicResource.class);
+        var authz = SimpleAuthorizer.builder()
+                .grant()
+                .allOperations(TopicResource.class)
+                .forResourcesWithNameMatching("(my|your)-topic+")
+                .toSubjectsHavingPrincipal(UserPrincipal.class)
+                .withNameEqualTo("bob")
+                .build();
+
+        Subject alice = new Subject(Set.of(new UserPrincipal("alice")));
+        Subject bob = new Subject(Set.of(new UserPrincipal("bob")));
+
+        // Then
+        for (var op : shouldBeAllowed) {
+            Authorization authorize = authz.authorize(bob,
+                    List.of(new Action(op, "my-topic"),
+                            new Action(op, "your-topic"),
+                            new Action(op, "my-topiccccc"),
+                            new Action(op, "your-topiccccc")));
+            assertThat(authorize.allowed()).isEqualTo(List.of(new Action(op, "my-topic"),
+                    new Action(op, "your-topic"),
+                    new Action(op, "my-topiccccc"),
+                    new Action(op, "your-topiccccc")));
+            assertThat(authorize.denied()).isEmpty();
+        }
+
+        for (var op : TopicResource.values()) {
+            Authorization authorize = authz.authorize(alice,
+                    List.of(new Action(op, "their-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "their-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+        }
+
+        for (var op : TopicResource.values()) {
+            Authorization authorize = authz.authorize(alice,
+                    List.of(new Action(op, "my-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "my-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+        }
+    }
+
     // Prove we can build a SimpleAuthorizer
     // Prove that the aggregate method matches the single method
     // Test the single method

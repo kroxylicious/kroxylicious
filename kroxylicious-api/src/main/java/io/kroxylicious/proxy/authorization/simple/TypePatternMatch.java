@@ -41,7 +41,7 @@ public class TypePatternMatch {
         });
     }
 
-    public <O extends Enum<O> & Operation<O>> Set<O> lookup(Class<O> c, String name) {
+    public <O extends Operation<?>> Set<? extends Operation<?>> lookup(Class<? extends O> c, String name) {
         var submap = map.tailMap(new Key(c, Pattern.compile("")));
         for (var entry: submap.entrySet()) {
             if (!entry.getKey().c().equals(c)) {
