@@ -438,8 +438,10 @@ class TlsIT extends AbstractTlsIT {
                                 // Accepted Protocol doesn't match what we want to use
                                 SslConfigs.SSL_ENABLED_PROTOCOLS_CONFIG, "TLSv1.3"))) {
             // Server will only allow us to use TLSv1.3
-            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS)).hasRootCauseInstanceOf(SSLHandshakeException.class)
-                    .hasRootCauseMessage("Received fatal alert: protocol_version");
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .rootCause()
+                    .hasMessageContaining("Received fatal alert: protocol_version");
         }
     }
 
@@ -643,8 +645,10 @@ class TlsIT extends AbstractTlsIT {
                                 // Accepted Cipher doesn't match what we want to use
                                 SslConfigs.SSL_CIPHER_SUITES_CONFIG, "TLS_CHACHA20_POLY1305_SHA256"))) {
             // Server will only allow us to use TLS_CHACHA20_POLY1305_SHA256 and we only want to use TLS_AES_128_GCM_SHA256
-            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS)).hasRootCauseInstanceOf(SSLHandshakeException.class)
-                    .hasRootCauseMessage("Received fatal alert: handshake_failure");
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .rootCause()
+                    .hasMessageContaining("Received fatal alert: handshake_failure");
         }
     }
 
@@ -789,8 +793,10 @@ class TlsIT extends AbstractTlsIT {
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
             // Would need key information provided for mTLS to work here for TlsClientAuth.REQUIRED
-            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS)).hasRootCauseInstanceOf(SSLHandshakeException.class)
-                    .hasRootCauseMessage("Received fatal alert: bad_certificate");
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .rootCause()
+                    .hasMessageContaining("Received fatal alert: bad_certificate");
         }
     }
 
@@ -819,8 +825,10 @@ class TlsIT extends AbstractTlsIT {
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
             // Would need key information provided for mTLS to work here for TlsClientAuth.REQUIRED
-            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS)).hasRootCauseInstanceOf(SSLHandshakeException.class)
-                    .hasRootCauseMessage("Received fatal alert: bad_certificate");
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .rootCause()
+                    .hasMessageContaining("Received fatal alert: bad_certificate");
         }
     }
 
