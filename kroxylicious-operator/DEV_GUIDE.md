@@ -12,7 +12,7 @@ minikube start --kubernetes-version=latest --driver=podman
 
 You should now be able to run the tests using `mvn`.
 
-If you want to run the `OperatorMain` (e.g. from your IDE, maybe for dubugging) then you'll need to install the CRD:
+If you want to run the `OperatorMain` (e.g. from your IDE, maybe for debugging) then you'll need to install the CRD:
 
 ```bash
 kubectl apply -f ../kroxylicious-kubernetes-api/src/main/resources/META-INF/fabric8

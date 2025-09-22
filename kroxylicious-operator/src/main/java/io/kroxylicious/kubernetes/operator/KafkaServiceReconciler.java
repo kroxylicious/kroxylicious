@@ -23,10 +23,12 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.ErrorStatusUpdateControl;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
+import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
+import io.strimzi.api.kafka.model.kafka.Kafka;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
@@ -73,6 +75,7 @@ public final class KafkaServiceReconciler implements
                 .withPrimaryToSecondaryMapper(kafkaServiceToSecret())
                 .withSecondaryToPrimaryMapper(secretToKafkaService(context))
                 .build();
+
         InformerEventSourceConfiguration<ConfigMap> serviceToConfigMap = InformerEventSourceConfiguration.from(
                 ConfigMap.class,
                 KafkaService.class)
@@ -80,8 +83,18 @@ public final class KafkaServiceReconciler implements
                 .withPrimaryToSecondaryMapper(kafkaServiceToConfigMap())
                 .withSecondaryToPrimaryMapper(configMapToKafkaService(context))
                 .build();
+
+        InformerEventSourceConfiguration<Kafka> serviceToStrimziKafka = InformerEventSourceConfiguration.from(
+                Kafka.class,
+                KafkaService.class)
+                .withName(CONFIG_MAPS_EVENT_SOURCE_NAME)
+                .withPrimaryToSecondaryMapper(kafkaServiceToKafka())
+                .withSecondaryToPrimaryMapper(kafkaToKafkaService(context))
+                .build();
+
         return List.of(
                 new InformerEventSource<>(serviceToSecret, context),
+                new InformerEventSource<>(serviceToStrimziKafka, context),
                 new InformerEventSource<>(serviceToConfigMap, context));
     }
 
@@ -91,6 +104,23 @@ public final class KafkaServiceReconciler implements
                 .map(KafkaServiceSpec::getTls)
                 .map(Tls::getCertificateRef)
                 .map(cr -> ResourcesUtil.localRefAsResourceId(cluster, cr)).orElse(Set.of());
+    }
+
+    @VisibleForTesting
+    static PrimaryToSecondaryMapper<KafkaService> kafkaServiceToKafka() {
+        return (KafkaService cluster) -> Optional.ofNullable(cluster.getSpec())
+                .map(KafkaServiceSpec::getRef)
+                .map(ref -> Set.of(new ResourceID(ref.getName(), cluster.getMetadata().getNamespace()))).orElse(Set.of());
+    }
+
+    @VisibleForTesting
+    static SecondaryToPrimaryMapper<Kafka> kafkaToKafkaService(EventSourceContext<KafkaService> context) {
+        return secret -> ResourcesUtil.findReferrers(context,
+                secret,
+                KafkaService.class,
+                service -> Optional.ofNullable(service.getSpec())
+                        .map(KafkaServiceSpec::getRef));
+
     }
 
     @VisibleForTesting
