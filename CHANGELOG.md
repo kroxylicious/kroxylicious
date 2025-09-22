@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2685](https://github.com/kroxylicious/kroxylicious/pull/2685): build(deps): bump kubernetes-client.version from 7.3.1 to 7.4.0
 * [#1927](https://github.com/kroxylicious/kroxylicious/issues/1927): chore(docs): Remove deprecated adminHttp configuration property.
 * [#1885](https://github.com/kroxylicious/kroxylicious/issues/1885): chore(docs): Remove deprecated support for virtualClusters expressed as a map.
 * [#2598](https://github.com/kroxylicious/kroxylicious/pull/2598): feat(metrics): Add metrics for the number of active connections
