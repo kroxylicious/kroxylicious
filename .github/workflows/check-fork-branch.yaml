@@ -38,7 +38,7 @@ jobs:
           echo "BASE_REF: ${{github.event.pull_request.base.ref}}"
       - name: Check fork branch
         if: github.event.pull_request.head.repo.full_name != github.repository && github.head_ref == 'main'
-        uses: actions/github-script@v3
+        uses: actions/github-script@v8
         with:
           script: |
             core.setFailed('main branch should not be used in pull requests from a fork"')
