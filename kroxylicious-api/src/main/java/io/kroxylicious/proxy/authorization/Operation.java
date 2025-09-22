@@ -15,7 +15,7 @@ import java.util.List;
  */
 public interface Operation<S extends Enum<S> & Operation<S>> {
 
-    default List<Action> of(List<String> topicNames) {
-        return topicNames.stream().map(topicName -> new Action(this, topicName)).toList();
+    default List<Action> actionsOf(List<String> names) {
+        return names.stream().map(topicName -> new Action(this, topicName)).toList();
     }
 }

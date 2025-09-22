@@ -11,7 +11,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.TreeMap;
 
 import io.kroxylicious.proxy.authorization.Action;
 import io.kroxylicious.proxy.authorization.Authorization;
@@ -24,111 +23,8 @@ import io.kroxylicious.proxy.authorization.Subject;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class SimpleAuthorizer implements Authorizer {
-/*
-    record ResourceKey(
-            Class<? extends Operation<?>> resourceType,
-            @Nullable String resourceName
-    ) implements Comparable<ResourceKey> {
-        @Override
-        public int compareTo(ResourceKey o) {
-            var cmp = this.resourceType.getName().compareTo(o.resourceType.getName());
-            if (cmp == 0) {
-                if (this.resourceName == null) {
-                    cmp = o.resourceName == null ? 0 : -1;
-                }
-                else if (o.resourceName == null) {
-                    cmp = 1;
-                }
-                else {
-                    cmp = this.resourceName.compareTo(o.resourceName);
-                }
-            }
-            return cmp;
-        }
-    }
 
-    private static ResourceKey resourceKey(Class<? extends Operation<?>> resourceType,
-                                           @Nullable String resourceName) {
-        return new ResourceKey(resourceType, resourceName);
-    }
-*/
-    enum Predicate {
-        ALL,
-        EQUALS,
-        STARTS_WITH
-    }
-
-    record ClassNameKey<T>(
-            Class<T> type,
-            Predicate predicate,
-            @Nullable String name
-    ) implements Comparable<ClassNameKey<T>> {
-
-        static ClassNameKey<? extends Principal> forPrincipal(Principal p, Predicate predicate) {
-            return new ClassNameKey<>(p.getClass(), predicate, p.name());
-        }
-
-        private static ClassNameKey<? extends Operation<?>> forResource(Class<? extends Operation<?>> resourceType,
-                                                                        @Nullable String resourceName) {
-            return new ClassNameKey<>(resourceType, Predicate.EQUALS, resourceName);
-        }
-
-        ClassNameKey {
-            Objects.requireNonNull(type);
-        }
-
-        @Override
-        public int compareTo(ClassNameKey<T> o) {
-            var cmp = this.type.getName().compareTo(o.type.getName());
-            if (cmp == 0) {
-                cmp = this.predicate.compareTo(o.predicate);
-            }
-            if (cmp == 0) {
-                if (this.name == null) {
-                    cmp = o.name == null ? 0 : -1;
-                }
-                else if (o.name == null) {
-                    cmp = 1;
-                }
-                else {
-                    cmp = this.name.compareTo(o.name);
-                }
-            }
-            return cmp;
-        }
-    }
-
-    TreeMap<ClassNameKey<? extends Principal>, TreeMap<ClassNameKey<? extends Operation<?>>, EnumSet<? extends Operation<?>>>> perPrincipal = new TreeMap<>();
-
-    /*
-    sealed interface Pattern<T> permits All, StartsWith, Equals {
-        <V> V search(TreeMap<ClassNameKey<? extends Operation<?>>, V> map,
-                              Class<? extends Operation<?>> resourceType, String value);
-    }
-
-    record All<T>(Class<T> resourceType) implements Pattern<T> {
-        public <V> V search(TreeMap<ClassNameKey<? extends Operation<?>>, V> map,
-                     Class<? extends Operation<?>> resourceType, String value) {
-            return map.get(ClassNameKey.forResource(resourceType, null));
-        }
-    }
-
-    record StartsWith<T>(Class<T> resourceType, String prefix) implements Pattern<T> {
-        public <V> V search(TreeMap<ClassNameKey<? extends Operation<?>>, V> map,
-                            Class<? extends Operation<?>> resourceType, String value) {
-            // TODO it's not a get, it's a subtree
-            ResourceKey resourceKey = new ResourceKey(resourceType, "<" + prefix);
-            SortedMap<ResourceKey, V> resourceKeyVSortedMap = map.subMap(resourceKey, resourceKey);
-            return resourceKeyVSortedMap;
-        }
-    }
-    record Equals<T>(Class<T> resourceType, String value) implements Pattern<T> {
-        public <V> V search(TreeMap<ResourceKey, V> map,
-                            Class<? extends Operation<?>> resourceType, String value) {
-            // TODO it's not a get, it's a subtree
-            return map.get(new ResourceKey(resourceType, "=" + value)));
-        }
-    }*/
+    TypeNameMap<Principal, TypeNameMap<Operation<?>, EnumSet<? extends Operation<?>>>> perPrincipal = new TypeNameMap<>();
 
     // TODO allow a way to say "grant * on {T} with {any name} to subject with {com.example.UserPrincipal in (bob, sue)}"
     // TODO allow a way to say "grant * on {any resource} with {any name} to subject with {com.example.UserPrincipal in (bob, sue)}"
@@ -138,70 +34,114 @@ public class SimpleAuthorizer implements Authorizer {
         return new Builder();
     }
 
-    public static class PrincipalSelectorBuilder {
+    public static class PrincipalSelectorBuilder<O extends Enum<O> & Operation> {
         private final Builder builder;
+        private final Set<O> operations;
+        private final TypeNameMap.Predicate resourceNamePredicate;
+        private final Set<String> resourceNamesOrPrefixes;
         private final Class<? extends Principal> principalClass;
-        private final Set<String> resourceNames;
 
-        public PrincipalSelectorBuilder(Builder builder, Set<String> resourceNames, Class<? extends Principal> principalClass) {
+
+        public PrincipalSelectorBuilder(Builder builder,
+                                        //Class<O> operationType,
+                                        Set<O> operations,
+                                        TypeNameMap.Predicate resourceNamePredicate,
+                                        Set<String> resourceNames,
+                                        Class<? extends Principal> principalClass) {
             this.builder = builder;
-            this.resourceNames = resourceNames;
+            this.operations = operations;
+            this.resourceNamesOrPrefixes = resourceNames;
+            this.resourceNamePredicate = resourceNamePredicate;
             this.principalClass = principalClass;
         }
 
-        public Builder withNameEqualTo(String s) {
-            for (String resourceName : resourceNames) {
-                // TODO here I need to instantiate the principal
-                // Or should we just use a Pair<Class, String> as the identifier
-                // Or should we just use a Pair<ClassName, String> as the identifier
-                builder.simpleAuthorizer.internalGrant(null, null, resourceName, null);
+        public Builder withNameEqualTo(String principalName) {
+
+            if (resourceNamePredicate == TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY) {
+                builder.simpleAuthorizer.internalGrant(principalClass,
+                        TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
+                        principalName,
+                        (Class) operations.iterator().next().getClass(),
+                        resourceNamePredicate,
+                        null,
+                        operations);
+            }
+            else {
+                for (String resourceName : resourceNamesOrPrefixes) {
+                    builder.simpleAuthorizer.internalGrant(principalClass,
+                            TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
+                            principalName,
+                            (Class) operations.iterator().next().getClass(),
+                            resourceNamePredicate,
+                            resourceName,
+                            operations);
+                }
             }
             return builder;
         }
     }
 
-    public static class SubjectSelectorBuilder {
+    public static class SubjectSelectorBuilder<O extends Enum<O> & Operation> {
 
         private final Builder builder;
-        private final Set<String> resourceNames;
+        private final Set<O> operations;
+        private final Set<String> resourceNamesOrPrefixes;
+        private final TypeNameMap.Predicate resourceNamePredicate;
 
-        private SubjectSelectorBuilder(Builder builder) {
+        private SubjectSelectorBuilder(Builder builder,
+                                       Set<O> operations,
+                                       TypeNameMap.Predicate resourceNamePredicate,
+                                       Set<String> resourceNames) {
             this.builder = builder;
-            this.resourceNames = null;
+            this.operations = operations;
+            this.resourceNamePredicate = resourceNamePredicate;
+            this.resourceNamesOrPrefixes = resourceNames;
         }
 
-        private SubjectSelectorBuilder(Builder builder, Set<String> resourceNames) {
-            this.builder = builder;
-            this.resourceNames = resourceNames;
-        }
-
-        public PrincipalSelectorBuilder toSubjectsHavingPrincipal(Class<? extends Principal> userPrincipalClass) {
-            return new PrincipalSelectorBuilder(builder, resourceNames, userPrincipalClass);
+        public PrincipalSelectorBuilder<O> toSubjectsHavingPrincipal(Class<? extends Principal> userPrincipalClass) {
+            return new PrincipalSelectorBuilder<>(builder,
+                    operations,
+                    resourceNamePredicate,
+                    resourceNamesOrPrefixes,
+                    userPrincipalClass);
         }
     }
 
-    public static class ResourceBuilder {
+    public static class ResourceBuilder<O extends Enum<O> & Operation> {
         private final Builder builder;
+        private final Set<O> operations;
 
-        public ResourceBuilder(Builder builder) {
-            this.builder = builder;
+        public ResourceBuilder(Builder builder, Set<O> operations) {
+            this.builder = Objects.requireNonNull(builder);
+            this.operations = Objects.requireNonNull(operations);
         }
 
-        public SubjectSelectorBuilder forResourcesWithNameIn(Set<String> names) {
-            return new SubjectSelectorBuilder(builder, names);
+        public SubjectSelectorBuilder<O> forResourcesWithNameIn(Set<String> resourceNames) {
+            return new SubjectSelectorBuilder<>(builder,
+                    operations,
+                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
+                    resourceNames);
         }
 
-        public SubjectSelectorBuilder forResourceWithNameEqualTo(String name) {
-            return new SubjectSelectorBuilder(builder, Set.of(name));
+        public SubjectSelectorBuilder<O> forResourceWithNameEqualTo(String resourceName) {
+            return new SubjectSelectorBuilder<>(builder,
+                    operations,
+                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
+                    Set.of(resourceName));
         }
 
-        public SubjectSelectorBuilder forResourcesWithNameStartingWith(String prefix) {
-            return new SubjectSelectorBuilder(builder);
+        public SubjectSelectorBuilder<O> forResourcesWithNameStartingWith(String resourceNamePrefix) {
+            return new SubjectSelectorBuilder<>(builder,
+                    operations,
+                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH,
+                    Set.of(resourceNamePrefix));
         }
 
-        public SubjectSelectorBuilder forAllResources() {
-            // the empty string is a prefix of every string
-            return forResourcesWithNameStartingWith("");
+        public SubjectSelectorBuilder<O> forAllResources() {
+            return new SubjectSelectorBuilder<>(builder,
+                    operations,
+                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY,
+                    Set.of());
         }
     }
 
@@ -213,12 +153,12 @@ public class SimpleAuthorizer implements Authorizer {
             this.builder = builder;
         }
 
-        <O extends Enum<O> & Operation<O>> ResourceBuilder allOperations(Class<O> cls) {
-            return new ResourceBuilder(builder);
+        <O extends Enum<O> & Operation<O>> ResourceBuilder<O> allOperations(Class<O> cls) {
+            return new ResourceBuilder<>(builder, EnumSet.allOf(cls));
         }
 
-        public <O extends Enum<O> & Operation<O>> ResourceBuilder operations(Set<O> operations) {
-            return new ResourceBuilder(builder);
+        public <O extends Enum<O> & Operation<O>> ResourceBuilder<O> operations(Set<O> operations) {
+            return new ResourceBuilder<>(builder, EnumSet.copyOf(operations));
         }
 
     }
@@ -235,8 +175,6 @@ public class SimpleAuthorizer implements Authorizer {
         }
     }
 
-
-
     /**
      * grant * on org.example.MyResource with name=R to com.example.UserPrincipal (bob, sue)
      */
@@ -252,63 +190,67 @@ public class SimpleAuthorizer implements Authorizer {
     public <O extends Enum<O> & Operation<O>> void grant(Set<O> operations,
                                                          String resourceName,
                                                          Set<Principal> principals) {
-        internalGrant((Class) operations.iterator().next().getClass(), operations, resourceName,
-                principals.stream().map(p -> ClassNameKey.forPrincipal(p, Predicate.EQUALS)).toList());
+        for (var p : principals) {
+            internalGrant(p.getClass(),
+                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, p.name(),
+                    (Class) operations.iterator().next().getClass(),
+                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, resourceName,
+                    operations
+            );
+        }
     }
 
     public <O extends Enum<O> & Operation<O>> void grantToAllPrincipalsOfType(Set<O> operations,
                                                          String resourceName,
                                                          Class<? extends Principal> principalType) {
-        internalGrant((Class) operations.iterator().next().getClass(), operations, resourceName,
-                List.of(new ClassNameKey<>(principalType, Predicate.ALL, null)));
+
+        internalGrant(principalType,
+                TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY, null,
+                (Class) operations.iterator().next().getClass(),
+                TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, resourceName,
+                operations
+        );
+
     }
 
-    private <O extends Enum<O> & Operation<O>> void internalGrant(Class<O> opType,
-                                                                  Set<O> operations,
-                                                                  String resourceName,
-                                                                  Iterable<? extends ClassNameKey<? extends Principal>> principalKeys) {
+    private <O extends Enum<O> & Operation<O>> void internalGrant(Class<? extends Principal> principalType,
+                                                                  TypeNameMap.Predicate principalPredicate, String principalName,
+                                                                  Class<O> opType,
+                                                                  TypeNameMap.Predicate resourceNamePredicate, String resourceName,
+                                                                  Set<O> operations) {
         var es = EnumSet.copyOf(operations);
-        for (var pk : principalKeys) {
-            perPrincipal.computeIfAbsent(pk,
-                    p1 -> new TreeMap<>()).compute(ClassNameKey.forResource(opType, resourceName),
-                    (k, v) -> {
-                        if (v == null) {
-                            return es;
-                        }
-                        es.addAll((EnumSet) v);
-                        return v;
-                    });
-        }
+        perPrincipal.computeIfAbsent(principalType, principalName, principalPredicate,
+                TypeNameMap::new).compute(opType, resourceName, resourceNamePredicate,
+                v -> {
+                    if (v == null) {
+                        return es;
+                    }
+                    es.addAll((EnumSet) v);
+                    return v;
+                });
     }
 
-    public Decision authorize(Subject subject, Action action) {
+    private Decision authorize(Subject subject, Action action) {
         for (var p : subject.principals()) {
 
-            // Is there a grant for the given type and name exactly?
-            TreeMap<ClassNameKey<? extends Operation<?>>, EnumSet<? extends Operation<?>>> grant = perPrincipal.get(ClassNameKey.forPrincipal(p, Predicate.EQUALS));
+            Decision allow;
+            var grant = perPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, p.name());
             if (grant != null) {
-                Decision allow = getDecision(action, grant);
+                allow = getDecision(action, grant);
                 if (allow != null) {
                     return allow;
                 }
             }
-
-            // Is there a grant for the given type and any name? (an all grant)
-            grant = perPrincipal.get(new ClassNameKey<>(p.getClass(), Predicate.ALL, null));
+            grant = perPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY, null);
             if (grant != null) {
-                Decision allow = getDecision(action, grant);
+                allow = getDecision(action, grant);
                 if (allow != null) {
                     return allow;
                 }
             }
-
-            // Is there a grant by prefix for the given type? (an all grant)
-            var entry = perPrincipal.floorEntry(new ClassNameKey<>(p.getClass(), Predicate.STARTS_WITH, p.name()));
-            if (entry != null
-                    && entry.getKey().name != null
-                    && p.name().startsWith(entry.getKey().name)) { // check the entry we found is a prefix for this thing
-                grant = entry.getValue();
-                Decision allow = getDecision(action, grant);
+            grant = perPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, p.name());
+            if (grant != null) {
+                allow = getDecision(action, grant);
                 if (allow != null) {
                     return allow;
                 }
@@ -319,18 +261,25 @@ public class SimpleAuthorizer implements Authorizer {
 
     @Nullable
     private static Decision getDecision(Action action,
-                                        TreeMap<ClassNameKey<? extends Operation<?>>, EnumSet<? extends Operation<?>>> grant) {
-        // exact
-        EnumSet<? extends Operation<?>> objects = grant.get(ClassNameKey.forResource(action.resourceType(), action.resourceName()));
-        if (objects != null && objects.contains(action.operation())) {
+                                        TypeNameMap<Operation<?>, EnumSet<? extends Operation<?>>> grant) {
+        EnumSet<? extends Operation<?>> operations = grant.lookup(action.resourceType(),
+                TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
+                action.resourceName());
+        if (operations != null && operations.contains(action.operation())) {
             return Decision.ALLOW;
         }
-        // all
-        objects = grant.get(ClassNameKey.forResource(action.resourceType(), null));
-        if (objects != null && objects.contains(action.operation())) {
+        operations = grant.lookup(action.resourceType(),
+                TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY,
+                null);
+        if (operations != null && operations.contains(action.operation())) {
             return Decision.ALLOW;
         }
-        // TODO prefix
+        operations = grant.lookup(action.resourceType(),
+                TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH,
+                action.resourceName());
+        if (operations != null && operations.contains(action.operation())) {
+            return Decision.ALLOW;
+        }
         return null;
     }
 

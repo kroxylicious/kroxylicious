@@ -12,6 +12,8 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.proxy.authorization.Action;
+import io.kroxylicious.proxy.authorization.Authorization;
 import io.kroxylicious.proxy.authorization.Authorizer;
 import io.kroxylicious.proxy.authorization.ClusterResource;
 import io.kroxylicious.proxy.authorization.Decision;
@@ -22,19 +24,169 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class SimpleAuthorizerTest {
 
-    void foo() {
-        SimpleAuthorizer.builder()
+    @Test
+    void builderAllOperationsAndResourceNameEqualAndPrincipalNameEqual() {
+        // Given
+        EnumSet<TopicResource> shouldBeAllowed = EnumSet.allOf(TopicResource.class);
+        EnumSet<TopicResource> shouldBeDenied = EnumSet.complementOf(shouldBeAllowed);
+        var authz = SimpleAuthorizer.builder()
                 .grant()
                 .allOperations(TopicResource.class)
                 .forResourceWithNameEqualTo("my-topic")
                 .toSubjectsHavingPrincipal(UserPrincipal.class)
                 .withNameEqualTo("bob")
-                .grant()
-                .operations(Set.of(TopicResource.READ))
-                .forResourcesWithNameStartingWith("")
-                .toSubjectsHavingPrincipal(UserPrincipal.class)
-                .withNameEqualTo("alice")
                 .build();
+
+        Subject alice = new Subject(Set.of(new UserPrincipal("alice")));
+        Subject bob = new Subject(Set.of(new UserPrincipal("bob")));
+
+        // Then
+        for (var op : shouldBeAllowed) {
+            Authorization authorize = authz.authorize(bob,
+                    List.of(new Action(op, "my-topic")));
+            assertThat(authorize.allowed()).isEqualTo(List.of(new Action(op, "my-topic")));
+            assertThat(authorize.denied()).isEmpty();
+        }
+
+        for (var op : shouldBeDenied) {
+            Authorization authorize = authz.authorize(bob,
+                    List.of(new Action(op, "my-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "my-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+        }
+
+        for (var op : TopicResource.values()) {
+            Authorization authorize = authz.authorize(bob,
+                    List.of(new Action(op, "your-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "your-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+        }
+
+        for (var op : TopicResource.values()) {
+            Authorization authorize = authz.authorize(alice,
+                    List.of(new Action(op, "my-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "my-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+        }
+    }
+
+    @Test
+    void builderOneOperationAndResourceNameEqualAndPrincipalNameEqual() {
+        // Given
+        EnumSet<TopicResource> shouldBeAllowed = EnumSet.of(TopicResource.CREATE);
+        EnumSet<TopicResource> shouldBeDenied = EnumSet.complementOf(shouldBeAllowed);
+        var authz = SimpleAuthorizer.builder()
+                .grant()
+                .operations(shouldBeAllowed)
+                .forResourceWithNameEqualTo("my-topic")
+                .toSubjectsHavingPrincipal(UserPrincipal.class)
+                .withNameEqualTo("bob")
+                .build();
+
+        Subject alice = new Subject(Set.of(new UserPrincipal("alice")));
+        Subject bob = new Subject(Set.of(new UserPrincipal("bob")));
+
+        // Then
+        for (var op : shouldBeAllowed) {
+            Authorization authorize = authz.authorize(bob,
+                    List.of(new Action(op, "my-topic")));
+            assertThat(authorize.allowed()).isEqualTo(List.of(new Action(op, "my-topic")));
+            assertThat(authorize.denied()).isEmpty();
+        }
+
+        for (var op : shouldBeDenied) {
+            Authorization authorize = authz.authorize(bob,
+                    List.of(new Action(op, "my-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "my-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+        }
+
+        for (var op : TopicResource.values()) {
+            Authorization authorize = authz.authorize(bob,
+                    List.of(new Action(op, "your-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "your-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+        }
+
+        for (var op : TopicResource.values()) {
+            Authorization authorize = authz.authorize(alice,
+                    List.of(new Action(op, "my-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "my-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+        }
+    }
+
+    @Test
+    void builderAllOperationsAndResourceNamePrefixAndPrincipalNameEqual() {
+        // Given
+        EnumSet<TopicResource> shouldBeAllowed = EnumSet.allOf(TopicResource.class);
+        var authz = SimpleAuthorizer.builder()
+                .grant()
+                .allOperations(TopicResource.class)
+                .forResourcesWithNameStartingWith("my-")
+                .toSubjectsHavingPrincipal(UserPrincipal.class)
+                .withNameEqualTo("bob")
+                .build();
+
+        Subject alice = new Subject(Set.of(new UserPrincipal("alice")));
+        Subject bob = new Subject(Set.of(new UserPrincipal("bob")));
+
+        // Then
+        for (var op : shouldBeAllowed) {
+            Authorization authorize = authz.authorize(bob,
+                    List.of(new Action(op, "my-topic"),
+                            new Action(op, "my-thingy")));
+            assertThat(authorize.allowed()).isEqualTo(List.of(new Action(op, "my-topic"),
+                    new Action(op, "my-thingy")));
+            assertThat(authorize.denied()).isEmpty();
+        }
+
+        for (var op : TopicResource.values()) {
+            Authorization authorize = authz.authorize(bob,
+                    List.of(new Action(op, "your-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "your-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+        }
+
+        for (var op : TopicResource.values()) {
+            Authorization authorize = authz.authorize(alice,
+                    List.of(new Action(op, "my-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "my-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+        }
+    }
+
+    @Test
+    void builderAllOperationsAndResourceNameAnyAndPrincipalNameEqual() {
+        // Given
+        EnumSet<TopicResource> shouldBeAllowed = EnumSet.allOf(TopicResource.class);
+        var authz = SimpleAuthorizer.builder()
+                .grant()
+                .allOperations(TopicResource.class)
+                .forAllResources()
+                .toSubjectsHavingPrincipal(UserPrincipal.class)
+                .withNameEqualTo("bob")
+                .build();
+
+        Subject alice = new Subject(Set.of(new UserPrincipal("alice")));
+        Subject bob = new Subject(Set.of(new UserPrincipal("bob")));
+
+        // Then
+        for (var op : shouldBeAllowed) {
+            Authorization authorize = authz.authorize(bob,
+                    List.of(new Action(op, "my-topic"),
+                            new Action(op, "your-topic")));
+            assertThat(authorize.allowed()).isEqualTo(List.of(new Action(op, "my-topic"),
+                    new Action(op, "your-topic")));
+            assertThat(authorize.denied()).isEmpty();
+        }
+
+        for (var op : TopicResource.values()) {
+            Authorization authorize = authz.authorize(alice,
+                    List.of(new Action(op, "my-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "my-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+        }
     }
 
     // Prove we can build a SimpleAuthorizer
@@ -75,7 +227,8 @@ class SimpleAuthorizerTest {
 
         assertThat(a.decision(anon, ClusterResource.CONNECT, "")).isEqualTo(Decision.DENY);
         for (var s: List.of(alices, bobs, carols, dans, eves)) {
-            assertThat(a.decision(s, ClusterResource.CONNECT, "")).isEqualTo(Decision.ALLOW);
+            assertThat(a.decision(s, ClusterResource.CONNECT, "")).
+                    as("Expected %s to be ALLOWed", s).isEqualTo(Decision.ALLOW);
         }
 
         assertThat(a.decision(alices, TopicResource.READ, bobOnly)).isEqualTo(Decision.DENY);

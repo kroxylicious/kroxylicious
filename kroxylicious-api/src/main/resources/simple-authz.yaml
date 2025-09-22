@@ -1,0 +1,79 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: kroxylicious.io/schemas/simple-authz
+$defs:
+  ClassName:
+    type: string
+    minLength: 1
+  TypeAndNameMatcher:
+    type: object
+    additionalProperties: false
+    maxProperties: 2
+    required:
+      - withType
+    oneOf:
+      - required:
+          - withName
+      - required:
+          - withNameIn
+      - required:
+          - withNameStartingWith
+    properties:
+      withType:
+        $ref: "#/$defs/ClassName"
+      withName:
+        type: string
+      withNameIn:
+        type: array
+        items:
+          type: string
+          minItems: 1
+      withNameStartingWith:
+        type: string
+  GrantList:
+    type: array
+    items:
+      $ref: "#/$defs/Grant"
+  Grant:
+    type: object
+    additionalProperties: false
+    properties:
+      operations:
+        type:
+          - array
+          - string
+        pattern: "[*]"
+        items:
+          type: string
+        minItems: 1
+      resource:
+        $ref: "#/$defs/TypeAndNameMatcher"
+      subject:
+        type: object
+        additionalProperties: false
+        properties:
+          havingAnyPrincipal:
+            $ref: "#/$defs/TypeAndNameMatcher"
+          havingAllPrincipals:
+            type: array
+            items:
+              $ref: "#/$defs/TypeAndNameMatcher"
+
+type: object
+additionalProperties: false
+oneOf:
+  - required:
+      - allow
+  - required:
+      - deny
+      - otherwiseAllow
+properties:
+  $schema:
+    type: string
+  imports:
+    type: array
+  deny:
+    $ref: "#/$defs/GrantList"
+  otherwiseAllow:
+    $ref: "#/$defs/GrantList"
+  allow:
+    $ref: "#/$defs/GrantList"

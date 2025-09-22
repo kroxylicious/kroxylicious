@@ -1,0 +1,39 @@
+$schema: simple-authz.yaml
+imports:
+  - # TODO schema for this
+    # TODO parser will need to validate class names
+  - import: *
+    from: com.example
+  - import: UserPrincipal
+    from: com.example.user
+    as: User
+deny: # TODO implement deny as an inverted search
+  - operations: [CONNECT]
+    resource:
+      withType: Cluster
+      withName: *
+    subject:
+      # Example of denying a specific troublesome application
+      havingAllPrincipals: # TODO implement this
+        - withType: User
+          withNameStartingWith: Bob
+        - withType: ClientId
+          withNameStartingWith: BobsBadClient
+otherwiseAllow:
+  - operations: *
+    resource:
+      withType: *
+      withName: *
+    subject:
+      havingAnyPrincipal:
+        withType: Role
+        withName: admin
+  - operations: [READ, WRITE]
+    resource:
+      withType: Topic
+      withNameIn: [Foo, Bar]
+    subject:
+      havingAnyPrincipal:
+        withType: User
+        withNameMatchingRegex: .*-Bob-
+
