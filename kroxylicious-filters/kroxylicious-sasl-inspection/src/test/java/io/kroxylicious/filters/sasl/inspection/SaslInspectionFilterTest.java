@@ -54,11 +54,32 @@ import static org.mockito.Mock.Strictness.LENIENT;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class SaslInspectionFilterTest {
+
+    // SASL PLAIN - Known good from https://datatracker.ietf.org/doc/html/rfc4616
+    static final byte[] SASL_PLAIN_CLIENT_INITIAL = "\0tim\0tanstaaftanstaaf".getBytes(StandardCharsets.US_ASCII);
+    static final byte[] SASL_PLAIN_CLIENT_INITIAL_WITH_AUTHZID = "Ursel\0Kurt\0xipj3plmq".getBytes(StandardCharsets.US_ASCII);
+
+    // Known good from https://datatracker.ietf.org/doc/html/rfc7677
+    static final byte[] SASL_SCRAM_SHA_256_CLIENT_INITIAL = "n,,n=user,r=rOprNGfwEbeRWgbNEkqO".getBytes(StandardCharsets.US_ASCII);
+    static final byte[] SASL_SCRAM_SHA_256_SERVER_FIRST = "r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,s=W22ZaJ0SNY7soEsUEjb6gQ==,i=4096".getBytes(
+            StandardCharsets.US_ASCII);
+    static final byte[] SASL_SCRAM_SHA_256_CLIENT_FINAL = "c=biws,r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,p=dHzbZapWIk4jUhN+Ute9ytag9zjfMHgsqmmiz7AndVQ="
+            .getBytes(StandardCharsets.US_ASCII);
+    static final byte[] SASL_SCRAM_SHA_256_SERVER_FINAL = "v=6rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4=".getBytes(StandardCharsets.US_ASCII);
+    static final byte[] SASL_SCRAM_SHA_512_CLIENT_INITIAL = SASL_SCRAM_SHA_256_CLIENT_INITIAL;
+    static final byte[] SASL_SCRAM_SHA_512_SERVER_FIRST = "r=rOprNGfwEbeRWgbNEkqO02431b08-2f89-4bad-a4e6-80c0564ec865,s=Yin2FuHTt/M0kJWb0t9OI32n2VmOGi3m+JfjOvuDF88=,i=4096"
+            .getBytes(StandardCharsets.US_ASCII);
+    static final byte[] SASL_SCRAM_SHA_512_CLIENT_FINAL = "c=biws,r=rOprNGfwEbeRWgbNEkqO02431b08-2f89-4bad-a4e6-80c0564ec865,p=Hc5yec3NmCD7t+kFRw4/3yD6/F3SQHc7AVYschRja+Bc3sbdjlA0eH1OjJc0DD4ghn1tnXN5/Wr6qm9xmaHt4A=="
+            .getBytes(StandardCharsets.US_ASCII);
+    static final byte[] SASL_SCRAM_SHA_512_SERVER_FINAL = "v=BQuhnKHqYDwQWS5jAw4sZed+C9KFUALsbrq81bB0mh+bcUUbbMPNNmBIupnS2AmyyDnG5CTBQtkjJ9kyY4kzmw==".getBytes(
+            StandardCharsets.US_ASCII);
+    static final byte[] SASL_SCRAM_SHA512_CLIENT_INITIAL_WITH_AUTHZID = "n,a=Ursel,n=user,r=rOprNGfwEbeRWgbNEkqO".getBytes(StandardCharsets.US_ASCII);
 
     @Mock(strictness = LENIENT)
     private FilterContext context;
@@ -94,6 +115,10 @@ class SaslInspectionFilterTest {
             when(builder.shortCircuitResponse(apiMessageCaptor.capture())).then(invocation -> {
                 lenient().when(filterResult.shortCircuitResponse()).thenReturn(true);
                 lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
+                lenient().when(closeOrTerminalStage.withCloseConnection()).then(closeInvocation -> {
+                    lenient().when(filterResult.closeConnection()).thenReturn(true);
+                    return closeOrTerminalStage;
+                });
                 return closeOrTerminalStage;
             });
             return builder;
@@ -272,7 +297,7 @@ class SaslInspectionFilterTest {
 
         // Omits handshake
 
-        var downstreamAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes("\0tim\0tanstaaftanstaaf".getBytes(StandardCharsets.US_ASCII));
+        var downstreamAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(SASL_PLAIN_CLIENT_INITIAL);
         var downstreamAuthenticateRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamAuthenticateRequest.apiKey())
                 .setRequestApiVersion(downstreamAuthenticateRequest.highestSupportedVersion());
         var expectedDownstreamAuthenticateShortCircuitResponse = new SaslAuthenticateResponseData()
@@ -292,6 +317,44 @@ class SaslInspectionFilterTest {
         verify(context, never()).clientSaslAuthenticationSuccess(anyString(), anyString());
     }
 
+    @Test
+    void shouldDetectUnexpectedSecondHandshake() {
+        // Given
+        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
+
+        var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
+        var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
+                .setRequestApiVersion(downstreamHandshakeRequest.highestSupportedVersion());
+        var expectedUpstreamHandshakeRequest = downstreamHandshakeRequest.duplicate();
+
+        var actualUpstreamHandshakeRequest = filter.onSaslHandshakeRequest(downstreamHandshakeRequest.highestSupportedVersion(), downstreamHandshakeRequestHeader,
+                downstreamHandshakeRequest, context);
+
+        assertThat(actualUpstreamHandshakeRequest)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(rfr -> assertThat(rfr.message())
+                        .isEqualTo(expectedUpstreamHandshakeRequest));
+
+        var unexpectedSecondDownstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
+        var expectedResponse = new SaslHandshakeResponseData().setErrorCode(Errors.ILLEGAL_SASL_STATE.code());
+
+        // When
+        var response = filter.onSaslHandshakeRequest(unexpectedSecondDownstreamHandshakeRequest.highestSupportedVersion(), downstreamHandshakeRequestHeader,
+                unexpectedSecondDownstreamHandshakeRequest, context);
+
+        // Then
+        assertThat(response)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(rfr -> {
+                    assertThat(rfr.message())
+                            .isEqualTo(expectedResponse);
+                    assertThat(rfr.closeConnection()).isTrue();
+                });
+
+        verify(context, never()).clientSaslAuthenticationSuccess(anyString(), anyString());
+
+    }
+
     /**
      * The <a href="https://kafka.apache.org/protocol#sasl_handshake">protocol spec says</a>:
      * <blockquote>
@@ -308,7 +371,7 @@ class SaslInspectionFilterTest {
         doSaslHandshakeRequest("PLAIN", filter);
         doSaslHandshakeResponse("PLAIN", filter);
 
-        doSaslAuthenticateRequest("\0tim\0tanstaaftanstaaf".getBytes(StandardCharsets.US_ASCII), filter);
+        doSaslAuthenticateRequest(SASL_PLAIN_CLIENT_INITIAL, filter);
 
         var upstreamAuthenticateResponse = new SaslAuthenticateResponseData().setErrorCode(Errors.SASL_AUTHENTICATION_FAILED.code());
         var upstreamAuthenticateResponseHeader = new ResponseHeaderData();
@@ -333,61 +396,50 @@ class SaslInspectionFilterTest {
 
     static Stream<Arguments> successfulSaslAuthentications() {
         return Stream.of(
-                // Known good from https://datatracker.ietf.org/doc/html/rfc4616
                 Arguments.argumentSet("SASL PLAIN (only authcid provided)",
                         "PLAIN",
-                        new InitialResponse("\0tim\0tanstaaftanstaaf".getBytes(StandardCharsets.US_ASCII)),
+                        new InitialResponse(SASL_PLAIN_CLIENT_INITIAL),
                         List.of(new ChallengeResponse(new byte[0], null)),
                         "tim"),
                 Arguments.argumentSet("SASL PLAIN (authzid and authcid provided)",
                         "PLAIN",
-                        new InitialResponse("Ursel\0Kurt\0xipj3plmq".getBytes(StandardCharsets.US_ASCII)),
+                        new InitialResponse(SASL_PLAIN_CLIENT_INITIAL_WITH_AUTHZID),
                         List.of(new ChallengeResponse(new byte[0], null)),
                         "Ursel"),
-                // Known good from https://datatracker.ietf.org/doc/html/rfc7677
                 Arguments.argumentSet("SASL SCRAM-SHA-256 (n (authcid) provided)",
                         "SCRAM-SHA-256",
-                        new InitialResponse("n,,n=user,r=rOprNGfwEbeRWgbNEkqO".getBytes(StandardCharsets.US_ASCII)),
-                        List.of(new ChallengeResponse(
-                                "r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,s=W22ZaJ0SNY7soEsUEjb6gQ==,i=4096".getBytes(StandardCharsets.US_ASCII),
-                                "c=biws,r=rOprNGfwEbeRWgbNEkqO%hvYDpWUa2RaTCAfuxFIlj)hNlF$k0,p=dHzbZapWIk4jUhN+Ute9ytag9zjfMHgsqmmiz7AndVQ="
-                                        .getBytes(StandardCharsets.US_ASCII)),
-                                new ChallengeResponse("v=6rriTRBi23WpRR/wtup+mMhUZUn/dB5nLTJRsjl95G4=".getBytes(StandardCharsets.US_ASCII), null)),
+                        new InitialResponse(SASL_SCRAM_SHA_256_CLIENT_INITIAL),
+                        List.of(new ChallengeResponse(SASL_SCRAM_SHA_256_SERVER_FIRST, SASL_SCRAM_SHA_256_CLIENT_FINAL),
+                                new ChallengeResponse(SASL_SCRAM_SHA_256_SERVER_FINAL, null)),
                         "user"),
                 Arguments.argumentSet("SASL SCRAM-SHA-512 (a (authzid) and n (authcid) provided)",
                         "SCRAM-SHA-512",
-                        new InitialResponse("n,,n=user,r=rOprNGfwEbeRWgbNEkqO".getBytes(StandardCharsets.US_ASCII)),
+                        new InitialResponse(SASL_SCRAM_SHA_512_CLIENT_INITIAL),
                         List.of(new ChallengeResponse(
-                                "r=rOprNGfwEbeRWgbNEkqO02431b08-2f89-4bad-a4e6-80c0564ec865,s=Yin2FuHTt/M0kJWb0t9OI32n2VmOGi3m+JfjOvuDF88=,i=4096"
-                                        .getBytes(StandardCharsets.US_ASCII),
-                                "c=biws,r=rOprNGfwEbeRWgbNEkqO02431b08-2f89-4bad-a4e6-80c0564ec865,p=Hc5yec3NmCD7t+kFRw4/3yD6/F3SQHc7AVYschRja+Bc3sbdjlA0eH1OjJc0DD4ghn1tnXN5/Wr6qm9xmaHt4A=="
-                                        .getBytes(StandardCharsets.US_ASCII)),
+                                SASL_SCRAM_SHA_512_SERVER_FIRST,
+                                SASL_SCRAM_SHA_512_CLIENT_FINAL),
                                 new ChallengeResponse(
-                                        "v=BQuhnKHqYDwQWS5jAw4sZed+C9KFUALsbrq81bB0mh+bcUUbbMPNNmBIupnS2AmyyDnG5CTBQtkjJ9kyY4kzmw==".getBytes(StandardCharsets.US_ASCII),
+                                        SASL_SCRAM_SHA_512_SERVER_FINAL,
                                         null)),
                         "user"),
                 Arguments.argumentSet("SASL SCRAM-SHA-512 with authzid",
                         "SCRAM-SHA-512",
-                        new InitialResponse("n,a=Ursel,n=user,r=rOprNGfwEbeRWgbNEkqO".getBytes(StandardCharsets.US_ASCII)),
+                        new InitialResponse(SASL_SCRAM_SHA512_CLIENT_INITIAL_WITH_AUTHZID),
                         List.of(new ChallengeResponse(
-                                "r=rOprNGfwEbeRWgbNEkqO02431b08-2f89-4bad-a4e6-80c0564ec865,s=Yin2FuHTt/M0kJWb0t9OI32n2VmOGi3m+JfjOvuDF88=,i=4096"
-                                        .getBytes(StandardCharsets.US_ASCII),
-                                "c=biws,r=rOprNGfwEbeRWgbNEkqO02431b08-2f89-4bad-a4e6-80c0564ec865,p=Hc5yec3NmCD7t+kFRw4/3yD6/F3SQHc7AVYschRja+Bc3sbdjlA0eH1OjJc0DD4ghn1tnXN5/Wr6qm9xmaHt4A=="
-                                        .getBytes(StandardCharsets.US_ASCII)),
+                                SASL_SCRAM_SHA_512_SERVER_FIRST,
+                                SASL_SCRAM_SHA_512_CLIENT_FINAL),
                                 new ChallengeResponse(
-                                        "v=BQuhnKHqYDwQWS5jAw4sZed+C9KFUALsbrq81bB0mh+bcUUbbMPNNmBIupnS2AmyyDnG5CTBQtkjJ9kyY4kzmw==".getBytes(StandardCharsets.US_ASCII),
+                                        SASL_SCRAM_SHA_512_SERVER_FINAL,
                                         null)),
                         "Ursel"),
                 Arguments.argumentSet("SASL SCRAM-SHA-512 (username containing encoded comma)",
                         "SCRAM-SHA-512",
                         new InitialResponse("n,,n=test=2Cuser,r=rOprNGfwEbeRWgbNEkqO".getBytes(StandardCharsets.US_ASCII)),
                         List.of(new ChallengeResponse(
-                                "r=rOprNGfwEbeRWgbNEkqO02431b08-2f89-4bad-a4e6-80c0564ec865,s=Yin2FuHTt/M0kJWb0t9OI32n2VmOGi3m+JfjOvuDF88=,i=4096"
-                                        .getBytes(StandardCharsets.US_ASCII),
-                                "c=biws,r=rOprNGfwEbeRWgbNEkqO02431b08-2f89-4bad-a4e6-80c0564ec865,p=Hc5yec3NmCD7t+kFRw4/3yD6/F3SQHc7AVYschRja+Bc3sbdjlA0eH1OjJc0DD4ghn1tnXN5/Wr6qm9xmaHt4A=="
-                                        .getBytes(StandardCharsets.US_ASCII)),
+                                SASL_SCRAM_SHA_512_SERVER_FIRST,
+                                SASL_SCRAM_SHA_512_CLIENT_FINAL),
                                 new ChallengeResponse(
-                                        "v=BQuhnKHqYDwQWS5jAw4sZed+C9KFUALsbrq81bB0mh+bcUUbbMPNNmBIupnS2AmyyDnG5CTBQtkjJ9kyY4kzmw==".getBytes(StandardCharsets.US_ASCII),
+                                        SASL_SCRAM_SHA_512_SERVER_FINAL,
                                         null)),
                         "test,user"));
     }
@@ -395,6 +447,27 @@ class SaslInspectionFilterTest {
     @ParameterizedTest
     @MethodSource("successfulSaslAuthentications")
     void shouldAuthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses, String expectedAuthorizedId) {
+        doAuthenticateSuccessfully(mechanism, initialResponse, challengeResponses, expectedAuthorizedId);
+
+        // Then
+        verify(context).clientSaslAuthenticationSuccess(mechanism, expectedAuthorizedId);
+        verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
+
+    }
+
+    @ParameterizedTest
+    @MethodSource("successfulSaslAuthentications")
+    void shouldReauthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses, String expectedAuthorizedId) {
+        doAuthenticateSuccessfully(mechanism, initialResponse, challengeResponses, expectedAuthorizedId);
+        doAuthenticateSuccessfully(mechanism, initialResponse, challengeResponses, expectedAuthorizedId);
+
+        // Then
+        verify(context, times(2)).clientSaslAuthenticationSuccess(mechanism, expectedAuthorizedId);
+        verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
+
+    }
+
+    private void doAuthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses, String expectedAuthorizedId) {
         // Given
         var filter = new SaslInspectionFilter(new Config(Set.of(mechanism)));
 
@@ -409,9 +482,6 @@ class SaslInspectionFilterTest {
             Optional.ofNullable(cr.response()).ifPresent(r -> doSaslAuthenticateRequest(r, filter));
         });
 
-        // Then
-        verify(context).clientSaslAuthenticationSuccess(mechanism, expectedAuthorizedId);
-        verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
     }
 
     private void doSaslHandshakeResponse(String mechanism, SaslInspectionFilter filter) {

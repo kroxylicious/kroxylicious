@@ -171,6 +171,7 @@ enum Mech {
             return SCRAM_SHA_256.isFinished(numAuthenticateSeen);
         }
     };
+
     public static final Set<String> SUPPORTED_MECHANISMS = Set.of(
             PLAIN.mechanismName(),
             SCRAM_SHA_256.mechanismName(),

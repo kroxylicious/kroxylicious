@@ -17,6 +17,7 @@ import org.apache.kafka.common.message.SaslAuthenticateRequestData;
 import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.message.SaslHandshakeResponseData;
+import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -142,6 +143,7 @@ class SaslInspectionFilter
             return context.requestFilterResultBuilder().shortCircuitResponse(
                     new SaslHandshakeResponseData()
                             .setErrorCode(Errors.ILLEGAL_SASL_STATE.code()))
+                    .withCloseConnection()
                     .completed();
         }
     }
@@ -182,7 +184,7 @@ class SaslInspectionFilter
             }
         }
         else {
-            return closeConnectionDueToIllegalState(header, context);
+            return closeConnectionDueToIllegalState(header, context, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()));
         }
     }
 
@@ -242,7 +244,7 @@ class SaslInspectionFilter
             if (response.errorCode() == Errors.NONE.code()) {
                 if (this.chosenMechanism.isLastSaslAuthenticateResponse(numAuthenticateSeen)) {
                     if (this.authorizationIdFromClient == null) {
-                        return closeConnectionDueToIllegalState(header, context);
+                        return closeConnectionDueToIllegalState(header, context, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()));
                     }
                     LOGGER.atInfo()
                             .setMessage("Server accepts SASL credentials for client on channel {}")
@@ -279,16 +281,18 @@ class SaslInspectionFilter
             }
         }
         else {
-            return closeConnectionDueToIllegalState(header, context);
+            return closeConnectionDueToIllegalState(header, context, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()));
         }
     }
 
     @NonNull
-    private CompletionStage<ResponseFilterResult> closeConnectionDueToIllegalState(ResponseHeaderData header, FilterContext context) {
+    private CompletionStage<ResponseFilterResult> closeConnectionDueToIllegalState(ResponseHeaderData header, FilterContext context, ApiMessage response) {
         LOGGER.error("Unexpected {} response while in state {}. This should not be possible. Closing connection.",
                 header.apiKey(),
                 currentState);
-        return context.responseFilterResultBuilder().withCloseConnection().completed();
+        return context.responseFilterResultBuilder()
+                .forward(header, response)
+                .withCloseConnection().completed();
     }
 
 }
