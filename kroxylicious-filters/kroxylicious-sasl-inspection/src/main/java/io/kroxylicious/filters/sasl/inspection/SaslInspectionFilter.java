@@ -343,11 +343,11 @@ class SaslInspectionFilter
         if (currentState == State.AWAITING_HANDSHAKE_RESPONSE) {
             var servedAgreed = response.errorCode() == Errors.NONE.code();
             if (servedAgreed && !Mech.PROBE_UPSTREAM.equals(this.chosenMechanism)) {
-                if (LOGGER.isInfoEnabled()) {
-                    LOGGER.info("Server accepts proposed SASL mechanism '{}' on channel {}",
-                            chosenMechanism.mechanismName(),
-                            context.channelDescriptor());
-                }
+                LOGGER.atInfo()
+                        .setMessage("Server accepts proposed SASL mechanism '{}' on channel {}")
+                        .addArgument(() -> chosenMechanism.mechanismName())
+                        .addArgument(context::channelDescriptor)
+                        .log();
                 currentState = State.REQUIRING_AUTHENTICATE_REQUEST;
                 return context.forwardResponse(header, response);
             }
