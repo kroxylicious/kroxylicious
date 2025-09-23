@@ -31,6 +31,9 @@ import java.util.Set;
  * @param principals
  */
 public record Subject(Set<Principal> principals) {
+
+    public static final Subject ANONYMOUS = new Subject(Set.of());
+
     public Subject(Set<Principal> principals) {
         this.principals = Set.copyOf(principals);
     }

@@ -11,6 +11,8 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.regex.Pattern;
 
 import io.kroxylicious.proxy.authorization.Action;
@@ -253,6 +255,9 @@ public class SimpleAuthorizer implements Authorizer {
                                                                   Set<O> operations) {
         // TODO fix the prefix stuff so we don't bother adding redundant prefixes
         var es = EnumSet.copyOf(operations);
+        for (var op : es) {
+            es.addAll(op.implies());
+        }
         PrincipalGrants compute = perPrincipal.compute(principalType, principalName, principalPredicate,
                 g -> {
                     if (g == null) {
@@ -317,38 +322,47 @@ public class SimpleAuthorizer implements Authorizer {
                                         PrincipalGrants grants) {
         Set<? extends Operation<?>> operations;
         var typeNameMap = grants.nameMatches();
+        Operation<?> operation = action.operation();
         if (typeNameMap != null) {
             operations = typeNameMap.lookup(action.resourceType(),
                     TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
                     action.resourceName());
-            if (operations != null && operations.contains(action.operation())) {
+            if (allow(operations, operation)) {
                 return Decision.ALLOW;
             }
             operations = typeNameMap.lookup(action.resourceType(),
                     TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY,
                     null);
-            if (operations != null && operations.contains(action.operation())) {
+            if (allow(operations, operation)) {
                 return Decision.ALLOW;
             }
             operations = typeNameMap.lookup(action.resourceType(),
                     TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH,
                     action.resourceName());
-            if (operations != null && operations.contains(action.operation())) {
+            if (allow(operations, operation)) {
                 return Decision.ALLOW;
             }
         }
         var patternMatch = grants.patternMatch();
         if (patternMatch != null) {
             operations = patternMatch.lookup(action.resourceType(), action.resourceName());
-            if (operations != null && operations.contains(action.operation())) {
+            if (allow(operations, operation)) {
                 return Decision.ALLOW;
             }
         }
         return null;
     }
 
+    /**
+     * Return true iff the given set of operations allow the given action.
+     */
+    private static boolean allow(@Nullable Set<? extends Operation<?>> operations,
+                                 Operation<?> op) {
+        return operations != null && operations.contains(op);
+    }
+
     @Override
-    public Authorization authorize(Subject subject, List<Action> actions) {
+    public CompletionStage<Authorization> authorize(Subject subject, List<Action> actions) {
         List<Action> allowedActions = new ArrayList<>();
         List<Action> deniedActions = new ArrayList<>();
         for (var action : actions) {
@@ -358,7 +372,7 @@ public class SimpleAuthorizer implements Authorizer {
             }
             // TODO log it
         }
-        return new Authorization(allowedActions, deniedActions);
+        return CompletableFuture.completedStage(new Authorization(allowedActions, deniedActions));
     }
 
     @Override

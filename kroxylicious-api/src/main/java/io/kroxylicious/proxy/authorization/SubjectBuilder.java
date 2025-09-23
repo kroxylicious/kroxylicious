@@ -6,10 +6,11 @@
 
 package io.kroxylicious.proxy.authorization;
 
-import java.net.InetSocketAddress;
-import java.security.cert.X509Certificate;
+import java.net.SocketAddress;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
+
+import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 /**
  * Builds a {@link Subject} based on information
@@ -18,9 +19,9 @@ import java.util.concurrent.CompletionStage;
 public interface SubjectBuilder {
 
     interface Context {
-        InetSocketAddress clientIp();
+        SocketAddress clientAddress();
         String clientId();
-        Optional<X509Certificate> x509Certificate();
+        Optional<ClientTlsContext> clientTlsContext();
         Optional<String> saslAuthorizedId();
     }
 

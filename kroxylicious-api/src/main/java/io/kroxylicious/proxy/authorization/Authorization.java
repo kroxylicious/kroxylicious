@@ -6,8 +6,12 @@
 
 package io.kroxylicious.proxy.authorization;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 /**
  * Represents the outcome of a call to {@link Authorizer#authorize(Subject, List)}
@@ -42,6 +46,10 @@ public record Authorization(
                 .anyMatch(a -> a.operation().equals(operation)
                         && a.resourceName().equals(resourceName)) ?
                 Decision.ALLOW : Decision.DENY;
+    }
+
+    public <T> Map<Decision, List<T>> partition(Collection<T> items, Operation<?> operation, Function<T, String> toName) {
+        return items.stream().collect(Collectors.groupingBy(item -> decision(operation, toName.apply(item))));
     }
 
 }

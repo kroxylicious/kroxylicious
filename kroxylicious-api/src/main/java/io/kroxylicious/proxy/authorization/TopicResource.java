@@ -6,11 +6,24 @@
 
 package io.kroxylicious.proxy.authorization;
 
+import java.util.Set;
+
 public enum TopicResource implements Operation<TopicResource> {
+    DESCRIBE,
     READ,
     WRITE,
     CREATE,
     DELETE,
     ALTER,
-    DESCRIBE
+    DESCRIBE_CONFIGS,
+    ALTER_CONFIGS;
+
+    @Override
+    public Set<TopicResource> implies() {
+        return switch (this) {
+            case READ, WRITE, DELETE, ALTER -> Set.of(DESCRIBE);
+            case ALTER_CONFIGS -> Set.of(DESCRIBE_CONFIGS);
+            default -> Set.of();
+        };
+    }
 }
