@@ -19,15 +19,14 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  *
  * @param enabledMechanisms The enabled SASL mechanisms. Defaults to all supported mechanisms.
  */
-public record Config(
-                     @NonNull Set<String> enabledMechanisms) {
+public record Config(@NonNull Set<String> enabledMechanisms) {
 
     public Config(@Nullable Set<String> enabledMechanisms) {
         if (enabledMechanisms == null) {
-            enabledMechanisms = SaslInspectionFilter.SUPPORTED_MECHANISMS;
+            enabledMechanisms = Mech.SUPPORTED_MECHANISMS;
         }
         var unsupportedMechanisms = new HashSet<>(enabledMechanisms);
-        unsupportedMechanisms.removeAll(SaslInspectionFilter.SUPPORTED_MECHANISMS);
+        unsupportedMechanisms.removeAll(Mech.SUPPORTED_MECHANISMS);
         if (!unsupportedMechanisms.isEmpty()) {
             throw new PluginConfigurationException("Unsupported SASL mechanisms: " + unsupportedMechanisms);
         }
