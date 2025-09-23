@@ -37,6 +37,12 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 
+import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.authorizer.service.Authorization;
+import io.kroxylicious.authorizer.service.Authorizer;
+import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.authorizer.service.Principal;
+import io.kroxylicious.authorizer.service.Subject;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;

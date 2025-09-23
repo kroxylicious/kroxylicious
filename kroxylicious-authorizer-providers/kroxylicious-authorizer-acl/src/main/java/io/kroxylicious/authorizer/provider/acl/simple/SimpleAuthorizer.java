@@ -15,13 +15,13 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.regex.Pattern;
 
-import io.kroxylicious.authorizer.service.authorization.Action;
-import io.kroxylicious.authorizer.service.authorization.Authorization;
-import io.kroxylicious.authorizer.service.authorization.Authorizer;
-import io.kroxylicious.authorizer.service.authorization.Decision;
-import io.kroxylicious.authorizer.service.authorization.Operation;
-import io.kroxylicious.authorizer.service.authorization.Principal;
-import io.kroxylicious.authorizer.service.authorization.Subject;
+import io.kroxylicious.authorizer.service.Action;
+import io.kroxylicious.authorizer.service.Authorization;
+import io.kroxylicious.authorizer.service.Authorizer;
+import io.kroxylicious.authorizer.service.Decision;
+import io.kroxylicious.authorizer.service.Operation;
+import io.kroxylicious.authorizer.service.Principal;
+import io.kroxylicious.authorizer.service.Subject;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 

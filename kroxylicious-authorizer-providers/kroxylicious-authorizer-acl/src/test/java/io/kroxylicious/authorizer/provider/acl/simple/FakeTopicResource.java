@@ -6,7 +6,12 @@
 
 package io.kroxylicious.authorizer.provider.acl.simple;
 
-import io.kroxylicious.authorizer.service.Principal;
+import io.kroxylicious.authorizer.service.Operation;
 
-record RolePrincipal(String name) implements Principal {
+public enum FakeTopicResource implements Operation<FakeTopicResource> {
+    DESCRIBE,
+    CREATE,
+    WRITE,
+    ALTER,
+    READ
 }

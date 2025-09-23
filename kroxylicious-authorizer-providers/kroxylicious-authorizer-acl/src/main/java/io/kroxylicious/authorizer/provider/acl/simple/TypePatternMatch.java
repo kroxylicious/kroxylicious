@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 
-import io.kroxylicious.proxy.authorization.Operation;
+import io.kroxylicious.authorizer.service.Operation;
 
 public class TypePatternMatch {
 
