@@ -28,6 +28,7 @@
         <module>kroxylicious-record-validation</module>
         <module>kroxylicious-simple-transform</module>
         <module>kroxylicious-oauthbearer-validation</module>
+        <module>kroxylicious-authorization</module>
     </modules>
 
     <build>
