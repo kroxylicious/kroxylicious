@@ -5,6 +5,7 @@
 [id='con-aws-kms-setup-{context}']
 = Establish an aliasing convention for keys within AWS KMS
 
+[role="_abstract"]
 The filter references KEKs within AWS via an {aws}/kms/latest/developerguide/alias-about.html[AWS key alias].
 
 Establish a naming convention for key aliases to keep the filter’s keys separate from those used by other systems.

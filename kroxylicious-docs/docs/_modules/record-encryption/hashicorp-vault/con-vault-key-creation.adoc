@@ -5,6 +5,7 @@
 [id='con-vault-key-creation-{context}']
 = Creating HashiCorp Vault keys
 
+[role="_abstract"]
 As the administrator, use either the HashiCorp UI or CLI to create AES-256 symmetric keys following your
 key naming convention. The key type must be `aes256-gcm96`, which is Vault's default key type.
 

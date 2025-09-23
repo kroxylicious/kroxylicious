@@ -5,6 +5,7 @@
 [id='con-fortanix-dsm-setup-{context}']
 = Integrate with Fortanix DSM
 
+[role="_abstract"]
 The filter integrates with the {fortanix-dsm}[Fortanix Data Security Manager (DSM)].
 Both Fortanix DSM software-as-a service (SaaS) or an on-premise installation are supported.
 

@@ -1,6 +1,7 @@
 [id='ref-configuring-filters-{context}']
 = Defining filters
 
+[role="_abstract"]
 Filters in Kroxylicious can be defined globally with `filterDefinitions`, applied by default using `defaultFilters`, or customized for specific virtual clusters. 
 The following example shows how these elements work together flexibly:
 

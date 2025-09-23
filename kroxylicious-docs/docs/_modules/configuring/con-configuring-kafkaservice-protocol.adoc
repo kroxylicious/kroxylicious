@@ -5,6 +5,7 @@
 [id='con-configuring-kafkaservice-protocol-{context}']
 = TLS version configuration for proxy-to-cluster connections
 
+[role="_abstract"]
 include::../../_snippets/snip-tls-protocol-versions.adoc[]
 
 This example configures a `KafkaService` to allow only TLS v1.3 when connecting to `kafka.example.com`.

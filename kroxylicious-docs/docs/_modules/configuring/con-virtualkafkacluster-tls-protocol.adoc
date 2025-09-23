@@ -5,6 +5,7 @@
 [id='con-kafka-client-tls-protocol-{context}']
 = TLS version configuration for client-to-proxy connections
 
+[role="_abstract"]
 include::../../_snippets/snip-tls-protocol-versions.adoc[]
 
 You can restrict which TLS protocol versions the proxy supports for client-to-proxy connections by configuring the `protocols` property.

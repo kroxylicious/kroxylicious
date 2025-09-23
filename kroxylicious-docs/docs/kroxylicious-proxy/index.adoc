@@ -7,6 +7,7 @@ include::_assets/attributes.adoc[]
 [id="using-book-{context}"]
 = Kroxylicious Proxy
 
+[role="_abstract"]
 include::_modules/con-about-{guide}-guide.adoc[leveloffset=+1]
 
 include::_assemblies/assembly-proxy-overview.adoc[leveloffset=+1]

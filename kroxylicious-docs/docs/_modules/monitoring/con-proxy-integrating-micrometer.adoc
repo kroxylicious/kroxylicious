@@ -4,6 +4,8 @@
 
 [id='con-proxy-integrating-micrometer-{context}']
 = Integrating Micrometer
+
+[role="_abstract"]
 Kroxylicious integrates with https://micrometer.io/docs[Micrometer] for gathering metrics.
 
 Micrometer provides a simple facade over instrumentation clients for popular observability systems, allowing you to instrument your JVM-based application code without vendor lock-in. 

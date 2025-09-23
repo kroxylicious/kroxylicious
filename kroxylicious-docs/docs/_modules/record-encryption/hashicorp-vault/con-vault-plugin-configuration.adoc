@@ -5,6 +5,7 @@
 [id='con-vault-plugin-configuration-{context}']
 = HashiCorp Vault plugin configuration
 
+[role="_abstract"]
 For HashiCorp Vault, the KMS configuration used by the filter looks like this.
 Use the Vault Token and Vault Transit Engine URL values from the KMS setup.
 

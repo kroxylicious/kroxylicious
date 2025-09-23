@@ -5,6 +5,7 @@
 [id='con-configuring-kafkaservice-cipher-{context}']
 = TLS cipher suite configuration for proxy-to-cluster connections
 
+[role="_abstract"]
 include::../../_snippets/snip-tls-cipher-suite.adoc[]
 
 .Example `KafkaService` configured so that the proxy will negotiate TLS connection using only the listed ciphers.

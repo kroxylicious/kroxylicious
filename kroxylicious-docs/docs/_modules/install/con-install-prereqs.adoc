@@ -5,6 +5,7 @@
 [id='install-prereqs-{context}']
 = Install prerequisites
 
+[role="_abstract"]
 To install Kroxylicious, you will need the following:
 
 ifndef::OpenShiftOnly[]
