@@ -324,8 +324,8 @@ public class KafkaProxyReconciler implements
         return buildTargetClusterTls(kafkaServiceRef)
                 .map(tls -> {
                     Optional<Kafka> kafka = context.getSecondaryResource(Kafka.class, KAFKA_DEP);
-                    LOGGER.info(kafka.map(value -> value.getStatus().getListeners() + "hi there").orElse("not present"));
-                    return new TargetCluster(kafkaServiceRef.getSpec().getBootstrapServers(), tls);
+//                    return new TargetCluster(kafkaServiceRef.getSpec().getBootstrapServers(), tls);
+                    // TODO: Change this to use the bootstrap address coming from Strimzi Kafka CR
                 });
     }
 
