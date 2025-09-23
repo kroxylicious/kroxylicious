@@ -136,10 +136,12 @@ class SaslInspectionIT {
                 10_000);
     }
 
-    // client handshakes with PLAIN
-    // proxy and broker have PLAIN enabled
-    // client authenticated with the correct password
-    // => client should be able to produce and consume
+    /**
+     * client handshakes with PLAIN
+     * proxy and broker have PLAIN enabled
+     * client authenticated with the correct password
+     * => client should be able to produce and consume
+     */
     @Test
     void shouldNotAuthenticateWhenSameMechanismButWrongPassword_PLAIN(
                                                                       @SaslMechanism(value = "PLAIN", principals = {
@@ -183,7 +185,6 @@ class SaslInspectionIT {
         }
     }
 
-    // TODO assert fails if no handshake done at all
     // TODO assert fails if client not configured for SASL
 
     // TODO assert that filters don't get invoked even if a client sends a metadata after getting an error after authenticate

@@ -223,6 +223,33 @@ class SaslInspectionFilterTest {
     }
 
     @Test
+    void shouldDetectMissingHandshake() {
+        // Given
+        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
+
+        // Omits handshake
+
+        var downstreamAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes("\0tim\0tanstaaftanstaaf".getBytes(StandardCharsets.US_ASCII));
+        var downstreamAuthenticateRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamAuthenticateRequest.apiKey())
+                .setRequestApiVersion(downstreamAuthenticateRequest.highestSupportedVersion());
+        var expectedDownstreamAuthenticateShortCircuitResponse = new SaslAuthenticateResponseData()
+                .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
+                .setErrorMessage("SaslHandshake has not been performed");
+
+        // When
+        var actualUpstreamAuthenticateRequest = filter.onSaslAuthenticateRequest(downstreamAuthenticateRequest.highestSupportedVersion(),
+                downstreamAuthenticateRequestHeader, downstreamAuthenticateRequest, context);
+
+        // Then
+        assertThat(actualUpstreamAuthenticateRequest)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(rfr -> assertThat(rfr.message())
+                        .isEqualTo(expectedDownstreamAuthenticateShortCircuitResponse));
+
+        verify(context, never()).clientSaslAuthenticationSuccess(anyString(), anyString());
+    }
+
+    @Test
     void shouldReturnAuthenticationErrorResponseDownstreamWhenBrokerSignalsAuthenticationError() {
         // Given
         var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
