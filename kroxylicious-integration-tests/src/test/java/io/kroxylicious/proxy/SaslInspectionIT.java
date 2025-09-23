@@ -188,9 +188,6 @@ class SaslInspectionIT {
     // TODO assert fails if client not configured for SASL
 
     // TODO assert that filters don't get invoked even if a client sends a metadata after getting an error after authenticate
-    // TODO client tries one mech (not supported by proxy), then reattempts with the commonly supported mech
-    // TODO client tries one mech (supported by proxy, but not by broker), then reattempts with the commonly supported mech
-
     // TODO all these things with older api versions
     // TODO reauth:
     // reauth for scram mechs

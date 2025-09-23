@@ -38,6 +38,7 @@ import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.filterresultbuilder.CloseOrTerminalStage;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -65,6 +66,9 @@ class SaslInspectionFilterTest {
     @Captor
     private ArgumentCaptor<ApiMessage> apiMessageCaptor;
 
+    @Captor
+    private ArgumentCaptor<ResponseHeaderData> responseHeaderDataCaptor;
+
     @BeforeEach
     void setUp() {
         when(context.forwardRequest(any(RequestHeaderData.class), apiMessageCaptor.capture())).then(invocationOnMock -> {
@@ -89,6 +93,25 @@ class SaslInspectionFilterTest {
 
             when(builder.shortCircuitResponse(apiMessageCaptor.capture())).then(invocation -> {
                 lenient().when(filterResult.shortCircuitResponse()).thenReturn(true);
+                lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
+                return closeOrTerminalStage;
+            });
+            return builder;
+        });
+
+        when(context.responseFilterResultBuilder()).then(invocationOnMock -> {
+            var builder = mock(ResponseFilterResultBuilder.class);
+            var filterResult = mock(ResponseFilterResult.class);
+
+            var closeOrTerminalStage = mock(CloseOrTerminalStage.class);
+            lenient().when(closeOrTerminalStage.completed()).thenReturn(CompletableFuture.completedStage(filterResult));
+            lenient().when(closeOrTerminalStage.build()).thenReturn(filterResult);
+            lenient().when(closeOrTerminalStage.withCloseConnection()).then(invocation -> {
+                lenient().when(filterResult.closeConnection()).thenReturn(true);
+                return closeOrTerminalStage;
+            });
+
+            when(builder.forward(responseHeaderDataCaptor.capture(), apiMessageCaptor.capture())).then(invocation -> {
                 lenient().when(filterResult.message()).thenReturn(apiMessageCaptor.getValue());
                 return closeOrTerminalStage;
             });
@@ -125,6 +148,12 @@ class SaslInspectionFilterTest {
 
     }
 
+    /**
+     * The <a href="https://kafka.apache.org/protocol#sasl_handshake">protocol spec says</a>:
+     * <blockquote>
+     * If the mechanism is enabled in the server, the server sends a successful response and continues with SASL authentication.
+     * </blockquote>
+     */
     @Test
     void shouldReturnHandshakeResponseDownstreamWhenMechanismsAgree() {
         // Given
@@ -157,6 +186,12 @@ class SaslInspectionFilterTest {
 
     }
 
+    /**
+     * The <a href="https://kafka.apache.org/protocol#sasl_handshake">protocol spec says</a>:
+     * <blockquote>
+     * If the requested mechanism is not enabled in the server, the server responds with the list of supported mechanisms and closes the client connection.
+     * </blockquote>
+     */
     @Test
     void shouldReturnHandshakeErrorResponseDownstreamWhenClientMechanismUnknownToProxy() {
         // Given
@@ -185,8 +220,12 @@ class SaslInspectionFilterTest {
         // Then
         assertThat(forwardedHandshakeResponse)
                 .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(rfr -> assertThat(rfr.message())
-                        .isEqualTo(expectedDownstreamHandshakeResponse));
+                .satisfies(rfr -> {
+                    assertThat(rfr.message())
+                            .isEqualTo(expectedDownstreamHandshakeResponse);
+                    assertThat(rfr.closeConnection())
+                            .isTrue();
+                });
     }
 
     @Test
@@ -218,8 +257,12 @@ class SaslInspectionFilterTest {
         // Then
         assertThat(forwardedHandshakeResponse)
                 .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(rfr -> assertThat(rfr.message())
-                        .isEqualTo(expectedDownstreamHandshakeResponse));
+                .satisfies(rfr -> {
+                    assertThat(rfr.message())
+                            .isEqualTo(expectedDownstreamHandshakeResponse);
+                    assertThat(rfr.closeConnection())
+                            .isTrue();
+                });
     }
 
     @Test
@@ -249,6 +292,13 @@ class SaslInspectionFilterTest {
         verify(context, never()).clientSaslAuthenticationSuccess(anyString(), anyString());
     }
 
+    /**
+     * The <a href="https://kafka.apache.org/protocol#sasl_handshake">protocol spec says</a>:
+     * <blockquote>
+     * The error code in the final message from the broker will indicate if authentication succeeded or failed.
+     * ... Otherwise, the client connection is closed.
+     * </blockquote>
+     */
     @Test
     void shouldReturnAuthenticationErrorResponseDownstreamWhenBrokerSignalsAuthenticationError() {
         // Given
@@ -271,8 +321,11 @@ class SaslInspectionFilterTest {
         // Then
         assertThat(actualDownstreamAuthenticateResponse)
                 .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(rfr -> assertThat(rfr.message())
-                        .isEqualTo(expectedDownstreamAuthenticateResponse));
+                .satisfies(rfr -> {
+                    assertThat(rfr.message())
+                            .isEqualTo(expectedDownstreamAuthenticateResponse);
+                    assertThat(rfr.closeConnection()).isTrue();
+                });
 
         verify(context, never()).clientSaslAuthenticationSuccess(anyString(), anyString());
         verify(context).clientSaslAuthenticationFailure(eq("PLAIN"), eq("tim"), isA(SaslAuthenticationException.class));

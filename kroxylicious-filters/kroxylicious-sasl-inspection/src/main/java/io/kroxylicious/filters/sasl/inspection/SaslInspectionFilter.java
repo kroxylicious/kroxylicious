@@ -348,6 +348,8 @@ class SaslInspectionFilter
                             chosenMechanism.mechanismName(),
                             context.channelDescriptor());
                 }
+                currentState = State.REQUIRING_AUTHENTICATE_REQUEST;
+                return context.forwardResponse(header, response);
             }
             else {
                 var commonMechanisms = new ArrayList<>(config.enabledMechanisms());
@@ -362,9 +364,11 @@ class SaslInspectionFilter
                         .log();
                 response.setErrorCode(Errors.UNSUPPORTED_SASL_MECHANISM.code())
                         .setMechanisms(commonMechanisms);
+                return context.responseFilterResultBuilder()
+                        .forward(header, response)
+                        .withCloseConnection()
+                        .completed();
             }
-            currentState = State.REQUIRING_AUTHENTICATE_REQUEST;
-            return context.forwardResponse(header, response);
         }
         else {
             return closeConnectionDueToIllegalState(header, context);
@@ -456,11 +460,16 @@ class SaslInspectionFilter
             }
             else {
                 Errors error = Errors.forCode(response.errorCode());
-                LOGGER.info("Server rejects SASL credentials with error {} for client on channel {}",
-                        error.name(), context.channelDescriptor());
+                LOGGER.atInfo()
+                        .setMessage("Server rejects SASL credentials with error {} for client on channel {}")
+                        .addArgument(error::name)
+                        .addArgument(context::channelDescriptor).log();
                 context.clientSaslAuthenticationFailure(chosenMechanism.mechanismName(), this.authorizationIdFromClient, error.exception());
                 resetState();
-                return context.forwardResponse(header, response);
+                return context.responseFilterResultBuilder()
+                        .forward(header, response)
+                        .withCloseConnection()
+                        .completed();
             }
         }
         else {
