@@ -10,4 +10,6 @@ public interface ClientSubjectBuilderService<C> {
     void initialize(C config);
 
     ClientSubjectBuilder build();
+
+    default void close() { }
 }

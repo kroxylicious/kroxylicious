@@ -6,9 +6,7 @@
 
 package io.kroxylicious.filter.authorization;
 
-import io.kroxylicious.authorizer.service.Authorizer;
 import io.kroxylicious.authorizer.service.AuthorizerService;
-import io.kroxylicious.filter.authorization.subject.ClientSubjectBuilder;
 import io.kroxylicious.filter.authorization.subject.ClientSubjectBuilderService;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
@@ -17,24 +15,38 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 public class Authorization implements FilterFactory<AuthorizationConfig, Authorization.InitializationContext> {
 
-    record InitializationContext(Authorizer authorizer, ClientSubjectBuilder subjectBuilder) {
+    public record InitializationContext(
+            AuthorizerService authorizer,
+            ClientSubjectBuilderService clientSubjectBuilderService
+    ) {
     }
 
     @Override
     public InitializationContext initialize(FilterFactoryContext context, AuthorizationConfig configuration) throws PluginConfigurationException {
         var authorizerService = context.pluginInstance(AuthorizerService.class, configuration.authorizer());
         authorizerService.initialize(configuration.authorizerConfig());
-        var authorizer = authorizerService.build();
 
         var subjectBuilderService = context.pluginInstance(ClientSubjectBuilderService.class, configuration.subjectBuilder());
         subjectBuilderService.initialize(configuration.subjectBuilderConfig());
-        var subjectBuilder = subjectBuilderService.build();
 
-        return null;
+        return new InitializationContext(authorizerService, subjectBuilderService);
     }
 
     @Override
     public Filter createFilter(FilterFactoryContext context, InitializationContext initializationData) {
-        return new AuthorizationFilter(initializationData.authorizer(), initializationData.subjectBuilder(), null);
+        return new AuthorizationFilter(initializationData.authorizer().build(),
+                initializationData.clientSubjectBuilderService().build(),
+                null);
+    }
+
+    @Override
+    public void close(InitializationContext initializationData) {
+        try {
+            initializationData.clientSubjectBuilderService.close();
+        }
+        finally {
+            // ensure we try to close the authorizer, even if the subjectBuilder.close() fails
+            initializationData.authorizer.close();
+        }
     }
 }

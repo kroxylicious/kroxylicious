@@ -36,4 +36,11 @@ public record Subject(Set<Principal> principals) {
     public Subject(Set<Principal> principals) {
         this.principals = Set.copyOf(principals);
     }
+
+    public static Subject create(Set<Principal> principals) {
+        if (principals.isEmpty()) {
+            return ANONYMOUS;
+        }
+        return new Subject(principals);
+    }
 }
