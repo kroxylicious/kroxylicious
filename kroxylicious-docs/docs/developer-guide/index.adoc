@@ -12,7 +12,7 @@ include::_modules/con-about-{guide}-guide.adoc[leveloffset=+1]
 
 include::_assemblies/assembly-proxy-overview.adoc[leveloffset=+1]
 
-include::_modules/con-api-compatability-{guide}.adoc[leveloffset=+2]
+include::_modules/con-api-compatibility-{guide}.adoc[leveloffset=+2]
 
 include::_modules/con-custom-filters.adoc[leveloffset=+1]
 

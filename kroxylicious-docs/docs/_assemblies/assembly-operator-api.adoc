@@ -45,4 +45,4 @@ For example, you might grant networking engineers the ability to configure `Kafk
 .Generated Kubernetes resources and the relationships between them
 image::{realimagesdir}/operator-output-resource-topology.svg["Diagram showing the output resources, Deployment, Pod, ConfigMap, Service, with arrows showing the Deployment managing the Pod, the Pod mounting the ConfigMap, and the Service selecting the Pod."]
 
-include::../_modules/con-api-compatability-operator.adoc[leveloffset=+1]
+include::../_modules/con-api-compatibility-operator.adoc[leveloffset=+1]
