@@ -8,9 +8,11 @@ package io.kroxylicious.microbenchmarks;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -203,6 +205,11 @@ public class InvokerDispatchBenchmark {
 
         @Override
         public <M extends ApiMessage> CompletionStage<M> sendRequest(RequestHeaderData header, ApiMessage request) {
+            return null;
+        }
+
+        @Override
+        public CompletionStage<Map<Uuid, String>> getTopicNames(Set<Uuid> topicUuids) {
             return null;
         }
 

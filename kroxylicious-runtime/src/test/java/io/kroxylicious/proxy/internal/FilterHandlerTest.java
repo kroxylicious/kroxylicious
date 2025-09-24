@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
@@ -25,6 +26,7 @@ import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
@@ -1343,5 +1345,14 @@ class FilterHandlerTest extends FilterHarness {
 
         assertThat(clientSaslManager.clientSaslContext())
                 .isEmpty();
+    }
+
+    @Test
+    void extractTopicNamesFailsOnUnexpectedResponseType() {
+        ApiMessage response = new ApiVersionsResponseData();
+        Set<Uuid> topicIds = Set.of(new Uuid(5L, 5L));
+        assertThatThrownBy(() -> FilterHandler.extractTopicNames(topicIds, response))
+                .isInstanceOf(TopicNameLookupException.class)
+                .hasMessage("Unexpected response type " + response.getClass());
     }
 }
