@@ -24,14 +24,14 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class SimpleAuthorizerTest {
+class AclAuthorizerTest {
 
     @Test
     void builderAllOperationsAndResourceNameEqualAndPrincipalNameEqual() {
         // Given
         EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.allOf(FakeTopicResource.class);
         EnumSet<FakeTopicResource> shouldBeDenied = EnumSet.complementOf(shouldBeAllowed);
-        var authz = SimpleAuthorizer.builder()
+        var authz = AclAuthorizer.builder()
                 .grant()
                 .allOperations(FakeTopicResource.class)
                 .forResourceWithNameEqualTo("my-topic")
@@ -75,7 +75,7 @@ class SimpleAuthorizerTest {
         // Given
         EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.of(FakeTopicResource.READ, FakeTopicResource.DESCRIBE);
         EnumSet<FakeTopicResource> shouldBeDenied = EnumSet.complementOf(shouldBeAllowed);
-        var authz = SimpleAuthorizer.builder()
+        var authz = AclAuthorizer.builder()
                 .grant()
                 .operations(Set.of(FakeTopicResource.READ))
                 .forResourceWithNameEqualTo("my-topic")
@@ -117,7 +117,7 @@ class SimpleAuthorizerTest {
         // Given
         EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.of(FakeTopicResource.CREATE);
         EnumSet<FakeTopicResource> shouldBeDenied = EnumSet.complementOf(shouldBeAllowed);
-        var authz = SimpleAuthorizer.builder()
+        var authz = AclAuthorizer.builder()
                 .grant()
                 .operations(shouldBeAllowed)
                 .forResourceWithNameEqualTo("my-topic")
@@ -158,7 +158,7 @@ class SimpleAuthorizerTest {
     void builderAllOperationsAndResourceNamePrefixAndPrincipalNameEqual() {
         // Given
         EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.allOf(FakeTopicResource.class);
-        var authz = SimpleAuthorizer.builder()
+        var authz = AclAuthorizer.builder()
                 .grant()
                 .allOperations(FakeTopicResource.class)
                 .forResourcesWithNameStartingWith("my-")
@@ -195,7 +195,7 @@ class SimpleAuthorizerTest {
     void builderAllOperationsAndResourceNameAnyAndPrincipalNameEqual() {
         // Given
         EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.allOf(FakeTopicResource.class);
-        var authz = SimpleAuthorizer.builder()
+        var authz = AclAuthorizer.builder()
                 .grant()
                 .allOperations(FakeTopicResource.class)
                 .forAllResources()
@@ -226,7 +226,7 @@ class SimpleAuthorizerTest {
     void builderAllOperationsAndResourceNameMatchingAndPrincipalNameEqual() {
         // Given
         EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.allOf(FakeTopicResource.class);
-        var authz = SimpleAuthorizer.builder()
+        var authz = AclAuthorizer.builder()
                 .grant()
                 .allOperations(FakeTopicResource.class)
                 .forResourcesWithNameMatching("(my|your)-topic+")
@@ -269,7 +269,7 @@ class SimpleAuthorizerTest {
         }
     }
 
-    private static Authorization getAuthorization(SimpleAuthorizer authz, Subject alice, List<Action> op) {
+    private static Authorization getAuthorization(AclAuthorizer authz, Subject alice, List<Action> op) {
         CompletionStage<Authorization> authorizationStage = authz.authorize(alice,
                 op);
         assertThat(authorizationStage).isCompleted();
@@ -285,7 +285,7 @@ class SimpleAuthorizerTest {
     @Test
     void t() {
 
-        SimpleAuthorizer simple = new SimpleAuthorizer();
+        AclAuthorizer simple = new AclAuthorizer();
         UserPrincipal alice = new UserPrincipal("alice");
         UserPrincipal bob = new UserPrincipal("bob");
         UserPrincipal carol = new UserPrincipal("carol");

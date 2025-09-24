@@ -10,6 +10,8 @@ package io.kroxylicious.authorizer.service;
  * An identifier held by a {@link Subject}.
  */
 public interface Principal {
+    // TODO this should not really be an interface, since we depend on equality and
+    // would like for instances to be immutable wrt this equality
     String name();
 }
 

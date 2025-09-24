@@ -16,7 +16,7 @@ public class SaslSubjectBuilder implements ClientSubjectBuilder {
     public CompletionStage<Subject> buildSubject(Context context) {
         return CompletableFuture.completedStage(
                 context.saslAuthorizedId()
-                        .map(id -> new Subject(Set.of(new SaslAuthorizedId(id))))
+                        .map(id -> new Subject(Set.of(new User(id))))
                         .orElse(Subject.ANONYMOUS));
     }
 }

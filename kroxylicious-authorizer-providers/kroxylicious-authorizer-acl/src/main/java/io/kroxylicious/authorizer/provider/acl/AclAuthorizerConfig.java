@@ -6,6 +6,7 @@
 
 package io.kroxylicious.authorizer.provider.acl;
 
-public class SimpleAuthorizerParser {
-
+public record AclAuthorizerConfig(
+        String aclFile
+) {
 }

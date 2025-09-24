@@ -25,7 +25,7 @@ import io.kroxylicious.authorizer.service.Subject;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public class SimpleAuthorizer implements Authorizer {
+public class AclAuthorizer implements Authorizer {
 
     enum Pred {
         ANY(TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY),
@@ -197,13 +197,13 @@ public class SimpleAuthorizer implements Authorizer {
     }
 
     public static class Builder {
-        SimpleAuthorizer simpleAuthorizer = new SimpleAuthorizer();
+        AclAuthorizer simpleAuthorizer = new AclAuthorizer();
 
         public GrantBuilder grant() {
             return new GrantBuilder(this);
         }
 
-        public SimpleAuthorizer build() {
+        public AclAuthorizer build() {
             return simpleAuthorizer;
         }
     }

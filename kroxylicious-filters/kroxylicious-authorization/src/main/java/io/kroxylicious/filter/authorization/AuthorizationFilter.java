@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
@@ -40,33 +41,19 @@ import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Authorization;
 import io.kroxylicious.authorizer.service.Authorizer;
 import io.kroxylicious.authorizer.service.Decision;
-import io.kroxylicious.authorizer.service.Principal;
 import io.kroxylicious.authorizer.service.Subject;
 import io.kroxylicious.filter.authorization.subject.ClientSubjectBuilder;
+import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilter;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
+import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class AuthorizationFilter implements RequestFilter, ResponseFilter {
-
-    record User(String name) implements Principal {}
-
-    CompletionStage<Subject> subject(FilterContext context) {
-        return subjectBuilder.buildSubject(null);
-//        var user = context.clientSaslContext().map(csc -> new User(csc.authorizationId()))
-//                .orElse(context.clientTlsContext().flatMap(tc -> tc.clientCertificate())
-//                        .map(x -> x.getSubjectX500Principal().getName()).map(User::new).orElse(null));
-//        if (user == null) {
-//            return new Subject(Set.of());
-//        }
-//        else {
-//            return new Subject(Set.of(user));
-//        }
-    }
 
     private final Authorizer authorizer;
     private final ClientSubjectBuilder subjectBuilder;
@@ -79,6 +66,24 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         this.subjectBuilder = subjectBuilder;
         this.bufferedPartialResponses = new HashMap<>(10);
         this.topicCache = topicCache;
+    }
+
+    CompletionStage<Subject> subject(FilterContext context) {
+        // TODO avoid calling the builder every time if the contexts haven't changed
+        //  that should be "easy", since the leaves of the tree override equals
+        //  but perhaps the FilterContext should just keep a generation for the
+        //  number of times autnz has happened, then we could just compare ints
+        return subjectBuilder.buildSubject(new ClientSubjectBuilder.Context() {
+            @Override
+            public Optional<ClientTlsContext> clientTlsContext() {
+                return context.clientTlsContext();
+            }
+
+            @Override
+            public Optional<ClientSaslContext> clientSaslContext() {
+                return context.clientSaslContext();
+            }
+        });
     }
 
     private boolean isAllTopics(RequestHeaderData header, MetadataRequestData metadataRequest) {

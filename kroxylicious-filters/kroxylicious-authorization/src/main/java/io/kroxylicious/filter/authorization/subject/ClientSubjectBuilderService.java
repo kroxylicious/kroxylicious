@@ -6,7 +6,8 @@
 
 package io.kroxylicious.filter.authorization.subject;
 
-import io.kroxylicious.authorizer.service.Principal;
+public interface ClientSubjectBuilderService<C> {
+    void initialize(C config);
 
-public record SaslAuthorizedId(String name) implements Principal {
+    ClientSubjectBuilder build();
 }

@@ -10,10 +10,9 @@ import java.util.Set;
 
 /**
  * <p>Represents an actor in the system.
- * Subjects are composed of a set of identifiers represented as {@link Principal} instances.
- * A {@link SubjectBuilder} is responsible for building a subject.</p>
+ * Subjects are composed of a set of identifiers represented as {@link Principal} instances.</p>
  *
- * <p>The principals chosen depend on the builder implementation but in general comprise the following:</p>
+ * <p>The principals chosen depend on the calling code but in general might comprise the following:</p>
  * <li>information proven by a client, such as a SASL authorized id,</li>
  * <li>information known about the client, such as the remote peer's IP address,</li>
  * <li>information provided by the client, such as its Kafka client id</li>

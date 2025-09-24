@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import io.kroxylicious.authorizer.service.Subject;
+import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 /**
@@ -22,9 +23,7 @@ public interface ClientSubjectBuilder {
     CompletionStage<Subject> buildSubject(Context context);
 
     interface Context {
-        SocketAddress clientAddress();
-        String clientId();
         Optional<ClientTlsContext> clientTlsContext();
-        Optional<String> saslAuthorizedId();
+        Optional<ClientSaslContext> clientSaslContext();
     }
 }

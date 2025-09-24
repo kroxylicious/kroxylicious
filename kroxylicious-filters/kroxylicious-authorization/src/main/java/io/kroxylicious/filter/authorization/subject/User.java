@@ -8,9 +8,5 @@ package io.kroxylicious.filter.authorization.subject;
 
 import io.kroxylicious.authorizer.service.Principal;
 
-public record X500Principal(String name) implements Principal {
-    public X500Principal(javax.security.auth.x500.X500Principal x500Principal) {
-        this(x500Principal.getName());
-    }
-
+public record User(String name) implements Principal {
 }
