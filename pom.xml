@@ -463,7 +463,6 @@
         <module>kroxylicious-docs</module>
         <module>kroxylicious-authorizer</module>
         <module>kroxylicious-authorizer-providers</module>
-        <module>kroxylicious-authorizer-providers/kroxylicious-authorizer-acl</module>
     </modules>
 
 

@@ -74,7 +74,7 @@ filterDefinitions:
       replacementValue: bar
 ----
 
-This means that it will search for the string `foo` in the produce data and replace all occurrences with the string `bar`.
+This means that it will search for the string `subject` in the produce data and replace all occurrences with the string `bar`.
 For example, if a Kafka Producer sent a produce request with data `{"myValue":"foo"}`, the filter would transform this into `{"myValue":"bar"}` and Kroxylicious would send that to the Kafka Broker instead.
 
 The default configuration for *SampleFetchResponseFilter* is:

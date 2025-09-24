@@ -11,7 +11,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
@@ -43,6 +42,7 @@ import io.kroxylicious.authorizer.service.Authorizer;
 import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.authorizer.service.Principal;
 import io.kroxylicious.authorizer.service.Subject;
+import io.kroxylicious.filter.authorization.subject.ClientSubjectBuilder;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -55,24 +55,28 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
 
     record User(String name) implements Principal {}
 
-    Subject subject(FilterContext context) {
-        var user = context.clientSaslContext().map(csc -> new User(csc.authorizationId()))
-                .orElse(context.clientTlsContext().flatMap(tc -> tc.clientCertificate())
-                        .map(x -> x.getSubjectX500Principal().getName()).map(User::new).orElse(null));
-        if (user == null) {
-            return new Subject(Set.of());
-        }
-        else {
-            return new Subject(Set.of(user));
-        }
+    CompletionStage<Subject> subject(FilterContext context) {
+        return subjectBuilder.buildSubject(null);
+//        var user = context.clientSaslContext().map(csc -> new User(csc.authorizationId()))
+//                .orElse(context.clientTlsContext().flatMap(tc -> tc.clientCertificate())
+//                        .map(x -> x.getSubjectX500Principal().getName()).map(User::new).orElse(null));
+//        if (user == null) {
+//            return new Subject(Set.of());
+//        }
+//        else {
+//            return new Subject(Set.of(user));
+//        }
     }
 
     private final Authorizer authorizer;
+    private final ClientSubjectBuilder subjectBuilder;
     private final Map<Integer, UnaryOperator<?>> bufferedPartialResponses;
     private final Map<String, Object> topicCache;
 
-    public AuthorizationFilter(Authorizer authorizer, Map<String, Object> topicCache) {
+    public AuthorizationFilter(Authorizer authorizer,
+                               ClientSubjectBuilder subjectBuilder, Map<String, Object> topicCache) {
         this.authorizer = authorizer;
+        this.subjectBuilder = subjectBuilder;
         this.bufferedPartialResponses = new HashMap<>(10);
         this.topicCache = topicCache;
     }
@@ -108,7 +112,8 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                     var createActions = unknownTopics.stream()
                             .map(t -> new Action(TopicResource.CREATE, t.name()))
                             .toList();
-                    Authorization createAuthorization = authorizer.authorize(subject(context), createActions).toCompletableFuture().join();
+                    Authorization createAuthorization = subject(context)
+                            .thenCompose(subject -> authorizer.authorize(subject, createActions)).toCompletableFuture().join();
                     var createDecisions = request.topics().stream().collect(Collectors.groupingBy(t -> createAuthorization.decision(TopicResource.CREATE, t.name())));
                     var allowedToCreate = createDecisions.get(Decision.ALLOW);
                     if (knownTopics.isEmpty() && allowedToCreate.isEmpty()) {
@@ -173,7 +178,8 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         List<Action> actionStream = response.topics().stream()
                 .map(responseTopic -> new Action(TopicResource.DESCRIBE, responseTopic.name()))
                 .toList();
-        Authorization authorize = authorizer.authorize(subject(context), actionStream).toCompletableFuture().join();
+        Authorization authorize = subject(context)
+                .thenCompose(subject -> authorizer.authorize(subject, actionStream)).toCompletableFuture().join();
         var x = new MetadataResponseData.MetadataResponseTopicCollection(response.topics().size());
         response.topics().stream().map(t -> {
             if (authorize.decision(TopicResource.DESCRIBE, t.name()) == Decision.ALLOW) {
@@ -198,7 +204,8 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                 .map(t -> new Action(TopicResource.WRITE, t.name()))
                 .toList();
 
-        Authorization authorize = authorizer.authorize(subject(context), topicWriteActions).toCompletableFuture().join();
+        Authorization authorize = subject(context)
+                .thenCompose(subject -> authorizer.authorize(subject, topicWriteActions)).toCompletableFuture().join();
 
         var topicWriteDecisions= request.topicData().stream()
                 .collect(Collectors.groupingBy(tc -> authorize.decision(TopicResource.WRITE, tc.name())));
@@ -246,7 +253,8 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         var topicReadActions = request.topics().stream()
                 .map(t -> new Action(TopicResource.READ, t.topic()))
                 .toList();
-        return authorizer.authorize(subject(context), topicReadActions)
+        return subject(context)
+                .thenCompose(subject -> authorizer.authorize(subject, topicReadActions))
                 .thenCompose(authorization -> {
                     var topicReadDecisions = request.topics().stream()
                             .collect(Collectors.groupingBy(t -> authorization.decision(TopicResource.READ, t.topic())));
@@ -296,7 +304,8 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         var topicReadActions = TopicResource.CREATE.actionsOf(
                 request.topics().stream()
                         .map(CreateTopicsRequestData.CreatableTopic::name));
-        return authorizer.authorize(subject(context), topicReadActions)
+        return subject(context)
+                .thenCompose(subject -> authorizer.authorize(subject, topicReadActions))
                 .thenCompose(authorization -> {
                     var topicReadDecisions = authorization.partition(request.topics(),
                             TopicResource.CREATE,
@@ -337,7 +346,9 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                                                          FilterContext context) {
 
         List<Action> actions = TopicResource.DESCRIBE_CONFIGS.actionsOf(response.topics().stream().map(t -> t.name()));
-        return authorizer.authorize(subject(context), actions).thenCompose(authorization -> {
+        return subject(context)
+                .thenCompose(subject -> authorizer.authorize(subject, actions))
+                .thenCompose(authorization -> {
             for (var creatableTopicResult : response.topics()) {
                 if (authorization.decision(TopicResource.DESCRIBE_CONFIGS, creatableTopicResult.name()) == Decision.DENY) {
                     creatableTopicResult.setConfigs(null);
@@ -371,7 +382,8 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         else {
             actions = operation.actionsOf(request.topicNames().stream());
         }
-        return authorizer.authorize(subject(context), actions)
+        return subject(context)
+                .thenCompose(subject -> authorizer.authorize(subject, actions))
                 .thenCompose(authorization -> {
                     if (useStates) {
                         var decisions = authorization.partition(request.topics(), operation, DeleteTopicsRequestData.DeleteTopicState::name);
@@ -511,7 +523,9 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                     request.topics().stream()
                             .map(OffsetFetchRequestData.OffsetFetchRequestTopic::name));
         }
-        return authorizer.authorize(subject(context), actions).thenCompose(authorization -> {
+        return subject(context)
+                .thenCompose(subject -> authorizer.authorize(subject, actions))
+                .thenCompose(authorization -> {
             if (isBatched) {
                 var t2 = authorization.partition(request.groups().stream()
                         .flatMap(g -> g.topics().stream())
@@ -546,15 +560,15 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                 .setTopics(offsetFetchResponseTopics));
                     }
 
-                    savePartialResponse(header, (OffsetFetchResponseData response) -> {
-                        // TODO need to write the group merging eugh
-                        for (var g : response.groups()) {
-                            if (g.groupId()
-                        }
-                        response.groups().addAll(fm);
-                        return response;
-                    });
-                    g.setTopics(allowed);
+//                    savePartialResponse(header, (OffsetFetchResponseData response) -> {
+//                        // TODO need to write the group merging eugh
+//                        for (var g : response.groups()) {
+//                            if (g.groupId()
+//                        }
+//                        response.groups().addAll(fm);
+//                        return response;
+//                    });
+//                    g.setTopics(allowed);
                     return context.forwardRequest(header, request);
                 }
             }
