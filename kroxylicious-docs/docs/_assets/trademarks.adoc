@@ -1,5 +1,6 @@
 = Trademark notice
 
+[role="_abstract"]
 * Apache Kafka is a registered trademark of The Apache Software Foundation.
 * Kubernetes is a registered trademark of The Linux Foundation.
 * Prometheus is a registered trademark of The Linux Foundation.

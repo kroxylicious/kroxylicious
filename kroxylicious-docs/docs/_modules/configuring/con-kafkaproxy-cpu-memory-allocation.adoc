@@ -5,6 +5,7 @@
 [id='con-kafkaproxy-cpu-memory-allocation-{context}']
 = Configuring Proxy container CPU and memory resource limits and requests
 
+[role="_abstract"]
 When you define a `KafkaProxy` resource, a number of Kubernetes `Pods` are created, each with a proxy container.
 Each of these containers runs a single Kroxylicious Proxy process.
 

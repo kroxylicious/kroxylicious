@@ -5,6 +5,10 @@
 [id='con-api-compatibility{context}']
 = Compatibility
 
+[role="_abstract"]
+Kroxylicious aims to provide consistent compatibility across its public interfaces, including APIs, configuration syntax, and supported plugin types. 
+Kafka compatibility is maintained in alignment with Apache Kafka’s protocol guarantees.
+
 [id='con-api-compatibility-api{context}']
 == APIs
 

@@ -5,6 +5,7 @@
 [id='con-vault-setup-{context}']
 = Enable the Transit Engine
 
+[role="_abstract"]
 The filter integrates with the {hashicorp-vault}/docs/secrets/transit[HashiCorp Vault *Transit Engine*].
 Vault does not enable the Transit Engine by default.
 It must be {hashicorp-vault}/docs/secrets/transit#setup[enabled] before it can be used by the filter.

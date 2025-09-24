@@ -5,6 +5,7 @@
 [id='con-kafka-client-tls-cipher-{context}']
 = TLS cipher suite configuration for client-to-proxy connections
 
+[role="_abstract"]
 include::../../_snippets/snip-tls-cipher-suite.adoc[]
 
 You can restrict which TLS cipher suites the proxy uses when negotiating client-to-proxy connections by configuring the `cipherSuites` property.

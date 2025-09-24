@@ -5,6 +5,7 @@
 [id='con-proxy-overview-{context}']
 = Why use proxies?
 
+[role="_abstract"]
 Proxies are a powerful and flexible architectural pattern.
 For Kafka, they can be used to add functionality to Kafka clusters which is not available out-of-the-box with Apache Kafka.
 In an ideal world, such functionality would be implemented directly in Apache Kafka.

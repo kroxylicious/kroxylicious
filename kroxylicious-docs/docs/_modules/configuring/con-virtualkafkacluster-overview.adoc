@@ -5,6 +5,7 @@
 [id='con-virtualkafkacluster-overview-{context}']
 = Virtual cluster configuration
 
+[role="_abstract"]
 A `VirtualKafkaCluster` resource defines a logical Kafka cluster that is accessible to clients over the network.
 
 The virtual cluster references the following resources, which must be in the same namespace:

@@ -5,6 +5,7 @@
 [id='con-api-compatibility{context}']
 = Compatibility
 
+[role="_abstract"]
 There are effectively two APIs a filter developer needs to care about:
 
 . The Filter API against which the filter is written.

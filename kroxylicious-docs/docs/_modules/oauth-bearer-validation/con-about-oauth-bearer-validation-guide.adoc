@@ -2,5 +2,6 @@
 [discrete]
 = About this guide
 
+[role="_abstract"]
 This guide covers using the *Kroxylicious Oauth Bearer Validation Filter*. This filters validates the JWT token received from client before forwarding it to cluster.
 Refer to other Kroxylicious guides for information on running the proxy or for advanced topics such as plugin development.

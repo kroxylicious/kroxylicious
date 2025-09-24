@@ -5,6 +5,7 @@
 [id='con-configuring-virtualkafkacluster-{context}']
 = TLS configuration for client-to-proxy connections
 
+[role="_abstract"]
 This example shows a `VirtualKafkaCluster`, exposing it to Kafka clients running on the same Kubernetes cluster.
 It uses TLS as the transport protocol so that communication between Kafka clients and the proxy is encrypted.
 

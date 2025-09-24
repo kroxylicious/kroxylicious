@@ -5,6 +5,7 @@
 [id='con-lost-kek-{context}']
 = Handling lost KEKs
 
+[role="_abstract"]
 This section describes how to recover or mitigate the loss of a Key Encryption Key (KEK) required for decryption.
 
 A KEK is considered lost if it is no longer usable for decryption even though the Key Management System (KMS) remains accessible to the proxy. 
