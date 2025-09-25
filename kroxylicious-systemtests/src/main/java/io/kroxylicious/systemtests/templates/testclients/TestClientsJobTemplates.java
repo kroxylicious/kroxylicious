@@ -169,6 +169,28 @@ public class TestClientsJobTemplates {
     }
 
     /**
+     * Default python job builder.
+     *
+     * @param jobName the job name
+     * @param args the args
+     * @return the job builder
+     */
+    public static JobBuilder defaultPythonJob(String jobName, List<String> args) {
+        return baseClientJob(jobName)
+                .editSpec()
+                .withBackoffLimit(3)
+                .editTemplate()
+                .editSpec()
+                .withRestartPolicy(Constants.RESTART_POLICY_ONFAILURE)
+                .withContainers(ContainerTemplates.baseImageBuilder("python", Constants.PYTHON_CLIENT_IMAGE)
+                        .withArgs(args)
+                        .build())
+                .endSpec()
+                .endTemplate()
+                .endSpec();
+    }
+
+    /**
      * Default kafka go consumer job builder.
      *
      * @param jobName the job name

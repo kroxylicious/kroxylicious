@@ -68,6 +68,23 @@ class NonJVMClientsST extends AbstractST {
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
+    @Test
+    void produceAndConsumeWithPythonClients(String namespace) {
+        int numberOfMessages = 2;
+        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
+        KafkaClients.python().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
+
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        List<ConsumerRecord> result = KafkaClients.python().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
+                Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+    }
+
     /**
      * Produce and consume message with kaf.
      *
@@ -101,6 +118,28 @@ class NonJVMClientsST extends AbstractST {
         int numberOfMessages = 2;
         LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
         KafkaClients.kcat().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
+
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        List<ConsumerRecord> result = KafkaClients.strimziTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
+                Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+    }
+
+    /**
+     * Produce with python and consume message with java test clients.
+     *
+     * @param namespace the namespace
+     */
+    @Test
+    void produceWithPythonAndConsumeWithTestClients(String namespace) {
+        int numberOfMessages = 2;
+        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
+        KafkaClients.python().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
         List<ConsumerRecord> result = KafkaClients.strimziTestClient().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
