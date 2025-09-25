@@ -13,11 +13,13 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.kafka.clients.CommonClientConfigs;
+import org.apache.kafka.clients.admin.DescribeClusterOptions;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
+import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.UnsupportedSaslMechanismException;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.serialization.Serdes;
@@ -117,6 +119,25 @@ class SaslInspectionIT {
      * => client should be able to produce and consume
      */
     @Test
+    void shouldNotAuthenticateWhenSameMechanismButWrongPassword_PLAIN(@SaslMechanism(value = "PLAIN", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+                                                                      Topic topic) {
+
+        String mechanism = "PLAIN";
+        String clientLoginModule = "org.apache.kafka.common.security.plain.PlainLoginModule";
+        String username = "alice";
+        String password = "alice-oops";
+
+        assertClientsGetSaslAuthenticationException(cluster, topic, mechanism, clientLoginModule, username, password);
+    }
+
+    /**
+     * client handshakes with PLAIN
+     * proxy and broker have PLAIN enabled
+     * client authenticated with the correct password
+     * => client should be able to produce and consume
+     */
+    @Test
     void shouldAuthenticateWhenSameMechanism_PLAIN_withReauth(@SaslMechanism(value = "PLAIN", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret")
     }) @BrokerConfig(name = "connections.max.reauth.ms", value = "5000") KafkaCluster cluster,
@@ -134,22 +155,26 @@ class SaslInspectionIT {
     }
 
     /**
-     * client handshakes with PLAIN
-     * proxy and broker have PLAIN enabled
+     * client handshakes with SCRAM-SHA-256
+     * proxy and broker have SCRAM-SHA-256 enabled
      * client authenticated with the correct password
      * => client should be able to produce and consume
      */
     @Test
-    void shouldNotAuthenticateWhenSameMechanismButWrongPassword_PLAIN(@SaslMechanism(value = "PLAIN", principals = {
-            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
-                                                                      Topic topic) {
+    void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_512_withReauth(@SaslMechanism(value = "SCRAM-SHA-256", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret")
+    }) @BrokerConfig(name = "connections.max.reauth.ms", value = "5000") KafkaCluster cluster,
+                                                                      Topic topic)
+            throws Exception {
 
-        String mechanism = "PLAIN";
-        String clientLoginModule = "org.apache.kafka.common.security.plain.PlainLoginModule";
+        String mechanism = "SCRAM-SHA-256";
+        String clientLoginModule = "org.apache.kafka.common.security.scram.ScramLoginModule";
         String username = "alice";
-        String password = "alice-oops";
+        String password = "alice-secret";
 
-        assertClientsGetSaslAuthenticationException(cluster, topic, mechanism, clientLoginModule, username, password);
+        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password,
+                2, 2,
+                10_000);
     }
 
     /**
@@ -181,12 +206,33 @@ class SaslInspectionIT {
         }
     }
 
-    // TODO assert fails if client not configured for SASL
+    /**
+     * broker has PLAIN enabled
+     * proxy has PLAIN enabled
+     * client not configured for SASL
+     * => client should not complete authentication
+     */
+    @Test
+    void shouldNotConnectClientNotConfiguredForSasl(@SaslMechanism(value = "PLAIN", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+                                                    Topic topic) {
+        var config = buildProxyConfig("PLAIN", cluster);
+
+        try (var tester = kroxyliciousTester(config);
+                var admin = tester.admin(Map.of(
+                        CommonClientConfigs.BOOTSTRAP_SERVERS_CONFIG, cluster.getBootstrapServers(),
+                        CommonClientConfigs.CLIENT_ID_CONFIG, "PLAIN-producer",
+                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "PLAINTEXT"))) {
+            assertThat(admin.describeCluster(new DescribeClusterOptions().timeoutMs(1000)).clusterId())
+                    .failsWithin(5, TimeUnit.SECONDS)
+                    .withThrowableOfType(ExecutionException.class)
+                    .withCauseExactlyInstanceOf(TimeoutException.class);
+        }
+    }
 
     // TODO assert that filters don't get invoked even if a client sends a metadata after getting an error after authenticate
     // TODO all these things with older api versions
     // TODO reauth:
-    // reauth for scram mechs
     // reauth without account => that plugins get an empty principal
 
     // reauth attempt by client which didn't use >= v1 Autn req
@@ -285,11 +331,11 @@ class SaslInspectionIT {
         }
     }
 
-    private static ConfigurationBuilder buildProxyConfig(String e1, KafkaCluster cluster) {
+    private static ConfigurationBuilder buildProxyConfig(String enabledSaslMech, KafkaCluster cluster) {
         NamedFilterDefinition saslInspection = new NamedFilterDefinitionBuilder(
                 SaslInspection.class.getName(),
                 SaslInspection.class.getName())
-                .withConfig("enabledMechanisms", Set.of(e1))
+                .withConfig("enabledMechanisms", Set.of(enabledSaslMech))
                 .build();
         NamedFilterDefinition counter = new NamedFilterDefinitionBuilder(
                 ProtocolCounter.class.getName(),
