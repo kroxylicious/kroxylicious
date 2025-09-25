@@ -63,10 +63,10 @@ public class AclAuthorizer implements Authorizer {
     void roo() {
 
         builder().grant()
-                .toSubjectsHavingPrincipal(null)
+                .subjectsHavingPrincipal(null)
                 .withNameEqualTo("tom")
                 .operations(null)
-                .forResourceWithNameEqualTo("");
+                .onResourceWithNameEqualTo("");
     }
 
     public static class PrincipalSelectorBuilder {
@@ -94,7 +94,7 @@ public class AclAuthorizer implements Authorizer {
 
         }
 
-        public PrincipalSelectorBuilder toSubjectsHavingPrincipal(Class<? extends Principal> userPrincipalClass) {
+        public PrincipalSelectorBuilder subjectsHavingPrincipal(Class<? extends Principal> userPrincipalClass) {
             return new PrincipalSelectorBuilder(builder,
                     userPrincipalClass);
         }
@@ -119,7 +119,7 @@ public class AclAuthorizer implements Authorizer {
             this.operations = Objects.requireNonNull(operations);
         }
 
-        public Builder forResourceWithNameEqualTo(String resourceName) {
+        public Builder onResourceWithNameEqualTo(String resourceName) {
             builder.simpleAuthorizer.internalGrant(principalClass,
                     TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
                     principalName,
@@ -130,7 +130,7 @@ public class AclAuthorizer implements Authorizer {
             return builder;
         }
 
-        public Builder forResourcesWithNameIn(Set<String> resourceNames) {
+        public Builder onResourcesWithNameIn(Set<String> resourceNames) {
             for (String resourceName : resourceNames) {
                 builder.simpleAuthorizer.internalGrant(principalClass,
                         TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
@@ -143,7 +143,7 @@ public class AclAuthorizer implements Authorizer {
             return builder;
         }
 
-        public Builder forResourcesWithNameStartingWith(String resourceNamePrefix) {
+        public Builder onResourcesWithNameStartingWith(String resourceNamePrefix) {
             builder.simpleAuthorizer.internalGrant(principalClass,
                     TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
                     principalName,
@@ -154,7 +154,7 @@ public class AclAuthorizer implements Authorizer {
             return builder;
         }
 
-        public Builder forResourcesWithNameMatching(String resourceNameRegex) {
+        public Builder onResourcesWithNameMatching(String resourceNameRegex) {
             builder.simpleAuthorizer.internalGrant(principalClass,
                     TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
                     principalName,
@@ -165,7 +165,7 @@ public class AclAuthorizer implements Authorizer {
             return builder;
         }
 
-        public Builder forAllResources() {
+        public Builder onAllResources() {
             builder.simpleAuthorizer.internalGrant(principalClass,
                     TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
                     principalName,

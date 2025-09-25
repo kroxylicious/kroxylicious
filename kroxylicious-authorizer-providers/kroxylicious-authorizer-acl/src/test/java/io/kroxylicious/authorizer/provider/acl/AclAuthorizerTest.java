@@ -33,10 +33,10 @@ class AclAuthorizerTest {
         EnumSet<FakeTopicResource> shouldBeDenied = EnumSet.complementOf(shouldBeAllowed);
         var authz = AclAuthorizer.builder()
                 .grant()
-                .allOperations(FakeTopicResource.class)
-                .forResourceWithNameEqualTo("my-topic")
-                .toSubjectsHavingPrincipal(UserPrincipal.class)
+                .subjectsHavingPrincipal(UserPrincipal.class)
                 .withNameEqualTo("bob")
+                .allOperations(FakeTopicResource.class)
+                .onResourceWithNameEqualTo("my-topic")
                 .build();
 
         Subject alice = new Subject(Set.of(new UserPrincipal("alice")));
@@ -77,10 +77,10 @@ class AclAuthorizerTest {
         EnumSet<FakeTopicResource> shouldBeDenied = EnumSet.complementOf(shouldBeAllowed);
         var authz = AclAuthorizer.builder()
                 .grant()
-                .operations(Set.of(FakeTopicResource.READ))
-                .forResourceWithNameEqualTo("my-topic")
-                .toSubjectsHavingPrincipal(UserPrincipal.class)
+                .subjectsHavingPrincipal(UserPrincipal.class)
                 .withNameEqualTo("bob")
+                .operations(Set.of(FakeTopicResource.READ))
+                .onResourceWithNameEqualTo("my-topic")
                 .build();
 
         Subject alice = new Subject(Set.of(new UserPrincipal("alice")));
@@ -119,10 +119,10 @@ class AclAuthorizerTest {
         EnumSet<FakeTopicResource> shouldBeDenied = EnumSet.complementOf(shouldBeAllowed);
         var authz = AclAuthorizer.builder()
                 .grant()
-                .operations(shouldBeAllowed)
-                .forResourceWithNameEqualTo("my-topic")
-                .toSubjectsHavingPrincipal(UserPrincipal.class)
+                .subjectsHavingPrincipal(UserPrincipal.class)
                 .withNameEqualTo("bob")
+                .operations(shouldBeAllowed)
+                .onResourceWithNameEqualTo("my-topic")
                 .build();
 
         Subject alice = new Subject(Set.of(new UserPrincipal("alice")));
@@ -160,10 +160,10 @@ class AclAuthorizerTest {
         EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.allOf(FakeTopicResource.class);
         var authz = AclAuthorizer.builder()
                 .grant()
-                .allOperations(FakeTopicResource.class)
-                .forResourcesWithNameStartingWith("my-")
-                .toSubjectsHavingPrincipal(UserPrincipal.class)
+                .subjectsHavingPrincipal(UserPrincipal.class)
                 .withNameEqualTo("bob")
+                .allOperations(FakeTopicResource.class)
+                .onResourcesWithNameStartingWith("my-")
                 .build();
 
         Subject alice = new Subject(Set.of(new UserPrincipal("alice")));
@@ -197,10 +197,11 @@ class AclAuthorizerTest {
         EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.allOf(FakeTopicResource.class);
         var authz = AclAuthorizer.builder()
                 .grant()
-                .allOperations(FakeTopicResource.class)
-                .forAllResources()
-                .toSubjectsHavingPrincipal(UserPrincipal.class)
+                .subjectsHavingPrincipal(UserPrincipal.class)
                 .withNameEqualTo("bob")
+                .allOperations(FakeTopicResource.class)
+                .onAllResources()
+
                 .build();
 
         Subject alice = new Subject(Set.of(new UserPrincipal("alice")));
@@ -228,10 +229,10 @@ class AclAuthorizerTest {
         EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.allOf(FakeTopicResource.class);
         var authz = AclAuthorizer.builder()
                 .grant()
-                .allOperations(FakeTopicResource.class)
-                .forResourcesWithNameMatching("(my|your)-topic+")
-                .toSubjectsHavingPrincipal(UserPrincipal.class)
+                .subjectsHavingPrincipal(UserPrincipal.class)
                 .withNameEqualTo("bob")
+                .allOperations(FakeTopicResource.class)
+                .onResourcesWithNameMatching("(my|your)-topic+")
                 .build();
 
         Subject alice = new Subject(Set.of(new UserPrincipal("alice")));
