@@ -175,19 +175,7 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kms-provider-hashicorp-vault-test-support</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-provider-aws-kms</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kms-provider-aws-kms-test-support</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kms-provider-fortanix-dsm-test-support</artifactId>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
