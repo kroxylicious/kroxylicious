@@ -13,8 +13,7 @@ import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 
 public record AuthorizationConfig(
-        @JsonProperty(required = true) @PluginImplName(Authorizer.class) String authorizer,
-        @PluginImplConfig(implNameProperty = "authorizer") Object authorizerConfig
-) {
+                                  @JsonProperty(required = true) @PluginImplName(Authorizer.class) String authorizer,
+                                  @PluginImplConfig(implNameProperty = "authorizer") Object authorizerConfig) {
 
 }

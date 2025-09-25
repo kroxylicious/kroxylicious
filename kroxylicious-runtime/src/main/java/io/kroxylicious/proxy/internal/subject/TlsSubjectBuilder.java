@@ -51,50 +51,50 @@ public class TlsSubjectBuilder implements SubjectBuilder {
 
         var s = context.clientTlsContext().flatMap(
                 ClientTlsContext::clientCertificate).map(
-                cert -> {
-                    Stream<String> names = null;
-                    if (this.sanDirectoryNameMappingRules != null
-                        || this.sanDnsNameMappingRules != null
-                        || this.sanUriMappingRules != null
-                        || this.sanIpAddressMappingRules != null
-                        || this.sanRfc822NameMappingRules != null) {
-                        try {
-                            var sans = cert.getSubjectAlternativeNames();
-                            if (sans != null) {
-                                names = sans.stream().flatMap(san -> {
-                                    return Optional.ofNullable(switch ((Integer) san.get(0)) {
-                                        case 0 -> null; //otherName => skip
-                                        case 1 -> sanRfc822NameMappingRules.apply((String) san.get(1)); // i.e. email address
-                                        case 2 -> sanDnsNameMappingRules.apply((String) san.get(1));
-                                        case 3 -> null; // x400Address => skip
-                                        case 4 -> sanDirectoryNameMappingRules.apply((String) san.get(1));
-                                        case 5 -> null; // ediPartyName => skip
-                                        case 6 -> sanUriMappingRules.apply((String) san.get(1));
-                                        case 7 -> sanIpAddressMappingRules.apply((String) san.get(1));
-                                        case 8 -> null; // registeredID => skip
-                                        default -> null; // ??? => skip
-                                    }).stream();
-                                });
+                        cert -> {
+                            Stream<String> names = null;
+                            if (this.sanDirectoryNameMappingRules != null
+                                    || this.sanDnsNameMappingRules != null
+                                    || this.sanUriMappingRules != null
+                                    || this.sanIpAddressMappingRules != null
+                                    || this.sanRfc822NameMappingRules != null) {
+                                try {
+                                    var sans = cert.getSubjectAlternativeNames();
+                                    if (sans != null) {
+                                        names = sans.stream().flatMap(san -> {
+                                            return Optional.ofNullable(switch ((Integer) san.get(0)) {
+                                                case 0 -> null; // otherName => skip
+                                                case 1 -> sanRfc822NameMappingRules.apply((String) san.get(1)); // i.e. email address
+                                                case 2 -> sanDnsNameMappingRules.apply((String) san.get(1));
+                                                case 3 -> null; // x400Address => skip
+                                                case 4 -> sanDirectoryNameMappingRules.apply((String) san.get(1));
+                                                case 5 -> null; // ediPartyName => skip
+                                                case 6 -> sanUriMappingRules.apply((String) san.get(1));
+                                                case 7 -> sanIpAddressMappingRules.apply((String) san.get(1));
+                                                case 8 -> null; // registeredID => skip
+                                                default -> null; // ??? => skip
+                                            }).stream();
+                                        });
+                                    }
+                                }
+                                catch (CertificateParsingException e) {
+                                    // TODO log
+                                }
                             }
-                        }
-                        catch (CertificateParsingException e) {
-                            // TODO log
-                        }
-                    }
-                    String nameType = Optional.ofNullable(subjectNameFormat).orElse(javax.security.auth.x500.X500Principal.RFC2253);
+                            String nameType = Optional.ofNullable(subjectNameFormat).orElse(javax.security.auth.x500.X500Principal.RFC2253);
 
-                    var subjectName = Optional.ofNullable(subjectMappingRules).map(rule -> rule.apply(cert.getSubjectX500Principal().getName(nameType))).stream();
+                            var subjectName = Optional.ofNullable(subjectMappingRules).map(rule -> rule.apply(cert.getSubjectX500Principal().getName(nameType))).stream();
 
-                    if (names != null) {
-                        names = Stream.concat(subjectName, names);
-                    }
-                    else {
-                        names = subjectName;
-                    }
+                            if (names != null) {
+                                names = Stream.concat(subjectName, names);
+                            }
+                            else {
+                                names = subjectName;
+                            }
 
-                    Set<Principal> principals = names.map(User::new).collect(Collectors.toSet());
-                    return principals.isEmpty() ? Subject.ANONYMOUS : new Subject(principals);
-                })
+                            Set<Principal> principals = names.map(User::new).collect(Collectors.toSet());
+                            return principals.isEmpty() ? Subject.ANONYMOUS : new Subject(principals);
+                        })
                 .orElse(Subject.ANONYMOUS);
         return CompletableFuture.completedStage(s);
     }

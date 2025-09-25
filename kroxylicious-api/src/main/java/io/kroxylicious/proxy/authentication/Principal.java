@@ -14,4 +14,3 @@ public interface Principal {
     // would like for instances to be immutable wrt this equality
     String name();
 }
-

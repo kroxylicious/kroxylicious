@@ -16,14 +16,13 @@ public class TlsSubjectBuilderService implements SubjectBuilderService<TlsSubjec
     private Config config;
 
     public record Config(
-            @Nullable String subjectNameFormat,
-            @Nullable List<String> subjectMappingRules,
-            @Nullable List<String> sanRfc822NameMappingRules,
-            @Nullable List<String> sanDnsNameMappingRules,
-            @Nullable List<String> sanDirectoryNameMappingRules,
-            @Nullable List<String> sanUriMappingRules,
-            @Nullable List<String> sanIpAddressMappingRules
-    ) { }
+                         @Nullable String subjectNameFormat,
+                         @Nullable List<String> subjectMappingRules,
+                         @Nullable List<String> sanRfc822NameMappingRules,
+                         @Nullable List<String> sanDnsNameMappingRules,
+                         @Nullable List<String> sanDirectoryNameMappingRules,
+                         @Nullable List<String> sanUriMappingRules,
+                         @Nullable List<String> sanIpAddressMappingRules) {}
 
     @Override
     public void initialize(Config config) {
@@ -42,8 +41,7 @@ public class TlsSubjectBuilderService implements SubjectBuilderService<TlsSubjec
                 buildRule(config.sanDnsNameMappingRules(), null),
                 buildRule(config.sanDirectoryNameMappingRules(), null),
                 buildRule(config.sanUriMappingRules(), null),
-                buildRule(config.sanIpAddressMappingRules(), null)
-        );
+                buildRule(config.sanIpAddressMappingRules(), null));
     }
 
     private @Nullable UnaryOperator<String> buildRule(List<String> rules, @Nullable UnaryOperator<String> defaultRule) {

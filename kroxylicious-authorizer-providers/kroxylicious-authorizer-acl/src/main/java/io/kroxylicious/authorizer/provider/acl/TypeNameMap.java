@@ -22,10 +22,10 @@ public class TypeNameMap<T, V> {
     }
 
     record ClassNameKey<T>(
-            Class<? extends T> type,
-            Predicate predicate,
-            @Nullable String name
-    ) implements Comparable<ClassNameKey<T>> {
+                           Class<? extends T> type,
+                           Predicate predicate,
+                           @Nullable String name)
+            implements Comparable<ClassNameKey<T>> {
 
         ClassNameKey {
             Objects.requireNonNull(type);

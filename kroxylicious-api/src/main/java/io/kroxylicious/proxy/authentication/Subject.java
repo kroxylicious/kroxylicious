@@ -13,9 +13,11 @@ import java.util.Set;
  * Subjects are composed of a set of identifiers represented as {@link Principal} instances.</p>
  *
  * <p>The principals chosen depend on the calling code but in general might comprise the following:</p>
+ * <ul>
  * <li>information proven by a client, such as a SASL authorized id,</li>
  * <li>information known about the client, such as the remote peer's IP address,</li>
  * <li>information provided by the client, such as its Kafka client id</li>
+ * </ul>
  * <p>
  *     <strong>Security best practice says you should only trust information that's proven about the client.</strong>
  *     However, it is sometimes useful to have access to the other information for making authorization decisions.

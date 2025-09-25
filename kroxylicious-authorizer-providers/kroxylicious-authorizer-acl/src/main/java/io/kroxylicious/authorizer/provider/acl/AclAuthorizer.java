@@ -45,8 +45,8 @@ public class AclAuthorizer implements Authorizer {
     }
 
     record PrincipalGrants(
-            TypeNameMap<Operation<?>, EnumSet<? extends Operation<?>>> nameMatches,
-            TypePatternMatch patternMatch) {
+                           TypeNameMap<Operation<?>, EnumSet<? extends Operation<?>>> nameMatches,
+                           TypePatternMatch patternMatch) {
 
     }
 
@@ -67,9 +67,8 @@ public class AclAuthorizer implements Authorizer {
         private final Set<String> resourceNamesOrPrefixes;
         private final Class<? extends Principal> principalClass;
 
-
         public PrincipalSelectorBuilder(Builder builder,
-                                        //Class<O> operationType,
+                                        // Class<O> operationType,
                                         Set<O> operations,
                                         Pred resourceNamePredicate,
                                         Set<String> resourceNames,
@@ -228,21 +227,19 @@ public class AclAuthorizer implements Authorizer {
                     TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, p.name(),
                     (Class) operations.iterator().next().getClass(),
                     Pred.EQ, resourceName,
-                    operations
-            );
+                    operations);
         }
     }
 
     public <O extends Enum<O> & Operation<O>> void grantToAllPrincipalsOfType(Set<O> operations,
-                                                         String resourceName,
-                                                         Class<? extends Principal> principalType) {
+                                                                              String resourceName,
+                                                                              Class<? extends Principal> principalType) {
 
         internalGrant(principalType,
                 TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY, null,
                 (Class) operations.iterator().next().getClass(),
                 Pred.EQ, resourceName,
-                operations
-        );
+                operations);
 
     }
 
@@ -372,7 +369,7 @@ public class AclAuthorizer implements Authorizer {
             }
             // TODO log it
         }
-        return CompletableFuture.completedStage(new Authorization(allowedActions, deniedActions));
+        return CompletableFuture.completedStage(new Authorization(subject, allowedActions, deniedActions));
     }
 
     @Override
@@ -382,4 +379,3 @@ public class AclAuthorizer implements Authorizer {
                 '}';
     }
 }
-

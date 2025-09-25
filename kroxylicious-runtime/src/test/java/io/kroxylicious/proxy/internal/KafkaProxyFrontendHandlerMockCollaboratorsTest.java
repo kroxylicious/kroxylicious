@@ -28,7 +28,6 @@ import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.subject.AnonymousBuilderBuilder;
-import io.kroxylicious.proxy.internal.subject.SaslSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import static org.assertj.core.api.Assertions.assertThat;

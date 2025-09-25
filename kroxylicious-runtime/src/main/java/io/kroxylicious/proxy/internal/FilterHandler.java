@@ -61,7 +61,9 @@ public class FilterHandler extends ChannelDuplexHandler {
     enum BackPressureReason {
         DEFERRED_REQUEST,
         DEFERRED_RESPONSE,
-        SUBJECT_BUILDER,
+        SUBJECT_BUILDER;
+
+        private final byte mask = (byte) (1 << ordinal());
     }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
@@ -111,13 +113,13 @@ public class FilterHandler extends ChannelDuplexHandler {
         super.channelActive(ctx);
     }
 
-
     private void disableAutoRead(BackPressureReason backPressureReason) {
-        inboundAutoReadState |= (byte) (1 << backPressureReason.ordinal());
+        inboundAutoReadState |= backPressureReason.mask;
         inboundChannel.config().setAutoRead(false);
     }
+
     private void maybeEnableAutoRead(BackPressureReason backPressureReason) {
-        inboundAutoReadState &= (byte) (Byte.MIN_VALUE ^ (byte) (1 << backPressureReason.ordinal()));
+        inboundAutoReadState &= (byte) ~backPressureReason.mask;
         inboundChannel.config().setAutoRead(inboundAutoReadState == 0);
     }
 
@@ -356,9 +358,9 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(
-            BackPressureReason reason,
-            DecodedFrame<?, ?> decodedFrame,
-            CompletableFuture<F> future) {
+                                                                              BackPressureReason reason,
+                                                                              DecodedFrame<?, ?> decodedFrame,
+                                                                              CompletableFuture<F> future) {
         disableAutoRead(reason);
         promiseFactory.wrapWithTimeLimit(future,
                 () -> "Deferred work for filter '%s' did not complete processing within %s ms %s %s".formatted(filterDescriptor(), timeoutMs,
@@ -544,8 +546,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addArgument(authorizedId)
                     .log();
             // dispatch principal injection
-            var cf = clientSaslManager.clientSaslAuthenticationSuccess(mechanism, authorizedId);
-
+            clientSaslManager.clientSaslAuthenticationSuccess(mechanism, authorizedId);
         }
 
         @Override
@@ -568,7 +569,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public Optional<ClientSaslContext> clientSaslContext() {
-            return FilterHandler.this.clientSaslManager.clientSaslContext();
+            return clientSaslManager.clientSaslContext();
         }
 
         @Override

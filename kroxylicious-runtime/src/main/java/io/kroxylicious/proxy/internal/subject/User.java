@@ -8,5 +8,4 @@ package io.kroxylicious.proxy.internal.subject;
 
 import io.kroxylicious.proxy.authentication.Principal;
 
-public record User(String name) implements Principal {
-}
+public record User(String name) implements Principal {}

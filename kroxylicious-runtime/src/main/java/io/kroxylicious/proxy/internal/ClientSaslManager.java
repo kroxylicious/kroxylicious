@@ -110,8 +110,8 @@ public class ClientSaslManager {
 
     CompletableFuture<?> clientSaslAuthenticationSuccess(
 
-            String mechanism,
-            String clientAuthorizationId) {
+                                                         String mechanism,
+                                                         String clientAuthorizationId) {
         Objects.requireNonNull(mechanism, "mechanism");
         Objects.requireNonNull(clientAuthorizationId, "clientAuthorizationId");
         this.clientAuthorization = new Authorized(clientAuthorizationId, mechanism);
@@ -133,7 +133,7 @@ public class ClientSaslManager {
     public CompletionStage<Subject> authenticatedSubject() {
         return this.clientSubject;
     }
-    
+
     void clientSaslAuthenticationFailure() {
         this.clientAuthorization = null;
         this.clientSubject = CompletableFuture.completedFuture(Subject.ANONYMOUS);

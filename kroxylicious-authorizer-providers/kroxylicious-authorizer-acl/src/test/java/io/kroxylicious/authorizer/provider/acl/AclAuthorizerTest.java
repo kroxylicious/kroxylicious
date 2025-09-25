@@ -313,9 +313,8 @@ class AclAuthorizerTest {
         Authorizer a = simple;
 
         assertThat(getDecision(a, anon, FakeClusterResource.CONNECT, "")).isEqualTo(Decision.DENY);
-        for (var s: List.of(alices, bobs, carols, dans, eves)) {
-            assertThat(getDecision(a, s, FakeClusterResource.CONNECT, "")).
-                    as("Expected %s to be ALLOWed", s).isEqualTo(Decision.ALLOW);
+        for (var s : List.of(alices, bobs, carols, dans, eves)) {
+            assertThat(getDecision(a, s, FakeClusterResource.CONNECT, "")).as("Expected %s to be ALLOWed", s).isEqualTo(Decision.ALLOW);
         }
 
         assertThat(getDecision(a, alices, FakeTopicResource.READ, bobOnly)).isEqualTo(Decision.DENY);

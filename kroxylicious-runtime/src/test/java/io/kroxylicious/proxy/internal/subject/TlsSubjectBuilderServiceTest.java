@@ -68,8 +68,8 @@ class TlsSubjectBuilderServiceTest {
                 Arguments.argumentSet("replace", "CN=test,OU=testing", "CN=(.*),OU=testing/X$1Y/", "XtestY"),
                 Arguments.argumentSet("replace+lower", "CN=test,OU=testing", "CN=(.*),OU=testing/X$1Y/L", "xtesty"),
                 Arguments.argumentSet("replace+upper", "CN=test,OU=testing", "CN=(.*),OU=testing/X$1Y/U", "XTESTY")
-                // TODO a name that doesn't match
-                // TODO The other ways of formatting the X500 name
+        // TODO a name that doesn't match
+        // TODO The other ways of formatting the X500 name
         );
     }
 
@@ -95,7 +95,7 @@ class TlsSubjectBuilderServiceTest {
                 Arguments.argumentSet("replace", "test@example.com", "(.*)@example.com/X$1Y/", "XtestY"),
                 Arguments.argumentSet("replace+lower", "test@example.com", "(.*)@example.com/X$1Y/L", "xtesty"),
                 Arguments.argumentSet("replace+upper", "test@example.com", "(.*)@example.com/X$1Y/U", "XTESTY")
-                // TODO a name that doesn't match
+        // TODO a name that doesn't match
         );
     }
 

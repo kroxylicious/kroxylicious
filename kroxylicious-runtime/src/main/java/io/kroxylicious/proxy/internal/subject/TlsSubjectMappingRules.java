@@ -17,7 +17,7 @@ class TlsSubjectMappingRules implements UnaryOperator<String> {
 
     static final Pattern RULE_PATTERN = Pattern.compile("^(?<pattern>.*?)/(?<replacement>.*?)/(?<flags>[LU]?)$");
 
-    record Rule(Pattern pattern, String replacement, UnaryOperator<String> flags) { }
+    record Rule(Pattern pattern, String replacement, UnaryOperator<String> flags) {}
 
     private final List<UnaryOperator<String>> rules;
 
@@ -72,6 +72,5 @@ class TlsSubjectMappingRules implements UnaryOperator<String> {
         // TODO check that this behaviour is actually what Kafka implements
         throw new IllegalArgumentException("No matching rule for '%s'".formatted(name));
     }
-
 
 }

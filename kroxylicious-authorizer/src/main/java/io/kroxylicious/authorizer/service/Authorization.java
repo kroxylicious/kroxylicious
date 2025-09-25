@@ -13,14 +13,17 @@ import java.util.Objects;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import io.kroxylicious.proxy.authentication.Subject;
+
 /**
- * Represents the outcome of a call to {@link Authorizer#authorize(Subject, List)}
+ * Represents the outcome of a call to {@link Authorizer#authorize(io.kroxylicious.proxy.authentication.Subject, List)}
  * @param allowed The allowed actions.
  * @param denied The denied actions.
  */
 public record Authorization(
-        List<Action> allowed,
-        List<Action> denied) {
+                            Subject subject,
+                            List<Action> allowed,
+                            List<Action> denied) {
 
     public Authorization {
         Objects.requireNonNull(allowed);
@@ -44,8 +47,7 @@ public record Authorization(
     public Decision decision(Operation<?> operation, String resourceName) {
         return allowed().stream()
                 .anyMatch(a -> a.operation().equals(operation)
-                        && a.resourceName().equals(resourceName)) ?
-                Decision.ALLOW : Decision.DENY;
+                        && a.resourceName().equals(resourceName)) ? Decision.ALLOW : Decision.DENY;
     }
 
     public <T> Map<Decision, List<T>> partition(Collection<T> items, Operation<?> operation, Function<T, String> toName) {

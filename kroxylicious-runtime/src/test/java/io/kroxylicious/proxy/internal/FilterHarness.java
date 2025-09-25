@@ -38,7 +38,6 @@ import io.kroxylicious.proxy.frame.DecodedResponseFrame;
 import io.kroxylicious.proxy.frame.OpaqueRequestFrame;
 import io.kroxylicious.proxy.frame.OpaqueResponseFrame;
 import io.kroxylicious.proxy.internal.subject.AnonymousBuilderBuilder;
-import io.kroxylicious.proxy.internal.subject.SaslSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;

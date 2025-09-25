@@ -8,6 +8,7 @@ package io.kroxylicious.authorizer.service;
 
 import java.util.List;
 import java.util.concurrent.CompletionStage;
+
 import io.kroxylicious.proxy.authentication.Subject;
 
 public interface Authorizer {

@@ -15,8 +15,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 public class Authorization implements FilterFactory<AuthorizationConfig, Authorization.InitializationContext> {
 
     public record InitializationContext(
-            AuthorizerService authorizer) {
-    }
+                                        AuthorizerService authorizer) {}
 
     @Override
     public InitializationContext initialize(FilterFactoryContext context, AuthorizationConfig configuration) throws PluginConfigurationException {

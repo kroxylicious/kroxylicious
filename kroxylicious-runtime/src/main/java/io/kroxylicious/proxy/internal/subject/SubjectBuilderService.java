@@ -11,5 +11,6 @@ public interface SubjectBuilderService<C> {
 
     SubjectBuilder build();
 
-    default void close() { }
+    default void close() {
+    }
 }

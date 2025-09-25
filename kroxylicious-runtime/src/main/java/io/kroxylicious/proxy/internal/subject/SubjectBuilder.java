@@ -9,7 +9,6 @@ package io.kroxylicious.proxy.internal.subject;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
-
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
@@ -24,6 +23,7 @@ public interface SubjectBuilder {
 
     interface Context {
         Optional<ClientTlsContext> clientTlsContext();
+
         Optional<ClientSaslContext> clientSaslContext();
     }
 }

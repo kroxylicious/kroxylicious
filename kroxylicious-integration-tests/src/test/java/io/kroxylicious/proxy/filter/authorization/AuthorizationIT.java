@@ -36,10 +36,10 @@ public class AuthorizationIT extends BaseIT {
 
     @Test
     void metadata(
-            short apiVersion,
-            boolean allowAutoCreation,
-            List<MetadataRequestData.MetadataRequestTopic> topics,
-            KafkaCluster kafkaCluster) {
+                  short apiVersion,
+                  boolean allowAutoCreation,
+                  List<MetadataRequestData.MetadataRequestTopic> topics,
+                  KafkaCluster kafkaCluster) {
         KroxyliciousTester t = null;
 
         var resp = t.simpleTestClient().getSync(new Request(ApiKeys.METADATA, apiVersion, "test",

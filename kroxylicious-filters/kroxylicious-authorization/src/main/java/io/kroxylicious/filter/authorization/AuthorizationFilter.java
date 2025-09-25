@@ -35,6 +35,8 @@ import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.Authorization;
@@ -51,6 +53,8 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 public class AuthorizationFilter implements RequestFilter, ResponseFilter {
 
+    private static final Logger LOG = LoggerFactory.getLogger(io.kroxylicious.filter.authorization.Authorization.class);
+
     private final Authorizer authorizer;
     private final Map<Integer, UnaryOperator<?>> bufferedPartialResponses;
     private final Map<String, Object> topicCache;
@@ -64,6 +68,16 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
 
     CompletionStage<Subject> subject(FilterContext context) {
         return context.authenticatedSubject();
+    }
+
+    @NonNull
+    private CompletionStage<Authorization> getAuthorizationCompletionStage(FilterContext context, List<Action> actions) {
+        return subject(context)
+                .thenCompose(subject -> authorizer.authorize(subject, actions))
+                .thenApply(authz -> {
+                    LOG.info("DENY {} to {}", authz.denied(), authz.subject());
+                    return authz;
+                });
     }
 
     private boolean isAllTopics(RequestHeaderData header, MetadataRequestData metadataRequest) {
@@ -86,7 +100,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         // creation, filter the response with our authorizer
         // and then forward it again without the _disallowed_ topic creations
         return context.sendRequest(new RequestHeaderData()
-                        .setRequestApiVersion(header.requestApiVersion()),
+                .setRequestApiVersion(header.requestApiVersion()),
                 request.duplicate().setAllowAutoTopicCreation(false))
                 .thenCompose(notCreateResponse -> {
                     var notCreateMetadataResponse = (MetadataResponseData) notCreateResponse;
@@ -97,8 +111,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                     var createActions = unknownTopics.stream()
                             .map(t -> new Action(TopicResource.CREATE, t.name()))
                             .toList();
-                    Authorization createAuthorization = subject(context)
-                            .thenCompose(subject -> authorizer.authorize(subject, createActions)).toCompletableFuture().join();
+                    Authorization createAuthorization = getAuthorizationCompletionStage(context, createActions).toCompletableFuture().join();
                     var createDecisions = request.topics().stream().collect(Collectors.groupingBy(t -> createAuthorization.decision(TopicResource.CREATE, t.name())));
                     var allowedToCreate = createDecisions.get(Decision.ALLOW);
                     if (knownTopics.isEmpty() && allowedToCreate.isEmpty()) {
@@ -114,8 +127,8 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                     return new MetadataResponseData.MetadataResponseTopic()
                                             .setName(x.name())
                                             .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
-                                            //.setTopicAuthorizedOperations()
-                                            ;
+                                    // .setTopicAuthorizedOperations()
+                                    ;
                                 })
                                 .toList();
                         // TODO write the other half of this!
@@ -131,9 +144,8 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                         var knownTopicIds = knownTopics.stream().map(MetadataResponseData.MetadataResponseTopic::topicId).collect(Collectors.toSet());
                         List<MetadataRequestData.MetadataRequestTopic> concat = Stream.concat(
                                 allowedToCreate.stream(),
-                                request.topics().stream().filter(rt ->
-                                        knownTopicNames.contains(rt.name()) || knownTopicIds.contains(rt.topicId())))
-                                        .toList();
+                                request.topics().stream().filter(rt -> knownTopicNames.contains(rt.name()) || knownTopicIds.contains(rt.topicId())))
+                                .toList();
                         return context.forwardRequest(header, request.setTopics(concat));
                         // TODO need to add back the create.get(Decision.DENY); in the eventual response
                     }
@@ -163,22 +175,23 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         List<Action> actionStream = response.topics().stream()
                 .map(responseTopic -> new Action(TopicResource.DESCRIBE, responseTopic.name()))
                 .toList();
-        Authorization authorize = subject(context)
-                .thenCompose(subject -> authorizer.authorize(subject, actionStream)).toCompletableFuture().join();
-        var x = new MetadataResponseData.MetadataResponseTopicCollection(response.topics().size());
-        response.topics().stream().map(t -> {
-            if (authorize.decision(TopicResource.DESCRIBE, t.name()) == Decision.ALLOW) {
-                return t;
-            }
-            else {
-                return new MetadataResponseData.MetadataResponseTopic()
-                        .setName(t.name())
-                        .setTopicId(t.topicId())
-                        .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
-            }
-        }).forEach(x::add);
-        response.setTopics(x);
-        return context.forwardResponse(header, response);
+        return getAuthorizationCompletionStage(context, actionStream)
+                .thenCompose(authorize -> {
+                    var x = new MetadataResponseData.MetadataResponseTopicCollection(response.topics().size());
+                    response.topics().stream().map(t -> {
+                        if (authorize.decision(TopicResource.DESCRIBE, t.name()) == Decision.ALLOW) {
+                            return t;
+                        }
+                        else {
+                            return new MetadataResponseData.MetadataResponseTopic()
+                                    .setName(t.name())
+                                    .setTopicId(t.topicId())
+                                    .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
+                        }
+                    }).forEach(x::add);
+                    response.setTopics(x);
+                    return context.forwardResponse(header, response);
+                });
     }
 
     public CompletionStage<RequestFilterResult> onProduceRequest(RequestHeaderData header,
@@ -189,10 +202,9 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                 .map(t -> new Action(TopicResource.WRITE, t.name()))
                 .toList();
 
-        Authorization authorize = subject(context)
-                .thenCompose(subject -> authorizer.authorize(subject, topicWriteActions)).toCompletableFuture().join();
+        Authorization authorize = getAuthorizationCompletionStage(context, topicWriteActions).toCompletableFuture().join();
 
-        var topicWriteDecisions= request.topicData().stream()
+        var topicWriteDecisions = request.topicData().stream()
                 .collect(Collectors.groupingBy(tc -> authorize.decision(TopicResource.WRITE, tc.name())));
 
         var allowedTopicWrites = topicWriteDecisions.get(Decision.ALLOW);
@@ -212,10 +224,9 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
 
         var topicProduceResponses = deniedTopicWrites.stream().map(topicProduceData -> {
             return new ProduceResponseData.TopicProduceResponse().setName(topicProduceData.name())
-                    .setPartitionResponses(topicProduceData.partitionData().stream().map(partitionProduceData ->
-                                    new ProduceResponseData.PartitionProduceResponse()
-                                            .setErrorMessage(Errors.TOPIC_AUTHORIZATION_FAILED.message())
-                                            .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()))
+                    .setPartitionResponses(topicProduceData.partitionData().stream().map(partitionProduceData -> new ProduceResponseData.PartitionProduceResponse()
+                            .setErrorMessage(Errors.TOPIC_AUTHORIZATION_FAILED.message())
+                            .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()))
                             .toList());
         }).toList();
 
@@ -238,8 +249,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         var topicReadActions = request.topics().stream()
                 .map(t -> new Action(TopicResource.READ, t.topic()))
                 .toList();
-        return subject(context)
-                .thenCompose(subject -> authorizer.authorize(subject, topicReadActions))
+        return getAuthorizationCompletionStage(context, topicReadActions)
                 .thenCompose(authorization -> {
                     var topicReadDecisions = request.topics().stream()
                             .collect(Collectors.groupingBy(t -> authorization.decision(TopicResource.READ, t.topic())));
@@ -259,11 +269,8 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                 .stream().map(t -> new FetchResponseData.FetchableTopicResponse()
                                         .setTopic(t.topic())
                                         .setTopicId(t.topicId())
-                                        .setPartitions(t.partitions().stream().map(p ->
-                                            new FetchResponseData.PartitionData()
-                                                    .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
-                                        ).toList())
-                                )
+                                        .setPartitions(t.partitions().stream().map(p -> new FetchResponseData.PartitionData()
+                                                .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())).toList()))
                                 .toList();
                         savePartialResponse(header, (FetchResponseData response) -> {
                             response.responses().addAll(fetchableTopicResponses);
@@ -271,7 +278,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                         });
                         return context.forwardRequest(header, request);
                     }
-        });
+                });
     }
 
     private CompletionStage<ResponseFilterResult> onFetchResponse(ResponseHeaderData header,
@@ -289,8 +296,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         var topicReadActions = TopicResource.CREATE.actionsOf(
                 request.topics().stream()
                         .map(CreateTopicsRequestData.CreatableTopic::name));
-        return subject(context)
-                .thenCompose(subject -> authorizer.authorize(subject, topicReadActions))
+        return getAuthorizationCompletionStage(context, topicReadActions)
                 .thenCompose(authorization -> {
                     var topicReadDecisions = authorization.partition(request.topics(),
                             TopicResource.CREATE,
@@ -311,8 +317,8 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                 .stream().map(t -> new CreateTopicsResponseData.CreatableTopicResult()
                                         .setName(t.name())
                                         .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
-                                        .setErrorMessage(header.requestApiVersion() >= 1 ? Errors.TOPIC_AUTHORIZATION_FAILED.message() : null)
-                                        ).toList();
+                                        .setErrorMessage(header.requestApiVersion() >= 1 ? Errors.TOPIC_AUTHORIZATION_FAILED.message() : null))
+                                .toList();
                         savePartialResponse(header, (CreateTopicsResponseData response) -> {
                             response.topics().addAll(creatableTopicResults);
                             return response;
@@ -331,16 +337,15 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                                                          FilterContext context) {
 
         List<Action> actions = TopicResource.DESCRIBE_CONFIGS.actionsOf(response.topics().stream().map(t -> t.name()));
-        return subject(context)
-                .thenCompose(subject -> authorizer.authorize(subject, actions))
+        return getAuthorizationCompletionStage(context, actions)
                 .thenCompose(authorization -> {
-            for (var creatableTopicResult : response.topics()) {
-                if (authorization.decision(TopicResource.DESCRIBE_CONFIGS, creatableTopicResult.name()) == Decision.DENY) {
-                    creatableTopicResult.setConfigs(null);
-                }
-            }
-            return context.forwardResponse(header, mergePartialResponse(header, response));
-        });
+                    for (var creatableTopicResult : response.topics()) {
+                        if (authorization.decision(TopicResource.DESCRIBE_CONFIGS, creatableTopicResult.name()) == Decision.DENY) {
+                            creatableTopicResult.setConfigs(null);
+                        }
+                    }
+                    return context.forwardResponse(header, mergePartialResponse(header, response));
+                });
     }
 
     /**
@@ -367,8 +372,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         else {
             actions = operation.actionsOf(request.topicNames().stream());
         }
-        return subject(context)
-                .thenCompose(subject -> authorizer.authorize(subject, actions))
+        return getAuthorizationCompletionStage(context, actions)
                 .thenCompose(authorization -> {
                     if (useStates) {
                         var decisions = authorization.partition(request.topics(), operation, DeleteTopicsRequestData.DeleteTopicState::name);
@@ -395,8 +399,8 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                             .setName(t.name())
                                             .setTopicId(Uuid.ZERO_UUID) // TODO topic Ids
                                             .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
-                                            .setErrorMessage(apiVersion >= 5 ? Errors.TOPIC_AUTHORIZATION_FAILED.message() : null)
-                                    ).toList();
+                                            .setErrorMessage(apiVersion >= 5 ? Errors.TOPIC_AUTHORIZATION_FAILED.message() : null))
+                                    .toList();
                             savePartialResponse(header, (DeleteTopicsResponseData response) -> {
                                 response.responses().addAll(list);
                                 return response;
@@ -425,8 +429,8 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                     .stream().map(t -> new DeleteTopicsResponseData.DeletableTopicResult()
                                             .setName(t)
                                             .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
-                                            .setErrorMessage(apiVersion >= 5 ? Errors.TOPIC_AUTHORIZATION_FAILED.message() : null)
-                                    ).toList();
+                                            .setErrorMessage(apiVersion >= 5 ? Errors.TOPIC_AUTHORIZATION_FAILED.message() : null))
+                                    .toList();
                             savePartialResponse(header, (DeleteTopicsResponseData response) -> {
                                 response.responses().addAll(list);
                                 return response;
@@ -492,8 +496,8 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     }
 
     private CompletionStage<RequestFilterResult> onOffsetFetchRequest(RequestHeaderData header,
-                                                                       OffsetFetchRequestData request,
-                                                                       FilterContext context) {
+                                                                      OffsetFetchRequestData request,
+                                                                      FilterContext context) {
         var isBatched = header.requestApiVersion() >= 8;
 
         List<Action> actions;
@@ -508,84 +512,84 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                     request.topics().stream()
                             .map(OffsetFetchRequestData.OffsetFetchRequestTopic::name));
         }
-        return subject(context)
-                .thenCompose(subject -> authorizer.authorize(subject, actions))
+        return getAuthorizationCompletionStage(context, actions)
                 .thenCompose(authorization -> {
-            if (isBatched) {
-                var t2 = authorization.partition(request.groups().stream()
-                        .flatMap(g -> g.topics().stream())
-                        .toList(), TopicResource.DESCRIBE, t -> t.name());
-                if (t2.get(Decision.ALLOW).isEmpty()) {
-                    return context.requestFilterResultBuilder()
-                            .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED.exception())
-                            .completed();
-                }
-                else if (t2.get(Decision.DENY).isEmpty()) {
-                    return context.forwardRequest(header, request);
-                }
-                else {
-                    List<OffsetFetchResponseData.OffsetFetchResponseGroup> fm = new ArrayList<>();
-                    for (var g : request.groups()) {
-                        var allowed = g.topics().stream()
-                                .filter(t -> authorization.decision(TopicResource.DESCRIBE, t.name()) == Decision.ALLOW)
-                                .toList();
-                        if (allowed.isEmpty()) {
-                            // TODO remove the whole group from the request
+                    if (isBatched) {
+                        var t2 = authorization.partition(request.groups().stream()
+                                .flatMap(g -> g.topics().stream())
+                                .toList(), TopicResource.DESCRIBE, t -> t.name());
+                        if (t2.get(Decision.ALLOW).isEmpty()) {
+                            return context.requestFilterResultBuilder()
+                                    .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED.exception())
+                                    .completed();
                         }
-                        List<OffsetFetchResponseData.OffsetFetchResponseTopics> offsetFetchResponseTopics = t2.get(Decision.DENY).stream().map(x -> new OffsetFetchResponseData.OffsetFetchResponseTopics()
-                                        .setName(x.name())
-                                        .setPartitions(x.partitionIndexes().stream()
-                                                .map(i -> new OffsetFetchResponseData.OffsetFetchResponsePartitions()
-                                                        .setPartitionIndex(i)
-                                                        .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()))
-                                                .toList()))
-                                .toList();
-                        fm.add(new OffsetFetchResponseData.OffsetFetchResponseGroup()
-                                .setGroupId(g.groupId())
-                                .setTopics(offsetFetchResponseTopics));
-                    }
+                        else if (t2.get(Decision.DENY).isEmpty()) {
+                            return context.forwardRequest(header, request);
+                        }
+                        else {
+                            List<OffsetFetchResponseData.OffsetFetchResponseGroup> fm = new ArrayList<>();
+                            for (var g : request.groups()) {
+                                var allowed = g.topics().stream()
+                                        .filter(t -> authorization.decision(TopicResource.DESCRIBE, t.name()) == Decision.ALLOW)
+                                        .toList();
+                                if (allowed.isEmpty()) {
+                                    // TODO remove the whole group from the request
+                                }
+                                List<OffsetFetchResponseData.OffsetFetchResponseTopics> offsetFetchResponseTopics = t2
+                                        .get(Decision.DENY).stream().map(x -> new OffsetFetchResponseData.OffsetFetchResponseTopics()
+                                                .setName(x.name())
+                                                .setPartitions(x.partitionIndexes().stream()
+                                                        .map(i -> new OffsetFetchResponseData.OffsetFetchResponsePartitions()
+                                                                .setPartitionIndex(i)
+                                                                .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()))
+                                                        .toList()))
+                                        .toList();
+                                fm.add(new OffsetFetchResponseData.OffsetFetchResponseGroup()
+                                        .setGroupId(g.groupId())
+                                        .setTopics(offsetFetchResponseTopics));
+                            }
 
-//                    savePartialResponse(header, (OffsetFetchResponseData response) -> {
-//                        // TODO need to write the group merging eugh
-//                        for (var g : response.groups()) {
-//                            if (g.groupId()
-//                        }
-//                        response.groups().addAll(fm);
-//                        return response;
-//                    });
-//                    g.setTopics(allowed);
-                    return context.forwardRequest(header, request);
-                }
-            }
-            else {
-                var t1 = authorization.partition(request.topics(), TopicResource.DESCRIBE, t -> t.name());
-                if (t1.get(Decision.ALLOW).isEmpty()) {
-                    return context.requestFilterResultBuilder()
-                            .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED.exception())
-                            .completed();
-                }
-                else if (t1.get(Decision.DENY).isEmpty()) {
-                    return context.forwardRequest(header, request);
-                }
-                else {
-                    var allowed = request.topics().stream().filter(t -> authorization.decision(TopicResource.DESCRIBE, t.name()) == Decision.ALLOW).toList();
-                    var offsetFetchResponseTopics = t1.get(Decision.DENY).stream().map(x -> new OffsetFetchResponseData.OffsetFetchResponseTopic()
-                            .setName(x.name())
-                            .setPartitions(x.partitionIndexes().stream()
-                                    .map(i -> new OffsetFetchResponseData.OffsetFetchResponsePartition()
-                                            .setPartitionIndex(i)
-                                            .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()))
-                                    .toList()))
-                            .toList();
-                    savePartialResponse(header, (OffsetFetchResponseData response) -> {
-                        response.topics().addAll(offsetFetchResponseTopics);
-                        return response;
-                    });
-                    request.setTopics(allowed);
-                    return context.forwardRequest(header, request);
-                }
-            }
-        });
+                            // savePartialResponse(header, (OffsetFetchResponseData response) -> {
+                            // // TODO need to write the group merging eugh
+                            // for (var g : response.groups()) {
+                            // if (g.groupId()
+                            // }
+                            // response.groups().addAll(fm);
+                            // return response;
+                            // });
+                            // g.setTopics(allowed);
+                            return context.forwardRequest(header, request);
+                        }
+                    }
+                    else {
+                        var t1 = authorization.partition(request.topics(), TopicResource.DESCRIBE, t -> t.name());
+                        if (t1.get(Decision.ALLOW).isEmpty()) {
+                            return context.requestFilterResultBuilder()
+                                    .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED.exception())
+                                    .completed();
+                        }
+                        else if (t1.get(Decision.DENY).isEmpty()) {
+                            return context.forwardRequest(header, request);
+                        }
+                        else {
+                            var allowed = request.topics().stream().filter(t -> authorization.decision(TopicResource.DESCRIBE, t.name()) == Decision.ALLOW).toList();
+                            var offsetFetchResponseTopics = t1.get(Decision.DENY).stream().map(x -> new OffsetFetchResponseData.OffsetFetchResponseTopic()
+                                    .setName(x.name())
+                                    .setPartitions(x.partitionIndexes().stream()
+                                            .map(i -> new OffsetFetchResponseData.OffsetFetchResponsePartition()
+                                                    .setPartitionIndex(i)
+                                                    .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()))
+                                            .toList()))
+                                    .toList();
+                            savePartialResponse(header, (OffsetFetchResponseData response) -> {
+                                response.topics().addAll(offsetFetchResponseTopics);
+                                return response;
+                            });
+                            request.setTopics(allowed);
+                            return context.forwardRequest(header, request);
+                        }
+                    }
+                });
     }
 
 }

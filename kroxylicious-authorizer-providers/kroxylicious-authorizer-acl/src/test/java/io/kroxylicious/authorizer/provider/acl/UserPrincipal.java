@@ -8,5 +8,4 @@ package io.kroxylicious.authorizer.provider.acl;
 
 import io.kroxylicious.proxy.authentication.Principal;
 
-public record UserPrincipal(String name) implements Principal {
-}
+public record UserPrincipal(String name) implements Principal {}

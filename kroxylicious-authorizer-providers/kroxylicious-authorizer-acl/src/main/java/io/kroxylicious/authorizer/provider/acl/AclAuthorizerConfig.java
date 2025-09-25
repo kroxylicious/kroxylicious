@@ -7,6 +7,4 @@
 package io.kroxylicious.authorizer.provider.acl;
 
 public record AclAuthorizerConfig(
-        String aclFile
-) {
-}
+                                  String aclFile) {}

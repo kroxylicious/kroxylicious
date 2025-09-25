@@ -17,7 +17,7 @@ public class SaslSubjectBuilder implements SubjectBuilder {
     public CompletionStage<Subject> buildSubject(Context context) {
         return CompletableFuture.completedStage(
                 context.clientSaslContext()
-                    .map(saslContext -> new Subject(Set.of(new User(saslContext.authorizationId()))))
-                    .orElse(Subject.ANONYMOUS));
+                        .map(saslContext -> new Subject(Set.of(new User(saslContext.authorizationId()))))
+                        .orElse(Subject.ANONYMOUS));
     }
 }

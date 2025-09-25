@@ -14,17 +14,16 @@ import java.util.Objects;
  * @param resourceName The resource name
  */
 public record Action(
-        Operation<?> operation,
-        String resourceName) {
+                     Operation<?> operation,
+                     String resourceName) {
 
     public Action {
         Objects.requireNonNull(operation);
         Objects.requireNonNull(resourceName);
     }
 
-    public Class<? extends Operation<?>>  resourceType() {
+    public Class<? extends Operation<?>> resourceType() {
         return (Class) operation.getClass();
     }
-
 
 }
