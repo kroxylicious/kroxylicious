@@ -60,146 +60,162 @@ public class AclAuthorizer implements Authorizer {
         return new Builder();
     }
 
-    public static class PrincipalSelectorBuilder<O extends Enum<O> & Operation> {
+    void roo() {
+
+        builder().grant()
+                .toSubjectsHavingPrincipal(null)
+                .withNameEqualTo("tom")
+                .operations(null)
+                .forResourceWithNameEqualTo("");
+    }
+
+    public static class PrincipalSelectorBuilder {
         private final Builder builder;
-        private final Set<O> operations;
-        private final Pred resourceNamePredicate;
-        private final Set<String> resourceNamesOrPrefixes;
         private final Class<? extends Principal> principalClass;
 
         public PrincipalSelectorBuilder(Builder builder,
-                                        // Class<O> operationType,
-                                        Set<O> operations,
-                                        Pred resourceNamePredicate,
-                                        Set<String> resourceNames,
+
                                         Class<? extends Principal> principalClass) {
             this.builder = builder;
-            this.operations = operations;
-            this.resourceNamesOrPrefixes = resourceNames;
-            this.resourceNamePredicate = resourceNamePredicate;
             this.principalClass = principalClass;
         }
 
-        public Builder withNameEqualTo(String principalName) {
-
-            if (resourceNamePredicate == Pred.ANY) {
-                builder.simpleAuthorizer.internalGrant(principalClass,
-                        TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
-                        principalName,
-                        (Class) operations.iterator().next().getClass(),
-                        resourceNamePredicate,
-                        null,
-                        operations);
-            }
-            else {
-                for (String resourceName : resourceNamesOrPrefixes) {
-                    builder.simpleAuthorizer.internalGrant(principalClass,
-                            TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
-                            principalName,
-                            (Class) operations.iterator().next().getClass(),
-                            resourceNamePredicate,
-                            resourceName,
-                            operations);
-                }
-            }
-            return builder;
+        public OperationsBuilder withNameEqualTo(String principalName) {
+            return new OperationsBuilder(builder, principalClass, principalName);
         }
     }
 
-    public static class SubjectSelectorBuilder<O extends Enum<O> & Operation> {
+    public static class SubjectSelectorBuilder {
 
         private final Builder builder;
-        private final Set<O> operations;
-        private final Set<String> resourceNamesOrPrefixes;
-        private final Pred resourceNamePredicate;
 
-        private SubjectSelectorBuilder(Builder builder,
-                                       Set<O> operations,
-                                       Pred resourceNamePredicate,
-                                       Set<String> resourceNames) {
+        private SubjectSelectorBuilder(Builder builder) {
             this.builder = builder;
-            this.operations = operations;
-            this.resourceNamePredicate = resourceNamePredicate;
-            this.resourceNamesOrPrefixes = resourceNames;
+
         }
 
-        public PrincipalSelectorBuilder<O> toSubjectsHavingPrincipal(Class<? extends Principal> userPrincipalClass) {
-            return new PrincipalSelectorBuilder<>(builder,
-                    operations,
-                    resourceNamePredicate,
-                    resourceNamesOrPrefixes,
+        public PrincipalSelectorBuilder toSubjectsHavingPrincipal(Class<? extends Principal> userPrincipalClass) {
+            return new PrincipalSelectorBuilder(builder,
                     userPrincipalClass);
         }
     }
 
     public static class ResourceBuilder<O extends Enum<O> & Operation> {
         private final Builder builder;
+        private final Class<? extends Principal> principalClass;
+        private final String principalName;
+        private final Class<O> operationsClass;
         private final Set<O> operations;
 
-        public ResourceBuilder(Builder builder, Set<O> operations) {
+        public ResourceBuilder(Builder builder,
+                               Class<? extends Principal> principalClass,
+                               String principalName,
+                               Class<O> operationsClass,
+                               Set<O> operations) {
             this.builder = Objects.requireNonNull(builder);
+            this.principalClass = Objects.requireNonNull(principalClass);
+            this.principalName = Objects.requireNonNull(principalName);
+            this.operationsClass = Objects.requireNonNull(operationsClass);
             this.operations = Objects.requireNonNull(operations);
         }
 
-        public SubjectSelectorBuilder<O> forResourcesWithNameIn(Set<String> resourceNames) {
-            return new SubjectSelectorBuilder<>(builder,
-                    operations,
+        public Builder forResourceWithNameEqualTo(String resourceName) {
+            builder.simpleAuthorizer.internalGrant(principalClass,
+                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
+                    principalName,
+                    operationsClass,
                     Pred.EQ,
-                    resourceNames);
+                    resourceName,
+                    operations);
+            return builder;
         }
 
-        public SubjectSelectorBuilder<O> forResourceWithNameEqualTo(String resourceName) {
-            return new SubjectSelectorBuilder<>(builder,
-                    operations,
-                    Pred.EQ,
-                    Set.of(resourceName));
+        public Builder forResourcesWithNameIn(Set<String> resourceNames) {
+            for (String resourceName : resourceNames) {
+                builder.simpleAuthorizer.internalGrant(principalClass,
+                        TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
+                        principalName,
+                        operationsClass,
+                        Pred.EQ,
+                        resourceName,
+                        operations);
+            }
+            return builder;
         }
 
-        public SubjectSelectorBuilder<O> forResourcesWithNameStartingWith(String resourceNamePrefix) {
-            return new SubjectSelectorBuilder<>(builder,
-                    operations,
+        public Builder forResourcesWithNameStartingWith(String resourceNamePrefix) {
+            builder.simpleAuthorizer.internalGrant(principalClass,
+                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
+                    principalName,
+                    operationsClass,
                     Pred.STARTS,
-                    Set.of(resourceNamePrefix));
+                    resourceNamePrefix,
+                    operations);
+            return builder;
         }
 
-        public SubjectSelectorBuilder<O> forResourcesWithNameMatching(String resourceNameRegex) {
-            return new SubjectSelectorBuilder<>(builder,
-                    operations,
+        public Builder forResourcesWithNameMatching(String resourceNameRegex) {
+            builder.simpleAuthorizer.internalGrant(principalClass,
+                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
+                    principalName,
+                    operationsClass,
                     Pred.MATCH,
-                    Set.of(resourceNameRegex));
+                    resourceNameRegex,
+                    operations);
+            return builder;
         }
 
-        public SubjectSelectorBuilder<O> forAllResources() {
-            return new SubjectSelectorBuilder<>(builder,
-                    operations,
+        public Builder forAllResources() {
+            builder.simpleAuthorizer.internalGrant(principalClass,
+                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
+                    principalName,
+                    operationsClass,
                     Pred.ANY,
-                    Set.of());
+                    null,
+                    operations);
+            return builder;
         }
     }
 
-    public static class GrantBuilder {
+    public static class OperationsBuilder {
 
+        private final Class<? extends Principal> principalClass;
+        private final String principalName;
         private Builder builder;
 
-        private GrantBuilder(Builder builder) {
+        private OperationsBuilder(Builder builder,
+                                  Class<? extends Principal> principalClass,
+                                  String principalName) {
             this.builder = builder;
+            this.principalClass = principalClass;
+            this.principalName = principalName;
         }
 
         <O extends Enum<O> & Operation<O>> ResourceBuilder<O> allOperations(Class<O> cls) {
-            return new ResourceBuilder<>(builder, EnumSet.allOf(cls));
+            return new ResourceBuilder<>(builder,
+                    principalClass,
+                    principalName,
+                    cls,
+                    EnumSet.allOf(cls));
         }
 
         public <O extends Enum<O> & Operation<O>> ResourceBuilder<O> operations(Set<O> operations) {
-            return new ResourceBuilder<>(builder, EnumSet.copyOf(operations));
+            EnumSet<O> os = EnumSet.copyOf(operations);
+            return new ResourceBuilder<>(builder,
+                    principalClass,
+                    principalName,
+                    (Class) operations.iterator().next().getClass(),
+                    os);
         }
+
 
     }
 
     public static class Builder {
         AclAuthorizer simpleAuthorizer = new AclAuthorizer();
 
-        public GrantBuilder grant() {
-            return new GrantBuilder(this);
+        public SubjectSelectorBuilder grant() {
+            return new SubjectSelectorBuilder(this);
         }
 
         public AclAuthorizer build() {
