@@ -18,7 +18,7 @@ import io.kroxylicious.authorizer.service.Authorization;
 import io.kroxylicious.authorizer.service.Authorizer;
 import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.authorizer.service.Operation;
-import io.kroxylicious.authorizer.service.Subject;
+import io.kroxylicious.proxy.authentication.Subject;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 

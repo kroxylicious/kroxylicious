@@ -7,7 +7,6 @@
 package io.kroxylicious.filter.authorization;
 
 import io.kroxylicious.authorizer.service.AuthorizerService;
-import io.kroxylicious.filter.authorization.subject.ClientSubjectBuilderService;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
@@ -16,9 +15,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 public class Authorization implements FilterFactory<AuthorizationConfig, Authorization.InitializationContext> {
 
     public record InitializationContext(
-            AuthorizerService authorizer,
-            ClientSubjectBuilderService clientSubjectBuilderService
-    ) {
+            AuthorizerService authorizer) {
     }
 
     @Override
@@ -26,27 +23,17 @@ public class Authorization implements FilterFactory<AuthorizationConfig, Authori
         var authorizerService = context.pluginInstance(AuthorizerService.class, configuration.authorizer());
         authorizerService.initialize(configuration.authorizerConfig());
 
-        var subjectBuilderService = context.pluginInstance(ClientSubjectBuilderService.class, configuration.subjectBuilder());
-        subjectBuilderService.initialize(configuration.subjectBuilderConfig());
-
-        return new InitializationContext(authorizerService, subjectBuilderService);
+        return new InitializationContext(authorizerService);
     }
 
     @Override
     public Filter createFilter(FilterFactoryContext context, InitializationContext initializationData) {
         return new AuthorizationFilter(initializationData.authorizer().build(),
-                initializationData.clientSubjectBuilderService().build(),
                 null);
     }
 
     @Override
     public void close(InitializationContext initializationData) {
-        try {
-            initializationData.clientSubjectBuilderService.close();
-        }
-        finally {
-            // ensure we try to close the authorizer, even if the subjectBuilder.close() fails
-            initializationData.authorizer.close();
-        }
+        initializationData.authorizer.close();
     }
 }

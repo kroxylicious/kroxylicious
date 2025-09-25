@@ -6,9 +6,15 @@
 
 package io.kroxylicious.proxy.filter.authorization;
 
+import java.util.List;
+
+import org.apache.kafka.common.message.MetadataRequestData;
+import org.apache.kafka.common.message.MetadataResponseData;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.BaseIT;
+import io.kroxylicious.test.Request;
 import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 
@@ -29,8 +35,22 @@ public class AuthorizationIT extends BaseIT {
     // Assert no visible side effects
 
     @Test
-    void test(KafkaCluster kafkaCluster) {
-        KroxyliciousTester t;
-        t.simpleTestClient().
+    void metadata(
+            short apiVersion,
+            boolean allowAutoCreation,
+            List<MetadataRequestData.MetadataRequestTopic> topics,
+            KafkaCluster kafkaCluster) {
+        KroxyliciousTester t = null;
+
+        var resp = t.simpleTestClient().getSync(new Request(ApiKeys.METADATA, apiVersion, "test",
+                new MetadataRequestData()
+                        .setAllowAutoTopicCreation(allowAutoCreation)
+                        .setTopics(topics)
+                        .setIncludeClusterAuthorizedOperations(true)
+                        .setIncludeTopicAuthorizedOperations(true)));
+
+        var r = (MetadataResponseData) resp.payload().message();
+        r.errorCode();
+
     }
 }

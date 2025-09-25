@@ -9,15 +9,12 @@ package io.kroxylicious.filter.authorization;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.authorizer.service.Authorizer;
-import io.kroxylicious.filter.authorization.subject.ClientSubjectBuilder;
 import io.kroxylicious.proxy.plugin.PluginImplConfig;
 import io.kroxylicious.proxy.plugin.PluginImplName;
 
 public record AuthorizationConfig(
         @JsonProperty(required = true) @PluginImplName(Authorizer.class) String authorizer,
-        @PluginImplConfig(implNameProperty = "authorizer") Object authorizerConfig,
-        @JsonProperty(required = true) @PluginImplName(ClientSubjectBuilder.class) String subjectBuilder,
-        @PluginImplConfig(implNameProperty = "subjectBuilder") Object subjectBuilderConfig
+        @PluginImplConfig(implNameProperty = "authorizer") Object authorizerConfig
 ) {
 
 }

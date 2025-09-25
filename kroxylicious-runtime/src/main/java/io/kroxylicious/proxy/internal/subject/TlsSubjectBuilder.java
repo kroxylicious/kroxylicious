@@ -4,7 +4,7 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filter.authorization.subject;
+package io.kroxylicious.proxy.internal.subject;
 
 import java.security.cert.CertificateParsingException;
 import java.util.Optional;
@@ -15,11 +15,11 @@ import java.util.function.UnaryOperator;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import io.kroxylicious.authorizer.service.Principal;
-import io.kroxylicious.authorizer.service.Subject;
+import io.kroxylicious.proxy.authentication.Principal;
+import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
-public class TlsSubjectBuilder implements ClientSubjectBuilder {
+public class TlsSubjectBuilder implements SubjectBuilder {
 
     public static final UnaryOperator<String> DEFAULT = UnaryOperator.identity();
     private final String subjectNameFormat;

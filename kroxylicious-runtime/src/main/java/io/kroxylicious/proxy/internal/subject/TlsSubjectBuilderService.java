@@ -4,18 +4,18 @@
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
 
-package io.kroxylicious.filter.authorization.subject;
+package io.kroxylicious.proxy.internal.subject;
 
 import java.util.List;
 import java.util.function.UnaryOperator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public class TlsSubjectBuilderService implements ClientSubjectBuilderService<TlsSubjectBuilderService.Config> {
+public class TlsSubjectBuilderService implements SubjectBuilderService<TlsSubjectBuilderService.Config> {
 
     private Config config;
 
-    record Config(
+    public record Config(
             @Nullable String subjectNameFormat,
             @Nullable List<String> subjectMappingRules,
             @Nullable List<String> sanRfc822NameMappingRules,
@@ -31,7 +31,7 @@ public class TlsSubjectBuilderService implements ClientSubjectBuilderService<Tls
     }
 
     @Override
-    public ClientSubjectBuilder build() {
+    public SubjectBuilder build() {
         // TODO need to distinguish the cases
         // 1. I want to use the default name format
         // 2. I don't want to include a principal for the subject principal

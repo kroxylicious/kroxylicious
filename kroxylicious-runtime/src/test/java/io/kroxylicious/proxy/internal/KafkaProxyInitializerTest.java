@@ -53,6 +53,8 @@ import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointResolutionException;
+import io.kroxylicious.proxy.internal.subject.AnonymousBuilderBuilder;
+import io.kroxylicious.proxy.internal.subject.SaslSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
@@ -346,6 +348,7 @@ class KafkaProxyInitializerTest {
         return new KafkaProxyInitializer(filterChainFactory,
                 pfr,
                 tls,
+                new AnonymousBuilderBuilder(),
                 bindingResolver,
                 (virtualCluster, upstreamNodes) -> null,
                 false,

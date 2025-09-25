@@ -5,16 +5,11 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
-
-import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.net.ssl.SSLSession;
 
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -31,9 +26,9 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
-import io.netty.handler.ssl.SslHandler;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
+import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -53,7 +48,6 @@ import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -63,6 +57,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * that applies a single {@link Filter}.
  */
 public class FilterHandler extends ChannelDuplexHandler {
+
+    enum BackPressureReason {
+        DEFERRED_REQUEST,
+        DEFERRED_RESPONSE,
+        SUBJECT_BUILDER,
+    }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FilterHandler.class);
     private final long timeoutMs;
@@ -75,6 +75,9 @@ public class FilterHandler extends ChannelDuplexHandler {
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private @Nullable ChannelHandlerContext ctx;
     private @Nullable PromiseFactory promiseFactory;
+    // We could use an EnumSet for the following, but the memory cost of doing that would be
+    // significantly more
+    byte inboundAutoReadState = 0;
 
     public FilterHandler(FilterAndInvoker filterAndInvoker,
                          long timeoutMs,
@@ -106,6 +109,16 @@ public class FilterHandler extends ChannelDuplexHandler {
         this.ctx = ctx;
         this.promiseFactory = new PromiseFactory(ctx.executor(), timeoutMs, TimeUnit.MILLISECONDS, LOGGER.getName());
         super.channelActive(ctx);
+    }
+
+
+    private void disableAutoRead(BackPressureReason backPressureReason) {
+        inboundAutoReadState |= (byte) (1 << backPressureReason.ordinal());
+        inboundChannel.config().setAutoRead(false);
+    }
+    private void maybeEnableAutoRead(BackPressureReason backPressureReason) {
+        inboundAutoReadState &= (byte) (Byte.MIN_VALUE ^ (byte) (1 << backPressureReason.ordinal()));
+        inboundChannel.config().setAutoRead(inboundAutoReadState == 0);
     }
 
     @Override
@@ -216,7 +229,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         final var future = dispatchDecodedResponseFrame(decodedFrame, filterContext);
         boolean defer = !future.isDone();
         if (defer) {
-            return configureResponseFilterChain(decodedFrame, handleDeferredStage(decodedFrame, future))
+            return configureResponseFilterChain(decodedFrame, handleDeferredStage(BackPressureReason.DEFERRED_RESPONSE, decodedFrame, future))
                     .whenComplete(this::deferredResponseCompleted)
                     .thenApply(responseFilterResult -> null);
         }
@@ -248,7 +261,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         final var future = dispatchDecodedRequest(decodedFrame, filterContext);
         boolean defer = !future.isDone();
         if (defer) {
-            return configureRequestFilterChain(decodedFrame, promise, handleDeferredStage(decodedFrame, future))
+            return configureRequestFilterChain(decodedFrame, promise, handleDeferredStage(BackPressureReason.DEFERRED_REQUEST, decodedFrame, future))
                     .whenComplete(this::deferredRequestCompleted)
                     .thenApply(requestFilterResult -> null);
         }
@@ -342,8 +355,11 @@ public class FilterHandler extends ChannelDuplexHandler {
         return null;
     }
 
-    private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(DecodedFrame<?, ?> decodedFrame, CompletableFuture<F> future) {
-        inboundChannel.config().setAutoRead(false);
+    private <F extends FilterResult> CompletableFuture<F> handleDeferredStage(
+            BackPressureReason reason,
+            DecodedFrame<?, ?> decodedFrame,
+            CompletableFuture<F> future) {
+        disableAutoRead(reason);
         promiseFactory.wrapWithTimeLimit(future,
                 () -> "Deferred work for filter '%s' did not complete processing within %s ms %s %s".formatted(filterDescriptor(), timeoutMs,
                         decodedFrame instanceof DecodedRequestFrame ? "request" : "response", decodedFrame.apiKey()));
@@ -351,12 +367,12 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     private void deferredResponseCompleted(ResponseFilterResult ignored, Throwable throwable) {
-        inboundChannel.config().setAutoRead(true);
+        maybeEnableAutoRead(BackPressureReason.DEFERRED_RESPONSE);
         readFuture.whenComplete((u, t) -> inboundChannel.flush());
     }
 
     private void deferredRequestCompleted(RequestFilterResult ignored, Throwable throwable) {
-        inboundChannel.config().setAutoRead(true);
+        maybeEnableAutoRead(BackPressureReason.DEFERRED_REQUEST);
         // flush so that writes from this completion can be driven towards the broker
         ctx.flush();
         // chain a flush to force any pending writes towards the broker
@@ -469,6 +485,24 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         private final DecodedFrame<?, ?> decodedFrame;
 
+        @Override
+        public CompletionStage<Subject> authenticatedSubject() {
+            var cf = clientSaslManager.authenticatedSubject().toCompletableFuture();
+            if (!cf.isDone()) {
+                // When we hand a pending stage to the filter we don't know how long we're gonna be waiting
+                // on the outcome, so toggle autoread off
+                disableAutoRead(BackPressureReason.SUBJECT_BUILDER);
+                promiseFactory.wrapWithTimeLimit(cf,
+                        () -> "Deferred work for subject builder did not complete processing within %s ms %s %s".formatted(timeoutMs,
+                                decodedFrame instanceof DecodedRequestFrame ? "request" : "response", decodedFrame.apiKey()));
+                return cf.whenComplete((subject, throwable) -> {
+                    // and toggle it back on once the outcome is known
+                    maybeEnableAutoRead(BackPressureReason.SUBJECT_BUILDER);
+                });
+            }
+            return cf;
+        }
+
         InternalFilterContext(DecodedFrame<?, ?> decodedFrame) {
             this.decodedFrame = decodedFrame;
         }
@@ -497,9 +531,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public Optional<ClientTlsContext> clientTlsContext() {
-            return Optional.ofNullable(inboundChannel.pipeline().get(SslHandler.class))
-                    .map(clientFacingSslHandler -> new ClientTlsContextImpl(
-                            Objects.requireNonNull(localTlsCertificate(clientFacingSslHandler)), getPeerTlsCertificate(clientFacingSslHandler)));
+            return ClientSaslManager.get(inboundChannel).clientTlsContext();
         }
 
         @Override
@@ -512,7 +544,8 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addArgument(authorizedId)
                     .log();
             // dispatch principal injection
-            clientSaslManager.clientSaslAuthenticationSuccess(mechanism, authorizedId);
+            var cf = clientSaslManager.clientSaslAuthenticationSuccess(mechanism, authorizedId);
+
         }
 
         @Override
@@ -605,47 +638,6 @@ public class FilterHandler extends ChannelDuplexHandler {
             return filterPromise.minimalCompletionStage();
         }
 
-    }
-
-    @VisibleForTesting
-    static @Nullable X509Certificate getPeerTlsCertificate(@Nullable SslHandler sslHandler) {
-        if (sslHandler != null) {
-            SSLSession session = sslHandler.engine().getSession();
-
-            Certificate[] peerCertificates;
-            try {
-                peerCertificates = session.getPeerCertificates();
-            }
-            catch (SSLPeerUnverifiedException e) {
-                peerCertificates = null;
-            }
-            if (peerCertificates != null && peerCertificates.length > 0) {
-                return Objects.requireNonNull((X509Certificate) peerCertificates[0]);
-            }
-            else {
-                return null;
-            }
-        }
-        else {
-            return null;
-        }
-    }
-
-    @VisibleForTesting
-    static @Nullable X509Certificate localTlsCertificate(@Nullable SslHandler sslHandler) {
-        if (sslHandler != null) {
-            SSLSession session = sslHandler.engine().getSession();
-            Certificate[] localCertificates = session.getLocalCertificates();
-            if (localCertificates != null && localCertificates.length > 0) {
-                return Objects.requireNonNull((X509Certificate) localCertificates[0]);
-            }
-            else {
-                return null;
-            }
-        }
-        else {
-            return null;
-        }
     }
 
 }
