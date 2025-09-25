@@ -30,12 +30,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Echo Branch Configuration
-        id: branch_configuration
-        run: |
-          echo "BRANCH_NAME: ${{github.head_ref}}"
-          echo "REPO: ${{github.event.pull_request.head.repo.full_name}}"
-          echo "BASE_REF: ${{github.event.pull_request.base.ref}}"
       - name: Check fork branch
         if: github.event.pull_request.head.repo.full_name != github.repository && github.head_ref == 'main'
         uses: actions/github-script@v8
