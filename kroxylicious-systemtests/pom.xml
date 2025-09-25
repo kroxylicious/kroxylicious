@@ -354,7 +354,7 @@
                                             <artifactId>kroxylicious-operator-dist</artifactId>
                                             <version>${project.version}</version>
                                             <type>zip</type>
-                                            <outputDirectory>${project.basedir}/kroxylicious-operator-dist/</outputDirectory>
+                                            <outputDirectory>${project.build.directory}/kroxylicious-operator-dist/</outputDirectory>
                                         </artifactItem>
                                     </artifactItems>
                                 </configuration>
