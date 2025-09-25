@@ -231,26 +231,26 @@
 
     <build>
         <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>integration-test</id>
-                        <goals>
-                            <goal>test</goal>
-                        </goals>
-                        <phase>integration-test</phase>
-                        <configuration>
-                            <skipTests>${skipSTs}</skipTests>
-                            <includes>
-                                <include>**/ST*.java</include>
-                                <include>**/*ST.java</include>
-                            </includes>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.apache.maven.plugins</groupId>-->
+<!--                <artifactId>maven-surefire-plugin</artifactId>-->
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <id>integration-test</id>-->
+<!--                        <goals>-->
+<!--                            <goal>test</goal>-->
+<!--                        </goals>-->
+<!--                        <phase>integration-test</phase>-->
+<!--                        <configuration>-->
+<!--                            <skipTests>${skipSTs}</skipTests>-->
+<!--                            <includes>-->
+<!--                                <include>**/ST*.java</include>-->
+<!--                                <include>**/*ST.java</include>-->
+<!--                            </includes>-->
+<!--                        </configuration>-->
+<!--                    </execution>-->
+<!--                </executions>-->
+<!--            </plugin>-->
             <plugin>
                 <groupId>org.sonatype.central</groupId>
                 <artifactId>central-publishing-maven-plugin</artifactId>
@@ -299,6 +299,114 @@
             <properties>
                 <sonar.coverage.exclusions>**/io/kroxylicious/systemtests/**</sonar.coverage.exclusions>
             </properties>
+        </profile>
+        <profile>
+            <id>dist</id>
+
+            <dependencies>
+                <!-- project dependencies - test -->
+                <dependency>
+                    <groupId>io.kroxylicious</groupId>
+                    <artifactId>kroxylicious-operator-dist</artifactId>
+                    <version>${project.version}</version>
+                    <type>zip</type>
+                    <scope>runtime</scope>
+                </dependency>
+            </dependencies>
+
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-kroxylicious-operator-zip</id>
+                                <phase>pre-integration-test</phase>
+                                <goals>
+                                    <goal>copy</goal>
+                                </goals>
+                                <configuration>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>io.kroxylicious</groupId>
+                                            <artifactId>kroxylicious-operator-dist</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>zip</type>
+                                            <overWrite>false</overWrite>
+                                            <outputDirectory>${project.build.directory}/kroxylicious-operator-dist
+                                            </outputDirectory>
+                                            <destFileName>kroxylicious-operator.zip</destFileName>
+                                        </artifactItem>
+                                    </artifactItems>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>unpack</id>
+                                <phase>pre-integration-test</phase>
+                                <goals>
+                                    <goal>unpack</goal>
+                                </goals>
+                                <configuration>
+                                    <artifactItems>
+                                        <artifactItem>
+                                            <groupId>io.kroxylicious</groupId>
+                                            <artifactId>kroxylicious-operator-dist</artifactId>
+                                            <version>${project.version}</version>
+                                            <type>zip</type>
+                                            <outputDirectory>${project.basedir}/kroxylicious-operator-dist/</outputDirectory>
+                                        </artifactItem>
+                                    </artifactItems>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>integration-test</id>
+                                <goals>
+                                    <goal>test</goal>
+                                </goals>
+                                <phase>integration-test</phase>
+                                <configuration>
+                                    <skipTests>${skipSTs}</skipTests>
+                                    <includes>
+                                        <include>**/ST*.java</include>
+                                        <include>**/*ST.java</include>
+                                    </includes>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <!-- We don't actually care about javadoc for this module, but it needs to be present for
+                     central-publishing-maven-plugin's validations to pass. so inspired by
+                     https://stackoverflow.com/a/59073656 we skip javadoc generation and attach an empty jar -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <configuration>
+                            <skip>true</skip>
+                        </configuration>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <extensions>true</extensions>
+                        <configuration>
+                            <skipPublishing>true</skipPublishing>
+                        </configuration>
+                    </plugin>
+                </plugins>
+                <resources>
+                    <resource>
+                        <directory>src/main/resources</directory>
+                        <filtering>true</filtering>
+                    </resource>
+                </resources>
+            </build>
         </profile>
     </profiles>
 </project>
