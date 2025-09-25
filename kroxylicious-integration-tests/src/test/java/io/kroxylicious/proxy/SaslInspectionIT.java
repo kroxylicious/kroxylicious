@@ -48,6 +48,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
+@SuppressWarnings("java:S5976") // Ignoring 'replace these n tests with a single parameterized one' - we are using the annotated parameters that a parameterized test wouldn't handle nicely.
 class SaslInspectionIT {
     /**
      * client handshakes with PLAIN
@@ -56,9 +57,8 @@ class SaslInspectionIT {
      * => client should be able to produce and consume
      */
     @Test
-    void shouldAuthenticateWhenSameMechanism_PLAIN(
-                                                   @SaslMechanism(value = "PLAIN", principals = {
-                                                           @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+    void shouldAuthenticateWhenSameMechanism_PLAIN(@SaslMechanism(value = "PLAIN", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
                                                    Topic topic)
             throws Exception {
 
@@ -77,9 +77,8 @@ class SaslInspectionIT {
      * => client should be able to produce and consume
      */
     @Test
-    void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_256(
-                                                           @SaslMechanism(value = "SCRAM-SHA-256", principals = {
-                                                                   @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+    void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_256(@SaslMechanism(value = "SCRAM-SHA-256", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
                                                            Topic topic)
             throws Exception {
 
@@ -98,9 +97,8 @@ class SaslInspectionIT {
      * => client should be able to produce and consume
      */
     @Test
-    void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_512(
-                                                           @SaslMechanism(value = "SCRAM-SHA-512", principals = {
-                                                                   @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+    void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_512(@SaslMechanism(value = "SCRAM-SHA-512", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
                                                            Topic topic)
             throws Exception {
 
@@ -119,10 +117,9 @@ class SaslInspectionIT {
      * => client should be able to produce and consume
      */
     @Test
-    void shouldAuthenticateWhenSameMechanism_PLAIN_withReauth(
-                                                              @SaslMechanism(value = "PLAIN", principals = {
-                                                                      @SaslMechanism.Principal(user = "alice", password = "alice-secret")
-                                                              }) @BrokerConfig(name = "connections.max.reauth.ms", value = "5000") KafkaCluster cluster,
+    void shouldAuthenticateWhenSameMechanism_PLAIN_withReauth(@SaslMechanism(value = "PLAIN", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret")
+    }) @BrokerConfig(name = "connections.max.reauth.ms", value = "5000") KafkaCluster cluster,
                                                               Topic topic)
             throws Exception {
 
@@ -143,9 +140,8 @@ class SaslInspectionIT {
      * => client should be able to produce and consume
      */
     @Test
-    void shouldNotAuthenticateWhenSameMechanismButWrongPassword_PLAIN(
-                                                                      @SaslMechanism(value = "PLAIN", principals = {
-                                                                              @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+    void shouldNotAuthenticateWhenSameMechanismButWrongPassword_PLAIN(@SaslMechanism(value = "PLAIN", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
                                                                       Topic topic) {
 
         String mechanism = "PLAIN";

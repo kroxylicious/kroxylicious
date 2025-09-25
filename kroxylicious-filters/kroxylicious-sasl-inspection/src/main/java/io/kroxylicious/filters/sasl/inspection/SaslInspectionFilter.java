@@ -271,7 +271,8 @@ class SaslInspectionFilter
                 LOGGER.atInfo()
                         .setMessage("Server rejects SASL credentials with error {} for client on channel {}")
                         .addArgument(error::name)
-                        .addArgument(context::channelDescriptor).log();
+                        .addArgument(context::channelDescriptor)
+                        .log();
                 context.clientSaslAuthenticationFailure(chosenMechanism.mechanismName(), this.authorizationIdFromClient, error.exception());
                 resetState();
                 return context.responseFilterResultBuilder()

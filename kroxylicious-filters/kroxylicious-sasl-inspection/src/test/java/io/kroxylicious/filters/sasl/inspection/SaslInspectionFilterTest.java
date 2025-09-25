@@ -447,7 +447,7 @@ class SaslInspectionFilterTest {
     @ParameterizedTest
     @MethodSource("successfulSaslAuthentications")
     void shouldAuthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses, String expectedAuthorizedId) {
-        doAuthenticateSuccessfully(mechanism, initialResponse, challengeResponses, expectedAuthorizedId);
+        doAuthenticateSuccessfully(mechanism, initialResponse, challengeResponses);
 
         // Then
         verify(context).clientSaslAuthenticationSuccess(mechanism, expectedAuthorizedId);
@@ -458,8 +458,8 @@ class SaslInspectionFilterTest {
     @ParameterizedTest
     @MethodSource("successfulSaslAuthentications")
     void shouldReauthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses, String expectedAuthorizedId) {
-        doAuthenticateSuccessfully(mechanism, initialResponse, challengeResponses, expectedAuthorizedId);
-        doAuthenticateSuccessfully(mechanism, initialResponse, challengeResponses, expectedAuthorizedId);
+        doAuthenticateSuccessfully(mechanism, initialResponse, challengeResponses);
+        doAuthenticateSuccessfully(mechanism, initialResponse, challengeResponses);
 
         // Then
         verify(context, times(2)).clientSaslAuthenticationSuccess(mechanism, expectedAuthorizedId);
@@ -467,7 +467,7 @@ class SaslInspectionFilterTest {
 
     }
 
-    private void doAuthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses, String expectedAuthorizedId) {
+    private void doAuthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses) {
         // Given
         var filter = new SaslInspectionFilter(new Config(Set.of(mechanism)));
 
