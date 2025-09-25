@@ -184,7 +184,7 @@ class SaslInspectionFilter
             }
         }
         else {
-            return closeConnectionDueToIllegalState(header, context, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()));
+            return closeConnectionWithResponse(header, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()), context);
         }
     }
 
@@ -214,8 +214,16 @@ class SaslInspectionFilter
                             .log();
                 }
                 catch (AuthenticationException e) {
-                    // TODO what should we do here, if we failed to decode the request property?
-                    return context.forwardRequest(header, request);
+                    LOGGER.atInfo()
+                            .setMessage("Client '{}' on channel {} sent {} an authorization request containing a SASL response that could not be interpreted; closing connection. Cause message: {}. Raise log level to DEBUG to see the stack.")
+                            .addArgument(header::clientId)
+                            .addArgument(context::channelDescriptor)
+                            .addArgument(e::getMessage)
+                            .setCause(LOGGER.isDebugEnabled() ? e : null)
+                            .log();
+                    return closeConnectionWithShortCircuitResponse(context, new SaslAuthenticateResponseData()
+                            .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
+                            .setErrorMessage("Cannot extract authorizationId from SASL authenticate request"));
                 }
             }
             this.currentState = State.AWAITING_AUTHENTICATE_RESPONSE;
@@ -227,11 +235,9 @@ class SaslInspectionFilter
                     .addArgument(context::channelDescriptor)
                     .addArgument(() -> this.currentState)
                     .log();
-            return context.requestFilterResultBuilder().shortCircuitResponse(
-                    new SaslAuthenticateResponseData()
-                            .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
-                            .setErrorMessage("SaslHandshake has not been performed"))
-                    .completed();
+            return closeConnectionWithShortCircuitResponse(context, new SaslAuthenticateResponseData()
+                    .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
+                    .setErrorMessage("SaslHandshake has not been performed"));
         }
     }
 
@@ -244,14 +250,10 @@ class SaslInspectionFilter
             if (response.errorCode() == Errors.NONE.code()) {
                 if (this.chosenMechanism.isLastSaslAuthenticateResponse(numAuthenticateSeen)) {
                     if (this.authorizationIdFromClient == null) {
-                        return closeConnectionDueToIllegalState(header, context, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()));
+                        return closeConnectionWithResponse(header, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()), context);
                     }
                     LOGGER.atInfo()
-                            .setMessage("Server accepts SASL credentials for client on channel {}")
-                            .addArgument(context::channelDescriptor)
-                            .log();
-                    LOGGER.atInfo()
-                            .setMessage("Announcing that client on channel {} has authorizationId {}")
+                            .setMessage("Server accepts SASL credentials for client on channel {}, announcing that client has authorizationId {}")
                             .addArgument(context::channelDescriptor)
                             .addArgument(() -> this.authorizationIdFromClient)
                             .log();
@@ -282,18 +284,28 @@ class SaslInspectionFilter
             }
         }
         else {
-            return closeConnectionDueToIllegalState(header, context, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()));
+            return closeConnectionWithResponse(header, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()), context);
         }
     }
 
+
     @NonNull
-    private CompletionStage<ResponseFilterResult> closeConnectionDueToIllegalState(ResponseHeaderData header, FilterContext context, ApiMessage response) {
+    private static CompletionStage<RequestFilterResult> closeConnectionWithShortCircuitResponse(FilterContext context, ApiMessage response) {
+        return context.requestFilterResultBuilder()
+                .shortCircuitResponse(response)
+                .withCloseConnection()
+                .completed();
+    }
+
+    @NonNull
+    private CompletionStage<ResponseFilterResult> closeConnectionWithResponse(ResponseHeaderData header, ApiMessage response, FilterContext context) {
         LOGGER.error("Unexpected {} response while in state {}. This should not be possible. Closing connection.",
                 header.apiKey(),
                 currentState);
         return context.responseFilterResultBuilder()
                 .forward(header, response)
-                .withCloseConnection().completed();
+                .withCloseConnection()
+                .completed();
     }
 
 }

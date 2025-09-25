@@ -356,6 +356,33 @@ class SaslInspectionFilterTest {
 
     }
 
+    @Test
+    void shouldDetectMalformedClientInitialResponse() {
+        // Given
+        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
+
+        doSaslHandshakeRequest("PLAIN", filter);
+        doSaslHandshakeResponse("PLAIN", filter);
+
+        var badClientFirst = "\0too\0many\0\tokens\0for\0SASL\0PLAIN".getBytes(StandardCharsets.US_ASCII);
+        var authenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(badClientFirst);
+        var authenticateRequestHeader = new RequestHeaderData().setRequestApiKey(authenticateRequest.apiKey())
+                .setRequestApiVersion(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION);
+        var expectedAuthenticateResponse = new SaslAuthenticateResponseData().setErrorCode(Errors.ILLEGAL_SASL_STATE.code()).setErrorMessage("Cannot extract authorizationId from SASL authenticate request");
+
+        // When
+        var actualAuthenticateResponse = filter.onSaslAuthenticateRequest(SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION,
+                authenticateRequestHeader, authenticateRequest, context);
+
+        // Then
+        assertThat(actualAuthenticateResponse)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(rfr -> {
+                    assertThat(rfr.message())
+                            .isEqualTo(expectedAuthenticateResponse);
+                    assertThat(rfr.closeConnection()).isTrue();
+                });
+    }
     /**
      * The <a href="https://kafka.apache.org/protocol#sasl_handshake">protocol spec says</a>:
      * <blockquote>
