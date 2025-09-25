@@ -48,6 +48,9 @@ import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * Integration test for the SASL Inspection Filter.
+ */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
 @SuppressWarnings("java:S5976") // Ignoring 'replace these n tests with a single parameterized one' - we are using the annotated parameters that a parameterized test wouldn't handle nicely.
@@ -214,8 +217,7 @@ class SaslInspectionIT {
      */
     @Test
     void shouldNotConnectClientNotConfiguredForSasl(@SaslMechanism(value = "PLAIN", principals = {
-            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
-                                                    Topic topic) {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster) {
         var config = buildProxyConfig("PLAIN", cluster);
 
         try (var tester = kroxyliciousTester(config);
@@ -229,14 +231,6 @@ class SaslInspectionIT {
                     .withCauseExactlyInstanceOf(TimeoutException.class);
         }
     }
-
-    // TODO assert that filters don't get invoked even if a client sends a metadata after getting an error after authenticate
-    // TODO all these things with older api versions
-    // TODO reauth:
-    // reauth without account => that plugins get an empty principal
-
-    // reauth attempt by client which didn't use >= v1 Autn req
-
     private static void assertClientsGetSaslAuthenticationException(KafkaCluster cluster, Topic topic, String mechanism, String clientLoginModule, String username,
                                                                     String password) {
         var config = buildProxyConfig(mechanism, cluster);

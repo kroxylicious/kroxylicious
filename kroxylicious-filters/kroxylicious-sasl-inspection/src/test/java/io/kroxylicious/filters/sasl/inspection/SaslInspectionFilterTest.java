@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.errors.SaslAuthenticationException;
@@ -455,17 +456,71 @@ class SaslInspectionFilterTest {
 
     }
 
+    static Stream<Arguments> successfulSaslReauthentications() {
+        return Stream.of(
+                Arguments.argumentSet("reauth",
+                        "PLAIN",
+                        new InitialResponse(SASL_PLAIN_CLIENT_INITIAL),
+                        List.of(new ChallengeResponse(new byte[0], null)),
+                        new InitialResponse(SASL_PLAIN_CLIENT_INITIAL),
+                        List.of(new ChallengeResponse(new byte[0], null)),
+                        (Consumer<FilterContext>) context -> {
+                            verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
+                            verify(context, times(2)).clientSaslAuthenticationSuccess("PLAIN", "tim");
+                        }),
+                Arguments.argumentSet("reauth changes of authzid",
+                        "PLAIN",
+                        new InitialResponse(SASL_PLAIN_CLIENT_INITIAL),
+                        List.of(new ChallengeResponse(new byte[0], null)),
+                        new InitialResponse("\0timmy\0tanstaaftanstaaf".getBytes(StandardCharsets.US_ASCII)),
+                        List.of(new ChallengeResponse(new byte[0], null)),
+                        (Consumer<FilterContext>) context -> {
+                            verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
+                            verify(context).clientSaslAuthenticationSuccess("PLAIN", "tim");
+                            verify(context).clientSaslAuthenticationSuccess("PLAIN", "timmy");
+                        })
+                );
+    }
+
+
     @ParameterizedTest
-    @MethodSource("successfulSaslAuthentications")
-    void shouldReauthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses, String expectedAuthorizedId) {
+    @MethodSource("successfulSaslReauthentications")
+    void shouldReauthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses, InitialResponse reauthInitialResponse, List<ChallengeResponse> reauthChallengeResponses, Consumer<FilterContext> verify) {
         doAuthenticateSuccessfully(mechanism, initialResponse, challengeResponses);
-        doAuthenticateSuccessfully(mechanism, initialResponse, challengeResponses);
+        doAuthenticateSuccessfully(mechanism, reauthInitialResponse, reauthChallengeResponses);
+        verify.accept(context);
+    }
+
+    @Test
+    void shouldDetectUnexpectedReauthentication() {
+        // Given
+        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
+
+        doSaslHandshakeRequest("PLAIN", filter);
+        doSaslHandshakeResponse("PLAIN", filter);
+
+        doSaslAuthenticateRequest(SASL_PLAIN_CLIENT_INITIAL, filter, (short) 0);
+        doSaslAuthenticateResponse(new byte[0], filter);
+
+        var unexpectedHandshake = new SaslHandshakeRequestData().setMechanism("PLAIN");
+        var unexpectedHandshakeHeader = new RequestHeaderData().setRequestApiKey(unexpectedHandshake.apiKey());
+        var expectedResponse = new SaslHandshakeResponseData().setErrorCode(Errors.ILLEGAL_SASL_STATE.code());
+
+        // When
+
+        var actualUpstreamHandshakeRequest = filter.onSaslHandshakeRequest(unexpectedHandshakeHeader.requestApiVersion(), unexpectedHandshakeHeader,
+                unexpectedHandshake, context);
 
         // Then
-        verify(context, times(2)).clientSaslAuthenticationSuccess(mechanism, expectedAuthorizedId);
-        verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
-
+        assertThat(actualUpstreamHandshakeRequest)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(rfr -> {
+                    assertThat(rfr.message())
+                            .isEqualTo(expectedResponse);
+                    assertThat(rfr.closeConnection()).isTrue();
+                });
     }
+
 
     private void doAuthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses) {
         // Given
@@ -484,63 +539,71 @@ class SaslInspectionFilterTest {
 
     }
 
-    private void doSaslHandshakeResponse(String mechanism, SaslInspectionFilter filter) {
-        var upstreamHandshakeResponse = new SaslHandshakeResponseData().setMechanisms(List.of(mechanism));
-        var upstreamHandshakeResponseHeader = new ResponseHeaderData();
-        var expectedDownstreamHandshakeResponse = upstreamHandshakeResponse.duplicate();
-
-        var actualDownstreamHandshakeResponse = filter.onSaslHandshakeResponse(upstreamHandshakeResponse.highestSupportedVersion(), upstreamHandshakeResponseHeader,
-                upstreamHandshakeResponse, context);
-
-        assertThat(actualDownstreamHandshakeResponse)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .satisfies(rfr -> assertThat(rfr.message())
-                        .isEqualTo(expectedDownstreamHandshakeResponse));
+    private void doSaslHandshakeRequest(String mechanism, SaslInspectionFilter filter) {
+        doSaslHandshakeRequest(mechanism, filter, SaslHandshakeRequestData.HIGHEST_SUPPORTED_VERSION);
     }
 
-    private void doSaslHandshakeRequest(String mechanism, SaslInspectionFilter filter) {
-        var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism(mechanism);
-        var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
-                .setRequestApiVersion(downstreamHandshakeRequest.highestSupportedVersion());
-        var expectedUpstreamHandshakeRequest = downstreamHandshakeRequest.duplicate();
+    private void doSaslHandshakeRequest(String mechanism, SaslInspectionFilter filter, short version) {
+        
+        var handshakeRequest = new SaslHandshakeRequestData().setMechanism(mechanism);
+        var handshakeRequestHeader = new RequestHeaderData().setRequestApiKey(handshakeRequest.apiKey())
+                .setRequestApiVersion(version);
+        var expectedHandshakeRequest = handshakeRequest.duplicate();
 
-        var actualUpstreamHandshakeRequest = filter.onSaslHandshakeRequest(downstreamHandshakeRequest.highestSupportedVersion(), downstreamHandshakeRequestHeader,
-                downstreamHandshakeRequest, context);
+        var actualHandshakeRequest = filter.onSaslHandshakeRequest(handshakeRequestHeader.requestApiVersion(), handshakeRequestHeader,
+                handshakeRequest, context);
 
-        assertThat(actualUpstreamHandshakeRequest)
+        assertThat(actualHandshakeRequest)
                 .succeedsWithin(Duration.ofSeconds(1))
                 .satisfies(rfr -> assertThat(rfr.message())
-                        .isEqualTo(expectedUpstreamHandshakeRequest));
+                        .isEqualTo(expectedHandshakeRequest));
+
+
+    }
+    private void doSaslHandshakeResponse(String mechanism, SaslInspectionFilter filter) {
+        var handshakeResponse = new SaslHandshakeResponseData().setMechanisms(List.of(mechanism));
+        var expectedHandshakeResponse = handshakeResponse.duplicate();
+
+        var actualHandshakeResponse = filter.onSaslHandshakeResponse(handshakeResponse.highestSupportedVersion(), new ResponseHeaderData(),
+                handshakeResponse, context);
+
+        assertThat(actualHandshakeResponse)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(rfr -> assertThat(rfr.message())
+                        .isEqualTo(expectedHandshakeResponse));
     }
 
     private void doSaslAuthenticateRequest(byte[] response, SaslInspectionFilter filter) {
-        var downstreamAuthenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(response);
-        var downstreamAuthenticateRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamAuthenticateRequest.apiKey())
-                .setRequestApiVersion(downstreamAuthenticateRequest.highestSupportedVersion());
-        var expectedUpstreamAuthenticateRequest = downstreamAuthenticateRequest.duplicate();
+        doSaslAuthenticateRequest(response, filter, SaslAuthenticateRequestData.HIGHEST_SUPPORTED_VERSION);
+    }
 
-        var actualUpstreamAuthenticateRequest = filter.onSaslAuthenticateRequest(downstreamAuthenticateRequest.highestSupportedVersion(),
-                downstreamAuthenticateRequestHeader, downstreamAuthenticateRequest, context);
+    private void doSaslAuthenticateRequest(byte[] response, SaslInspectionFilter filter, short version) {
+        var authenticateRequest = new SaslAuthenticateRequestData().setAuthBytes(response);
+        var authenticateRequestHeader = new RequestHeaderData().setRequestApiKey(authenticateRequest.apiKey())
+                .setRequestApiVersion(version);
+        var expectedAuthenticateRequest = authenticateRequest.duplicate();
 
-        assertThat(actualUpstreamAuthenticateRequest)
+        var actualAuthenticateRequest = filter.onSaslAuthenticateRequest(version,
+                authenticateRequestHeader, authenticateRequest, context);
+
+        assertThat(actualAuthenticateRequest)
                 .succeedsWithin(Duration.ofSeconds(1))
                 .satisfies(rfr -> assertThat(rfr.message())
-                        .isEqualTo(expectedUpstreamAuthenticateRequest));
+                        .isEqualTo(expectedAuthenticateRequest));
     }
 
     private void doSaslAuthenticateResponse(byte[] challenge, SaslInspectionFilter filter) {
-        var upstreamAuthenticateResponse = new SaslAuthenticateResponseData().setAuthBytes(challenge);
-        var upstreamAuthenticateResponseHeader = new ResponseHeaderData();
-        var expectedDownstreamAuthenticateResponse = upstreamAuthenticateResponse.duplicate();
+        var authenticateResponse = new SaslAuthenticateResponseData().setAuthBytes(challenge);
+        var expectedAuthenticateResponse = authenticateResponse.duplicate();
 
-        var actualDownstreamAuthenticateResponse = filter.onSaslAuthenticateResponse(upstreamAuthenticateResponse.highestSupportedVersion(),
-                upstreamAuthenticateResponseHeader,
-                upstreamAuthenticateResponse, context);
+        var actualResponse = filter.onSaslAuthenticateResponse(authenticateResponse.highestSupportedVersion(),
+                new ResponseHeaderData(),
+                authenticateResponse, context);
 
-        assertThat(actualDownstreamAuthenticateResponse)
+        assertThat(actualResponse)
                 .succeedsWithin(Duration.ofSeconds(1))
                 .satisfies(rfr -> assertThat(rfr.message())
-                        .isEqualTo(expectedDownstreamAuthenticateResponse));
+                        .isEqualTo(expectedAuthenticateResponse));
     }
 
     private interface SaslInteraction {

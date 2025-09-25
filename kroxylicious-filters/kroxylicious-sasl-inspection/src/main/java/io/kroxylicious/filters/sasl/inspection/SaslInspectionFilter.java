@@ -79,16 +79,11 @@ class SaslInspectionFilter
         Objects.requireNonNull(config, "config");
         this.config = config;
         this.clientSupportsReauthentication = false;
-        resetState();
+        resetState(State.REQUIRING_HANDSHAKE_REQUEST);
     }
 
-    private void resetState() {
-        if (this.clientSupportsReauthentication) {
-            currentState = State.ALLOWING_HANDSHAKE_REQUEST;
-        }
-        else {
-            currentState = State.REQUIRING_HANDSHAKE_REQUEST;
-        }
+    private void resetState(State state) {
+        currentState = state;
         chosenMechanism = null;
         authorizationIdFromClient = null;
         numAuthenticateSeen = 0;
@@ -259,7 +254,7 @@ class SaslInspectionFilter
                 }
 
                 if (this.chosenMechanism.isFinished(this.numAuthenticateSeen)) {
-                    resetState();
+                    resetState(this.clientSupportsReauthentication ? State.ALLOWING_HANDSHAKE_REQUEST : State.DISALLOWING_AUTHENTICATE_REQUEST);
                 }
                 else {
                     this.currentState = State.REQUIRING_AUTHENTICATE_REQUEST;
@@ -274,7 +269,7 @@ class SaslInspectionFilter
                         .addArgument(context::channelDescriptor)
                         .log();
                 context.clientSaslAuthenticationFailure(chosenMechanism.mechanismName(), this.authorizationIdFromClient, error.exception());
-                resetState();
+                resetState(State.REQUIRING_HANDSHAKE_REQUEST);
                 return context.responseFilterResultBuilder()
                         .forward(header, response)
                         .withCloseConnection()
