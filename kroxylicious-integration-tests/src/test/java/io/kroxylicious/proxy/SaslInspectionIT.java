@@ -231,6 +231,7 @@ class SaslInspectionIT {
                     .withCauseExactlyInstanceOf(TimeoutException.class);
         }
     }
+
     private static void assertClientsGetSaslAuthenticationException(KafkaCluster cluster, Topic topic, String mechanism, String clientLoginModule, String username,
                                                                     String password) {
         var config = buildProxyConfig(mechanism, cluster);

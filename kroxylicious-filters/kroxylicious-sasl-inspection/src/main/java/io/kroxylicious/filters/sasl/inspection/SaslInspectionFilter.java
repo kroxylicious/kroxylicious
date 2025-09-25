@@ -47,7 +47,7 @@ class SaslInspectionFilter
 
     private final Config config;
 
-    enum State {
+    private enum State {
         /** A SASL handshake request is required. */
         REQUIRING_HANDSHAKE_REQUEST,
         /** We're waiting for a SASL handshake response from the server. */
@@ -73,6 +73,10 @@ class SaslInspectionFilter
     private Mech chosenMechanism;
     private String authorizationIdFromClient;
     private int numAuthenticateSeen;
+
+    /**
+     * True if it has been established that client/broker support re-authentication (KIP-368).
+     */
     private boolean clientSupportsReauthentication;
 
     SaslInspectionFilter(Config config) {
@@ -83,6 +87,7 @@ class SaslInspectionFilter
     }
 
     private void resetState(State state) {
+        Objects.requireNonNull(state, "state");
         currentState = state;
         chosenMechanism = null;
         authorizationIdFromClient = null;

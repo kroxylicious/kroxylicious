@@ -478,14 +478,13 @@ class SaslInspectionFilterTest {
                             verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
                             verify(context).clientSaslAuthenticationSuccess("PLAIN", "tim");
                             verify(context).clientSaslAuthenticationSuccess("PLAIN", "timmy");
-                        })
-                );
+                        }));
     }
-
 
     @ParameterizedTest
     @MethodSource("successfulSaslReauthentications")
-    void shouldReauthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses, InitialResponse reauthInitialResponse, List<ChallengeResponse> reauthChallengeResponses, Consumer<FilterContext> verify) {
+    void shouldReauthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses,
+                                          InitialResponse reauthInitialResponse, List<ChallengeResponse> reauthChallengeResponses, Consumer<FilterContext> verify) {
         doAuthenticateSuccessfully(mechanism, initialResponse, challengeResponses);
         doAuthenticateSuccessfully(mechanism, reauthInitialResponse, reauthChallengeResponses);
         verify.accept(context);
@@ -521,7 +520,6 @@ class SaslInspectionFilterTest {
                 });
     }
 
-
     private void doAuthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses) {
         // Given
         var filter = new SaslInspectionFilter(new Config(Set.of(mechanism)));
@@ -544,7 +542,7 @@ class SaslInspectionFilterTest {
     }
 
     private void doSaslHandshakeRequest(String mechanism, SaslInspectionFilter filter, short version) {
-        
+
         var handshakeRequest = new SaslHandshakeRequestData().setMechanism(mechanism);
         var handshakeRequestHeader = new RequestHeaderData().setRequestApiKey(handshakeRequest.apiKey())
                 .setRequestApiVersion(version);
@@ -558,8 +556,8 @@ class SaslInspectionFilterTest {
                 .satisfies(rfr -> assertThat(rfr.message())
                         .isEqualTo(expectedHandshakeRequest));
 
-
     }
+
     private void doSaslHandshakeResponse(String mechanism, SaslInspectionFilter filter) {
         var handshakeResponse = new SaslHandshakeResponseData().setMechanisms(List.of(mechanism));
         var expectedHandshakeResponse = handshakeResponse.duplicate();
