@@ -215,7 +215,8 @@ class SaslInspectionFilter
                 }
                 catch (AuthenticationException e) {
                     LOGGER.atInfo()
-                            .setMessage("Client '{}' on channel {} sent {} an authorization request containing a SASL response that could not be interpreted; closing connection. Cause message: {}. Raise log level to DEBUG to see the stack.")
+                            .setMessage(
+                                    "Client '{}' on channel {} sent {} an authorization request containing a SASL response that could not be interpreted; closing connection. Cause message: {}. Raise log level to DEBUG to see the stack.")
                             .addArgument(header::clientId)
                             .addArgument(context::channelDescriptor)
                             .addArgument(e::getMessage)
@@ -287,7 +288,6 @@ class SaslInspectionFilter
             return closeConnectionWithResponse(header, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()), context);
         }
     }
-
 
     @NonNull
     private static CompletionStage<RequestFilterResult> closeConnectionWithShortCircuitResponse(FilterContext context, ApiMessage response) {
