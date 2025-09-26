@@ -43,7 +43,7 @@ public class AzureKeyVaultKmsService implements KmsService<AzureKeyVaultConfig, 
         if (client == null) {
             throw new IllegalStateException("client has not been initialized");
         }
-        return new AzureKeyVaultKms(client, SECURE_RANDOM);
+        return new AzureKeyVaultKms(client, config.keyVaultName(), SECURE_RANDOM);
     }
 
     @Override

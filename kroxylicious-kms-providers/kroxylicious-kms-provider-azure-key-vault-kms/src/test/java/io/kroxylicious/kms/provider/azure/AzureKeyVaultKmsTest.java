@@ -57,6 +57,7 @@ class AzureKeyVaultKmsTest {
     public static final byte[] DEK_BYTES = Base64.getDecoder().decode("y6f9E5vVqJOFc5B/Rhp5v5V54/1AsLq11AxlurL6qNA=");
     public static final String VAULT_NAME = "myvault";
     public static final SupportedKeyType SUPPORTED_KEY_TYPE = SupportedKeyType.OCT;
+
     @Mock
     private KeyVaultClient keyVaultClient;
     @Mock
@@ -69,14 +70,14 @@ class AzureKeyVaultKmsTest {
 
     @BeforeEach
     void setup() {
-        azureKeyVaultKms = new AzureKeyVaultKms(keyVaultClient, randomGenerator);
+        azureKeyVaultKms = new AzureKeyVaultKms(keyVaultClient, VAULT_NAME, randomGenerator);
     }
 
     @CsvSource({ "RSA,RSA", "RSA-HSM,RSA_HSM", "oct,OCT", "oct-HSM,OCT_HSM" })
     @ParameterizedTest
     void resolveAliasSuccess(String keyType, SupportedKeyType expectedSupportedKeyType) {
         // given
-        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
+        when(keyVaultClient.getKey(VAULT_NAME, KEY_NAME)).thenReturn(
                 CompletableFuture.completedFuture(new GetKeyResponse(new JsonWebKey(KEY_ID, keyType, REQUIRED_KEY_OPS), new KeyAttributes(true))));
         // when
         CompletionStage<WrappingKey> stage = azureKeyVaultKms.resolveAlias(KEY_NAME);
@@ -92,7 +93,7 @@ class AzureKeyVaultKmsTest {
     void resolveAliasGetKeyCompletesExceptionally() {
         // given
         KmsException clientException = new KmsException("fail boom!");
-        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(CompletableFuture.failedFuture(clientException));
+        when(keyVaultClient.getKey(VAULT_NAME, KEY_NAME)).thenReturn(CompletableFuture.failedFuture(clientException));
         // when
         CompletionStage<WrappingKey> stage = azureKeyVaultKms.resolveAlias(KEY_NAME);
         // then
@@ -104,7 +105,7 @@ class AzureKeyVaultKmsTest {
     @Test
     void resolveAliasGetKeyCompletesWithNull() {
         // given
-        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(CompletableFuture.completedFuture(null));
+        when(keyVaultClient.getKey(VAULT_NAME, KEY_NAME)).thenReturn(CompletableFuture.completedFuture(null));
         // when
         CompletionStage<WrappingKey> stage = azureKeyVaultKms.resolveAlias(KEY_NAME);
         // then
@@ -115,7 +116,7 @@ class AzureKeyVaultKmsTest {
     @Test
     void resolveAliasKeyIsNotEnabled() {
         // given
-        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
+        when(keyVaultClient.getKey(VAULT_NAME, KEY_NAME)).thenReturn(
                 CompletableFuture.completedFuture(new GetKeyResponse(new JsonWebKey(KEY_ID, "RSA", REQUIRED_KEY_OPS), new KeyAttributes(false))));
 
         // when
@@ -128,7 +129,7 @@ class AzureKeyVaultKmsTest {
     @Test
     void resolveAliasKeyIsNotFound() {
         // given
-        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
+        when(keyVaultClient.getKey(VAULT_NAME, KEY_NAME)).thenReturn(
                 CompletableFuture.failedFuture(new UnexpectedHttpStatusCodeException(404)));
 
         // when
@@ -141,7 +142,7 @@ class AzureKeyVaultKmsTest {
     @Test
     void resolveAliasKeyIsNotFoundWithCompletionException() {
         // given
-        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
+        when(keyVaultClient.getKey(VAULT_NAME, KEY_NAME)).thenReturn(
                 CompletableFuture.failedFuture(new CompletionException(new UnexpectedHttpStatusCodeException(404))));
 
         // when
@@ -162,7 +163,7 @@ class AzureKeyVaultKmsTest {
     @ParameterizedTest
     void resolveAliasKeyWithSufficientOperations(List<String> keyOperations) {
         // given
-        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
+        when(keyVaultClient.getKey(VAULT_NAME, KEY_NAME)).thenReturn(
                 CompletableFuture.completedFuture(new GetKeyResponse(new JsonWebKey(KEY_ID, "RSA", keyOperations), new KeyAttributes(true))));
 
         // when
@@ -172,6 +173,7 @@ class AzureKeyVaultKmsTest {
             assertThat(keyVersion.supportedKeyType()).isEqualTo(SupportedKeyType.RSA);
             assertThat(keyVersion.keyName()).isEqualTo(KEY_NAME);
             assertThat(keyVersion.keyVersion()).isEqualTo(KEY_VERSION);
+            assertThat(keyVersion.vaultName()).isEqualTo(VAULT_NAME);
         });
     }
 
@@ -186,7 +188,7 @@ class AzureKeyVaultKmsTest {
     @ParameterizedTest
     void resolveAliasKeyWithInsufficientOperations(List<String> keyOperations) {
         // given
-        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
+        when(keyVaultClient.getKey(VAULT_NAME, KEY_NAME)).thenReturn(
                 CompletableFuture.completedFuture(new GetKeyResponse(new JsonWebKey(KEY_ID, "RSA", keyOperations), new KeyAttributes(true))));
 
         // when
@@ -201,7 +203,7 @@ class AzureKeyVaultKmsTest {
     @ParameterizedTest
     void resolveAliasKeyNotASupportedType(String keyType) {
         // given
-        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
+        when(keyVaultClient.getKey(VAULT_NAME, KEY_NAME)).thenReturn(
                 CompletableFuture.completedFuture(new GetKeyResponse(new JsonWebKey(KEY_ID, keyType, REQUIRED_KEY_OPS), new KeyAttributes(true))));
         // when
         CompletionStage<WrappingKey> stage = azureKeyVaultKms.resolveAlias(KEY_NAME);

@@ -123,9 +123,10 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
         if (entraMock == null) {
             throw new IllegalStateException("entraMock is not initialized");
         }
+        URI defaultVaultBaseUrl = URI.create(kms.getDefaultVaultBaseUrl());
         return new AzureKeyVaultConfig(
                 new EntraIdentityConfig(URI.create(entraMock.baseUrl()), TENANT_ID, new InlinePassword("abc"), new InlinePassword("def"), null, INSECURE_TLS),
-                URI.create(kms.getDefaultVaultBaseUrl()), INSECURE_TLS);
+                "default", defaultVaultBaseUrl.getHost(), null, defaultVaultBaseUrl.getPort(), true, INSECURE_TLS);
     }
 
     @Override
