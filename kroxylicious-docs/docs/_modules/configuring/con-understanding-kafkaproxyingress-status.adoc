@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 [id='con-understanding-kafkaproxyingress-status-{context}']
 = Understanding the `KafkaProxyIngress` `ResolvedRefs` condition
 

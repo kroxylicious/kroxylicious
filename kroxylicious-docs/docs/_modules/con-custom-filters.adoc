@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 // Assembly included in the following:
 //
 // kroxylicious-proxy/index.adoc

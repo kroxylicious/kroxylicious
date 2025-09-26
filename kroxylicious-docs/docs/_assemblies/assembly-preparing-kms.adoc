@@ -1,3 +1,5 @@
+:_mod-docs-content-type: ASSEMBLY
+
 // record-encryption-guide/index.adoc
 
 = Preparing your KMS
