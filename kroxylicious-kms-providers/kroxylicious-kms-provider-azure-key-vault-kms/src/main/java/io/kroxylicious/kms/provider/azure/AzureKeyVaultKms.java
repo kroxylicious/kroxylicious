@@ -41,10 +41,12 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
     private static final int AES_256_KEY_SIZE = 32;
     private static final AzureKeyVaultEdekSerde EDEK_SERDE = new AzureKeyVaultEdekSerde();
     private final KeyVaultClient client;
+    private final String encryptingKeyVaultName;
     private final RandomGenerator random;
 
-    public AzureKeyVaultKms(KeyVaultClient client, RandomGenerator random) {
+    public AzureKeyVaultKms(KeyVaultClient client, String encryptingKeyVaultName, RandomGenerator random) {
         this.client = client;
+        this.encryptingKeyVaultName = encryptingKeyVaultName;
         this.random = random;
     }
 
@@ -138,7 +140,7 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
     @Override
     public CompletionStage<WrappingKey> resolveAlias(String alias) {
         LOG.debug("Resolving alias {}", alias);
-        return client.getKey(alias).handle((response, throwable) -> {
+        return client.getKey(encryptingKeyVaultName, alias).handle((response, throwable) -> {
             if (throwable != null) {
                 if (isInstanceOfOrCompletionExceptionWithCauseSatisfying(throwable, UnexpectedHttpStatusCodeException.class, e -> e.getStatusCode() == 404)) {
                     throw new UnknownAliasException(alias);
@@ -152,7 +154,7 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
                 LOG.debug("resolved alias {} to {}", alias, response);
                 JsonWebKey key = response.key();
                 SupportedKeyType keyType = validateKeyAndExtractType(alias, response, key);
-                return WrappingKey.parse(alias, response.key().keyId(), keyType);
+                return WrappingKey.parse(encryptingKeyVaultName, alias, response.key().keyId(), keyType);
             }
         });
     }

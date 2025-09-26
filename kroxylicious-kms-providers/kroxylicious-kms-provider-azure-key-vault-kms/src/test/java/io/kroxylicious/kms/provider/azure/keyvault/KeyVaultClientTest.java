@@ -54,34 +54,36 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(MockitoExtension.class)
 class KeyVaultClientTest {
 
-    public static final BearerToken BEARER_TOKEN = new BearerToken("my-token", Instant.MIN, Instant.MAX);
-    public static final String KEY_NAME = "my-key";
+    private static final BearerToken BEARER_TOKEN = new BearerToken("my-token", Instant.MIN, Instant.MAX);
+    private static final String KEY_NAME = "my-key";
 
-    public static final byte[] DEK_BYTES = { 4, 5, 6 };
-    public static final String DEK_BASE64_URL = "BAUG";
+    private static final byte[] DEK_BYTES = { 4, 5, 6 };
+    private static final String DEK_BASE64_URL = "BAUG";
 
-    public static final byte[] EDEK_BYTES = { 1, 2, 3 };
-    public static final String EDEK_BASE64_URL = "AQID";
-    public static final byte[] EMPTY = {};
-    public static final String KEY_VERSION = "keyversion";
+    private static final byte[] EDEK_BYTES = { 1, 2, 3 };
+    private static final String EDEK_BASE64_URL = "AQID";
+    private static final byte[] EMPTY = {};
+    private static final String KEY_VERSION = "keyversion";
+    private static final String VAULT_NAME = "default";
+
     @Mock
     private BearerTokenService service;
 
     private static WireMockServer server;
 
     @BeforeAll
-    public static void initMockServer() {
+    static void initMockServer() {
         server = new WireMockServer(wireMockConfig().dynamicPort());
         server.start();
     }
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         server.resetAll();
     }
 
     @AfterAll
-    public static void shutdownMockServer() {
+    static void shutdownMockServer() {
         server.shutdown();
     }
 
@@ -104,9 +106,9 @@ class KeyVaultClientTest {
                   }
                 }
                 """, "my-key");
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
             // when
-            CompletionStage<GetKeyResponse> key = keyVaultClient.getKey(KEY_NAME);
+            CompletionStage<GetKeyResponse> key = keyVaultClient.getKey(VAULT_NAME, KEY_NAME);
             // then
             assertThat(key.toCompletableFuture()).succeedsWithin(Duration.ofSeconds(10)).satisfies(response -> {
                 assertThat(response).isNotNull();
@@ -128,16 +130,20 @@ class KeyVaultClientTest {
         }
     }
 
+    private static String getBaseUri() {
+        return server.baseUrl();
+    }
+
     @CsvSource({ "301", "302", "303", "400", "401", "404", "500", "201" })
     @ParameterizedTest
     void getKeyRespondsNon200(int code) {
         // given
         givenMockEntraBearerFuture(completedFuture(BEARER_TOKEN));
         server.stubFor(getKeyMapping(KEY_NAME).willReturn(aResponse().withStatus(code)));
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
 
             // when
-            CompletionStage<GetKeyResponse> key = keyVaultClient.getKey(KEY_NAME);
+            CompletionStage<GetKeyResponse> key = keyVaultClient.getKey(VAULT_NAME, KEY_NAME);
             // then
             assertThat(key.toCompletableFuture()).failsWithin(Duration.ofSeconds(10)).withThrowableThat()
                     .isInstanceOf(ExecutionException.class).havingCause()
@@ -155,9 +161,9 @@ class KeyVaultClientTest {
         givenMockGetKeyResponse("""
                 1 ! ! not very good JSON, is it?
                 """, "my-key");
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
             // when
-            CompletionStage<GetKeyResponse> key = keyVaultClient.getKey(KEY_NAME);
+            CompletionStage<GetKeyResponse> key = keyVaultClient.getKey(VAULT_NAME, KEY_NAME);
             // then
             assertThat(key.toCompletableFuture()).failsWithin(Duration.ofSeconds(10)).withThrowableThat()
                     .isInstanceOf(ExecutionException.class).havingCause()
@@ -172,9 +178,9 @@ class KeyVaultClientTest {
         givenMockGetKeyResponse("""
                 null
                 """, "my-key");
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
             // when
-            CompletionStage<GetKeyResponse> key = keyVaultClient.getKey(KEY_NAME);
+            CompletionStage<GetKeyResponse> key = keyVaultClient.getKey(VAULT_NAME, KEY_NAME);
             // then
             assertThat(key.toCompletableFuture()).failsWithin(Duration.ofSeconds(10)).withThrowableThat()
                     .isInstanceOf(ExecutionException.class).havingCause()
@@ -188,9 +194,9 @@ class KeyVaultClientTest {
         KmsException exception = new KmsException("failed to get token");
         givenMockEntraBearerFuture(CompletableFuture.failedFuture(exception));
         new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient("localhost:8080")) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient("http://localhost:8080")) {
             // when
-            CompletionStage<GetKeyResponse> key = keyVaultClient.getKey(KEY_NAME);
+            CompletionStage<GetKeyResponse> key = keyVaultClient.getKey(VAULT_NAME, KEY_NAME);
             // then
             assertThat(key.toCompletableFuture()).failsWithin(Duration.ZERO).withThrowableThat()
                     .isInstanceOf(ExecutionException.class).havingCause()
@@ -209,7 +215,7 @@ class KeyVaultClientTest {
                 }
                 """.formatted(EDEK_BASE64_URL), "my-key", KEY_VERSION);
 
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.wrap(wrappingKey, DEK_BYTES);
@@ -242,7 +248,7 @@ class KeyVaultClientTest {
                   "value": "%s"
                 }
                 """.formatted(DEK_BASE64_URL), "my-key", KEY_VERSION);
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.unwrap(wrappingKey, EDEK_BYTES);
@@ -270,7 +276,7 @@ class KeyVaultClientTest {
         // given
 
         new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient("localhost:8080")) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient("http://localhost:8080")) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.wrap(wrappingKey, EMPTY);
@@ -285,7 +291,7 @@ class KeyVaultClientTest {
     void unwrapFailsIfInputBytesEmpty() {
         // given
         new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient("localhost:8080")) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient("http://localhost:8080")) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.unwrap(wrappingKey, EMPTY);
@@ -302,7 +308,7 @@ class KeyVaultClientTest {
         KmsException failedToGetToken = new KmsException("failed to get token");
         givenMockEntraBearerFuture(CompletableFuture.failedFuture(failedToGetToken));
         new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient("localhost:8080")) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient("http://localhost:8080")) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.wrap(wrappingKey, DEK_BYTES);
@@ -319,7 +325,7 @@ class KeyVaultClientTest {
         KmsException failedToGetToken = new KmsException("failed to get token");
         givenMockEntraBearerFuture(CompletableFuture.failedFuture(failedToGetToken));
         new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient("localhost:8080")) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient("http://localhost:8080")) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.unwrap(wrappingKey, DEK_BYTES);
@@ -336,7 +342,7 @@ class KeyVaultClientTest {
         // given
         givenMockEntraBearerFuture(completedFuture(BEARER_TOKEN));
         server.stubFor(wrapKeyMapping(KEY_NAME, KEY_VERSION).willReturn(aResponse().withStatus(responseCode)));
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.wrap(wrappingKey, DEK_BYTES);
@@ -355,7 +361,7 @@ class KeyVaultClientTest {
         // given
         givenMockEntraBearerFuture(completedFuture(BEARER_TOKEN));
         server.stubFor(unwrapKeyMapping(KEY_NAME, KEY_VERSION).willReturn(aResponse().withStatus(responseCode)));
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.unwrap(wrappingKey, EDEK_BYTES);
@@ -375,7 +381,7 @@ class KeyVaultClientTest {
         givenMockWrapKeyResponse("""
                  not such a good json!
                 """, KEY_NAME, KEY_VERSION);
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.wrap(wrappingKey, DEK_BYTES);
@@ -394,7 +400,7 @@ class KeyVaultClientTest {
         givenMockUnwrapKeyResponse("""
                  not such a good json!
                 """, KEY_NAME, KEY_VERSION);
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.unwrap(wrappingKey, EDEK_BYTES);
@@ -413,7 +419,7 @@ class KeyVaultClientTest {
         givenMockWrapKeyResponse("""
                 null
                 """, KEY_NAME, KEY_VERSION);
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.wrap(wrappingKey, DEK_BYTES);
@@ -432,7 +438,7 @@ class KeyVaultClientTest {
         givenMockUnwrapKeyResponse("""
                 null
                 """, KEY_NAME, KEY_VERSION);
-        try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
+        try (KeyVaultClient keyVaultClient = getKeyVaultClient(getBaseUri())) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.unwrap(wrappingKey, EDEK_BYTES);
@@ -483,7 +489,10 @@ class KeyVaultClientTest {
     @NonNull
     private KeyVaultClient getKeyVaultClient(String address) {
         EntraIdentityConfig arbitraryEntraConfig = new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
-        return new KeyVaultClient(service, new AzureKeyVaultConfig(arbitraryEntraConfig, URI.create(address), null));
+        URI baseUri = URI.create(address);
+        Integer port = baseUri.getPort() == -1 ? null : baseUri.getPort();
+        return new KeyVaultClient(service,
+                new AzureKeyVaultConfig(arbitraryEntraConfig, VAULT_NAME, baseUri.getHost(), baseUri.getScheme(), port, true, null));
     }
 
 }

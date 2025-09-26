@@ -139,7 +139,7 @@ class AzureKeyVaultEdekTest {
     }
 
     private static List<AzureKeyVaultEdek> getAzureKeyVaultEdeks() {
-        List<AzureKeyVaultEdek> permutations = Stream.of("key-name-a", "key-name-b").flatMap(keyName -> {
+        return Stream.of("key-name-a", "key-name-b").flatMap(keyName -> {
             return Stream.of(KEY_VERSION, "18deebed173b48e48f55abf87ed4cf77").flatMap(version -> {
                 return Stream.of(new byte[]{ 1, 2, 3 }, new byte[]{ 4, 5, 6 }).flatMap(edekBytes -> {
                     return Stream.of("vault-name-a", "vault-name-b").flatMap(vaultName -> {
@@ -150,7 +150,6 @@ class AzureKeyVaultEdekTest {
                 });
             });
         }).toList();
-        return permutations;
     }
 
     static String repeatString(int times, String string) {

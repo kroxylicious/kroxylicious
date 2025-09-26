@@ -75,11 +75,12 @@ class KeyVaultClientIT {
             BearerToken token = new BearerToken("mytoken", Instant.MIN, Instant.MAX);
             when(bearerTokenService.getBearerToken()).thenReturn(CompletableFuture.completedFuture(token));
             EntraIdentityConfig unused = new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+            URI baseUri = URI.create(lowkeyVaultContainer.getDefaultVaultBaseUrl());
             KeyVaultClient keyVaultClient = new KeyVaultClient(bearerTokenService,
-                    new AzureKeyVaultConfig(unused, URI.create(lowkeyVaultContainer.getDefaultVaultBaseUrl()), INSECURE_TLS));
+                    new AzureKeyVaultConfig(unused, VAULT_NAME, baseUri.getHost(), null, baseUri.getPort(), true, INSECURE_TLS));
             KeyClient keyClient = new LowkeyVaultClientFactory(lowkeyVaultContainer).getKeyClientBuilderForDefaultVault().buildClient();
             keyClient.createKey(new CreateKeyOptions(KEY_NAME, KeyType.RSA).setKeyOperations(KeyOperation.UNWRAP_KEY, KeyOperation.WRAP_KEY));
-            assertThat(keyVaultClient.getKey(KEY_NAME).toCompletableFuture()).succeedsWithin(Duration.ofSeconds(10)).satisfies(getKeyResponse -> {
+            assertThat(keyVaultClient.getKey(VAULT_NAME, KEY_NAME).toCompletableFuture()).succeedsWithin(Duration.ofSeconds(10)).satisfies(getKeyResponse -> {
                 assertThat(getKeyResponse).isNotNull();
                 assertThat(getKeyResponse.attributes().enabled()).isTrue();
                 assertThat(getKeyResponse.key().keyId()).isNotBlank();
@@ -96,12 +97,13 @@ class KeyVaultClientIT {
             BearerToken token = new BearerToken("mytoken", Instant.MIN, Instant.MAX);
             when(bearerTokenService.getBearerToken()).thenReturn(CompletableFuture.completedFuture(token));
             EntraIdentityConfig unused = new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+            URI baseUri = URI.create(lowkeyVaultContainer.getDefaultVaultBaseUrl());
             KeyVaultClient keyVaultClient = new KeyVaultClient(bearerTokenService,
-                    new AzureKeyVaultConfig(unused, URI.create(lowkeyVaultContainer.getVaultBaseUrl(VAULT_NAME)), INSECURE_TLS));
-            KeyClient keyClient = new LowkeyVaultClientFactory(lowkeyVaultContainer).getKeyClientBuilderFor(VAULT_NAME).buildClient();
+                    new AzureKeyVaultConfig(unused, VAULT_NAME, baseUri.getHost(), null, baseUri.getPort(), true, INSECURE_TLS));
+            KeyClient keyClient = new LowkeyVaultClientFactory(lowkeyVaultContainer).getKeyClientBuilderForDefaultVault().buildClient();
             KeyVaultKey key = keyClient
                     .createKey(new CreateKeyOptions(KEY_NAME, KeyType.RSA).setKeyOperations(KeyOperation.UNWRAP_KEY, KeyOperation.WRAP_KEY, KeyOperation.ENCRYPT));
-            WrappingKey wrappingKey = WrappingKey.parse(key.getName(), key.getId(), SupportedKeyType.RSA);
+            WrappingKey wrappingKey = WrappingKey.parse(VAULT_NAME, key.getName(), key.getId(), SupportedKeyType.RSA);
             byte[] dek = { 1, 2, 3 };
 
             // when
@@ -122,16 +124,17 @@ class KeyVaultClientIT {
             BearerToken token = new BearerToken("mytoken", Instant.MIN, Instant.MAX);
             when(bearerTokenService.getBearerToken()).thenReturn(CompletableFuture.completedFuture(token));
             EntraIdentityConfig unused = new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+            URI baseUri = URI.create(lowkeyVaultContainer.getDefaultVaultBaseUrl());
             KeyVaultClient keyVaultClient = new KeyVaultClient(bearerTokenService,
-                    new AzureKeyVaultConfig(unused, URI.create(lowkeyVaultContainer.getVaultBaseUrl(VAULT_NAME)), INSECURE_TLS));
+                    new AzureKeyVaultConfig(unused, VAULT_NAME, baseUri.getHost(), null, baseUri.getPort(), true, INSECURE_TLS));
             LowkeyVaultClientFactory lowkeyVaultClientFactory = new LowkeyVaultClientFactory(lowkeyVaultContainer);
-            KeyClient keyClient = lowkeyVaultClientFactory.getKeyClientBuilderFor(VAULT_NAME).buildClient();
+            KeyClient keyClient = lowkeyVaultClientFactory.getKeyClientBuilderForDefaultVault().buildClient();
             KeyVaultKey key = keyClient.createKey(new CreateKeyOptions(KEY_NAME, KeyType.RSA).setKeyOperations(KeyOperation.UNWRAP_KEY, KeyOperation.WRAP_KEY,
                     KeyOperation.ENCRYPT, KeyOperation.DECRYPT));
             CryptographyClient cryptographyClient = lowkeyVaultClientFactory.getCryptoClientBuilderFor(VAULT_NAME).keyIdentifier(key.getId()).buildClient();
             byte[] dek = { 1, 2, 3 };
             WrapResult wrapResult = cryptographyClient.wrapKey(KeyWrapAlgorithm.RSA_OAEP_256, dek);
-            WrappingKey wrappingKey = WrappingKey.parse(key.getName(), key.getId(), SupportedKeyType.RSA);
+            WrappingKey wrappingKey = WrappingKey.parse(VAULT_NAME, key.getName(), key.getId(), SupportedKeyType.RSA);
 
             // when
             CompletionStage<byte[]> unwrapStage = keyVaultClient.unwrap(wrappingKey, wrapResult.getEncryptedKey());

@@ -10,14 +10,10 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import io.kroxylicious.kms.provider.azure.keyvault.SupportedKeyType;
 
 public record WrappingKey(String keyName, String keyVersion, SupportedKeyType supportedKeyType, String vaultName) {
-
-    private static final Pattern VAULT_NAME_PATTERN = Pattern.compile("^([a-zA-Z0-9\\-]{3,24})\\..+");
 
     public WrappingKey {
         Objects.requireNonNull(keyName, "keyName is null");
@@ -40,42 +36,26 @@ public record WrappingKey(String keyName, String keyVersion, SupportedKeyType su
      *     - For Vaults: https://{vault-name}.vault.azure.net/{object-type}/{object-name}/{object-version}
      *     - For Managed HSM pools: https://{hsm-name}.managedhsm.azure.net/{object-type}/{object-name}/{object-version}
      * </pre>
-     *  For example:{@code https://myvault.vault.azure.net/keys/CreateSoftKeyTest/78deebed173b48e48f55abf87ed4cf71}
+     * For example:{@code https://myvault.vault.azure.net/keys/CreateSoftKeyTest/78deebed173b48e48f55abf87ed4cf71}
      * <a href="https://learn.microsoft.com/en-us/azure/key-vault/general/about-keys-secrets-certificates#object-identifiers">See Also</a>
+     *
+     * @param vaultName name of the vault
      * @param keyName name of the key
      * @param keyId key id in Object identifier form
      * @param supportedKeyType supported key type
      * @return WrappingKey
      * @throws IllegalArgumentException if keyId cannot be parsed as a URI or we cannot extract the object-version from it
      */
-    public static WrappingKey parse(String keyName, String keyId, SupportedKeyType supportedKeyType) {
+    public static WrappingKey parse(String vaultName, String keyName, String keyId, SupportedKeyType supportedKeyType) {
         Objects.requireNonNull(keyName, "keyName is null");
         Objects.requireNonNull(keyId, "keyId is null");
+        Objects.requireNonNull(vaultName, "vaultName is null");
+        if (vaultName.isBlank()) {
+            throw new IllegalArgumentException("vaultName is blank");
+        }
         URI uri = parseUri(keyId);
         String keyVersion = extractKeyVersion(uri);
-        String vaultName = extractVaultName(uri);
         return new WrappingKey(keyName, keyVersion, supportedKeyType, vaultName);
-    }
-
-    private static String extractVaultName(URI uri) {
-        String host = uri.getHost();
-        // integration testing support
-        if (Objects.equals(host, "localhost")) {
-            return host;
-        }
-        if (host == null) {
-            throw new IllegalArgumentException("Invalid key id: " + uri + ", host is null.");
-        }
-        Matcher matcher = VAULT_NAME_PATTERN.matcher(host);
-        if (!matcher.find()) {
-            throw new IllegalArgumentException(
-                    "Invalid key id: " + uri + ", vault name cannot be obtained from host " + host + " it must match " + VAULT_NAME_PATTERN.pattern());
-        }
-        String vaultName = matcher.group(1);
-        if (vaultName.contains("--")) {
-            throw new IllegalArgumentException("Invalid key id: " + uri + ", vault name cannot contain consecutive hyphens " + vaultName);
-        }
-        return vaultName;
     }
 
     private static String extractKeyVersion(URI uri) {
@@ -92,14 +72,12 @@ public record WrappingKey(String keyName, String keyVersion, SupportedKeyType su
     }
 
     private static URI parseUri(String keyId) {
-        URI uri;
         try {
-            uri = URI.create(keyId);
+            return URI.create(keyId);
         }
         catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("failed to parse keyId '" + keyId + "' as a URI", e);
         }
-        return uri;
     }
 
     private static void validatePath(String path) {

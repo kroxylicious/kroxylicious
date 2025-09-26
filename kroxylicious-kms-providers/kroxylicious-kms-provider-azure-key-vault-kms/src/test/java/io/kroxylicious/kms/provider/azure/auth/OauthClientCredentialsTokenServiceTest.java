@@ -46,12 +46,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class OauthClientCredentialsTokenServiceTest {
 
-    public static final String TENANT_ID = "my-tenant";
-    public static final String CLIENT_ID = "id";
-    public static final String CLIENT_SECRET = "secret";
+    private static final String TENANT_ID = "my-tenant";
+    private static final String CLIENT_ID = "id";
+    private static final String CLIENT_SECRET = "secret";
 
     // copied directly from https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow#error-response-1
-    public static final String KNOWN_BAD_REQUEST_RESPONSE = """
+    private static final String KNOWN_BAD_REQUEST_RESPONSE = """
             {
               "error": "invalid_scope",
               "error_description": "AADSTS70011: The provided value for the input parameter 'scope' is not valid. The scope https://foo.microsoft.com/.default is not valid.\\r\\nTrace ID: 0000aaaa-11bb-cccc-dd22-eeeeee333333\\r\\nCorrelation ID: aaaa0000-bb11-2222-33cc-444444dddddd\\r\\nTimestamp: 2016-01-09 02:02:12Z",
@@ -64,7 +64,8 @@ class OauthClientCredentialsTokenServiceTest {
             }
             """;
 
-    public static final String KNOWN_GOOD_RESPONSE = """
+    // copied directly from https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-client-creds-grant-flow#successful-response-1
+    private static final String KNOWN_GOOD_RESPONSE = """
             {
               "token_type": "Bearer",
               "expires_in": 3599,
@@ -75,18 +76,18 @@ class OauthClientCredentialsTokenServiceTest {
     private static WireMockServer server;
 
     @BeforeAll
-    public static void initMockServer() {
+    static void initMockServer() {
         server = new WireMockServer(wireMockConfig().dynamicPort());
         server.start();
     }
 
     @BeforeEach
-    public void beforeEach() {
+    void beforeEach() {
         server.resetAll();
     }
 
     @AfterAll
-    public static void shutdownMockServer() {
+    static void shutdownMockServer() {
         server.shutdown();
     }
 

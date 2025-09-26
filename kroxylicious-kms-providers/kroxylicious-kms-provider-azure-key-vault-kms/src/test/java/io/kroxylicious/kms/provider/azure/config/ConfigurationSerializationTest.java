@@ -213,9 +213,10 @@ class ConfigurationSerializationTest {
                                 """.formatted(tempDir),
                         ValueInstantiationException.class,
                         "Exception reading " + tempDir),
-                argumentSet("keyVaultBaseUrl missing",
+                argumentSet("keyVaultName missing",
                         """
                                 {
+                                  "keyVaultHost": "my.vault.com",
                                   "entraIdentity": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
@@ -229,29 +230,12 @@ class ConfigurationSerializationTest {
                                 }
                                 """,
                         MismatchedInputException.class,
-                        "Missing required creator property 'keyVaultBaseUrl'"),
-                argumentSet("keyVaultBaseUrl not url",
+                        "Missing required creator property 'keyVaultName'"),
+                argumentSet("keyVaultName not string",
                         """
                                 {
-                                  "keyVaultBaseUrl": "banabnan wdw dca",
-                                  "entraIdentity": {
-                                    "oauthEndpoint": "http://oauth",
-                                    "tenantId": "123",
-                                    "clientId": {
-                                      "password": "abc"
-                                    },
-                                    "clientSecret": {
-                                      "password": "def"
-                                    }
-                                  }
-                                }
-                                """,
-                        InvalidFormatException.class,
-                        "Cannot deserialize value of type `java.net.URI` from String \"banabnan wdw dca\""),
-                argumentSet("keyVaultBaseUrl not string",
-                        """
-                                {
-                                  "keyVaultBaseUrl": [],
+                                  "keyVaultName": [],
+                                  "keyVaultHost": "my.vault.com",
                                   "entraIdentity": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
@@ -265,7 +249,82 @@ class ConfigurationSerializationTest {
                                 }
                                 """,
                         MismatchedInputException.class,
-                        "Cannot deserialize value of type `java.net.URI` from Array value"),
+                        "Cannot deserialize value of type `java.lang.String` from Array value"),
+                argumentSet("keyVaultName null",
+                        """
+                                {
+                                  "keyVaultName": null,
+                                  "keyVaultHost": "my.vault.com",
+                                  "entraIdentity": {
+                                    "oauthEndpoint": "http://oauth",
+                                    "tenantId": "123",
+                                    "clientId": {
+                                      "password": "abc"
+                                    },
+                                    "clientSecret": {
+                                      "password": "def"
+                                    }
+                                  }
+                                }
+                                """,
+                        ValueInstantiationException.class,
+                        "Cannot construct instance of `io.kroxylicious.kms.provider.azure.config.AzureKeyVaultConfig`"),
+                argumentSet("keyVaultHost missing",
+                        """
+                                {
+                                  "keyVaultName": "kv-name",
+                                  "entraIdentity": {
+                                    "oauthEndpoint": "http://oauth",
+                                    "tenantId": "123",
+                                    "clientId": {
+                                      "password": "abc"
+                                    },
+                                    "clientSecret": {
+                                      "password": "def"
+                                    }
+                                  }
+                                }
+                                """,
+                        MismatchedInputException.class,
+                        "Missing required creator property 'keyVaultHost'"),
+                argumentSet("keyVaultHost not string",
+                        """
+                                {
+                                  "keyVaultName": "kvname",
+                                  "keyVaultHost": [],
+                                  "entraIdentity": {
+                                    "oauthEndpoint": "http://oauth",
+                                    "tenantId": "123",
+                                    "clientId": {
+                                      "password": "abc"
+                                    },
+                                    "clientSecret": {
+                                      "password": "def"
+                                    }
+                                  }
+                                }
+                                """,
+                        MismatchedInputException.class,
+                        "Cannot deserialize value of type `java.lang.String` from Array value"),
+                argumentSet("keyVaultName null",
+                        """
+                                {
+                                  "keyVaultName": "abc",
+                                  "keyVaultHost": null,
+                                  "entraIdentity": {
+                                    "oauthEndpoint": "http://oauth",
+                                    "tenantId": "123",
+                                    "clientId": {
+                                      "password": "abc"
+                                    },
+                                    "clientSecret": {
+                                      "password": "def"
+                                    }
+                                  }
+                                }
+                                """,
+                        ValueInstantiationException.class,
+                        "Cannot construct instance of `io.kroxylicious.kms.provider.azure.config.AzureKeyVaultConfig`"),
                 argumentSet("entraIdentity not object",
                         """
                                 {
@@ -304,7 +363,8 @@ class ConfigurationSerializationTest {
     void validMinimalJson() throws IOException {
         String json = """
                 {
-                  "keyVaultBaseUrl": "http://my.vault",
+                  "keyVaultName": "my-key-vault",
+                  "keyVaultHost": "vault.azure.net",
                   "entraIdentity": {
                     "tenantId": "123",
                     "clientId": {
@@ -319,15 +379,11 @@ class ConfigurationSerializationTest {
         AzureKeyVaultConfig config = mapper.readValue(json, AzureKeyVaultConfig.class);
         assertThat(config).isEqualTo(
                 new AzureKeyVaultConfig(new EntraIdentityConfig(null, "123", new InlinePassword("abc"), new InlinePassword("def"), null, null),
-                        URI.create("http://my.vault"), null));
+                        "my-key-vault", "vault.azure.net", null, null, null, null));
     }
 
     @Test
     void minimumJsonFidelity() throws IOException {
-        Path clientId = Files.createTempFile("clientId", ".txt");
-        Path clientSecret = Files.createTempFile("clientSecret", ".txt");
-        Files.writeString(clientId, "abc");
-        Files.writeString(clientSecret, "def");
         String json = """
                 {
                   "entraIdentity": {
@@ -339,9 +395,10 @@ class ConfigurationSerializationTest {
                           "password": "def"
                         }
                   },
-                  "keyVaultBaseUrl": "http://my.vault"
+                  "keyVaultName": "my-key-vault",
+                  "keyVaultHost": "vault.azure.net"
                 }
-                """.formatted(clientId, clientSecret);
+                """;
         String normalized = mapper.writeValueAsString(mapper.readValue(json, JsonNode.class));
         AzureKeyVaultConfig config = mapper.readValue(json, AzureKeyVaultConfig.class);
         String actual = mapper.writeValueAsString(config);
@@ -350,13 +407,13 @@ class ConfigurationSerializationTest {
 
     @Test
     void validComprehensiveJson() throws IOException {
-        Path clientId = Files.createTempFile("clientId", ".txt");
-        Path clientSecret = Files.createTempFile("clientSecret", ".txt");
-        Files.writeString(clientId, "abc");
-        Files.writeString(clientSecret, "def");
         String json = """
                    {
-                  "keyVaultBaseUrl": "http://my.vault",
+                  "keyVaultName": "my-key-vault",
+                  "keyVaultHost": "vault.azure.net",
+                  "keyVaultScheme": "https",
+                  "keyVaultPort": 8080,
+                  "omitVaultNameFromHost": true,
                   "entraIdentity": {
                     "oauthEndpoint": "http://localhost:8080",
                     "tenantId": "123",
@@ -369,22 +426,18 @@ class ConfigurationSerializationTest {
                     "scope": "http://scope/.default"
                   }
                 }
-                """.formatted(clientId, clientSecret);
+                """;
         AzureKeyVaultConfig config = mapper.readValue(json, AzureKeyVaultConfig.class);
         assertThat(config).isEqualTo(
                 new AzureKeyVaultConfig(
                         new EntraIdentityConfig(URI.create("http://localhost:8080"), "123", new InlinePassword("abc"), new InlinePassword("def"),
                                 URI.create("http://scope/.default"),
                                 null),
-                        URI.create("http://my.vault"), null));
+                        "my-key-vault", "vault.azure.net", "https", 8080, true, null));
     }
 
     @Test
     void comprehensiveJsonFidelity() throws IOException {
-        Path clientId = Files.createTempFile("clientId", ".txt");
-        Path clientSecret = Files.createTempFile("clientSecret", ".txt");
-        Files.writeString(clientId, "abc");
-        Files.writeString(clientSecret, "def");
         String json = """
                    {
                   "entraIdentity": {
@@ -397,10 +450,14 @@ class ConfigurationSerializationTest {
                       "password": "def"
                     },
                     "scope": "http://scope/.default"
-                   },
-                  "keyVaultBaseUrl": "http://my.vault"
+                  },
+                  "keyVaultScheme": "https",
+                  "keyVaultName": "my-key-vault",
+                  "keyVaultHost": "vault.azure.net",
+                  "keyVaultPort": 8080,
+                  "omitVaultNameFromHost": true
                 }
-                """.formatted(clientId, clientSecret);
+                """;
         String normalized = mapper.writeValueAsString(mapper.readValue(json, JsonNode.class));
         AzureKeyVaultConfig config = mapper.readValue(json, AzureKeyVaultConfig.class);
         String actual = mapper.writeValueAsString(config);

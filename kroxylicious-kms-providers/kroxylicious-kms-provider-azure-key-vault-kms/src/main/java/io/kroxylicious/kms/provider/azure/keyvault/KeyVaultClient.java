@@ -54,10 +54,10 @@ public class KeyVaultClient implements AutoCloseable {
         return wrapOrUnwrap(wrappingKey, edek, "unwrapkey");
     }
 
-    public CompletionStage<GetKeyResponse> getKey(String keyName) {
+    public CompletionStage<GetKeyResponse> getKey(String vaultName, String keyName) {
         Objects.requireNonNull(keyName);
         return service.getBearerToken()
-                .thenCompose(bearerToken -> client.sendAsync(getKeyRequest(keyName, bearerToken), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)))
+                .thenCompose(bearerToken -> client.sendAsync(getKeyRequest(vaultName, keyName, bearerToken), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)))
                 .thenApply(r -> {
                     if (r.statusCode() == 200) {
                         try {
@@ -77,8 +77,8 @@ public class KeyVaultClient implements AutoCloseable {
                 });
     }
 
-    private HttpRequest getKeyRequest(String keyName, BearerToken bearerToken) {
-        String getKey = config.keyVaultBaseUrl() + "/keys/" + keyName + "?api-version=" + API_VERSION;
+    private HttpRequest getKeyRequest(String vaultName, String keyName, BearerToken bearerToken) {
+        String getKey = config.keyVaultUrl(vaultName) + "/keys/" + keyName + "?api-version=" + API_VERSION;
         return HttpRequest.newBuilder()
                 .header("Authorization", "Bearer " + bearerToken.token())
                 .uri(URI.create(getKey)).GET().build();
@@ -113,20 +113,7 @@ public class KeyVaultClient implements AutoCloseable {
     }
 
     private HttpRequest wrapOrUnwrapKeyRequest(WrappingKey wrappingKey, byte[] bytes, BearerToken bearerToken, String operation) {
-        URI baseUrl = config.keyVaultBaseUrl();
-        String host = baseUrl.getHost();
-        String vaultHost;
-        // integration test support
-        if (Objects.equals(host, "localhost")) {
-            vaultHost = host;
-        }
-        else {
-            String withDefaultVaultNameRemoved = host.substring(host.indexOf("."));
-            vaultHost = wrappingKey.vaultName() + withDefaultVaultNameRemoved;
-        }
-        // integration test support
-        String port = baseUrl.getPort() == -1 ? "" : ":" + baseUrl.getPort();
-        String wrapKey = baseUrl.getScheme() + "://" + vaultHost + port + "/keys/" + wrappingKey.keyName() + "/" + wrappingKey.keyVersion() + "/" + operation
+        String wrapKey = config.keyVaultUrl(wrappingKey.vaultName()) + "/keys/" + wrappingKey.keyName() + "/" + wrappingKey.keyVersion() + "/" + operation
                 + "?api-version=" + API_VERSION;
         WrapOrUnwrapRequest value = WrapOrUnwrapRequest.from(wrappingKey.supportedKeyType().getWrapAlgorithm(), bytes);
         try {

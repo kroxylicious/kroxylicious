@@ -8,6 +8,7 @@ package io.kroxylicious.kms.provider.azure.config;
 
 import java.net.URI;
 import java.util.Objects;
+import java.util.regex.Pattern;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,21 +19,87 @@ import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
 import io.kroxylicious.kms.provider.azure.config.auth.EntraIdentityConfig;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-@JsonPropertyOrder({ "entraIdentity", "keyVaultBaseUrl", "tls" })
+import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
+
+/**
+ * @param entraIdentity required credentials for authenticating with Entra
+ * @param keyVaultName required name of the key vault to use for encryption, e.g. my-key-vault
+ * @param keyVaultHost required host of key vault (without key vault name) e.g. vault.azure.net
+ * @param keyVaultScheme optional scheme for making HTTP requests to key vault, default value is 'https'
+ * @param keyVaultPort optional port for key vault (typically would only be used for testing), defaults to null implying no port will be included in requests
+ * @param omitVaultNameFromHost optional, if true then requests to key vault will use only keyVaultHost and will not prepend the vault name. This is exclusively for testing purposes. Default value is false.
+ * @param tls optional TLS configuration for key vault requests
+ */
+@JsonPropertyOrder({ "entraIdentity", "keyVaultScheme", "keyVaultName", "keyVaultHost", "keyVaultPort", "omitVaultNameFromHost", "tls" })
 public record AzureKeyVaultConfig(@JsonProperty(required = true) EntraIdentityConfig entraIdentity,
-                                  @JsonProperty(required = true) URI keyVaultBaseUrl,
-                                  @JsonInclude(JsonInclude.Include.NON_NULL) @JsonProperty(value = "tls") @Nullable Tls tls) {
+                                  @JsonProperty(required = true) String keyVaultName,
+                                  @JsonProperty(required = true) String keyVaultHost,
+                                  @JsonInclude(NON_NULL) @Nullable @JsonProperty String keyVaultScheme,
+                                  @JsonInclude(NON_NULL) @Nullable @JsonProperty Integer keyVaultPort,
+                                  @JsonInclude(NON_NULL) @Nullable @JsonProperty Boolean omitVaultNameFromHost,
+                                  @JsonInclude(NON_NULL) @JsonProperty(value = "tls") @Nullable Tls tls) {
 
     private static final Logger LOG = LoggerFactory.getLogger(AzureKeyVaultConfig.class);
+    private static final Pattern VAULT_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9\\-]{3,24}$");
 
     public AzureKeyVaultConfig {
         Objects.requireNonNull(entraIdentity);
-        Objects.requireNonNull(keyVaultBaseUrl);
-        if (!keyVaultBaseUrl.getScheme().equals("https")) {
-            LOG.warn("keyVaultBaseUrl {} does not begin with https://, production installations should use a secure endpoint", keyVaultBaseUrl);
+        Objects.requireNonNull(keyVaultName);
+        Objects.requireNonNull(keyVaultHost);
+        String host = URI.create("https://" + keyVaultHost).getHost();
+        if (!Objects.equals(host, keyVaultHost)) {
+            throw new IllegalArgumentException("keyVaultHost is not a valid host");
         }
+        if (keyVaultPort != null && (keyVaultPort < 1 || keyVaultPort > 65535)) {
+            throw new IllegalArgumentException("keyVaultPort must be in the range (1, 65535) inclusive");
+        }
+        if (keyVaultScheme != null && keyVaultScheme.endsWith("://")) {
+            throw new IllegalArgumentException("keyVaultScheme must not end with ://");
+        }
+        validateKeyVaultName(keyVaultName);
+        if (keyVaultHost.isBlank()) {
+            throw new IllegalArgumentException("keyVaultHost is blank");
+        }
+        if (!kvScheme().equals("https")) {
+            LOG.warn("keyVaultScheme {} is not https, production installations should use a secure endpoint", keyVaultScheme());
+        }
+        if (shouldOmitVaultNameFromHost()) {
+            LOG.warn("omitVaultNameFromHost is enabled, production installations should never set this");
+        }
+    }
+
+    private static void validateKeyVaultName(String keyVaultName) {
+        if (!VAULT_NAME_PATTERN.matcher(keyVaultName).matches()) {
+            throw new IllegalArgumentException("keyVaultName does not match pattern " + VAULT_NAME_PATTERN.pattern());
+        }
+        if (keyVaultName.startsWith("-")) {
+            throw new IllegalArgumentException("keyVaultName must not start with '-'");
+        }
+        if (keyVaultName.endsWith("-")) {
+            throw new IllegalArgumentException("keyVaultName must not end with '-'");
+        }
+        if (keyVaultName.contains("--")) {
+            throw new IllegalArgumentException("keyVaultName must not contain '--'");
+        }
+    }
+
+    @VisibleForTesting
+    String kvScheme() {
+        return keyVaultScheme == null ? "https" : keyVaultScheme;
+    }
+
+    @VisibleForTesting
+    boolean shouldOmitVaultNameFromHost() {
+        return omitVaultNameFromHost != null && omitVaultNameFromHost;
+    }
+
+    public String keyVaultUrl(String vaultName) {
+        String host = (shouldOmitVaultNameFromHost() ? "" : (vaultName + ".")) + keyVaultHost;
+        String portSpec = keyVaultPort() == null ? "" : ":" + keyVaultPort();
+        return kvScheme() + "://" + host + portSpec;
     }
 }
