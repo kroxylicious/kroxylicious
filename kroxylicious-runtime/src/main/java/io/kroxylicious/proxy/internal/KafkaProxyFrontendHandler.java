@@ -52,6 +52,7 @@ import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
 import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener;
 import io.kroxylicious.proxy.internal.metrics.UpstreamPayloadSizeMetricRecordingKafkaMessageListener;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
+import io.kroxylicious.proxy.internal.subject.SubjectBuilder;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -80,6 +81,7 @@ public class KafkaProxyFrontendHandler
     private final NetFilter netFilter;
     private final SaslDecodePredicate dp;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
+    private final SubjectBuilder subjectBuilder;
 
     private @Nullable ChannelHandlerContext clientCtx;
     @VisibleForTesting
@@ -109,19 +111,22 @@ public class KafkaProxyFrontendHandler
     KafkaProxyFrontendHandler(
                               NetFilter netFilter,
                               SaslDecodePredicate dp,
+                              SubjectBuilder subjectBuilder,
                               EndpointBinding endpointBinding,
                               String clusterName) {
-        this(netFilter, dp, endpointBinding, new ProxyChannelStateMachine(clusterName, endpointBinding.nodeId()));
+        this(netFilter, dp, subjectBuilder, endpointBinding, new ProxyChannelStateMachine(clusterName, endpointBinding.nodeId()));
     }
 
     @VisibleForTesting
     KafkaProxyFrontendHandler(
                               NetFilter netFilter,
                               SaslDecodePredicate dp,
+                              SubjectBuilder subjectBuilder,
                               EndpointBinding endpointBinding,
                               ProxyChannelStateMachine proxyChannelStateMachine) {
         this.netFilter = netFilter;
         this.dp = dp;
+        this.subjectBuilder = subjectBuilder;
         this.endpointBinding = endpointBinding;
         this.virtualClusterModel = endpointBinding.endpointGateway().virtualCluster();
         this.proxyChannelStateMachine = proxyChannelStateMachine;
@@ -647,7 +652,8 @@ public class KafkaProxyFrontendHandler
                                       ChannelPipeline pipeline,
                                       Channel inboundChannel) {
         int num = 0;
-        var clientSaslManager = new ClientSaslManager();
+
+        var clientSaslManager = ClientSaslManager.foo(inboundChannel, subjectBuilder);
         for (var protocolFilter : filters) {
             // TODO configurable timeout
             // Handler name must be unique, but filters are allowed to appear multiple times
