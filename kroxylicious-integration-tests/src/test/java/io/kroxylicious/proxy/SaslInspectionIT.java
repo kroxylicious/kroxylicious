@@ -330,7 +330,7 @@ class SaslInspectionIT {
         NamedFilterDefinition saslInspection = new NamedFilterDefinitionBuilder(
                 SaslInspection.class.getName(),
                 SaslInspection.class.getName())
-                .withConfig("enabledMechanisms", Set.of(enabledSaslMech))
+                .withConfig("enableInsecureMechanisms", "PLAIN".equals(enabledSaslMech))
                 .build();
         NamedFilterDefinition counter = new NamedFilterDefinitionBuilder(
                 ProtocolCounter.class.getName(),

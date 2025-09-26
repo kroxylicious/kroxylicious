@@ -7,6 +7,7 @@
 package io.kroxylicious.filters.sasl.inspection;
 
 import java.util.ArrayList;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
@@ -45,7 +46,7 @@ class SaslInspectionFilter
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SaslInspectionFilter.class);
 
-    private final Config config;
+    private final Map<String, SaslObserverFactory> observerFactoryMap;
 
     private enum State {
         /** A SASL handshake request is required. */
@@ -70,7 +71,7 @@ class SaslInspectionFilter
 
     public static final String PROBE_UPSTREAM = Mech.PROBE_UPSTREAM.mechanismName();
     private @NonNull State currentState = State.REQUIRING_HANDSHAKE_REQUEST;
-    private Mech chosenMechanism;
+    private SaslObserver chosenMechanism;
     private String authorizationIdFromClient;
     private int numAuthenticateSeen;
 
@@ -79,9 +80,9 @@ class SaslInspectionFilter
      */
     private boolean clientSupportsReauthentication;
 
-    SaslInspectionFilter(Config config) {
-        Objects.requireNonNull(config, "config");
-        this.config = config;
+    SaslInspectionFilter(Map<String, SaslObserverFactory> mechanismFactories) {
+        Objects.requireNonNull(mechanismFactories, "mechanismFactories");
+        this.observerFactoryMap = mechanismFactories;
         this.clientSupportsReauthentication = false;
         resetState(State.REQUIRING_HANDSHAKE_REQUEST);
     }
@@ -95,7 +96,7 @@ class SaslInspectionFilter
     }
 
     private boolean isMechanismEnabled(String mechanism) {
-        return config.enabledMechanisms().contains(mechanism);
+        return observerFactoryMap.containsKey(mechanism);
     }
 
     @Override
@@ -105,8 +106,9 @@ class SaslInspectionFilter
                                                                        FilterContext context) {
         if (currentState == State.REQUIRING_HANDSHAKE_REQUEST
                 || currentState == State.ALLOWING_HANDSHAKE_REQUEST) {
-            if (isMechanismEnabled(request.mechanism())) {
-                this.chosenMechanism = Mech.fromMechanismName(request.mechanism());
+            var saslObserverFactory = observerFactoryMap.get(request.mechanism());
+            if (saslObserverFactory != null) {
+                this.chosenMechanism = saslObserverFactory.createObserver();
                 // If we support this mechanism then forward to the server to check whether it does
                 LOGGER.atInfo()
                         .setMessage("Client '{}' on channel {} chosen SASL mechanism '{}'")
@@ -126,7 +128,7 @@ class SaslInspectionFilter
                         .addArgument(header::clientId)
                         .addArgument(context::channelDescriptor)
                         .addArgument(request::mechanism)
-                        .addArgument(() -> Mech.SUPPORTED_MECHANISMS.contains(request.mechanism()) ? "not enabled for" : "not supported by")
+                        .addArgument(() -> observerFactoryMap.containsKey(request.mechanism()) ? "not enabled for" : "not supported by")
                         .addArgument(() -> this.chosenMechanism)
                         .log();
             }
@@ -165,7 +167,7 @@ class SaslInspectionFilter
                 return context.forwardResponse(header, response);
             }
             else {
-                var commonMechanisms = new ArrayList<>(config.enabledMechanisms());
+                var commonMechanisms = new ArrayList<>(observerFactoryMap.keySet());
                 commonMechanisms.retainAll(response.mechanisms());
                 LOGGER.atInfo()
                         .setMessage("Server rejects proposed SASL mechanism '{}' on channel {} with error {}; supports {}; common mechanisms {}")
@@ -201,10 +203,7 @@ class SaslInspectionFilter
             }
             if (this.chosenMechanism.requestContainsAuthorizationId(numAuthenticateSeen)) {
                 try {
-                    this.authorizationIdFromClient = switch (this.chosenMechanism) {
-                        case PLAIN, SCRAM_SHA_256, SCRAM_SHA_512 -> this.chosenMechanism.authorizationId(request);
-                        default -> throw Errors.UNSUPPORTED_SASL_MECHANISM.exception();
-                    };
+                    this.authorizationIdFromClient = this.chosenMechanism.authorizationId(request);
                     LOGGER.atInfo()
                             .setMessage("Client '{}' on channel {} sent {} authorizationId '{}'; forwarding to server")
                             .addArgument(header::clientId)

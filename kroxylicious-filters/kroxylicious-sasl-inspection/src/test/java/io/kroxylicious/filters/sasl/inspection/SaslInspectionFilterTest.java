@@ -9,8 +9,8 @@ package io.kroxylicious.filters.sasl.inspection;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -155,7 +155,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldForwardHandshakeUpstream() {
         // Given
-        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()));
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
@@ -183,7 +183,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnHandshakeResponseDownstreamWhenMechanismsAgree() {
         // Given
-        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()));
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
@@ -221,7 +221,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnHandshakeErrorResponseDownstreamWhenClientMechanismUnknownToProxy() {
         // Given
-        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()));
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("NOTAMECH");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
@@ -257,7 +257,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnHandshakeErrorResponseDownstreamWhenClientMechanismUnknownToBroker() {
         // Given
-        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN", "SCRAM-SHA-256")));
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory(), "SCRAM-SHA-256", new ScramSha256SaslObserverFactory()));
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
@@ -294,7 +294,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldDetectMissingHandshake() {
         // Given
-        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()));
 
         // Omits handshake
 
@@ -321,7 +321,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldDetectUnexpectedSecondHandshake() {
         // Given
-        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()));
 
         var downstreamHandshakeRequest = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var downstreamHandshakeRequestHeader = new RequestHeaderData().setRequestApiKey(downstreamHandshakeRequest.apiKey())
@@ -359,7 +359,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldDetectMalformedClientInitialResponse() {
         // Given
-        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()));
 
         doSaslHandshakeRequest("PLAIN", filter);
         doSaslHandshakeResponse("PLAIN", filter);
@@ -395,7 +395,7 @@ class SaslInspectionFilterTest {
     @Test
     void shouldReturnAuthenticationErrorResponseDownstreamWhenBrokerSignalsAuthenticationError() {
         // Given
-        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()));
 
         // When
         doSaslHandshakeRequest("PLAIN", filter);
@@ -427,23 +427,23 @@ class SaslInspectionFilterTest {
     static Stream<Arguments> successfulSaslAuthentications() {
         return Stream.of(
                 Arguments.argumentSet("SASL PLAIN (only authcid provided)",
-                        "PLAIN",
+                        new PlainSaslObserverFactory(),
                         new InitialResponse(SASL_PLAIN_CLIENT_INITIAL),
                         List.of(new ChallengeResponse(new byte[0], null)),
                         "tim"),
                 Arguments.argumentSet("SASL PLAIN (authzid and authcid provided)",
-                        "PLAIN",
+                        new PlainSaslObserverFactory(),
                         new InitialResponse(SASL_PLAIN_CLIENT_INITIAL_WITH_AUTHZID),
                         List.of(new ChallengeResponse(new byte[0], null)),
                         "Ursel"),
                 Arguments.argumentSet("SASL SCRAM-SHA-256 (n (authcid) provided)",
-                        "SCRAM-SHA-256",
+                        new ScramSha256SaslObserverFactory(),
                         new InitialResponse(SASL_SCRAM_SHA_256_CLIENT_INITIAL),
                         List.of(new ChallengeResponse(SASL_SCRAM_SHA_256_SERVER_FIRST, SASL_SCRAM_SHA_256_CLIENT_FINAL),
                                 new ChallengeResponse(SASL_SCRAM_SHA_256_SERVER_FINAL, null)),
                         "user"),
                 Arguments.argumentSet("SASL SCRAM-SHA-512 (a (authzid) and n (authcid) provided)",
-                        "SCRAM-SHA-512",
+                        new ScramSha512SaslObserverFactory(),
                         new InitialResponse(SASL_SCRAM_SHA_512_CLIENT_INITIAL),
                         List.of(new ChallengeResponse(
                                 SASL_SCRAM_SHA_512_SERVER_FIRST,
@@ -453,7 +453,7 @@ class SaslInspectionFilterTest {
                                         null)),
                         "user"),
                 Arguments.argumentSet("SASL SCRAM-SHA-512 with authzid",
-                        "SCRAM-SHA-512",
+                        new ScramSha512SaslObserverFactory(),
                         new InitialResponse(SASL_SCRAM_SHA512_CLIENT_INITIAL_WITH_AUTHZID),
                         List.of(new ChallengeResponse(
                                 SASL_SCRAM_SHA_512_SERVER_FIRST,
@@ -463,7 +463,7 @@ class SaslInspectionFilterTest {
                                         null)),
                         "Ursel"),
                 Arguments.argumentSet("SASL SCRAM-SHA-512 (username containing encoded comma)",
-                        "SCRAM-SHA-512",
+                        new ScramSha512SaslObserverFactory(),
                         new InitialResponse("n,,n=test=2Cuser,r=rOprNGfwEbeRWgbNEkqO".getBytes(StandardCharsets.US_ASCII)),
                         List.of(new ChallengeResponse(
                                 SASL_SCRAM_SHA_512_SERVER_FIRST,
@@ -476,11 +476,12 @@ class SaslInspectionFilterTest {
 
     @ParameterizedTest
     @MethodSource("successfulSaslAuthentications")
-    void shouldAuthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses, String expectedAuthorizedId) {
-        doAuthenticateSuccessfully(mechanism, initialResponse, challengeResponses);
+    void shouldAuthenticateSuccessfully(SaslObserverFactory observerFactory, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses,
+                                        String expectedAuthorizedId) {
+        doAuthenticateSuccessfully(observerFactory, initialResponse, challengeResponses);
 
         // Then
-        verify(context).clientSaslAuthenticationSuccess(mechanism, expectedAuthorizedId);
+        verify(context).clientSaslAuthenticationSuccess(observerFactory.mechanismName(), expectedAuthorizedId);
         verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
 
     }
@@ -488,7 +489,7 @@ class SaslInspectionFilterTest {
     static Stream<Arguments> successfulSaslReauthentications() {
         return Stream.of(
                 Arguments.argumentSet("reauth",
-                        "PLAIN",
+                        new PlainSaslObserverFactory(),
                         new InitialResponse(SASL_PLAIN_CLIENT_INITIAL),
                         List.of(new ChallengeResponse(new byte[0], null)),
                         new InitialResponse(SASL_PLAIN_CLIENT_INITIAL),
@@ -498,7 +499,7 @@ class SaslInspectionFilterTest {
                             verify(context, times(2)).clientSaslAuthenticationSuccess("PLAIN", "tim");
                         }),
                 Arguments.argumentSet("reauth changes of authzid",
-                        "PLAIN",
+                        new PlainSaslObserverFactory(),
                         new InitialResponse(SASL_PLAIN_CLIENT_INITIAL),
                         List.of(new ChallengeResponse(new byte[0], null)),
                         new InitialResponse("\0timmy\0tanstaaftanstaaf".getBytes(StandardCharsets.US_ASCII)),
@@ -512,17 +513,17 @@ class SaslInspectionFilterTest {
 
     @ParameterizedTest
     @MethodSource("successfulSaslReauthentications")
-    void shouldReauthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses,
+    void shouldReauthenticateSuccessfully(SaslObserverFactory observerFactory, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses,
                                           InitialResponse reauthInitialResponse, List<ChallengeResponse> reauthChallengeResponses, Consumer<FilterContext> verify) {
-        doAuthenticateSuccessfully(mechanism, initialResponse, challengeResponses);
-        doAuthenticateSuccessfully(mechanism, reauthInitialResponse, reauthChallengeResponses);
+        doAuthenticateSuccessfully(observerFactory, initialResponse, challengeResponses);
+        doAuthenticateSuccessfully(observerFactory, reauthInitialResponse, reauthChallengeResponses);
         verify.accept(context);
     }
 
     @Test
     void shouldDetectUnexpectedReauthentication() {
         // Given
-        var filter = new SaslInspectionFilter(new Config(Set.of("PLAIN")));
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", new PlainSaslObserverFactory()));
 
         doSaslHandshakeRequest("PLAIN", filter);
         doSaslHandshakeResponse("PLAIN", filter);
@@ -549,13 +550,13 @@ class SaslInspectionFilterTest {
                 });
     }
 
-    private void doAuthenticateSuccessfully(String mechanism, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses) {
+    private void doAuthenticateSuccessfully(SaslObserverFactory saslObserverFactory, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses) {
         // Given
-        var filter = new SaslInspectionFilter(new Config(Set.of(mechanism)));
+        var filter = new SaslInspectionFilter(Map.of(saslObserverFactory.mechanismName(), saslObserverFactory));
 
         // When
-        doSaslHandshakeRequest(mechanism, filter);
-        doSaslHandshakeResponse(mechanism, filter);
+        doSaslHandshakeRequest(saslObserverFactory.mechanismName(), filter);
+        doSaslHandshakeResponse(saslObserverFactory.mechanismName(), filter);
 
         doSaslAuthenticateRequest(initialResponse.response(), filter);
 

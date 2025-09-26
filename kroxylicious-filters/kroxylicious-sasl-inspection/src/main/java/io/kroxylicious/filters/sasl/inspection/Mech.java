@@ -9,7 +9,6 @@ package io.kroxylicious.filters.sasl.inspection;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 import org.apache.kafka.common.errors.AuthenticationException;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
@@ -18,7 +17,7 @@ import org.apache.kafka.common.security.scram.internals.ScramFormatter;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-enum Mech {
+enum Mech implements SaslObserver {
 
     /**
      * This a bogus SASL mechanism used when the proxy receives a handshake for a mechanism
@@ -172,32 +171,20 @@ enum Mech {
         }
     };
 
-    public static final Set<String> SUPPORTED_MECHANISMS = Set.of(
-            PLAIN.mechanismName(),
-            SCRAM_SHA_256.mechanismName(),
-            SCRAM_SHA_512.mechanismName());
-
     private final int numAuthenticateRequests;
 
     Mech(int numAuthenticateRequests) {
         this.numAuthenticateRequests = numAuthenticateRequests;
     }
 
-    static Mech fromMechanismName(String mechanism) {
-        return Mech.valueOf(mechanism.replace('-', '_'));
-    }
-
-    boolean isLastSaslAuthenticateResponse(int numAuthenticateSeen) {
+    @Override
+    public boolean isLastSaslAuthenticateResponse(int numAuthenticateSeen) {
         return numAuthenticateSeen == this.numAuthenticateRequests;
     }
 
-    String mechanismName() {
+    @Override
+    public String mechanismName() {
         return this.name().replace('_', '-');
     }
 
-    public abstract boolean isFinished(int numAuthenticateSeen);
-
-    public abstract String authorizationId(SaslAuthenticateRequestData request);
-
-    public abstract boolean requestContainsAuthorizationId(int numAuthenticateSeen);
 }
