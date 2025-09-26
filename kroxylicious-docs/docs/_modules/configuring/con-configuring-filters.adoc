@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 [id='ref-configuring-filters-{context}']
 = Defining filters
 
