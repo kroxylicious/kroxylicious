@@ -210,7 +210,7 @@ class KeyVaultClientTest {
                 """.formatted(EDEK_BASE64_URL), "my-key", KEY_VERSION);
 
         try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
-            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA);
+            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.wrap(wrappingKey, DEK_BYTES);
             // then
@@ -243,7 +243,7 @@ class KeyVaultClientTest {
                 }
                 """.formatted(DEK_BASE64_URL), "my-key", KEY_VERSION);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
-            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA);
+            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.unwrap(wrappingKey, EDEK_BYTES);
             // then
@@ -271,7 +271,7 @@ class KeyVaultClientTest {
 
         new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient("localhost:8080")) {
-            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA);
+            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.wrap(wrappingKey, EMPTY);
             // then
@@ -286,7 +286,7 @@ class KeyVaultClientTest {
         // given
         new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient("localhost:8080")) {
-            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA);
+            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.unwrap(wrappingKey, EMPTY);
             // then
@@ -303,7 +303,7 @@ class KeyVaultClientTest {
         givenMockEntraBearerFuture(CompletableFuture.failedFuture(failedToGetToken));
         new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient("localhost:8080")) {
-            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA);
+            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.wrap(wrappingKey, DEK_BYTES);
             // then
@@ -320,7 +320,7 @@ class KeyVaultClientTest {
         givenMockEntraBearerFuture(CompletableFuture.failedFuture(failedToGetToken));
         new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient("localhost:8080")) {
-            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA);
+            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.unwrap(wrappingKey, DEK_BYTES);
             // then
@@ -337,7 +337,7 @@ class KeyVaultClientTest {
         givenMockEntraBearerFuture(completedFuture(BEARER_TOKEN));
         server.stubFor(wrapKeyMapping(KEY_NAME, KEY_VERSION).willReturn(aResponse().withStatus(responseCode)));
         try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
-            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA);
+            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.wrap(wrappingKey, DEK_BYTES);
             // then
@@ -356,7 +356,7 @@ class KeyVaultClientTest {
         givenMockEntraBearerFuture(completedFuture(BEARER_TOKEN));
         server.stubFor(unwrapKeyMapping(KEY_NAME, KEY_VERSION).willReturn(aResponse().withStatus(responseCode)));
         try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
-            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA);
+            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.unwrap(wrappingKey, EDEK_BYTES);
             // then
@@ -376,7 +376,7 @@ class KeyVaultClientTest {
                  not such a good json!
                 """, KEY_NAME, KEY_VERSION);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
-            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA);
+            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.wrap(wrappingKey, DEK_BYTES);
             // then
@@ -395,7 +395,7 @@ class KeyVaultClientTest {
                  not such a good json!
                 """, KEY_NAME, KEY_VERSION);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
-            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA);
+            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.unwrap(wrappingKey, EDEK_BYTES);
             // then
@@ -414,7 +414,7 @@ class KeyVaultClientTest {
                 null
                 """, KEY_NAME, KEY_VERSION);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
-            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA);
+            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.wrap(wrappingKey, DEK_BYTES);
             // then
@@ -433,7 +433,7 @@ class KeyVaultClientTest {
                 null
                 """, KEY_NAME, KEY_VERSION);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient(server.baseUrl())) {
-            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA);
+            WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
             CompletionStage<byte[]> key = keyVaultClient.unwrap(wrappingKey, EDEK_BYTES);
             // then

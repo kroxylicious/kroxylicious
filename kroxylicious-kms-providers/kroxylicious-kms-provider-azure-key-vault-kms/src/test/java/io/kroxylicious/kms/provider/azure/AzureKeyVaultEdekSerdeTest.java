@@ -17,6 +17,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.kms.provider.azure.keyvault.SupportedKeyType;
 import io.kroxylicious.kms.service.KmsException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -31,20 +32,23 @@ class AzureKeyVaultEdekSerdeTest {
     private static final String NON_HEX_VERSION_WITH_UNICODE = "αβγδεζηθικλμνξοπρστυφχψωαβγδεζηθ";
     private static final String HEX_VERSION = "78deebed173b48e48f55abf87ed4cf71";
     private static final byte[] EDEK_BYTES = { 5, 4, 3 };
-    private static final AzureKeyVaultEdek UPPERCASE_HEX_VERSION_EDEK = new AzureKeyVaultEdek(KEY_NAME, UPPER_HEX_VERSION, EDEK_BYTES);
-    private static final AzureKeyVaultEdek UNICODE_VERSION_EDEK = new AzureKeyVaultEdek(KEY_NAME, NON_HEX_VERSION_WITH_UNICODE, EDEK_BYTES);
-    private static final AzureKeyVaultEdek NON_HEX_VERSION_EDEK = new AzureKeyVaultEdek(KEY_NAME, NON_HEX_VERSION, EDEK_BYTES);
-    private static final AzureKeyVaultEdek LOWER_CASE_HEX_VERSION_EDEK = new AzureKeyVaultEdek(KEY_NAME, HEX_VERSION, EDEK_BYTES);
-    private static final String V0_LOWER_CASE_HEX_VERSION_BINARY = "AAhrZXktbmFtZXje6+0XO0jkj1Wr+H7Uz3EFBAM=";
-    private static final String V1_NON_HEX_VERSION_BINARY = "AQhrZXktbmFtZSBaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWgUEAw==";
-    private static final String V1_UNICODE_VERSION_BINARY = "AQhrZXktbmFtZUDOsc6yzrPOtM61zrbOt864zrnOus67zrzOvc6+zr/PgM+Bz4PPhM+Fz4bPh8+Iz4nOsc6yzrPOtM61zrbOt864BQQD";
-    private static final String V1_UPPERCASE_HEX_VERSION_BINARY = "AQhrZXktbmFtZSA3OERFRUJFRDE3M0I0OGU0OGY1NWFiZjg3ZWQ0Y2Y3MQUEAw==";
+    public static final String VAULT_NAME = "myvault";
+    public static final SupportedKeyType KEY_TYPE = SupportedKeyType.RSA;
+    private static final AzureKeyVaultEdek UPPERCASE_HEX_VERSION_EDEK = new AzureKeyVaultEdek(KEY_NAME, UPPER_HEX_VERSION, EDEK_BYTES, VAULT_NAME, KEY_TYPE);
+    private static final AzureKeyVaultEdek UNICODE_VERSION_EDEK = new AzureKeyVaultEdek(KEY_NAME, NON_HEX_VERSION_WITH_UNICODE, EDEK_BYTES, VAULT_NAME,
+            KEY_TYPE);
+    private static final AzureKeyVaultEdek NON_HEX_VERSION_EDEK = new AzureKeyVaultEdek(KEY_NAME, NON_HEX_VERSION, EDEK_BYTES, VAULT_NAME, KEY_TYPE);
+    private static final AzureKeyVaultEdek LOWER_CASE_HEX_VERSION_EDEK = new AzureKeyVaultEdek(KEY_NAME, HEX_VERSION, EDEK_BYTES, VAULT_NAME, KEY_TYPE);
+    private static final String V0_LOWER_CASE_HEX_VERSION_BINARY = "AAhrZXktbmFtZQdteXZhdWx0AHje6+0XO0jkj1Wr+H7Uz3EFBAM=";
+    private static final String V1_NON_HEX_VERSION_BINARY = "AQhrZXktbmFtZQdteXZhdWx0ACBaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWlpaWgUEAw==";
+    private static final String V1_UNICODE_VERSION_BINARY = "AQhrZXktbmFtZQdteXZhdWx0AEDOsc6yzrPOtM61zrbOt864zrnOus67zrzOvc6+zr/PgM+Bz4PPhM+Fz4bPh8+Iz4nOsc6yzrPOtM61zrbOt864BQQD";
+    private static final String V1_UPPERCASE_HEX_VERSION_BINARY = "AQhrZXktbmFtZQdteXZhdWx0ACA3OERFRUJFRDE3M0I0OGU0OGY1NWFiZjg3ZWQ0Y2Y3MQUEAw==";
     AzureKeyVaultEdekSerde serde = new AzureKeyVaultEdekSerde();
 
     @Test
     void testSerializeEdekWithLowercaseHexVersion() {
         byte[] edekBytes = EDEK_BYTES;
-        AzureKeyVaultEdek edek = new AzureKeyVaultEdek(KEY_NAME, HEX_VERSION, edekBytes);
+        AzureKeyVaultEdek edek = new AzureKeyVaultEdek(KEY_NAME, HEX_VERSION, edekBytes, VAULT_NAME, KEY_TYPE);
         ByteBuffer oversized = ByteBuffer.allocate(1024);
         serde.serialize(edek, oversized);
         oversized.flip();
@@ -53,6 +57,11 @@ class AzureKeyVaultEdekSerdeTest {
         byte[] nameBytes = new byte[KEY_NAME.length()];
         oversized.get(nameBytes);
         assertThat(new String(nameBytes, StandardCharsets.UTF_8)).isEqualTo(KEY_NAME);
+        assertThat(oversized.get()).isEqualTo((byte) VAULT_NAME.length()); // name length
+        byte[] vaultNameBytes = new byte[VAULT_NAME.length()];
+        oversized.get(vaultNameBytes);
+        assertThat(new String(vaultNameBytes, StandardCharsets.UTF_8)).isEqualTo(VAULT_NAME);
+        assertThat(oversized.get()).isEqualTo(KEY_TYPE.getId());
         byte[] versionBytes = new byte[16];
         oversized.get(versionBytes);
         // version bytes contains decoded hex of keyVersion
@@ -66,7 +75,7 @@ class AzureKeyVaultEdekSerdeTest {
     @CsvSource({ NON_HEX_VERSION, NON_HEX_VERSION_WITH_UNICODE, UPPER_HEX_VERSION })
     @ParameterizedTest
     void testSerializeEdekWithNonLowercaseHexVersion(String nonHexKeyVersion) {
-        AzureKeyVaultEdek edek = new AzureKeyVaultEdek(KEY_NAME, nonHexKeyVersion, EDEK_BYTES);
+        AzureKeyVaultEdek edek = new AzureKeyVaultEdek(KEY_NAME, nonHexKeyVersion, EDEK_BYTES, VAULT_NAME, KEY_TYPE);
         ByteBuffer oversized = ByteBuffer.allocate(1024);
         serde.serialize(edek, oversized);
         oversized.flip();
@@ -76,6 +85,11 @@ class AzureKeyVaultEdekSerdeTest {
         byte[] nameBytes = new byte[KEY_NAME.length()];
         oversized.get(nameBytes);
         assertThat(new String(nameBytes, StandardCharsets.UTF_8)).isEqualTo(KEY_NAME);
+        assertThat(oversized.get()).isEqualTo((byte) VAULT_NAME.length()); // name length
+        byte[] vaultNameBytes = new byte[VAULT_NAME.length()];
+        oversized.get(vaultNameBytes);
+        assertThat(new String(vaultNameBytes, StandardCharsets.UTF_8)).isEqualTo(VAULT_NAME);
+        assertThat(oversized.get()).isEqualTo(KEY_TYPE.getId());
         int keyVersionLength = nonHexKeyVersion.getBytes(StandardCharsets.UTF_8).length;
         assertThat(oversized.get()).isEqualTo((byte) keyVersionLength);
         byte[] versionBytes = new byte[keyVersionLength];

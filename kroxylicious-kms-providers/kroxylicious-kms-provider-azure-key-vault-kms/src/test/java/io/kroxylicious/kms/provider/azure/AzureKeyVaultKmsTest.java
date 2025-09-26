@@ -55,6 +55,8 @@ class AzureKeyVaultKmsTest {
     public static final byte[] WRAPPED_DEK_BYTES = { 1, 2, 3 };
     // 32 byte DEK
     public static final byte[] DEK_BYTES = Base64.getDecoder().decode("y6f9E5vVqJOFc5B/Rhp5v5V54/1AsLq11AxlurL6qNA=");
+    public static final String VAULT_NAME = "myvault";
+    public static final SupportedKeyType SUPPORTED_KEY_TYPE = SupportedKeyType.OCT;
     @Mock
     private KeyVaultClient keyVaultClient;
     @Mock
@@ -212,7 +214,7 @@ class AzureKeyVaultKmsTest {
     void generateDekPairSuccess() {
         // given
         mockRandomGeneratorFillsArrayWith(DEK_BYTES);
-        WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.OCT);
+        WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SUPPORTED_KEY_TYPE, VAULT_NAME);
         when(keyVaultClient.wrap(eq(wrappingKey), any())).thenReturn(CompletableFuture.completedFuture(WRAPPED_DEK_BYTES));
         // when
         CompletionStage<DekPair<AzureKeyVaultEdek>> stage = azureKeyVaultKms.generateDekPair(wrappingKey);
@@ -226,6 +228,8 @@ class AzureKeyVaultKmsTest {
             assertThat(edek.edek()).containsExactly(WRAPPED_DEK_BYTES);
             assertThat(edek.keyName()).isEqualTo(KEY_NAME);
             assertThat(edek.keyVersion()).isEqualTo(KEY_VERSION);
+            assertThat(edek.vaultName()).isEqualTo(VAULT_NAME);
+            assertThat(edek.supportedKeyType()).isEqualTo(SUPPORTED_KEY_TYPE);
         });
     }
 
@@ -233,8 +237,8 @@ class AzureKeyVaultKmsTest {
     void generateDekPairWrapFailure() {
         // given
         mockRandomGeneratorFillsArrayWith(DEK_BYTES);
-        SupportedKeyType supportedKeyType = SupportedKeyType.OCT;
-        WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, supportedKeyType);
+        SupportedKeyType supportedKeyType = SUPPORTED_KEY_TYPE;
+        WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, supportedKeyType, VAULT_NAME);
         KmsException clientFailure = new KmsException("failed to wrap");
         when(keyVaultClient.wrap(eq(wrappingKey), any())).thenReturn(CompletableFuture.failedFuture(clientFailure));
         // when
@@ -243,7 +247,7 @@ class AzureKeyVaultKmsTest {
         assertThat(stage.toCompletableFuture()).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class)
                 .havingCause().isInstanceOf(KmsException.class).withMessage(
                         "request to wrap DEK with key WrappingKey[keyName=" + KEY_NAME + ", keyVersion=" + KEY_VERSION + ", supportedKeyType=" + supportedKeyType.name()
-                                + "] failed")
+                                + ", vaultName=" + VAULT_NAME + "] failed")
                 .havingCause().isSameAs(clientFailure);
     }
 
@@ -251,8 +255,8 @@ class AzureKeyVaultKmsTest {
     void generateDekPairUnknownKey() {
         // given
         mockRandomGeneratorFillsArrayWith(DEK_BYTES);
-        SupportedKeyType supportedKeyType = SupportedKeyType.OCT;
-        WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, supportedKeyType);
+        SupportedKeyType supportedKeyType = SUPPORTED_KEY_TYPE;
+        WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, supportedKeyType, VAULT_NAME);
         UnexpectedHttpStatusCodeException clientFailure = new UnexpectedHttpStatusCodeException(404);
         when(keyVaultClient.wrap(eq(wrappingKey), any())).thenReturn(CompletableFuture.failedFuture(clientFailure));
         // when
@@ -267,8 +271,8 @@ class AzureKeyVaultKmsTest {
     void generateDekPairUnknownKeyInCompletionException() {
         // given
         mockRandomGeneratorFillsArrayWith(DEK_BYTES);
-        SupportedKeyType supportedKeyType = SupportedKeyType.OCT;
-        WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, supportedKeyType);
+        SupportedKeyType supportedKeyType = SUPPORTED_KEY_TYPE;
+        WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, supportedKeyType, VAULT_NAME);
         UnexpectedHttpStatusCodeException clientFailure = new UnexpectedHttpStatusCodeException(404);
         when(keyVaultClient.wrap(eq(wrappingKey), any())).thenReturn(CompletableFuture.failedFuture(new CompletionException(clientFailure)));
         // when
@@ -279,16 +283,14 @@ class AzureKeyVaultKmsTest {
                         "key '" + KEY_NAME + "' version '" + KEY_VERSION + "' not found while attempting to wrap");
     }
 
-    @CsvSource({ "RSA,RSA", "RSA-HSM,RSA_HSM", "oct,OCT", "oct-HSM,OCT_HSM" })
-    @ParameterizedTest
-    void decryptEdekSuccess(String keyType, SupportedKeyType expectedSupportedKeyType) {
+    @Test
+    void decryptEdekSuccess() {
         // given
-        WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, expectedSupportedKeyType);
-        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
-                CompletableFuture.completedFuture(new GetKeyResponse(new JsonWebKey(KEY_ID, keyType, REQUIRED_KEY_OPS), new KeyAttributes(true))));
+        WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SUPPORTED_KEY_TYPE, VAULT_NAME);
         when(keyVaultClient.unwrap(eq(wrappingKey), any())).thenReturn(CompletableFuture.completedFuture(DEK_BYTES));
         // when
-        CompletionStage<SecretKey> stage = azureKeyVaultKms.decryptEdek(new AzureKeyVaultEdek(KEY_NAME, KEY_VERSION, WRAPPED_DEK_BYTES));
+        CompletionStage<SecretKey> stage = azureKeyVaultKms.decryptEdek(
+                new AzureKeyVaultEdek(KEY_NAME, KEY_VERSION, WRAPPED_DEK_BYTES, VAULT_NAME, SUPPORTED_KEY_TYPE));
         // then
         assertThat(stage.toCompletableFuture()).succeedsWithin(Duration.ZERO).satisfies(dek -> {
             assertThat(dek.getEncoded()).containsExactly(DEK_BYTES);
@@ -299,15 +301,13 @@ class AzureKeyVaultKmsTest {
     }
 
     @Test
-    void decryptEdekGetKeyFailure() {
+    void decryptEdekUnwrapFailure() {
         // given
         KmsException failedToUnwrap = new KmsException("failed to unwrap");
-        WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.OCT);
-        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
-                CompletableFuture.completedFuture(new GetKeyResponse(new JsonWebKey(KEY_ID, "oct", REQUIRED_KEY_OPS), new KeyAttributes(true))));
+        WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SUPPORTED_KEY_TYPE, VAULT_NAME);
         when(keyVaultClient.unwrap(eq(wrappingKey), any())).thenReturn(CompletableFuture.failedFuture(failedToUnwrap));
         // when
-        CompletionStage<SecretKey> stage = azureKeyVaultKms.decryptEdek(new AzureKeyVaultEdek(KEY_NAME, KEY_VERSION, WRAPPED_DEK_BYTES));
+        CompletionStage<SecretKey> stage = azureKeyVaultKms.decryptEdek(new AzureKeyVaultEdek(KEY_NAME, KEY_VERSION, WRAPPED_DEK_BYTES, VAULT_NAME, SUPPORTED_KEY_TYPE));
         // then
         assertThat(stage.toCompletableFuture()).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class)
                 .havingCause().isInstanceOf(KmsException.class).withMessage("failed to unwrap edek for key '" + KEY_NAME + "'")
@@ -315,53 +315,17 @@ class AzureKeyVaultKmsTest {
     }
 
     @Test
-    void decryptEdekGetKeyNotFound() {
+    void decryptEdekUnwrapNotFound() {
         // given
-        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
-                CompletableFuture.failedFuture(new UnexpectedHttpStatusCodeException(404)));
+        UnexpectedHttpStatusCodeException failedToUnwrap = new UnexpectedHttpStatusCodeException(404);
+        WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SUPPORTED_KEY_TYPE, VAULT_NAME);
+        when(keyVaultClient.unwrap(eq(wrappingKey), any())).thenReturn(CompletableFuture.failedFuture(failedToUnwrap));
         // when
-        CompletionStage<SecretKey> stage = azureKeyVaultKms.decryptEdek(new AzureKeyVaultEdek(KEY_NAME, KEY_VERSION, WRAPPED_DEK_BYTES));
+        CompletionStage<SecretKey> stage = azureKeyVaultKms.decryptEdek(new AzureKeyVaultEdek(KEY_NAME, KEY_VERSION, WRAPPED_DEK_BYTES, VAULT_NAME, SUPPORTED_KEY_TYPE));
         // then
         assertThat(stage.toCompletableFuture()).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class)
-                .havingCause().isInstanceOf(UnknownKeyException.class).withMessage("key " + KEY_NAME + " not found");
-    }
-
-    @Test
-    void decryptEdekGetKeyNotFoundCompletionException() {
-        // given
-        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
-                CompletableFuture.failedFuture(new CompletionException(new UnexpectedHttpStatusCodeException(404))));
-        // when
-        CompletionStage<SecretKey> stage = azureKeyVaultKms.decryptEdek(new AzureKeyVaultEdek(KEY_NAME, KEY_VERSION, WRAPPED_DEK_BYTES));
-        // then
-        assertThat(stage.toCompletableFuture()).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class)
-                .havingCause().isInstanceOf(UnknownKeyException.class).withMessage("key " + KEY_NAME + " not found");
-    }
-
-    @Test
-    void decryptEdekUnwrapFailure() {
-        // given
-        KmsException failedToGetKey = new KmsException("failed to get key");
-        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(CompletableFuture.failedFuture(failedToGetKey));
-        // when
-        CompletionStage<SecretKey> stage = azureKeyVaultKms.decryptEdek(new AzureKeyVaultEdek(KEY_NAME, KEY_VERSION, WRAPPED_DEK_BYTES));
-        // then
-        assertThat(stage.toCompletableFuture()).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class)
-                .havingCause().isInstanceOf(KmsException.class).withMessage("exception getting key '" + KEY_NAME + "'").havingCause().isSameAs(failedToGetKey);
-    }
-
-    @CsvSource({ "EC", "EC-HSM", "bizarre-new-keytype-of-the-future" })
-    @ParameterizedTest
-    void decryptEdekGetKeyUnsupportedKeyType(String keyType) {
-        // given
-        when(keyVaultClient.getKey(KEY_NAME)).thenReturn(
-                CompletableFuture.completedFuture(new GetKeyResponse(new JsonWebKey(KEY_ID, keyType, REQUIRED_KEY_OPS), new KeyAttributes(true))));
-        // when
-        CompletionStage<SecretKey> stage = azureKeyVaultKms.decryptEdek(new AzureKeyVaultEdek(KEY_NAME, KEY_VERSION, WRAPPED_DEK_BYTES));
-        // then
-        assertThat(stage.toCompletableFuture()).failsWithin(Duration.ZERO).withThrowableThat().isInstanceOf(ExecutionException.class)
-                .havingCause().isInstanceOf(KmsException.class)
-                .withMessage("key '" + KEY_NAME + "' we are trying to unwrap has type " + keyType + " which is not supported");
+                .havingCause().isInstanceOf(UnknownKeyException.class)
+                .withMessage("key not found, key name: '" + KEY_NAME + "' version '" + KEY_VERSION + "'");
     }
 
     @Test
