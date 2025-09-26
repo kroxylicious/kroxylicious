@@ -45,6 +45,31 @@ A module contains a procedure (`proc-`), concepts (`con-`), or reference (`ref-`
 | `shared/attributes.adoc` | Global book attributes                      |
 | `kroxylicious-proxy/`    | The Kroxylicious Proxy guide                |
 
+Each documentation file requires the following:
+
+ - Content type
+ - Anchor ID
+ - Abstract tag
+
+**Content Type** 
+
+Defined at the top of the file:
+- :_mod-docs-content-type: ASSEMBLY 		
+- :_mod-docs-content-type: PROCEDURE 
+- :_mod-docs-content-type: CONCEPT
+- :_mod-docs-content-type: REFERENCE 
+- :_mod-docs-content-type: SNIPPET
+
+**Anchor ID**
+
+Use the same name as the file (with dashes) plus a `_{context}` variable: `[id='name-of-file_{context}']`
+
+The context variable is defined in the assembly of a guide, such as `:context: operator`. Context variables allow reuse of the same content. Anchor IDs allow cross-referencing. You can also add anchors to subheadings.
+
+**Abstract**
+
+Start each file with an introductory paragraph. Mark it by adding a `[role="_abstract"]` tag above it.
+
 ## Generating the guide
 
 To generate the guides in HTML, run the following Maven command from the project root directory (the parent directory of the `kroxylicious-docs` directory).
