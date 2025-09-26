@@ -1,3 +1,5 @@
+:_mod-docs-content-type: PROCEDURE
+
 // file included in the following:
 //
 // con-operator-ingesting-metrics.adoc

@@ -1,3 +1,5 @@
+:_mod-docs-content-type: ASSEMBLY
+
 [id='assembly-configuring-proxy-{context}']
 = Configuring proxies
 
