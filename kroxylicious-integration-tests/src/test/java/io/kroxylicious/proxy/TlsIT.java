@@ -794,7 +794,8 @@ class TlsIT extends AbstractTlsIT {
             assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS))
                     .hasRootCauseInstanceOf(SSLHandshakeException.class)
                     .rootCause()
-                    .hasMessageContaining("Received fatal alert: bad_certificate");
+                    .satisfiesAnyOf(e -> assertThat(e).hasMessageContaining("Received fatal alert: bad_certificate") /* <JDK-25 */,
+                            e -> assertThat(e).hasMessageContaining("Received fatal alert: certificate_required") /* JDK-25 */);
         }
     }
 
@@ -826,7 +827,8 @@ class TlsIT extends AbstractTlsIT {
             assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS))
                     .hasRootCauseInstanceOf(SSLHandshakeException.class)
                     .rootCause()
-                    .hasMessageContaining("Received fatal alert: bad_certificate");
+                    .satisfiesAnyOf(e -> assertThat(e).hasMessageContaining("Received fatal alert: bad_certificate") /* <JDK-25 */,
+                            e -> assertThat(e).hasMessageContaining("Received fatal alert: certificate_required") /* JDK-25 */);
         }
     }
 
