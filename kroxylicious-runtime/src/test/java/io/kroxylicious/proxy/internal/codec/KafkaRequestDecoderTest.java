@@ -234,7 +234,7 @@ class KafkaRequestDecoderTest {
         ByteBuf buffer = Unpooled.buffer(Integer.BYTES + headerLength);
         buffer.writeInt(headerLength);
         buffer.writeShort(ApiKeys.PRODUCE.id);
-        short apiVersion = 13;
+        short apiVersion = (short) (ApiKeys.PRODUCE.latestVersion(true) + 1);
         buffer.writeShort(apiVersion);
         buffer.writeInt(2); // correlationId
         assertThatThrownBy(() -> embeddedChannel.writeInbound(buffer)).isInstanceOf(AssertionError.class)
