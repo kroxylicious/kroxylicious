@@ -13,6 +13,7 @@ import java.util.Objects;
 
 import javax.annotation.concurrent.ThreadSafe;
 
+import io.kroxylicious.kms.provider.azure.keyvault.SupportedKeyType;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.kms.service.Serde;
 
@@ -35,7 +36,10 @@ class AzureKeyVaultEdekSerde implements Serde<AzureKeyVaultEdek> {
     private static int versionAsStringSize(AzureKeyVaultEdek edek) {
         return 1 // version byte
                 + 1 // byte to store length of keyName (max 127 characters)
-                + utf8Length(edek.keyName()) // n bytes for the utf-8 encoded keyNameLength
+                + utf8Length(edek.keyName()) // n bytes for the utf-8 encoded keyName
+                + 1 // byte to store length of vaultName (max 24 characters)
+                + utf8Length(edek.vaultName()) // n bytes for the utf-8 encoded vaultName
+                + 1 // byte to store supported key type
                 + 1 // byte to store length of keyVersion (max 127 characters)
                 + utf8Length(edek.keyVersion())
                 + edek.edek().length;
@@ -45,6 +49,9 @@ class AzureKeyVaultEdekSerde implements Serde<AzureKeyVaultEdek> {
         return 1 // version byte
                 + 1 // byte to store length of keyName (max 127 characters)
                 + utf8Length(edek.keyName()) // keyName
+                + 1 // byte to store length of vaultName (max 24 characters)
+                + utf8Length(edek.vaultName()) // n bytes for the utf-8 encoded vaultName
+                + 1 // byte to store supported key type
                 + 16 // bytes to store hex decoded key version
                 + edek.edek().length;
     }
@@ -70,6 +77,9 @@ class AzureKeyVaultEdekSerde implements Serde<AzureKeyVaultEdek> {
         buffer.put(KEY_VERSION_ENCODED_AS_STRING_V1);
         buffer.put((byte) keyRefBytes.length);
         buffer.put(keyRefBytes);
+        buffer.put((byte) edek.vaultName().length());
+        buffer.put(edek.vaultName().getBytes(StandardCharsets.UTF_8));
+        buffer.put(edek.supportedKeyType().getId());
         byte[] keyVersionBytes = edek.keyVersion().getBytes(StandardCharsets.UTF_8);
         if (keyVersionBytes.length > 127) {
             // sanity check, very unlikely it somehow blows out even with unicode
@@ -84,6 +94,9 @@ class AzureKeyVaultEdekSerde implements Serde<AzureKeyVaultEdek> {
         buffer.put(KEY_VERSION_ENCODED_AS_HEX_V0);
         buffer.put((byte) keyRefBytes.length);
         buffer.put(keyRefBytes);
+        buffer.put((byte) edek.vaultName().length());
+        buffer.put(edek.vaultName().getBytes(StandardCharsets.UTF_8));
+        buffer.put(edek.supportedKeyType().getId());
         buffer.put(edek.keyVersion128bit().orElseThrow());
         buffer.put(edek.edek());
     }
@@ -108,13 +121,17 @@ class AzureKeyVaultEdekSerde implements Serde<AzureKeyVaultEdek> {
         byte keyNameLength = buffer.get();
         String keyName = utf8(buffer, keyNameLength);
         buffer.position(buffer.position() + keyNameLength);
+        byte vaultNameLength = buffer.get();
+        String vaultName = utf8(buffer, vaultNameLength);
+        buffer.position(buffer.position() + vaultNameLength);
+        byte supportedKeyTypeId = buffer.get();
         byte keyVersionLength = buffer.get();
         String keyVersion = utf8(buffer, keyVersionLength);
         buffer.position(buffer.position() + keyVersionLength);
         int edekLength = buffer.remaining();
         var edek = new byte[edekLength];
         buffer.get(edek);
-        return new AzureKeyVaultEdek(keyName, keyVersion, edek);
+        return new AzureKeyVaultEdek(keyName, keyVersion, edek, vaultName, toKeyType(supportedKeyTypeId));
     }
 
     @NonNull
@@ -122,11 +139,20 @@ class AzureKeyVaultEdekSerde implements Serde<AzureKeyVaultEdek> {
         byte keyNameLength = buffer.get();
         String keyName = utf8(buffer, keyNameLength);
         buffer.position(buffer.position() + keyNameLength);
+        byte vaultNameLength = buffer.get();
+        String vaultName = utf8(buffer, vaultNameLength);
+        buffer.position(buffer.position() + vaultNameLength);
+        byte supportedKeyTypeId = buffer.get();
         byte[] keyVersion = new byte[16];
         buffer.get(keyVersion);
         int edekLength = buffer.remaining();
         var edek = new byte[edekLength];
         buffer.get(edek);
-        return new AzureKeyVaultEdek(keyName, HexFormat.of().formatHex(keyVersion), edek);
+        return new AzureKeyVaultEdek(keyName, HexFormat.of().formatHex(keyVersion), edek, vaultName, toKeyType(supportedKeyTypeId));
+    }
+
+    private static SupportedKeyType toKeyType(byte supportedKeyTypeId) {
+        return SupportedKeyType.fromId(supportedKeyTypeId)
+                .orElseThrow(() -> new IllegalStateException("could not decode SupportedKeyType from id " + supportedKeyTypeId));
     }
 }

@@ -8,7 +8,6 @@ package io.kroxylicious.kms.provider.azure;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Predicate;
@@ -62,13 +61,14 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
                 throw new KmsException("request to wrap DEK with key " + wrappingKey + " failed", throwable);
             }
             else {
-                return new DekPair<>(new AzureKeyVaultEdek(wrappingKey.keyName(), wrappingKey.keyVersion(), wrappedBytes),
+                return new DekPair<>(
+                        new AzureKeyVaultEdek(wrappingKey.keyName(), wrappingKey.keyVersion(), wrappedBytes, wrappingKey.vaultName(), wrappingKey.supportedKeyType()),
                         recordEncryptionKey(bytes));
             }
         });
     }
 
-    // todo use random bytes from KMS if it is Managed HSM, standard Key Vault we have to generated DEK proxy side
+    // todo use random bytes from KMS if it is Managed HSM, standard Key Vault we have to generate DEK proxy side
     private byte[] generateDek() {
         byte[] bytes = new byte[AES_256_KEY_SIZE];
         random.nextBytes(bytes);
@@ -85,26 +85,7 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
     @Override
     public CompletionStage<SecretKey> decryptEdek(AzureKeyVaultEdek edek) {
         LOG.debug("Decrypting dek pair for key version {}", edek);
-        String keyName = edek.keyName();
-        return client.getKey(keyName)
-                .handle((secretKey, throwable) -> {
-                    if (isInstanceOfOrCompletionExceptionWithCauseSatisfying(throwable, UnexpectedHttpStatusCodeException.class, e -> e.getStatusCode() == 404)) {
-                        throw new UnknownKeyException("key " + keyName + " not found");
-                    }
-                    else if (throwable != null) {
-                        throw new KmsException("exception getting key '" + keyName + "'", throwable);
-                    }
-                    else {
-                        return secretKey;
-                    }
-                }).thenCompose(r -> {
-                    Optional<SupportedKeyType> keyType = SupportedKeyType.fromKeyType(r.key().keyType());
-                    return keyType.map(
-                            supportedKeyType -> unwrap(edek, supportedKeyType)).orElseGet(
-                                    () -> CompletableFuture.failedFuture(
-                                            new KmsException(
-                                                    "key '" + keyName + "' we are trying to unwrap has type " + r.key().keyType() + " which is not supported")));
-                });
+        return unwrap(edek);
     }
 
     static <T extends Throwable> boolean isInstanceOfOrCompletionExceptionWithCauseSatisfying(@Nullable Throwable t, Class<T> type, Predicate<T> predicate) {
@@ -122,11 +103,17 @@ public class AzureKeyVaultKms implements Kms<WrappingKey, AzureKeyVaultEdek> {
         }
     }
 
-    private CompletionStage<SecretKey> unwrap(AzureKeyVaultEdek edek, SupportedKeyType supportedKeyType) {
-        return client.unwrap(new WrappingKey(edek.keyName(), edek.keyVersion(), supportedKeyType), edek.edek())
+    private CompletionStage<SecretKey> unwrap(AzureKeyVaultEdek edek) {
+        return client.unwrap(new WrappingKey(edek.keyName(), edek.keyVersion(), edek.supportedKeyType(), edek.vaultName()), edek.edek())
                 .handle((bytes, throwable) -> {
                     if (throwable != null) {
-                        throw new KmsException("failed to unwrap edek for key '" + edek.keyName() + "'", throwable);
+                        if (throwable instanceof UnexpectedHttpStatusCodeException e && e.getStatusCode() == 404
+                                || throwable.getCause() instanceof UnexpectedHttpStatusCodeException ex && ex.getStatusCode() == 404) {
+                            throw new UnknownKeyException("key not found, key name: '" + edek.keyName() + "' version '" + edek.keyVersion() + "'");
+                        }
+                        else {
+                            throw new KmsException("failed to unwrap edek for key '" + edek.keyName() + "'", throwable);
+                        }
                     }
                     else {
                         return recordEncryptionKey(bytes);

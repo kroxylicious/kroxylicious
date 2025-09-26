@@ -113,7 +113,21 @@ public class KeyVaultClient implements AutoCloseable {
     }
 
     private HttpRequest wrapOrUnwrapKeyRequest(WrappingKey wrappingKey, byte[] bytes, BearerToken bearerToken, String operation) {
-        String wrapKey = config.keyVaultBaseUrl() + "/keys/" + wrappingKey.keyName() + "/" + wrappingKey.keyVersion() + "/" + operation + "?api-version=" + API_VERSION;
+        URI baseUrl = config.keyVaultBaseUrl();
+        String host = baseUrl.getHost();
+        String vaultHost;
+        // integration test support
+        if (Objects.equals(host, "localhost")) {
+            vaultHost = host;
+        }
+        else {
+            String withDefaultVaultNameRemoved = host.substring(host.indexOf("."));
+            vaultHost = wrappingKey.vaultName() + withDefaultVaultNameRemoved;
+        }
+        // integration test support
+        String port = baseUrl.getPort() == -1 ? "" : ":" + baseUrl.getPort();
+        String wrapKey = baseUrl.getScheme() + "://" + vaultHost + port + "/keys/" + wrappingKey.keyName() + "/" + wrappingKey.keyVersion() + "/" + operation
+                + "?api-version=" + API_VERSION;
         WrapOrUnwrapRequest value = WrapOrUnwrapRequest.from(wrappingKey.supportedKeyType().getWrapAlgorithm(), bytes);
         try {
             byte[] bodyBytes = mapper.writer().writeValueAsBytes(value);

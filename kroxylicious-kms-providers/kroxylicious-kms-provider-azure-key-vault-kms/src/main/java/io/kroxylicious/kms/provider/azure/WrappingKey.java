@@ -10,14 +10,20 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import io.kroxylicious.kms.provider.azure.keyvault.SupportedKeyType;
 
-public record WrappingKey(String keyName, String keyVersion, SupportedKeyType supportedKeyType) {
+public record WrappingKey(String keyName, String keyVersion, SupportedKeyType supportedKeyType, String vaultName) {
+
+    private static final Pattern VAULT_NAME_PATTERN = Pattern.compile("^([a-zA-Z0-9\\-]{3,24})\\..+");
+
     public WrappingKey {
         Objects.requireNonNull(keyName, "keyName is null");
         Objects.requireNonNull(keyVersion, "keyVersion is null");
         Objects.requireNonNull(supportedKeyType, "supportedKeyType is null");
+        Objects.requireNonNull(vaultName, "vaultName is null");
     }
 
     /**
@@ -46,11 +52,37 @@ public record WrappingKey(String keyName, String keyVersion, SupportedKeyType su
         Objects.requireNonNull(keyName, "keyName is null");
         Objects.requireNonNull(keyId, "keyId is null");
         URI uri = parseUri(keyId);
+        String keyVersion = extractKeyVersion(uri);
+        String vaultName = extractVaultName(uri);
+        return new WrappingKey(keyName, keyVersion, supportedKeyType, vaultName);
+    }
+
+    private static String extractVaultName(URI uri) {
+        String host = uri.getHost();
+        // integration testing support
+        if (Objects.equals(host, "localhost")) {
+            return host;
+        }
+        if (host == null) {
+            throw new IllegalArgumentException("Invalid key id: " + uri + ", host is null.");
+        }
+        Matcher matcher = VAULT_NAME_PATTERN.matcher(host);
+        if (!matcher.find()) {
+            throw new IllegalArgumentException(
+                    "Invalid key id: " + uri + ", vault name cannot be obtained from host " + host + " it must match " + VAULT_NAME_PATTERN.pattern());
+        }
+        String vaultName = matcher.group(1);
+        if (vaultName.contains("--")) {
+            throw new IllegalArgumentException("Invalid key id: " + uri + ", vault name cannot contain consecutive hyphens " + vaultName);
+        }
+        return vaultName;
+    }
+
+    private static String extractKeyVersion(URI uri) {
         String path = uri.getPath();
         validatePath(path);
         List<String> pathSegments = splitPath(path);
-        String keyVersion = pathSegments.get(pathSegments.size() - 1);
-        return new WrappingKey(keyName, keyVersion, supportedKeyType);
+        return pathSegments.get(pathSegments.size() - 1);
     }
 
     public static List<String> splitPath(String pathString) {

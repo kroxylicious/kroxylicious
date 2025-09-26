@@ -12,11 +12,22 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
-public record AzureKeyVaultEdek(String keyName, String keyVersion, byte[] edek) {
+import io.kroxylicious.kms.provider.azure.keyvault.SupportedKeyType;
+
+public record AzureKeyVaultEdek(String keyName,
+                                String keyVersion,
+                                byte[] edek,
+                                String vaultName,
+                                SupportedKeyType supportedKeyType) {
 
     private static final Pattern KEY_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9-]+$");
 
     public AzureKeyVaultEdek {
+        Objects.requireNonNull(supportedKeyType, "supportedKeyType must not be null");
+        Objects.requireNonNull(vaultName, "vaultName must not be null");
+        if (vaultName.isBlank()) {
+            throw new IllegalArgumentException("vaultName cannot be blank");
+        }
         Objects.requireNonNull(keyName, "keyName must not be null");
         if (keyName.isBlank()) {
             throw new IllegalArgumentException("keyName cannot be blank");
@@ -83,7 +94,8 @@ public record AzureKeyVaultEdek(String keyName, String keyVersion, byte[] edek) 
             return false;
         }
         AzureKeyVaultEdek that = (AzureKeyVaultEdek) o;
-        return Objects.equals(keyName, that.keyName) && Objects.equals(keyVersion, that.keyVersion) && Arrays.equals(edek, that.edek);
+        return Objects.equals(keyName, that.keyName) && Objects.equals(vaultName, that.vaultName) && Objects.equals(supportedKeyType, that.supportedKeyType)
+                && Objects.equals(keyVersion, that.keyVersion) && Arrays.equals(edek, that.edek);
     }
 
     /**
@@ -93,6 +105,8 @@ public record AzureKeyVaultEdek(String keyName, String keyVersion, byte[] edek) 
     @Override
     public int hashCode() {
         int result = Objects.hashCode(keyName);
+        result = 31 * result + Objects.hashCode(vaultName);
+        result = 31 * result + Objects.hashCode(supportedKeyType);
         result = 31 * result + Objects.hashCode(keyVersion);
         result = 31 * result + Arrays.hashCode(edek);
         return result;
@@ -106,6 +120,8 @@ public record AzureKeyVaultEdek(String keyName, String keyVersion, byte[] edek) 
     public String toString() {
         return "AzureKeyVaultEdek{" +
                 "keyName=" + keyName +
+                ", vaultName=" + vaultName +
+                ", supportedKeyType=" + supportedKeyType +
                 ", keyVersion=" + keyVersion +
                 ", edek=" + Arrays.toString(edek) +
                 '}';
