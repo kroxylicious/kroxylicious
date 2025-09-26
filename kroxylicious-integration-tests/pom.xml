@@ -55,6 +55,11 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-sasl-inspection</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-provider-kroxylicious-inmemory</artifactId>
             <scope>test</scope>
         </dependency>
@@ -101,6 +106,11 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-oauthbearer-validation</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-sasl-inspection</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
