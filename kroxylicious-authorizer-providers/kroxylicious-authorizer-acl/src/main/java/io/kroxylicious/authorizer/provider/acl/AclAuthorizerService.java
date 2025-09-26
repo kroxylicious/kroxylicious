@@ -6,6 +6,7 @@
 
 package io.kroxylicious.authorizer.provider.acl;
 
+import java.io.UncheckedIOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -27,9 +28,9 @@ import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
-import io.kroxylicious.authorizer.provider.acl.parser.RuleBaseListener;
-import io.kroxylicious.authorizer.provider.acl.parser.RuleLexer;
-import io.kroxylicious.authorizer.provider.acl.parser.RuleParser;
+import io.kroxylicious.authorizer.provider.acl.parser.AclRulesBaseListener;
+import io.kroxylicious.authorizer.provider.acl.parser.AclRulesLexer;
+import io.kroxylicious.authorizer.provider.acl.parser.AclRulesParser;
 import io.kroxylicious.authorizer.service.Authorizer;
 import io.kroxylicious.authorizer.service.AuthorizerService;
 import io.kroxylicious.authorizer.service.Operation;
@@ -58,17 +59,18 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
             return parse(stream);
         }
         catch (java.io.IOException e) {
-            throw new RuntimeException(e);
+            throw new UncheckedIOException(e);
         }
     }
 
     @NonNull
     static <O extends Enum<O> & Operation<O>> AclAuthorizer parse(CharStream stream) {
         ParseErrorListener listener = new ParseErrorListener(100);
-        var lexer = new RuleLexer(stream);
+
+        var lexer = new AclRulesLexer(stream);
         lexer.addErrorListener(listener);
         var tokenStream = new CommonTokenStream(lexer);
-        var parser = new RuleParser(tokenStream);
+        var parser = new AclRulesParser(tokenStream);
         parser.removeErrorListeners();
         parser.addErrorListener(listener);
         var tree = parser.rule_();
@@ -112,7 +114,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         }
     }
 
-    private static class BuildingListener extends RuleBaseListener {
+    private static class BuildingListener extends AclRulesBaseListener {
 
         private final AclAuthorizer.Builder builder;
         private final List<String> errors;
@@ -129,56 +131,58 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
             this.errors = errors;
         }
 
-        void reportError(
-                Token token, String error) {
+        void reportError(Token token, String error) {
             errors.add("%d:%d: %s".formatted(token.getLine(), token.getCharPositionInLine(), error));
         }
 
         String unwrap(TerminalNode string) {
             var text = string.getText();
             // TODO needs to handle unquoting
-            return text.substring(1, text.length() -1);
+            return text.substring(1, text.length() - 1);
         }
 
         @Override
-        public void enterImportStmt(RuleParser.ImportStmtContext ctx) {
+        public void enterImportStmt(AclRulesParser.ImportStmtContext ctx) {
             var packageName = ctx.packageName().qualIdent().IDENT().stream()
                     .map(TerminalNode::getText)
                     .collect(Collectors.joining("."));
             String simpleClassName = ctx.name.getText();
             String localName;
+            Token errorToken;
             if (ctx.local != null) {
                 localName = ctx.local.getText();
+                errorToken = ctx.local;
             }
             else {
                 localName = simpleClassName;
+                errorToken = ctx.name;
             }
-            var was = localToQualified.put(localName, packageName + "." + simpleClassName);
+            var was = this.localToQualified.put(localName, packageName + "." + simpleClassName);
             if (was != null) {
-                reportError(ctx.name,
+                reportError(errorToken,
                         "Local name '%s' is already being used for class %s".formatted(localName, was));
             }
         }
 
         @Override
-        public void enterAllowRule(RuleParser.AllowRuleContext ctx) {
-            this.subjectBuilder = builder.grant();
+        public void enterAllowRule(AclRulesParser.AllowRuleContext ctx) {
+            this.subjectBuilder = this.builder.grant();
         }
 
         @Override
-        public void enterPrincipalType(RuleParser.PrincipalTypeContext ctx) {
+        public void enterPrincipalType(AclRulesParser.PrincipalTypeContext ctx) {
             var principalClass = lookupClass(ctx.IDENT(), Principal.class, "Principal");
             if (principalClass != null) {
-                this.principalBuilder = subjectBuilder.subjectsHavingPrincipal(principalClass);
+                this.principalBuilder = this.subjectBuilder.subjectsHavingPrincipal(principalClass);
             }
-            subjectBuilder = null;
+            this.subjectBuilder = null;
         }
 
         @NonNull
         private <T> @Nullable Class<? extends T> lookupClass(TerminalNode node, Class<T> cls, String desc) {
             // look it up in the imports
             String localClassName = node.getText();
-            var qualifiedClassName = localToQualified.get(localClassName);
+            var qualifiedClassName = this.localToQualified.get(localClassName);
             if (qualifiedClassName == null) {
                 reportError(node.getSymbol(),
                         "%s class with name '%s' has not been imported.".formatted(desc, localClassName));
@@ -201,60 +205,79 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         }
 
         @Override
-        public void enterEqOp(RuleParser.EqOpContext ctx) {
-            if (resourceBuilder != null) {
-                resourceBuilder.onResourceWithNameEqualTo(unwrap(ctx.nameEq().STRING()));
-                resourceBuilder = null;
+        public void enterNameEq(AclRulesParser.NameEqContext ctx) {
+            if (this.resourceBuilder != null) {
+                this.resourceBuilder.onResourceWithNameEqualTo(unwrap(ctx.STRING()));
+                this.resourceBuilder = null;
             }
-            else if (principalBuilder != null) {
-                this.operationsBuilder = principalBuilder.withNameEqualTo(unwrap(ctx.nameEq().STRING()));
+            else if (this.principalBuilder != null) {
+                this.operationsBuilder = this.principalBuilder.withNameEqualTo(unwrap(ctx.STRING()));
                 this.principalBuilder = null;
             }
         }
 
         @Override
-        public void enterNameIn(RuleParser.NameInContext nameIn) {
-            if (resourceBuilder == null) {
-                reportError(nameIn.IN().getSymbol(),
-                        "'%s' operation not supported on principals".formatted(nameIn.IN().getText()));
-            }
+        public void enterNameIn(AclRulesParser.NameInContext nameIn) {
             var names = nameIn.STRING().stream()
                     .map(this::unwrap)
                     .collect(Collectors.toSet());
-            resourceBuilder.onResourcesWithNameIn(names);
-            resourceBuilder = null;
+            if (this.resourceBuilder != null) {
+                this.resourceBuilder.onResourcesWithNameIn(names);
+                this.resourceBuilder = null;
+            }
+            else if (this.principalBuilder != null) {
+                this.operationsBuilder = this.principalBuilder.withNameIn(names);
+                this.principalBuilder = null;
+            }
         }
 
         @Override
-        public void enterNameLike(RuleParser.NameLikeContext nameLike) {
-            if (resourceBuilder == null) {
-                reportError(nameLike.LIKE().getSymbol(),
-                        "'%s' operation not supported on principals".formatted(nameLike.LIKE().getText()));
-            }
+        public void enterNameLike(AclRulesParser.NameLikeContext nameLike) {
             var pattern = unwrap(nameLike.STRING());
             int firstStartIndex = pattern.indexOf('*');
-            if (firstStartIndex == -1) {
-                resourceBuilder.onResourceWithNameEqualTo(pattern);
-                resourceBuilder = null;
-            }
-            else if (firstStartIndex != pattern.length() -1) {
+            boolean useEquals = firstStartIndex != pattern.length() - 1;
+            if (!useEquals && firstStartIndex != pattern.length() - 1) {
                 reportError(nameLike.STRING().getSymbol(), "Wildcard '*' only supported as last character in 'like'");
             }
-            else {
-                resourceBuilder.onResourcesWithNameStartingWith(pattern.substring(0, firstStartIndex));
-                resourceBuilder = null;
+            String prefix = pattern.substring(0, useEquals ? pattern.length() : firstStartIndex);
+            if (this.resourceBuilder != null) {
+                if (useEquals) {
+                    this.resourceBuilder.onResourceWithNameEqualTo(pattern);
+                }
+                else if (prefix.isEmpty()) {
+                    this.resourceBuilder.onAllResources();
+                }
+                else {
+                    this.resourceBuilder.onResourcesWithNameStartingWith(prefix);
+                }
+                this.resourceBuilder = null;
+            }
+            else if (this.principalBuilder != null) {
+                if (useEquals) {
+                    this.operationsBuilder = this.principalBuilder.withNameEqualTo(pattern);
+                }
+                else if (prefix.isEmpty()) {
+                    this.operationsBuilder = this.principalBuilder.withAnyName();
+                }
+                else {
+                    this.operationsBuilder = this.principalBuilder.withNameStartingWith(prefix);
+                }
+                this.principalBuilder = null;
             }
         }
 
         @Override
-        public void enterNameMatch(RuleParser.NameMatchContext nameMatch) {
-            if (resourceBuilder == null) {
+        public void enterNameMatch(AclRulesParser.NameMatchContext nameMatch) {
+            if (this.resourceBuilder == null) {
                 reportError(nameMatch.MATCHING().getSymbol(),
                         "'%s' operation not supported on principals".formatted(nameMatch.MATCHING().getText()));
             }
             String p = unwrap(nameMatch.REGEX());
             try {
                 Pattern.compile(p); // check it's valid
+                if (this.resourceBuilder != null) {
+                    this.resourceBuilder.onResourcesWithNameMatching(p);
+                }
             }
             catch (PatternSyntaxException e) {
                 reportError(nameMatch.REGEX().getSymbol(),
@@ -262,24 +285,23 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
                                 nameMatch.MATCHING().getText(),
                                 e.getMessage()));
             }
-            if (resourceBuilder != null) {
-                resourceBuilder.onResourcesWithNameMatching(p);
-                resourceBuilder = null;
+            this.resourceBuilder = null;
+        }
+
+        @Override
+        public void enterNameAny(AclRulesParser.NameAnyContext ctx) {
+            if (this.resourceBuilder != null) {
+                this.resourceBuilder.onAllResources();
+                this.resourceBuilder = null;
+            }
+            else if (this.principalBuilder != null) {
+                this.operationsBuilder = this.principalBuilder.withAnyName();
+                this.principalBuilder = null;
             }
         }
 
         @Override
-        public void enterWildcardOp(RuleParser.WildcardOpContext ctx) {
-            if (resourceBuilder == null) {
-                reportError(ctx.STAR().getSymbol(),
-                        "Wildcard operation '%s' not supported on principals".formatted(ctx.STAR().getText()));
-            }
-            resourceBuilder.onAllResources();
-            resourceBuilder = null;
-        }
-
-        @Override
-        public void enterOperations(RuleParser.OperationsContext ctx) {
+        public void enterOperations(AclRulesParser.OperationsContext ctx) {
             if (ctx.STAR() != null) {
                 this.allOps = true;
                 this.opNames = null;
@@ -290,7 +312,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
             }
             else if (ctx.operationSet() != null) {
                 this.allOps = false;
-                this.opNames = ctx.operationSet().operation().stream().map(RuleParser.OperationContext::IDENT)
+                this.opNames = ctx.operationSet().operation().stream().map(AclRulesParser.OperationContext::IDENT)
                         .map(TerminalNode::getText)
                         .collect(Collectors.toSet());
             }
@@ -300,17 +322,17 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         }
 
         @Override
-        public void enterResource(RuleParser.ResourceContext ctx) {
+        public void enterResource(AclRulesParser.ResourceContext ctx) {
             var cls = lookupClass(ctx.IDENT(), Operation.class, "Operation");
             if (cls != null) {
-                if (operationsBuilder != null) {
+                if (this.operationsBuilder != null) {
                     var enumCls = cls.asSubclass(Enum.class);
                     if (allOps) {
-                        this.resourceBuilder = operationsBuilder.allOperations((Class) enumCls);
+                        this.resourceBuilder = this.operationsBuilder.allOperations((Class) enumCls);
                     }
                     else {
                         var list = (List) opNames.stream().map(name -> Enum.valueOf(enumCls, name)).toList();
-                        this.resourceBuilder = operationsBuilder.operations(EnumSet.copyOf(list));
+                        this.resourceBuilder = this.operationsBuilder.operations(EnumSet.copyOf(list));
                     }
                 }
             }

@@ -1,4 +1,7 @@
-grammar Rule;
+/**
+ *
+ */
+grammar AclRules;
 
 rule: versionStmt
     importStmt*
@@ -19,23 +22,31 @@ packageName: qualIdent
 qualIdent: IDENT (DOT IDENT)*
     ;
 
-denyRule: DENY allowOrDenyRule SEMI
-    ;
+//denyRule: DENY allowOrDenyRule SEMI
+//    ;
 allowRule: ALLOW allowOrDenyRule SEMI
     ;
 
 allowOrDenyRule: userPattern TO operationPattern
     ;
 
-userPattern: principalType WITH NAME namePred
+userPattern: principalType WITH NAME userNamePred
     ;
 principalType: IDENT
     ;
-namePred: STAR # wildcardOp
-    | nameEq # eqOp
-    | nameIn # inOp
-    | nameMatch # matchOp
-    | nameLike # likeOp
+userNamePred: nameAny
+    | nameEq
+    | nameIn
+    | nameLike
+    ;
+
+namePred: nameAny
+    | nameEq
+    | nameIn
+    | nameMatch
+    | nameLike
+    ;
+nameAny: STAR
     ;
 nameEq: EQ STRING
     ;
@@ -48,16 +59,18 @@ nameLike: LIKE STRING
 
 operationPattern: operations resource WITH NAME namePred
     ;
-operation: IDENT
-    ;
-resource: IDENT
-    //| STAR
-    ;
+
 operations: STAR
     | operation
     | operationSet
     ;
+operation: IDENT
+    ;
 operationSet: LBRA operation (COMMA operation)* RBRA
+    ;
+
+resource: IDENT
+    //| STAR
     ;
 
 endRule: OTHERWISE DENY SEMI

@@ -81,10 +81,14 @@ public class TypeNameMap<T, V> {
 
     public @Nullable V lookup(Class<? extends T> type, Predicate predicate, String name) {
         return switch (predicate) {
-            case TYPE_EQUAL_NAME_EQUAL, TYPE_EQUAL_NAME_ANY -> map.get(new ClassNameKey<>(type, predicate, name));
+            case TYPE_EQUAL_NAME_EQUAL, TYPE_EQUAL_NAME_ANY -> {
+                V v = map.get(new ClassNameKey<>(type, predicate, name));
+                yield v;
+            }
             case TYPE_EQUAL_NAME_STARTS_WITH -> {
                 var entry = map.floorEntry(new ClassNameKey<>(type, Predicate.TYPE_EQUAL_NAME_STARTS_WITH, name));
                 if (entry != null
+                        && entry.getKey().predicate() == predicate
                         && entry.getKey().name != null
                         && name.startsWith(entry.getKey().name)) { // check the entry we found is a prefix for this thing
                     yield entry.getValue();

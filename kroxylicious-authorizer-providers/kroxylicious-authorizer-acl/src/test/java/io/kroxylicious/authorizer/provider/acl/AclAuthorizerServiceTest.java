@@ -6,11 +6,13 @@
 
 package io.kroxylicious.authorizer.provider.acl;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
 import org.antlr.v4.runtime.CharStreams;
+import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -82,7 +84,17 @@ class AclAuthorizerServiceTest {
                         frobnicate User with name = "Alice" to READ Topic with name = "foo";
                         
                         otherwise deny;""",
-                        "5:0: extraneous input 'frobnicate' expecting {'deny', 'allow', 'otherwise', 'import'}.")
+                        "5:0: extraneous input 'frobnicate' expecting {'allow', 'otherwise', 'import'}."),
+                Arguments.argumentSet("Using matching with principal",
+                        """
+                        version 1;
+                        import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                        import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                        
+                        allow User with name matching /Ali(ce)?/ to READ Topic with name = "foo";
+                        
+                        otherwise deny;""",
+                        "5:21: mismatched input 'matching' expecting {'*', '=', 'in', 'like'}.")
         );
     }
 
@@ -107,6 +119,14 @@ class AclAuthorizerServiceTest {
                         
                         otherwise deny;""",
                         "5:6: Principal class with name 'User' has not been imported."),
+                Arguments.argumentSet("Colliding import",
+                        """
+                        version 1;
+                        import UserPrincipal as Collide from io.kroxylicious.authorizer.provider.acl;
+                        import FakeTopicResource as Collide from io.kroxylicious.authorizer.provider.acl;
+                        
+                        otherwise deny;""",
+                        "3:28: Local name 'Collide' is already being used for class io.kroxylicious.authorizer.provider.acl.UserPrincipal"),
                 Arguments.argumentSet(
                         "Missing principal class",
                         """
@@ -128,13 +148,28 @@ class AclAuthorizerServiceTest {
                         allow User with name = "Alice" to READ Topic with name = "foo";
                         
                         otherwise deny;""",
-                        "5:6: Principal class 'User' is not a subclass of interface io.kroxylicious.proxy.authentication.Principal.")
+                        "5:6: Principal class 'User' is not a subclass of interface io.kroxylicious.proxy.authentication.Principal."),
+                Arguments.argumentSet(
+                        "Invalid regex",
+                        """
+                        version 1;
+                        import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                        import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                        
+                        allow User with name = "Alice" to READ Topic with name matching /**/;
+                        
+                        otherwise deny;""",
+                        """
+                        5:64: Regex provided for 'matching' operation is not valid: Dangling meta character '*' near index 0
+                        **
+                        ^""")
         );
     }
 
     @ParameterizedTest
     @MethodSource
     void checkErrors(String src, String expectedError) {
+        Assertions.setMaxStackTraceElementsDisplayed(Integer.MAX_VALUE);
         var exasserrt = assertThatThrownBy(() -> AclAuthorizerService.parse(CharStreams.fromString(src)));
         exasserrt.isExactlyInstanceOf(InvalidRulesFileException.class)
                 .hasMessageMatching("Found [1-9][0-9]* errors");
@@ -142,7 +177,7 @@ class AclAuthorizerServiceTest {
     }
 
     @Test
-    void test() {
+    void testPrincipalEqResourceEq() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
@@ -151,20 +186,418 @@ class AclAuthorizerServiceTest {
                 allow User with name = "Alice" to READ Topic with name = "foo";
                 
                 otherwise deny;"""));
-          assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foo"))
-                  .isEqualTo(Decision.ALLOW);
-          assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "bar"))
-                  .as("Mismatching resource name")
-                  .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foo"))
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.WRITE, "foo"))
+                .as("Mismatching operation name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.CREATE, "foo"))
+                .as("Mismatching operation name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "bar"))
+                .as("Mismatching resource name")
+                .isEqualTo(Decision.DENY);
         assertThat(decision(authz, new UserPrincipal("Alice"), FakeClusterResource.CONNECT, "foo"))
                 .as("Mismatching resource type")
                 .isEqualTo(Decision.DENY);
-          assertThat(decision(authz, new UserPrincipal("Bob"), FakeTopicResource.READ, "foo"))
-                  .as("Mismatching principal name")
-                  .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Bob"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Alicea"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal name")
+                .isEqualTo(Decision.DENY);
         assertThat(decision(authz, new RolePrincipal("Alice"), FakeTopicResource.READ, "foo"))
                 .as("Mismatching principal type")
                 .isEqualTo(Decision.DENY);
     }
 
+    @Test
+    void testPrincipalInResourceEq() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                
+                allow User with name in {"Alice", "Bob"} to READ Topic with name = "foo";
+                
+                otherwise deny;"""));
+        for (String allowedPrincipal : Set.of("Alice", "Bob")) {
+            assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
+                    .isEqualTo(Decision.ALLOW);
+            assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeTopicResource.READ, "bar"))
+                    .as("Mismatching resource name")
+                    .isEqualTo(Decision.DENY);
+            assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeClusterResource.CONNECT, "foo"))
+                    .as("Mismatching resource type")
+                    .isEqualTo(Decision.DENY);
+            assertThat(decision(authz, new RolePrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
+                    .as("Mismatching principal type")
+                    .isEqualTo(Decision.DENY);
+        }
+        for (String deniedPrincipal : Set.of("Eve", "Alic")) {
+            assertThat(decision(authz, new UserPrincipal(deniedPrincipal), FakeTopicResource.READ, "foo"))
+                    .as("Mismatching principal name")
+                    .isEqualTo(Decision.DENY);
+        }
+    }
+
+    @Test
+    void testPrincipalStartsWithResourceEq() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                
+                allow User with name like "Alice*" to READ Topic with name = "foo";
+                
+                otherwise deny;"""));
+        for (String allowedPrincipal : Set.of("Alice", "Alicea")) {
+            assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
+                    .isEqualTo(Decision.ALLOW);
+            assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeTopicResource.READ, "bar"))
+                    .as("Mismatching resource name")
+                    .isEqualTo(Decision.DENY);
+            assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeClusterResource.CONNECT, "foo"))
+                    .as("Mismatching resource type")
+                    .isEqualTo(Decision.DENY);
+            assertThat(decision(authz, new RolePrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
+                    .as("Mismatching principal type")
+                    .isEqualTo(Decision.DENY);
+        }
+        for (String deniedPrincipal : Set.of("Eve", "Alic")) {
+            assertThat(decision(authz, new UserPrincipal(deniedPrincipal), FakeTopicResource.READ, "foo"))
+                    .as("Mismatching principal name")
+                    .isEqualTo(Decision.DENY);
+        }
+    }
+
+    @Test
+    void testPrincipalStartsWithAnyResourceEq() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                
+                allow User with name like "*" to READ Topic with name = "foo";
+                
+                otherwise deny;"""));
+        for (String allowedPrincipal : Set.of("Alice", "Alicea", "Eve", "Alic")) {
+            assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
+                    .isEqualTo(Decision.ALLOW);
+            assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeTopicResource.READ, "bar"))
+                    .as("Mismatching resource name")
+                    .isEqualTo(Decision.DENY);
+            assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeClusterResource.CONNECT, "foo"))
+                    .as("Mismatching resource type")
+                    .isEqualTo(Decision.DENY);
+            assertThat(decision(authz, new RolePrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
+                    .as("Mismatching principal type")
+                    .isEqualTo(Decision.DENY);
+        }
+    }
+
+    @Test
+    void testPrincipalStartsWithAndEqResourceEq() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                
+                allow User with name like "Alice" to READ Topic with name = "foo";
+                
+                otherwise deny;"""));
+        for (String allowedPrincipal : Set.of("Alice")) {
+            assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
+                    .isEqualTo(Decision.ALLOW);
+            assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeTopicResource.READ, "bar"))
+                    .as("Mismatching resource name")
+                    .isEqualTo(Decision.DENY);
+            assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeClusterResource.CONNECT, "foo"))
+                    .as("Mismatching resource type")
+                    .isEqualTo(Decision.DENY);
+            assertThat(decision(authz, new RolePrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
+                    .as("Mismatching principal type")
+                    .isEqualTo(Decision.DENY);
+        }
+        for (String deniedPrincipal : Set.of("Eve", "Alic", "Alicea")) {
+            assertThat(decision(authz, new UserPrincipal(deniedPrincipal), FakeTopicResource.READ, "foo"))
+                    .as("Mismatching principal name")
+                    .isEqualTo(Decision.DENY);
+        }
+    }
+
+    @Test
+    void testPrincipalAnyResourceEq() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                
+                allow User with name * to READ Topic with name = "foo";
+                
+                otherwise deny;"""));
+        for (String allowedPrincipal : Set.of("Alice", "Bob", "Eve", "Alic")) {
+            assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
+                    .isEqualTo(Decision.ALLOW);
+            assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeTopicResource.READ, "bar"))
+                    .as("Mismatching resource name")
+                    .isEqualTo(Decision.DENY);
+            assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeClusterResource.CONNECT, "foo"))
+                    .as("Mismatching resource type")
+                    .isEqualTo(Decision.DENY);
+            assertThat(decision(authz, new RolePrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
+                    .as("Mismatching principal type")
+                    .isEqualTo(Decision.DENY);
+        }
+    }
+
+    @Test
+    void testPrincipalEqResourceIn() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                
+                allow User with name = "Alice" to READ Topic with name in {"foo", "bar"};
+                
+                otherwise deny;"""));
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foo"))
+                .as("Matching resource name")
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "bar"))
+                .as("Matching resource name")
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "baz"))
+                .as("Mismatching resource name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeClusterResource.CONNECT, "foo"))
+                .as("Mismatching resource type")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Bob"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new RolePrincipal("Alice"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal type")
+                .isEqualTo(Decision.DENY);
+    }
+
+    @Test
+    void testPrincipalEqResourceStartsWith() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                
+                allow User with name = "Alice" to READ Topic with name like "foo*";
+                
+                otherwise deny;"""));
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foo"))
+                .as("Matching resource name")
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foobar"))
+                .as("Matching resource name")
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "fo"))
+                .as("Mismatching resource name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeClusterResource.CONNECT, "foo"))
+                .as("Mismatching resource type")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Bob"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new RolePrincipal("Alice"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal type")
+                .isEqualTo(Decision.DENY);
+    }
+
+    @Test
+    void testPrincipalEqResourceAny() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                
+                allow User with name = "Alice" to READ Topic with name *;
+                
+                otherwise deny;"""));
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foo"))
+                .as("Matching resource name")
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foobar"))
+                .as("Matching resource name")
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "fo"))
+                .as("Matching resource name")
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeClusterResource.CONNECT, "foo"))
+                .as("Mismatching resource type")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Bob"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new RolePrincipal("Alice"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal type")
+                .isEqualTo(Decision.DENY);
+    }
+
+    @Test
+    void testPrincipalEqResourceMatching() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                
+                allow User with name = "Alice" to READ Topic with name matching /(foo+|bar)/;
+                
+                otherwise deny;"""));
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foo"))
+                .as("Matching resource name")
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "bar"))
+                .as("Matching resource name")
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "fooo"))
+                .as("Matching resource name")
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "fo"))
+                .as("Mismatching resource name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "Foo"))
+                .as("Mismatching resource name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foobar"))
+                .as("Mismatching resource name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeClusterResource.CONNECT, "foo"))
+                .as("Mismatching resource type")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Bob"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new RolePrincipal("Alice"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal type")
+                .isEqualTo(Decision.DENY);
+    }
+
+
+    @Test
+    void testPrincipalEqResourceEqOpsIn() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                
+                allow User with name = "Alice" to {READ, WRITE} Topic with name = "foo";
+                
+                otherwise deny;"""));
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foo"))
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.WRITE, "foo"))
+                .as("Matching operation name")
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.CREATE, "foo"))
+                .as("Mismatching operation name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "bar"))
+                .as("Mismatching resource name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeClusterResource.CONNECT, "foo"))
+                .as("Mismatching resource type")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Bob"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Alicea"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new RolePrincipal("Alice"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal type")
+                .isEqualTo(Decision.DENY);
+    }
+
+    @Test
+    void testPrincipalEqResourceEqOpsAny() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                
+                allow User with name = "Alice" to * Topic with name = "foo";
+                
+                otherwise deny;"""));
+        for (var op : FakeTopicResource.values()) {
+            assertThat(decision(authz, new UserPrincipal("Alice"), op, "foo"))
+                    .isEqualTo(Decision.ALLOW);
+        }
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "bar"))
+                .as("Mismatching resource name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeClusterResource.CONNECT, "foo"))
+                .as("Mismatching resource type")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Bob"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Alicea"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new RolePrincipal("Alice"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal type")
+                .isEqualTo(Decision.DENY);
+    }
+
+    @Test
+    void testGrantsAreAdditive() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                
+                allow User with name = "Alice" to READ Topic with name = "foo";
+                allow User with name = "Alice" to WRITE Topic with name = "foo";
+                allow User with name = "Alice" to * Topic with name = "foo";
+                
+                allow User with name = "Alice" to READ Topic with name = "bar";
+                allow User with name = "Alice" to * Topic with name = "bar";
+                allow User with name = "Alice" to WRITE Topic with name = "bar";
+                
+                allow User with name = "Alice" to READ Topic with name = "baz";
+                allow User with name = "Alice" to WRITE Topic with name = "baz";
+                
+                otherwise deny;"""));
+        for (var op : FakeTopicResource.values()) {
+            assertThat(decision(authz, new UserPrincipal("Alice"), op, "foo"))
+                    .as("Matching operation %s", op)
+                    .isEqualTo(Decision.ALLOW);
+        }
+        for (var op : FakeTopicResource.values()) {
+            assertThat(decision(authz, new UserPrincipal("Alice"), op, "bar"))
+                    .as("Matching operation %s", op)
+                    .isEqualTo(Decision.ALLOW);
+        }
+        EnumSet<FakeTopicResource> expectedBazOps = EnumSet.of(
+                FakeTopicResource.READ,
+                FakeTopicResource.WRITE,
+                FakeTopicResource.DESCRIBE // by implication rules
+                );
+        for (var op : FakeTopicResource.values()) {
+            assertThat(decision(authz, new UserPrincipal("Alice"), op, "baz"))
+                    .as("Matching operation %s", op)
+                    .isEqualTo(expectedBazOps.contains(op) ? Decision.ALLOW : Decision.DENY);
+        }
+
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeClusterResource.CONNECT, "foo"))
+                .as("Mismatching resource type")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Bob"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new UserPrincipal("Alicea"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal name")
+                .isEqualTo(Decision.DENY);
+        assertThat(decision(authz, new RolePrincipal("Alice"), FakeTopicResource.READ, "foo"))
+                .as("Mismatching principal type")
+                .isEqualTo(Decision.DENY);
+    }
 }
