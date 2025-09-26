@@ -31,9 +31,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AclAuthorizerServiceTest {
 
     static Decision decision(AclAuthorizer authz,
-                      Principal principal,
-                      Operation<?> operation,
-                      String resourceName) {
+                             Principal principal,
+                             Operation<?> operation,
+                             String resourceName) {
         CompletionStage<Authorization> authorize = authz.authorize(
                 new Subject(Set.of(principal)),
                 List.of(new Action(operation, resourceName)));
@@ -45,57 +45,56 @@ class AclAuthorizerServiceTest {
     static List<Arguments> parserErrors() {
         return List.of(
                 Arguments.argumentSet("Missing version",
-                """
-                //version 1;
-                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                
-                allow User with name = "Alice" to READ Topic with name = "foo";
-                
-                otherwise deny;""",
+                        """
+                                //version 1;
+                                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                                allow User with name = "Alice" to READ Topic with name = "foo";
+
+                                otherwise deny;""",
                         "2:0: mismatched input 'import' expecting 'version'."),
                 Arguments.argumentSet("Unsupported version",
                         """
-                        version 12;
-                        import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
-                        import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                        
-                        allow User with name = "Alice" to READ Topic with name = "foo";
-                        
-                        otherwise deny;""",
+                                version 12;
+                                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                                allow User with name = "Alice" to READ Topic with name = "foo";
+
+                                otherwise deny;""",
                         "1:9: token recognition error at: '2'."),
                 Arguments.argumentSet("Missing final 'otherwise deny'",
                         """
-                        version 1;
-                        import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
-                        import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                        
-                        allow User with name = "Alice" to READ Topic with name = "foo";
-                        
-                        //otherwise deny;
-                        """,
+                                version 1;
+                                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                                allow User with name = "Alice" to READ Topic with name = "foo";
+
+                                //otherwise deny;
+                                """,
                         "8:0: extraneous input '<EOF>' expecting {'allow', 'otherwise'}."),
                 Arguments.argumentSet("Bad keyword",
                         """
-                        version 1;
-                        import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
-                        import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                        
-                        frobnicate User with name = "Alice" to READ Topic with name = "foo";
-                        
-                        otherwise deny;""",
+                                version 1;
+                                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                                frobnicate User with name = "Alice" to READ Topic with name = "foo";
+
+                                otherwise deny;""",
                         "5:0: extraneous input 'frobnicate' expecting {'allow', 'otherwise', 'import'}."),
                 Arguments.argumentSet("Using matching with principal",
                         """
-                        version 1;
-                        import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
-                        import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                        
-                        allow User with name matching /Ali(ce)?/ to READ Topic with name = "foo";
-                        
-                        otherwise deny;""",
-                        "5:21: mismatched input 'matching' expecting {'*', '=', 'in', 'like'}.")
-        );
+                                version 1;
+                                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                                allow User with name matching /Ali(ce)?/ to READ Topic with name = "foo";
+
+                                otherwise deny;""",
+                        "5:21: mismatched input 'matching' expecting {'*', '=', 'in', 'like'}."));
     }
 
     @ParameterizedTest
@@ -111,59 +110,58 @@ class AclAuthorizerServiceTest {
         return List.of(
                 Arguments.argumentSet("Missing import",
                         """
-                        version 1;
-                        //import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
-                        import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                        
-                        allow User with name = "Alice" to READ Topic with name = "foo";
-                        
-                        otherwise deny;""",
+                                version 1;
+                                //import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                                allow User with name = "Alice" to READ Topic with name = "foo";
+
+                                otherwise deny;""",
                         "5:6: Principal class with name 'User' has not been imported."),
                 Arguments.argumentSet("Colliding import",
                         """
-                        version 1;
-                        import UserPrincipal as Collide from io.kroxylicious.authorizer.provider.acl;
-                        import FakeTopicResource as Collide from io.kroxylicious.authorizer.provider.acl;
-                        
-                        otherwise deny;""",
+                                version 1;
+                                import UserPrincipal as Collide from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Collide from io.kroxylicious.authorizer.provider.acl;
+
+                                otherwise deny;""",
                         "3:28: Local name 'Collide' is already being used for class io.kroxylicious.authorizer.provider.acl.UserPrincipal"),
                 Arguments.argumentSet(
                         "Missing principal class",
                         """
-                        version 1;
-                        import DoesNotExist as User from io.kroxylicious.authorizer.provider.acl;
-                        import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                        
-                        allow User with name = "Alice" to READ Topic with name = "foo";
-                        
-                        otherwise deny;""",
+                                version 1;
+                                import DoesNotExist as User from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                                allow User with name = "Alice" to READ Topic with name = "foo";
+
+                                otherwise deny;""",
                         "5:6: Principal class 'io.kroxylicious.authorizer.provider.acl.DoesNotExist' was not found."),
                 Arguments.argumentSet(
                         "Principal class not a subclass",
                         """
-                        version 1;
-                        import FakeTopicResource as User from io.kroxylicious.authorizer.provider.acl;
-                        import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                        
-                        allow User with name = "Alice" to READ Topic with name = "foo";
-                        
-                        otherwise deny;""",
+                                version 1;
+                                import FakeTopicResource as User from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                                allow User with name = "Alice" to READ Topic with name = "foo";
+
+                                otherwise deny;""",
                         "5:6: Principal class 'User' is not a subclass of interface io.kroxylicious.proxy.authentication.Principal."),
                 Arguments.argumentSet(
                         "Invalid regex",
                         """
-                        version 1;
-                        import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
-                        import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                        
-                        allow User with name = "Alice" to READ Topic with name matching /**/;
-                        
-                        otherwise deny;""",
+                                version 1;
+                                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                                allow User with name = "Alice" to READ Topic with name matching /**/;
+
+                                otherwise deny;""",
                         """
-                        5:64: Regex provided for 'matching' operation is not valid: Dangling meta character '*' near index 0
-                        **
-                        ^""")
-        );
+                                5:64: Regex provided for 'matching' operation is not valid: Dangling meta character '*' near index 0
+                                **
+                                ^"""));
     }
 
     @ParameterizedTest
@@ -182,9 +180,9 @@ class AclAuthorizerServiceTest {
                 version 1;
                 import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
                 import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                
+
                 allow User with name = "Alice" to READ Topic with name = "foo";
-                
+
                 otherwise deny;"""));
         assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foo"))
                 .isEqualTo(Decision.ALLOW);
@@ -217,9 +215,9 @@ class AclAuthorizerServiceTest {
                 version 1;
                 import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
                 import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                
+
                 allow User with name in {"Alice", "Bob"} to READ Topic with name = "foo";
-                
+
                 otherwise deny;"""));
         for (String allowedPrincipal : Set.of("Alice", "Bob")) {
             assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
@@ -247,9 +245,9 @@ class AclAuthorizerServiceTest {
                 version 1;
                 import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
                 import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                
+
                 allow User with name like "Alice*" to READ Topic with name = "foo";
-                
+
                 otherwise deny;"""));
         for (String allowedPrincipal : Set.of("Alice", "Alicea")) {
             assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
@@ -277,9 +275,9 @@ class AclAuthorizerServiceTest {
                 version 1;
                 import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
                 import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                
+
                 allow User with name like "*" to READ Topic with name = "foo";
-                
+
                 otherwise deny;"""));
         for (String allowedPrincipal : Set.of("Alice", "Alicea", "Eve", "Alic")) {
             assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
@@ -302,9 +300,9 @@ class AclAuthorizerServiceTest {
                 version 1;
                 import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
                 import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                
+
                 allow User with name like "Alice" to READ Topic with name = "foo";
-                
+
                 otherwise deny;"""));
         for (String allowedPrincipal : Set.of("Alice")) {
             assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
@@ -332,9 +330,9 @@ class AclAuthorizerServiceTest {
                 version 1;
                 import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
                 import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                
+
                 allow User with name * to READ Topic with name = "foo";
-                
+
                 otherwise deny;"""));
         for (String allowedPrincipal : Set.of("Alice", "Bob", "Eve", "Alic")) {
             assertThat(decision(authz, new UserPrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
@@ -357,9 +355,9 @@ class AclAuthorizerServiceTest {
                 version 1;
                 import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
                 import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                
+
                 allow User with name = "Alice" to READ Topic with name in {"foo", "bar"};
-                
+
                 otherwise deny;"""));
         assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foo"))
                 .as("Matching resource name")
@@ -387,9 +385,9 @@ class AclAuthorizerServiceTest {
                 version 1;
                 import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
                 import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                
+
                 allow User with name = "Alice" to READ Topic with name like "foo*";
-                
+
                 otherwise deny;"""));
         assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foo"))
                 .as("Matching resource name")
@@ -417,9 +415,9 @@ class AclAuthorizerServiceTest {
                 version 1;
                 import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
                 import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                
+
                 allow User with name = "Alice" to READ Topic with name *;
-                
+
                 otherwise deny;"""));
         assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foo"))
                 .as("Matching resource name")
@@ -447,9 +445,9 @@ class AclAuthorizerServiceTest {
                 version 1;
                 import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
                 import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                
+
                 allow User with name = "Alice" to READ Topic with name matching /(foo+|bar)/;
-                
+
                 otherwise deny;"""));
         assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foo"))
                 .as("Matching resource name")
@@ -480,16 +478,15 @@ class AclAuthorizerServiceTest {
                 .isEqualTo(Decision.DENY);
     }
 
-
     @Test
     void testPrincipalEqResourceEqOpsIn() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
                 import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                
+
                 allow User with name = "Alice" to {READ, WRITE} Topic with name = "foo";
-                
+
                 otherwise deny;"""));
         assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foo"))
                 .isEqualTo(Decision.ALLOW);
@@ -522,9 +519,9 @@ class AclAuthorizerServiceTest {
                 version 1;
                 import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
                 import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                
+
                 allow User with name = "Alice" to * Topic with name = "foo";
-                
+
                 otherwise deny;"""));
         for (var op : FakeTopicResource.values()) {
             assertThat(decision(authz, new UserPrincipal("Alice"), op, "foo"))
@@ -553,18 +550,18 @@ class AclAuthorizerServiceTest {
                 version 1;
                 import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
                 import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-                
+
                 allow User with name = "Alice" to READ Topic with name = "foo";
                 allow User with name = "Alice" to WRITE Topic with name = "foo";
                 allow User with name = "Alice" to * Topic with name = "foo";
-                
+
                 allow User with name = "Alice" to READ Topic with name = "bar";
                 allow User with name = "Alice" to * Topic with name = "bar";
                 allow User with name = "Alice" to WRITE Topic with name = "bar";
-                
+
                 allow User with name = "Alice" to READ Topic with name = "baz";
                 allow User with name = "Alice" to WRITE Topic with name = "baz";
-                
+
                 otherwise deny;"""));
         for (var op : FakeTopicResource.values()) {
             assertThat(decision(authz, new UserPrincipal("Alice"), op, "foo"))
@@ -580,7 +577,7 @@ class AclAuthorizerServiceTest {
                 FakeTopicResource.READ,
                 FakeTopicResource.WRITE,
                 FakeTopicResource.DESCRIBE // by implication rules
-                );
+        );
         for (var op : FakeTopicResource.values()) {
             assertThat(decision(authz, new UserPrincipal("Alice"), op, "baz"))
                     .as("Matching operation %s", op)

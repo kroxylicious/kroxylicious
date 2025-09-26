@@ -43,9 +43,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class AuthorizationIT extends BaseIT {
 
     // 1. Spin a cluster with Users:
-    //     * Alice directly authorized for operation
-    //     * Bob indirectly authorized for operation (by implication)
-    //     * Eve not authorized for operation
+    // * Alice directly authorized for operation
+    // * Bob indirectly authorized for operation (by implication)
+    // * Eve not authorized for operation
     // 2. Do some prep (e.g. create a topic T, create a group G)
     // 3. Make a request for T as each of Alice, Bob and Eve. Record the response
     // 4. Assert visible side effects
@@ -59,22 +59,22 @@ public class AuthorizationIT extends BaseIT {
     static List<Arguments> metadata() {
         List<Arguments> result = new ArrayList<>();
         for (var apiVersion : ApiKeys.METADATA.allVersions()) {
-            for (boolean allowAutoCreation : new boolean[]{true, false}) {
+            for (boolean allowAutoCreation : new boolean[]{ true, false }) {
                 if (!allowAutoCreation && apiVersion < 4) {
                     continue;
                 }
-                for (List<MetadataRequestData.MetadataRequestTopic> topics : new List[]{null, List.of()}) {
+                for (List<MetadataRequestData.MetadataRequestTopic> topics : new List[]{ null, List.of() }) {
                     if (topics == null && apiVersion < 1) {
                         continue;
                     }
-                    for (boolean includeClusterAuthz : new boolean[]{true, false}) {
+                    for (boolean includeClusterAuthz : new boolean[]{ true, false }) {
                         if (apiVersion < 8 && includeClusterAuthz) {
                             continue;
                         }
                         if (apiVersion >= 11 && includeClusterAuthz) {
                             continue;
                         }
-                        for (boolean includeTopicAuthz : new boolean[]{true, false}) {
+                        for (boolean includeTopicAuthz : new boolean[]{ true, false }) {
                             if (apiVersion < 8 && includeTopicAuthz) {
                                 continue;
                             }
@@ -82,7 +82,8 @@ public class AuthorizationIT extends BaseIT {
                                     Arguments.of(apiVersion, allowAutoCreation, topics, includeClusterAuthz, includeTopicAuthz)));
                         }
                     }
-                }}
+                }
+            }
         }
         return result;
     }
@@ -96,11 +97,10 @@ public class AuthorizationIT extends BaseIT {
                   boolean includeClusterAuthz,
                   boolean includeTopicsAuthz,
                   @SaslMechanism(principals = {
-                          @SaslMechanism.Principal(user="alice", password="Alice"),
-                          @SaslMechanism.Principal(user="bob", password="Bob"),
-                          @SaslMechanism.Principal(user="eve", password="Eve")
-                  })
-                  KafkaCluster kafkaCluster,
+                          @SaslMechanism.Principal(user = "alice", password = "Alice"),
+                          @SaslMechanism.Principal(user = "bob", password = "Bob"),
+                          @SaslMechanism.Principal(user = "eve", password = "Eve")
+                  }) KafkaCluster kafkaCluster,
                   KafkaCluster kafkaCluster2) {
 
         Uuid topicId;
@@ -108,9 +108,9 @@ public class AuthorizationIT extends BaseIT {
             topicId = admin.createTopics(List.of(new NewTopic("topic", 1, (short) 1)))
                     .topicId("topic")
                     .toCompletionStage().toCompletableFuture().join();
-//            admin.createAcls(List.of(new AclBinding(new ResourcePattern(ResourceType.TOPIC, "topic", PatternType.LITERAL),
-//                    new AccessControlEntry("alice", "*", AclOperation.CREATE, AclPermissionType.ALLOW)))).all()
-//                    .toCompletionStage().toCompletableFuture().join();
+            // admin.createAcls(List.of(new AclBinding(new ResourcePattern(ResourceType.TOPIC, "topic", PatternType.LITERAL),
+            // new AccessControlEntry("alice", "*", AclOperation.CREATE, AclPermissionType.ALLOW)))).all()
+            // .toCompletionStage().toCompletableFuture().join();
         }
         Map<String, MetadataResponseData> responsesByUser = new HashMap<>();
 
@@ -138,13 +138,13 @@ public class AuthorizationIT extends BaseIT {
     private static void authenticate(KafkaClient client, String username, String password) {
         var h = (SaslHandshakeResponseData) client.getSync(new Request(ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_HANDSHAKE.latestVersion(), "test",
                 new SaslHandshakeRequestData()
-                        .setMechanism("PLAIN")
-                        )).payload().message();
+                        .setMechanism("PLAIN")))
+                .payload().message();
         assertThat(Errors.forCode(h.errorCode())).isEqualTo(Errors.NONE);
         var a = (SaslAuthenticateResponseData) client.getSync(new Request(ApiKeys.SASL_AUTHENTICATE, ApiKeys.SASL_AUTHENTICATE.latestVersion(), "test",
                 new SaslAuthenticateRequestData()
-                        .setAuthBytes((username + "\0" + username + "\0" + password).getBytes(StandardCharsets.UTF_8))
-        )).payload().message();
+                        .setAuthBytes((username + "\0" + username + "\0" + password).getBytes(StandardCharsets.UTF_8))))
+                .payload().message();
         assertThat(Errors.forCode(a.errorCode())).isEqualTo(Errors.NONE);
     }
 
