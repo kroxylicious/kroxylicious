@@ -29,11 +29,13 @@ import io.fabric8.kubernetes.client.CustomResource;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
+import io.strimzi.api.kafka.model.kafka.Kafka;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
+import io.kroxylicious.kubernetes.api.common.Ref;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterStatus;
@@ -105,6 +107,10 @@ public class ResourcesUtil {
     static boolean isSecret(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "Secret".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
+    }
+
+    static boolean isKafka(LocalRef<?> ref) {
+        return (ref.getKind() == null || ref.getKind().isEmpty() || "Kafka".equals(ref.getKind()));
     }
 
     static boolean isConfigMap(LocalRef<?> ref) {
@@ -523,6 +529,30 @@ public class ResourcesUtil {
                 else {
                     return handleSupportedFileExtension(resource, trustAnchorRef, path, statusFactory, configMapOpt.get());
                 }
+            }
+        }
+        else {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
+                    path + " supports referents: configmaps"), List.of());
+        }
+    }
+
+    public static <T extends CustomResource<?, ?>> ResourceCheckResult<T> checkStrimziKafkaRef(T resource,
+                                                                                               Context<T> context,
+                                                                                               String eventSourceName,
+                                                                                               Ref ref,
+                                                                                               String path,
+                                                                                               StatusFactory<T> statusFactory) {
+        if (isKafka(ref.getStrimziKafkaRef())) {
+            Optional<Kafka> kafkaOpt = context.getSecondaryResource(Kafka.class, eventSourceName);
+            if (kafkaOpt.isEmpty()) {
+                return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                        Condition.REASON_REFS_NOT_FOUND,
+                        path + ": referenced resource not found"), List.of());
+            }
+            else {
+                return new ResourceCheckResult<>(null, List.of(kafkaOpt.get()));
             }
         }
         else {
