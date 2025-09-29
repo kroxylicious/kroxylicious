@@ -47,6 +47,27 @@ spec:
               type: object
               required: [ "bootstrapServers" ]
               properties:
+                ref:
+                  description: Reference to the strimzi cluster
+                  type: object
+                  properties:
+                    kind:
+                      description: The API kind of the resource containing the TLS client certificate.
+                      type: string
+                      default: Kafka
+                    group:
+                      description: The API group of the resource containing the TLS client certificate.
+                      type: string
+                      default: "kafka.strimzi.io"
+                    name:
+                      description: Name of the cluster
+                      type: string
+                    namespace:
+                      description: Namespace of the Kafka cluster
+                      type: string
+                    listenerName:
+                      description: listener type of the cluster
+                      type: string
                 bootstrapServers:
                   description: Bootstrap servers of the Kafka cluster.
                   type: string
