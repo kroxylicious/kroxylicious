@@ -35,7 +35,7 @@ import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
-import io.kroxylicious.kubernetes.api.common.Ref;
+import io.kroxylicious.kubernetes.api.common.StrimziKafkaRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterStatus;
@@ -541,10 +541,10 @@ public class ResourcesUtil {
     public static <T extends CustomResource<?, ?>> ResourceCheckResult<T> checkStrimziKafkaRef(T resource,
                                                                                                Context<T> context,
                                                                                                String eventSourceName,
-                                                                                               Ref ref,
+                                                                                               StrimziKafkaRef strimziKafkaRef,
                                                                                                String path,
                                                                                                StatusFactory<T> statusFactory) {
-        if (isKafka(ref.getStrimziKafkaRef())) {
+        if (isKafka(strimziKafkaRef.getRef())) {
             Optional<Kafka> kafkaOpt = context.getSecondaryResource(Kafka.class, eventSourceName);
             if (kafkaOpt.isEmpty()) {
                 return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,

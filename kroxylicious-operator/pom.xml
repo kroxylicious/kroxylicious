@@ -162,7 +162,6 @@
         <dependency>
             <groupId>io.strimzi</groupId>
             <artifactId>api</artifactId>
-            <version>0.47.0</version>
             <scope>compile</scope>
         </dependency>
         <dependency>

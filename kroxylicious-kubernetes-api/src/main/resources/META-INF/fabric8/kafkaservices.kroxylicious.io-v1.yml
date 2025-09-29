@@ -47,7 +47,7 @@ spec:
               type: object
               required: [ "bootstrapServers" ]
               properties:
-                ref:
+                strimziKafkaRef:
                   description: Reference to the strimzi cluster
                   type: object
                   properties:

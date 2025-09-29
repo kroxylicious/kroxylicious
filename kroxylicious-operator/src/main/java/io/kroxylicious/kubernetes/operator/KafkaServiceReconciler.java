@@ -30,7 +30,7 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 import io.strimzi.api.kafka.model.kafka.Kafka;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
-import io.kroxylicious.kubernetes.api.common.Ref;
+import io.kroxylicious.kubernetes.api.common.StrimziKafkaRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
@@ -59,7 +59,7 @@ public final class KafkaServiceReconciler implements
     public static final String CONFIG_MAPS_EVENT_SOURCE_NAME = "configmaps";
     public static final String KAFKA_EVENT_SOURCE_NAME = "kafkas";
 
-    private static final String SPEC_REF = "spec.ref";
+    private static final String SPEC_REF = "spec.strimziKafkaRef";
     private static final String SPEC_TLS_TRUST_ANCHOR_REF = "spec.tls.trustAnchorRef";
     private static final String SPEC_TLS_CERTIFICATE_REF = "spec.tls.certificateRef";
 
@@ -145,15 +145,15 @@ public final class KafkaServiceReconciler implements
                 kafka,
                 KafkaService.class,
                 service -> Optional.ofNullable(service.getSpec())
-                        .map(KafkaServiceSpec::getRef)
-                        .map(Ref::getStrimziKafkaRef));
+                        .map(KafkaServiceSpec::getStrimziKafkaRef)
+                        .map(StrimziKafkaRef::getRef));
     }
 
     @VisibleForTesting
     static PrimaryToSecondaryMapper<KafkaService> kafkaServiceToKafka() {
         return (KafkaService cluster) -> Optional.ofNullable(cluster.getSpec())
-                .map(KafkaServiceSpec::getRef)
-                .map(strimziKafkaRef -> ResourcesUtil.localRefAsResourceId(cluster, strimziKafkaRef.getStrimziKafkaRef()))
+                .map(KafkaServiceSpec::getStrimziKafkaRef)
+                .map(strimziKafkaRef -> ResourcesUtil.localRefAsResourceId(cluster, strimziKafkaRef.getRef()))
                 .orElse(Set.of());
     }
 
@@ -174,7 +174,7 @@ public final class KafkaServiceReconciler implements
         }
 
         var strimziKafkaRefOpt = Optional.ofNullable(service.getSpec())
-                .map(KafkaServiceSpec::getRef);
+                .map(KafkaServiceSpec::getStrimziKafkaRef);
         if (strimziKafkaRefOpt.isPresent()) {
             ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziKafkaRef(service, context, KAFKA_EVENT_SOURCE_NAME, strimziKafkaRefOpt.get(),
                     SPEC_REF,
