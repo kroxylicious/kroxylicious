@@ -22,8 +22,6 @@ class StrimziKafkaRefTest {
         var secretRefFoo2 = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").withGroup("").build())
                 .withListenerName("listener").build();
         assertThat(secretRefFoo).isEqualTo(secretRefFoo);
-
-        System.out.println(secretRefFoo.getRef().getName());
         assertThat(secretRefFoo).isEqualTo(secretRefFoo2);
         assertThat(secretRefFoo2).isEqualTo(secretRefFoo);
         assertThat(secretRefFoo).hasSameHashCodeAs(secretRefFoo2);

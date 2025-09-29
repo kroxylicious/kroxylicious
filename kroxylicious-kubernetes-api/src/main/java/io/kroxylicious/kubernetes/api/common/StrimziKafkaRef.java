@@ -43,7 +43,7 @@ public class StrimziKafkaRef
         return ref;
     }
 
-    public void setRef(AnyLocalRef strimziKafkaRef) {
+    public void setRef(AnyLocalRef ref) {
         this.ref = ref;
     }
 
