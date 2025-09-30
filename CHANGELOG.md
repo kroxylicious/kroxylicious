@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2710](https://github.com/kroxylicious/kroxylicious/pull/2710): bump org.apache.logging.log4j:log4j-bom from 2.25.1 to 2.25.2
 * [#2542](https://github.com/kroxylicious/kroxylicious/issues/2542): Add support for Kafka 4.1.0
 * [#2688](https://github.com/kroxylicious/kroxylicious/pull/2688): bump io.netty:netty-bom from 4.1.126.Final to 4.1.127.Final
 * [#2685](https://github.com/kroxylicious/kroxylicious/pull/2685): build(deps): bump kubernetes-client.version from 7.3.1 to 7.4.0

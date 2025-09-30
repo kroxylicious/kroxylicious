@@ -117,7 +117,7 @@
                                 <!--suppress UnresolvedMavenProperty -->
                                 <arg>--src-dir=${project.build.directory}/docs/embedded/</arg>
                                 <!--suppress UnresolvedMavenProperty -->
-                                <arg>--dest-dir=${rootdir}/target/web</arg>
+                                <arg>--dest-dir=${project.build.directory}/web</arg>
                                 <arg>--tocify-omit=index.html</arg>
                                 <arg>--tocify-omit=doc-schema.yaml</arg>
                                 <arg>--tocify-omit=README.md</arg>

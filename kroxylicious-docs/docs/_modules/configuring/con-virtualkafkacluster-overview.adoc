@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // kroxylicious-operator/assemblies/assembly-operator-deploy-a-proxy.adoc
