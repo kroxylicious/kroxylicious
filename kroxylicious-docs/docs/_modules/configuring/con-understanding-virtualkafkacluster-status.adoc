@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 [id='con-understanding-virtualkafkacluster-status-{context}']
 = `VirtualKafkaCluster` status reporting
 

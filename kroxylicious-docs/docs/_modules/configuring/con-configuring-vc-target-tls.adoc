@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 [id='con-configuring-target-cluster-connections-{context}']
 = Securing connections to target clusters
 
