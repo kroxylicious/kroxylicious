@@ -41,7 +41,7 @@
 
         <disruptor.version>4.0.0</disruptor.version>
         <freemarker.version>2.3.34</freemarker.version>
-        <guava.version>33.4.8-jre</guava.version>
+        <guava.version>33.5.0-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
         <jackson.version>2.20.0</jackson.version>
         <junit.version>5.13.4</junit.version>
