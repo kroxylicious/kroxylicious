@@ -6,6 +6,10 @@
 
 package io.kroxylicious.systemtests.clients.records;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -19,6 +23,7 @@ public class PythonConsumerRecord extends ConsumerRecord {
     /**
      * Instantiates a new python consumer record.
      *
+     * @param headers the headers
      * @param topic the topic
      * @param key the key
      * @param payload the payload
@@ -26,7 +31,8 @@ public class PythonConsumerRecord extends ConsumerRecord {
      * @param offset the offset
      */
     @JsonCreator
-    public PythonConsumerRecord(@JsonProperty("topic") String topic,
+    public PythonConsumerRecord(@JsonProperty("headers") List<Map<String, String>> headers,
+                                @JsonProperty("topic") String topic,
                                 @JsonProperty("key") String key,
                                 @JsonProperty("payload") String payload,
                                 @JsonProperty("partition") int partition,
@@ -36,5 +42,9 @@ public class PythonConsumerRecord extends ConsumerRecord {
         this.value = payload;
         this.partition = partition;
         this.offset = offset;
+        this.recordHeaders = new HashMap<>();
+        if (headers != null) {
+            headers.forEach(h -> recordHeaders.put(h.get("Key"), h.get("Value")));
+        }
     }
 }
