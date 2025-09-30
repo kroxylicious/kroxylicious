@@ -4,7 +4,7 @@
 //
 // kroxylicious-operator/_assemblies/assembly-operator-secure-client-proxy-connection.adoc
 
-[id='con-kafka-client-tls-protocol-{context}']
+[id='con-virtualkafkacluster-tls-protocol-{context}']
 = TLS version configuration for client-to-proxy connections
 
 [role="_abstract"]

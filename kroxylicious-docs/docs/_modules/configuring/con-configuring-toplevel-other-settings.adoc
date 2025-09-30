@@ -1,6 +1,6 @@
 :_mod-docs-content-type: CONCEPT
 
-[id='ref-configuring-toplevel-other-settings-{context}']
+[id='con-configuring-toplevel-other-settings-{context}']
 = Configuring management HTTP endpoints
 
 [role="_abstract"]

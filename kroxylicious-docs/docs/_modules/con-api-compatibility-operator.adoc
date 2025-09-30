@@ -4,7 +4,7 @@
 //
 // assembly-proxy-overview.adoc
 
-[id='con-api-compatibility{context}']
+[id='con-api-compatibility-operator-{context}']
 = Custom resource API compatibility
 
 [role="_abstract"]

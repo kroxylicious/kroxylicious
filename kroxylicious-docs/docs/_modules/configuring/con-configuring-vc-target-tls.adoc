@@ -1,6 +1,6 @@
 :_mod-docs-content-type: CONCEPT
 
-[id='con-configuring-target-cluster-connections-{context}']
+[id='con-configuring-vc-target-tls-{context}']
 = Securing connections to target clusters
 
 [role="_abstract"]

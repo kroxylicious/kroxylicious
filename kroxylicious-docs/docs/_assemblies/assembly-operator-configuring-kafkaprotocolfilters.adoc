@@ -4,7 +4,7 @@
 //
 // kroxylicious-operator/_assemblies/assembly-operator-deploy-a-proxy.adoc
 
-[id='assembly-configuring-kafkaprotocolfilters-{context}']
+[id='assembly-operator-configuring-kafkaprotocolfilters-{context}']
 = Filters
 
 [role="_abstract"]

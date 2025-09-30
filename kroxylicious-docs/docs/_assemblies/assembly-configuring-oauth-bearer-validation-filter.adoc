@@ -4,7 +4,7 @@
 //
 // index.adoc
 
-[id=''assembly-configuring-oauth-bearer-validation-filter-{context}']
+[id='assembly-configuring-oauth-bearer-validation-filter-{context}']
 = Configuring the Oauth Bearer valudation filter
 
 [role="_abstract"]

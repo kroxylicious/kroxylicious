@@ -4,7 +4,7 @@
 //
 // kroxylicious-operator/_assemblies/assembly-operator-secure-client-proxy-connection.adoc
 
-[id='con-kafka-client-mtls-{context}']
+[id='con-virtualkafkacluster-mtls-{context}']
 = Mutual TLS configuration for client-to-proxy connections
 
 [role="_abstract"]

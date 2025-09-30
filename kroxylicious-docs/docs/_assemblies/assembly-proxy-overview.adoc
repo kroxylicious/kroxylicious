@@ -5,7 +5,7 @@
 // kroxylicious-proxy/index.adoc
 // developer-guide/index.adoc
 
-[id='assembly-overview-{context}']
+[id='assembly-proxy-overview-{context}']
 = Kroxylicious Proxy overview
 
 [role="_abstract"]

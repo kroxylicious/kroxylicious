@@ -1,6 +1,6 @@
 :_mod-docs-content-type: CONCEPT
 
-[id='ref-configuring-vc-other-settings-{context}']
+[id='con-configuring-vc-other-settings-{context}']
 = Configuring per-virtual cluster logging
 
 [role="_abstract"]

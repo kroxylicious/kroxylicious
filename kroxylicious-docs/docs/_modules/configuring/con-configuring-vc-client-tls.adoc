@@ -1,6 +1,6 @@
 :_mod-docs-content-type: CONCEPT
 
-[id='con-configuring-client-connections-{context}']
+[id='con-configuring-vc-client-tls-{context}']
 = Securing connections from clients
 
 [role="_abstract"]
