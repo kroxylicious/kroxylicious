@@ -33,7 +33,7 @@ class ConformanceDT {
 
     @ParameterizedTest
     @MethodSource("asciiDocFiles")
-    void anchorIdsFormation(Path asciiDocFile) {
+    void shouldHaveAnchorIdsInExpectedForm(Path asciiDocFile) {
         Options book = Options.builder()
                 .sourcemap(true)
                 .docType("book")
@@ -41,10 +41,13 @@ class ConformanceDT {
 
         try (var asciidoctor = Asciidoctor.Factory.create()) {
             var doc = asciidoctor.loadFile(asciiDocFile.toFile(), book);
-            assertThat(getId(doc))
-                    .withFailMessage("Asciidoc file %s lacks a top-level id that conforms to the expected format", asciiDocFile.toFile())
+            var actualId = getId(doc);
+            var expectedId = expectedId(asciiDocFile);
+            assertThat(actualId)
+                    .withFailMessage("Asciidoc file %s lacks a top-level id that conforms to the expected format. Expecting '%s', found '%s'",
+                            asciiDocFile.toFile(), expectedId, actualId)
                     .isNotNull()
-                    .isEqualTo(expectedId(asciiDocFile));
+                    .isEqualTo(expectedId);
         }
     }
 
@@ -54,6 +57,8 @@ class ConformanceDT {
             return doc.getId();
         }
         else {
+            // this part is needed for the concept files that are using a discrete attribute.
+            // maybe there's a better way.
             var outer = doc.getBlocks().stream().findFirst();
             var inner = outer.map(StructuralNode::getBlocks)
                     .flatMap(b -> b.stream().findFirst());

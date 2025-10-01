@@ -1,4 +1,4 @@
-:_mod-docs-content-type: CONCEPT
+:_mod-docs-content-type: SNIPPET
 
 // file included in the following:
 //

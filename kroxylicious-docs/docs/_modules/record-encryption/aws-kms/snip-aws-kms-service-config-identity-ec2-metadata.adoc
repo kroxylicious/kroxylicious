@@ -1,11 +1,9 @@
-:_mod-docs-content-type: CONCEPT
+:_mod-docs-content-type: SNIPPET
 
 // file included in the following:
 //
 // con-aws-kms-plugin-configuration.adoc
 
-
-// TODO: Would this be better as a snippet?
 
 .Configuration for authenticating with EC2 metadata
 [source, yaml]
