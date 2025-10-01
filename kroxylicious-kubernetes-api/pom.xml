@@ -169,6 +169,9 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ProxyRef>
                             io.kroxylicious.kubernetes.api.common.ProxyRef
                         </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ProxyRef>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.StrimziKafkaRef>
+                            io.kroxylicious.kubernetes.api.common.StrimziKafkaRef
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.StrimziKafkaRef>
                         <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TargetKafkaServiceRef>
                             io.kroxylicious.kubernetes.api.common.KafkaServiceRef
                         </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.TargetKafkaServiceRef>
