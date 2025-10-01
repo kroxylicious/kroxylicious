@@ -8,8 +8,10 @@
 = Operating a proxy
 
 [role="_abstract"]
-Operate a deployed proxy by configuring its resource allocations.
+Step-by-step guide to operating the proxy.
 
 This section assumes you have a running Kroxylicious Proxy instance.
 
+include::../_modules/configuring/con-understanding-virtualkafkacluster-status.adoc[leveloffset=+1]
+include::../_modules/configuring/con-understanding-kafkaproxyingress-status.adoc[leveloffset=+1]
 include::../_modules/configuring/con-kafkaproxy-cpu-memory-allocation.adoc[leveloffset=+1]
