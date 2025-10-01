@@ -2,6 +2,7 @@
 
 
 [discrete]
+[id='con-about-oauth-bearer-validation-guide-{context}']
 = About this guide
 
 [role="_abstract"]

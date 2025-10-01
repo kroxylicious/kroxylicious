@@ -4,7 +4,7 @@
 //
 // assemblies/assembly-operator-install.adoc
 
-[id='proc-deploying-operator-olm-ui-{context}']
+[id='proc-install-operator-olm-{context}']
 = Installing the operator from the OperatorHub
 
 [role="_abstract"]

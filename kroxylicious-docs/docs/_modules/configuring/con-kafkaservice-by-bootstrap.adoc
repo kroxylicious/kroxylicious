@@ -4,7 +4,7 @@
 //
 // kroxylicious-operator/_assemblies/assembly-operator-deploy-a-proxy.adoc
 
-[id='con-configuring-kafkaservice-bootstrap-{context}']
+[id='con-kafkaservice-by-bootstrap-{context}']
 = Configuration for proxied Kafka clusters
 
 [role="_abstract"]

@@ -2,6 +2,7 @@
 
 
 [discrete]
+[id='con-about-operator-guide-{context}']
 = About this guide
 
 [role="_abstract"]

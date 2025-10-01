@@ -4,7 +4,7 @@
 //
 // con-operator-setting-log-levels.adoc
 
-[id='proc-operator-setting-log-levels-proxy{context}']
+[id='proc-operator-setting-log-levels-proxy-{context}']
 
 = Overriding proxy logging levels
 

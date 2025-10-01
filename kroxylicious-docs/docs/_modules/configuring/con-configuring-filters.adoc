@@ -1,6 +1,6 @@
 :_mod-docs-content-type: CONCEPT
 
-[id='ref-configuring-filters-{context}']
+[id='con-configuring-filters-{context}']
 = Defining filters
 
 [role="_abstract"]

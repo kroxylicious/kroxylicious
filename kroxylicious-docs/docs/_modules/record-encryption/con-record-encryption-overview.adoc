@@ -4,7 +4,7 @@
 //
 // record-encryption-guide/index.adoc
 
-[id='con-topic-encryption-overview-{context}']
+[id='con-record-encryption-overview-{context}']
 = How encryption works
 
 [role="_abstract"]

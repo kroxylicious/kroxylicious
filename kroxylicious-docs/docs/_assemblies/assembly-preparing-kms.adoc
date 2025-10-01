@@ -2,6 +2,7 @@
 
 // record-encryption-guide/index.adoc
 
+[id='assembly-preparing-kms-{context}']
 = Preparing your KMS
 
 [role="_abstract"]

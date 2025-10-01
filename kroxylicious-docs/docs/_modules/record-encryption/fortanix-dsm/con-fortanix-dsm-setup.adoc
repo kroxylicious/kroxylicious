@@ -41,7 +41,7 @@ Adjust the instructions if a different naming convention is used.
 == Role of the administrator
 
 To use the filter, an administrator or an administrative process must create the encryption keys within Fortanix DSM,
-which are used by the xref:con-topic-encryption-overview-{context}[envelope encryption] process.
+which are used by the xref:con-record-encryption-overview-{context}[envelope encryption] process.
 
 The organization deploying the Record Encryption filter is responsible for managing this administrator or process.
 

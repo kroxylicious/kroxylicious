@@ -4,7 +4,7 @@
 //
 // con-operator-ingesting-metrics.adoc
 
-[id='proc-operator-ingesting-metrics-operator{context}']
+[id='proc-operator-ingesting-metrics-operator-{context}']
 = Ingesting operator metrics
 
 [role="_abstract"]

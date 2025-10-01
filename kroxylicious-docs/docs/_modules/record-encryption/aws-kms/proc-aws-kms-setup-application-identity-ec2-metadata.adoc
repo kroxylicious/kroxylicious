@@ -4,7 +4,7 @@
 //
 // con-aws-kms-setup.adoc
 
-[id='proc-aws-kms-setup-application-ec2-metadata-{context}']
+[id='proc-aws-kms-setup-application-identity-ec2-metadata-{context}']
 
 = Authenticating using AWS EC2 metadata
 

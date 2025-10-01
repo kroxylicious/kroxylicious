@@ -4,7 +4,7 @@
 //
 // kroxylicious-operator/_assemblies/assembly-operator-secure-client-proxy-connection.adoc
 
-[id='con-kafka-client-tls-cipher-{context}']
+[id='con-virtualkafkacluster-tls-cipher-{context}']
 = TLS cipher suite configuration for client-to-proxy connections
 
 [role="_abstract"]

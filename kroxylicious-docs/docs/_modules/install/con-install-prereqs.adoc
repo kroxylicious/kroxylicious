@@ -4,7 +4,7 @@
 //
 // _assemblies/assembly-operator-install.adoc
 
-[id='install-prereqs-{context}']
+[id='con-install-prereqs-{context}']
 = Install prerequisites
 
 [role="_abstract"]

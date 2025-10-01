@@ -4,7 +4,7 @@
 //
 // kroxylicious-operator/index.adoc
 
-[id='assembly-installing-{context}']
+[id='assembly-operator-install-{context}']
 = Installing the Kroxylicious Operator
 
 [role="_abstract"]
