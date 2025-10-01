@@ -5,6 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## SNAPSHOT
 ## 0.16.0
 
 * [#2710](https://github.com/kroxylicious/kroxylicious/pull/2710): bump org.apache.logging.log4j:log4j-bom from 2.25.1 to 2.25.2
