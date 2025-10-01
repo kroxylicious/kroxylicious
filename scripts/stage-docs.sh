@@ -122,7 +122,7 @@ echo "Checking out tags/${RELEASE_TAG} in  in $(git remote get-url "${REPOSITORY
 git checkout "tags/${RELEASE_TAG}"
 
 # Run docs build
-mvn -Dquick -P dist clean package --non-recursive
+mvn -P dist package --pl kroxylicious-docs
 
 # Move to temp directory so we don't end up with website files in the main repository
 cd "${WEBSITE_TMP}"
