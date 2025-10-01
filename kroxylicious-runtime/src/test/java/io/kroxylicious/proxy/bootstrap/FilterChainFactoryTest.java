@@ -102,7 +102,6 @@ class FilterChainFactoryTest {
 
     @Test
     void testNullFiltersInConfigResultsInEmptyList() {
-        EventLoop eventLoop = new DefaultEventLoop();
         FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, null);
         List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(eventLoop, pfr), null);
         assertThat(filters)
