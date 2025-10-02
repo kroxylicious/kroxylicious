@@ -288,7 +288,7 @@ class SaslInspectionFilter
             else {
                 currentState = State.DISALLOWING_AUTHENTICATE_REQUEST;
             }
-            saslObserver = null;
+            this.saslObserver = null;
         }
         else {
             this.currentState = State.REQUIRING_AUTHENTICATE_REQUEST;
