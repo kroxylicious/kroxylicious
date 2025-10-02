@@ -15,6 +15,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
+import org.apache.kafka.common.errors.AuthenticationException;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -356,6 +357,44 @@ class SaslInspectionFilterTest {
 
         // Then
         assertThat(actualAuthenticateResponse)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .satisfies(rfr -> {
+                    assertThat(rfr.message())
+                            .isEqualTo(expectedAuthenticateResponse);
+                    assertThat(rfr.closeConnection()).isTrue();
+                });
+    }
+
+    @Test
+    void shouldDetectMissingAuthzId() {
+        // Given
+
+        // This SASL observer fails to collect an authz
+        var saslObserver = mock(SaslObserver.class);
+        when(saslObserver.authorizationId()).thenThrow(new AuthenticationException("mock - no authz"));
+        when(saslObserver.clientResponse(any(byte[].class))).thenReturn(true);
+        when(saslObserver.isFinished()).thenReturn(true);
+
+        var saslObserverFactory = mock(SaslObserverFactory.class);
+        when(saslObserverFactory.createObserver()).thenReturn(saslObserver);
+
+        var filter = new SaslInspectionFilter(Map.of("PLAIN", saslObserverFactory));
+
+        doSaslHandshakeRequest("PLAIN", filter);
+        doSaslHandshakeResponse("PLAIN", filter);
+
+        doSaslAuthenticateRequest("anything".getBytes(StandardCharsets.UTF_8), filter);
+
+        var authenticateResponse = new SaslAuthenticateResponseData();
+        var expectedAuthenticateResponse = new SaslAuthenticateResponseData().setErrorCode(Errors.ILLEGAL_SASL_STATE.code());
+
+        // When
+        var actualResponse = filter.onSaslAuthenticateResponse(authenticateResponse.highestSupportedVersion(),
+                new ResponseHeaderData(),
+                authenticateResponse, context);
+
+        // Then
+        assertThat(actualResponse)
                 .succeedsWithin(Duration.ofSeconds(1))
                 .satisfies(rfr -> {
                     assertThat(rfr.message())
