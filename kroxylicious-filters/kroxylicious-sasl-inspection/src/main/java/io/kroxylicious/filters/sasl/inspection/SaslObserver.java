@@ -49,5 +49,11 @@ public interface SaslObserver {
      */
     boolean isFinished();
 
+    /**
+     * Returns the negotiated authorization identity
+     * @return negotiated authorization identity.
+     *
+     * @throws AuthenticationException if the authorization identity has not been established.
+     */
     String authorizationId() throws AuthenticationException;
 }
