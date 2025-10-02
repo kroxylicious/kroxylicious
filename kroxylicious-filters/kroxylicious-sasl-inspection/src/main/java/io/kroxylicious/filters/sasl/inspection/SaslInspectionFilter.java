@@ -77,26 +77,18 @@ class SaslInspectionFilter
     }
 
     private State currentState = State.REQUIRING_HANDSHAKE_REQUEST;
-    private @Nullable SaslObserver saslObserver;
-    private int numAuthenticateSeen;
+    private @Nullable SaslObserver saslObserver = null;
 
     /**
-     * True if it has been established that client/broker support re-authentication (KIP-368).
+     * Flag indicating if the client and broker supports re-authentication (KIP-368). True
+     * indicates that KIP-368 is supported, false that is not.  Null indicates that it
+     * is still to be established.
      */
-    private boolean clientSupportsReauthentication;
+    private @Nullable Boolean clientSupportsReauthentication = null;
 
     SaslInspectionFilter(Map<String, SaslObserverFactory> mechanismFactories) {
         Objects.requireNonNull(mechanismFactories, "mechanismFactories");
         this.observerFactoryMap = mechanismFactories;
-        this.clientSupportsReauthentication = false;
-        resetState(State.REQUIRING_HANDSHAKE_REQUEST);
-    }
-
-    private void resetState(State state) {
-        Objects.requireNonNull(state, "state");
-        currentState = state;
-        saslObserver = null;
-        numAuthenticateSeen = 0;
     }
 
     @Override
@@ -207,8 +199,7 @@ class SaslInspectionFilter
                                                                           FilterContext context) {
         if (this.currentState == State.REQUIRING_AUTHENTICATE_REQUEST) {
             Objects.requireNonNull(this.saslObserver);
-            numAuthenticateSeen += 1;
-            if (numAuthenticateSeen == 1) {
+            if (this.clientSupportsReauthentication == null) {
                 this.clientSupportsReauthentication = apiVersion > 0; // KIP-368
             }
             try {
@@ -274,6 +265,8 @@ class SaslInspectionFilter
     private CompletionStage<ResponseFilterResult> processSuccessfulAuthenticateResponse(ResponseHeaderData header, SaslAuthenticateResponseData response,
                                                                                         FilterContext context, SaslObserver saslObserver) {
         if (saslObserver.isFinished()) {
+            Objects.requireNonNull(clientSupportsReauthentication);
+
             String authorizationIdFromClient;
             try {
                 authorizationIdFromClient = saslObserver.authorizationId();
@@ -288,7 +281,14 @@ class SaslInspectionFilter
                     .addArgument(authorizationIdFromClient)
                     .log();
             context.clientSaslAuthenticationSuccess(saslObserver.mechanismName(), authorizationIdFromClient);
-            resetState(this.clientSupportsReauthentication ? State.ALLOWING_HANDSHAKE_REQUEST : State.DISALLOWING_AUTHENTICATE_REQUEST);
+
+            if (Boolean.TRUE.equals(clientSupportsReauthentication)) {
+                currentState = State.ALLOWING_HANDSHAKE_REQUEST;
+            }
+            else {
+                currentState = State.DISALLOWING_AUTHENTICATE_REQUEST;
+            }
+            saslObserver = null;
         }
         else {
             this.currentState = State.REQUIRING_AUTHENTICATE_REQUEST;
@@ -306,7 +306,6 @@ class SaslInspectionFilter
                 .log();
         var authorizedId = Optional.ofNullable(this.saslObserver).map(SaslObserver::authorizationId).orElse(null);
         context.clientSaslAuthenticationFailure(mechanism, authorizedId, error.exception());
-        resetState(State.REQUIRING_HANDSHAKE_REQUEST);
         return context.responseFilterResultBuilder()
                 .forward(header, response)
                 .withCloseConnection()
