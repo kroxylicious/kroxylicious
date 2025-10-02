@@ -57,7 +57,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SaslInspectionIT {
     /**
      * client handshakes with PLAIN
-     * proxy and broker have PLAIN enabled
+     * proxy allows insecure SASL mechanisms so PLAIN inspection is permitted
+     * broker has PLAIN enabled
      * client authenticated with the correct password
      * => client should be able to produce and consume
      */
@@ -77,7 +78,8 @@ class SaslInspectionIT {
 
     /**
      * client handshakes with SCRAM-SHA-256
-     * proxy and broker have SCRAM-SHA-256 enabled
+     * proxy supports a SCRAM-SHA-256 inspection
+     * broker has SCRAM-SHA-256 enabled
      * client authenticated with the correct password
      * => client should be able to produce and consume
      */
@@ -96,10 +98,8 @@ class SaslInspectionIT {
     }
 
     /**
-     * client handshakes with SCRAM-SHA-256
-     * proxy and broker have SCRAM-SHA-256 enabled
-     * client authenticated with the correct password
-     * => client should be able to produce and consume
+     * Same as {@link #shouldAuthenticateWhenSameMechanism_SCRAM_SHA_256(KafkaCluster, Topic)} but with
+     * SCRAM-SHA-512 rather than SCRAM-SHA-256.
      */
     @Test
     void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_512(@SaslMechanism(value = "SCRAM-SHA-512", principals = {
@@ -117,9 +117,10 @@ class SaslInspectionIT {
 
     /**
      * client handshakes with PLAIN
-     * proxy and broker have PLAIN enabled
-     * client authenticated with the correct password
-     * => client should be able to produce and consume
+     * proxy allows insecure SASL mechanisms so PLAIN inspection is permitted
+     * broker has PLAIN enabled
+     * client authenticated with incorrect password
+     * => client should not be able to produce and consume
      */
     @Test
     void shouldNotAuthenticateWhenSameMechanismButWrongPassword_PLAIN(@SaslMechanism(value = "PLAIN", principals = {
@@ -135,10 +136,8 @@ class SaslInspectionIT {
     }
 
     /**
-     * client handshakes with PLAIN
-     * proxy and broker have PLAIN enabled
-     * client authenticated with the correct password
-     * => client should be able to produce and consume
+     * As {@link #shouldAuthenticateWhenSameMechanism_PLAIN(KafkaCluster, Topic)}
+     * but exercising the reauth case.
      */
     @Test
     void shouldAuthenticateWhenSameMechanism_PLAIN_withReauth(@SaslMechanism(value = "PLAIN", principals = {
@@ -158,10 +157,8 @@ class SaslInspectionIT {
     }
 
     /**
-     * client handshakes with SCRAM-SHA-256
-     * proxy and broker have SCRAM-SHA-256 enabled
-     * client authenticated with the correct password
-     * => client should be able to produce and consume
+     * As {@link #shouldAuthenticateWhenSameMechanism_SCRAM_SHA_512(KafkaCluster, Topic)}
+     * but exercising the reauth case.
      */
     @Test
     void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_512_withReauth(@SaslMechanism(value = "SCRAM-SHA-256", principals = {
@@ -182,7 +179,7 @@ class SaslInspectionIT {
 
     /**
      * broker has PLAIN enabled
-     * proxy has SCRAM enabled
+     * proxy does not support PLAIN inspection
      * client handshakes with PLAIN
      * => client should not complete authentication
      */
@@ -211,7 +208,7 @@ class SaslInspectionIT {
 
     /**
      * broker has PLAIN enabled
-     * proxy has PLAIN enabled
+     * proxy supports PLAIN inspection
      * client not configured for SASL
      * => client should not complete authentication
      */
