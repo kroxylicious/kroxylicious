@@ -190,7 +190,7 @@ class SaslInspectionIT {
     void shouldNotAuthenticateWhenNoCommonMechanism(@SaslMechanism(value = "PLAIN", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
                                                     Topic topic) {
-        var config = buildProxyConfig("SCRAM-SHA-256", cluster);
+        var config = buildProxyConfig(cluster, false);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(
@@ -216,9 +216,9 @@ class SaslInspectionIT {
      * => client should not complete authentication
      */
     @Test
-    void shouldNotConnectClientNotConfiguredForSasl(@SaslMechanism(value = "PLAIN", principals = {
+    void shouldNotConnectWhenClientNotConfiguredForSasl(@SaslMechanism(value = "PLAIN", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster) {
-        var config = buildProxyConfig("PLAIN", cluster);
+        var config = buildProxyConfig(cluster, true);
 
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(Map.of(
@@ -234,7 +234,8 @@ class SaslInspectionIT {
 
     private static void assertClientsGetSaslAuthenticationException(KafkaCluster cluster, Topic topic, String mechanism, String clientLoginModule, String username,
                                                                     String password) {
-        var config = buildProxyConfig(mechanism, cluster);
+        var enableInsecureMechanisms = "PLAIN".equals(mechanism);
+        var config = buildProxyConfig(cluster, enableInsecureMechanisms);
 
         String jaasConfig = "%s required%n  username=\"%s\"%n   password=\"%s\";".formatted(clientLoginModule, username, password);
         try (var tester = kroxyliciousTester(config);
@@ -274,7 +275,8 @@ class SaslInspectionIT {
                                                       final int numAuthReqPerAuth,
                                                       long pauseMs)
             throws InterruptedException {
-        var config = buildProxyConfig(mechanism, cluster);
+        var enableInsecureMechanisms = "PLAIN".equals(mechanism);
+        var config = buildProxyConfig(cluster, enableInsecureMechanisms);
 
         String jaasConfig = "%s required%n  username=\"%s\"%n   password=\"%s\";".formatted(clientLoginModule, username, password);
         try (var tester = kroxyliciousTester(config);
@@ -326,11 +328,11 @@ class SaslInspectionIT {
         }
     }
 
-    private static ConfigurationBuilder buildProxyConfig(String enabledSaslMech, KafkaCluster cluster) {
+    private static ConfigurationBuilder buildProxyConfig(KafkaCluster cluster, boolean enableInsecureMechanisms) {
         NamedFilterDefinition saslInspection = new NamedFilterDefinitionBuilder(
                 SaslInspection.class.getName(),
                 SaslInspection.class.getName())
-                .withConfig("enableInsecureMechanisms", "PLAIN".equals(enabledSaslMech))
+                .withConfig("enableInsecureMechanisms", enableInsecureMechanisms)
                 .build();
         NamedFilterDefinition counter = new NamedFilterDefinitionBuilder(
                 ProtocolCounter.class.getName(),
