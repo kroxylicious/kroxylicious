@@ -1,7 +1,7 @@
 :_mod-docs-content-type: CONCEPT
 
-[id='con-understanding-kafkaproxyingress-status-{context}']
-= Understanding the status of the `KafkaProxyIngress` resource
+[id='con-checking-kafkaproxyingress-status-{context}']
+= Checking the status of the `KafkaProxyIngress` resource
 
 [role="_abstract"]
 The status of a `KafkaProxyIngress` resource provides feedback on its configuration through a set of conditions.
