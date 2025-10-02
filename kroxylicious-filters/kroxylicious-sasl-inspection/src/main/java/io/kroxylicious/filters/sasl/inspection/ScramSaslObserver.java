@@ -10,10 +10,11 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.kafka.common.errors.AuthenticationException;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
-import org.apache.kafka.common.security.scram.internals.ScramFormatter;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -25,6 +26,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * good for both.
  */
 public class ScramSaslObserver implements SaslObserver {
+
+    private static final Pattern EQUAL_TWO_C = Pattern.compile("=2C", Pattern.LITERAL);
+    private static final Pattern EQUAL_THREE_D = Pattern.compile("=3D", Pattern.LITERAL);
+
     private final String mechanismName;
     private boolean gotServerFinal;
     private @Nullable String authorizationId;
@@ -46,7 +51,7 @@ public class ScramSaslObserver implements SaslObserver {
                 throw new SaslAuthenticationException("Invalid SCRAM client first message, username (n) absent");
             }
             var authzid = tokens.get(1).startsWith("a=") ? tokens.get(1).substring(2) : "";
-            authorizationId = ScramFormatter.username(authzid.isEmpty() ? username : authzid);
+            authorizationId = username(authzid.isEmpty() ? username : authzid);
             return true;
         }
         return false;
@@ -99,6 +104,19 @@ public class ScramSaslObserver implements SaslObserver {
                     tokens.size());
         }
         return tokens;
+    }
+
+    /**
+     * Copied from org.apache.kafka.common.security.scram.internals.ScramFormatter#username(java.lang.String)
+     * @param saslName sasl name
+     * @return user name
+     */
+    private static String username(String saslName) {
+        String username = EQUAL_TWO_C.matcher(saslName).replaceAll(Matcher.quoteReplacement(","));
+        if (EQUAL_THREE_D.matcher(username).replaceAll(Matcher.quoteReplacement("")).indexOf('=') >= 0) {
+            throw new IllegalArgumentException("Invalid username: " + saslName);
+        }
+        return EQUAL_THREE_D.matcher(username).replaceAll(Matcher.quoteReplacement("="));
     }
 
 }
