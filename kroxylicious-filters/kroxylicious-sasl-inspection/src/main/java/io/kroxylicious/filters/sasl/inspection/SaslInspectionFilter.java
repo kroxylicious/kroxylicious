@@ -209,7 +209,7 @@ class SaslInspectionFilter
             Objects.requireNonNull(this.saslObserver);
             numAuthenticateSeen += 1;
             if (numAuthenticateSeen == 1) {
-                this.clientSupportsReauthentication = header.requestApiVersion() > 0; // KIP-368
+                this.clientSupportsReauthentication = apiVersion > 0; // KIP-368
             }
             try {
                 var acquiredAuthorizationId = this.saslObserver.clientResponse(request.authBytes());
@@ -233,7 +233,7 @@ class SaslInspectionFilter
                         .log();
                 return closeConnectionWithShortCircuitResponse(context, new SaslAuthenticateResponseData()
                         .setErrorCode(Errors.ILLEGAL_SASL_STATE.code())
-                        .setErrorMessage("Cannot extract authorizationId from SASL authenticate request"));
+                        .setErrorMessage("Proxy cannot extract authorizationId from SASL authenticate request"));
             }
             this.currentState = State.AWAITING_AUTHENTICATE_RESPONSE;
             return context.forwardRequest(header, request);
