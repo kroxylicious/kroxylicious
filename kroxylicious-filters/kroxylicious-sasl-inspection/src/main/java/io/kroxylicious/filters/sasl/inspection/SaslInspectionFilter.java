@@ -9,6 +9,7 @@ package io.kroxylicious.filters.sasl.inspection;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.errors.AuthenticationException;
@@ -77,7 +78,6 @@ class SaslInspectionFilter
 
     private State currentState = State.REQUIRING_HANDSHAKE_REQUEST;
     private @Nullable SaslObserver saslObserver;
-    private @Nullable String authorizationIdFromClient;
     private int numAuthenticateSeen;
 
     /**
@@ -96,7 +96,6 @@ class SaslInspectionFilter
         Objects.requireNonNull(state, "state");
         currentState = state;
         saslObserver = null;
-        authorizationIdFromClient = null;
         numAuthenticateSeen = 0;
     }
 
@@ -215,12 +214,11 @@ class SaslInspectionFilter
             try {
                 var acquiredAuthorizationId = this.saslObserver.clientResponse(request.authBytes());
                 if (acquiredAuthorizationId) {
-                    this.authorizationIdFromClient = this.saslObserver.authorizationId();
                     LOGGER.atInfo()
                             .setMessage("Client '{}' on channel {} sent {} authorizationId '{}'; forwarding to server")
                             .addArgument(header::clientId)
                             .addArgument(context::channelDescriptor)
-                            .addArgument(() -> authorizationIdFromClient)
+                            .addArgument(() -> this.saslObserver.authorizationId())
                             .log();
                 }
             }
@@ -276,15 +274,20 @@ class SaslInspectionFilter
     private CompletionStage<ResponseFilterResult> processSuccessfulAuthenticateResponse(ResponseHeaderData header, SaslAuthenticateResponseData response,
                                                                                         FilterContext context, SaslObserver saslObserver) {
         if (saslObserver.isFinished()) {
-            if (this.authorizationIdFromClient == null) {
+            String authorizationIdFromClient;
+            try {
+                authorizationIdFromClient = saslObserver.authorizationId();
+            }
+            catch (AuthenticationException | IllegalStateException e) {
                 return closeConnectionWithResponse(header, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()), context);
             }
+
             LOGGER.atInfo()
                     .setMessage("Server accepts SASL credentials for client on channel {}, announcing that client has authorizationId {}")
                     .addArgument(context::channelDescriptor)
-                    .addArgument(() -> this.authorizationIdFromClient)
+                    .addArgument(authorizationIdFromClient)
                     .log();
-            context.clientSaslAuthenticationSuccess(saslObserver.mechanismName(), this.authorizationIdFromClient);
+            context.clientSaslAuthenticationSuccess(saslObserver.mechanismName(), authorizationIdFromClient);
             resetState(this.clientSupportsReauthentication ? State.ALLOWING_HANDSHAKE_REQUEST : State.DISALLOWING_AUTHENTICATE_REQUEST);
         }
         else {
@@ -301,7 +304,8 @@ class SaslInspectionFilter
                 .addArgument(error::name)
                 .addArgument(context::channelDescriptor)
                 .log();
-        context.clientSaslAuthenticationFailure(mechanism, this.authorizationIdFromClient, error.exception());
+        var authorizedId = Optional.ofNullable(this.saslObserver).map(SaslObserver::authorizationId).orElse(null);
+        context.clientSaslAuthenticationFailure(mechanism, authorizedId, error.exception());
         resetState(State.REQUIRING_HANDSHAKE_REQUEST);
         return context.responseFilterResultBuilder()
                 .forward(header, response)
