@@ -42,7 +42,7 @@ public class SaslInspection implements FilterFactory<Config, Config> {
                 .filter(sof -> !sof.isInsecure() || config.enableInsecureMechanisms())
                 .collect(Collectors.toMap(SaslObserverFactory::mechanismName, Function.identity(),
                         (sof1, sof2) -> {
-                            if (sof1.getClass() != sof1.getClass()) {
+                            if (sof1.getClass() != sof2.getClass()) {
                                 throw new IllegalStateException(sof1.getClass().getSimpleName() + " and " + sof2.getClass().getSimpleName()
                                         + " both register the same SASL mechanism name " + sof1.mechanismName());
                             }

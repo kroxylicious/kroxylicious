@@ -84,8 +84,7 @@ class ServiceBasedPluginFactoryRegistryTest {
     }
 
     @Test
-
-    void shouldKnowRegisteredNames() {
+    void shouldReportRegisteredNames() {
         var names = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithAmbiguousImpls.class).registeredInstanceNames();
         assertThat(names).containsExactly("io.kroxylicious.proxy.config.ambiguous1.Ambiguous", "io.kroxylicious.proxy.config.ambiguous2.Ambiguous");
     }

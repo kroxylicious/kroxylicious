@@ -13,12 +13,15 @@ import java.util.Objects;
 
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * A SASL observer capable of extracting an authorization id from a
  * <a href="https://tools.ietf.org/html/rfc4616">SASL PLAIN</a> client initial response.
  */
 class PlainSaslObserver implements SaslObserver {
     private boolean gotExpectedServerFinal;
+    @Nullable
     private String authorizationId;
 
     @Override
