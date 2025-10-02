@@ -15,7 +15,7 @@ import org.apache.kafka.common.errors.AuthenticationException;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.security.scram.internals.ScramFormatter;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A SASL observer capable of extracting an authorization id from a
@@ -27,7 +27,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 public class ScramSaslObserver implements SaslObserver {
     private final String mechanismName;
     private boolean gotServerFinal;
-    private String authorizationId;
+    private @Nullable String authorizationId;
 
     public ScramSaslObserver(String mechanismName) {
         Objects.requireNonNull(mechanismName);
@@ -82,7 +82,6 @@ public class ScramSaslObserver implements SaslObserver {
         return authorizationId;
     }
 
-    @NonNull
     private List<String> parseScramClientFirst(String clientFirst) {
         List<String> tokens = new ArrayList<>(4);
         int startIndex = 0;

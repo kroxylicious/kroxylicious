@@ -16,8 +16,6 @@ import io.kroxylicious.proxy.filter.FilterDispatchExecutor;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.internal.NettyFilterDispatchExecutor;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 public class NettyFilterContext implements FilterFactoryContext {
     private final FilterDispatchExecutor dispatchExecutor;
     private final PluginFactoryRegistry pluginFactoryRegistry;
@@ -44,7 +42,6 @@ public class NettyFilterContext implements FilterFactoryContext {
         return getPluginFactory(pluginClass).registeredInstanceNames();
     }
 
-    @NonNull
     private <P> PluginFactory<P> getPluginFactory(Class<P> pluginClass) {
         return pluginFactoryRegistry.pluginFactory(pluginClass);
     }
