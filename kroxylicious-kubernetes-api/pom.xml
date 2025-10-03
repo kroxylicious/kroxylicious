@@ -256,7 +256,23 @@
                     </execution>
                 </executions>
             </plugin>
-
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <configuration>
+                    <!-- disable for packages containing the sundrio generated classes -->
+                    <excludePackageNames>io.kroxylicious.proxy.config:io.kroxylicious.proxy.config.admin
+                    </excludePackageNames>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <configuration>
+                    <!-- Skipped to avoid failures from fabric8 generated classes -->
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

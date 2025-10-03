@@ -103,7 +103,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
 
     @Override
     public SharedEncryptionContext<K, E> initialize(FilterFactoryContext context,
-                                                    RecordEncryptionConfig configuration)
+                                                    @NonNull RecordEncryptionConfig configuration)
             throws PluginConfigurationException {
         LOGGER.debug("Record encryption buffer size configuration: {}", configuration.encryptionBuffer());
         checkCipherSuite();
@@ -124,8 +124,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
     @NonNull
     @Override
     public RecordEncryptionFilter<K> createFilter(FilterFactoryContext context,
-                                                  SharedEncryptionContext<K, E> sharedEncryptionContext) {
-
+                                                  @NonNull SharedEncryptionContext<K, E> sharedEncryptionContext) {
         ScheduledExecutorService filterThreadExecutor = context.filterDispatchExecutor();
         FilterThreadExecutor executor = new FilterThreadExecutor(filterThreadExecutor);
         EncryptionBufferConfig encryptionBufferConfig = sharedEncryptionContext.configuration().encryptionBuffer();
@@ -167,7 +166,7 @@ public class RecordEncryption<K, E> implements FilterFactory<RecordEncryptionCon
     }
 
     @Override
-    public void close(SharedEncryptionContext<K, E> initializationData) {
+    public void close(@NonNull SharedEncryptionContext<K, E> initializationData) {
         initializationData.kmsServiceCloser().run();
     }
 }
