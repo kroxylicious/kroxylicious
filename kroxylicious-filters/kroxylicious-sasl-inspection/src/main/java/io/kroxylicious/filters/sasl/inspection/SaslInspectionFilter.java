@@ -9,7 +9,6 @@ package io.kroxylicious.filters.sasl.inspection;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.errors.AuthenticationException;
@@ -33,6 +32,8 @@ import io.kroxylicious.proxy.filter.SaslAuthenticateResponseFilter;
 import io.kroxylicious.proxy.filter.SaslHandshakeRequestFilter;
 import io.kroxylicious.proxy.filter.SaslHandshakeResponseFilter;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A filter that performs <a href="https://github.com/kroxylicious/design/blob/main/proposals/004-terminology-for-authentication.md#sasl-passthrough-inspection">SASL passthrough inspection</a>.
@@ -133,7 +134,7 @@ class SaslInspectionFilter
                         .addArgument(context::channelDescriptor)
                         .addArgument(request::mechanism)
                         .addArgument(() -> observerFactoryMap.containsKey(request.mechanism()) ? "not enabled for" : "not supported by")
-                        .addArgument(() -> saslObserver)
+                        .addArgument(saslObserver::mechanismName)
                         .log();
             }
             NegotiationType negotiationType = currentState instanceof State.RequiringHandshakeRequest ? NegotiationType.INITIAL : NegotiationType.REAUTH;
@@ -210,7 +211,6 @@ class SaslInspectionFilter
                                                                           SaslAuthenticateRequestData request,
                                                                           FilterContext context) {
         if (this.currentState instanceof State.RequiringAuthenticateRequest state) {
-            // KIP-368
             try {
                 var acquiredAuthorizationId = state.saslObserver().clientResponse(request.authBytes());
                 if (acquiredAuthorizationId) {
@@ -278,12 +278,12 @@ class SaslInspectionFilter
                                                                                         FilterContext context, State.AwaitingAuthenticateResponse state) {
         SaslObserver saslObserver = state.saslObserver();
         if (saslObserver.isFinished()) {
-            String authorizationIdFromClient;
-            try {
-                authorizationIdFromClient = saslObserver.authorizationId();
-            }
-            catch (AuthenticationException | IllegalStateException e) {
+            String authorizationIdFromClient = getAuthorizationIdOrNull(saslObserver);
+            if (authorizationIdFromClient == null) {
+                // Ordinarily, we never expect to be here.  The sasl negotiation ought to be yielded a authorizationId before
+                // the negotiation is finished.
                 return closeConnectionWithResponse(header, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()), context);
+
             }
 
             LOGGER.atInfo()
@@ -314,12 +314,22 @@ class SaslInspectionFilter
                 .addArgument(error::name)
                 .addArgument(context::channelDescriptor)
                 .log();
-        var authorizedId = Optional.of(state.saslObserver()).map(SaslObserver::authorizationId).orElse(null);
+        var authorizedId = getAuthorizationIdOrNull(state.saslObserver());
         context.clientSaslAuthenticationFailure(state.saslObserver().mechanismName(), authorizedId, error.exception());
         return context.responseFilterResultBuilder()
                 .forward(header, response)
                 .withCloseConnection()
                 .completed();
+    }
+
+    @Nullable
+    private static String getAuthorizationIdOrNull(SaslObserver saslObserver) {
+        try {
+            return saslObserver.authorizationId();
+        }
+        catch (AuthenticationException | IllegalStateException e) {
+            return null;
+        }
     }
 
     private static CompletionStage<RequestFilterResult> closeConnectionWithShortCircuitResponse(FilterContext context, ApiMessage response) {
