@@ -1,11 +1,11 @@
 :_mod-docs-content-type: CONCEPT
 
-[id='con-understanding-kafkaproxyingress-status-{context}']
-= Understanding the `KafkaProxyIngress` `ResolvedRefs` condition
+[id='con-checking-kafkaproxyingress-status-{context}']
+= Checking the status of the `KafkaProxyIngress` resource
 
 [role="_abstract"]
-The status of a `KafkaProxyIngress` resource includes a `ResolvedRefs` condition to report on the validity of its resource references. 
-This condition indicates whether the `KafkaProxy` specified in the `spec.proxyRef` has been successfully resolved.
+The status of a `KafkaProxyIngress` resource provides feedback on its configuration through a set of conditions.
+These include the `ResolvedRefs` condition, which indicates whether all referenced resources exist.
 
 When you create a `KafkaProxyIngress`, the operator checks whether a `KafkaProxy` corresponding to the `spec.proxyRef` exists.
 The result is reported in `status.conditions` with a `ResolvedRefs` condition accordingly.
