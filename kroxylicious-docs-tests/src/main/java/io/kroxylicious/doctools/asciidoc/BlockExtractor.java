@@ -86,7 +86,9 @@ public class BlockExtractor implements AutoCloseable {
 
         Path tempDirectory;
         try {
-            tempDirectory = Files.createTempDirectory(asciiDocFile.getFileName().toString(), OWNER_DIR_RWX);
+            var fileName = Optional.ofNullable(asciiDocFile.getFileName()).map(Path::toString)
+                    .orElseThrow(() -> new IllegalStateException("Unable to determine filename from path : " + asciiDocFile));
+            tempDirectory = Files.createTempDirectory(fileName, OWNER_DIR_RWX);
             try {
                 var optionsBuilder = Options.builder()
                         .option(Options.SOURCEMAP, "true") // required so source file/line number information is available
