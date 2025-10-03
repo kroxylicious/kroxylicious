@@ -66,12 +66,11 @@ sealed interface State
     }
 
     /** We're waiting for a SASL handshake response from the server. */
-    final class AwaitingHandshakeResponse implements State {
-        private final SaslObserver saslObserver;
+    final class AwaitingHandshakeResponse extends SaslObserverCarrier implements State {
         private final NegotiationType negotiationType;
 
         private AwaitingHandshakeResponse(SaslObserver saslObserver, NegotiationType negotiationType) {
-            this.saslObserver = saslObserver;
+            super(saslObserver);
             this.negotiationType = negotiationType;
         }
 
@@ -81,23 +80,19 @@ sealed interface State
          * @return the requiring authenticate request state.
          */
         public RequiringAuthenticateRequest nextState() {
-            return new RequiringAuthenticateRequest(saslObserver, negotiationType);
+            return new RequiringAuthenticateRequest(saslObserver(), negotiationType);
         }
 
-        public SaslObserver saslObserver() {
-            return saslObserver;
-        }
     }
 
     /**
      * A SASL authenticate request is required.
      */
-    final class RequiringAuthenticateRequest implements State {
-        private final SaslObserver saslObserver;
+    final class RequiringAuthenticateRequest extends SaslObserverCarrier implements State {
         private final NegotiationType negotiationType;
 
         private RequiringAuthenticateRequest(SaslObserver saslObserver, NegotiationType negotiationType) {
-            this.saslObserver = saslObserver;
+            super(saslObserver);
             this.negotiationType = negotiationType;
         }
 
@@ -111,25 +106,19 @@ sealed interface State
             // Flag indicating if the client and broker supports re-authentication (KIP-368). If this is not the first
             // authentication request, or the apiVersion is > 0 we know that the client supports reauth.
             var clientSupportsReauthentication = negotiationType == NegotiationType.REAUTH || authRequestApiSupportsReauth;
-            return new AwaitingAuthenticateResponse(saslObserver, negotiationType, clientSupportsReauthentication);
+            return new AwaitingAuthenticateResponse(saslObserver(), negotiationType, clientSupportsReauthentication);
         }
-
-        SaslObserver saslObserver() {
-            return saslObserver;
-        }
-
     }
 
     /**
      * We're waiting for a SASL authenticate response from the server
      */
-    final class AwaitingAuthenticateResponse implements State {
-        private final SaslObserver saslObserver;
+    final class AwaitingAuthenticateResponse extends SaslObserverCarrier implements State {
         private final NegotiationType negotiationType;
         private final boolean clientSupportsReauthentication;
 
         private AwaitingAuthenticateResponse(SaslObserver saslObserver, NegotiationType negotiationType, boolean clientSupportsReauthentication) {
-            this.saslObserver = saslObserver;
+            super(saslObserver);
             this.negotiationType = negotiationType;
             this.clientSupportsReauthentication = clientSupportsReauthentication;
         }
@@ -149,12 +138,8 @@ sealed interface State
                 }
             }
             else {
-                return new RequiringAuthenticateRequest(saslObserver, negotiationType);
+                return new RequiringAuthenticateRequest(saslObserver(), negotiationType);
             }
-        }
-
-        SaslObserver saslObserver() {
-            return saslObserver;
         }
     }
 
@@ -193,5 +178,17 @@ sealed interface State
         INITIAL,
         // subsequent SASL negotiations when the client/broker support re-auth per KIP-368
         REAUTH
+    }
+
+    abstract class SaslObserverCarrier {
+        private final SaslObserver saslObserver;
+
+        SaslObserverCarrier(SaslObserver saslObserver) {
+            this.saslObserver = saslObserver;
+        }
+
+        final SaslObserver saslObserver() {
+            return saslObserver;
+        }
     }
 }
