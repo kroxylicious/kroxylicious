@@ -1,0 +1,34 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.filters.sasl.inspection;
+
+/**
+ * Factory for {@link SaslObserver} instances.
+ */
+public interface SaslObserverFactory {
+    /**
+     * Creates the SASL Observer.
+     * @return sasl observer instance
+     */
+    SaslObserver createObserver();
+
+    /**
+     * Returns the IANA registered SASL mechanism name.
+     * @return mechanism
+     */
+    String mechanismName();
+
+    /**
+     * Returns true if this SASL mechanisms is considered insecure.  Typically, this will be
+     * because it transmits it credentials in the clear.
+     *
+     * @return true if considered insecure, false otherwise.
+     */
+    default boolean isInsecure() {
+        return false;
+    }
+}

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class ServiceBasedPluginFactoryRegistryTest {
 
     @Test
+    @SuppressWarnings("DataFlowIssue")
     void shouldThrowIfNullPluginType() {
         ServiceBasedPluginFactoryRegistry reg = new ServiceBasedPluginFactoryRegistry();
         assertThrows(NullPointerException.class, () -> {
@@ -25,6 +27,7 @@ class ServiceBasedPluginFactoryRegistryTest {
     }
 
     @Test
+    @SuppressWarnings("DataFlowIssue")
     void shouldThrowIfNullPluginInstance() {
         ServiceBasedPluginFactoryRegistry reg = new ServiceBasedPluginFactoryRegistry();
         var f = reg.pluginFactory(NotAService.class);
@@ -78,5 +81,11 @@ class ServiceBasedPluginFactoryRegistryTest {
 
         assertEquals(String.class,
                 factory.configType(io.kroxylicious.proxy.config.ambiguous2.Ambiguous.class.getName()));
+    }
+
+    @Test
+    void shouldReportRegisteredNames() {
+        var names = new ServiceBasedPluginFactoryRegistry().pluginFactory(ServiceWithAmbiguousImpls.class).registeredInstanceNames();
+        assertThat(names).containsExactly("io.kroxylicious.proxy.config.ambiguous1.Ambiguous", "io.kroxylicious.proxy.config.ambiguous2.Ambiguous");
     }
 }

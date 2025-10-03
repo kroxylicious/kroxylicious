@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.util.Set;
+
 import io.kroxylicious.proxy.plugin.UnknownPluginInstanceException;
 
 /**
@@ -29,4 +31,11 @@ public interface PluginFactory<P> {
      * @throws UnknownPluginInstanceException If the plugin implementation with the given name could not be found
      */
     Class<?> configType(String instanceName);
+
+    /**
+     * Returns the names of the registered instances of this plugin.
+     * The set is immutable.
+     */
+    Set<String> registeredInstanceNames();
+
 }

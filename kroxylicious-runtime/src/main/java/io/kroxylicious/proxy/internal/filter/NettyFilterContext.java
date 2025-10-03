@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.internal.filter;
 
+import java.util.Set;
+
 import io.netty.channel.EventLoop;
 
 import io.kroxylicious.proxy.config.PluginFactory;
@@ -31,8 +33,17 @@ public class NettyFilterContext implements FilterFactoryContext {
 
     @Override
     public <P> P pluginInstance(Class<P> pluginClass, String instanceName) {
-        PluginFactory<P> pluginFactory = pluginFactoryRegistry.pluginFactory(pluginClass);
+        PluginFactory<P> pluginFactory = getPluginFactory(pluginClass);
         return pluginFactory.pluginInstance(instanceName);
+    }
+
+    @Override
+    public <P> Set<String> pluginInstanceNames(Class<P> pluginClass) {
+        return getPluginFactory(pluginClass).registeredInstanceNames();
+    }
+
+    private <P> PluginFactory<P> getPluginFactory(Class<P> pluginClass) {
+        return pluginFactoryRegistry.pluginFactory(pluginClass);
     }
 
 }

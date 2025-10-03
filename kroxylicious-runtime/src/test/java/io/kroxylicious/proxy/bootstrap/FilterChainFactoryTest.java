@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.bootstrap;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
@@ -80,6 +81,15 @@ class FilterChainFactoryTest {
                             }
                             return ExampleConfig.class;
                         }
+
+                        @Override
+                        public Set<String> registeredInstanceNames() {
+                            return Set.of(TestFilterFactory.class.getSimpleName(),
+                                    RequiresConfigFactory.class.getSimpleName(),
+                                    OptionalConfigFactory.class.getSimpleName(),
+                                    FlakyFactory.class.getSimpleName());
+                        }
+
                     };
                 }
                 else {
@@ -92,7 +102,6 @@ class FilterChainFactoryTest {
 
     @Test
     void testNullFiltersInConfigResultsInEmptyList() {
-        EventLoop eventLoop = new DefaultEventLoop();
         FilterChainFactory filterChainFactory = new FilterChainFactory(pfr, null);
         List<FilterAndInvoker> filters = filterChainFactory.createFilters(new NettyFilterContext(eventLoop, pfr), null);
         assertThat(filters)
