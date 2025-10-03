@@ -3,7 +3,7 @@
 :localstack-chart-version: 0.6.26
 // A Renovate rule will update the strimzi-version but not kafka-version. Update the kafka-version to the point
 // at the latest kafka version supported by that strimzi.
-:strimzi-version: 0.47.0
+:strimzi-version: 0.48.0
 :kafka-version: 4.0.0
 :kafka-image: quay.io/strimzi/kafka:{strimzi-version}-kafka-{kafka-version}
 
