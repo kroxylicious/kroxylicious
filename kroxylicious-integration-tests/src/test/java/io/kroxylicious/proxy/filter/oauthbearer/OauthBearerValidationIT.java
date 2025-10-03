@@ -10,13 +10,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.Admin;
@@ -26,6 +23,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginCallbackHandler;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule;
@@ -52,7 +50,7 @@ import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
 import io.kroxylicious.test.assertj.KafkaAssertions;
-import io.kroxylicious.test.tester.SimpleMetric;
+import io.kroxylicious.test.tester.SimpleMetricAssert;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
 import io.kroxylicious.testing.kafka.common.SaslMechanism;
@@ -61,10 +59,11 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
+import static io.kroxylicious.proxy.internal.util.Metrics.API_KEY_LABEL;
+import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.InstanceOfAssertFactories.DOUBLE;
 
 /**
  * Integration test for OauthBearerValidation filter that uses wires the filter and Kafka Cluster to the
@@ -87,13 +86,6 @@ class OauthBearerValidationIT {
     private static final String BAD_TOKEN = "eyJraWQiOiJkZWZhdWx0IiwidHlwIjoiSldUIiwiYWxnIjoiUlMyNTYifQ."
             + "eyJzdWIiOiJjbGllbnRJZElnbm9yZSIsImF1ZCI6ImRlZmF1bHQiLCJuYmYiOjE3MjA3MjIyOTAsImF6cCI6ImNsaWVudElkSWdub3JlIiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDoyODA4OS9kZWZhdWx0IiwiZXhwIjoxNzIwNzI1ODkwLCJpYXQiOjE3MjA3MjIyOTAsImp0aSI6IjE0MGZjMmFhLWRjZmQtNDE1Mi05MWJmLWQyMDZiM2M1MzAxZiIsInRpZCI6ImRlZmF1bHQifQ."
             + "I4LUI4Lp6XwUzD-UN2LDRfiNPCvhHDQJVH_LCE4gkuY5UxrRMJ8H3C9408zmjGPRChWmKU4aRIy8rtSPbfRmDLenoM91dr1mDy8B01TZohEOACnAxBSvsN73-cNUUvaRzZmMeUkGbmgEtGhqZ2d3MELe7bm0fEyuNRyM9fv-AahGm551hchMe3bzeYjbcBKuatKYoiHuPTX_HuNF4AAwI_vz_lYzHliKDmPRJwpsaMUaCtsfUKbSzpRPe6X2FWWkkgOLtCD-W14sp3r8z2KrHryH_ILz2MtPvIlvmkJE8U0CRaVyQ-6L2sL-iUdXoUGTHmV384X2R-cy5gKFhN3Ibg"; // notsecret
-    private static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC = "kroxylicious_payload_size_bytes_count";
-    private static final Predicate<SimpleMetric> UPSTREAM_SASL_HANDSHAKE_LABELS_PREDICATE = m -> m.name().equals(KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC)
-            && m.labels().entrySet().containsAll(
-                    Map.of("ApiKey", "SASL_HANDSHAKE", "flowing", "upstream").entrySet());
-    private static final Predicate<SimpleMetric> DOWNSTREAM_SASL_AUTHENTICATE_PREDICATE = m -> m.name().equals(KROXYLICIOUS_PAYLOAD_SIZE_BYTES_COUNT_METRIC)
-            && m.labels().entrySet().containsAll(
-                    Map.of("ApiKey", "SASL_AUTHENTICATE", "flowing", "downstream").entrySet());
     private static final String ALLOWED_SASL_OAUTHBEARER_URLS_CONFIG = "org.apache.kafka.sasl.oauthbearer.allowed.urls";
     @SaslMechanism(value = OAuthBearerLoginModule.OAUTHBEARER_MECHANISM)
     @BrokerConfig(name = "listener.name.external.sasl.oauthbearer.jwks.endpoint.url", value = JWKS_ENDPOINT_URL)
@@ -141,7 +133,7 @@ class OauthBearerValidationIT {
     }
 
     @Test
-    void successfulAuthWithValidToken(Topic topic) {
+    void successfulAuthWithValidToken() {
         var config = getClientConfig(TOKEN_ENDPOINT_URL);
 
         try (var tester = kroxyliciousTester(getConfiguredProxyBuilder());
@@ -153,20 +145,37 @@ class OauthBearerValidationIT {
 
             var allMetrics = ahc.scrapeMetrics();
 
-            var saslHandshakeRequestsGoingUpCount = findFirstMetricMatching(allMetrics, UPSTREAM_SASL_HANDSHAKE_LABELS_PREDICATE);
-            var saslAuthenticationResponsesComingDown = findFirstMetricMatching(allMetrics, DOWNSTREAM_SASL_AUTHENTICATE_PREDICATE);
+            SimpleMetricAssert.assertThat(allMetrics)
+                    .withFailMessage("Expecting proxy to have seen at least one handshake request from the downstream")
+                    .withUniqueMetric("kroxylicious_client_to_proxy_request_total", Map.of(
+                            API_KEY_LABEL, ApiKeys.SASL_HANDSHAKE.name(),
+                            NODE_ID_LABEL, "bootstrap"))
+                    .value()
+                    .isEqualTo(1);
 
-            assertThat(saslHandshakeRequestsGoingUpCount)
-                    .isPresent()
-                    .get(DOUBLE)
-                    .withFailMessage("Expecting proxy to have seen at least two handshake requests (one for metadata, one for broker) from downstream")
-                    .isGreaterThanOrEqualTo(2);
+            SimpleMetricAssert.assertThat(allMetrics)
+                    .withFailMessage("Expecting proxy to have seen at least one handshake request to the upstream")
+                    .withUniqueMetric("kroxylicious_proxy_to_server_request_total", Map.of(
+                            API_KEY_LABEL, ApiKeys.SASL_HANDSHAKE.name(),
+                            NODE_ID_LABEL, "bootstrap"))
+                    .value()
+                    .isEqualTo(1);
 
-            assertThat(saslAuthenticationResponsesComingDown)
-                    .isPresent()
-                    .get(DOUBLE)
-                    .withFailMessage("Expecting proxy to have seen at the same number of authentication responses from the broker as were handshake requests")
-                    .isEqualTo(saslHandshakeRequestsGoingUpCount.get());
+            SimpleMetricAssert.assertThat(allMetrics)
+                    .withFailMessage("Expecting proxy to have seen at least one authenticate request from downstream")
+                    .withUniqueMetric("kroxylicious_client_to_proxy_request_total", Map.of(
+                            API_KEY_LABEL, ApiKeys.SASL_AUTHENTICATE.name(),
+                            NODE_ID_LABEL, "bootstrap"))
+                    .value()
+                    .isEqualTo(1);
+
+            SimpleMetricAssert.assertThat(allMetrics)
+                    .withFailMessage("Expecting proxy to have seen at least one authenticate request to the upstream")
+                    .withUniqueMetric("kroxylicious_proxy_to_server_request_total", Map.of(
+                            API_KEY_LABEL, ApiKeys.SASL_AUTHENTICATE.name(),
+                            NODE_ID_LABEL, "bootstrap"))
+                    .value()
+                    .isEqualTo(1);
         }
     }
 
@@ -216,25 +225,22 @@ class OauthBearerValidationIT {
 
             var allMetrics = ahc.scrapeMetrics();
 
-            var saslHandshakeRequestsGoingUpCount = findFirstMetricMatching(allMetrics, UPSTREAM_SASL_HANDSHAKE_LABELS_PREDICATE);
-            var saslAuthenticationResponsesComingDown = findFirstMetricMatching(allMetrics, DOWNSTREAM_SASL_AUTHENTICATE_PREDICATE);
+            SimpleMetricAssert.assertThat(allMetrics)
+                    .withFailMessage("Expecting proxy to have seen at least one handshake request from downstream")
+                    .withUniqueMetric("kroxylicious_client_to_proxy_request_total", Map.of(
+                            API_KEY_LABEL, ApiKeys.SASL_AUTHENTICATE.name(),
+                            NODE_ID_LABEL, "bootstrap"))
+                    .value()
+                    .isEqualTo(1);
 
-            assertThat(saslHandshakeRequestsGoingUpCount)
-                    .isPresent()
-                    .get(DOUBLE)
-                    .withFailMessage("Expecting proxy to have seen at least one handshake requests from downstream")
-                    .isPositive();
-
-            assertThat(saslAuthenticationResponsesComingDown).isNotPresent();
+            SimpleMetricAssert.assertThat(allMetrics)
+                    .withFailMessage("Expecting proxy to have seen no authenticate requests to the upstream")
+                    .filterByName("kroxylicious_proxy_to_server_request_total")
+                    .hasNoMetricMatching("kroxylicious_proxy_to_server_request_total", Map.of(
+                            API_KEY_LABEL, ApiKeys.SASL_AUTHENTICATE.name(),
+                            NODE_ID_LABEL, "bootstrap"));
         }
 
-    }
-
-    private Optional<Double> findFirstMetricMatching(List<SimpleMetric> all, Predicate<SimpleMetric> predicate) {
-        return all.stream()
-                .filter(predicate)
-                .findFirst()
-                .map(SimpleMetric::value);
     }
 
     private ConfigurationBuilder getConfiguredProxyBuilder() {
