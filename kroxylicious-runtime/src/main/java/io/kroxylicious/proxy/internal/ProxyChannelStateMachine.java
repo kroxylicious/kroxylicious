@@ -17,7 +17,6 @@ import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 
 import io.micrometer.core.instrument.Counter;
-import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Timer;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderException;
@@ -41,13 +40,6 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_STATE;
-import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_DOWNSTREAM_CONNECTIONS;
-import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_DOWNSTREAM_ERRORS;
-import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTIONS;
-import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS;
-import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES;
-import static io.kroxylicious.proxy.internal.util.Metrics.KROXYLICIOUS_UPSTREAM_ERRORS;
-import static io.kroxylicious.proxy.internal.util.Metrics.taggedCounter;
 import static org.slf4j.LoggerFactory.getLogger;
 
 /**
@@ -109,38 +101,8 @@ import static org.slf4j.LoggerFactory.getLogger;
 public class ProxyChannelStateMachine {
     private static final String DUPLICATE_INITIATE_CONNECT_ERROR = "NetFilter called NetFilterContext.initiateConnect() more than once";
     private static final Logger LOGGER = getLogger(ProxyChannelStateMachine.class);
-    /**
-     * @deprecated use `clientToProxyConnectionCounter` instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    private final Counter downstreamConnectionsCounter;
-    /**
-     * @deprecated use `proxyToServerConnectionCounter` instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    private final Counter upstreamConnectionsCounter;
-    /**
-     * @deprecated use `clientToProxyErrorCounter` instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    private final Counter downstreamErrorCounter;
-    /**
-     * @deprecated use `proxyToServerErrorCounter` instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    private final Counter upstreamErrorCounter;
-    /**
-     * @deprecated use `proxyToServerConnectionCounter` instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    private final Counter connectionAttemptsCounter;
-    /**
-     * @deprecated use `proxyToServerConnectionCounter` instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    private final Counter upstreamConnectionFailureCounter;
 
-    // New connection metrics
+    // Connection metrics
     private final Counter clientToProxyErrorCounter;
     private final Counter clientToProxyConnectionCounter;
     private final Counter proxyToServerConnectionCounter;
@@ -171,15 +133,6 @@ public class ProxyChannelStateMachine {
         clientToProxyBackPressureMeter = Metrics.clientToProxyBackpressureTimer(clusterName, nodeId).withTags();
         clientToProxyConnectionToken = Metrics.clientToProxyConnectionToken(node);
         proxyToServerConnectionToken = Metrics.proxyToServerConnectionToken(node);
-
-        // These connections metrics are deprecated and are replaced by the metrics mentioned above
-        List<Tag> tags = Metrics.tags(Metrics.DEPRECATED_VIRTUAL_CLUSTER_TAG, clusterName);
-        downstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_CONNECTIONS, tags);
-        downstreamErrorCounter = taggedCounter(KROXYLICIOUS_DOWNSTREAM_ERRORS, tags);
-        upstreamConnectionsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTIONS, tags);
-        connectionAttemptsCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS, tags);
-        upstreamErrorCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_ERRORS, tags);
-        upstreamConnectionFailureCounter = taggedCounter(KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES, tags);
     }
 
     /**
@@ -465,10 +418,6 @@ public class ProxyChannelStateMachine {
                 .setCause(LOGGER.isDebugEnabled() ? cause : null)
                 .addArgument(cause != null ? cause.getMessage() : "")
                 .log("Exception from the server channel: {}. Increase log level to DEBUG for stacktrace");
-        if (state instanceof ProxyChannelState.Connecting) {
-            upstreamConnectionFailureCounter.increment();
-        }
-        upstreamErrorCounter.increment();
         proxyToServerErrorCounter.increment();
         toClosed(cause);
     }
@@ -501,7 +450,6 @@ public class ProxyChannelStateMachine {
                     .log("Exception from the client channel: {}. Increase log level to DEBUG for stacktrace");
             errorCodeEx = Errors.UNKNOWN_SERVER_ERROR.exception();
         }
-        downstreamErrorCounter.increment();
         clientToProxyErrorCounter.increment();
         toClosed(errorCodeEx);
     }
@@ -512,7 +460,6 @@ public class ProxyChannelStateMachine {
                                 KafkaProxyFrontendHandler frontendHandler) {
         setState(clientActive);
         frontendHandler.inClientActive();
-        downstreamConnectionsCounter.increment();
         clientToProxyConnectionCounter.increment();
         clientToProxyConnectionToken.acquire();
     }
@@ -525,7 +472,6 @@ public class ProxyChannelStateMachine {
         setState(connecting);
         backendHandler = new KafkaProxyBackendHandler(this, virtualClusterModel);
         Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), filters, backendHandler);
-        connectionAttemptsCounter.increment();
         proxyToServerConnectionCounter.increment();
     }
 
@@ -533,7 +479,6 @@ public class ProxyChannelStateMachine {
     private void toForwarding(Forwarding forwarding) {
         setState(forwarding);
         Objects.requireNonNull(frontendHandler).inForwarding();
-        upstreamConnectionsCounter.increment();
         proxyToServerConnectionToken.acquire();
     }
 
