@@ -1,10 +1,13 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // kroxylicious-operator/assemblies/assembly-operator-deploy-a-proxy.adoc
 
-[id='con-configuring-kafkaproxyingress-overview-{context}']
+[id='con-kafkaproxyingress-overview-{context}']
 = Networking configuration
 
+[role="_abstract"]
 A `KafkaProxyIngress` resource defines the networking configuration that allows Kafka clients to connect to a `VirtualKafkaCluster`.
 
 It is uniquely associated with a single `KafkaProxy` instance, but it is not uniquely associated with a `VirtualKafkaCluster` and can be used by multiple `VirtualKafkaCluster` instances.

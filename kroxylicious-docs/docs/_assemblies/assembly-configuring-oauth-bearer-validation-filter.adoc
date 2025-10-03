@@ -1,8 +1,10 @@
+:_mod-docs-content-type: ASSEMBLY
+
 // file included in the following:
 //
 // index.adoc
 
-[id=''assembly-configuring-oauth-bearer-validation-filter-{context}']
+[id='assembly-configuring-oauth-bearer-validation-filter-{context}']
 = Configuring the Oauth Bearer valudation filter
 
 [role="_abstract"]

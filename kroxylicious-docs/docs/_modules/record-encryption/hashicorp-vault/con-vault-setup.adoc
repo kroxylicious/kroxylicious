@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // assembly-hashicorp-vault.adoc
@@ -5,6 +7,7 @@
 [id='con-vault-setup-{context}']
 = Enable the Transit Engine
 
+[role="_abstract"]
 The filter integrates with the {hashicorp-vault}/docs/secrets/transit[HashiCorp Vault *Transit Engine*].
 Vault does not enable the Transit Engine by default.
 It must be {hashicorp-vault}/docs/secrets/transit#setup[enabled] before it can be used by the filter.
@@ -54,7 +57,7 @@ Adjust the instructions if a different naming convention is used.
 == Role of the administrator
 
 To use the filter, an administrator or an administrative process must create the encryption keys within Vault, which
-are used by the xref:con-topic-encryption-overview-{context}[envelope encryption] process.
+are used by the xref:con-record-encryption-overview-{context}[envelope encryption] process.
 
 The organization deploying the Record Encryption filter is responsible for managing this administrator or process.
 

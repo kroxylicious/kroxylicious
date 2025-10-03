@@ -1,5 +1,11 @@
+:_mod-docs-content-type: CONCEPT
+
 [id='con-understanding-virtualkafkacluster-status-{context}']
 = `VirtualKafkaCluster` status reporting
+
+[role="_abstract"]
+The status of a `VirtualKafkaCluster` resource provides feedback on its configuration through a set of conditions. 
+These include the `ResolvedRefs` condition, which validates that all referenced resources exist, and the `Accepted` condition, which indicates whether the cluster's configuration was successfully applied to the proxy.
 
 == `ResolvedRefs` conditions
 

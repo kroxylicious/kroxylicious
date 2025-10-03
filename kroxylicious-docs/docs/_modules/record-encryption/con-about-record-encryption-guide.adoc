@@ -1,6 +1,10 @@
+:_mod-docs-content-type: CONCEPT
+
 
 [discrete]
+[id='con-about-record-encryption-guide-{context}']
 = About this guide
 
+[role="_abstract"]
 This guide covers using the *Kroxylicious Record Encryption Filter* to provide encryption-at-rest for Apache Kafka.
 Refer to other Kroxylicious guides for information on running the proxy or for advanced topics such as plugin development.

@@ -14,7 +14,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.16.0-SNAPSHOT</version>
+        <version>0.17.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -236,6 +236,9 @@
                         <!-- required for testcontainers/podman support -->
                         <TESTCONTAINERS_RYUK_DISABLED>true</TESTCONTAINERS_RYUK_DISABLED>
                     </environmentVariables>
+                    <argLine>
+                        @{jacoco.argline} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off
+                    </argLine>
                 </configuration>
             </plugin>
             <plugin>

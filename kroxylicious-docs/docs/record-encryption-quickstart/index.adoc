@@ -1,8 +1,11 @@
 :experimental:
+:vault-chart-version: 0.31.0
+:localstack-chart-version: 0.6.26
+// A Renovate rule will update the strimzi-version but not kafka-version. Update the kafka-version to the point
+// at the latest kafka version supported by that strimzi.
+:strimzi-version: 0.48.0
 :kafka-version: 4.0.0
-:vault-chart-version: 0.30.1
-:localstack-chart-version: 0.6.24
-:strimzi-version: 0.47.0
+:kafka-image: quay.io/strimzi/kafka:{strimzi-version}-kafka-{kafka-version}
 
 include::_assets/attributes.adoc[]
 
@@ -259,7 +262,7 @@ NOTE: You can safely ignore the warning about the UNKNOWN_TOPIC_OR_PARTITION, th
 
 [source,terminal,subs="attributes"]
 ----
-$ (echo 'IBM:100'; echo 'APPLE:99') | kubectl run -n my-proxy --quiet=true --stdin=true proxy-producer --image=quay.io/strimzi/kafka:{strimzi-version}-kafka-{kafka-version} --rm=true --restart=Never -- ./bin/kafka-console-producer.sh --bootstrap-server $\{PROXIED_CLUSTER_BOOTSTRAP_SERVER} --topic trades
+$ (echo 'IBM:100'; echo 'APPLE:99') | kubectl run -n my-proxy --quiet=true --stdin=true proxy-producer --image={kafka-image} --rm=true --restart=Never -- ./bin/kafka-console-producer.sh --bootstrap-server $\{PROXIED_CLUSTER_BOOTSTRAP_SERVER} --topic trades
 ----
 
 == Consume the messages
@@ -270,7 +273,7 @@ The Record Encryption filter will decrypt the records before they reach consumer
 
 [source,terminal,subs="attributes"]
 ----
-$ kubectl run -n my-proxy --quiet=true --attach=true --stdin=false proxy-consumer --image=quay.io/strimzi/kafka:{strimzi-version}-kafka-{kafka-version} --rm=true --restart=Never -- ./bin/kafka-console-consumer.sh  --bootstrap-server $\{PROXIED_CLUSTER_BOOTSTRAP_SERVER} --topic trades --from-beginning --max-messages 2
+$ kubectl run -n my-proxy --quiet=true --attach=true --stdin=false proxy-consumer --image={kafka-image} --rm=true --restart=Never -- ./bin/kafka-console-consumer.sh  --bootstrap-server $\{PROXIED_CLUSTER_BOOTSTRAP_SERVER} --topic trades --from-beginning --max-messages 2
 ----
 
 == Verify that the records are encrypted on the broker
@@ -284,7 +287,7 @@ We'll get back the records, but they'll contain ciphertext, rather than the plai
 
 [source,terminal,subs="attributes"]
 ----
-$ kubectl run -n kafka --quiet=true --attach=true --stdin=false cluster-consumer --image=quay.io/strimzi/kafka:{strimzi-version}-kafka-{kafka-version} --rm=true --restart=Never -- ./bin/kafka-console-consumer.sh  --bootstrap-server $\{DIRECT_CLUSTER_BOOTSTRAP_SERVERS} --topic trades --from-beginning --max-messages 2
+$ kubectl run -n kafka --quiet=true --attach=true --stdin=false cluster-consumer --image={kafka-image} --rm=true --restart=Never -- ./bin/kafka-console-consumer.sh  --bootstrap-server $\{DIRECT_CLUSTER_BOOTSTRAP_SERVERS} --topic trades --from-beginning --max-messages 2
 ----
 
 == Cleaning up

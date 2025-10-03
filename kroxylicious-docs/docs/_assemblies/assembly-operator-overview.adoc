@@ -1,8 +1,10 @@
+:_mod-docs-content-type: ASSEMBLY
+
 // file included in the following:
 //
 // kroxylicious-operator/index.adoc
 
-[id='assembly-overview-{context}']
+[id='assembly-operator-overview-{context}']
 = Kroxylicious Operator overview
 
 [role="_abstract"]

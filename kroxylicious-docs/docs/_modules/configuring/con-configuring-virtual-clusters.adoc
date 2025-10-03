@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 [id='con-configuring-virtual-clusters-{context}']
 = Configuring virtual clusters
 

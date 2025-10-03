@@ -13,7 +13,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.16.0-SNAPSHOT</version>
+        <version>0.17.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-operator</artifactId>
@@ -304,6 +304,7 @@
                          https://maven.apache.org/surefire/maven-surefire-plugin/faq.html#late-property-evaluation (required to propagate Jacoco args etc) -->
                     <argLine>
                         @{jacoco.argline}
+                        -javaagent:${org.mockito:mockito-core:jar}
                         --add-opens java.base/java.util=ALL-UNNAMED
                         --add-opens java.base/java.lang=ALL-UNNAMED
                     </argLine>

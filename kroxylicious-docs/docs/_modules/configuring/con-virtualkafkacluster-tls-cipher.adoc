@@ -1,10 +1,13 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // kroxylicious-operator/_assemblies/assembly-operator-secure-client-proxy-connection.adoc
 
-[id='con-kafka-client-tls-cipher-{context}']
+[id='con-virtualkafkacluster-tls-cipher-{context}']
 = TLS cipher suite configuration for client-to-proxy connections
 
+[role="_abstract"]
 include::../../_snippets/snip-tls-cipher-suite.adoc[]
 
 You can restrict which TLS cipher suites the proxy uses when negotiating client-to-proxy connections by configuring the `cipherSuites` property.

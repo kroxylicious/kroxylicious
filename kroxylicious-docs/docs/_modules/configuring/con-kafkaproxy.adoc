@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // kroxylicious-operator/_assemblies/assembly-operator-deploy-a-proxy.adoc
@@ -5,6 +7,7 @@
 [id='con-kafkaproxy-{context}']
 = Proxy configuration to host virtual clusters
 
+[role="_abstract"]
 A `KafkaProxy` resource represents an instance of the Kroxylicious Proxy.
 Conceptually, it is the top-level resource that links together `KafkaProxyIngress`, `VirtualKafkaCluster`, `KafkaService`, and `KafkaProtocolFilter` resources to form a complete working proxy.
 

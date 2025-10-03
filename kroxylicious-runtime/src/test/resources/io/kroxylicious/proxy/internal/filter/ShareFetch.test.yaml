@@ -12,6 +12,7 @@
       errorCode: 0
       errorMessage: ""
       responses: []
+      acquisitionLockTimeoutMs: 1000
       nodeEndpoints:
         - nodeId: 0
           host: upstreamz

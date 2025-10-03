@@ -1,3 +1,5 @@
+:_mod-docs-content-type: ASSEMBLY
+
 // file included in the following:
 //
 // kroxylicious-operator/index.adoc
@@ -5,9 +7,13 @@
 [id='assembly-operator-api-{context}']
 = API concepts
 
+[role="_abstract"]
+The Kroxylicious Operator uses a declarative API based on Kubernetes custom resources to manage proxy deployments.
+
 == API resources used by the Kroxylicious Proxy
 
-The operator takes these custom resources and core Kubernetes resources as inputs:
+[role="_abstract"]
+The operator takes custom resources and core Kubernetes resources as inputs:
 
 `KafkaProxy`::
 Defines an instance of the proxy.
@@ -41,4 +47,4 @@ For example, you might grant networking engineers the ability to configure `Kafk
 .Generated Kubernetes resources and the relationships between them
 image::{realimagesdir}/operator-output-resource-topology.svg["Diagram showing the output resources, Deployment, Pod, ConfigMap, Service, with arrows showing the Deployment managing the Pod, the Pod mounting the ConfigMap, and the Service selecting the Pod."]
 
-include::../_modules/con-api-compatability-operator.adoc[leveloffset=+1]
+include::../_modules/con-api-compatibility-operator.adoc[leveloffset=+1]

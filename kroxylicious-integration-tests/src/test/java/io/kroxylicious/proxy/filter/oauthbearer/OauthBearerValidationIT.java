@@ -29,7 +29,7 @@ import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginCallbackHandler;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule;
-import org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler;
+import org.apache.kafka.common.security.oauthbearer.internals.secured.VerificationKeyResolverFactory;
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -77,7 +77,7 @@ import static org.assertj.core.api.InstanceOfAssertFactories.DOUBLE;
 @RestoreSystemProperties
 class OauthBearerValidationIT {
 
-    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:2.3.0");
+    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:3.0.0");
 
     private static final int OAUTH_SERVER_PORT = 28089;
     private static final String JWKS_ENDPOINT_URL = "http://localhost:" + OAUTH_SERVER_PORT + "/default/jwks";
@@ -135,7 +135,7 @@ class OauthBearerValidationIT {
         // cache. This is impactful to the proxy because its config is constant (so cache hits).
         // The reason kafka broker doesn't suffer this itself is because the config is different between
         // clusters instances (port numbers, log dir etc. are different).
-        var cacheField = OAuthBearerValidatorCallbackHandler.class.getDeclaredField("VERIFICATION_KEY_RESOLVER_CACHE");
+        var cacheField = VerificationKeyResolverFactory.class.getDeclaredField("CACHE");
         cacheField.setAccessible(true);
         ((Map<?, ?>) cacheField.get(null)).clear();
     }

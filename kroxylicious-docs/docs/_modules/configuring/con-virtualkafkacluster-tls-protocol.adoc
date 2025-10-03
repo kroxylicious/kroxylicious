@@ -1,10 +1,13 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // kroxylicious-operator/_assemblies/assembly-operator-secure-client-proxy-connection.adoc
 
-[id='con-kafka-client-tls-protocol-{context}']
+[id='con-virtualkafkacluster-tls-protocol-{context}']
 = TLS version configuration for client-to-proxy connections
 
+[role="_abstract"]
 include::../../_snippets/snip-tls-protocol-versions.adoc[]
 
 You can restrict which TLS protocol versions the proxy supports for client-to-proxy connections by configuring the `protocols` property.

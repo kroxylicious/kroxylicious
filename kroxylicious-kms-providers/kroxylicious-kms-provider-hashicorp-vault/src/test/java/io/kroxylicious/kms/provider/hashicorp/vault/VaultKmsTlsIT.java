@@ -100,7 +100,8 @@ class VaultKmsTlsIT {
         var resolved = service.resolveAlias(keyName);
         assertThat(resolved)
                 .failsWithin(Duration.ofSeconds(5))
-                .withThrowableThat().havingCause()
+                .withThrowableThat()
+                .havingRootCause()
                 .isInstanceOf(SSLHandshakeException.class)
                 .withMessageContaining("Received fatal alert: certificate_required");
         testVault.close();

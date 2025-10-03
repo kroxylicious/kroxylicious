@@ -194,8 +194,12 @@ public abstract class AbstractTlsIT extends BaseIT {
 
         try (var admin = CloseableAdmin.create(config)) {
             // Any operation to test that connection to cluster fails as we don't present a certificate.
-            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS)).hasRootCauseInstanceOf(SSLHandshakeException.class)
-                    .hasRootCauseMessage("Received fatal alert: bad_certificate");
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .rootCause()
+                    .satisfiesAnyOf(e -> assertThat(e).hasMessageContaining("Received fatal alert: bad_certificate") /* <JDK-25 */,
+                            e -> assertThat(e).hasMessageContaining("Received fatal alert: certificate_required") /* JDK-25 */);
+
         }
     }
 

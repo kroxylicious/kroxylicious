@@ -7,6 +7,7 @@ include::_assets/attributes.adoc[]
 [id="using-book-{context}"]
 = Kroxylicious Operator for Kubernetes
 
+[role="_abstract"]
 include::_modules/con-about-{guide}-guide.adoc[leveloffset=+2]
 
 include::_assemblies/assembly-operator-overview.adoc[leveloffset=+1]
@@ -26,7 +27,11 @@ include::_assemblies/assembly-operator-deploy-a-proxy.adoc[leveloffset=+1]
 include::_assemblies/assembly-operator-operate-proxy.adoc[leveloffset=+1]
 
 // securing proxies
+ifdef::context[:parent-context: {context}]
+:context: securing
 include::_assemblies/assembly-operator-secure-proxy.adoc[leveloffset=+1]
+ifdef::parent-context[:context: {parent-context}]
+ifndef::parent-context[:!context:]
 
 // // monitoring proxies
 include::_assemblies/assembly-operator-monitoring.adoc[leveloffset=+1]

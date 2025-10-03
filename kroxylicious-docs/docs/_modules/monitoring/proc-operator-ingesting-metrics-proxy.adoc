@@ -1,9 +1,11 @@
+:_mod-docs-content-type: PROCEDURE
+
 // file included in the following:
 //
 // con-operator-ingesting-metrics.adoc
 
 
-[id='proc-operator-ingesting-metrics-proxy{context}']
+[id='proc-operator-ingesting-metrics-proxy-{context}']
 = Ingesting proxy metrics
 
 [role="_abstract"]

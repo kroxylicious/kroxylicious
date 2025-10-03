@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // assembly-aws-kms.adoc
@@ -5,6 +7,7 @@
 [id='con-aws-kms-key-creation-{context}']
 = Creating AWS KMS keys
 
+[role="_abstract"]
 As the administrator, use either the AWS Console or CLI to
 {aws}/kms/latest/developerguide/create-keys.html#create-symmetric-cmk[create] a *Symmetric key* with *Encrypt and decrypt*
 usage.  

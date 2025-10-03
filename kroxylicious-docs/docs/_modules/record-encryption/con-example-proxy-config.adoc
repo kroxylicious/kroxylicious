@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // assembly-configuring-record-encryption-filter
@@ -5,6 +7,7 @@
 [id='con-example-proxy-config-{context}']
 = Example proxy configuration file
 
+[role="_abstract"]
 If your instance of the Kroxylicious Proxy runs directly on an operating system, provide the filter configuration in the `filterDefinitions` list of your proxy configuration.
 Here's a complete example of a `filterDefinitions` entry configured for record encryption with Vault KMS:
 

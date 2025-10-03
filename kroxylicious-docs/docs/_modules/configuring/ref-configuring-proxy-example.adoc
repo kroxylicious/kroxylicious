@@ -1,6 +1,9 @@
+:_mod-docs-content-type: REFERENCE
+
 [id='ref-configuring-proxy-example-{context}']
 = Example Kroxylicious configuration
 
+[role="_abstract"]
 * Virtual clusters that represent the Kafka clusters
 * Network addresses for broker communication in a Kafka cluster
 * Filters to introduce additional functionality to the Kafka deployment
