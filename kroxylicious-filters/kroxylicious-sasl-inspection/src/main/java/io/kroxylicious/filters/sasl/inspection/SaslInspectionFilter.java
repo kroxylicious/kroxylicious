@@ -60,19 +60,64 @@ class SaslInspectionFilter
         REAUTH
     }
 
+    private sealed interface ExpectingHandshakeRequestState extends State permits State.RequiringHandshakeRequest, State.AllowingHandshakeRequest {
+        /**
+         * Transition to the next state.
+         *
+         * @param saslObserver sasl observer
+         * @return the awaiting handshake response state.
+         */
+        AwaitingHandshakeResponse nextState(SaslObserver saslObserver);
+    }
+
     private sealed interface State
-            permits State.AllowingHandshakeRequest, State.AwaitingAuthenticateResponse, State.AwaitingHandshakeResponse, State.DisallowingAuthenticateRequest,
-            State.RequiringAuthenticateRequest, State.RequiringHandshakeRequest {
+            permits ExpectingHandshakeRequestState, State.AwaitingAuthenticateResponse, State.AwaitingHandshakeResponse, State.DisallowingAuthenticateRequest,
+            State.RequiringAuthenticateRequest {
+
         /** A SASL handshake request is required. */
-        record RequiringHandshakeRequest() implements State {}
+        record RequiringHandshakeRequest() implements ExpectingHandshakeRequestState {
+            /**
+             * Transition to the next state.
+             *
+             * @param saslObserver sasl observer
+             * @return the awaiting handshake response state.
+             */
+            @Override
+            public AwaitingHandshakeResponse nextState(SaslObserver saslObserver) {
+                return new AwaitingHandshakeResponse(saslObserver, NegotiationType.INITIAL);
+            }
+        }
 
         /** We're waiting for a SASL handshake response from the server. */
-        record AwaitingHandshakeResponse(SaslObserver saslObserver, NegotiationType negotiationType) implements State {}
+        record AwaitingHandshakeResponse(SaslObserver saslObserver, NegotiationType negotiationType) implements State {
+            /**
+             * Transition to the next state.
+             *
+             * @return the requiring authenticate request state.
+             */
+            public RequiringAuthenticateRequest nextState() {
+                return new RequiringAuthenticateRequest(saslObserver, negotiationType);
+            }
+        }
 
         /**
          * A SASL authenticate request is required.
          */
-        record RequiringAuthenticateRequest(SaslObserver saslObserver, NegotiationType negotiationType) implements State {}
+        record RequiringAuthenticateRequest(SaslObserver saslObserver, NegotiationType negotiationType) implements State {
+
+            /**
+             * Transition to the next state.
+             *
+             * @param authRequestApiSupportsReauth true if the request indicates the broker/client support KIP-368.
+             * @return the awaiting authenticate request state.
+             */
+            public AwaitingAuthenticateResponse nextState(boolean authRequestApiSupportsReauth) {
+                // Flag indicating if the client and broker supports re-authentication (KIP-368). If this is not the first
+                // authentication request, or the apiVersion is > 0 we know that the client supports reauth.
+                var clientSupportsReauthentication = negotiationType == NegotiationType.REAUTH || authRequestApiSupportsReauth;
+                return new AwaitingAuthenticateResponse(saslObserver, negotiationType, clientSupportsReauthentication);
+            }
+        }
 
         /**
          * We're waiting for a SASL authenticate response from the server
@@ -80,23 +125,53 @@ class SaslInspectionFilter
          * @param negotiationType handshakeType
          * @param clientSupportsReauthentication true if the client supports reauthentication
          */
-        record AwaitingAuthenticateResponse(SaslObserver saslObserver, NegotiationType negotiationType, boolean clientSupportsReauthentication) implements State {}
+        record AwaitingAuthenticateResponse(SaslObserver saslObserver, NegotiationType negotiationType, boolean clientSupportsReauthentication) implements State {
+
+            /**
+             * Transition to the next state.
+             * @param saslFinished true if sasl negotiation finished
+             * @return the allowing or disallowing authenticate request state.
+             */
+            public State nextState(boolean saslFinished) {
+                if (saslFinished) {
+                    if (clientSupportsReauthentication()) {
+                        return new AllowingHandshakeRequest();
+                    }
+                    else {
+                        return new DisallowingAuthenticateRequest();
+                    }
+                }
+                else {
+                    return new RequiringAuthenticateRequest(saslObserver(), negotiationType());
+                }
+            }
+        }
 
         /**
          * Authentication has been successful and a future SASL authenticate request is allowed for reauthentication.
          * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate">KIP-368</a>.
          */
-        record AllowingHandshakeRequest() implements State {}
+        record AllowingHandshakeRequest() implements ExpectingHandshakeRequestState {
+            /**
+             * Transition to the next state.
+             *
+             * @param saslObserver sasl observer
+             * @return the awaiting handshake response state.
+             */
+            @Override
+            public AwaitingHandshakeResponse nextState(SaslObserver saslObserver) {
+                return new AwaitingHandshakeResponse(saslObserver, NegotiationType.REAUTH);
+            }
+        }
 
         /**
          * Authentication has been successful, but no future SASL authenticate request is allowed.
          * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate">KIP-368</a>.
          */
         record DisallowingAuthenticateRequest() implements State {}
-
     }
 
-    private State currentState = new State.RequiringHandshakeRequest();
+    private State currentState = new ExpectingHandshakeRequestState.RequiringHandshakeRequest();
 
     SaslInspectionFilter(Map<String, SaslObserverFactory> mechanismFactories) {
         Objects.requireNonNull(mechanismFactories, "mechanismFactories");
@@ -108,8 +183,7 @@ class SaslInspectionFilter
                                                                        RequestHeaderData header,
                                                                        SaslHandshakeRequestData request,
                                                                        FilterContext context) {
-        if (currentState instanceof State.RequiringHandshakeRequest
-                || currentState instanceof State.AllowingHandshakeRequest) {
+        if (currentState instanceof ExpectingHandshakeRequestState handshakeRequestState) {
             var saslObserverFactory = observerFactoryMap.get(request.mechanism());
             SaslObserver saslObserver;
             if (saslObserverFactory != null) {
@@ -137,8 +211,7 @@ class SaslInspectionFilter
                         .addArgument(saslObserver::mechanismName)
                         .log();
             }
-            NegotiationType negotiationType = currentState instanceof State.RequiringHandshakeRequest ? NegotiationType.INITIAL : NegotiationType.REAUTH;
-            currentState = new State.AwaitingHandshakeResponse(saslObserver, negotiationType);
+            currentState = handshakeRequestState.nextState(saslObserver);
             return context.forwardRequest(header, request);
         }
         else {
@@ -181,7 +254,7 @@ class SaslInspectionFilter
                 .addArgument(currentState.saslObserver().mechanismName())
                 .addArgument(context::channelDescriptor)
                 .log();
-        this.currentState = new State.RequiringAuthenticateRequest(currentState.saslObserver(), currentState.negotiationType());
+        this.currentState = currentState.nextState();
         return context.forwardResponse(header, response);
     }
 
@@ -236,10 +309,7 @@ class SaslInspectionFilter
                         .setErrorMessage("Proxy cannot extract authorizationId from SASL authenticate request"));
             }
 
-            // Flag indicating if the client and broker supports re-authentication (KIP-368). If this is not the first
-            // authentication request, or the apiVersion is > 0 we know that the client supports reauth.
-            boolean clientSupportsReauthentication = state.negotiationType == NegotiationType.REAUTH || apiVersion > 0;
-            this.currentState = new State.AwaitingAuthenticateResponse(state.saslObserver(), state.negotiationType(), clientSupportsReauthentication);
+            this.currentState = state.nextState(apiVersion > 0);
             return context.forwardRequest(header, request);
         }
         else {
@@ -280,7 +350,7 @@ class SaslInspectionFilter
         if (saslObserver.isFinished()) {
             String authorizationIdFromClient = getAuthorizationIdOrNull(saslObserver);
             if (authorizationIdFromClient == null) {
-                // Ordinarily, we never expect to be here.  The sasl negotiation ought to be yielded a authorizationId before
+                // Ordinarily, we never expect to be here. The sasl negotiation ought to be yielded a authorizationId before
                 // the negotiation is finished.
                 return closeConnectionWithResponse(header, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()), context);
 
@@ -293,16 +363,8 @@ class SaslInspectionFilter
                     .log();
             context.clientSaslAuthenticationSuccess(saslObserver.mechanismName(), authorizationIdFromClient);
 
-            if (state.clientSupportsReauthentication()) {
-                currentState = new State.AllowingHandshakeRequest();
-            }
-            else {
-                currentState = new State.DisallowingAuthenticateRequest();
-            }
         }
-        else {
-            this.currentState = new State.RequiringAuthenticateRequest(state.saslObserver(), state.negotiationType());
-        }
+        currentState = state.nextState(saslObserver.isFinished());
         return context.forwardResponse(header, response);
     }
 
