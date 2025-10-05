@@ -171,9 +171,7 @@ class AclAuthorizerServiceTest {
 
                                 otherwise deny;""",
                         """
-                                5:64: Regex provided for 'matching' operation is not valid: Dangling meta character '*' near index 0
-                                **
-                                ^"""));
+                                5:64: Regex provided for 'matching' operation is not valid: error parsing regexp: missing argument to repetition operator: `*`."""));
     }
 
     @ParameterizedTest

@@ -7,9 +7,10 @@
 package io.kroxylicious.authorizer.provider.acl;
 
 import java.util.Set;
-import java.util.regex.Pattern;
 
 import org.junit.jupiter.api.Test;
+
+import com.google.re2j.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

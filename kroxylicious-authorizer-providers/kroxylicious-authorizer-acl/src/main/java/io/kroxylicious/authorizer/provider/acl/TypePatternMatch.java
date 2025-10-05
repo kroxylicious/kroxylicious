@@ -9,7 +9,8 @@ package io.kroxylicious.authorizer.provider.acl;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.TreeMap;
-import java.util.regex.Pattern;
+
+import com.google.re2j.Pattern;
 
 import io.kroxylicious.authorizer.service.Operation;
 

@@ -14,8 +14,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 import java.util.stream.Collectors;
 
 import org.antlr.v4.runtime.BaseErrorListener;
@@ -27,6 +25,9 @@ import org.antlr.v4.runtime.Recognizer;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
+
+import com.google.re2j.Pattern;
+import com.google.re2j.PatternSyntaxException;
 
 import io.kroxylicious.authorizer.provider.acl.parser.AclRulesBaseListener;
 import io.kroxylicious.authorizer.provider.acl.parser.AclRulesLexer;
@@ -290,7 +291,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
             }
             catch (PatternSyntaxException e) {
                 reportError(nameMatch.REGEX().getSymbol(),
-                        "Regex provided for '%s' operation is not valid: %s".formatted(
+                        "Regex provided for '%s' operation is not valid: %s.".formatted(
                                 nameMatch.MATCHING().getText(),
                                 e.getMessage()));
             }
