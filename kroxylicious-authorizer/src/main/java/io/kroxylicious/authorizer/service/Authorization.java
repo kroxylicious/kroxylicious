@@ -30,6 +30,12 @@ public record Authorization(
         Objects.requireNonNull(denied);
     }
 
+    /**
+     * Returns a list of the names of all the resources which the {@link #subject()}
+     * is allowed to perform the given {@code operation} on.
+     * @param operation The operation.
+     * @return The names of the allowed resources.
+     */
     public List<String> allowed(Operation<?> operation) {
         return allowed().stream()
                 .filter(a -> a.operation().equals(operation))
@@ -37,6 +43,12 @@ public record Authorization(
                 .toList();
     }
 
+    /**
+     * Returns a list of the names of all the resources which the {@link #subject()}
+     * is denied from performing the given {@code operation} on.
+     * @param operation The operation.
+     * @return The names of the denied resources.
+     */
     public List<String> denied(Operation<?> operation) {
         return denied().stream()
                 .filter(a -> a.operation().equals(operation))
@@ -44,12 +56,28 @@ public record Authorization(
                 .toList();
     }
 
+    /**
+     * Returns the decision about whether the given {@link #subject()} is allowed to perform the given
+     * {@code operation} on the resource with the given {@code resourceName}.
+     * @param operation The operation that would be performed on the resource.
+     * @param resourceName The name of the resource that the operation would be performed on.
+     * @return The decision.
+     */
     public Decision decision(Operation<?> operation, String resourceName) {
         return allowed().stream()
                 .anyMatch(a -> a.operation().equals(operation)
                         && a.resourceName().equals(resourceName)) ? Decision.ALLOW : Decision.DENY;
     }
 
+    /**
+     * Partitions the given {@code items}, whose names can be obtained via the given {@code toName} function, into two lists
+     * based on whether the {@link #subject()} is allowed to perform the given {@code operation} on them.
+     * @param items The items to partition
+     * @param operation The operation
+     * @param toName A function that returns the name of each item.
+     * @return A pair of lists of the items which the subject is allowed to, or denied from, performing the operation on.
+     * @param <T> The type of item.
+     */
     public <T> Map<Decision, List<T>> partition(Collection<T> items, Operation<?> operation, Function<T, String> toName) {
         return items.stream().collect(Collectors.groupingBy(item -> decision(operation, toName.apply(item))));
     }

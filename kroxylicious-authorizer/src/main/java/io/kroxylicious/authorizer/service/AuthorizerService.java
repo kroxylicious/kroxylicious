@@ -11,7 +11,7 @@ import javax.annotation.concurrent.ThreadSafe;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * Service interface for Authorizers
+ * Service interface for {@link Authorizer Authorizers}.
  * @param <C> The config type
  */
 @ThreadSafe
