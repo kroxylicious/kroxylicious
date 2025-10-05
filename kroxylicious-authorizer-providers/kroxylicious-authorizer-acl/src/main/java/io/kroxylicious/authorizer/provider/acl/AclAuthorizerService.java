@@ -142,6 +142,14 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         }
 
         @Override
+        public void enterVersionStmt(AclRulesParser.VersionStmtContext ctx) {
+            var version = Integer.parseInt(ctx.INT().getText());
+            if (version != 1) {
+                reportError(ctx.start, "Unsupported version: Only version 1 is supported.");
+            }
+        }
+
+        @Override
         public void enterImportStmt(AclRulesParser.ImportStmtContext ctx) {
             var packageName = ctx.packageName().qualIdent().IDENT().stream()
                     .map(TerminalNode::getText)
@@ -160,7 +168,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
             var was = this.localToQualified.put(localName, packageName + "." + simpleClassName);
             if (was != null) {
                 reportError(errorToken,
-                        "Local name '%s' is already being used for class %s".formatted(localName, was));
+                        "Local name '%s' is already being used for class %s.".formatted(localName, was));
             }
         }
 
@@ -234,14 +242,15 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         @Override
         public void enterNameLike(AclRulesParser.NameLikeContext nameLike) {
             var pattern = unwrap(nameLike.STRING());
-            int firstStartIndex = pattern.indexOf('*');
-            boolean useEquals = firstStartIndex != pattern.length() - 1;
-            if (!useEquals && firstStartIndex != pattern.length() - 1) {
-                reportError(nameLike.STRING().getSymbol(), "Wildcard '*' only supported as last character in 'like'");
+            int indexOfFirstWildcard = pattern.indexOf('*');
+            boolean wildcardIsPresent = indexOfFirstWildcard != -1;
+            boolean wildcardAtEnd = indexOfFirstWildcard == pattern.length() - 1;
+            if (wildcardIsPresent && !wildcardAtEnd) {
+                reportError(nameLike.STRING().getSymbol(), "Wildcard '*' only supported as last character in 'like'.");
             }
-            String prefix = pattern.substring(0, useEquals ? pattern.length() : firstStartIndex);
+            String prefix = pattern.substring(0, wildcardIsPresent ? indexOfFirstWildcard : pattern.length());
             if (this.resourceBuilder != null) {
-                if (useEquals) {
+                if (!wildcardIsPresent) {
                     this.resourceBuilder.onResourceWithNameEqualTo(pattern);
                 }
                 else if (prefix.isEmpty()) {
@@ -253,7 +262,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
                 this.resourceBuilder = null;
             }
             else if (this.principalBuilder != null) {
-                if (useEquals) {
+                if (!wildcardIsPresent) {
                     this.operationsBuilder = this.principalBuilder.withNameEqualTo(pattern);
                 }
                 else if (prefix.isEmpty()) {

@@ -54,16 +54,6 @@ class AclAuthorizerServiceTest {
 
                                 otherwise deny;""",
                         "2:0: mismatched input 'import' expecting 'version'."),
-                Arguments.argumentSet("Unsupported version",
-                        """
-                                version 12;
-                                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
-
-                                allow User with name = "Alice" to READ Topic with name = "foo";
-
-                                otherwise deny;""",
-                        "1:9: token recognition error at: '2'."),
                 Arguments.argumentSet("Missing final 'otherwise deny'",
                         """
                                 version 1;
@@ -108,6 +98,16 @@ class AclAuthorizerServiceTest {
 
     static List<Arguments> checkErrors() {
         return List.of(
+                Arguments.argumentSet("Unsupported version",
+                        """
+                                version 12;
+                                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                                allow User with name = "Alice" to READ Topic with name = "foo";
+
+                                otherwise deny;""",
+                        "1:0: Unsupported version: Only version 1 is supported."),
                 Arguments.argumentSet("Missing import",
                         """
                                 version 1;
@@ -125,7 +125,7 @@ class AclAuthorizerServiceTest {
                                 import FakeTopicResource as Collide from io.kroxylicious.authorizer.provider.acl;
 
                                 otherwise deny;""",
-                        "3:28: Local name 'Collide' is already being used for class io.kroxylicious.authorizer.provider.acl.UserPrincipal"),
+                        "3:28: Local name 'Collide' is already being used for class io.kroxylicious.authorizer.provider.acl.UserPrincipal."),
                 Arguments.argumentSet(
                         "Missing principal class",
                         """
@@ -148,6 +148,18 @@ class AclAuthorizerServiceTest {
 
                                 otherwise deny;""",
                         "5:6: Principal class 'User' is not a subclass of interface io.kroxylicious.proxy.authentication.Principal."),
+                Arguments.argumentSet(
+                        "Invalid like",
+                        """
+                                version 1;
+                                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                                allow User with name = "Alice" to READ Topic with name like "Foo*Bar";
+
+                                otherwise deny;""",
+                        """
+                                5:60: Wildcard '*' only supported as last character in 'like'."""),
                 Arguments.argumentSet(
                         "Invalid regex",
                         """

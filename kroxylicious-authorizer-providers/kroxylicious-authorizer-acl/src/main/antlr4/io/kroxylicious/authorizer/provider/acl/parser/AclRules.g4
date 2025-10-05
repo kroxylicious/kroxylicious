@@ -11,7 +11,7 @@ rule: versionStmt
     <EOF>
     ;
 
-versionStmt: 'version' '1' SEMI
+versionStmt: 'version' INT SEMI
     ;
 
 importStmt: IMPORT name=IDENT (AS local=IDENT)? FROM packageName SEMI
@@ -103,3 +103,4 @@ LINE_COMMENT: '//' .*? '\r'? '\n' -> skip;
 COMMENT: '/*' .*? '*/' -> skip;
 WS: [ \t\r\n]+ -> skip;
 IDENT: [A-Za-z][A-Za-z0-9_]*;
+INT: [1-9][0-9]*;
