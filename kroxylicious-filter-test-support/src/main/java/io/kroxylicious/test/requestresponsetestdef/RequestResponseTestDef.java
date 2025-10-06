@@ -40,10 +40,10 @@ public record RequestResponseTestDef(String testName, ApiMessageType apiKey, Req
     }
 
     private static JsonNode[] readTestResource(ResourceInfo resourceInfo) {
-        try {
-            var url = resourceInfo.url();
-            var sourceFilename = Optional.of(Path.of(url.getPath()).getFileName()).map(Path::getFileName).orElseThrow();
-            var jsonNodes = MAPPER.reader().readValue(url.getFile(), JsonNode[].class);
+        var url = resourceInfo.url();
+        var sourceFilename = Optional.of(Path.of(url.getPath()).getFileName()).map(Path::getFileName).orElseThrow();
+        try (var is = url.openStream()) {
+            var jsonNodes = MAPPER.reader().readValue(is, JsonNode[].class);
             for (int i = 0; i < jsonNodes.length; i++) {
                 if (jsonNodes[i] instanceof ObjectNode objectNode) {
                     objectNode.put("source", String.format("%s[%d]", sourceFilename, i));
