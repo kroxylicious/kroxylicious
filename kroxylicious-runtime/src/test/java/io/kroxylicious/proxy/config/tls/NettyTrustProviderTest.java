@@ -202,7 +202,11 @@ class NettyTrustProviderTest {
                         new ServerOptions(TlsClientAuth.REQUESTED)));
 
         // When/Then - should throw exception for unsupported combination
+        // Note: The exception gets wrapped, so we check the root cause
         assertThatCode(() -> trustStoreWithPEM.apply(sslContextBuilder))
+                .isInstanceOf(SslContextBuildException.class)
+                .hasMessageContaining("Error building SSLContext for TrustStore")
+                .cause()
                 .isInstanceOf(SslContextBuildException.class)
                 .hasMessageContaining("REQUESTED client authentication mode is not supported for PEM trust stores")
                 .hasMessageContaining("Please use JKS or PKCS12 format");
