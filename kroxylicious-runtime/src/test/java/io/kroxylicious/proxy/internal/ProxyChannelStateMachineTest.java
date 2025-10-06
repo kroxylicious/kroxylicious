@@ -109,14 +109,14 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void shouldCountClientConnections() {
+    void shouldCountClientToProxyConnections() {
         // Given
 
         // When
         proxyChannelStateMachine.onClientActive(frontendHandler);
 
         // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_downstream_connections").counter())
+        assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_connections").counter())
                 .isNotNull()
                 .satisfies(counter -> assertThat(counter.getId()).isNotNull())
                 .satisfies(counter -> assertThat(counter.count())
@@ -125,7 +125,7 @@ class ProxyChannelStateMachineTest {
 
     @ParameterizedTest
     @MethodSource("clientErrorStates")
-    void shouldCountClientExceptions(Runnable givenState, Boolean tlsEnabled) {
+    void shouldCountClientToProxyExceptions(Runnable givenState, Boolean tlsEnabled) {
         // Given
         givenState.run();
 
@@ -133,7 +133,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onClientException(failure, tlsEnabled);
 
         // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_downstream_errors").counter())
+        assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_errors").counter())
                 .isNotNull()
                 .satisfies(counter -> assertThat(counter.getId()).isNotNull())
                 .satisfies(counter -> assertThat(counter.count())
@@ -142,7 +142,7 @@ class ProxyChannelStateMachineTest {
 
     @ParameterizedTest
     @MethodSource("givenStates")
-    void shouldCountServerExceptions(Runnable givenState) {
+    void shouldCountProxyToServerExceptions(Runnable givenState) {
         // Given
         givenState.run();
 
@@ -150,7 +150,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onServerException(failure);
 
         // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_upstream_errors").counter())
+        assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_errors").counter())
                 .isNotNull()
                 .satisfies(counter -> assertThat(counter.getId()).isNotNull())
                 .satisfies(counter -> assertThat(counter.count())
@@ -158,23 +158,7 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void shouldCountSuccessfulUpstreamConnections() {
-        // Given
-        stateMachineInConnecting();
-
-        // When
-        proxyChannelStateMachine.onServerActive();
-
-        // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_upstream_connections").counter())
-                .isNotNull()
-                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
-                .satisfies(counter -> assertThat(counter.count())
-                        .isCloseTo(1.0, CLOSE_ENOUGH));
-    }
-
-    @Test
-    void shouldCountUpstreamConnectionsAttempts() {
+    void shouldCountProxyToServerConnections() {
         // Given
         stateMachineInSelectingServer();
 
@@ -182,7 +166,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onNetFilterInitiateConnect(HostPort.parse("localhost:9090"), List.of(), VIRTUAL_CLUSTER_MODEL, null);
 
         // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_upstream_connection_attempts").counter())
+        assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_connections").counter())
                 .isNotNull()
                 .satisfies(counter -> assertThat(counter.getId()).isNotNull())
                 .satisfies(counter -> assertThat(counter.count())
@@ -190,7 +174,7 @@ class ProxyChannelStateMachineTest {
     }
 
     @Test
-    void shouldCountUpstreamConnectionsFailures() {
+    void shouldCountProxyToServerConnectionsFailures() {
         // Given
         stateMachineInConnecting();
 
@@ -198,7 +182,7 @@ class ProxyChannelStateMachineTest {
         proxyChannelStateMachine.onServerException(failure);
 
         // Then
-        assertThat(Metrics.globalRegistry.get("kroxylicious_upstream_connection_failures").counter())
+        assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_errors").counter())
                 .isNotNull()
                 .satisfies(counter -> assertThat(counter.getId()).isNotNull())
                 .satisfies(counter -> assertThat(counter.count())
