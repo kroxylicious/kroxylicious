@@ -15,7 +15,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * The type Kcat consumer record.
+ * The type Python consumer record.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class PythonConsumerRecord extends ConsumerRecord {
