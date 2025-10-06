@@ -892,6 +892,33 @@ class TlsIT extends AbstractTlsIT {
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = { "REQUIRED", "REQUESTED" })
+    void downstream_RejectsClientWithInvalidCertificateInRequiredMode(TlsClientAuth clientAuthMode, KafkaCluster cluster) throws Exception {
+        // Generate an invalid client certificate not trusted by the server
+        var invalidClientCert = new KeytoolCertificateGenerator();
+        invalidClientCert.generateSelfSignedCertificateEntry("invalid@test.com", "invalidclient", "Test", "Test", null, null, "US");
+
+        try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, clientAuthMode));
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                // Using an invalid client certificate that server won't trust
+                                SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, invalidClientCert.getKeyStoreLocation(),
+                                SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, invalidClientCert.getPassword(),
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+            // Connection should fail because server doesn't trust the client certificate
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .rootCause()
+                    .satisfiesAnyOf(
+                            e -> assertThat(e).hasMessageContaining("Received fatal alert: bad_certificate"),
+                            e -> assertThat(e).hasMessageContaining("Received fatal alert: certificate_unknown"),
+                            e -> assertThat(e).hasMessageContaining("PKIX path building failed"));
+        }
+    }
+
     private ConfigurationBuilder constructMutualTlsBuilder(KafkaCluster cluster, TlsClientAuth tlsClientAuth) {
         // @formatter:off
         return new ConfigurationBuilder()
