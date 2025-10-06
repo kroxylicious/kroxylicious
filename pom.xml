@@ -23,7 +23,7 @@
         <java.test.version>17</java.test.version>
         <maven.exec.version>3.1.0</maven.exec.version>
         <maven.compiler.version>3.10.1</maven.compiler.version>
-        <maven-dependency-plugin.version>3.8.1</maven-dependency-plugin.version>
+        <maven-dependency-plugin.version>3.9.0</maven-dependency-plugin.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <maven.compiler.release>${java.version}</maven.compiler.release>
         <maven.compiler.testRelease>${java.test.version}</maven.compiler.testRelease>
@@ -79,7 +79,7 @@
         <netty-leak-detector-junit-extension.version>0.2.0</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.13.1</wiremock.version>
         <docker-java.version>3.6.0</docker-java.version>
-        <test-frame.version>1.1.0</test-frame.version>
+        <test-frame.version>1.2.0</test-frame.version>
         <junit-pioneer.version>2.3.0</junit-pioneer.version>
         <skip-validate-yaml-snippets>true</skip-validate-yaml-snippets>
         <opentest4j.version>1.3.0</opentest4j.version>
@@ -609,7 +609,7 @@
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
                     <artifactId>maven-enforcer-plugin</artifactId>
-                    <version>3.6.1</version>
+                    <version>3.6.2</version>
                 </plugin>
                 <plugin>
                     <groupId>org.apache.maven.plugins</groupId>
@@ -747,7 +747,7 @@
                 <plugin>
                     <groupId>com.github.siom79.japicmp</groupId>
                     <artifactId>japicmp-maven-plugin</artifactId>
-                    <version>0.23.1</version>
+                    <version>0.24.1</version>
                 </plugin>
 
                 <plugin>
