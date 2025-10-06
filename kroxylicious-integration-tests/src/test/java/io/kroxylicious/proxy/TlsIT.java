@@ -894,7 +894,7 @@ class TlsIT extends AbstractTlsIT {
 
     @ParameterizedTest
     @ValueSource(strings = { "REQUIRED", "REQUESTED" })
-    void downstream_RejectsClientWithInvalidCertificateInRequiredMode(TlsClientAuth clientAuthMode, KafkaCluster cluster) throws Exception {
+    void downstream_RejectsClientWithInvalidCertificateInNotNoneMode(TlsClientAuth clientAuthMode, KafkaCluster cluster) throws Exception {
         // Generate an invalid client certificate not trusted by the server
         var invalidClientCert = new KeytoolCertificateGenerator();
         invalidClientCert.generateSelfSignedCertificateEntry("invalid@test.com", "invalidclient", "Test", "Test", null, null, "US");
