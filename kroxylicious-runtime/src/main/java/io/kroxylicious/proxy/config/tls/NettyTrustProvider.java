@@ -70,9 +70,9 @@ public class NettyTrustProvider {
                             // For REQUESTED mode, wrap the trust manager to validate certificates if presented
                             if (clientAuthMode == TlsClientAuth.REQUESTED) {
                                 TrustManager[] trustManagers = trustManagerFactory.getTrustManagers();
-                                if (trustManagers != null && trustManagers.length > 0 && trustManagers[0] instanceof X509TrustManager) {
+                                if (trustManagers != null && trustManagers.length > 0 && trustManagers[0] instanceof X509TrustManager x509TrustManager) {
                                     return builder.trustManager(
-                                            new RequestedClientAuthTrustManager((X509TrustManager) trustManagers[0]));
+                                            new RequestedClientAuthTrustManager(x509TrustManager));
                                 }
                             }
 

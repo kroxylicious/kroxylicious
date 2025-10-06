@@ -46,8 +46,8 @@ public class RequestedClientAuthTrustManager extends X509ExtendedTrustManager {
     public void checkClientTrusted(X509Certificate[] chain, String authType, Socket socket) throws CertificateException {
         // If a client certificate chain is presented, validate it
         if (chain != null && chain.length > 0) {
-            if (delegate instanceof X509ExtendedTrustManager) {
-                ((X509ExtendedTrustManager) delegate).checkClientTrusted(chain, authType, socket);
+            if (delegate instanceof X509ExtendedTrustManager x509ExtendedTrustManager) {
+                x509ExtendedTrustManager.checkClientTrusted(chain, authType, socket);
             }
             else {
                 delegate.checkClientTrusted(chain, authType);
@@ -60,8 +60,8 @@ public class RequestedClientAuthTrustManager extends X509ExtendedTrustManager {
     public void checkClientTrusted(X509Certificate[] chain, String authType, SSLEngine engine) throws CertificateException {
         // If a client certificate chain is presented, validate it
         if (chain != null && chain.length > 0) {
-            if (delegate instanceof X509ExtendedTrustManager) {
-                ((X509ExtendedTrustManager) delegate).checkClientTrusted(chain, authType, engine);
+            if (delegate instanceof X509ExtendedTrustManager x509ExtendedTrustManager) {
+                x509ExtendedTrustManager.checkClientTrusted(chain, authType, engine);
             }
             else {
                 delegate.checkClientTrusted(chain, authType);
@@ -77,8 +77,8 @@ public class RequestedClientAuthTrustManager extends X509ExtendedTrustManager {
 
     @Override
     public void checkServerTrusted(X509Certificate[] chain, String authType, Socket socket) throws CertificateException {
-        if (delegate instanceof X509ExtendedTrustManager) {
-            ((X509ExtendedTrustManager) delegate).checkServerTrusted(chain, authType, socket);
+        if (delegate instanceof X509ExtendedTrustManager x509ExtendedTrustManager) {
+            x509ExtendedTrustManager.checkServerTrusted(chain, authType, socket);
         }
         else {
             delegate.checkServerTrusted(chain, authType);
@@ -87,8 +87,8 @@ public class RequestedClientAuthTrustManager extends X509ExtendedTrustManager {
 
     @Override
     public void checkServerTrusted(X509Certificate[] chain, String authType, SSLEngine engine) throws CertificateException {
-        if (delegate instanceof X509ExtendedTrustManager) {
-            ((X509ExtendedTrustManager) delegate).checkServerTrusted(chain, authType, engine);
+        if (delegate instanceof X509ExtendedTrustManager x509ExtendedTrustManager) {
+            x509ExtendedTrustManager.checkServerTrusted(chain, authType, engine);
         }
         else {
             delegate.checkServerTrusted(chain, authType);
