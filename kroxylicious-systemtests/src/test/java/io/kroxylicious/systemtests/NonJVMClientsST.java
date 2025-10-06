@@ -176,6 +176,28 @@ class NonJVMClientsST extends AbstractST {
     }
 
     /**
+     * Produce with java test clients and consume message with python client.
+     *
+     * @param namespace the namespace
+     */
+    @Test
+    void produceWithTestClientsAndConsumeWithPython(String namespace) {
+        int numberOfMessages = 2;
+        LOGGER.atInfo().setMessage("When the message '{}' is sent to the topic '{}'").addArgument(MESSAGE).addArgument(topicName).log();
+        KafkaClients.strimziTestClient().inNamespace(namespace).produceMessages(topicName, bootstrap, MESSAGE, numberOfMessages);
+
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        List<ConsumerRecord> result = KafkaClients.python().inNamespace(namespace).consumeMessages(topicName, bootstrap, numberOfMessages,
+                Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+
+        assertThat(result).withFailMessage("expected messages have not been received!")
+                .extracting(ConsumerRecord::getValue)
+                .hasSize(numberOfMessages)
+                .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+    }
+
+    /**
      * Produce with kaf and consume message with java test clients.
      *
      * @param namespace the namespace
