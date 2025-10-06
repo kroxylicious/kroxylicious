@@ -555,33 +555,6 @@ class AclAuthorizerServiceTest {
     }
 
     @Test
-    void testAnonymousResourceEqOpsAny() {
-        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
-                version 1;
-                import FakeTopicResource from io.kroxylicious.authorizer.provider.acl;
-
-                allow anonymous to * FakeTopicResource with name = "foo";
-
-                otherwise deny;"""));
-        for (var op : FakeTopicResource.values()) {
-            assertThat(decision(authz, new UserPrincipal("Alice"), op, "foo"))
-                    .isEqualTo(Decision.ALLOW);
-            assertThat(decision(authz, new UserPrincipal("Bob"), op, "foo"))
-                    .isEqualTo(Decision.ALLOW);
-            assertThat(decision(authz, new UserPrincipal("Eve"), op, "foo"))
-                    .isEqualTo(Decision.ALLOW);
-            assertThat(decision(authz, new RolePrincipal("admin"), op, "foo"))
-                    .isEqualTo(Decision.ALLOW);
-        }
-        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "bar"))
-                .as("Mismatching resource name")
-                .isEqualTo(Decision.DENY);
-        assertThat(decision(authz, new UserPrincipal("Alice"), FakeClusterResource.CONNECT, "foo"))
-                .as("Mismatching resource type")
-                .isEqualTo(Decision.DENY);
-    }
-
-    @Test
     void testGrantsAreAdditive() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
