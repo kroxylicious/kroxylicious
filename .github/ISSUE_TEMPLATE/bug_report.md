@@ -7,7 +7,13 @@ assignees: ''
 
 ---
 
-_Please use this to only for bug reports_. For questions or when you need help, you can use the [GitHub Discussions](https://github.com/kroxylicious/kroxylicious/discussions) or use the [community Slack](https://kroxylicious.slack.com) chat.
+_Please use this to only for non-security related bug reports.
+**For bugs which may be considered security vulnerabilities, please follow the [private vulnerability reporting procedure](https://github.com/kroxylicious/kroxylicious/security)**_.
+
+
+
+
+For questions or when you need help, you can use the [GitHub Discussions](https://github.com/kroxylicious/kroxylicious/discussions) or use the [community Slack](https://kroxylicious.slack.com) chat.
 
 **Describe the bug**
 A clear and concise description of what the bug is.
