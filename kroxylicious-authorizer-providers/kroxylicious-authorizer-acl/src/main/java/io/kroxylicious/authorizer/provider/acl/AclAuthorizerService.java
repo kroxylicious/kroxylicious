@@ -179,6 +179,13 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         }
 
         @Override
+        public void enterUserPattern(AclRulesParser.UserPatternContext ctx) {
+            if (ctx.ANONYMOUS() != null) {
+                this.operationsBuilder = this.subjectBuilder.anonymousSubject();
+            }
+        }
+
+        @Override
         public void enterPrincipalType(AclRulesParser.PrincipalTypeContext ctx) {
             var principalClass = lookupClass(ctx.IDENT(), Principal.class, "Principal");
             if (principalClass != null) {

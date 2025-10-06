@@ -22,17 +22,26 @@ public class TypeNameMap<T, V> {
     }
 
     record ClassNameKey<T>(
-                           Class<? extends T> type,
+            @Nullable Class<? extends T> type,
                            Predicate predicate,
                            @Nullable String name)
             implements Comparable<ClassNameKey<T>> {
 
         ClassNameKey {
-            Objects.requireNonNull(type);
+            //Objects.requireNonNull(type);
         }
 
         @Override
         public int compareTo(ClassNameKey<T> o) {
+            if (this.type == null && o.type == null) {
+                return 0;
+            }
+            if (this.type == null) {
+                return -1;
+            }
+            if (o.type == null) {
+                return +1;
+            }
             var cmp = this.type.getName().compareTo(o.type.getName());
             if (cmp == 0) {
                 cmp = this.predicate.compareTo(o.predicate);
@@ -79,8 +88,12 @@ public class TypeNameMap<T, V> {
                 (k, v) -> value.apply(v));
     }
 
-    public @Nullable V lookup(Class<? extends T> type, Predicate predicate, String name) {
+    public @Nullable V lookup(@Nullable Class<? extends T> type, @Nullable Predicate predicate, @Nullable String name) {
+        if (predicate == null) {
+            return map.get(new ClassNameKey<>(null, null, null));
+        }
         return switch (predicate) {
+
             case TYPE_EQUAL_NAME_EQUAL, TYPE_EQUAL_NAME_ANY -> {
                 V v = map.get(new ClassNameKey<>(type, predicate, name));
                 yield v;

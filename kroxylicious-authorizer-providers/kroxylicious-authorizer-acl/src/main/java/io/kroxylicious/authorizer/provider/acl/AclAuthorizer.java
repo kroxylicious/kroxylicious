@@ -117,6 +117,10 @@ public class AclAuthorizer implements Authorizer {
 
         }
 
+        public OperationsBuilder anonymousSubject() {
+            return new OperationsBuilder(builder, null, null, null);
+        }
+
         public PrincipalSelectorBuilder subjectsHavingPrincipal(Class<? extends Principal> userPrincipalClass) {
             return new PrincipalSelectorBuilder(builder,
                     userPrincipalClass);
@@ -125,42 +129,38 @@ public class AclAuthorizer implements Authorizer {
 
     public static class ResourceBuilder<O extends Enum<O> & Operation> {
         private final Builder builder;
-        private final Class<? extends Principal> principalClass;
-        private final TypeNameMap.Predicate principalPred;
-        private final Set<String> principalNames;
+        private final @Nullable Class<? extends Principal> principalClass;
+        private final @Nullable TypeNameMap.Predicate principalPred;
+        private final @Nullable Set<String> principalNames;
         private final Class<O> operationsClass;
         private final Set<O> operations;
 
         public ResourceBuilder(Builder builder,
-                               Class<? extends Principal> principalClass,
-                               TypeNameMap.Predicate principalPred,
-                               Set<String> principalNames,
+                               @Nullable Class<? extends Principal> principalClass,
+                               @Nullable TypeNameMap.Predicate principalPred,
+                               @Nullable Set<String> principalNames,
                                Class<O> operationsClass,
                                Set<O> operations) {
             this.builder = Objects.requireNonNull(builder);
-            this.principalClass = Objects.requireNonNull(principalClass);
-            this.principalPred = Objects.requireNonNull(principalPred);
-            this.principalNames = Objects.requireNonNull(principalNames);
+            this.principalClass = principalClass;
+            this.principalPred = principalPred;
+            this.principalNames = principalNames;
             this.operationsClass = Objects.requireNonNull(operationsClass);
             this.operations = Objects.requireNonNull(operations);
         }
 
         public Builder onResourceWithNameEqualTo(String resourceName) {
-            for (var principalName : principalNames) {
-                builder.simpleAuthorizer.internalGrant(principalClass,
-                        principalPred,
-                        principalName,
+            if (principalNames == null) {
+                builder.simpleAuthorizer.internalGrant(null,
+                        null,
+                        null,
                         operationsClass,
                         Pred.EQ,
                         resourceName,
                         operations);
             }
-            return builder;
-        }
-
-        public Builder onResourcesWithNameIn(Set<String> resourceNames) {
-            for (var principalName : principalNames) {
-                for (String resourceName : resourceNames) {
+            else {
+                for (var principalName : principalNames) {
                     builder.simpleAuthorizer.internalGrant(principalClass,
                             principalPred,
                             principalName,
@@ -173,41 +173,102 @@ public class AclAuthorizer implements Authorizer {
             return builder;
         }
 
+        public Builder onResourcesWithNameIn(Set<String> resourceNames) {
+            if (principalNames == null) {
+                for (String resourceName : resourceNames) {
+                    builder.simpleAuthorizer.internalGrant(null,
+                            null,
+                            null,
+                            operationsClass,
+                            Pred.EQ,
+                            resourceName,
+                            operations);
+                }
+            }
+            else {
+                for (var principalName : principalNames) {
+                    for (String resourceName : resourceNames) {
+                        builder.simpleAuthorizer.internalGrant(principalClass,
+                                principalPred,
+                                principalName,
+                                operationsClass,
+                                Pred.EQ,
+                                resourceName,
+                                operations);
+                    }
+                }
+            }
+            return builder;
+        }
+
         public Builder onResourcesWithNameStartingWith(String resourceNamePrefix) {
-            for (var principalName : principalNames) {
-                builder.simpleAuthorizer.internalGrant(principalClass,
-                        principalPred,
-                        principalName,
+            if (principalNames == null) {
+                builder.simpleAuthorizer.internalGrant(null,
+                        null,
+                        null,
                         operationsClass,
                         Pred.STARTS,
                         resourceNamePrefix,
                         operations);
             }
+            else {
+                for (var principalName : principalNames) {
+                    builder.simpleAuthorizer.internalGrant(principalClass,
+                            principalPred,
+                            principalName,
+                            operationsClass,
+                            Pred.STARTS,
+                            resourceNamePrefix,
+                            operations);
+                }
+            }
             return builder;
         }
 
         public Builder onResourcesWithNameMatching(String resourceNameRegex) {
-            for (var principalName : principalNames) {
-                builder.simpleAuthorizer.internalGrant(principalClass,
-                        principalPred,
-                        principalName,
+            if (principalNames == null) {
+                builder.simpleAuthorizer.internalGrant(null,
+                        null,
+                        null,
                         operationsClass,
                         Pred.MATCH,
                         resourceNameRegex,
                         operations);
             }
+            else {
+                for (var principalName : principalNames) {
+                    builder.simpleAuthorizer.internalGrant(principalClass,
+                            principalPred,
+                            principalName,
+                            operationsClass,
+                            Pred.MATCH,
+                            resourceNameRegex,
+                            operations);
+                }
+            }
             return builder;
         }
 
         public Builder onAllResources() {
-            for (var principalName : principalNames) {
-                builder.simpleAuthorizer.internalGrant(principalClass,
-                        principalPred,
-                        principalName,
+            if (principalNames == null) {
+                builder.simpleAuthorizer.internalGrant(null,
+                        null,
+                        null,
                         operationsClass,
                         Pred.ANY,
                         null,
                         operations);
+            }
+            else {
+                for (var principalName : principalNames) {
+                    builder.simpleAuthorizer.internalGrant(principalClass,
+                            principalPred,
+                            principalName,
+                            operationsClass,
+                            Pred.ANY,
+                            null,
+                            operations);
+                }
             }
             return builder;
         }
@@ -215,18 +276,23 @@ public class AclAuthorizer implements Authorizer {
 
     public static class OperationsBuilder {
 
-        private final Class<? extends Principal> principalClass;
-        private final TypeNameMap.Predicate principalPred;
-        private final Set<String> principalNames;
+        private final @Nullable Class<? extends Principal> principalClass;
+        private final @Nullable TypeNameMap.Predicate principalPred;
+        private final @Nullable Set<String> principalNames;
         private Builder builder;
 
         private OperationsBuilder(Builder builder,
-                                  Class<? extends Principal> principalClass,
-                                  TypeNameMap.Predicate principalPred,
-                                  Set<String> principalNames) {
+                                  @Nullable Class<? extends Principal> principalClass,
+                                  @Nullable TypeNameMap.Predicate principalPred,
+                                  @Nullable Set<String> principalNames) {
             this.builder = builder;
-            this.principalPred = Objects.requireNonNull(principalPred);
-            this.principalClass = Objects.requireNonNull(principalClass);
+            if (principalClass == null || principalPred == null || principalNames == null) {
+                if (principalClass != null || principalPred != null || principalNames != null) {
+                    throw new IllegalArgumentException("Either principal-related parameters are all null, or none are null");
+                }
+            }
+            this.principalPred = principalPred;
+            this.principalClass = principalClass;
             this.principalNames = principalNames;
         }
 
@@ -263,19 +329,14 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
-    /**
-     * grant * on org.example.MyResource with name=R to com.example.UserPrincipal (bob, sue)
-     */
-    public <O extends Enum<O> & Operation<O>> void grantAll(Class<O> opClass,
-                                                            String resourceName,
-                                                            Set<Principal> principals) {
-        grant(EnumSet.allOf(opClass), resourceName, principals);
+    AclAuthorizer() {
+
     }
 
     /**
      * grant(READ, WRITE) on org.example.MyResource with name=R to UserPrincipals (bob, sue)
      */
-    public <O extends Enum<O> & Operation<O>> void grant(Set<O> operations,
+    <O extends Enum<O> & Operation<O>> void grant(Set<O> operations,
                                                          String resourceName,
                                                          Set<Principal> principals) {
         for (var p : principals) {
@@ -287,7 +348,7 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
-    public <O extends Enum<O> & Operation<O>> void grantToAllPrincipalsOfType(Set<O> operations,
+    <O extends Enum<O> & Operation<O>> void grantToAllPrincipalsOfType(Set<O> operations,
                                                                               String resourceName,
                                                                               Class<? extends Principal> principalType) {
 
@@ -299,8 +360,8 @@ public class AclAuthorizer implements Authorizer {
 
     }
 
-    private <O extends Enum<O> & Operation<O>> void internalGrant(Class<? extends Principal> principalType,
-                                                                  TypeNameMap.Predicate principalPredicate,
+    private <O extends Enum<O> & Operation<O>> void internalGrant(@Nullable Class<? extends Principal> principalType,
+                                                                  @Nullable TypeNameMap.Predicate principalPredicate,
                                                                   @Nullable String principalName,
                                                                   Class<O> opType,
                                                                   Pred resourceNamePredicate,
@@ -342,28 +403,41 @@ public class AclAuthorizer implements Authorizer {
     }
 
     private Decision authorize(Subject subject, Action action) {
-        for (var p : subject.principals()) {
-
+        Set<Principal> principals = subject.principals();
+        if (principals.isEmpty()) {
             Decision allow;
-            var grant = perPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, p.name());
+            var grant = perPrincipal.lookup(null, TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, null);
             if (grant != null) {
                 allow = getDecision(action, grant);
                 if (allow != null) {
                     return allow;
                 }
             }
-            grant = perPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY, null);
-            if (grant != null) {
-                allow = getDecision(action, grant);
-                if (allow != null) {
-                    return allow;
+        }
+        else {
+            for (var p : principals) {
+
+                Decision allow;
+                var grant = perPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, p.name());
+                if (grant != null) {
+                    allow = getDecision(action, grant);
+                    if (allow != null) {
+                        return allow;
+                    }
                 }
-            }
-            grant = perPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, p.name());
-            if (grant != null) {
-                allow = getDecision(action, grant);
-                if (allow != null) {
-                    return allow;
+                grant = perPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY, null);
+                if (grant != null) {
+                    allow = getDecision(action, grant);
+                    if (allow != null) {
+                        return allow;
+                    }
+                }
+                grant = perPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, p.name());
+                if (grant != null) {
+                    allow = getDecision(action, grant);
+                    if (allow != null) {
+                        return allow;
+                    }
                 }
             }
         }
