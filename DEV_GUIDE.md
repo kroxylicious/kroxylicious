@@ -230,7 +230,7 @@ minikube image load kroxylicious-operator/target/kroxylicious-operator.img.tar.g
 minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz --alsologtostderr=true 2>&1 | tail -n1
 ```
 
-> :warning: Some minikube container runtimes may not be able to load a gzipped tar, if the above commands report a failure 
+> :warning: Some minikube container runtimes may not be able to load a gzipped tar (https://github.com/kubernetes/minikube/issues/21678), if the above commands report a failure 
 > like `cache_images.go:265] failed pushing to: minikube`, then run:
 > ```
 > gunzip --to-stdout kroxylicious-operator/target/kroxylicious-operator.img.tar.gz | minikube image load - --alsologtostderr=true 2>&1 | tail -n1
