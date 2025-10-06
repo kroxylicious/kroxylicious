@@ -81,7 +81,7 @@ class RequestedClientAuthTrustManagerTest {
     @Test
     void checkClientTrusted_withValidCertificate_delegatesValidation() throws CertificateException {
         // Given
-        X509Certificate[] validChain = new X509Certificate[] { mockCertificate };
+        X509Certificate[] validChain = new X509Certificate[]{ mockCertificate };
 
         // When
         trustManager.checkClientTrusted(validChain, "RSA");
@@ -93,9 +93,9 @@ class RequestedClientAuthTrustManagerTest {
     @Test
     void checkClientTrusted_withInvalidCertificate_throwsCertificateException() throws CertificateException {
         // Given
-        X509Certificate[] invalidChain = new X509Certificate[] { mockCertificate };
+        X509Certificate[] invalidChain = new X509Certificate[]{ mockCertificate };
         CertificateException expectedException = new CertificateException("Invalid certificate");
-        
+
         // Use doThrow().when() pattern for void methods
         Mockito.doThrow(expectedException)
                 .when(delegateTrustManager)
@@ -122,7 +122,7 @@ class RequestedClientAuthTrustManagerTest {
     @Test
     void checkClientTrusted_withSocket_withValidCertificate_delegatesValidation() throws CertificateException {
         // Given
-        X509Certificate[] validChain = new X509Certificate[] { mockCertificate };
+        X509Certificate[] validChain = new X509Certificate[]{ mockCertificate };
 
         // When
         trustManager.checkClientTrusted(validChain, "RSA", (java.net.Socket) null);
@@ -144,7 +144,7 @@ class RequestedClientAuthTrustManagerTest {
     @Test
     void checkClientTrusted_withSSLEngine_withValidCertificate_delegatesValidation() throws CertificateException {
         // Given
-        X509Certificate[] validChain = new X509Certificate[] { mockCertificate };
+        X509Certificate[] validChain = new X509Certificate[]{ mockCertificate };
 
         // When
         trustManager.checkClientTrusted(validChain, "RSA", (javax.net.ssl.SSLEngine) null);
@@ -156,7 +156,7 @@ class RequestedClientAuthTrustManagerTest {
     @Test
     void checkServerTrusted_alwaysDelegatesToUnderlying() throws CertificateException {
         // Given
-        X509Certificate[] chain = new X509Certificate[] { mockCertificate };
+        X509Certificate[] chain = new X509Certificate[]{ mockCertificate };
 
         // When
         trustManager.checkServerTrusted(chain, "RSA");
@@ -168,7 +168,7 @@ class RequestedClientAuthTrustManagerTest {
     @Test
     void checkServerTrusted_withSocket_alwaysDelegatesToUnderlying() throws CertificateException {
         // Given
-        X509Certificate[] chain = new X509Certificate[] { mockCertificate };
+        X509Certificate[] chain = new X509Certificate[]{ mockCertificate };
 
         // When
         trustManager.checkServerTrusted(chain, "RSA", (java.net.Socket) null);
@@ -180,7 +180,7 @@ class RequestedClientAuthTrustManagerTest {
     @Test
     void checkServerTrusted_withSSLEngine_alwaysDelegatesToUnderlying() throws CertificateException {
         // Given
-        X509Certificate[] chain = new X509Certificate[] { mockCertificate };
+        X509Certificate[] chain = new X509Certificate[]{ mockCertificate };
 
         // When
         trustManager.checkServerTrusted(chain, "RSA", (javax.net.ssl.SSLEngine) null);

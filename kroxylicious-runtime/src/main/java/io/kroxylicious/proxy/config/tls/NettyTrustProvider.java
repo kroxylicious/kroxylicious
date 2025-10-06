@@ -72,8 +72,7 @@ public class NettyTrustProvider {
                                 TrustManager[] trustManagers = trustManagerFactory.getTrustManagers();
                                 if (trustManagers != null && trustManagers.length > 0 && trustManagers[0] instanceof X509TrustManager) {
                                     return builder.trustManager(
-                                            new RequestedClientAuthTrustManager((X509TrustManager) trustManagers[0])
-                                    );
+                                            new RequestedClientAuthTrustManager((X509TrustManager) trustManagers[0]));
                                 }
                             }
 
