@@ -33,6 +33,14 @@ public class NettyTrustProvider {
         this.trustProvider = trustProvider;
     }
 
+    private static ClientAuth toNettyClientAuth(TlsClientAuth clientAuth) {
+        return switch (clientAuth) {
+            case REQUIRED -> ClientAuth.REQUIRE;
+            case REQUESTED -> ClientAuth.OPTIONAL;
+            case NONE -> ClientAuth.NONE;
+        };
+    }
+
     public SslContextBuilder apply(SslContextBuilder builder) {
         return trustProvider.accept(new TrustProviderVisitor<>() {
             @Override
@@ -124,14 +132,6 @@ public class NettyTrustProvider {
                 builder.endpointIdentificationAlgorithm(httpsHostnameVerification);
             }
         });
-    }
-
-    private static ClientAuth toNettyClientAuth(TlsClientAuth clientAuth) {
-        return switch (clientAuth) {
-            case REQUIRED -> ClientAuth.REQUIRE;
-            case REQUESTED -> ClientAuth.OPTIONAL;
-            case NONE -> ClientAuth.NONE;
-        };
     }
 
 }
