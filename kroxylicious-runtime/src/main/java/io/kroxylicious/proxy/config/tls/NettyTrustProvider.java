@@ -12,7 +12,9 @@ import java.security.KeyStore;
 import java.util.Optional;
 
 import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509TrustManager;
 
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContextBuilder;
@@ -37,8 +39,14 @@ public class NettyTrustProvider {
             public SslContextBuilder visit(TrustStore trustStore) {
                 try {
                     enableHostnameVerification();
-                    enableClientAuth(trustStore);
+                    TlsClientAuth clientAuthMode = enableClientAuth(trustStore);
                     if (trustStore.isPemType()) {
+                        if (clientAuthMode == TlsClientAuth.REQUESTED) {
+                            throw new SslContextBuildException(
+                                    "REQUESTED client authentication mode is not supported for PEM trust stores. " +
+                                            "PEM files cannot be wrapped to provide proper certificate validation when certificates are presented. " +
+                                            "Please use JKS or PKCS12 format, or use REQUIRED/NONE client authentication modes instead.");
+                        }
                         return builder.trustManager(new File(trustStore.storeFile()));
                     }
                     else {
@@ -51,6 +59,16 @@ public class NettyTrustProvider {
                             var trustManagerFactory = TrustManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
                             trustManagerFactory.init(keyStore);
 
+                            // For REQUESTED mode, wrap the trust manager to validate certificates if presented
+                            if (clientAuthMode == TlsClientAuth.REQUESTED) {
+                                TrustManager[] trustManagers = trustManagerFactory.getTrustManagers();
+                                if (trustManagers != null && trustManagers.length > 0 && trustManagers[0] instanceof X509TrustManager) {
+                                    return builder.trustManager(
+                                            new RequestedClientAuthTrustManager((X509TrustManager) trustManagers[0])
+                                    );
+                                }
+                            }
+
                             return builder.trustManager(trustManagerFactory);
                         }
                     }
@@ -60,14 +78,15 @@ public class NettyTrustProvider {
                 }
             }
 
-            private void enableClientAuth(TrustStore trustStore) {
-                ClientAuth clientAuth = Optional.ofNullable(trustStore.trustOptions())
+            private TlsClientAuth enableClientAuth(TrustStore trustStore) {
+                TlsClientAuth tlsClientAuth = Optional.ofNullable(trustStore.trustOptions())
                         .filter(ServerOptions.class::isInstance)
                         .map(ServerOptions.class::cast)
                         .map(ServerOptions::clientAuth)
-                        .map(NettyTrustProvider::toNettyClientAuth)
-                        .orElse(ClientAuth.REQUIRE);
+                        .orElse(TlsClientAuth.REQUIRED);
+                ClientAuth clientAuth = toNettyClientAuth(tlsClientAuth);
                 builder.clientAuth(clientAuth);
+                return tlsClientAuth;
             }
 
             @Override

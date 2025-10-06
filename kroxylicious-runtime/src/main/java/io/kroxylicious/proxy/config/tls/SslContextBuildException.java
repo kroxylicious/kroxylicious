@@ -8,6 +8,10 @@ package io.kroxylicious.proxy.config.tls;
 
 public class SslContextBuildException extends RuntimeException {
 
+    public SslContextBuildException(String message) {
+        super(message);
+    }
+
     public SslContextBuildException(Throwable cause) {
         super(cause);
     }

@@ -119,4 +119,128 @@ class NettyTrustProviderTest {
         // Then
         assertThat(sslContextBuilder).extracting("endpointIdentificationAlgorithm").isEqualTo("HTTPS");
     }
+
+    @Test
+    void requestedMode_withKeyStore_setsOptionalClientAuth() throws Exception {
+        // Given
+        var trustStoreWithRequested = new NettyTrustProvider(
+                new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("client.jks"),
+                        TlsTestConstants.STOREPASS,
+                        TlsTestConstants.JKS,
+                        new ServerOptions(TlsClientAuth.REQUESTED)));
+
+        // When
+        trustStoreWithRequested.apply(sslContextBuilder);
+        var sslContext = sslContextBuilder.build();
+
+        // Then - verify the context was built successfully with OPTIONAL client auth
+        assertThat(sslContext).isNotNull();
+        assertThat(sslContextBuilder).extracting("clientAuth").isEqualTo(ClientAuth.OPTIONAL);
+    }
+
+    @Test
+    void requestedMode_withPKCS12_setsOptionalClientAuth() throws Exception {
+        // Given
+        var trustStoreWithRequested = new NettyTrustProvider(
+                new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("server.p12"),
+                        TlsTestConstants.STOREPASS,
+                        TlsTestConstants.PKCS_12,
+                        new ServerOptions(TlsClientAuth.REQUESTED)));
+
+        // When
+        trustStoreWithRequested.apply(sslContextBuilder);
+        var sslContext = sslContextBuilder.build();
+
+        // Then - verify the context was built successfully with OPTIONAL client auth
+        assertThat(sslContext).isNotNull();
+        assertThat(sslContextBuilder).extracting("clientAuth").isEqualTo(ClientAuth.OPTIONAL);
+    }
+
+    @Test
+    void requiredMode_withKeyStore_setsRequireClientAuth() throws Exception {
+        // Given
+        var trustStoreWithRequired = new NettyTrustProvider(
+                new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("client.jks"),
+                        TlsTestConstants.STOREPASS,
+                        TlsTestConstants.JKS,
+                        new ServerOptions(TlsClientAuth.REQUIRED)));
+
+        // When
+        trustStoreWithRequired.apply(sslContextBuilder);
+        var sslContext = sslContextBuilder.build();
+
+        // Then - verify REQUIRED mode sets ClientAuth.REQUIRE
+        assertThat(sslContext).isNotNull();
+        assertThat(sslContextBuilder).extracting("clientAuth").isEqualTo(ClientAuth.REQUIRE);
+    }
+
+    @Test
+    void noneMode_withKeyStore_setsNoneClientAuth() throws Exception {
+        // Given
+        var trustStoreWithNone = new NettyTrustProvider(
+                new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("client.jks"),
+                        TlsTestConstants.STOREPASS,
+                        TlsTestConstants.JKS,
+                        new ServerOptions(TlsClientAuth.NONE)));
+
+        // When
+        trustStoreWithNone.apply(sslContextBuilder);
+        var sslContext = sslContextBuilder.build();
+
+        // Then - verify NONE mode sets ClientAuth.NONE
+        assertThat(sslContext).isNotNull();
+        assertThat(sslContextBuilder).extracting("clientAuth").isEqualTo(ClientAuth.NONE);
+    }
+
+    @Test
+    void requestedMode_withPEM_throwsException() {
+        // Given
+        var trustStoreWithPEM = new NettyTrustProvider(
+                new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("server.crt"),
+                        TlsTestConstants.STOREPASS,
+                        TlsTestConstants.PEM,
+                        new ServerOptions(TlsClientAuth.REQUESTED)));
+
+        // When/Then - should throw exception for unsupported combination
+        assertThatCode(() -> trustStoreWithPEM.apply(sslContextBuilder))
+                .isInstanceOf(SslContextBuildException.class)
+                .hasMessageContaining("REQUESTED client authentication mode is not supported for PEM trust stores")
+                .hasMessageContaining("Please use JKS or PKCS12 format");
+    }
+
+    @Test
+    void requiredMode_withPEM_works() throws Exception {
+        // Given - REQUIRED mode with PEM should work fine
+        var trustStoreWithPEM = new NettyTrustProvider(
+                new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("server.crt"),
+                        TlsTestConstants.STOREPASS,
+                        TlsTestConstants.PEM,
+                        new ServerOptions(TlsClientAuth.REQUIRED)));
+
+        // When
+        trustStoreWithPEM.apply(sslContextBuilder);
+        var sslContext = sslContextBuilder.build();
+
+        // Then - should work without throwing exception
+        assertThat(sslContext).isNotNull();
+        assertThat(sslContextBuilder).extracting("clientAuth").isEqualTo(ClientAuth.REQUIRE);
+    }
+
+    @Test
+    void noneMode_withPEM_works() throws Exception {
+        // Given - NONE mode with PEM should work fine
+        var trustStoreWithPEM = new NettyTrustProvider(
+                new TrustStore(TlsTestConstants.getResourceLocationOnFilesystem("server.crt"),
+                        TlsTestConstants.STOREPASS,
+                        TlsTestConstants.PEM,
+                        new ServerOptions(TlsClientAuth.NONE)));
+
+        // When
+        trustStoreWithPEM.apply(sslContextBuilder);
+        var sslContext = sslContextBuilder.build();
+
+        // Then - should work without throwing exception
+        assertThat(sslContext).isNotNull();
+        assertThat(sslContextBuilder).extracting("clientAuth").isEqualTo(ClientAuth.NONE);
+    }
 }
