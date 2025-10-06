@@ -13,6 +13,6 @@ This section explains how to check the status of the `KafkaProxyIngress` and `Vi
 
 This section assumes you have a running Kroxylicious Proxy instance.
 
-include::../_modules/configuring/con-chedcking-virtualkafkacluster-status.adoc[leveloffset=+1]
+include::../_modules/configuring/con-checking-virtualkafkacluster-status.adoc[leveloffset=+1]
 include::../_modules/configuring/con-checking-kafkaproxyingress-status.adoc[leveloffset=+1]
 include::../_modules/configuring/con-kafkaproxy-cpu-memory-allocation.adoc[leveloffset=+1]
