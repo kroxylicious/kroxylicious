@@ -27,6 +27,22 @@ import io.kroxylicious.proxy.authentication.Subject;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * <p>An implementation of {@link Authorizer} in terms of a list of rules defining <em>who</em> can do <em>what</em>
+ * that is evaluated in-process.</p>
+ *
+ * <p>The rules are deny-by-default, meaning that subjects need to be <strong>explicitly granted</strong> permission to be able to perform any action.
+ * There is no "super user", so <strong>every subject</strong> needs to be granted access to every resource.
+ * However, to avoid needing a vast number of rules there are mechanisms to
+ * grant access by subjects to resources <i>en-masse</i> using prefixes and regular expressions.
+ * </p>
+ *
+ * <p>The set of rules can be built:</p>
+ * <ul>
+ *     <li>programmatically, from the fluent API exposed by {@link #builder()}.</li>
+ *     <li>externally, from a file which expresses the rules according to a simple grammar.</li>
+ * </ul>
+ */
 public class AclAuthorizer implements Authorizer {
 
     enum Pred {
@@ -60,15 +76,6 @@ public class AclAuthorizer implements Authorizer {
 
     static Builder builder() {
         return new Builder();
-    }
-
-    void roo() {
-
-        builder().grant()
-                .subjectsHavingPrincipal(null)
-                .withNameEqualTo("tom")
-                .operations(null)
-                .onResourceWithNameEqualTo("");
     }
 
     public static class PrincipalSelectorBuilder {
