@@ -136,10 +136,55 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
             errors.add("%d:%d: %s".formatted(token.getLine(), token.getCharPositionInLine(), error));
         }
 
-        String unwrap(TerminalNode string) {
+        /**
+         * Removes double quote or forward slash delimiters from literals.
+         * @param string The node to remove the delimiters from.
+         * @return The un-delimited string
+         */
+        private static String unwrapDelims(TerminalNode string) {
             var text = string.getText();
-            // TODO needs to handle unquoting
             return text.substring(1, text.length() - 1);
+        }
+
+        private static String unquote(String sansQuotes) {
+            return sansQuotes.replaceAll("\\\\(.)", "$1");
+        }
+
+        private String unquoteString(TerminalNode string) {
+            return unquote(unwrapDelims(string));
+        }
+
+        private String unquoteRegex(TerminalNode string) {
+            return unquote(unwrapDelims(string));
+        }
+
+        record Prefix(String prefix, boolean eq) {
+            public boolean isEmpty() {
+                return prefix.isEmpty();
+            }
+        }
+
+        private Prefix unquotePrefix(AclRulesParser.NameLikeContext nameLike) {
+            var pattern = unwrapDelims(nameLike.STRING());
+            boolean wildcardIsPresent = false;
+            var prefix = new StringBuilder(pattern.length());
+            for (int i = 0; i < pattern.length(); i++) {
+                char ch = pattern.charAt(i);
+                if (ch == '\\' && i + 1 < pattern.length()) {
+                    char ch2 = pattern.charAt(++i);
+                    prefix.append(ch2);
+                }
+                else if (ch == '*') {
+                    wildcardIsPresent = true;
+                    if (i != pattern.length() - 1) {
+                        reportError(nameLike.STRING().getSymbol(), "Wildcard '*' only supported as last character in 'like'.");
+                    }
+                }
+                else {
+                    prefix.append(ch);
+                }
+            }
+            return new Prefix(prefix.toString(), !wildcardIsPresent);
         }
 
         @Override
@@ -221,11 +266,11 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         @Override
         public void enterNameEq(AclRulesParser.NameEqContext ctx) {
             if (this.resourceBuilder != null) {
-                this.resourceBuilder.onResourceWithNameEqualTo(unwrap(ctx.STRING()));
+                this.resourceBuilder.onResourceWithNameEqualTo(unquoteString(ctx.STRING()));
                 this.resourceBuilder = null;
             }
             else if (this.principalBuilder != null) {
-                this.operationsBuilder = this.principalBuilder.withNameEqualTo(unwrap(ctx.STRING()));
+                this.operationsBuilder = this.principalBuilder.withNameEqualTo(unquoteString(ctx.STRING()));
                 this.principalBuilder = null;
             }
         }
@@ -233,7 +278,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         @Override
         public void enterNameIn(AclRulesParser.NameInContext nameIn) {
             var names = nameIn.STRING().stream()
-                    .map(this::unwrap)
+                    .map(this::unquoteString)
                     .collect(Collectors.toSet());
             if (this.resourceBuilder != null) {
                 this.resourceBuilder.onResourcesWithNameIn(names);
@@ -247,35 +292,28 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
 
         @Override
         public void enterNameLike(AclRulesParser.NameLikeContext nameLike) {
-            var pattern = unwrap(nameLike.STRING());
-            int indexOfFirstWildcard = pattern.indexOf('*');
-            boolean wildcardIsPresent = indexOfFirstWildcard != -1;
-            boolean wildcardAtEnd = indexOfFirstWildcard == pattern.length() - 1;
-            if (wildcardIsPresent && !wildcardAtEnd) {
-                reportError(nameLike.STRING().getSymbol(), "Wildcard '*' only supported as last character in 'like'.");
-            }
-            String prefix = pattern.substring(0, wildcardIsPresent ? indexOfFirstWildcard : pattern.length());
+            Prefix prefix1 = unquotePrefix(nameLike);
             if (this.resourceBuilder != null) {
-                if (!wildcardIsPresent) {
-                    this.resourceBuilder.onResourceWithNameEqualTo(pattern);
+                if (prefix1.eq()) {
+                    this.resourceBuilder.onResourceWithNameEqualTo(prefix1.prefix());
                 }
-                else if (prefix.isEmpty()) {
+                else if (prefix1.isEmpty()) {
                     this.resourceBuilder.onAllResources();
                 }
                 else {
-                    this.resourceBuilder.onResourcesWithNameStartingWith(prefix);
+                    this.resourceBuilder.onResourcesWithNameStartingWith(prefix1.prefix());
                 }
                 this.resourceBuilder = null;
             }
             else if (this.principalBuilder != null) {
-                if (!wildcardIsPresent) {
-                    this.operationsBuilder = this.principalBuilder.withNameEqualTo(pattern);
+                if (prefix1.eq()) {
+                    this.operationsBuilder = this.principalBuilder.withNameEqualTo(prefix1.prefix());
                 }
-                else if (prefix.isEmpty()) {
+                else if (prefix1.isEmpty()) {
                     this.operationsBuilder = this.principalBuilder.withAnyName();
                 }
                 else {
-                    this.operationsBuilder = this.principalBuilder.withNameStartingWith(prefix);
+                    this.operationsBuilder = this.principalBuilder.withNameStartingWith(prefix1.prefix());
                 }
                 this.principalBuilder = null;
             }
@@ -287,7 +325,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
                 reportError(nameMatch.MATCHING().getSymbol(),
                         "'%s' operation not supported on principals".formatted(nameMatch.MATCHING().getText()));
             }
-            String p = unwrap(nameMatch.REGEX());
+            String p = unquoteRegex(nameMatch.REGEX());
             try {
                 Pattern.compile(p); // check it's valid
                 if (this.resourceBuilder != null) {

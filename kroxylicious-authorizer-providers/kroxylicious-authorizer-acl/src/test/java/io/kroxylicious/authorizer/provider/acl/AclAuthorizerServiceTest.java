@@ -638,4 +638,62 @@ class AclAuthorizerServiceTest {
                 .isEqualTo(Decision.DENY);
 
     }
+
+    @Test
+    void testStringQuoting() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                allow User with name = "NameWithA\\"" to READ Topic with name = "foo\\\\";
+                allow User with name = "Carol" to READ Topic with name in {"bar\\\\", "baz"};
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new UserPrincipal("NameWithA\""), FakeTopicResource.READ, "foo\\"))
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Carol"), FakeTopicResource.READ, "bar\\"))
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Carol"), FakeTopicResource.READ, "baz"))
+                .isEqualTo(Decision.ALLOW);
+    }
+
+    @Test
+    void testRegexQuoting() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                allow User with name = "Alice" to READ Topic with name matching /\\//;
+                allow User with name = "Bob" to READ Topic with name matching /\\\\\\\\/;
+                // The \\\\\\\\ is a single backslash quoted:
+                // 1. backslash in a regex is the quote character, so needs to be doubled to match a real backslash
+                // 2. but each of those needs to be doubled because of the lexer rule for quoting.
+                // 3. but this is all within this Java triple-quoted string, so all each backslash
+                //    again needs to be doubled.
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "/"))
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Bob"), FakeTopicResource.READ, "\\"))
+                .isEqualTo(Decision.ALLOW);
+    }
+
+    @Test
+    void testLikeQuoting() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                allow User with name = "Alice" to READ Topic with name like "foo\\*bar*";
+                allow User with name = "Bob" to READ Topic with name like "foo\\\\\\*bar*";
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foo*bary"))
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Bob"), FakeTopicResource.READ, "foo\\*bary"))
+                .isEqualTo(Decision.ALLOW);
+    }
 }
