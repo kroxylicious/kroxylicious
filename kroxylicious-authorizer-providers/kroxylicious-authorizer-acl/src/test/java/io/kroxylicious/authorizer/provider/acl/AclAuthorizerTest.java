@@ -32,7 +32,7 @@ class AclAuthorizerTest {
         EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.allOf(FakeTopicResource.class);
         EnumSet<FakeTopicResource> shouldBeDenied = EnumSet.complementOf(shouldBeAllowed);
         var authz = AclAuthorizer.builder()
-                .grant()
+                .allow()
                 .subjectsHavingPrincipal(UserPrincipal.class)
                 .withNameEqualTo("bob")
                 .allOperations(FakeTopicResource.class)
@@ -76,7 +76,7 @@ class AclAuthorizerTest {
         EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.of(FakeTopicResource.READ, FakeTopicResource.DESCRIBE);
         EnumSet<FakeTopicResource> shouldBeDenied = EnumSet.complementOf(shouldBeAllowed);
         var authz = AclAuthorizer.builder()
-                .grant()
+                .allow()
                 .subjectsHavingPrincipal(UserPrincipal.class)
                 .withNameEqualTo("bob")
                 .operations(Set.of(FakeTopicResource.READ))
@@ -118,7 +118,7 @@ class AclAuthorizerTest {
         EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.of(FakeTopicResource.CREATE);
         EnumSet<FakeTopicResource> shouldBeDenied = EnumSet.complementOf(shouldBeAllowed);
         var authz = AclAuthorizer.builder()
-                .grant()
+                .allow()
                 .subjectsHavingPrincipal(UserPrincipal.class)
                 .withNameEqualTo("bob")
                 .operations(shouldBeAllowed)
@@ -159,7 +159,7 @@ class AclAuthorizerTest {
         // Given
         EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.allOf(FakeTopicResource.class);
         var authz = AclAuthorizer.builder()
-                .grant()
+                .allow()
                 .subjectsHavingPrincipal(UserPrincipal.class)
                 .withNameEqualTo("bob")
                 .allOperations(FakeTopicResource.class)
@@ -196,7 +196,7 @@ class AclAuthorizerTest {
         // Given
         EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.allOf(FakeTopicResource.class);
         var authz = AclAuthorizer.builder()
-                .grant()
+                .allow()
                 .subjectsHavingPrincipal(UserPrincipal.class)
                 .withNameEqualTo("bob")
                 .allOperations(FakeTopicResource.class)
@@ -228,7 +228,7 @@ class AclAuthorizerTest {
         // Given
         EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.allOf(FakeTopicResource.class);
         var authz = AclAuthorizer.builder()
-                .grant()
+                .allow()
                 .subjectsHavingPrincipal(UserPrincipal.class)
                 .withNameEqualTo("bob")
                 .allOperations(FakeTopicResource.class)

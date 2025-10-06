@@ -74,7 +74,18 @@ class AclAuthorizerServiceTest {
                                 frobnicate User with name = "Alice" to READ Topic with name = "foo";
 
                                 otherwise deny;""",
-                        "5:0: extraneous input 'frobnicate' expecting {'allow', 'otherwise', 'import'}."),
+                        "5:0: extraneous input 'frobnicate' expecting {'deny', 'allow', 'otherwise', 'import'}."),
+                Arguments.argumentSet("Allow before deny",
+                        """
+                                version 1;
+                                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                                allow User with name = "Alice" to READ Topic with name = "foo";
+                                deny User with name = "Eve" to READ Topic with name = "foo";
+
+                                otherwise deny;""",
+                        "6:0: extraneous input 'deny' expecting {'allow', 'otherwise'}."),
                 Arguments.argumentSet("Using matching with principal",
                         """
                                 version 1;
@@ -606,5 +617,25 @@ class AclAuthorizerServiceTest {
         assertThat(decision(authz, new RolePrincipal("Alice"), FakeTopicResource.READ, "foo"))
                 .as("Mismatching principal type")
                 .isEqualTo(Decision.DENY);
+    }
+
+    @Test
+    void testDenyOverrulesAllow() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import UserPrincipal as User from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+
+                deny User with name = "Eve" to READ Topic with name = "foo";
+                allow User with name * to READ Topic with name = "foo";
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new UserPrincipal("Alice"), FakeTopicResource.READ, "foo"))
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Bob"), FakeTopicResource.READ, "foo"))
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new UserPrincipal("Eve"), FakeTopicResource.READ, "foo"))
+                .isEqualTo(Decision.DENY);
+
     }
 }

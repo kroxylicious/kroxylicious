@@ -35,12 +35,16 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * There is no "super user", so <strong>every subject</strong> needs to be granted access to every resource.
  * However, to avoid needing a vast number of rules there are mechanisms to
  * grant access by subjects to resources <i>en-masse</i> using prefixes and regular expressions.
+ * Also, it is possible to explicitly deny actions which are otherwise allowed by a "wider" pattern; this allows
+ * granting access broadly while removing it in some specific cases, which is simpler than having to enumerate
+ * every case where access should be allowed.
  * </p>
  *
- * <p>The set of rules can be built:</p>
+ * <p>The set of rules can be defined:</p>
  * <ul>
- *     <li>programmatically, from the fluent API exposed by {@link #builder()}.</li>
- *     <li>externally, from a file which expresses the rules according to a simple grammar.</li>
+ *     <li>programmatically, using the fluent API exposed by {@link #builder()},</li>
+ *     <li>or externally, from a file which expresses the rules using naturalish language,
+ *     according to a simple grammar (see {@code src/main/antlr4/io/kroxylicious/authorizer/provider/acl/parser/AclRules.g4}).</li>
  * </ul>
  */
 public class AclAuthorizer implements Authorizer {
@@ -68,11 +72,9 @@ public class AclAuthorizer implements Authorizer {
 
     }
 
-    TypeNameMap<Principal, PrincipalGrants> perPrincipal = new TypeNameMap<>();
+    TypeNameMap<Principal, PrincipalGrants> denyPerPrincipal = new TypeNameMap<>();
 
-    // TODO allow a way to say "grant * on {T} with {any name} to subject with {com.example.UserPrincipal in (bob, sue)}"
-    // TODO allow a way to say "grant * on {any resource} with {any name} to subject with {com.example.UserPrincipal in (bob, sue)}"
-    // TODO allow a way to say "grant * on {any resource} with {any name} with to {any subject}"
+    TypeNameMap<Principal, PrincipalGrants> allowPerPrincipal = new TypeNameMap<>();
 
     static Builder builder() {
         return new Builder();
@@ -81,30 +83,32 @@ public class AclAuthorizer implements Authorizer {
     public static class PrincipalSelectorBuilder {
         private final Builder builder;
         private final Class<? extends Principal> principalClass;
+        private final boolean allow;
 
         public PrincipalSelectorBuilder(Builder builder,
-
+                                        boolean allow,
                                         Class<? extends Principal> principalClass) {
             this.builder = builder;
+            this.allow = allow;
             this.principalClass = principalClass;
         }
 
         public OperationsBuilder withNameEqualTo(String principalName) {
-            return new OperationsBuilder(builder, principalClass, TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, Set.of(principalName));
+            return new OperationsBuilder(builder, allow, principalClass, TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, Set.of(principalName));
         }
 
         public OperationsBuilder withNameIn(Set<String> principalNames) {
-            return new OperationsBuilder(builder, principalClass, TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, principalNames);
+            return new OperationsBuilder(builder, allow, principalClass, TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, principalNames);
         }
 
         public OperationsBuilder withNameStartingWith(String principalNamePrefix) {
-            return new OperationsBuilder(builder, principalClass, TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, Set.of(principalNamePrefix));
+            return new OperationsBuilder(builder, allow, principalClass, TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, Set.of(principalNamePrefix));
         }
 
         public OperationsBuilder withAnyName() {
             HashSet<String> set = new HashSet<>();
             set.add(null);
-            return new OperationsBuilder(builder, principalClass, TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY, set);
+            return new OperationsBuilder(builder, allow, principalClass, TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY, set);
         }
     }
 
@@ -112,13 +116,15 @@ public class AclAuthorizer implements Authorizer {
 
         private final Builder builder;
 
-        private SubjectSelectorBuilder(Builder builder) {
-            this.builder = builder;
+        private final boolean allow;
 
+        private SubjectSelectorBuilder(Builder builder, boolean allow) {
+            this.builder = builder;
+            this.allow = allow;
         }
 
         public PrincipalSelectorBuilder subjectsHavingPrincipal(Class<? extends Principal> userPrincipalClass) {
-            return new PrincipalSelectorBuilder(builder,
+            return new PrincipalSelectorBuilder(builder, allow,
                     userPrincipalClass);
         }
     }
@@ -130,14 +136,17 @@ public class AclAuthorizer implements Authorizer {
         private final Set<String> principalNames;
         private final Class<O> operationsClass;
         private final Set<O> operations;
+        private final boolean allow;
 
         public ResourceBuilder(Builder builder,
+                               boolean allow,
                                Class<? extends Principal> principalClass,
                                TypeNameMap.Predicate principalPred,
                                Set<String> principalNames,
                                Class<O> operationsClass,
                                Set<O> operations) {
             this.builder = Objects.requireNonNull(builder);
+            this.allow = allow;
             this.principalClass = Objects.requireNonNull(principalClass);
             this.principalPred = Objects.requireNonNull(principalPred);
             this.principalNames = Objects.requireNonNull(principalNames);
@@ -147,7 +156,8 @@ public class AclAuthorizer implements Authorizer {
 
         public Builder onResourceWithNameEqualTo(String resourceName) {
             for (var principalName : principalNames) {
-                builder.simpleAuthorizer.internalGrant(principalClass,
+                builder.simpleAuthorizer.internalAllowOrDeny(allow,
+                        principalClass,
                         principalPred,
                         principalName,
                         operationsClass,
@@ -161,7 +171,8 @@ public class AclAuthorizer implements Authorizer {
         public Builder onResourcesWithNameIn(Set<String> resourceNames) {
             for (var principalName : principalNames) {
                 for (String resourceName : resourceNames) {
-                    builder.simpleAuthorizer.internalGrant(principalClass,
+                    builder.simpleAuthorizer.internalAllowOrDeny(allow,
+                            principalClass,
                             principalPred,
                             principalName,
                             operationsClass,
@@ -175,7 +186,8 @@ public class AclAuthorizer implements Authorizer {
 
         public Builder onResourcesWithNameStartingWith(String resourceNamePrefix) {
             for (var principalName : principalNames) {
-                builder.simpleAuthorizer.internalGrant(principalClass,
+                builder.simpleAuthorizer.internalAllowOrDeny(allow,
+                        principalClass,
                         principalPred,
                         principalName,
                         operationsClass,
@@ -188,7 +200,8 @@ public class AclAuthorizer implements Authorizer {
 
         public Builder onResourcesWithNameMatching(String resourceNameRegex) {
             for (var principalName : principalNames) {
-                builder.simpleAuthorizer.internalGrant(principalClass,
+                builder.simpleAuthorizer.internalAllowOrDeny(allow,
+                        principalClass,
                         principalPred,
                         principalName,
                         operationsClass,
@@ -201,7 +214,8 @@ public class AclAuthorizer implements Authorizer {
 
         public Builder onAllResources() {
             for (var principalName : principalNames) {
-                builder.simpleAuthorizer.internalGrant(principalClass,
+                builder.simpleAuthorizer.internalAllowOrDeny(allow,
+                        principalClass,
                         principalPred,
                         principalName,
                         operationsClass,
@@ -215,16 +229,19 @@ public class AclAuthorizer implements Authorizer {
 
     public static class OperationsBuilder {
 
+        private final Builder builder;
+        private final boolean allow;
         private final Class<? extends Principal> principalClass;
         private final TypeNameMap.Predicate principalPred;
         private final Set<String> principalNames;
-        private Builder builder;
 
         private OperationsBuilder(Builder builder,
+                                  boolean allow,
                                   Class<? extends Principal> principalClass,
                                   TypeNameMap.Predicate principalPred,
                                   Set<String> principalNames) {
             this.builder = builder;
+            this.allow = allow;
             this.principalPred = Objects.requireNonNull(principalPred);
             this.principalClass = Objects.requireNonNull(principalClass);
             this.principalNames = principalNames;
@@ -232,6 +249,7 @@ public class AclAuthorizer implements Authorizer {
 
         <O extends Enum<O> & Operation<O>> ResourceBuilder<O> allOperations(Class<O> cls) {
             return new ResourceBuilder<>(builder,
+                    allow,
                     principalClass,
                     principalPred,
                     principalNames,
@@ -242,6 +260,7 @@ public class AclAuthorizer implements Authorizer {
         public <O extends Enum<O> & Operation<O>> ResourceBuilder<O> operations(Set<O> operations) {
             EnumSet<O> os = EnumSet.copyOf(operations);
             return new ResourceBuilder<>(builder,
+                    allow,
                     principalClass,
                     principalPred,
                     principalNames,
@@ -254,8 +273,12 @@ public class AclAuthorizer implements Authorizer {
     public static class Builder {
         AclAuthorizer simpleAuthorizer = new AclAuthorizer();
 
-        public SubjectSelectorBuilder grant() {
-            return new SubjectSelectorBuilder(this);
+        public SubjectSelectorBuilder allow() {
+            return new SubjectSelectorBuilder(this, true);
+        }
+
+        public SubjectSelectorBuilder deny() {
+            return new SubjectSelectorBuilder(this, false);
         }
 
         public AclAuthorizer build() {
@@ -264,22 +287,13 @@ public class AclAuthorizer implements Authorizer {
     }
 
     /**
-     * grant * on org.example.MyResource with name=R to com.example.UserPrincipal (bob, sue)
-     */
-    public <O extends Enum<O> & Operation<O>> void grantAll(Class<O> opClass,
-                                                            String resourceName,
-                                                            Set<Principal> principals) {
-        grant(EnumSet.allOf(opClass), resourceName, principals);
-    }
-
-    /**
      * grant(READ, WRITE) on org.example.MyResource with name=R to UserPrincipals (bob, sue)
      */
-    public <O extends Enum<O> & Operation<O>> void grant(Set<O> operations,
-                                                         String resourceName,
-                                                         Set<Principal> principals) {
+    <O extends Enum<O> & Operation<O>> void grant(Set<O> operations,
+                                                  String resourceName,
+                                                  Set<Principal> principals) {
         for (var p : principals) {
-            internalGrant(p.getClass(),
+            internalAllow(p.getClass(),
                     TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, p.name(),
                     (Class) operations.iterator().next().getClass(),
                     Pred.EQ, resourceName,
@@ -287,11 +301,11 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
-    public <O extends Enum<O> & Operation<O>> void grantToAllPrincipalsOfType(Set<O> operations,
-                                                                              String resourceName,
-                                                                              Class<? extends Principal> principalType) {
+    <O extends Enum<O> & Operation<O>> void grantToAllPrincipalsOfType(Set<O> operations,
+                                                                       String resourceName,
+                                                                       Class<? extends Principal> principalType) {
 
-        internalGrant(principalType,
+        internalAllow(principalType,
                 TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY, null,
                 (Class) operations.iterator().next().getClass(),
                 Pred.EQ, resourceName,
@@ -299,19 +313,52 @@ public class AclAuthorizer implements Authorizer {
 
     }
 
-    private <O extends Enum<O> & Operation<O>> void internalGrant(Class<? extends Principal> principalType,
+    private <O extends Enum<O> & Operation<O>> void internalAllow(Class<? extends Principal> principalType,
                                                                   TypeNameMap.Predicate principalPredicate,
                                                                   @Nullable String principalName,
                                                                   Class<O> opType,
                                                                   Pred resourceNamePredicate,
                                                                   @Nullable String resourceName,
                                                                   Set<O> operations) {
+        internalAllowOrDeny(allowPerPrincipal, principalType, principalPredicate, principalName, opType, resourceNamePredicate, resourceName, operations);
+    }
+
+    private <O extends Enum<O> & Operation<O>> void internalDeny(Class<? extends Principal> principalType,
+                                                                 TypeNameMap.Predicate principalPredicate,
+                                                                 @Nullable String principalName,
+                                                                 Class<O> opType,
+                                                                 Pred resourceNamePredicate,
+                                                                 @Nullable String resourceName,
+                                                                 Set<O> operations) {
+        internalAllowOrDeny(denyPerPrincipal, principalType, principalPredicate, principalName, opType, resourceNamePredicate, resourceName, operations);
+    }
+
+    private <O extends Enum<O> & Operation<O>> void internalAllowOrDeny(boolean allow,
+                                                                        Class<? extends Principal> principalType,
+                                                                  TypeNameMap.Predicate principalPredicate,
+                                                                  @Nullable String principalName,
+                                                                  Class<O> opType,
+                                                                  Pred resourceNamePredicate,
+                                                                  @Nullable String resourceName,
+                                                                  Set<O> operations) {
+        internalAllowOrDeny(allow ? allowPerPrincipal : denyPerPrincipal, principalType, principalPredicate, principalName, opType, resourceNamePredicate, resourceName, operations);
+    }
+
+    private static <O extends Enum<O> & Operation<O>> void internalAllowOrDeny(
+                                                                               TypeNameMap<Principal, PrincipalGrants> allowPerPrincipal,
+                                                                               Class<? extends Principal> principalType,
+                                                                               TypeNameMap.Predicate principalPredicate,
+                                                                               @Nullable String principalName,
+                                                                               Class<O> opType,
+                                                                               Pred resourceNamePredicate,
+                                                                               @Nullable String resourceName,
+                                                                               Set<O> operations) {
         // TODO fix the prefix stuff so we don't bother adding redundant prefixes
         var es = EnumSet.copyOf(operations);
         for (var op : es) {
             es.addAll(op.implies());
         }
-        PrincipalGrants compute = perPrincipal.compute(principalType, principalName, principalPredicate,
+        PrincipalGrants compute = allowPerPrincipal.compute(principalType, principalName, principalPredicate,
                 g -> {
                     if (g == null) {
                         return new PrincipalGrants(resourceNamePredicate == Pred.MATCH ? null : new TypeNameMap<>(),
@@ -341,38 +388,45 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
-    private Decision authorize(Subject subject, Action action) {
+    private static Decision authorizeInternal(
+                                              TypeNameMap<Principal, PrincipalGrants> allowPerPrincipal,
+                                              Subject subject,
+                                              Action action,
+                                              Decision whenFound,
+                                              Decision whenNotFound) {
+        assert (whenFound != whenNotFound);
         for (var p : subject.principals()) {
 
-            Decision allow;
-            var grant = perPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, p.name());
+            Decision foundDecision;
+            var grant = allowPerPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, p.name());
             if (grant != null) {
-                allow = getDecision(action, grant);
-                if (allow != null) {
-                    return allow;
+                foundDecision = getDecision(action, grant, whenFound);
+                if (foundDecision != null) {
+                    return foundDecision;
                 }
             }
-            grant = perPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY, null);
+            grant = allowPerPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY, null);
             if (grant != null) {
-                allow = getDecision(action, grant);
-                if (allow != null) {
-                    return allow;
+                foundDecision = getDecision(action, grant, whenFound);
+                if (foundDecision != null) {
+                    return foundDecision;
                 }
             }
-            grant = perPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, p.name());
+            grant = allowPerPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, p.name());
             if (grant != null) {
-                allow = getDecision(action, grant);
-                if (allow != null) {
-                    return allow;
+                foundDecision = getDecision(action, grant, whenFound);
+                if (foundDecision != null) {
+                    return foundDecision;
                 }
             }
         }
-        return Decision.DENY;
+        return whenNotFound;
     }
 
     @Nullable
     private static Decision getDecision(Action action,
-                                        PrincipalGrants grants) {
+                                        PrincipalGrants grants,
+                                        Decision whenFound) {
         Set<? extends Operation<?>> operations;
         var typeNameMap = grants.nameMatches();
         Operation<?> operation = action.operation();
@@ -380,27 +434,27 @@ public class AclAuthorizer implements Authorizer {
             operations = typeNameMap.lookup(action.resourceType(),
                     TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
                     action.resourceName());
-            if (allow(operations, operation)) {
-                return Decision.ALLOW;
+            if (isFound(operations, operation)) {
+                return whenFound;
             }
             operations = typeNameMap.lookup(action.resourceType(),
                     TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY,
                     null);
-            if (allow(operations, operation)) {
-                return Decision.ALLOW;
+            if (isFound(operations, operation)) {
+                return whenFound;
             }
             operations = typeNameMap.lookup(action.resourceType(),
                     TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH,
                     action.resourceName());
-            if (allow(operations, operation)) {
-                return Decision.ALLOW;
+            if (isFound(operations, operation)) {
+                return whenFound;
             }
         }
         var patternMatch = grants.patternMatch();
         if (patternMatch != null) {
             operations = patternMatch.lookup(action.resourceType(), action.resourceName());
-            if (allow(operations, operation)) {
-                return Decision.ALLOW;
+            if (isFound(operations, operation)) {
+                return whenFound;
             }
         }
         return null;
@@ -409,8 +463,8 @@ public class AclAuthorizer implements Authorizer {
     /**
      * Return true iff the given set of operations allow the given action.
      */
-    private static boolean allow(@Nullable Set<? extends Operation<?>> operations,
-                                 Operation<?> op) {
+    private static boolean isFound(@Nullable Set<? extends Operation<?>> operations,
+                                   Operation<?> op) {
         return operations != null && operations.contains(op);
     }
 
@@ -419,9 +473,18 @@ public class AclAuthorizer implements Authorizer {
         List<Action> allowedActions = new ArrayList<>();
         List<Action> deniedActions = new ArrayList<>();
         for (var action : actions) {
-            switch (authorize(subject, action)) {
-                case DENY -> deniedActions.add(action);
-                case ALLOW -> allowedActions.add(action);
+            Decision decision = authorizeInternal(this.denyPerPrincipal, subject, action, Decision.DENY, null);
+            if (decision == Decision.DENY) {
+                deniedActions.add(action);
+            }
+            else {
+                decision = authorizeInternal(this.allowPerPrincipal, subject, action, Decision.ALLOW, Decision.DENY);
+                if (decision == Decision.DENY) {
+                    deniedActions.add(action);
+                }
+                else if (decision == Decision.ALLOW) {
+                    allowedActions.add(action);
+                }
             }
             // TODO log it
         }
@@ -430,8 +493,8 @@ public class AclAuthorizer implements Authorizer {
 
     @Override
     public String toString() {
-        return "SimpleAuthorizer{" +
-                "perPrincipal=" + perPrincipal +
+        return "AclAuthorizer{" +
+                "perPrincipal=" + allowPerPrincipal +
                 '}';
     }
 }

@@ -5,7 +5,7 @@ grammar AclRules;
 
 rule: versionStmt
     importStmt*
-    //denyRule*
+    denyRule*
     allowRule*
     endRule
     <EOF>
@@ -22,8 +22,8 @@ packageName: qualIdent
 qualIdent: IDENT (DOT IDENT)*
     ;
 
-//denyRule: DENY allowOrDenyRule SEMI
-//    ;
+denyRule: DENY allowOrDenyRule SEMI
+    ;
 allowRule: ALLOW allowOrDenyRule SEMI
     ;
 

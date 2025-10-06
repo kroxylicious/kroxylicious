@@ -175,7 +175,12 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
 
         @Override
         public void enterAllowRule(AclRulesParser.AllowRuleContext ctx) {
-            this.subjectBuilder = this.builder.grant();
+            this.subjectBuilder = this.builder.allow();
+        }
+
+        @Override
+        public void enterDenyRule(AclRulesParser.DenyRuleContext ctx) {
+            this.subjectBuilder = this.builder.deny();
         }
 
         @Override
