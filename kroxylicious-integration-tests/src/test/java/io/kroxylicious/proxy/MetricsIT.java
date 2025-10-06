@@ -888,126 +888,8 @@ class MetricsIT {
         }
     }
 
-    @Test
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    void shouldIncrementDownstreamMessagesOnProduceRequestWithoutFilter(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
-        var config = configWithMetrics(cluster);
-
-        // Given
-        try (var tester = kroxyliciousTester(config);
-                var managementClient = tester.getManagementClient();
-                var producer = tester.producer()) {
-            var metricList = managementClient.scrapeMetrics();
-            var inboundDownstreamMessagesMetricsValue = getSingleMetricsValue(metricList, "kroxylicious_inbound_downstream_messages_total");
-            var inboundDownstreamDecodedMessagesMetricsValue = getSingleMetricsValue(metricList, "kroxylicious_inbound_downstream_decoded_messages_total");
-
-            // When
-            producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
-
-            // Then
-            // updated metrics after some message were produced
-            var updatedMetricsList = managementClient.scrapeMetrics();
-            var updatedInboundDownstreamMessagesMetricsValue = getSingleMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_messages_total");
-            var updatedInboundDownstreamDecodedMessagesMetricsValue = getSingleMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_decoded_messages_total");
-            assertThat(updatedInboundDownstreamMessagesMetricsValue).isGreaterThan(inboundDownstreamMessagesMetricsValue);
-            assertThat(updatedInboundDownstreamDecodedMessagesMetricsValue).isGreaterThan(inboundDownstreamDecodedMessagesMetricsValue);
-        }
-    }
-
-    @Test
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    void shouldIncrementDownstreamMessagesOnProduceRequestWithFilter(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
-
-        // the downstream messages and decoded messages is not yet differentiated by ApiKey
-        final UUID configInstance = UUID.randomUUID();
-
-        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder("filter",
-                CreateTopicRequest.class.getName()).withConfig("configInstanceId", configInstance).build();
-
-        var config = addFilterToConfig(configWithMetrics(cluster), namedFilterDefinition);
-
-        // Given
-        try (var tester = kroxyliciousTester(config);
-                var managementClient = tester.getManagementClient();
-                var producer = tester.producer()) {
-            var metricList = managementClient.scrapeMetrics();
-            var inboundDownstreamMessagesMetricsValue = getSingleMetricsValue(metricList, "kroxylicious_inbound_downstream_messages_total");
-            var inboundDownstreamDecodedMessagesMetricsValue = getSingleMetricsValue(metricList, "kroxylicious_inbound_downstream_decoded_messages_total");
-
-            // When
-            producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
-
-            // Then
-            // updated metrics after some message were produced
-            var updatedMetricsList = managementClient.scrapeMetrics();
-            var updatedInboundDownstreamMessagesMetricsValue = getSingleMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_messages_total");
-            var updatedInboundDownstreamDecodedMessagesMetricsValue = getSingleMetricsValue(updatedMetricsList, "kroxylicious_inbound_downstream_decoded_messages_total");
-            assertThat(updatedInboundDownstreamMessagesMetricsValue).isGreaterThan(inboundDownstreamMessagesMetricsValue);
-            assertThat(updatedInboundDownstreamDecodedMessagesMetricsValue).isGreaterThan(inboundDownstreamDecodedMessagesMetricsValue);
-        }
-    }
-
-    @Test
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    void shouldIncrementConnectionMetrics(KafkaCluster cluster, Topic topic) throws Exception {
-        var config = configWithMetrics(cluster);
-
-        // Given
-        try (var tester = kroxyliciousTester(config);
-                var managementClient = tester.getManagementClient()) {
-            var metricsList = managementClient.scrapeMetrics();
-            assertMetricsDoesNotExist(metricsList, "kroxylicious_downstream_connections_total", null);
-            assertMetricsDoesNotExist(metricsList, "kroxylicious_upstream_connections_total", null);
-
-            // When
-            var producer = tester.producer();
-            producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
-
-            // Then
-            // updated metrics after some message were produced
-            var updatedMetricsList = managementClient.scrapeMetrics();
-            assertMetricsWithValue(updatedMetricsList, "kroxylicious_downstream_connections_total", null);
-            assertMetricsWithValue(updatedMetricsList, "kroxylicious_upstream_connections_total", null);
-        }
-    }
-
-    @Test
-    void shouldIncrementPayloadSizeBytesMetricsOnProduceRequest(KafkaCluster cluster, Topic topic) throws ExecutionException, InterruptedException {
-        var config = configWithMetrics(cluster);
-
-        // Given
-        try (var tester = kroxyliciousTester(config);
-                var managementClient = tester.getManagementClient();
-                var producer = tester.producer();) {
-            var metricList = managementClient.scrapeMetrics();
-            assertMetricsDoesNotExist(metricList, "kroxylicious_payload_size_bytes_count", ApiKeys.PRODUCE);
-            assertMetricsDoesNotExist(metricList, "kroxylicious_payload_size_bytes_sum", ApiKeys.PRODUCE);
-
-            // When
-            producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
-            producer.send(new ProducerRecord<>(topic.name(), "my-key", "hello-world")).get();
-
-            // Then
-            // updated metrics after some message were produced
-            var updatedMetricList = managementClient.scrapeMetrics();
-            assertMetricsWithValue(updatedMetricList, "kroxylicious_payload_size_bytes_count", ApiKeys.PRODUCE);
-            assertMetricsWithValue(updatedMetricList, "kroxylicious_payload_size_bytes_sum", ApiKeys.PRODUCE);
-        }
-    }
-
     private int getNodeIdForPartition(List<TopicPartitionInfo> partitions, int partitionId) {
         return partitions.stream().filter(p -> p.partition() == partitionId).map(TopicPartitionInfo::leader).map(Node::id).findFirst().orElseThrow();
-    }
-
-    void assertMetricsDoesNotExist(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
-        Assertions.assertThat(metricList)
-                .hasSizeGreaterThan(0)
-                .noneSatisfy(simpleMetric -> {
-                    assertThat(simpleMetric.name()).isEqualTo(metricsName);
-                    if (apiKey != null) {
-                        assertThat(simpleMetric.labels()).containsValue(apiKey.toString());
-                    }
-                });
     }
 
     void assertMetricsWithValue(List<SimpleMetric> metricList, String metricsName, ApiKeys apiKey) {
@@ -1020,10 +902,6 @@ class MetricsIT {
                     }
                     assertThat(simpleMetric.value()).isGreaterThan(0);
                 });
-    }
-
-    private static double getSingleMetricsValue(List<SimpleMetric> metricList, String metricsName) {
-        return getSingleMetricsValue(metricList, metricsName, labels -> true);
     }
 
     private static double getSingleMetricsValue(List<SimpleMetric> metricList, String metricsName, Predicate<Map<String, String>> labelPredicate) {

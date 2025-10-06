@@ -25,6 +25,7 @@ Format `<github issue/pr number>: <short description>`.
 * **breaking** kroxylicious-api change. `ListClientMetricsResourcesResponseFilter` and `ListClientMetricsResourcesRequestFilter` are removed, replaced
   with `ListConfigResourcesResponseFilter` and `ListConfigResourcesRequestFilter` due to the RPC being renamed in kafka-clients. Filters that implement
   the old interfaces will be incompatible with this version of the proxy and must migrate to the new interfaces.
+* The 'old' metrics that were deprecated at 0.13.0 are now removed. See the documentation for the details of the new metrics.
 
 ## 0.15.0
 
