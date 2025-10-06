@@ -37,16 +37,6 @@ public class Metrics {
     public static final String API_VERSION_LABEL = "api_version";
     public static final String DECODED_LABEL = "decoded";
 
-    public static final String DEPRECATED_API_KEY_TAG = "ApiKey";
-    public static final String DEPRECATED_API_VERSION_TAG = "ApiVersion";
-    public static final String DEPRECATED_FLOWING_TAG = "flowing";
-
-    public static final String DEPRECATED_VIRTUAL_CLUSTER_TAG = "virtualCluster";
-
-    public static final String DOWNSTREAM_FLOWING_VALUE = "downstream";
-
-    public static final String UPSTREAM_FLOWING_VALUE = "upstream";
-
     // Base Metric Names
 
     private static final String CLIENT_TO_PROXY_REQUEST_BASE_METER_NAME = "kroxylicious_client_to_proxy_request";
@@ -81,73 +71,6 @@ public class Metrics {
      * This is used to provide metrics on the number of active connections per virtual cluster node.
      */
     private static final ConcurrentHashMap<VirtualClusterNode, AtomicInteger> PROXY_TO_SERVER_CONNECTION_CACHE = new ConcurrentHashMap<>();
-
-    /**
-     * @deprecated use kroxylicious_client_to_proxy_request_count instead.
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    @SuppressWarnings("java:S1133")
-    public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES = "kroxylicious_inbound_downstream_messages";
-
-    /**
-     * @deprecated use kroxylicious_client_to_proxy_request_count instead.
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    @SuppressWarnings("java:S1133")
-    public static final String KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES = "kroxylicious_inbound_downstream_decoded_messages";
-
-    private static final String KROXYLICIOUS_DOWNSTREAM = "kroxylicious_downstream_";
-
-    private static final String KROXYLICIOUS_UPSTREAM = "kroxylicious_upstream_";
-
-    /**
-     * @deprecated use {@link #clientToProxyMessageCounterProvider(String, Integer)} instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    @SuppressWarnings("java:S1133")
-    public static final String KROXYLICIOUS_DOWNSTREAM_CONNECTIONS = KROXYLICIOUS_DOWNSTREAM + "connections";
-
-    /**
-     * @deprecated use {@link #clientToProxyErrorCounter(String, Integer)} instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    @SuppressWarnings("java:S1133")
-    public static final String KROXYLICIOUS_DOWNSTREAM_ERRORS = KROXYLICIOUS_DOWNSTREAM + "errors";
-
-    /**
-     * @deprecated use {@link #proxyToServerConnectionCounter(String, Integer)} instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    @SuppressWarnings("java:S1133")
-    public static final String KROXYLICIOUS_UPSTREAM_CONNECTIONS = KROXYLICIOUS_UPSTREAM + "connections";
-
-    /**
-     * @deprecated use {@link #proxyToServerConnectionCounter(String, Integer)} instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    @SuppressWarnings("java:S1133")
-    public static final String KROXYLICIOUS_UPSTREAM_CONNECTION_ATTEMPTS = KROXYLICIOUS_UPSTREAM + "connection_attempts";
-
-    /**
-     * @deprecated use {@link #proxyToServerErrorCounter(String, Integer)} instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    @SuppressWarnings("java:S1133")
-    public static final String KROXYLICIOUS_UPSTREAM_CONNECTION_FAILURES = KROXYLICIOUS_UPSTREAM + "connection_failures";
-
-    /**
-     * @deprecated use {@link #proxyToServerErrorCounter(String, Integer)} instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    @SuppressWarnings("java:S1133")
-    public static final String KROXYLICIOUS_UPSTREAM_ERRORS = KROXYLICIOUS_UPSTREAM + "errors";
-
-    /**
-     * @deprecated use {@link #clientToProxyMessageSizeDistributionProvider(String, Integer)} instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    @SuppressWarnings("java:S1133")
-    public static final String KROXYLICIOUS_PAYLOAD_SIZE_BYTES = "kroxylicious_payload_size_bytes";
 
     private Metrics() {
         // unused
@@ -344,59 +267,6 @@ public class Metrics {
                 .description(description)
                 .tag(VIRTUAL_CLUSTER_LABEL, clusterName)
                 .tag(NODE_ID_LABEL, nodeIdToLabelValue(nodeId))
-                .withRegistry(globalRegistry);
-    }
-
-    /**
-     * @deprecated use {@link #clientToProxyConnectionCounter(String, Integer)} instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    @SuppressWarnings("java:S1133")
-    public static Counter inboundDownstreamDecodedMessageCounter(String clusterName) {
-        return Counter
-                .builder(KROXYLICIOUS_INBOUND_DOWNSTREAM_DECODED_MESSAGES)
-                .withRegistry(globalRegistry)
-                .withTags(DEPRECATED_VIRTUAL_CLUSTER_TAG, clusterName,
-                        DEPRECATED_FLOWING_TAG, DOWNSTREAM_FLOWING_VALUE);
-    }
-
-    /**
-     * @deprecated use {@link #clientToProxyConnectionCounter(String, Integer)} instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    @SuppressWarnings("java:S1133")
-    public static Counter inboundDownstreamMessageCounter(String clusterName) {
-        return Counter
-                .builder(KROXYLICIOUS_INBOUND_DOWNSTREAM_MESSAGES)
-                .withRegistry(globalRegistry)
-                .withTags(DEPRECATED_VIRTUAL_CLUSTER_TAG, clusterName,
-                        DEPRECATED_FLOWING_TAG, DOWNSTREAM_FLOWING_VALUE);
-
-    }
-
-    /**
-     * @deprecated use {@link #proxyToClientMessageSizeDistributionProvider(String, Integer)} instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    @SuppressWarnings("java:S1133")
-    public static MeterProvider<DistributionSummary> payloadSizeBytesUpstreamSummary(String clusterName) {
-        return DistributionSummary.builder(KROXYLICIOUS_PAYLOAD_SIZE_BYTES)
-                .baseUnit(BaseUnits.BYTES)
-                .tag(DEPRECATED_VIRTUAL_CLUSTER_TAG, clusterName)
-                .tag(DEPRECATED_FLOWING_TAG, UPSTREAM_FLOWING_VALUE)
-                .withRegistry(globalRegistry);
-    }
-
-    /**
-     * @deprecated use {@link #clientToProxyMessageSizeDistributionProvider(String, Integer)}  instead
-     */
-    @Deprecated(since = "0.13.0", forRemoval = true)
-    @SuppressWarnings("java:S1133")
-    public static MeterProvider<DistributionSummary> payloadSizeBytesDownstreamSummary(String clusterName) {
-        return DistributionSummary.builder(KROXYLICIOUS_PAYLOAD_SIZE_BYTES)
-                .baseUnit(BaseUnits.BYTES)
-                .tag(DEPRECATED_VIRTUAL_CLUSTER_TAG, clusterName)
-                .tag(DEPRECATED_FLOWING_TAG, DOWNSTREAM_FLOWING_VALUE)
                 .withRegistry(globalRegistry);
     }
 

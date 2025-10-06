@@ -23,11 +23,4 @@ public interface KafkaMessageListener {
      */
     void onMessage(Frame frame, int wireLength);
 
-    static KafkaMessageListener chainOf(KafkaMessageListener... listeners) {
-        return (frame, wireLength) -> {
-            for (var listener : listeners) {
-                listener.onMessage(frame, wireLength);
-            }
-        };
-    }
 }
