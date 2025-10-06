@@ -23,6 +23,7 @@ import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.Errors;
 import org.assertj.core.api.InstanceOfAssertFactories;
+import org.assertj.core.data.Offset;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +47,7 @@ import io.netty.handler.codec.haproxy.HAProxyProtocolVersion;
 import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.netty.handler.ssl.SslContextBuilder;
 
+import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -78,8 +80,12 @@ class ProxyChannelStateMachineTest {
     private static final HostPort BROKER_ADDRESS = new HostPort("localhost", 9092);
     private static final HAProxyMessage HA_PROXY_MESSAGE = new HAProxyMessage(HAProxyProtocolVersion.V2, HAProxyCommand.PROXY, HAProxyProxiedProtocol.TCP4,
             "1.1.1.1", "2.2.2.2", 46421, 9092);
+    private static final Offset<Double> CLOSE_ENOUGH = Offset.offset(0.00005);
     private static final String CLUSTER_NAME = "virtualClusterA";
     private static final VirtualClusterNode VIRTUAL_CLUSTER_NODE = new VirtualClusterNode(CLUSTER_NAME, null);
+    private static final VirtualClusterModel VIRTUAL_CLUSTER_MODEL = new VirtualClusterModel(CLUSTER_NAME, new TargetCluster("", Optional.empty()), false, false,
+            List.of());
+    private final RuntimeException failure = new RuntimeException("There's Klingons on the starboard bow");
     private ProxyChannelStateMachine proxyChannelStateMachine;
     private KafkaProxyBackendHandler backendHandler;
     private KafkaProxyFrontendHandler frontendHandler;
@@ -100,6 +106,87 @@ class ProxyChannelStateMachineTest {
             simpleMeterRegistry.getMeters().forEach(Metrics.globalRegistry::remove);
             Metrics.globalRegistry.remove(simpleMeterRegistry);
         }
+    }
+
+    @Test
+    void shouldCountClientToProxyConnections() {
+        // Given
+
+        // When
+        proxyChannelStateMachine.onClientActive(frontendHandler);
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_connections").counter())
+                .isNotNull()
+                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
+                .satisfies(counter -> assertThat(counter.count())
+                        .isCloseTo(1.0, CLOSE_ENOUGH));
+    }
+
+    @ParameterizedTest
+    @MethodSource("clientErrorStates")
+    void shouldCountClientToProxyExceptions(Runnable givenState, Boolean tlsEnabled) {
+        // Given
+        givenState.run();
+
+        // When
+        proxyChannelStateMachine.onClientException(failure, tlsEnabled);
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_client_to_proxy_errors").counter())
+                .isNotNull()
+                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
+                .satisfies(counter -> assertThat(counter.count())
+                        .isCloseTo(1.0, CLOSE_ENOUGH));
+    }
+
+    @ParameterizedTest
+    @MethodSource("givenStates")
+    void shouldCountProxyToServerExceptions(Runnable givenState) {
+        // Given
+        givenState.run();
+
+        // When
+        proxyChannelStateMachine.onServerException(failure);
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_errors").counter())
+                .isNotNull()
+                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
+                .satisfies(counter -> assertThat(counter.count())
+                        .isCloseTo(1.0, CLOSE_ENOUGH));
+    }
+
+    @Test
+    void shouldCountProxyToServerConnections() {
+        // Given
+        stateMachineInSelectingServer();
+
+        // When
+        proxyChannelStateMachine.onNetFilterInitiateConnect(HostPort.parse("localhost:9090"), List.of(), VIRTUAL_CLUSTER_MODEL, null);
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_connections").counter())
+                .isNotNull()
+                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
+                .satisfies(counter -> assertThat(counter.count())
+                        .isCloseTo(1.0, CLOSE_ENOUGH));
+    }
+
+    @Test
+    void shouldCountProxyToServerConnectionsFailures() {
+        // Given
+        stateMachineInConnecting();
+
+        // When
+        proxyChannelStateMachine.onServerException(failure);
+
+        // Then
+        assertThat(Metrics.globalRegistry.get("kroxylicious_proxy_to_server_errors").counter())
+                .isNotNull()
+                .satisfies(counter -> assertThat(counter.getId()).isNotNull())
+                .satisfies(counter -> assertThat(counter.count())
+                        .isCloseTo(1.0, CLOSE_ENOUGH));
     }
 
     @Test

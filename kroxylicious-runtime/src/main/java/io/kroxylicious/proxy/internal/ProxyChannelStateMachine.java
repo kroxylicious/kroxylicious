@@ -124,7 +124,7 @@ public class ProxyChannelStateMachine {
     @SuppressWarnings("java:S5738")
     public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
         VirtualClusterNode node = new VirtualClusterNode(clusterName, nodeId);
-        // New connection metrics
+        // Connection metrics
         clientToProxyConnectionCounter = Metrics.clientToProxyConnectionCounter(clusterName, nodeId).withTags();
         clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter(clusterName, nodeId).withTags();
         proxyToServerConnectionCounter = Metrics.proxyToServerConnectionCounter(clusterName, nodeId).withTags();
