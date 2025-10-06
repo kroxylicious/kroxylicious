@@ -66,33 +66,35 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
 
     @NonNull
     static <O extends Enum<O> & Operation<O>> AclAuthorizer parse(CharStream stream) {
-        ParseErrorListener listener = new ParseErrorListener(100);
+        int maxErrorsToReports = 100;
+        ParseErrorListener parseErrorListener = new ParseErrorListener(maxErrorsToReports);
 
         var lexer = new AclRulesLexer(stream);
-        lexer.addErrorListener(listener);
+        lexer.addErrorListener(parseErrorListener);
         var tokenStream = new CommonTokenStream(lexer);
         var parser = new AclRulesParser(tokenStream);
         parser.removeErrorListeners();
-        parser.addErrorListener(listener);
+        parser.addErrorListener(parseErrorListener);
         var tree = parser.rule_();
-        listener.maybeThrow();
+        parseErrorListener.maybeThrow();
         var builder = AclAuthorizer.builder();
+
         ParseTreeWalker walker = new ParseTreeWalker();
-        List<String> errors = new ArrayList<>();
-        walker.walk(new BuildingListener(builder, errors), tree);
-        if (!errors.isEmpty()) {
-            throw new InvalidRulesFileException("Found %d errors".formatted(errors.size()), errors);
-        }
+        BuildingListener buildingListener = new BuildingListener(builder, maxErrorsToReports);
+        walker.walk(buildingListener, tree);
+        buildingListener.maybeThrow();
+
         return builder.build();
     }
 
     static class ParseErrorListener extends BaseErrorListener {
-        private int numErrors = 0;
-        private List<String> errorMessages = new ArrayList<>();
+        private final List<String> errorMessages;
         private final int maxErrorsToReport;
+        private int numErrors = 0;
 
         ParseErrorListener(int maxErrorsToReport) {
             this.maxErrorsToReport = maxErrorsToReport;
+            this.errorMessages = new ArrayList<>(maxErrorsToReport);
         }
 
         @Override
@@ -118,7 +120,9 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
     private static class BuildingListener extends AclRulesBaseListener {
 
         private final AclAuthorizer.Builder builder;
-        private final List<String> errors;
+        private final int maxErrorsToReport;
+        private final List<String> errorMessages;
+        private int numErrors;
         private boolean allOps;
         Map<String, String> localToQualified = new HashMap<>();
         private AclAuthorizer.SubjectSelectorBuilder subjectBuilder;
@@ -127,13 +131,17 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         private AclAuthorizer.OperationsBuilder operationsBuilder;
         private AclAuthorizer.ResourceBuilder<? extends Enum> resourceBuilder;
 
-        BuildingListener(AclAuthorizer.Builder builder, List<String> errors) {
+        BuildingListener(AclAuthorizer.Builder builder, int maxErrorsToReport) {
             this.builder = builder;
-            this.errors = errors;
+            this.maxErrorsToReport = maxErrorsToReport;
+            this.errorMessages = new ArrayList<>(maxErrorsToReport);
         }
 
         void reportError(Token token, String error) {
-            errors.add("%d:%d: %s".formatted(token.getLine(), token.getCharPositionInLine(), error));
+            numErrors++;
+            if (errorMessages.size() < maxErrorsToReport) {
+                errorMessages.add("%d:%d: %s".formatted(token.getLine(), token.getCharPositionInLine(), error));
+            }
         }
 
         /**
@@ -156,6 +164,12 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
 
         private String unquoteRegex(TerminalNode string) {
             return unquote(unwrapDelims(string));
+        }
+
+        public void maybeThrow() {
+            if (numErrors > 0) {
+                throw new InvalidRulesFileException("Found %d errors".formatted(numErrors), errorMessages);
+            }
         }
 
         record Prefix(String prefix, boolean eq) {
