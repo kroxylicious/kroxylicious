@@ -68,6 +68,11 @@ class NonJVMClientsST extends AbstractST {
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 
+    /**
+     * Produce and consume message with python client.
+     *
+     * @param namespace the namespace
+     */
     @Test
     void produceAndConsumeWithPythonClients(String namespace) {
         int numberOfMessages = 2;
