@@ -529,8 +529,7 @@ public class KafkaProxyFrontendHandler
 
         var serverToProxyMessageSizeDistributionProvider = Metrics.serverToProxyMessageSizeDistributionProvider(clusterName,
                 nodeId);
-        return KafkaMessageListener.chainOf(
-                new MetricEmittingKafkaMessageListener(serverToProxyMessageCounterProvider, serverToProxyMessageSizeDistributionProvider));
+        return new MetricEmittingKafkaMessageListener(serverToProxyMessageCounterProvider, serverToProxyMessageSizeDistributionProvider);
     }
 
     /** Ugly hack used for testing */
