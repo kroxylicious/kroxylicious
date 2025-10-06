@@ -85,13 +85,16 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn -B install -Pci -Djapicmp.skip=true -pl ':kroxylicious-operator' -am
+          mvn --batch-mode install -Pci -DskipTests -Djapicmp.skip=true -pl ':kroxylicious-operator' --also-make
+          mvn --batch-mode verify -Pci -Djapicmp.skip=true -pl ':kroxylicious-operator,:kroxylicious-kubernetes-api'
       - name: 'Build Kroxylicious maven project on main with Sonar'
         if: github.event_name == 'push' && github.ref_name == 'main' && env.SONAR_TOKEN_SET == 'true'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: mvn -B verify -Pci -Djapicmp.skip=true org.sonarsource.scanner.maven:sonar-maven-plugin:5.0.0.4389:sonar -Dsonar.projectKey=kroxylicious_kroxylicious  -pl ':kroxylicious-operator,:kroxylicious-parent'
+        run: |
+          mvn --batch-mode install -Pci -DskipTests -Djapicmp.skip=true -pl ':kroxylicious-operator' --also-make
+          mvn --batch-mode verify -Pci -Djapicmp.skip=true org.sonarsource.scanner.maven:sonar-maven-plugin:5.0.0.4389:sonar -Dsonar.projectKey=kroxylicious_kroxylicious  -pl ':kroxylicious-operator,:kroxylicious-kubernetes-api'
       - name: Save PR number to file
         if: github.event_name == 'pull_request'
         run: echo ${{ github.event.number }} > PR_NUMBER.txt
