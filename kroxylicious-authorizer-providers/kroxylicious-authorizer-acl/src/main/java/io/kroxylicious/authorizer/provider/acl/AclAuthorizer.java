@@ -335,13 +335,14 @@ public class AclAuthorizer implements Authorizer {
 
     private <O extends Enum<O> & Operation<O>> void internalAllowOrDeny(boolean allow,
                                                                         Class<? extends Principal> principalType,
-                                                                  TypeNameMap.Predicate principalPredicate,
-                                                                  @Nullable String principalName,
-                                                                  Class<O> opType,
-                                                                  Pred resourceNamePredicate,
-                                                                  @Nullable String resourceName,
-                                                                  Set<O> operations) {
-        internalAllowOrDeny(allow ? allowPerPrincipal : denyPerPrincipal, principalType, principalPredicate, principalName, opType, resourceNamePredicate, resourceName, operations);
+                                                                        TypeNameMap.Predicate principalPredicate,
+                                                                        @Nullable String principalName,
+                                                                        Class<O> opType,
+                                                                        Pred resourceNamePredicate,
+                                                                        @Nullable String resourceName,
+                                                                        Set<O> operations) {
+        internalAllowOrDeny(allow ? allowPerPrincipal : denyPerPrincipal, principalType, principalPredicate, principalName, opType, resourceNamePredicate, resourceName,
+                operations);
     }
 
     private static <O extends Enum<O> & Operation<O>> void internalAllowOrDeny(

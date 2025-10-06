@@ -22,10 +22,8 @@ public interface Authorizer {
      * @return The authorization.
      */
     default CompletionStage<Authorization> authorizedOperations(Subject subject, Map<Class<? extends Operation<?>>, List<String>> resources) {
-        var actions = resources.entrySet().stream().flatMap(entry ->
-                    Arrays.stream(entry.getKey().getEnumConstants()).flatMap(enumConstant ->
-                            entry.getValue().stream().map(resourceName -> new Action(enumConstant, resourceName)))
-        ).distinct().toList();
+        var actions = resources.entrySet().stream().flatMap(entry -> Arrays.stream(entry.getKey().getEnumConstants())
+                .flatMap(enumConstant -> entry.getValue().stream().map(resourceName -> new Action(enumConstant, resourceName)))).distinct().toList();
         return authorize(subject, actions);
     }
 

@@ -22,7 +22,7 @@ public record Action(
         Objects.requireNonNull(resourceName);
     }
 
-    @SuppressWarnings({"rawtypes", "unchecked", "java:S1452"})
+    @SuppressWarnings({ "rawtypes", "unchecked", "java:S1452" })
     public Class<? extends Operation<?>> resourceType() {
         return (Class) operation.getClass();
     }
