@@ -892,6 +892,32 @@ class TlsIT extends AbstractTlsIT {
         }
     }
 
+    @ParameterizedTest
+    @ValueSource(strings = { "REQUIRED", "REQUESTED" })
+    void downstreamMutualTls_RejectsClientWithInvalidCertificate(TlsClientAuth clientAuthMode, KafkaCluster cluster) throws Exception {
+        // Generate a new client certificate
+        var invalidClientCert = new KeytoolCertificateGenerator();
+        // With Issuer Subject matching the Issuer Subject trusted by the proxy. So that when the server requests a Certificate from the trusted
+        // certificate_authority, the client will choose to send this certificate. Which should cause the handshake to fail because it is self-signed
+        // and untrusted by the proxy.
+        invalidClientCert.generateSelfSignedCertificateEntry(CLIENT_CERT_EMAIL, CLIENT_CERT_DOMAIN, CLIENT_CERT_ORGANIZATION_UNIT, CLIENT_CERT_ORGANIZATION,
+                CLIENT_CERT_CITY, CLIENT_CERT_STATE, CLIENT_CERT_COUNTRY);
+
+        try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, clientAuthMode));
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, invalidClientCert.getKeyStoreLocation(),
+                                SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, invalidClientCert.getPassword(),
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+            // Connection should fail because server doesn't trust the client certificate
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .rootCause().hasMessageContaining("Received fatal alert: certificate_unknown");
+        }
+    }
+
     private ConfigurationBuilder constructMutualTlsBuilder(KafkaCluster cluster, TlsClientAuth tlsClientAuth) {
         // @formatter:off
         return new ConfigurationBuilder()
