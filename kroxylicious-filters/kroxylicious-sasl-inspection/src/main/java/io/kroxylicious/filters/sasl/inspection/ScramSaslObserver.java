@@ -31,8 +31,8 @@ public class ScramSaslObserver implements SaslObserver {
     private static final Pattern EQUAL_THREE_D = Pattern.compile("=3D", Pattern.LITERAL);
 
     private final String mechanismName;
-    private boolean gotServerFinal;
-    private @Nullable String authorizationId;
+    private boolean gotServerFinal = false;
+    private @Nullable String authorizationId = null;
 
     public ScramSaslObserver(String mechanismName) {
         Objects.requireNonNull(mechanismName);
