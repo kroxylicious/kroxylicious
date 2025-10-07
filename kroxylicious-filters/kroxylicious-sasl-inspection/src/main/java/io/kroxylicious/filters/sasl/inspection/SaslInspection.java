@@ -39,7 +39,7 @@ public class SaslInspection implements FilterFactory<Config, Config> {
         Set<String> enabled = new HashSet<>(context.pluginInstanceNames(SaslObserverFactory.class));
         var mechFactories = enabled.stream()
                 .map(instanceName -> context.pluginInstance(SaslObserverFactory.class, instanceName))
-                .filter(sof -> !sof.isInsecure() || config.enableInsecureMechanisms())
+                .filter(sof -> !sof.transmitsCredentialInCleartext() || config.enableInsecureMechanisms())
                 .collect(Collectors.toMap(SaslObserverFactory::mechanismName, Function.identity(),
                         (sof1, sof2) -> {
                             if (sof1.getClass() != sof2.getClass()) {

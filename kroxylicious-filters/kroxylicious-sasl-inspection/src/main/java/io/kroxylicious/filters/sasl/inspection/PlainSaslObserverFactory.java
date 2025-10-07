@@ -27,7 +27,7 @@ public class PlainSaslObserverFactory implements SaslObserverFactory {
     }
 
     @Override
-    public boolean isInsecure() {
+    public boolean transmitsCredentialInCleartext() {
         return true;
     }
 }

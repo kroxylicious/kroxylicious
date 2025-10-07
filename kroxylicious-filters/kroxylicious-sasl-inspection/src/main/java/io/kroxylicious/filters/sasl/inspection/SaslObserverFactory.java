@@ -23,12 +23,11 @@ public interface SaslObserverFactory {
     String mechanismName();
 
     /**
-     * Returns true if this SASL mechanisms is considered insecure.  Typically, this will be
-     * because it transmits it credentials in the clear.
+     * Returns true if this SASL mechanisms transmit credentials in the clear.
      *
      * @return true if considered insecure, false otherwise.
      */
-    default boolean isInsecure() {
+    default boolean transmitsCredentialInCleartext() {
         return false;
     }
 }
