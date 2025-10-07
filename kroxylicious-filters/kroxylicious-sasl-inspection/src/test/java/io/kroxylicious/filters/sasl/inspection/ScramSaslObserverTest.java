@@ -46,7 +46,9 @@ class ScramSaslObserverTest {
                 Arguments.argumentSet("username only", TestData.SASL_SCRAM_SHA_256_CLIENT_INITIAL, "user"),
                 Arguments.argumentSet("authzid and username present", TestData.SASL_SCRAM_SHA256_CLIENT_INITIAL_WITH_AUTHZID, "Ursel"),
                 Arguments.argumentSet("saslname with encoded comma", "n,,n=test=2Cuser,r=rOprNGfwEbeRWgbNEkqO".getBytes(UTF_8), "test,user"),
-                Arguments.argumentSet("saslname with encoded equals", "n,,n=test=3Duser,r=rOprNGfwEbeRWgbNEkqO".getBytes(UTF_8), "test=user"));
+                Arguments.argumentSet("saslname with encoded equals", "n,,n=test=3Duser,r=rOprNGfwEbeRWgbNEkqO".getBytes(UTF_8), "test=user"),
+                Arguments.argumentSet("saslname with many encoded chars", "n,,n=encoded=3Dchars=3Da=2Cgo=2Cgo,r=rOprNGfwEbeRWgbNEkqO".getBytes(UTF_8),
+                        "encoded=chars=a,go,go"));
     }
 
     @ParameterizedTest
@@ -73,7 +75,8 @@ class ScramSaslObserverTest {
                         (Object) "n,a=ursel,m=unexpected,n=testuser,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(
                                 UTF_8)),
                 Arguments.argumentSet("missing username", (Object) "n,,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(UTF_8)),
-                Arguments.argumentSet("empty username", (Object) "n,,n=,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(UTF_8)));
+                Arguments.argumentSet("empty username", (Object) "n,,n=,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(UTF_8)),
+                Arguments.argumentSet("unrecognized encoded char", (Object) "n,,n=hello=2D,r=fyko+d2lbbFgONRv9qkxdawL".getBytes(UTF_8)));
     }
 
     @ParameterizedTest

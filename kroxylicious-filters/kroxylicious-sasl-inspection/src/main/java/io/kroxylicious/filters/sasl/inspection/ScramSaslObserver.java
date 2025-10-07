@@ -10,8 +10,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.apache.kafka.common.errors.AuthenticationException;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
@@ -27,8 +25,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class ScramSaslObserver implements SaslObserver {
 
-    private static final Pattern EQUAL_TWO_C = Pattern.compile("=2C", Pattern.LITERAL);
-    private static final Pattern EQUAL_THREE_D = Pattern.compile("=3D", Pattern.LITERAL);
+    private static final String ENCODED_COMMA = "=2C";
+    private static final String ENCODED_EQUALS_SIGN = "=3D";
 
     private final String mechanismName;
     private boolean gotServerFinal = false;
@@ -107,16 +105,20 @@ public class ScramSaslObserver implements SaslObserver {
     }
 
     /**
-     * Copied from org.apache.kafka.common.security.scram.internals.ScramFormatter#username(java.lang.String)
+     * Decodes a saslName into a username using the rules described by
+     * <a href="https://datatracker.ietf.org/doc/html/rfc5802#section-5.1">RFC-5802</a>.
+
      * @param saslName sasl name
      * @return user name
      */
     private static String username(String saslName) {
-        String username = EQUAL_TWO_C.matcher(saslName).replaceAll(Matcher.quoteReplacement(","));
-        if (EQUAL_THREE_D.matcher(username).replaceAll(Matcher.quoteReplacement("")).indexOf('=') >= 0) {
-            throw new IllegalArgumentException("Invalid username: " + saslName);
+        // The RFC says: "If the server receives a username that contains '=' not followed by either '2C' or '3D', then the
+        // server MUST fail the authentication"
+        if (saslName.replace(ENCODED_COMMA, "").replace(ENCODED_EQUALS_SIGN, "").contains("=")) {
+            throw new AuthenticationException("Sasl name: '" + saslName + "' contains unexpected encoded characters");
         }
-        return EQUAL_THREE_D.matcher(username).replaceAll(Matcher.quoteReplacement("="));
+
+        return saslName.replace(ENCODED_COMMA, ",").replace(ENCODED_EQUALS_SIGN, "=");
     }
 
 }
