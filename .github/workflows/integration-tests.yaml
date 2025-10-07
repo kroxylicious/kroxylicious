@@ -48,7 +48,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          mvn -B install -DskipTests -Dmaven.javadoc.skip=true -DskipDocs=true -Dcheckstyle.skip=true -Dspotbugs.skip=true -Djapicmp.skip=true -pl :kroxylicious-bom,:kroxylicious-integration-tests -am
+          mvn -B install -DskipTests -Dmaven.javadoc.skip=true -DskipDocs=true -Dcheckstyle.skip=true -Dspotbugs.skip=true -Djapicmp.skip=true -pl :kroxylicious-bom,:kroxylicious-integration-tests,:kroxylicious-filter-archetype -am
       - name: 'Run proxy Kroxylicious integration tests'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -59,3 +59,6 @@ jobs:
           KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
         working-directory: kroxylicious-integration-tests
         run: mvn -B verify -DskipUTs
+      - name: 'run filter archetype integration tests'
+        working-directory: kroxylicious-filter-archetype
+        run: mvn -B verify
