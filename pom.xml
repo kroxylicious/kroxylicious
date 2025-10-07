@@ -463,6 +463,8 @@
         <module>kroxylicious-operator</module>
         <module>kroxylicious-operator-dist</module>
         <module>kroxylicious-docs</module>
+        <module>kroxylicious-authorizer</module>
+        <module>kroxylicious-authorizer-providers</module>
     </modules>
 
 
