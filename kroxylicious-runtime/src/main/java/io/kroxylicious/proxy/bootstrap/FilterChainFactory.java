@@ -101,12 +101,12 @@ public class FilterChainFactory implements AutoCloseable {
                 }
 
                 @Override
-                public <P> P pluginInstance(Class<P> pluginClass, String instanceName) {
-                    return pfr.pluginFactory(pluginClass).pluginInstance(instanceName);
+                public <P> P pluginInstance(Class<P> pluginClass, String implementationName) {
+                    return pfr.pluginFactory(pluginClass).pluginInstance(implementationName);
                 }
 
                 @Override
-                public <P> Set<String> pluginInstanceNames(Class<P> pluginClass) {
+                public <P> Set<String> pluginImplementationNames(Class<P> pluginClass) {
                     return pfr.pluginFactory(pluginClass).registeredInstanceNames();
                 }
             };

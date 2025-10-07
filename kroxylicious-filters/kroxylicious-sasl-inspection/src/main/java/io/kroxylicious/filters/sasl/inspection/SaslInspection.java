@@ -36,7 +36,7 @@ public class SaslInspection implements FilterFactory<Config, Config> {
     @Override
     public Filter createFilter(FilterFactoryContext context, Config config) {
         Objects.requireNonNull(config);
-        Set<String> enabled = new HashSet<>(context.pluginInstanceNames(SaslObserverFactory.class));
+        Set<String> enabled = new HashSet<>(context.pluginImplementationNames(SaslObserverFactory.class));
         var mechFactories = enabled.stream()
                 .map(instanceName -> context.pluginInstance(SaslObserverFactory.class, instanceName))
                 .filter(sof -> !sof.transmitsCredentialInCleartext() || config.enableInsecureMechanisms())

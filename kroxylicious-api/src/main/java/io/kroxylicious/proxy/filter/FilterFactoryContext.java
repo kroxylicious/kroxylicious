@@ -27,20 +27,21 @@ public interface FilterFactoryContext {
 
     /**
      * Gets a plugin instance for the given plugin type and name
-     * @param pluginClass The plugin type
-     * @param instanceName The plugin instance name
-     * @return The plugin instance
+     *
      * @param <P> The plugin manager type
-     * @throws UnknownPluginInstanceException the plugin with given instance name is unknown
+     * @param pluginClass The plugin type
+     * @param implementationName The plugin implementation name
+     * @return The plugin instance
+     * @throws UnknownPluginInstanceException the plugin with given implementation name is unknown
      */
-    <P> P pluginInstance(Class<P> pluginClass, String instanceName);
+    <P> P pluginInstance(Class<P> pluginClass, String implementationName);
 
     /**
-     * Returns the names of the registered instances of this plugin.
+     * Returns the implementation names of the registered instances of this plugin.
      *
      * @param pluginClass The plugin type
-     * @return set of known instances names registered for the given plugin class.
+     * @return set of known implementation names registered for the given plugin class.
      * @param <P> The plugin manager type
      */
-    <P> Set<String> pluginInstanceNames(Class<P> pluginClass);
+    <P> Set<String> pluginImplementationNames(Class<P> pluginClass);
 }
