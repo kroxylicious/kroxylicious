@@ -435,7 +435,7 @@ Alternatively, to run system tests against locally made changes, push the built 
 Run the system tests like this:
 
 ```
-mvn clean verify -DskipITs=true -DskipUTs=true -DskipSTs=false
+mvn clean verify -DskipITs=true -DskipUTs=true -DskipSTs=false -Pdist
 ```
 
 ### Jenkins pipeline for system tests
