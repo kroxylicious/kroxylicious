@@ -13,12 +13,12 @@ import org.apache.kafka.common.errors.AuthenticationException;
  * authorization id.  It is also responsible for signalling when the SASL negotiation
  * is finished.
  * <br/>
- * Unlike a {@link javax.security.sasl.SaslServer} it no part in deciding if the authentication was successful or not.
+ * Unlike a {@link javax.security.sasl.SaslServer}, it does not if the authentication was successful or not.
  */
 public interface SaslObserver {
 
     /**
-     * IANA register SASL mechanism name.
+     * IANA registered SASL mechanism name.
      *
      * @return SASL mechanism name.
      */
@@ -28,7 +28,7 @@ public interface SaslObserver {
      * Used to inform the observer of the bytes of each client response.
      *
      * @param response client response
-     * @return true if this response yield the authorization id, false otherwise.
+     * @return true if this response yields the authorization id, false otherwise.
      * @throws AuthenticationException if the response is incorrectly formatted
      */
     boolean clientResponse(byte[] response) throws AuthenticationException;
