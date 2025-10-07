@@ -3,36 +3,45 @@
 This document gives a detailed breakdown of the various build processes and options for building the Kroxylicious from source.
 
 <!-- TOC -->
-- [Development Guide for Kroxylicious](#development-guide-for-kroxylicious)
-  - [Build status](#build-status)
-  - [Build Prerequisites](#build-prerequisites)
-  - [Build](#build)
-    - [Formatting the Code](#formatting-the-code)
-    - [Logging Conventions](#logging-conventions)
-  - [Run](#run)
-    - [Debugging](#debugging)
-  - [Building and pushing Kroxylicious Container Images](#building-and-pushing-kroxylicious-container-images)
-  - [IDE setup](#ide-setup)
-    - [Intellij](#intellij)
-  - [Setting Up in Windows Using WSL](#setting-up-in-windows-using-wsl)
-    - [Installing WSL](#installing-wsl)
-    - [Ensure appropriate tooling available](#ensure-appropriate-tooling-available)
-    - [Podman/Testcontainers incompatibility](#podmantestcontainers-incompatibility)
-    - [macOS](#macos)
-    - [Linux](#linux)
-    - [Verify that the fix is effective](#verify-that-the-fix-is-effective)
-  - [Running system tests locally](#running-system-tests-locally)
-    - [Prerequisites](#prerequisites)
-    - [Environment variables](#environment-variables)
-    - [Launch system tests](#launch-system-tests)
-    - [Jenkins pipeline for system tests](#jenkins-pipeline-for-system-tests)
-  - [Rendering documentation](#rendering-documentation)
-  - [Producing an Asciinema Cast](#producing-an-asciinema-cast)
-  - [Continuous Integration](#continuous-integration)
-    - [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
-  - [DCO Signoff](#dco-signoff)
-- [Developement Guide for Kroxylicious Operator](#development-guide-for-kroxylicious-operator)
-- [Deprecation Policy](#deprecation-policy)
+* [Development Guide for Kroxylicious](#development-guide-for-kroxylicious)
+  * [Build status](#build-status)
+  * [Build Prerequisites](#build-prerequisites)
+  * [Build](#build)
+    * [Formatting the Code](#formatting-the-code)
+    * [Logging Conventions](#logging-conventions)
+  * [Run](#run)
+    * [Debugging](#debugging)
+  * [Building and pushing Kroxylicious Container Images](#building-and-pushing-kroxylicious-container-images)
+  * [IDE setup](#ide-setup)
+    * [Intellij](#intellij)
+  * [Setting Up in Windows Using WSL](#setting-up-in-windows-using-wsl)
+    * [Installing WSL](#installing-wsl)
+    * [Ensure appropriate tooling available](#ensure-appropriate-tooling-available)
+  * [Running Integration Tests on Podman](#running-integration-tests-on-podman)
+    * [DOCKER_HOST environment variable](#docker_host-environment-variable)
+    * [Podman/Testcontainers incompatibility](#podmantestcontainers-incompatibility)
+    * [macOS](#macos)
+    * [Linux](#linux)
+    * [Verify that the fix is effective](#verify-that-the-fix-is-effective)
+  * [Running system tests locally](#running-system-tests-locally)
+    * [Prerequisites](#prerequisites)
+    * [Environment variables](#environment-variables)
+    * [Launch system tests](#launch-system-tests)
+    * [Jenkins pipeline for system tests](#jenkins-pipeline-for-system-tests)
+  * [Rendering documentation](#rendering-documentation)
+  * [Producing an Asciinema Cast](#producing-an-asciinema-cast)
+  * [Continuous Integration](#continuous-integration)
+    * [Using the GitHub CI workflows against a fork](#using-the-github-ci-workflows-against-a-fork)
+  * [DCO Signoff](#dco-signoff)
+* [Development Guide for Kroxylicious Operator](#development-guide-for-kroxylicious-operator)
+  * [Hacking and Debugging](#hacking-and-debugging)
+  * [Building the operator](#building-the-operator)
+  * [Installing the operator](#installing-the-operator)
+  * [Installing the operator](#installing-the-operator-1)
+  * [Creating a `KafkaProxy`](#creating-a-kafkaproxy)
+  * [Testing](#testing)
+    * [System Tests](#system-tests)
+* [Deprecation Policy](#deprecation-policy)
 <!-- TOC -->
 
 ## Build status
@@ -426,7 +435,7 @@ Alternatively, to run system tests against locally made changes, push the built 
 Run the system tests like this:
 
 ```
-mvn clean verify -DskiptITs=true -DskiptUTs=true -DskipSTs=false
+mvn clean verify -DskipITs=true -DskipUTs=true -DskipSTs=false
 ```
 
 ### Jenkins pipeline for system tests
@@ -442,7 +451,7 @@ It will launch the `kroxylicious-system-tests-pr` build, that will insert a comm
 
 ## Rendering documentation
 
-For information on updating and rendering the documentation, see the `docs` directory [README](docs/README.md). 
+For information on updating and rendering the documentation, see the `kroxylicious-docs` directory [README](kroxylicious-docs/README.md). 
 
 ## Producing an Asciinema Cast
 
