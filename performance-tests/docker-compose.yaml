@@ -69,7 +69,7 @@ services:
     ports:
       - "9092"
     volumes:
-      - ./${KROXYLICIOUS_CONFIG:-unused.yaml}:/opt/kroxylicious/config/config.yaml
+      - ./${KROXYLICIOUS_CONFIG:-unused.yaml}:/opt/kroxylicious/config/config.yaml:${CONFIG_MOUNT_OPTS:-ro}
     networks:
       - perf_network
     depends_on:

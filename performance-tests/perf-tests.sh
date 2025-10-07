@@ -17,7 +17,6 @@ WARM_UP_NUM_RECORDS_POST_BROKER_START=${WARM_UP_NUM_RECORDS_POST_BROKER_START:-1
 WARM_UP_NUM_RECORDS_PRE_TEST=${WARM_UP_NUM_RECORDS_PRE_TEST:-1000}
 COMMIT_ID=${COMMIT_ID:=$(git rev-parse --short HEAD)}
 
-
 PROFILING_OUTPUT_DIRECTORY=${PROFILING_OUTPUT_DIRECTORY:-"/tmp/results"}
 
 ON_SHUTDOWN=()
@@ -34,6 +33,17 @@ then
   DOCKER_REGISTRY="mirror.gcr.io"
 fi
 
+selinux_mount_opts () {
+  local targetCommand=getenforce
+  local resolvedCommand
+  resolvedCommand=$(command -v "${targetCommand}")
+  if [[ -z ${resolvedCommand} ]]; then
+    echo ""
+  else
+    getenforce | grep -q "Enforcing" && echo ",z" || echo ""
+  fi
+}
+
 KAFKA_VERSION=${KAFKA_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=kafka.version -q -DforceStdout -pl kroxylicious-systemtests)}
 STRIMZI_VERSION=${STRIMZI_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)}
 KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)}
@@ -44,7 +54,9 @@ VAULT_IMAGE=${VAULT_IMAGE:-"${DOCKER_REGISTRY}/hashicorp/vault:1.21.0"}
 PERF_NETWORK=performance-tests_perf_network
 CONTAINER_ENGINE=${CONTAINER_ENGINE:-"docker"}
 LOADER_DIR=${LOADER_DIR:-"/tmp/asprof-extracted"}
-export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE KROXYLICIOUS_IMAGE VAULT_IMAGE CONTAINER_ENGINE
+CONFIG_MOUNT_OPTS="ro"$(selinux_mount_opts)
+
+export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE KROXYLICIOUS_IMAGE VAULT_IMAGE CONTAINER_ENGINE CONFIG_MOUNT_OPTS
 
 printf "KAFKA_VERSION: ${KAFKA_VERSION}\n"
 printf "STRIMZI_VERSION: ${STRIMZI_VERSION}\n"
@@ -240,10 +252,12 @@ doPerfTest () {
 }
 
 onExit() {
+  local trigger_code=$?
   for cmd in "${ON_SHUTDOWN[@]}"
   do
     eval "${cmd}"
   done
+  echo ${trigger_code} # make sure any of the shutdown commands don't mask the original exit code
 }
 
 trap onExit EXIT
@@ -252,7 +266,7 @@ TMP=$(mktemp -d)
 ON_SHUTDOWN+=("rm -rf ${TMP}")
 
 # Bring up Kafka
-#ON_SHUTDOWN+=("runDockerCompose down")
+ON_SHUTDOWN+=("runDockerCompose down")
 
 [[ -n ${PULL_CONTAINERS} ]] && runDockerCompose pull
 
