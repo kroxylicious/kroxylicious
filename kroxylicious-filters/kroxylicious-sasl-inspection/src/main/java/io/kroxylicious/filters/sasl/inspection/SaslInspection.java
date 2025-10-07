@@ -6,12 +6,11 @@
 
 package io.kroxylicious.filters.sasl.inspection;
 
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import io.kroxylicious.proxy.filter.Filter;
@@ -33,7 +32,7 @@ public class SaslInspection implements FilterFactory<Config, Void> {
 
     @Override
     public Void initialize(FilterFactoryContext context,
-                             @Nullable Config config)
+                           @Nullable Config config)
             throws PluginConfigurationException {
         observerFactoryMap = buildEnabledObserverFactoryMap(context, config);
         return null;
@@ -45,12 +44,10 @@ public class SaslInspection implements FilterFactory<Config, Void> {
     }
 
     private Map<String, SaslObserverFactory> buildEnabledObserverFactoryMap(FilterFactoryContext context, @Nullable Config config) {
-        Set<String> all = new HashSet<>(context.pluginImplementationNames(SaslObserverFactory.class));
-        var enableInsecureMechanisms = Optional.ofNullable(config).map(Config::enableInsecureMechanisms).orElse(false);
-
-        var mechMap = all.stream()
+        var allNames = context.pluginImplementationNames(SaslObserverFactory.class);
+        var allMap = allNames
+                .stream()
                 .map(instanceName -> context.pluginInstance(SaslObserverFactory.class, instanceName))
-                .filter(sof -> !sof.transmitsCredentialInCleartext() || enableInsecureMechanisms)
                 .collect(Collectors.toMap(SaslObserverFactory::mechanismName, Function.identity(),
                         (sof1, sof2) -> {
                             if (sof1.getClass() != sof2.getClass()) {
@@ -59,11 +56,26 @@ public class SaslInspection implements FilterFactory<Config, Void> {
                             }
                             return sof1;
                         }));
-        if (mechMap.isEmpty()) {
-            throw new PluginConfigurationException("The SaslObserver requires at at least one enabled SaslObserver implementation. "
-            + "Discovered implementations names: [" + String.join(",", all) + "]");
+
+        var secureOnly = allMap.entrySet()
+                .stream().filter(Predicate.not(e -> e.getValue().transmitsCredentialInCleartext()))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue, (x, y) -> y, HashMap::new));
+
+        var enabledMechNames = Optional.ofNullable(config).map(Config::enabledMechanisms).orElse(secureOnly.keySet());
+
+        var unknownMechNames = enabledMechNames.stream().filter(Predicate.not(allMap::containsKey)).collect(Collectors.toSet());
+        if (!unknownMechNames.isEmpty()) {
+            throw new PluginConfigurationException("The following enabled SASL mechanism names are unknown: [" + String.join(",", unknownMechNames) + "]");
         }
-        return mechMap;
+
+        Map<String, SaslObserverFactory> onlyEnabled = new HashMap<>(allMap);
+        onlyEnabled.keySet().retainAll(enabledMechNames);
+
+        if (onlyEnabled.isEmpty()) {
+            throw new PluginConfigurationException("The SaslObserver requires at at least one enabled SaslObserver implementation. "
+                    + "Discovered implementations names: [" + String.join(",", allNames) + "]");
+        }
+        return onlyEnabled;
     }
 
     @VisibleForTesting

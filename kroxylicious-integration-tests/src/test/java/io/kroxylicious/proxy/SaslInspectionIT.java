@@ -44,6 +44,8 @@ import io.kroxylicious.testing.kafka.common.SaslMechanism;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -57,7 +59,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SaslInspectionIT {
     /**
      * client handshakes with PLAIN
-     * proxy allows insecure SASL mechanisms so PLAIN inspection is permitted
+     * proxy has PLAIN inspection enabled
      * broker has PLAIN enabled
      * client authenticated with the correct password
      * => client should be able to produce and consume
@@ -78,7 +80,7 @@ class SaslInspectionIT {
 
     /**
      * client handshakes with SCRAM-SHA-256
-     * proxy supports a SCRAM-SHA-256 inspection
+     * proxy has SCRAM-SHA-256 explicitly enabled
      * broker has SCRAM-SHA-256 enabled
      * client authenticated with the correct password
      * => client should be able to produce and consume
@@ -95,6 +97,29 @@ class SaslInspectionIT {
         String password = "alice-secret";
 
         assertClientsCanAccessCluster(cluster, topic, mechanism, 2, clientLoginModule, username, password);
+    }
+
+    /**
+     * client handshakes with SCRAM-SHA-256
+     * proxy has SCRAM-SHA-256 implicitly enabled
+     * broker has SCRAM-SHA-256 enabled
+     * client authenticated with the correct password
+     * => client should be able to produce and consume
+     */
+    @Test
+    void shouldAuthenticateWhenSameMechanism_implict_SCRAM_SHA_256(@SaslMechanism(value = "SCRAM-SHA-256", principals = {
+            @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
+                                                                   Topic topic)
+            throws Exception {
+
+        String mechanism = "SCRAM-SHA-256";
+        String clientLoginModule = "org.apache.kafka.common.security.scram.ScramLoginModule";
+        String username = "alice";
+        String password = "alice-secret";
+
+        assertClientsCanAccessCluster(cluster, null, topic, mechanism,
+                clientLoginModule, username, password,
+                1, 2, 0);
     }
 
     /**
@@ -117,7 +142,7 @@ class SaslInspectionIT {
 
     /**
      * client handshakes with PLAIN
-     * proxy allows insecure SASL mechanisms so PLAIN inspection is permitted
+     * proxy has PLAIN inspection enabled
      * broker has PLAIN enabled
      * client authenticated with incorrect password
      * => client should not be able to produce and consume
@@ -151,7 +176,7 @@ class SaslInspectionIT {
         String username = "alice";
         String password = "alice-secret";
 
-        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password,
+        assertClientsCanAccessCluster(cluster, Set.of(mechanism), topic, mechanism, clientLoginModule, username, password,
                 2, 1,
                 10_000);
     }
@@ -172,7 +197,7 @@ class SaslInspectionIT {
         String username = "alice";
         String password = "alice-secret";
 
-        assertClientsCanAccessCluster(cluster, topic, mechanism, clientLoginModule, username, password,
+        assertClientsCanAccessCluster(cluster, Set.of(mechanism), topic, mechanism, clientLoginModule, username, password,
                 2, 2,
                 10_000);
     }
@@ -187,7 +212,7 @@ class SaslInspectionIT {
     void shouldNotAuthenticateWhenNoCommonMechanism(@SaslMechanism(value = "PLAIN", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
                                                     Topic topic) {
-        var config = buildProxyConfig(cluster, false);
+        var config = buildProxyConfig(cluster, null);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(
@@ -215,7 +240,7 @@ class SaslInspectionIT {
     @Test
     void shouldNotConnectWhenClientNotConfiguredForSasl(@SaslMechanism(value = "PLAIN", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster) {
-        var config = buildProxyConfig(cluster, true);
+        var config = buildProxyConfig(cluster, Set.of("PLAIN"));
 
         try (var tester = kroxyliciousTester(config);
                 var admin = tester.admin(Map.of(
@@ -231,8 +256,7 @@ class SaslInspectionIT {
 
     private static void assertClientsGetSaslAuthenticationException(KafkaCluster cluster, Topic topic, String mechanism, String clientLoginModule, String username,
                                                                     String password) {
-        var enableInsecureMechanisms = "PLAIN".equals(mechanism);
-        var config = buildProxyConfig(cluster, enableInsecureMechanisms);
+        var config = buildProxyConfig(cluster, Set.of(mechanism));
 
         String jaasConfig = "%s required%n  username=\"%s\"%n   password=\"%s\";".formatted(clientLoginModule, username, password);
         try (var tester = kroxyliciousTester(config);
@@ -256,15 +280,16 @@ class SaslInspectionIT {
                                                       String username,
                                                       String password)
             throws InterruptedException {
-        assertClientsCanAccessCluster(cluster, topic, mechanism,
+        assertClientsCanAccessCluster(cluster, Set.of(mechanism), topic, mechanism,
                 clientLoginModule, username, password,
                 1, numAuthReqPerAuth, 0);
     }
 
     @SuppressWarnings("java:S2925") // Impossible to integration test reauth without Thread.sleep
     private static void assertClientsCanAccessCluster(KafkaCluster cluster,
+                                                      @Nullable Set<String> proxyEnabledSaslMechanisms,
                                                       Topic topic,
-                                                      String mechanism,
+                                                      String clientSaslMechanism,
                                                       String clientLoginModule,
                                                       String username,
                                                       String password,
@@ -272,21 +297,20 @@ class SaslInspectionIT {
                                                       final int numAuthReqPerAuth,
                                                       long pauseMs)
             throws InterruptedException {
-        var enableInsecureMechanisms = "PLAIN".equals(mechanism);
-        var config = buildProxyConfig(cluster, enableInsecureMechanisms);
+        var config = buildProxyConfig(cluster, proxyEnabledSaslMechanisms);
 
         String jaasConfig = "%s required%n  username=\"%s\"%n   password=\"%s\";".formatted(clientLoginModule, username, password);
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(Map.of(
-                        CommonClientConfigs.CLIENT_ID_CONFIG, mechanism + "-producer",
+                        CommonClientConfigs.CLIENT_ID_CONFIG, clientSaslMechanism + "-producer",
                         CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
-                        SaslConfigs.SASL_MECHANISM, mechanism,
+                        SaslConfigs.SASL_MECHANISM, clientSaslMechanism,
                         SaslConfigs.SASL_JAAS_CONFIG, jaasConfig));
                 var consumer = tester
                         .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(
-                                CommonClientConfigs.CLIENT_ID_CONFIG, mechanism + "-consumer",
+                                CommonClientConfigs.CLIENT_ID_CONFIG, clientSaslMechanism + "-consumer",
                                 CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
-                                SaslConfigs.SASL_MECHANISM, mechanism,
+                                SaslConfigs.SASL_MECHANISM, clientSaslMechanism,
                                 SaslConfigs.SASL_JAAS_CONFIG, jaasConfig,
                                 ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
                                 ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
@@ -315,7 +339,7 @@ class SaslInspectionIT {
                 recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
                         .hasValueEqualTo("alice");
                 recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
-                        .hasValueEqualTo(mechanism);
+                        .hasValueEqualTo(clientSaslMechanism);
 
                 if (batchNumOneBased < numBatches) {
                     Thread.sleep(pauseMs);
@@ -325,12 +349,15 @@ class SaslInspectionIT {
         }
     }
 
-    private static ConfigurationBuilder buildProxyConfig(KafkaCluster cluster, boolean enableInsecureMechanisms) {
-        NamedFilterDefinition saslInspection = new NamedFilterDefinitionBuilder(
+    private static ConfigurationBuilder buildProxyConfig(KafkaCluster cluster, @Nullable Set<String> enableMechanisms) {
+        NamedFilterDefinitionBuilder namedFilterDefinitionBuilder = new NamedFilterDefinitionBuilder(
                 SaslInspection.class.getName(),
-                SaslInspection.class.getName())
-                .withConfig("enableInsecureMechanisms", enableInsecureMechanisms)
-                .build();
+                SaslInspection.class.getName());
+
+        if (enableMechanisms != null) {
+            namedFilterDefinitionBuilder.withConfig("enabledMechanisms", enableMechanisms);
+        }
+        NamedFilterDefinition saslInspection = namedFilterDefinitionBuilder.build();
         NamedFilterDefinition counter = new NamedFilterDefinitionBuilder(
                 ProtocolCounter.class.getName(),
                 ProtocolCounter.class.getName())

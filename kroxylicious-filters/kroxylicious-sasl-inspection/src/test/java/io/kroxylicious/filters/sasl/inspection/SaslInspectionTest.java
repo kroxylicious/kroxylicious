@@ -63,7 +63,7 @@ class SaslInspectionTest {
         when(insecure.mechanismName()).thenReturn("INSECURE_MECH");
         when(insecure.transmitsCredentialInCleartext()).thenReturn(true);
 
-        factory.initialize(filterFactoryContext, new Config(true));
+        factory.initialize(filterFactoryContext, new Config(Set.of("INSECURE_MECH")));
 
         // When
         var map = factory.getObserverFactoryMap();
@@ -84,7 +84,27 @@ class SaslInspectionTest {
         // When/Then
         assertThatThrownBy(() -> factory.initialize(filterFactoryContext, null))
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("StubSaslObserverFactory1 and StubSaslObserverFactory2 both register the same SASL mechanism name MECH_NAME");
+                .hasMessageMatching("StubSaslObserverFactory\\d and StubSaslObserverFactory\\d both register the same SASL mechanism name MECH_NAME");
+    }
+
+    @Test
+    void shouldDetectUseOfUnrecognisedSaslMechNames() {
+        // Given
+        var factory = new SaslInspection();
+
+        when(filterFactoryContext.pluginImplementationNames(SaslObserverFactory.class)).thenReturn(Set.of("Secure", "Insecure"));
+        when(filterFactoryContext.pluginInstance(SaslObserverFactory.class, "Secure")).thenReturn(secure);
+        when(filterFactoryContext.pluginInstance(SaslObserverFactory.class, "Insecure")).thenReturn(insecure);
+
+        when(secure.mechanismName()).thenReturn("SECURE_MECH");
+        when(insecure.mechanismName()).thenReturn("INSECURE_MECH");
+
+        var config = new Config(Set.of("SECURE_MECH", "UNKNOWN"));
+
+        // When/Then
+        assertThatThrownBy(() -> factory.initialize(filterFactoryContext, config))
+                .isInstanceOf(PluginConfigurationException.class)
+                .hasMessage("The following enabled SASL mechanism names are unknown: [UNKNOWN]");
     }
 
     @Test
@@ -95,7 +115,6 @@ class SaslInspectionTest {
         when(filterFactoryContext.pluginImplementationNames(SaslObserverFactory.class)).thenReturn(Set.of("Insecure"));
         when(filterFactoryContext.pluginInstance(SaslObserverFactory.class, "Insecure")).thenReturn(insecure);
         when(insecure.transmitsCredentialInCleartext()).thenReturn(true);
-
 
         // When/Then
         assertThatThrownBy(() -> factory.initialize(filterFactoryContext, null))
