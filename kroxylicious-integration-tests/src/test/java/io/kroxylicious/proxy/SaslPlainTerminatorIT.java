@@ -74,6 +74,7 @@ public class SaslPlainTerminatorIT extends BaseIT {
         NamedFilterDefinition saslTermination = new NamedFilterDefinitionBuilder(
                 SaslPlainTermination.class.getName(),
                 SaslPlainTermination.class.getName())
+                .withConfig("userNameToPassword", Map.of("alice", "alice-secret"))
                 .build();
         NamedFilterDefinition lawyer = new NamedFilterDefinitionBuilder(
                 ClientTlsAwareLawyer.class.getName(),
