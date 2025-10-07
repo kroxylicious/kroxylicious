@@ -284,7 +284,8 @@ class SaslInspectionFilter
     }
 
     private CompletionStage<ResponseFilterResult> closeConnectionWithResponse(ResponseHeaderData header, ApiMessage response, FilterContext context) {
-        LOGGER.error("Unexpected {} response while in state {}. This should not be possible. Closing connection.",
+        LOGGER.error(
+                "Unexpected {} response while in state {}. This may indicate an incorrectly implemented broker that does not conform to https://kafka.apache.org/protocol#sasl_handshake. Closing connection.",
                 header.apiKey(),
                 currentState);
         return context.responseFilterResultBuilder()
