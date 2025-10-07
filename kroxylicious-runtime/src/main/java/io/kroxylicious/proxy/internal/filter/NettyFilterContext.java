@@ -33,16 +33,16 @@ public class NettyFilterContext implements FilterFactoryContext {
 
     @Override
     public <P> P pluginInstance(Class<P> pluginClass, String instanceName) {
-        PluginFactory<P> pluginFactory = getPluginFactory(pluginClass);
+        PluginFactory<P> pluginFactory = pluginFactory(pluginClass);
         return pluginFactory.pluginInstance(instanceName);
     }
 
     @Override
     public <P> Set<String> pluginInstanceNames(Class<P> pluginClass) {
-        return getPluginFactory(pluginClass).registeredInstanceNames();
+        return pluginFactory(pluginClass).registeredInstanceNames();
     }
 
-    private <P> PluginFactory<P> getPluginFactory(Class<P> pluginClass) {
+    private <P> PluginFactory<P> pluginFactory(Class<P> pluginClass) {
         return pluginFactoryRegistry.pluginFactory(pluginClass);
     }
 
