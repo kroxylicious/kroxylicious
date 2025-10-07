@@ -320,7 +320,14 @@ public class KafkaProxyReconciler implements
 
     private static ConfigurationFragment<TargetCluster> buildTargetCluster(KafkaService kafkaServiceRef) {
         return buildTargetClusterTls(kafkaServiceRef)
-                .map(tls -> new TargetCluster(kafkaServiceRef.getSpec().getBootstrapServers(), tls));
+                .map(tls -> {
+                    if (kafkaServiceRef.getSpec().getStrimziKafkaRef() != null) {
+                        return new TargetCluster(kafkaServiceRef.getStatus().getBootstrapServerAddress(), tls);
+                    }
+                    else {
+                        return new TargetCluster(kafkaServiceRef.getSpec().getBootstrapServers(), tls);
+                    }
+                });
     }
 
     private static ConfigurationFragment<Optional<Tls>> buildTargetClusterTls(KafkaService kafkaServiceRef) {

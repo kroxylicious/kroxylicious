@@ -26,10 +26,12 @@ import io.fabric8.kubernetes.api.model.OwnerReference;
 import io.fabric8.kubernetes.api.model.OwnerReferenceBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.client.CustomResource;
+import io.fabric8.kubernetes.client.ResourceNotFoundException;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
@@ -110,7 +112,8 @@ public class ResourcesUtil {
     }
 
     static boolean isKafka(LocalRef<?> ref) {
-        return (ref.getKind() == null || ref.getKind().isEmpty() || "Kafka".equals(ref.getKind()));
+        return (ref.getKind() == null || ref.getKind().isEmpty() || "Kafka".equals(ref.getKind()))
+                && (ref.getGroup() == null || ref.getGroup().isEmpty() || "kafka.strimzi.io".equals(ref.getGroup()));
     }
 
     static boolean isConfigMap(LocalRef<?> ref) {
@@ -538,6 +541,10 @@ public class ResourcesUtil {
         }
     }
 
+    static <T extends CustomResource<?, ?>> Optional<Kafka> getKafka(Context<T> context, String eventSourceName) {
+        return context.getSecondaryResource(Kafka.class, eventSourceName);
+    }
+
     public static <T extends CustomResource<?, ?>> ResourceCheckResult<T> checkStrimziKafkaRef(T resource,
                                                                                                Context<T> context,
                                                                                                String eventSourceName,
@@ -545,20 +552,58 @@ public class ResourcesUtil {
                                                                                                String path,
                                                                                                StatusFactory<T> statusFactory) {
         if (isKafka(strimziKafkaRef.getRef())) {
-            Optional<Kafka> kafkaOpt = context.getSecondaryResource(Kafka.class, eventSourceName);
+            Optional<Kafka> kafkaOpt = getKafka(context, eventSourceName);
+
             if (kafkaOpt.isEmpty()) {
                 return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                         Condition.REASON_REFS_NOT_FOUND,
                         path + ": referenced resource not found"), List.of());
             }
             else {
-                return new ResourceCheckResult<>(null, List.of(kafkaOpt.get()));
+                String listenerName = strimziKafkaRef.getListenerName();
+                if (listenerName == null) {
+                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                            Condition.REASON_INVALID,
+                            path + " must specify 'listenerName'"), List.of());
+                }
+
+                if (isSupportedListenerType(listenerName)) {
+                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                            Condition.REASON_INVALID,
+                            path + "listener should be `plain`"), List.of());
+                }
+                else {
+                    return new ResourceCheckResult<>(null, List.of(kafkaOpt.get()));
+                }
             }
         }
         else {
             return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
-                    path + " supports referents: configmaps"), List.of());
+                    path + " supports referents: kafka"), List.of());
+        }
+    }
+
+    static void updateServiceWithBootstrapAddress(Context<KafkaService> context,
+                                                  KafkaService service,
+                                                  String eventSourceName) {
+        Optional<Kafka> kafka = getKafka(context, eventSourceName);
+        Optional<ListenerStatus> listener = retrieveBootstrapServerAddress(kafka);
+        service.edit()
+                .editStatus()
+                .withBootstrapServerAddress(listener.get().getBootstrapServers())
+                .endStatus()
+                .build();
+    }
+
+    static Optional<ListenerStatus> retrieveBootstrapServerAddress(Optional<Kafka> kafka) {
+
+        if (kafka.isPresent()) {
+            return kafka.get().getStatus().getListeners().stream()
+                    .filter(listenerStatus -> listenerStatus.getName().equals("plain")).findFirst();
+        }
+        else {
+            throw new ResourceNotFoundException("Cannot find the required Kafka cluster");
         }
     }
 
@@ -582,6 +627,10 @@ public class ResourcesUtil {
         return !key.endsWith(".pem")
                 && !key.endsWith(".p12")
                 && !key.endsWith(".jks");
+    }
+
+    private static boolean isSupportedListenerType(String listenerName) {
+        return !listenerName.equals("plain");
     }
 
     /**

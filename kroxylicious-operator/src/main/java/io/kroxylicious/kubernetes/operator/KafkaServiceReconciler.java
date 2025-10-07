@@ -41,6 +41,7 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.updateServiceWithBootstrapAddress;
 
 /**
  * <p>Reconciles a {@link KafkaService} by checking whether resources referred to in {@code spec.tls.certificateRef}
@@ -199,6 +200,10 @@ public final class KafkaServiceReconciler implements
             var checksumGenerator = new Crc32ChecksumGenerator();
             for (HasMetadata metadataSource : referents) {
                 checksumGenerator.appendMetadata(metadataSource);
+            }
+
+            if (service.getSpec().getStrimziKafkaRef() != null) {
+                updateServiceWithBootstrapAddress(context, service, KAFKA_EVENT_SOURCE_NAME);
             }
 
             updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs,

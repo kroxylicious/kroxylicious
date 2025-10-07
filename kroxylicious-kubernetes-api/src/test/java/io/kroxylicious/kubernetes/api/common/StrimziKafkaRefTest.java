@@ -17,15 +17,26 @@ class StrimziKafkaRefTest {
     // with the same group, kind and name.
     @SuppressWarnings("java:S5845")
     void shouldRespectEqualsAndHashCode() {
-        var secretRefFoo = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").withGroup("").build())
-                .withListenerName("listener").build();
-        var secretRefFoo2 = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").withGroup("").build())
-                .withListenerName("listener").build();
-        assertThat(secretRefFoo).isEqualTo(secretRefFoo);
-        assertThat(secretRefFoo).isEqualTo(secretRefFoo2);
-        assertThat(secretRefFoo2).isEqualTo(secretRefFoo);
-        assertThat(secretRefFoo).hasSameHashCodeAs(secretRefFoo2);
+        var secretRefFoo = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain").build();
+        var secretRefFoo2 = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").build())
+                .withListenerName("plain").build();
+        var diffRefKind = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("ConfigMap").build())
+                .withListenerName("plain").build();
+        var diffRefName = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").withGroup("not.the.usual.group").build())
+                .withListenerName("plain").build();
+        var diffRefListener = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").withGroup("").build())
+                .withListenerName("tls")
+                .build();
 
+        assertThat(secretRefFoo)
+                .isNotEqualTo("salami")
+                .isNotEqualTo(diffRefName)
+                .isNotEqualTo(diffRefListener)
+                .isEqualTo(secretRefFoo2)
+                .isEqualTo(secretRefFoo)
+                .isNotEqualTo(diffRefKind)
+                .hasSameHashCodeAs(secretRefFoo2);
     }
 
     @Test

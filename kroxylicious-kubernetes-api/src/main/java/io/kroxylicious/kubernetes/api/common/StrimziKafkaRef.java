@@ -1,3 +1,9 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
 package io.kroxylicious.kubernetes.api.common;
 
 import java.util.Comparator;
@@ -7,6 +13,9 @@ import com.fasterxml.jackson.annotation.JsonUnwrapped;
 
 import io.fabric8.kubernetes.api.model.KubernetesResource;
 
+/**
+ * A reference, used in a kubernetes resource, to a resource containing trust anchor(s).
+ */
 @com.fasterxml.jackson.annotation.JsonInclude(com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL)
 @com.fasterxml.jackson.annotation.JsonPropertyOrder({ "strimziKafkaRef", "listener" })
 @com.fasterxml.jackson.databind.annotation.JsonDeserialize(using = com.fasterxml.jackson.databind.JsonDeserializer.None.class)
@@ -60,28 +69,13 @@ public class StrimziKafkaRef
         this.listenerName = listenerName;
     }
 
-    private String name;
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    private String namespace;
-
-    public String getNamespace() {
-        return namespace;
-    }
-
-    public void setNamespace(String namespace) {
-        this.namespace = namespace;
-    }
-
     public String toString() {
         return this.getClass() + "(strimziKafkaRef=" + this.getRef() + ", listenerName=" + this.getListenerName() + ")";
+    }
+
+    @Override
+    public final int hashCode() {
+        return Objects.hash(getRef(), getListenerName());
     }
 
     @Override

@@ -34,13 +34,26 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
         if (!checksum.equals(MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED)) {
             Annotations.annotateWithReferentChecksum(metadataBuilder, checksum);
         }
-        return metadataBuilder
-                .endMetadata()
-                .withNewStatus()
+
+        if (observedIngress.getStatus() != null && observedIngress.getStatus().getBootstrapServerAddress() != null) {
+            return metadataBuilder
+                    .endMetadata()
+                    .withNewStatus()
+                        .withObservedGeneration(ResourcesUtil.generation(observedIngress))
+                        .withBootstrapServerAddress(observedIngress.getStatus().getBootstrapServerAddress())
+                        .withConditions(ResourceState.newConditions(Optional.ofNullable(observedIngress.getStatus()).map(KafkaServiceStatus::getConditions).orElse(List.of()), ResourceState.of(condition)))
+                    .endStatus()
+                    .build();
+
+        } else {
+            return metadataBuilder
+                    .endMetadata()
+                    .withNewStatus()
                     .withObservedGeneration(ResourcesUtil.generation(observedIngress))
                     .withConditions(ResourceState.newConditions(Optional.ofNullable(observedIngress.getStatus()).map(KafkaServiceStatus::getConditions).orElse(List.of()), ResourceState.of(condition)))
-                .endStatus()
-                .build();
+                    .endStatus()
+                    .build();
+        }
         // @formatter:on
     }
 
