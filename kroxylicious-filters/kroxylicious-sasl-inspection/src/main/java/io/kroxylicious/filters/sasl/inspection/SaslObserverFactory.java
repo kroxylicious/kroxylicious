@@ -17,7 +17,7 @@ public interface SaslObserverFactory {
     SaslObserver createObserver();
 
     /**
-     * Returns the IANA registered SASL mechanism name.
+     * Returns the <a href="https://www.iana.org/assignments/sasl-mechanisms/sasl-mechanisms.xhtml">IANA registered SASL mechanism name</a>.
      * @return mechanism
      */
     String mechanismName();

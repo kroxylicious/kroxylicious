@@ -11,8 +11,9 @@ import io.kroxylicious.proxy.plugin.Plugin;
 /**
  * Factory for the {@link PlainSaslObserver} instances.
  * <br/>
- * This mechanism considers itself insecure because the plaintext password will exist
- * in the memory of the proxy.
+ * The PLAIN mechanism relies on cleartext password being passed between client
+ * and server. THis means the cleartext password will exist in the memory of the
+ * Proxy.
  */
 @Plugin(configType = Void.class)
 public class PlainSaslObserverFactory implements SaslObserverFactory {
