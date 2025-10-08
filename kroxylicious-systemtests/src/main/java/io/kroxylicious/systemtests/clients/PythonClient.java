@@ -99,7 +99,7 @@ public class PythonClient implements KafkaClient {
         String podName = KafkaUtils.createJob(deployNamespace, name, pythonClientJob);
         String log = waitForConsumer(deployNamespace, podName, timeout);
         KafkaUtils.deleteJob(pythonClientJob);
-        LOGGER.atInfo().setMessage("Log: {}").addArgument(log).log();
+        LOGGER.atInfo().setMessage("Pod STD_OUT: {}").addArgument(log).log();
         Stream<String> logRecords = extractRecordLinesFromLog(log);
         return getConsumerRecords(logRecords);
     }
