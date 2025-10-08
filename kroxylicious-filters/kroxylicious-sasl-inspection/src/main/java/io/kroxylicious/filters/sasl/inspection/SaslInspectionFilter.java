@@ -129,8 +129,10 @@ class SaslInspectionFilter
         }
     }
 
-    private CompletionStage<ResponseFilterResult> processSuccessfulHandshakeResponse(ResponseHeaderData header, SaslHandshakeResponseData response,
-                                                                                     FilterContext context, State.AwaitingHandshakeResponse currentState) {
+    private CompletionStage<ResponseFilterResult> processSuccessfulHandshakeResponse(ResponseHeaderData header,
+                                                                                     SaslHandshakeResponseData response,
+                                                                                     FilterContext context,
+                                                                                     State.AwaitingHandshakeResponse currentState) {
         LOGGER.atInfo()
                 .setMessage("Server accepts proposed SASL mechanism '{}' on channel {}")
                 .addArgument(currentState.saslObserver().mechanismName())
@@ -140,7 +142,8 @@ class SaslInspectionFilter
         return context.forwardResponse(header, response);
     }
 
-    private CompletionStage<ResponseFilterResult> processFailedHandshakeResponse(ResponseHeaderData header, SaslHandshakeResponseData response,
+    private CompletionStage<ResponseFilterResult> processFailedHandshakeResponse(ResponseHeaderData header,
+                                                                                 SaslHandshakeResponseData response,
                                                                                  FilterContext context) {
         var commonMechanisms = new ArrayList<>(observerFactoryMap.keySet());
         commonMechanisms.retainAll(response.mechanisms());
@@ -234,8 +237,10 @@ class SaslInspectionFilter
         }
     }
 
-    private CompletionStage<ResponseFilterResult> processSuccessfulAuthenticateResponse(ResponseHeaderData header, SaslAuthenticateResponseData response,
-                                                                                        FilterContext context, State.AwaitingAuthenticateResponse state) {
+    private CompletionStage<ResponseFilterResult> processSuccessfulAuthenticateResponse(ResponseHeaderData header,
+                                                                                        SaslAuthenticateResponseData response,
+                                                                                        FilterContext context,
+                                                                                        State.AwaitingAuthenticateResponse state) {
         SaslObserver saslObserver = state.saslObserver();
         if (saslObserver.isFinished()) {
             String authorizationIdFromClient = getAuthorizationIdOrNull(saslObserver);
@@ -258,8 +263,10 @@ class SaslInspectionFilter
         return context.forwardResponse(header, response);
     }
 
-    private CompletionStage<ResponseFilterResult> processFailedAuthentication(ResponseHeaderData header, SaslAuthenticateResponseData response,
-                                                                              FilterContext context, State.AwaitingAuthenticateResponse state) {
+    private CompletionStage<ResponseFilterResult> processFailedAuthentication(ResponseHeaderData header,
+                                                                              SaslAuthenticateResponseData response,
+                                                                              FilterContext context,
+                                                                              State.AwaitingAuthenticateResponse state) {
         Errors error = Errors.forCode(response.errorCode());
         LOGGER.atInfo()
                 .setMessage("Server rejects SASL credentials with error {} for client on channel {}")
@@ -284,14 +291,17 @@ class SaslInspectionFilter
         }
     }
 
-    private static CompletionStage<RequestFilterResult> closeConnectionWithShortCircuitResponse(FilterContext context, ApiMessage response) {
+    private static CompletionStage<RequestFilterResult> closeConnectionWithShortCircuitResponse(FilterContext context,
+                                                                                                ApiMessage response) {
         return context.requestFilterResultBuilder()
                 .shortCircuitResponse(response)
                 .withCloseConnection()
                 .completed();
     }
 
-    private CompletionStage<ResponseFilterResult> closeConnectionWithResponse(ResponseHeaderData header, ApiMessage response, FilterContext context) {
+    private CompletionStage<ResponseFilterResult> closeConnectionWithResponse(ResponseHeaderData header,
+                                                                              ApiMessage response,
+                                                                              FilterContext context) {
         LOGGER.error(
                 "Unexpected {} response while in state {}. This may indicate an incorrectly implemented broker that does not conform to https://kafka.apache.org/protocol#sasl_handshake. Closing connection.",
                 header.apiKey(),
