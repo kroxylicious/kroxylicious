@@ -44,8 +44,8 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
                         .withConditions(ResourceState.newConditions(Optional.ofNullable(observedIngress.getStatus()).map(KafkaServiceStatus::getConditions).orElse(List.of()), ResourceState.of(condition)))
                     .endStatus()
                     .build();
-
-        } else {
+        }
+        else {
             return metadataBuilder
                     .endMetadata()
                     .withNewStatus()

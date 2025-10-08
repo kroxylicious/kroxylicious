@@ -203,7 +203,7 @@ public final class KafkaServiceReconciler implements
             }
 
             if (service.getSpec().getStrimziKafkaRef() != null) {
-               service = updateServiceWithBootstrapAddress(context, service, KAFKA_EVENT_SOURCE_NAME);
+                service = updateServiceWithBootstrapAddress(context, service, KAFKA_EVENT_SOURCE_NAME);
             }
 
             updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs,

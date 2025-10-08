@@ -585,11 +585,10 @@ public class ResourcesUtil {
     }
 
     static KafkaService updateServiceWithBootstrapAddress(Context<KafkaService> context,
-                                                  KafkaService service,
-                                                  String eventSourceName) {
+                                                          KafkaService service,
+                                                          String eventSourceName) {
         Optional<Kafka> kafka = getKafka(context, eventSourceName);
         Optional<ListenerStatus> listener = retrieveBootstrapServerAddress(kafka);
-        System.out.println(listener.get().getBootstrapServers());
         return service.edit()
                 .editStatus()
                 .withBootstrapServerAddress(listener.get().getBootstrapServers())
