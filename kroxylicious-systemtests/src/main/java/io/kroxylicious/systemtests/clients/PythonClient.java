@@ -86,7 +86,7 @@ public class PythonClient implements KafkaClient {
             executableCommand.add(key);
         });
 
-        KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.PYTHON.name().toLowerCase());
+        KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.PYTHON_TEST_CLIENT.name().toLowerCase());
     }
 
     @Override

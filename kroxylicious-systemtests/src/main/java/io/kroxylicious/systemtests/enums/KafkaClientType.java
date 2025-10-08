@@ -10,5 +10,5 @@ public enum KafkaClientType {
     STRIMZI_TEST_CLIENT,
     KCAT,
     KAF,
-    PYTHON
+    PYTHON_TEST_CLIENT
 }
