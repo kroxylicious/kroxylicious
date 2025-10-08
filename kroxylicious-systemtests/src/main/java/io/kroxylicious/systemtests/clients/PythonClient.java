@@ -41,6 +41,10 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
  */
 public class PythonClient implements KafkaClient {
     private static final String RECEIVED_MESSAGE_MARKER = "Received:";
+    private static final String PYTHON_COMMAND = "python3";
+    private static final String BASE_PATH = "/usr/src/confluent-kafka-python";
+    private static final String PRODUCER_PATH = BASE_PATH + "/Producer.py";
+    private static final String CONSUMER_PATH = BASE_PATH + "/Consumer.py";
     private static final Logger LOGGER = LoggerFactory.getLogger(PythonClient.class);
     private static final TypeReference<PythonConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
@@ -80,7 +84,7 @@ public class PythonClient implements KafkaClient {
                 "--image=" + Constants.PYTHON_CLIENT_IMAGE,
                 "--override-type=strategic",
                 "--overrides=" + jsonOverrides,
-                "--", "python3", "/usr/src/confluent-kafka-python/Producer.py", "-b", bootstrap, "-t", topicName));
+                "--", PYTHON_COMMAND, PRODUCER_PATH, "-b", bootstrap, "-t", topicName));
         recordKey.ifPresent(key -> {
             executableCommand.add("-k");
             executableCommand.add(key);
@@ -94,7 +98,7 @@ public class PythonClient implements KafkaClient {
         LOGGER.atInfo().log("Consuming messages using python");
         String name = Constants.KAFKA_CONSUMER_CLIENT_LABEL + "-python-" + TestUtils.getRandomPodNameSuffix();
         // Running consumer with parameters to get the latest N number of messages received to avoid consuming twice the same messages
-        List<String> args = List.of("python3", "/usr/src/confluent-kafka-python/Consumer.py", "-n", String.valueOf(numOfMessages), "-b", bootstrap, "-t", topicName);
+        List<String> args = List.of(PYTHON_COMMAND, CONSUMER_PATH, "-n", String.valueOf(numOfMessages), "-b", bootstrap, "-t", topicName);
         Job pythonClientJob = TestClientsJobTemplates.defaultPythonJob(name, args).build();
         String podName = KafkaUtils.createJob(deployNamespace, name, pythonClientJob);
         String log = waitForConsumer(deployNamespace, podName, timeout);
