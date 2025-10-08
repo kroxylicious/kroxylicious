@@ -13,9 +13,14 @@ import org.apache.kafka.common.errors.AuthenticationException;
 /**
  * A Sasl observer merely watches a SASL negotiation between client and server extracting the
  * authorization id.  It is also responsible for signalling when the SASL negotiation
- * is finished.
+ * is finished. Unlike a {@link javax.security.sasl.SaslServer}, it does not decide if the authentication
+ * was successful or not.
  * <br/>
- * Unlike a {@link javax.security.sasl.SaslServer}, it does not if the authentication was successful or not.
+ * When the {@link SaslInspectionFilter} receives a SaslHandshakeRequest, it uses a {@link SaslObserverFactory}
+ * to create a {@link SaslObserver} instance which is used for the remainder of that SASL negotiation on the
+ * channel.  If the client later reauthenticates (KIP-365), a fresh SaslObserver instance is created. This
+ * is done for each subsequent reauthentication.
+ *
  */
 public interface SaslObserver {
 
