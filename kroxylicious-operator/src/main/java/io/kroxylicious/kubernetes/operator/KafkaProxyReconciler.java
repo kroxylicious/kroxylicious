@@ -159,7 +159,7 @@ public class KafkaProxyReconciler implements
         boolean hasClusters = !model.clustersWithValidNetworking().isEmpty();
         ConfigurationFragment<Configuration> fragment = null;
         if (hasClusters) {
-            fragment = generateProxyConfig(model, context);
+            fragment = generateProxyConfig(model);
         }
         KafkaProxyContext.init(context,
                 new VirtualKafkaClusterStatusFactory(clock),
@@ -167,7 +167,7 @@ public class KafkaProxyReconciler implements
                 fragment);
     }
 
-    private ConfigurationFragment<Configuration> generateProxyConfig(ProxyModel model, Context<KafkaProxy> context) {
+    private ConfigurationFragment<Configuration> generateProxyConfig(ProxyModel model) {
 
         var allFilterDefinitions = buildFilterDefinitions(model);
         Map<String, ConfigurationFragment<NamedFilterDefinition>> namedDefinitions = allFilterDefinitions.stream()
@@ -175,7 +175,7 @@ public class KafkaProxyReconciler implements
                         cf -> cf.fragment().name(),
                         Function.identity()));
 
-        var virtualClusters = buildVirtualClusters(namedDefinitions.keySet(), model, context);
+        var virtualClusters = buildVirtualClusters(namedDefinitions.keySet(), model);
 
         List<NamedFilterDefinition> referencedFilters = virtualClusters.stream()
                 .flatMap(vcFragment -> Optional.ofNullable(vcFragment.fragment().filters()).stream().flatMap(Collection::stream))
@@ -204,12 +204,11 @@ public class KafkaProxyReconciler implements
                 allMounts);
     }
 
-    private static List<ConfigurationFragment<VirtualCluster>> buildVirtualClusters(Set<String> successfullyBuiltFilterNames, ProxyModel model,
-                                                                                    Context<KafkaProxy> context) {
+    private static List<ConfigurationFragment<VirtualCluster>> buildVirtualClusters(Set<String> successfullyBuiltFilterNames, ProxyModel model) {
         return model.clustersWithValidNetworking().stream()
                 .filter(cluster -> cluster.filterResolutionResults().stream().allMatch(
                         filterResult -> successfullyBuiltFilterNames.contains(filterDefinitionName(filterResult.reference()))))
-                .map(cluster -> buildVirtualCluster(cluster, model.networkingModel(), context))
+                .map(cluster -> buildVirtualCluster(cluster, model.networkingModel()))
                 .toList();
     }
 
@@ -260,7 +259,7 @@ public class KafkaProxyReconciler implements
     }
 
     private static ConfigurationFragment<VirtualCluster> buildVirtualCluster(ClusterResolutionResult cluster,
-                                                                             ProxyNetworkingModel ingressModel, Context<KafkaProxy> context) {
+                                                                             ProxyNetworkingModel ingressModel) {
 
         ProxyNetworkingModel.ClusterNetworkingModel clusterNetworkingModel = ingressModel.clusterIngressModel(cluster.cluster()).orElseThrow();
         var gatewayFragments = ConfigurationFragment.reduce(clusterNetworkingModel.clusterIngressNetworkingModelResults().stream()
@@ -269,7 +268,7 @@ public class KafkaProxyReconciler implements
 
         KafkaService kafkaServiceRef = cluster.serviceResolutionResult().referentResource();
         var virtualClusterConfigurationFragment = gatewayFragments
-                .flatMap(clusterCfs -> buildTargetCluster(kafkaServiceRef, context).map(targetCluster -> new VirtualCluster(
+                .flatMap(clusterCfs -> buildTargetCluster(kafkaServiceRef).map(targetCluster -> new VirtualCluster(
                         name(cluster.cluster()),
                         targetCluster,
                         clusterCfs,
@@ -319,7 +318,7 @@ public class KafkaProxyReconciler implements
                                 buildProtocols(ingressTls.getProtocols()).orElse(null))));
     }
 
-    private static ConfigurationFragment<TargetCluster> buildTargetCluster(KafkaService kafkaServiceRef, Context<KafkaProxy> context) {
+    private static ConfigurationFragment<TargetCluster> buildTargetCluster(KafkaService kafkaServiceRef) {
         return buildTargetClusterTls(kafkaServiceRef)
                 .map(tls -> new TargetCluster(kafkaServiceRef.getSpec().getBootstrapServers(), tls));
     }

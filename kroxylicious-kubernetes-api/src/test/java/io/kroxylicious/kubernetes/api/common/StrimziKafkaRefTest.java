@@ -10,20 +10,20 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class RefTest {
+class StrimziKafkaRefTest {
 
     @Test
     // we knowingly use equals across types because we want the property that specific LocalRef types are equal to any other LocalRef
     // with the same group, kind and name.
     @SuppressWarnings("java:S5845")
     void shouldRespectEqualsAndHashCode() {
-        var secretRefFoo = new RefBuilder().withStrimziKafkaRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").withGroup("").build())
+        var secretRefFoo = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").withGroup("").build())
                 .withListenerName("listener").build();
-        var secretRefFoo2 = new RefBuilder().withStrimziKafkaRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").withGroup("").build())
+        var secretRefFoo2 = new StrimziKafkaRefBuilder().withRef(new AnyLocalRefBuilder().withName("foo").withKind("Kafka").withGroup("").build())
                 .withListenerName("listener").build();
         assertThat(secretRefFoo).isEqualTo(secretRefFoo);
 
-        System.out.println(secretRefFoo.getStrimziKafkaRef().getName());
+        System.out.println(secretRefFoo.getRef().getName());
         assertThat(secretRefFoo).isEqualTo(secretRefFoo2);
         assertThat(secretRefFoo2).isEqualTo(secretRefFoo);
         assertThat(secretRefFoo).hasSameHashCodeAs(secretRefFoo2);
@@ -33,16 +33,16 @@ class RefTest {
     @Test
     void shouldReturnBuilder() {
         // Given
-        RefBuilder originalBuilder = new RefBuilder();
-        var fooRef = originalBuilder.withStrimziKafkaRef(new AnyLocalRefBuilder().withName("foo").build()).build();
+        StrimziKafkaRefBuilder originalBuilder = new StrimziKafkaRefBuilder();
+        var fooRef = originalBuilder.withRef(new AnyLocalRefBuilder().withName("foo").build()).build();
 
         // When
-        RefBuilder actualBuilder = fooRef.edit();
+        StrimziKafkaRefBuilder actualBuilder = fooRef.edit();
 
         // Then
         assertThat(actualBuilder)
                 .isNotNull()
-                .isInstanceOf(RefBuilder.class)
+                .isInstanceOf(StrimziKafkaRefBuilder.class)
                 .isNotSameAs(originalBuilder);
     }
 }
