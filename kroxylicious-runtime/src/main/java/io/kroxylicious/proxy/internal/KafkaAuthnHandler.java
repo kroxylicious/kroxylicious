@@ -67,7 +67,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * added support for the SaslAuthenticate RPC (previously the auth bytes were not encapsulated in a Kafka frame"
  * @see <a href="https://cwiki.apache.org/confluence/pages/viewpage.action?pageId=75968876">KIP-255: OAuth Authentication via SASL/OAUTHBEARER</a>
  * added support for OAUTH authentication"
- * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate">KIP-365: Allow SASL Connections to Periodically Re-Authenticate</a>
+ * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate">KIP-368: Allow SASL Connections to Periodically Re-Authenticate</a>
  * added time-based reauthentication requirements for clients"
  * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-684+-+Support+mutual+TLS+authentication+on+SASL_SSL+listeners">KIP-684: Support mTLS authentication on SASL_SSL gateways</a>
  * added support for mutual TLS authentication even on SASL_SSL gateways (which was previously ignored)"

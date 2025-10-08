@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2671](https://github.com/kroxylicious/kroxylicious/pull/2671): SASL inspection filter supoporting PLAIN, SCRAM-SHA-256 and SCRAM-SHA-512.
 * [#2681](https://github.com/kroxylicious/kroxylicious/pull/2681): Create a maven archetype for filter development io.kroxylicious:kroxylicious-filter-archetype
 
 ## 0.16.0

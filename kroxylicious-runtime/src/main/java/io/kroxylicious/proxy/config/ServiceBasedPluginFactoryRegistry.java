@@ -6,6 +6,7 @@
 
 package io.kroxylicious.proxy.config;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -117,6 +118,11 @@ public class ServiceBasedPluginFactoryRegistry implements PluginFactoryRegistry 
                     return providerAndConfigType.config();
                 }
                 throw unknownPluginInstanceException(instanceName);
+            }
+
+            @Override
+            public Set<String> registeredInstanceNames() {
+                return Collections.unmodifiableSet(nameToProvider.keySet());
             }
         };
     }
