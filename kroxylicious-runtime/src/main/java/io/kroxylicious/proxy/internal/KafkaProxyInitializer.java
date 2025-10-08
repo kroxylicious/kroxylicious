@@ -46,7 +46,6 @@ import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointBindingResolver;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
 import io.kroxylicious.proxy.internal.net.EndpointReconciler;
-import io.kroxylicious.proxy.internal.subject.SubjectBuilder;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -68,19 +67,16 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final FilterChainFactory filterChainFactory;
     private final ApiVersionsServiceImpl apiVersionsService;
     private final Counter clientToProxyErrorCounter;
-    private final SubjectBuilder subjectBuilder;
 
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
                                  PluginFactoryRegistry pfr,
                                  boolean tls,
-                                 SubjectBuilder subjectBuilder,
                                  EndpointBindingResolver bindingResolver,
                                  EndpointReconciler endpointReconciler,
                                  boolean haproxyProtocol,
                                  Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers,
                                  ApiVersionsServiceImpl apiVersionsService) {
         this.pfr = pfr;
-        this.subjectBuilder = subjectBuilder;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
         this.authnHandlers = authnMechanismHandlers != null ? authnMechanismHandlers : Map.of();
@@ -234,7 +230,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 endpointReconciler,
                 new ApiVersionsIntersectFilter(apiVersionsService),
                 new ApiVersionsDowngradeFilter(apiVersionsService));
-        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, subjectBuilder, binding, virtualCluster.getClusterName());
+        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, virtualCluster.subjectBuilder(), binding, virtualCluster.getClusterName());
 
         pipeline.addLast("netHandler", frontendHandler);
         addLoggingErrorHandler(pipeline);

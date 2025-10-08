@@ -653,7 +653,7 @@ public class KafkaProxyFrontendHandler
                                       Channel inboundChannel) {
         int num = 0;
 
-        var clientSaslManager = ClientSaslManager.foo(inboundChannel, subjectBuilder);
+        var clientSaslManager = ClientSaslManager.bindManager(inboundChannel, subjectBuilder);
         for (var protocolFilter : filters) {
             // TODO configurable timeout
             // Handler name must be unique, but filters are allowed to appear multiple times

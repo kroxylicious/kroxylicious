@@ -83,7 +83,7 @@ public class ClientSaslManager {
     private @Nullable Authorized clientAuthorization;
     private CompletionStage<Subject> clientSubject = CompletableFuture.completedFuture(Subject.ANONYMOUS);
 
-    public ClientSaslManager(SubjectBuilder subjectBuilder,
+    ClientSaslManager(SubjectBuilder subjectBuilder,
                              @Nullable ClientTlsContext clientTlsContext) {
 
         this.subjectBuilder = subjectBuilder;
@@ -91,7 +91,7 @@ public class ClientSaslManager {
         this.clientAuthorization = null;
     }
 
-    public static ClientSaslManager foo(Channel inboundChannel, SubjectBuilder subjectBuilder) {
+    public static ClientSaslManager bindManager(Channel inboundChannel, SubjectBuilder subjectBuilder) {
         ClientTlsContextImpl tlsContext = Optional.ofNullable(inboundChannel.pipeline().get(SslHandler.class))
                 .map(clientFacingSslHandler -> new ClientTlsContextImpl(
                         Objects.requireNonNull(localTlsCertificate(clientFacingSslHandler)), getPeerTlsCertificate(clientFacingSslHandler)))
@@ -104,7 +104,7 @@ public class ClientSaslManager {
         return manager;
     }
 
-    public static ClientSaslManager get(Channel inboundChannel) {
+    public static ClientSaslManager recoverBoundManager(Channel inboundChannel) {
         return inboundChannel.attr(ATTR_KEY).get();
     }
 

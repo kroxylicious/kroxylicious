@@ -53,8 +53,6 @@ import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
 import io.kroxylicious.proxy.internal.net.EndpointRegistry;
 import io.kroxylicious.proxy.internal.net.NetworkBindingOperationProcessor;
-import io.kroxylicious.proxy.internal.subject.AnonymousBuilderBuilder;
-import io.kroxylicious.proxy.internal.subject.SubjectBuilder;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
@@ -85,7 +83,6 @@ public final class KafkaProxy implements AutoCloseable {
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     private final PluginFactoryRegistry pfr;
-    private final SubjectBuilder subjectBuilder;
     private @Nullable MeterRegistries meterRegistries;
     private @Nullable FilterChainFactory filterChainFactory;
     private @Nullable EventGroupConfig managementEventGroup;
@@ -97,7 +94,6 @@ public final class KafkaProxy implements AutoCloseable {
         this.virtualClusterModels = config.virtualClusterModel(pfr);
         this.managementConfiguration = config.management();
         this.micrometerConfig = config.getMicrometer();
-        this.subjectBuilder = new AnonymousBuilderBuilder(); // TODO base on config
     }
 
     @VisibleForTesting
@@ -142,9 +138,9 @@ public final class KafkaProxy implements AutoCloseable {
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
 
             var tlsServerBootstrap = buildServerBootstrap(serverEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, subjectBuilder, endpointRegistry, endpointRegistry, false, Map.of(), apiVersionsService));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of(), apiVersionsService));
             var plainServerBootstrap = buildServerBootstrap(serverEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, subjectBuilder, endpointRegistry, endpointRegistry, false, Map.of(), apiVersionsService));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, Map.of(), apiVersionsService));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 

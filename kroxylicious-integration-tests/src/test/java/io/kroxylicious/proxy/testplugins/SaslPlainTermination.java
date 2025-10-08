@@ -59,7 +59,7 @@ public class SaslPlainTermination
         @Override
         public void handle(Callback[] callbacks) throws UnsupportedCallbackException {
             String username = null;
-            for (Callback callback: callbacks) {
+            for (Callback callback : callbacks) {
                 if (callback instanceof NameCallback) {
                     username = ((NameCallback) callback).getDefaultName();
                 }

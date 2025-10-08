@@ -132,7 +132,7 @@ public final class KafkaClient implements AutoCloseable {
 
     public Response getSync(Request request) {
         try {
-            return get(request).get(10, TimeUnit.SECONDS);
+            return get(request).get(120, TimeUnit.SECONDS);
         }
         catch (InterruptedException ie) {
             Thread.currentThread().interrupt();

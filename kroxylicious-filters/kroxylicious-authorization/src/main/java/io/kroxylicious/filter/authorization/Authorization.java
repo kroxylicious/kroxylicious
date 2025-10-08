@@ -10,8 +10,10 @@ import io.kroxylicious.authorizer.service.AuthorizerService;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
+@Plugin(configType = AuthorizationConfig.class)
 public class Authorization implements FilterFactory<AuthorizationConfig, Authorization.InitializationContext> {
 
     public record InitializationContext(
@@ -27,8 +29,7 @@ public class Authorization implements FilterFactory<AuthorizationConfig, Authori
 
     @Override
     public Filter createFilter(FilterFactoryContext context, InitializationContext initializationData) {
-        return new AuthorizationFilter(initializationData.authorizer().build(),
-                null);
+        return new AuthorizationFilter(initializationData.authorizer().build());
     }
 
     @Override

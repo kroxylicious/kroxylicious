@@ -27,7 +27,7 @@ import io.netty.handler.codec.haproxy.HAProxyProxiedProtocol;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
-import io.kroxylicious.proxy.internal.subject.AnonymousBuilderBuilder;
+import io.kroxylicious.proxy.internal.subject.AnonymousSubjectBuilder;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -72,7 +72,7 @@ class KafkaProxyFrontendHandlerMockCollaboratorsTest {
         handler = new KafkaProxyFrontendHandler(
                 netFilter,
                 NO_SASL_DECODE_PREDICATE,
-                new AnonymousBuilderBuilder(),
+                new AnonymousSubjectBuilder(),
                 endpointBinding,
                 proxyChannelStateMachine);
     }

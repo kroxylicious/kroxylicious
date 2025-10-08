@@ -8,7 +8,7 @@ package io.kroxylicious.proxy.internal;
 
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.proxy.internal.subject.AnonymousBuilderBuilder;
+import io.kroxylicious.proxy.internal.subject.AnonymousSubjectBuilder;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -17,7 +17,7 @@ class ClientSaslManagerTest {
     @Test
     void initialState() {
         // Given
-        ClientSaslManager impl = new ClientSaslManager(new AnonymousBuilderBuilder(), null);
+        ClientSaslManager impl = new ClientSaslManager(new AnonymousSubjectBuilder(), null);
         // Then
         assertThat(impl.clientSaslContext()).isEmpty();
     }
@@ -25,7 +25,7 @@ class ClientSaslManagerTest {
     @Test
     void transitionInitialToAuthorized() {
         // Given
-        ClientSaslManager impl = new ClientSaslManager(new AnonymousBuilderBuilder(), null);
+        ClientSaslManager impl = new ClientSaslManager(new AnonymousSubjectBuilder(), null);
         // When
         impl.clientSaslAuthenticationSuccess("FOO", "bob");
         // Then
@@ -38,7 +38,7 @@ class ClientSaslManagerTest {
     @Test
     void transitionInitialToFailed() {
         // Given
-        ClientSaslManager impl = new ClientSaslManager(new AnonymousBuilderBuilder(), null);
+        ClientSaslManager impl = new ClientSaslManager(new AnonymousSubjectBuilder(), null);
         // When
         impl.clientSaslAuthenticationFailure();
         // Then
@@ -48,7 +48,7 @@ class ClientSaslManagerTest {
     @Test
     void transitionAuthorizedToAuthorized() {
         // Given
-        ClientSaslManager impl = new ClientSaslManager(new AnonymousBuilderBuilder(), null);
+        ClientSaslManager impl = new ClientSaslManager(new AnonymousSubjectBuilder(), null);
         impl.clientSaslAuthenticationSuccess("FOO", "bob");
         // When
         impl.clientSaslAuthenticationSuccess("BAR", "sue");
@@ -62,7 +62,7 @@ class ClientSaslManagerTest {
     @Test
     void transitionAuthorizedToFailed() {
         // Given
-        ClientSaslManager impl = new ClientSaslManager(new AnonymousBuilderBuilder(), null);
+        ClientSaslManager impl = new ClientSaslManager(new AnonymousSubjectBuilder(), null);
         impl.clientSaslAuthenticationSuccess("FOO", "bob");
         // When
         impl.clientSaslAuthenticationFailure();
@@ -73,7 +73,7 @@ class ClientSaslManagerTest {
     @Test
     void transitionFailedToAuthorized() {
         // Given
-        ClientSaslManager impl = new ClientSaslManager(new AnonymousBuilderBuilder(), null);
+        ClientSaslManager impl = new ClientSaslManager(new AnonymousSubjectBuilder(), null);
         impl.clientSaslAuthenticationFailure();
 
         // When

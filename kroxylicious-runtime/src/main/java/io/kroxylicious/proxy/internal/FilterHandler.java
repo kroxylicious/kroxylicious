@@ -533,7 +533,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public Optional<ClientTlsContext> clientTlsContext() {
-            return ClientSaslManager.get(inboundChannel).clientTlsContext();
+            return ClientSaslManager.recoverBoundManager(inboundChannel).clientTlsContext();
         }
 
         @Override

@@ -44,25 +44,49 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @Plugin(configType = AclAuthorizerConfig.class)
 public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConfig> {
 
-    private AclAuthorizerConfig config;
+    private AclAuthorizer a;
 
     @Override
     public void initialize(AclAuthorizerConfig config) {
-        this.config = config;
-    }
-
-    @NonNull
-    @Override
-    public Authorizer build() throws IllegalStateException {
         var fileName = config.aclFile();
         try {
             var stream = CharStreams.fromPath(Path.of(fileName));
-            return parse(stream);
+            this.a = parse(stream);
         }
         catch (java.io.IOException e) {
             throw new UncheckedIOException(e);
         }
     }
+
+    @NonNull
+    @Override
+    public Authorizer build() throws IllegalStateException {
+        return a;
+    }
+
+    interface ErrorCollector {
+
+        int numErrors();
+
+        int maxErrorsToReport();
+
+        List<String> errorMessages();
+
+        default void maybeThrow(String message) {
+            if (this.numErrors() > 0) {
+                StringBuilder msg = new StringBuilder();
+                msg.append(message.formatted(this.numErrors()));
+                if (this.numErrors() > this.maxErrorsToReport()) {
+                    msg.append(" (showing first %d)".formatted(this.maxErrorsToReport()));
+                }
+                msg.append(System.lineSeparator());
+                this.errorMessages().forEach(e -> msg.append(e).append(System.lineSeparator()));
+                throw new InvalidRulesFileException(msg.toString(), this.errorMessages());
+            }
+        }
+    }
+
+
 
     @NonNull
     static <O extends Enum<O> & Operation<O>> AclAuthorizer parse(CharStream stream) {
@@ -87,7 +111,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         return builder.build();
     }
 
-    static class ParseErrorListener extends BaseErrorListener {
+    static class ParseErrorListener extends BaseErrorListener implements ErrorCollector{
         private final List<String> errorMessages;
         private final int maxErrorsToReport;
         private int numErrors = 0;
@@ -95,6 +119,21 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         ParseErrorListener(int maxErrorsToReport) {
             this.maxErrorsToReport = maxErrorsToReport;
             this.errorMessages = new ArrayList<>(maxErrorsToReport);
+        }
+
+        @Override
+        public List<String> errorMessages() {
+            return errorMessages;
+        }
+
+        @Override
+        public int numErrors() {
+            return numErrors;
+        }
+
+        @Override
+        public int maxErrorsToReport() {
+            return maxErrorsToReport;
         }
 
         @Override
@@ -111,13 +150,11 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         }
 
         public void maybeThrow() {
-            if (numErrors > 0) {
-                throw new InvalidRulesFileException("Found %d syntax errors".formatted(numErrors), errorMessages);
-            }
+            maybeThrow("Found %d syntax errors");
         }
     }
 
-    private static class BuildingListener extends AclRulesBaseListener {
+    private static class BuildingListener extends AclRulesBaseListener implements ErrorCollector {
 
         private final AclAuthorizer.Builder builder;
         private final int maxErrorsToReport;
@@ -135,6 +172,22 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
             this.builder = builder;
             this.maxErrorsToReport = maxErrorsToReport;
             this.errorMessages = new ArrayList<>(maxErrorsToReport);
+        }
+
+
+        @Override
+        public List<String> errorMessages() {
+            return errorMessages;
+        }
+
+        @Override
+        public int numErrors() {
+            return numErrors;
+        }
+
+        @Override
+        public int maxErrorsToReport() {
+            return maxErrorsToReport;
         }
 
         void reportError(Token token, String error) {
@@ -167,9 +220,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         }
 
         public void maybeThrow() {
-            if (numErrors > 0) {
-                throw new InvalidRulesFileException("Found %d errors".formatted(numErrors), errorMessages);
-            }
+            maybeThrow("Found %d errors");
         }
 
         record Prefix(String prefix, boolean eq) {

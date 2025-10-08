@@ -8,6 +8,7 @@
 package io.kroxylicious.filter.authorization;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,13 +58,13 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
 
     private final Authorizer authorizer;
     private final Map<Integer, UnaryOperator<?>> bufferedPartialResponses;
-    private final Map<String, Object> topicCache;
+    private boolean includeClusterAuthorizedOperations; // TODO should be keys on correlation id
+    private boolean includeTopicAuthorizedOperations; // TODO should be keys on correlation id
+    private boolean isAllTopics;
 
-    public AuthorizationFilter(Authorizer authorizer,
-                               Map<String, Object> topicCache) {
+    public AuthorizationFilter(Authorizer authorizer) {
         this.authorizer = authorizer;
         this.bufferedPartialResponses = new HashMap<>(10);
-        this.topicCache = topicCache;
     }
 
     CompletionStage<Subject> subject(FilterContext context) {
@@ -85,22 +86,43 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                 (metadataRequest.topics().isEmpty() && header.requestApiVersion() == 0);
     }
 
+    <R> void savePartialResponse(RequestHeaderData header, UnaryOperator<R> applier) {
+        var existing = bufferedPartialResponses.put(header.correlationId(), applier);
+        if (existing != null) {
+            throw new IllegalStateException("Already have partial response");
+        }
+    }
+
+    <R> R mergePartialResponse(ResponseHeaderData header, R response) {
+        var partialResponse = this.bufferedPartialResponses.remove(header.correlationId());
+        if (partialResponse != null) {
+            return (R) ((UnaryOperator) partialResponse).apply((Object) response);
+        }
+        else {
+            return response;
+        }
+    }
+
     public CompletionStage<RequestFilterResult> onMetadataRequest(RequestHeaderData header,
                                                                   MetadataRequestData request,
                                                                   FilterContext context) {
-        // A metadata request is idempotent except when topic creation is allowed
-        // Therefore it's safe to forward the request as-is
-        // (and filter out topics disallowed by the authorizer when handling the response),
+        // A metadata request is idempotent EXCEPT when topic creation is allowed.
+        // Therefore, it's safe to forward the requests with allowAutoTopicCreation=false as-is
+        // (and leave the response handler to filter out topics disallowed by the authorizer),
         // EXCEPT when the request allows topic creation.
         if (!request.allowAutoTopicCreation()) {
+            this.includeClusterAuthorizedOperations = header.requestApiVersion() >= 8
+                    && header.requestApiVersion() <= 10
+                    && request.includeClusterAuthorizedOperations();
+            this.includeTopicAuthorizedOperations = request.includeTopicAuthorizedOperations();
+            this.isAllTopics = isAllTopics(header, request);
             return context.forwardRequest(header, request);
         }
 
-        // In the topic creation allowed case, we forward the request without topic
+        // In the allowAutoTopicCreation=true case, we forward the request without topic
         // creation, filter the response with our authorizer
         // and then forward it again without the _disallowed_ topic creations
-        return context.sendRequest(new RequestHeaderData()
-                .setRequestApiVersion(header.requestApiVersion()),
+        return context.sendRequest(header.duplicate(),
                 request.duplicate().setAllowAutoTopicCreation(false))
                 .thenCompose(notCreateResponse -> {
                     var notCreateMetadataResponse = (MetadataResponseData) notCreateResponse;
@@ -152,44 +174,75 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                 });
     }
 
-    <R> void savePartialResponse(RequestHeaderData header, UnaryOperator<R> applier) {
-        var existing = bufferedPartialResponses.put(header.correlationId(), applier);
-        if (existing != null) {
-            throw new IllegalStateException("Already have partial response");
-        }
-    }
 
-    <R> R mergePartialResponse(ResponseHeaderData header, R response) {
-        var partialResponse = this.bufferedPartialResponses.remove(header.correlationId());
-        if (partialResponse != null) {
-            return (R) ((UnaryOperator) partialResponse).apply((Object) response);
-        }
-        else {
-            return response;
-        }
-    }
 
     public CompletionStage<ResponseFilterResult> onMetadataResponse(ResponseHeaderData header,
                                                                     MetadataResponseData response,
                                                                     FilterContext context) {
-        List<Action> actionStream = response.topics().stream()
-                .map(responseTopic -> new Action(TopicResource.DESCRIBE, responseTopic.name()))
-                .toList();
-        return getAuthorizationCompletionStage(context, actionStream)
+        List<Action> actions = new ArrayList<>();
+        if (includeClusterAuthorizedOperations) {
+             for (var clusterOp : ClusterResource.values()) {
+                 actions.add(new Action(clusterOp, ""));
+             }
+        }
+        if (includeTopicAuthorizedOperations) {
+            actions.addAll(response.topics().stream()
+                    .map(MetadataResponseData.MetadataResponseTopic::name)
+                    .flatMap(topicName -> Arrays.stream(TopicResource.values()).map(op -> new Action(op, topicName)))
+                    .toList());
+        }
+        else {
+            actions.addAll(response.topics().stream()
+                    .map(responseTopic -> new Action(TopicResource.DESCRIBE, responseTopic.name()))
+                    .toList());
+        }
+
+        return getAuthorizationCompletionStage(context, actions)
                 .thenCompose(authorize -> {
-                    var x = new MetadataResponseData.MetadataResponseTopicCollection(response.topics().size());
-                    response.topics().stream().map(t -> {
-                        if (authorize.decision(TopicResource.DESCRIBE, t.name()) == Decision.ALLOW) {
-                            return t;
+                    //var xx = new MetadataResponseData.MetadataResponseTopicCollection(response.topics().size());
+                    var toRemove = new ArrayList<MetadataResponseData.MetadataResponseTopic>();
+
+                    for (var t : response.topics()) {
+                        if (authorize.decision(TopicResource.DESCRIBE, t.name()) == Decision.DENY) {
+                            if (isAllTopics) {
+                                toRemove.add(t);
+                            }
+                            else {
+                                t.setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
+                                t.partitions().clear();
+                                t.setIsInternal(false);
+                                t.setTopicAuthorizedOperations(Integer.MIN_VALUE);
+                            }
                         }
-                        else {
-                            return new MetadataResponseData.MetadataResponseTopic()
-                                    .setName(t.name())
-                                    .setTopicId(t.topicId())
-                                    .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
+                        else { // ALLOW
+                            if (includeTopicAuthorizedOperations) {
+                                    int flag = 0;
+                                    for (var clusterOp : TopicResource.values()) {
+                                        if (authorize.decision(clusterOp, t.name()) == Decision.ALLOW) {
+                                            flag |= (0x1 << clusterOp.kafkaOrdinal);
+                                        }
+                                    }
+                                    t.setTopicAuthorizedOperations(flag);
+                            }
                         }
-                    }).forEach(x::add);
-                    response.setTopics(x);
+//                            xx.add(new MetadataResponseData.MetadataResponseTopic()
+//                                    .setName(t.name())
+//                                    .setTopicId(t.topicId()) // TODO should this be included?
+//                                    .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()));
+
+                    }
+
+                    if (includeClusterAuthorizedOperations) {
+                        int flag = 0;
+                        for (var clusterOp : ClusterResource.values()) {
+                            if (authorize.decision(clusterOp, "") == Decision.ALLOW) {
+                                flag |= (0x1 << clusterOp.kafkaOrdinal);
+                            }
+                        }
+                        response.setClusterAuthorizedOperations(flag);
+                    }
+                    response.topics().removeAll(toRemove);
+
                     return context.forwardResponse(header, response);
                 });
     }
@@ -467,6 +520,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
             case CREATE_TOPICS -> onCreateTopicsRequest(header, (CreateTopicsRequestData) request, context);
             case DELETE_TOPICS -> onDeleteTopicsRequest(header, (DeleteTopicsRequestData) request, context);
             case OFFSET_FETCH -> onOffsetFetchRequest(header, (OffsetFetchRequestData) request, context);
+
             // TODO READ: OffsetCommit, TxnOffsetCommit, OffsetDelete
             // TODO ALTER: AlterConfigs, IncrementalAlterConfigs, CreatePartitions
             // TODO WRITE: InitProducerId, AddPartitionsToTxn

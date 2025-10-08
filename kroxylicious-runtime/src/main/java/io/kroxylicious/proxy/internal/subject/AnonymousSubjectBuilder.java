@@ -11,7 +11,9 @@ import java.util.concurrent.CompletionStage;
 
 import io.kroxylicious.proxy.authentication.Subject;
 
-public class AnonymousBuilderBuilder implements SubjectBuilder {
+public class AnonymousSubjectBuilder implements SubjectBuilder {
+    public AnonymousSubjectBuilder() {
+    }
     @Override
     public CompletionStage<Subject> buildSubject(Context context) {
         return CompletableFuture.completedStage(Subject.ANONYMOUS);

@@ -12,5 +12,18 @@ import io.kroxylicious.authorizer.service.Operation;
  * A resource representing a Kafka cluster
  */
 public enum ClusterResource implements Operation<ClusterResource> {
-    CONNECT
+    CREATE(0),
+    ALTER(1),
+    DESCRIBE(2),
+    CLUSTER_ACTION(3),
+    DESCRIBE_CONFIGS(4),
+    ALTER_CONFIGS(5),
+    CONNECT(-1);
+
+    public final int kafkaOrdinal;
+
+    ClusterResource(int kafkaOrdinal) {
+        this.kafkaOrdinal = kafkaOrdinal;
+    }
+
 }

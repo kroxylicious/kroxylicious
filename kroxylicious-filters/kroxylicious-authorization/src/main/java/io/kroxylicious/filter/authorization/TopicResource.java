@@ -11,14 +11,19 @@ import java.util.Set;
 import io.kroxylicious.authorizer.service.Operation;
 
 public enum TopicResource implements Operation<TopicResource> {
-    DESCRIBE,
-    READ,
-    WRITE,
-    CREATE,
-    DELETE,
-    ALTER,
-    DESCRIBE_CONFIGS,
-    ALTER_CONFIGS;
+    READ(3),
+    WRITE(4),
+    CREATE(5),
+    DELETE(6),
+    ALTER(7),
+    DESCRIBE(8),
+    DESCRIBE_CONFIGS(10),
+    ALTER_CONFIGS(11);
+    public final int kafkaOrdinal;
+
+    TopicResource(int kafkaOrdinal) {
+        this.kafkaOrdinal = kafkaOrdinal;
+    }
 
     @Override
     public Set<TopicResource> implies() {
