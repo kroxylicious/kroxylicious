@@ -279,6 +279,14 @@
                     <excludePackageNames>io.kroxylicious.proxy.config:io.kroxylicious.proxy.config.admin</excludePackageNames>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+                <configuration>
+                    <!-- Skipped to avoid failures from sundrio generated classes -->
+                    <skip>true</skip>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 </project>

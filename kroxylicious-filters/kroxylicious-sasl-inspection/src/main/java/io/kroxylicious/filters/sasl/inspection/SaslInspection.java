@@ -8,6 +8,7 @@ package io.kroxylicious.filters.sasl.inspection;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -20,6 +21,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -28,7 +30,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @Plugin(configType = Config.class)
 public class SaslInspection implements FilterFactory<Config, Void> {
 
-    private Map<String, SaslObserverFactory> observerFactoryMap;
+    private @Nullable Map<String, SaslObserverFactory> observerFactoryMap;
 
     @Override
     public Void initialize(FilterFactoryContext context,
@@ -40,6 +42,7 @@ public class SaslInspection implements FilterFactory<Config, Void> {
 
     @Override
     public Filter createFilter(FilterFactoryContext context, Void unused) {
+        Objects.requireNonNull(observerFactoryMap);
         return new SaslInspectionFilter(observerFactoryMap);
     }
 
@@ -79,7 +82,7 @@ public class SaslInspection implements FilterFactory<Config, Void> {
     }
 
     @VisibleForTesting
-    public Map<String, SaslObserverFactory> getObserverFactoryMap() {
+    public @NonNull Map<String, SaslObserverFactory> getObserverFactoryMap() {
         return observerFactoryMap;
     }
 
