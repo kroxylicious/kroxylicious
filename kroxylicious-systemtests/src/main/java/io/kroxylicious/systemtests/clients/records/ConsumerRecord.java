@@ -17,7 +17,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class ConsumerRecord {
+public abstract class ConsumerRecord {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerRecord.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -27,6 +27,14 @@ public class ConsumerRecord {
     protected int partition;
     protected long offset;
     protected Map<String, String> recordHeaders;
+
+    protected ConsumerRecord(String topic, String key, String payload, int partition, long offset) {
+        this.topic = topic;
+        this.key = key;
+        this.payload = payload;
+        this.partition = partition;
+        this.offset = offset;
+    }
 
     public String getTopic() {
         return topic;
@@ -38,14 +46,6 @@ public class ConsumerRecord {
 
     public String getPayload() {
         return payload;
-    }
-
-    public int getPartition() {
-        return partition;
-    }
-
-    public long getOffset() {
-        return offset;
     }
 
     public Map<String, String> getRecordHeaders() {

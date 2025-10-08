@@ -37,11 +37,7 @@ public class PythonConsumerRecord extends ConsumerRecord {
                                 @JsonProperty("value") String payload,
                                 @JsonProperty("partition") int partition,
                                 @JsonProperty("offset") long offset) {
-        this.topic = topic;
-        this.key = key;
-        this.payload = payload;
-        this.partition = partition;
-        this.offset = offset;
+        super(topic, key, payload, partition, offset);
         this.recordHeaders = new HashMap<>();
         if (headers != null) {
             headers.forEach(h -> recordHeaders.put(h.get("Key"), h.get("Value")));
