@@ -15,13 +15,13 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * The type Python consumer record.
+ * The type Python test client consumer record.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class PythonConsumerRecord extends ConsumerRecord {
+public class PythonTestClientConsumerRecord extends ConsumerRecord {
 
     /**
-     * Instantiates a new python consumer record.
+     * Instantiates a new python test client consumer record.
      *
      * @param headers the headers
      * @param topic the topic
@@ -31,12 +31,12 @@ public class PythonConsumerRecord extends ConsumerRecord {
      * @param offset the offset
      */
     @JsonCreator
-    public PythonConsumerRecord(@JsonProperty("headers") List<Map<String, String>> headers,
-                                @JsonProperty("topic") String topic,
-                                @JsonProperty("key") String key,
-                                @JsonProperty("value") String payload,
-                                @JsonProperty("partition") int partition,
-                                @JsonProperty("offset") long offset) {
+    public PythonTestClientConsumerRecord(@JsonProperty("headers") List<Map<String, String>> headers,
+                                          @JsonProperty("topic") String topic,
+                                          @JsonProperty("key") String key,
+                                          @JsonProperty("value") String payload,
+                                          @JsonProperty("partition") int partition,
+                                          @JsonProperty("offset") long offset) {
         super(topic, key, payload, partition, offset);
         this.recordHeaders = new HashMap<>();
         if (headers != null) {

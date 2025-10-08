@@ -24,7 +24,7 @@ import io.skodjob.testframe.utils.KubeUtils;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
-import io.kroxylicious.systemtests.clients.records.PythonConsumerRecord;
+import io.kroxylicious.systemtests.clients.records.PythonTestClientConsumerRecord;
 import io.kroxylicious.systemtests.enums.KafkaClientType;
 import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
@@ -37,16 +37,16 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 /**
- * The type Python kafka client (librdkafka client based CLI).
+ * The type Python kafka test client (librdkafka client based CLI).
  */
-public class PythonClient implements KafkaClient {
+public class PythonTestClient implements KafkaClient {
     private static final String RECEIVED_MESSAGE_MARKER = "Received:";
     private static final String PYTHON_COMMAND = "python3";
     private static final String BASE_PATH = "/usr/src/confluent-kafka-python";
     private static final String PRODUCER_PATH = BASE_PATH + "/Producer.py";
     private static final String CONSUMER_PATH = BASE_PATH + "/Consumer.py";
-    private static final Logger LOGGER = LoggerFactory.getLogger(PythonClient.class);
-    private static final TypeReference<PythonConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PythonTestClient.class);
+    private static final TypeReference<PythonTestClientConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
     private String deployNamespace;
 
@@ -57,9 +57,9 @@ public class PythonClient implements KafkaClient {
     }
 
     /**
-     * Instantiates a new python client.
+     * Instantiates a new python test client.
      */
-    public PythonClient() {
+    public PythonTestClient() {
         this.deployNamespace = kubeClient().getNamespace();
     }
 

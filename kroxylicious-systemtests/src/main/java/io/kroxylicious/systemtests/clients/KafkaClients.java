@@ -45,8 +45,8 @@ public class KafkaClients {
      *
      * @return  the python client
      */
-    public static PythonClient pythonTestClient() {
-        return new PythonClient();
+    public static PythonTestClient pythonTestClient() {
+        return new PythonTestClient();
     }
 
     /**
