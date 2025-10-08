@@ -112,15 +112,7 @@ public class PythonClient implements KafkaClient {
     private Stream<String> extractRecordLinesFromLog(String log) {
         return Stream.of(log.split("\n"))
                 .filter(l -> l.startsWith(RECEIVED_MESSAGE_MARKER))
-                .map(line -> {
-                    final String[] split = line.split(RECEIVED_MESSAGE_MARKER, 2); // Limit is 1 based so a limit of 2 means use the seek at most 1 times
-                    if (split.length > 1) {
-                        return split[1];
-                    }
-                    else {
-                        return "";
-                    }
-                });
+                .map(line -> line.substring(RECEIVED_MESSAGE_MARKER.length()));
     }
 
     private List<ConsumerRecord> getConsumerRecords(Stream<String> logRecords) {
