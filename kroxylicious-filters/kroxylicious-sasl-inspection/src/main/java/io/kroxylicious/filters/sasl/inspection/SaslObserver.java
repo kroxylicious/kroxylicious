@@ -6,6 +6,8 @@
 
 package io.kroxylicious.filters.sasl.inspection;
 
+import javax.security.sasl.SaslException;
+
 import org.apache.kafka.common.errors.AuthenticationException;
 
 /**
@@ -31,7 +33,7 @@ public interface SaslObserver {
      * @return true if this response yields the authorization id, false otherwise.
      * @throws AuthenticationException if the response is incorrectly formatted
      */
-    boolean clientResponse(byte[] response) throws AuthenticationException;
+    boolean clientResponse(byte[] response) throws SaslException;
 
     /**
      * Used to inform the observer of the bytes of each server response.
@@ -39,7 +41,7 @@ public interface SaslObserver {
      * @param challenge server challenge
      * @throws AuthenticationException if the challenge is incorrectly formatted
      */
-    void serverChallenge(byte[] challenge) throws AuthenticationException;
+    void serverChallenge(byte[] challenge) throws SaslException;
 
     /**
      * Reports if the SASL negotiation is finished.  A negotiation is finished once the server
@@ -55,5 +57,5 @@ public interface SaslObserver {
      *
      * @throws AuthenticationException if the authorization identity has not been established.
      */
-    String authorizationId() throws AuthenticationException;
+    String authorizationId() throws SaslException;
 }

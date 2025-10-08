@@ -8,7 +8,8 @@ package io.kroxylicious.filters.sasl.inspection;
 
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.errors.AuthenticationException;
+import javax.security.sasl.SaslException;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -29,7 +30,7 @@ class ScramSaslObserverTest {
 
         // Then
         assertThat(observer.isFinished()).isFalse();
-        assertThatThrownBy(observer::authorizationId).isInstanceOf(AuthenticationException.class);
+        assertThatThrownBy(observer::authorizationId).isInstanceOf(SaslException.class);
     }
 
     @Test
@@ -53,7 +54,7 @@ class ScramSaslObserverTest {
 
     @ParameterizedTest
     @MethodSource("goodClientFirst")
-    void shouldYieldAuthorizationIdFollowingSuccessfulNegotiation(byte[] clientFirst, String expectedAuthorizationId) {
+    void shouldYieldAuthorizationIdFollowingSuccessfulNegotiation(byte[] clientFirst, String expectedAuthorizationId) throws SaslException {
         // Given
         var observer = new ScramSaslObserver(MECHANISM_NAME);
 
@@ -87,16 +88,16 @@ class ScramSaslObserverTest {
 
         // When/Then
         assertThatThrownBy(() -> observer.clientResponse(initialResponse))
-                .isInstanceOf(AuthenticationException.class);
+                .isInstanceOf(SaslException.class);
 
         assertThat(observer.isFinished()).isFalse();
         assertThatThrownBy(observer::authorizationId)
-                .isInstanceOf(AuthenticationException.class);
+                .isInstanceOf(SaslException.class);
 
     }
 
     @Test
-    void shouldHandleNegotiationEndingWithServerError() {
+    void shouldHandleNegotiationEndingWithServerError() throws SaslException {
         // Given
         var observer = new ScramSaslObserver(MECHANISM_NAME);
 

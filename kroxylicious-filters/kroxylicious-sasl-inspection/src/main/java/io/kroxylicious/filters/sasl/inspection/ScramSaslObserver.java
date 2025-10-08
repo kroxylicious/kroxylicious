@@ -11,8 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import org.apache.kafka.common.errors.AuthenticationException;
-import org.apache.kafka.common.errors.SaslAuthenticationException;
+import javax.security.sasl.SaslException;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -38,7 +37,7 @@ public class ScramSaslObserver implements SaslObserver {
     }
 
     @Override
-    public boolean clientResponse(byte[] clientFirst) {
+    public boolean clientResponse(byte[] clientFirst) throws SaslException {
         if (authorizationId == null) {
             // n,,n=user,r=fyko+d2lbbFgONRv9qkxdawL
             // n,a=ursel,n=testuser,r=fyko+d2lbbFgONRv9qkxdawL
@@ -46,7 +45,7 @@ public class ScramSaslObserver implements SaslObserver {
             List<String> tokens = parseScramClientFirst(new String(clientFirst, StandardCharsets.UTF_8));
             var username = tokens.get(2).startsWith("n=") ? tokens.get(2).substring(2) : null;
             if (username == null || username.isEmpty()) {
-                throw new SaslAuthenticationException("Invalid SCRAM client first message, username (n) absent");
+                throw new SaslException("Invalid SCRAM client first message, username (n) absent");
             }
             var authzid = tokens.get(1).startsWith("a=") ? tokens.get(1).substring(2) : "";
             authorizationId = username(authzid.isEmpty() ? username : authzid);
@@ -56,7 +55,7 @@ public class ScramSaslObserver implements SaslObserver {
     }
 
     @Override
-    public void serverChallenge(byte[] challenge) {
+    public void serverChallenge(byte[] challenge) throws SaslException {
         if (!gotServerFinal) {
             var c = new String(challenge, StandardCharsets.UTF_8);
             boolean verifier = c.startsWith("v=");
@@ -78,14 +77,14 @@ public class ScramSaslObserver implements SaslObserver {
     }
 
     @Override
-    public String authorizationId() throws AuthenticationException {
+    public String authorizationId() throws SaslException {
         if (authorizationId == null) {
-            throw new SaslAuthenticationException("SASL SCRAM negotiation has not produced an authorization id");
+            throw new SaslException("SASL SCRAM negotiation has not produced an authorization id");
         }
         return authorizationId;
     }
 
-    private List<String> parseScramClientFirst(String clientFirst) {
+    private List<String> parseScramClientFirst(String clientFirst) throws SaslException {
         List<String> tokens = new ArrayList<>(4);
         int startIndex = 0;
         for (int i = 0; i < 4; ++i) {
@@ -98,7 +97,7 @@ public class ScramSaslObserver implements SaslObserver {
             startIndex = endIndex + 1;
         }
         if (tokens.size() != 4) {
-            throw new SaslAuthenticationException("Invalid SASL/" + this.mechanismName() + " response: expected 4 tokens, got " +
+            throw new SaslException("Invalid SASL/" + this.mechanismName() + " response: expected 4 tokens, got " +
                     tokens.size());
         }
         return tokens;
@@ -111,11 +110,11 @@ public class ScramSaslObserver implements SaslObserver {
      * @param saslName sasl name
      * @return user name
      */
-    private static String username(String saslName) {
+    private static String username(String saslName) throws SaslException {
         // The RFC says: "If the server receives a username that contains '=' not followed by either '2C' or '3D', then the
         // server MUST fail the authentication"
         if (saslName.replace(ENCODED_COMMA, "").replace(ENCODED_EQUALS_SIGN, "").contains("=")) {
-            throw new AuthenticationException("Sasl name: '" + saslName + "' contains unexpected encoded characters");
+            throw new SaslException("Sasl name: '" + saslName + "' contains unexpected encoded characters");
         }
 
         return saslName.replace(ENCODED_COMMA, ",").replace(ENCODED_EQUALS_SIGN, "=");

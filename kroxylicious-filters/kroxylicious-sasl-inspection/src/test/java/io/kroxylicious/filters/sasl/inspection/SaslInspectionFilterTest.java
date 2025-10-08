@@ -15,8 +15,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import org.apache.kafka.common.errors.AuthenticationException;
-import org.apache.kafka.common.errors.SaslAuthenticationException;
+import javax.security.sasl.SaslException;
+
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
@@ -366,12 +366,12 @@ class SaslInspectionFilterTest {
     }
 
     @Test
-    void shouldDetectMissingAuthzId() {
+    void shouldDetectMissingAuthzId() throws SaslException {
         // Given
 
         // This SASL observer fails to collect an authz
         var saslObserver = mock(SaslObserver.class);
-        when(saslObserver.authorizationId()).thenThrow(new AuthenticationException("mock - no authz"));
+        when(saslObserver.authorizationId()).thenThrow(new SaslException("mock - no authz"));
         when(saslObserver.clientResponse(any(byte[].class))).thenReturn(true);
         when(saslObserver.isFinished()).thenReturn(true);
 
@@ -439,7 +439,7 @@ class SaslInspectionFilterTest {
                 });
 
         verify(context, never()).clientSaslAuthenticationSuccess(anyString(), anyString());
-        verify(context).clientSaslAuthenticationFailure(eq("PLAIN"), eq("tim"), isA(SaslAuthenticationException.class));
+        verify(context).clientSaslAuthenticationFailure(eq("PLAIN"), eq("tim"), isA(SaslException.class));
     }
 
     static Stream<Arguments> successfulSaslAuthentications() {

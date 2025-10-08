@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import org.apache.kafka.common.errors.SaslAuthenticationException;
+import javax.security.sasl.SaslException;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -25,30 +25,30 @@ class PlainSaslObserver implements SaslObserver {
     private String authorizationId = null;
 
     @Override
-    public boolean clientResponse(byte[] response) {
+    public boolean clientResponse(byte[] response) throws SaslException {
         Objects.requireNonNull(response, "response");
         if (authorizationId == null) {
             var tokens = parsePlainClient(new String(response, StandardCharsets.UTF_8));
             var optionalAuthzid = tokens.get(0);
             var authcid = tokens.get(1);
             if (authcid.isEmpty()) {
-                throw new SaslAuthenticationException("PLAIN saw client initial response with empty authcid.");
+                throw new SaslException("PLAIN saw client initial response with empty authcid.");
             }
             authorizationId = optionalAuthzid.isEmpty() ? authcid : optionalAuthzid;
             return true;
         }
         else {
-            throw new SaslAuthenticationException("PLAIN saw unexpected initial client response");
+            throw new SaslException("PLAIN saw unexpected initial client response");
         }
     }
 
     @Override
-    public void serverChallenge(byte[] challenge) {
+    public void serverChallenge(byte[] challenge) throws SaslException {
         if (challenge.length == 0) {
             gotExpectedServerFinal = true;
         }
         else {
-            throw new SaslAuthenticationException("PLAIN saw unexpected server challenge");
+            throw new SaslException("PLAIN saw unexpected server challenge");
         }
     }
 
@@ -63,15 +63,15 @@ class PlainSaslObserver implements SaslObserver {
     }
 
     @Override
-    public String authorizationId() {
+    public String authorizationId() throws SaslException {
         if (authorizationId == null) {
-            throw new SaslAuthenticationException("SASL plain negotiation has not produced an authorization id");
+            throw new SaslException("SASL plain negotiation has not produced an authorization id");
         }
         return authorizationId;
     }
 
     /* This function originally copied from Apach Kafka's PlainSaslServer */
-    private static List<String> parsePlainClient(String string) {
+    private static List<String> parsePlainClient(String string) throws SaslException {
         /*
          * Message format (from https://tools.ietf.org/html/rfc4616):
          *
@@ -97,7 +97,7 @@ class PlainSaslObserver implements SaslObserver {
         }
 
         if (tokens.size() != 3) {
-            throw new SaslAuthenticationException("Invalid SASL/PLAIN response: expected 3 tokens, got " +
+            throw new SaslException("Invalid SASL/PLAIN response: expected 3 tokens, got " +
                     tokens.size());
         }
 

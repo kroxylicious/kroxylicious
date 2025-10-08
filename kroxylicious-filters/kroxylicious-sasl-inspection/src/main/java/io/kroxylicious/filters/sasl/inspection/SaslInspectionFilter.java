@@ -11,8 +11,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.errors.AuthenticationException;
-import org.apache.kafka.common.errors.IllegalSaslStateException;
+import javax.security.sasl.SaslException;
+
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.message.SaslAuthenticateRequestData;
@@ -169,20 +169,23 @@ class SaslInspectionFilter
             try {
                 var acquiredAuthorizationId = state.saslObserver().clientResponse(request.authBytes());
                 if (acquiredAuthorizationId) {
+                    var authId = getAuthorizationIdOrNull(state.saslObserver());
                     LOGGER.atInfo()
                             .setMessage("Client '{}' on channel {} sent {} authorizationId '{}'; forwarding to server")
                             .addArgument(header::clientId)
                             .addArgument(context::channelDescriptor)
-                            .addArgument(() -> state.saslObserver().authorizationId())
+                            .addArgument(request)
+                            .addArgument(authId)
                             .log();
                 }
             }
-            catch (AuthenticationException e) {
+            catch (SaslException e) {
                 LOGGER.atInfo()
                         .setMessage(
                                 "Client '{}' on channel {} sent {} an authorization request containing a SASL response that could not be interpreted; closing connection. Cause message: {}. Raise log level to DEBUG to see the stack.")
                         .addArgument(header::clientId)
                         .addArgument(context::channelDescriptor)
+                        .addArgument(request)
                         .addArgument(e::getMessage)
                         .setCause(LOGGER.isDebugEnabled() ? e : null)
                         .log();
@@ -212,7 +215,12 @@ class SaslInspectionFilter
                                                                             SaslAuthenticateResponseData response,
                                                                             FilterContext context) {
         if (this.currentState instanceof State.AwaitingAuthenticateResponse state) {
-            state.saslObserver().serverChallenge(response.authBytes());
+            try {
+                state.saslObserver().serverChallenge(response.authBytes());
+            }
+            catch (SaslException e) {
+                return closeConnectionWithResponse(header, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()), context);
+            }
 
             if (response.errorCode() == Errors.NONE.code()) {
                 return processSuccessfulAuthenticateResponse(header, response, context, state);
@@ -259,7 +267,7 @@ class SaslInspectionFilter
                 .addArgument(context::channelDescriptor)
                 .log();
         var authorizedId = getAuthorizationIdOrNull(state.saslObserver());
-        context.clientSaslAuthenticationFailure(state.saslObserver().mechanismName(), authorizedId, error.exception());
+        context.clientSaslAuthenticationFailure(state.saslObserver().mechanismName(), authorizedId, new SaslException("authentication failed", error.exception()));
         return context.responseFilterResultBuilder()
                 .forward(header, response)
                 .withCloseConnection()
@@ -271,7 +279,7 @@ class SaslInspectionFilter
         try {
             return saslObserver.authorizationId();
         }
-        catch (AuthenticationException | IllegalStateException e) {
+        catch (SaslException | IllegalStateException e) {
             return null;
         }
     }
@@ -302,13 +310,13 @@ class SaslInspectionFilter
         }
 
         @Override
-        public boolean clientResponse(byte[] response) {
-            throw new IllegalSaslStateException("Probe mechanism does not accept a client response");
+        public boolean clientResponse(byte[] response) throws SaslException {
+            throw new SaslException("Probe mechanism does not accept a client response");
         }
 
         @Override
-        public void serverChallenge(byte[] challenge) throws AuthenticationException {
-            throw new IllegalSaslStateException("Probe mechanism does not accept a server challenge");
+        public void serverChallenge(byte[] challenge) throws SaslException {
+            throw new SaslException("Probe mechanism does not accept a server challenge");
         }
 
         @Override
@@ -317,8 +325,8 @@ class SaslInspectionFilter
         }
 
         @Override
-        public String authorizationId() throws AuthenticationException {
-            throw new IllegalSaslStateException("Probe mechanism can not produce an authorization id.");
+        public String authorizationId() throws SaslException {
+            throw new SaslException("Probe mechanism can not produce an authorization id.");
         }
     }
 }
