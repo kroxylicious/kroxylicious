@@ -18,7 +18,7 @@ import org.apache.kafka.common.errors.AuthenticationException;
  * <br/>
  * When the {@link SaslInspectionFilter} receives a SaslHandshakeRequest, it uses a {@link SaslObserverFactory}
  * to create a {@link SaslObserver} instance which is used for the remainder of that SASL negotiation on the
- * channel.  If the client later reauthenticates (KIP-365), a fresh SaslObserver instance is created. This
+ * channel.  If the client later reauthenticates (KIP-368), a fresh SaslObserver instance is created. This
  * is done for each subsequent reauthentication.
  *
  */

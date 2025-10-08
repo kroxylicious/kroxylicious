@@ -37,7 +37,12 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * A filter that performs <a href="https://github.com/kroxylicious/design/blob/main/proposals/004-terminology-for-authentication.md#sasl-passthrough-inspection">SASL passthrough inspection</a>.
- * It does this by looking at the requests and responses to infer the client's identity negotiated by the SASL layer.
+ * It does this by looking at the requests and responses to infer the client's identity negotiated by the SASL layer. Once the authentication is complete,
+ * it uses {@link FilterContext#clientSaslAuthenticationSuccess(String, String)} or {@link FilterContext#clientSaslAuthenticationFailure(String, String, Exception)} to announce the
+ * result of the authentication to the rest of the filters in the filter chain.
+ * <br/>
+ * If client reauthentication is in-use (KIP-368), the result of the subsequent re-authentication will be announced using
+ * the same mechanism.
  */
 class SaslInspectionFilter
         implements
