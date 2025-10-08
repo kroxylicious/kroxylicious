@@ -42,9 +42,10 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 public class PythonTestClient implements KafkaClient {
     private static final String RECEIVED_MESSAGE_MARKER = "Received:";
     private static final String PYTHON_COMMAND = "python3";
-    private static final String BASE_PATH = "/usr/src/confluent-kafka-python";
-    private static final String PRODUCER_PATH = BASE_PATH + "/Producer.py";
-    private static final String CONSUMER_PATH = BASE_PATH + "/Consumer.py";
+    private static final String BASE_PATH = "/usr/src";
+    private static final String CONFLUENT_PYTHON_PATH = BASE_PATH + "/confluent-kafka-python";
+    private static final String PRODUCER_PATH = CONFLUENT_PYTHON_PATH + "/Producer.py";
+    private static final String CONSUMER_PATH = CONFLUENT_PYTHON_PATH + "/Consumer.py";
     private static final Logger LOGGER = LoggerFactory.getLogger(PythonTestClient.class);
     private static final TypeReference<PythonTestClientConsumerRecord> VALUE_TYPE_REF = new TypeReference<>() {
     };
