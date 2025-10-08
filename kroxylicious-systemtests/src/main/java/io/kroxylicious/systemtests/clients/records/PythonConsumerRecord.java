@@ -34,12 +34,12 @@ public class PythonConsumerRecord extends ConsumerRecord {
     public PythonConsumerRecord(@JsonProperty("headers") List<Map<String, String>> headers,
                                 @JsonProperty("topic") String topic,
                                 @JsonProperty("key") String key,
-                                @JsonProperty("payload") String payload,
+                                @JsonProperty("value") String payload,
                                 @JsonProperty("partition") int partition,
                                 @JsonProperty("offset") long offset) {
         this.topic = topic;
         this.key = key;
-        this.value = payload;
+        this.payload = payload;
         this.partition = partition;
         this.offset = offset;
         this.recordHeaders = new HashMap<>();

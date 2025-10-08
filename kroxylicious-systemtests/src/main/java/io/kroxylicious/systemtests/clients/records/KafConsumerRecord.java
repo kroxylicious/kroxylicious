@@ -41,7 +41,7 @@ public class KafConsumerRecord extends ConsumerRecord {
             headers.forEach(h -> recordHeaders.put(new String(Base64.getDecoder().decode(h.get("Key"))), new String(Base64.getDecoder().decode(h.get("Value")))));
         }
         this.key = key;
-        this.value = payload;
+        this.payload = payload;
         this.partition = partition;
         this.offset = offset;
     }

@@ -23,7 +23,7 @@ public class ConsumerRecord {
 
     protected String topic;
     protected String key;
-    protected String value;
+    protected String payload;
     protected int partition;
     protected long offset;
     protected Map<String, String> recordHeaders;
@@ -36,8 +36,8 @@ public class ConsumerRecord {
         return key;
     }
 
-    public String getValue() {
-        return value;
+    public String getPayload() {
+        return payload;
     }
 
     public int getPartition() {
@@ -63,7 +63,7 @@ public class ConsumerRecord {
         ConsumerRecord that = (ConsumerRecord) o;
         return Objects.equals(topic, that.topic) &&
                 Objects.equals(key, that.key) &&
-                Objects.equals(value, that.value) &&
+                Objects.equals(payload, that.payload) &&
                 partition == that.partition &&
                 offset == that.offset &&
                 Objects.deepEquals(recordHeaders, that.recordHeaders);
@@ -71,7 +71,7 @@ public class ConsumerRecord {
 
     @Override
     public int hashCode() {
-        return Objects.hash(topic, key, value, partition, offset, recordHeaders);
+        return Objects.hash(topic, key, payload, partition, offset, recordHeaders);
     }
 
     /**
@@ -96,7 +96,7 @@ public class ConsumerRecord {
     public String toString() {
         return "ConsumerRecord(topic: " + this.topic +
                 ", key: " + this.key +
-                ", value: " + this.value +
+                ", payload: " + this.payload +
                 ", partition: " + this.partition +
                 ", offset: " + this.offset +
                 ", headers: " + this.recordHeaders +

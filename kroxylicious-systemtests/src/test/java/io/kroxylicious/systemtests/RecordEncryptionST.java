@@ -130,7 +130,7 @@ class RecordEncryptionST extends AbstractST {
                         .allMatch(r -> r.getRecordHeaders().containsKey("kroxylicious.io/encryption")),
                 () -> assertThat(resultEncrypted.stream())
                         .withFailMessage("Encrypted message still includes the original one!")
-                        .allMatch(r -> !r.getValue().contains(MESSAGE)));
+                        .allMatch(r -> !r.getPayload().contains(MESSAGE)));
     }
 
     @TestTemplate
@@ -156,7 +156,7 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.info("Received: {}", result);
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
+                .extracting(ConsumerRecord::getPayload)
                 .hasSize(numberOfMessages)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
@@ -224,7 +224,7 @@ class RecordEncryptionST extends AbstractST {
 
         assertThat(consumerRecords.stream())
                 .withFailMessage(expectedValue + " is not contained in the ciphertext blob!")
-                .allMatch(r -> r.getValue().contains(expectedValue));
+                .allMatch(r -> r.getPayload().contains(expectedValue));
     }
 
     @SuppressWarnings("java:S2925")
@@ -255,7 +255,7 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.info("Received: {}", result);
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
+                .extracting(ConsumerRecord::getPayload)
                 .hasSize(numberOfMessages)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
 
@@ -277,7 +277,7 @@ class RecordEncryptionST extends AbstractST {
         LOGGER.info("Received: {}", resultRotatedKek);
 
         assertThat(resultRotatedKek).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
+                .extracting(ConsumerRecord::getPayload)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
 }
