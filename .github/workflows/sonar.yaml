@@ -17,18 +17,18 @@ jobs:
       - name: echo event
         run: cat $GITHUB_EVENT_PATH
       - name: Download PR number artifact
-        uses: dawidd6/action-download-artifact@v11
+        uses: dawidd6/action-download-artifact@ac66b43f0e6a346234dd65d4d0c8fbb31cb316e5
         with:
           workflow: Build
           run_id: ${{ github.event.workflow_run.id }}
           name: PR_NUMBER
       - name: Read PR_NUMBER.txt
         id: pr_number
-        uses: juliangruber/read-file-action@v1
+        uses: juliangruber/read-file-action@b549046febe0fe86f8cb4f93c24e284433f9ab58
         with:
           path: ./PR_NUMBER.txt
       - name: Request GitHub API for PR data
-        uses: octokit/request-action@v2.x
+        uses: octokit/request-action@05a2312de9f8207044c4c9e41fe19703986acc13
         id: get_pr_data
         with:
           route: GET /repos/{full_name}/pulls/{number}
@@ -49,7 +49,7 @@ jobs:
           git checkout ${{ github.event.workflow_run.head_branch }}
           git clean -ffdx && git reset --hard HEAD
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392
       - name: Set up JDK 21
         uses: actions/setup-java@v5
         with:
