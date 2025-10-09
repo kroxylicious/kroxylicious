@@ -71,7 +71,7 @@ jobs:
 
       - name: 'Check team membership'
         if: ${{ github.repository == 'kroxylicious/kroxylicious' }}
-        uses: tspascoal/get-user-teams-membership@v3
+        uses: tspascoal/get-user-teams-membership@57e9f42acd78f4d0f496b3be4368fc5f62696662
         id: team-membership
         with:
           username: ${{ github.actor }}
@@ -97,7 +97,7 @@ jobs:
           echo "RELCAND_ID=${RELCAND_ID}" >> $GITHUB_ENV
 
       - name: Download release state artefact
-        uses: dawidd6/action-download-artifact@v11
+        uses: dawidd6/action-download-artifact@ac66b43f0e6a346234dd65d4d0c8fbb31cb316e5
         with:
           workflow: stage-release
           run_id: ${{ env.RELCAND_ID }}

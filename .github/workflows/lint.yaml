@@ -52,7 +52,7 @@ jobs:
         run: |
           mvn -B -Pci -T1.5C verify -DskipTests -Djapicmp.skip=true
       - name: shellcheck
-        uses: reviewdog/action-shellcheck@v1
+        uses: reviewdog/action-shellcheck@4c07458293ac342d477251099501a718ae5ef86e
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           reporter: github-pr-review # Change reporter.
