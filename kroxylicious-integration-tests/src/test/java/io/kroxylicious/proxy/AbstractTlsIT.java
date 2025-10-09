@@ -50,6 +50,14 @@ public abstract class AbstractTlsIT extends BaseIT {
     static final String SNI_BROKER_ADDRESS_PATTERN = "broker-$(nodeId)." + SNI_BASE_ADDRESS;
     static final HostPort SNI_BOOTSTRAP_ADDRESS = HostPort.parse("bootstrap." + SNI_BASE_ADDRESS + ":9192");
 
+    static final String CLIENT_CERT_EMAIL = "clientTest@kroxylicious.io";
+    static final String CLIENT_CERT_DOMAIN = "client";
+    static final String CLIENT_CERT_ORGANIZATION_UNIT = "Dev";
+    static final String CLIENT_CERT_ORGANIZATION = "kroxylicious.io";
+    static final String CLIENT_CERT_COUNTRY = "US";
+    static final String CLIENT_CERT_CITY = null;
+    static final String CLIENT_CERT_STATE = null;
+
     @TempDir
     Path certsDirectory;
     KeytoolCertificateGenerator downstreamCertificateGenerator;
@@ -139,7 +147,8 @@ public abstract class AbstractTlsIT extends BaseIT {
 
         // Generator for certificate that will identify the client
         this.clientCertGenerator = new KeytoolCertificateGenerator();
-        this.clientCertGenerator.generateSelfSignedCertificateEntry("clientTest@kroxylicious.io", "client", "Dev", "kroxylicious.io", null, null, "US");
+        this.clientCertGenerator.generateSelfSignedCertificateEntry(CLIENT_CERT_EMAIL, CLIENT_CERT_DOMAIN, CLIENT_CERT_ORGANIZATION_UNIT, CLIENT_CERT_ORGANIZATION,
+                CLIENT_CERT_CITY, CLIENT_CERT_STATE, CLIENT_CERT_COUNTRY);
         this.proxyTrustStore = certsDirectory.resolve("proxy.truststore.jks");
         this.clientCertGenerator.generateTrustStore(clientCertGenerator.getCertFilePath(), "proxy",
                 proxyTrustStore.toAbsolutePath().toString());
