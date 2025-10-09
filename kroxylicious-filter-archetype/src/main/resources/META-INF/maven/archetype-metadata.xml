@@ -19,12 +19,15 @@
             <directory/>
             <includes>
                 <include>pom.xml</include>
+                <include>README.md</include>
             </includes>
         </fileSet>
         <fileSet>
             <directory/>
             <includes>
                 <include>__gitignore__</include>
+                <include>sample-proxy-config.yaml</include>
+                <include>run.sh</include>
             </includes>
         </fileSet>
         <fileSet filtered="true" packaged="true">

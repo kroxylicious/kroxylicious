@@ -12,7 +12,6 @@ Kroxylicious is a Kafka protocol proxy, addressing use cases such as encryption,
   * [Developer Guide](#developer-guide)
   * [Releasing this project](#releasing-this-project)
   * [Performance Testing](#performance-testing)
-  * [Kroxylicious Samples](#kroxylicious-samples)
   * [Contributing](#contributing)
 <!-- TOC -->
 
@@ -42,9 +41,11 @@ See the [Release Guide](RELEASING.md)
 
 See the [Performance Guide](PERFORMANCE.md) for information on running basic performance tests for this proxy.
 
-## Kroxylicious Samples
+## Kroxylicious Filter Development
 
-See [kroxylicious-sample](kroxylicious-sample) to learn more about sample filters. Try them out and customise them for a hands-on introduction to custom filters in Kroxylicious.
+Use [kroxylicious-filter-archetype](kroxylicious-filter-archetype) to get started developing a Custom Filter.
+
+Run `mvn archetype:generate -DarchetypeGroupId=io.kroxylicious -DarchetypeArtifactId=kroxylicious-filter-archetype` to generate a standalone Filter project.
 
 ## Contributing
 

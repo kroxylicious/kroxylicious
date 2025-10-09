@@ -30,11 +30,13 @@
 :ApicurioVersion: 2.6.x
 :KubernetesVersionMinimum: 1.31
 :OpenShiftVersionMinimum: 4.18
+:LatestKafkaVersion: 4.1.0
 
+:AppAssetArtifactBase: kroxylicious-app-{KroxyliciousVersion}
 :OperatorAssetZipFileName: kroxylicious-operator-{KroxyliciousVersion}.zip
-:AppAssetZipFileName: kroxylicious-app-{KroxyliciousVersion}-bin.zip
+:AppAssetZipFileName: {AppAssetArtifactBase}-bin.zip
 :OperatorAssetTgzFileName: kroxylicious-operator-{KroxyliciousVersion}.tar.gz
-:AppAssetTgzFileName: kroxylicious-app-{KroxyliciousVersion}-bin.tar.gz
+:AppAssetTgzFileName: {AppAssetArtifactBase}-bin.tar.gz
 
 // GitHub links
 :github: https://github.com/kroxylicious/kroxylicious
@@ -120,4 +122,5 @@ ifndef::DocRoot[:DocRoot: ..]
 :MultiTenancyGuide: link:{DocRoot}/multi-tenancy-guide/[Kroxylicious Multi-Tenancy guide]
 :OauthBearerValidationGuide: link:{DocRoot}/oauth-bearer-validation/[Kroxylicious Oauth Bearer Validation guide]
 :DeveloperGuide: link:{DocRoot}/developer-guide/[Kroxylicious Developer guide]
+:DeveloperQuickstart: link:{DocRoot}/developer-quick-start/[Kroxylicious Developer Quickstart]
 :OperatorGuide: link:{DocRoot}/kroxylicious-operator/[Kroxylicious Operator for Kubernetes guide]
