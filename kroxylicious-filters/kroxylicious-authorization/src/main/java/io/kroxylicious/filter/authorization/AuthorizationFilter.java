@@ -9,9 +9,12 @@ package io.kroxylicious.filter.authorization;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.TreeSet;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
@@ -72,7 +75,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     }
 
     @NonNull
-    private CompletionStage<Authorization> getAuthorizationCompletionStage(FilterContext context, List<Action> actions) {
+    private CompletionStage<Authorization> authorization(FilterContext context, List<Action> actions) {
         return subject(context)
                 .thenCompose(subject -> authorizer.authorize(subject, actions))
                 .thenApply(authz -> {
@@ -106,75 +109,101 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     public CompletionStage<RequestFilterResult> onMetadataRequest(RequestHeaderData header,
                                                                   MetadataRequestData request,
                                                                   FilterContext context) {
+        this.includeClusterAuthorizedOperations = header.requestApiVersion() >= 8
+                && header.requestApiVersion() <= 10
+                && request.includeClusterAuthorizedOperations();
+        this.includeTopicAuthorizedOperations = request.includeTopicAuthorizedOperations();
+        this.isAllTopics = isAllTopics(header, request);
         // A metadata request is idempotent EXCEPT when topic creation is allowed.
         // Therefore, it's safe to forward the requests with allowAutoTopicCreation=false as-is
         // (and leave the response handler to filter out topics disallowed by the authorizer),
         // EXCEPT when the request allows topic creation.
-        if (!request.allowAutoTopicCreation()) {
-            this.includeClusterAuthorizedOperations = header.requestApiVersion() >= 8
-                    && header.requestApiVersion() <= 10
-                    && request.includeClusterAuthorizedOperations();
-            this.includeTopicAuthorizedOperations = request.includeTopicAuthorizedOperations();
-            this.isAllTopics = isAllTopics(header, request);
+        if (this.isAllTopics || !request.allowAutoTopicCreation()) {
             return context.forwardRequest(header, request);
         }
 
+        return onNonIdempotentMetadataRequest(header, request, context);
+    }
+
+    private CompletionStage<RequestFilterResult> onNonIdempotentMetadataRequest(RequestHeaderData header,
+                                                                                MetadataRequestData request,
+                                                                                FilterContext context) {
         // In the allowAutoTopicCreation=true case, we forward the request without topic
         // creation, filter the response with our authorizer
         // and then forward it again without the _disallowed_ topic creations
-        return context.sendRequest(header.duplicate(),
-                request.duplicate().setAllowAutoTopicCreation(false))
+//        if (header.requestApiVersion() < 4) {
+//            request.topics().stream().map(rt -> new Action(TopicResource.CREATE
+//            return authorization(context, x);
+//        }
+        var rqh = new RequestHeaderData()
+                .setRequestApiKey(ApiKeys.METADATA.id)
+                .setRequestApiVersion((short) 4)
+                .setClientId(header.clientId());
+        var mrd = new MetadataRequestData().setTopics(request.topics()).setAllowAutoTopicCreation(false);
+        return context.sendRequest(rqh,
+                        mrd)
                 .thenCompose(notCreateResponse -> {
                     var notCreateMetadataResponse = (MetadataResponseData) notCreateResponse;
-                    var byTopicExistence = notCreateMetadataResponse.topics().stream()
+                    var responseTopicsByExistence = notCreateMetadataResponse.topics().stream()
                             .collect(Collectors.partitioningBy(t -> Errors.UNKNOWN_TOPIC_OR_PARTITION.code() == t.errorCode()));
-                    var unknownTopics = byTopicExistence.get(true);
-                    var knownTopics = byTopicExistence.get(false);
-                    var createActions = unknownTopics.stream()
-                            .map(t -> new Action(TopicResource.CREATE, t.name()))
+                    var notExistingTopics = responseTopicsByExistence.get(true);
+                    var alreadyExistingTopics = responseTopicsByExistence.get(false);
+                    var createAndDescribeActions = notExistingTopics.stream()
+                            .flatMap(responseTopic -> Stream.of(
+                                    new Action(TopicResource.CREATE, responseTopic.name()),
+                                    new Action(TopicResource.DESCRIBE, responseTopic.name())))
                             .toList();
-                    Authorization createAuthorization = getAuthorizationCompletionStage(context, createActions).toCompletableFuture().join();
-                    var createDecisions = request.topics().stream().collect(Collectors.groupingBy(t -> createAuthorization.decision(TopicResource.CREATE, t.name())));
-                    var allowedToCreate = createDecisions.get(Decision.ALLOW);
-                    if (knownTopics.isEmpty() && allowedToCreate.isEmpty()) {
-                        // none of the topics already exists, and the subject is not allowed to create any of them
-                        // => in this case we can avoid a second request
-                        return context.requestFilterResultBuilder()
-                                .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED.exception())
-                                .completed();
-                    }
-                    else {
-                        var forBuffering = createDecisions.get(Decision.DENY).stream()
-                                .map(x -> {
-                                    return new MetadataResponseData.MetadataResponseTopic()
-                                            .setName(x.name())
-                                            .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
-                                    // .setTopicAuthorizedOperations()
-                                    ;
-                                })
-                                .toList();
-                        // TODO write the other half of this!
-                        savePartialResponse(header, (MetadataResponseData response) -> {
-                            response.topics().addAll(forBuffering);
-                            return response;
-                        });
+                    return authorization(context, createAndDescribeActions)
+                            .thenCompose(createAndDescribeAuthorization -> {
+                                var createDecisions = notExistingTopics.stream()
+                                        .flatMap(responseTopic -> request.topics().stream().filter(x -> Objects.equals(responseTopic.name(), x.name())).findFirst().stream())
+                                        .collect(Collectors.groupingBy(responseTopic -> createAndDescribeAuthorization.decision(TopicResource.CREATE, responseTopic.name())));
+                                var notExistingAndAllowedToCreate = createDecisions.getOrDefault(Decision.ALLOW, List.of());
+                                var notExistingAndNotAllowedToCreate = createDecisions.getOrDefault(Decision.DENY, List.of());
+                                var forBuffering = notExistingAndNotAllowedToCreate.stream()
+                                    .map(
+                                        requestTopic -> {
+                                            var decision = createAndDescribeAuthorization.decision(TopicResource.DESCRIBE, requestTopic.name());
+                                            return new MetadataResponseData.MetadataResponseTopic()
+                                                    .setName(requestTopic.name())
+                                                    .setErrorCode((decision == Decision.ALLOW ? Errors.UNKNOWN_TOPIC_OR_PARTITION : Errors.TOPIC_AUTHORIZATION_FAILED).code());
+                                        })
+                                    .toList();
+                                savePartialResponse(header, (MetadataResponseData response) -> {
+                                    response.topics().addAll(forBuffering);
+                                    return response;
+                                });
 
-                        // We include the topics which we don't need to create,
-                        // so that the eventual response is equally fresh for those
-                        // as for the topics which are being created
-                        var knownTopicNames = knownTopics.stream().map(MetadataResponseData.MetadataResponseTopic::name).collect(Collectors.toSet());
-                        var knownTopicIds = knownTopics.stream().map(MetadataResponseData.MetadataResponseTopic::topicId).collect(Collectors.toSet());
-                        List<MetadataRequestData.MetadataRequestTopic> concat = Stream.concat(
-                                allowedToCreate.stream(),
-                                request.topics().stream().filter(rt -> knownTopicNames.contains(rt.name()) || knownTopicIds.contains(rt.topicId())))
-                                .toList();
-                        return context.forwardRequest(header, request.setTopics(concat));
-                        // TODO need to add back the create.get(Decision.DENY); in the eventual response
-                    }
+                                // We include the topics which we don't need to create,
+                                // so that the eventual response is equally fresh for those
+                                // as for the topics which are being created
+                                var knownTopicNames = alreadyExistingTopics.stream()
+                                        .map(MetadataResponseData.MetadataResponseTopic::name)
+                                        .collect(Collectors.toSet());
+                                var knownTopicIds = alreadyExistingTopics.stream()
+                                        .map(MetadataResponseData.MetadataResponseTopic::topicId)
+                                        .collect(Collectors.toSet());
+                                var concat = notExistingAndAllowedToCreate.stream();
+                                if (request.topics() != null) {
+                                    concat = Stream.concat(concat,
+                                            request.topics().stream()
+                                                    .filter(rt ->
+                                                            knownTopicNames.contains(rt.name())
+                                                                    /*|| knownTopicIds.contains(rt.topicId())*/));
+                                }
+
+                                var requestWithCreateTopics = concat.toList();
+    //                            var s = new TreeSet<>(Comparator.comparing(MetadataRequestData.MetadataRequestTopic::name));
+    //                            s.addAll(requestWithCreateTopics);
+                                return context.forwardRequest(header, request.setTopics(requestWithCreateTopics));
+                            // TODO need to add back the create.get(Decision.DENY); in the eventual response
+                            //}
+                    });
+                }).exceptionally(e -> {
+                    e.printStackTrace();
+                    return null;
                 });
     }
-
-
 
     public CompletionStage<ResponseFilterResult> onMetadataResponse(ResponseHeaderData header,
                                                                     MetadataResponseData response,
@@ -197,9 +226,8 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                     .toList());
         }
 
-        return getAuthorizationCompletionStage(context, actions)
+        return authorization(context, actions)
                 .thenCompose(authorize -> {
-                    //var xx = new MetadataResponseData.MetadataResponseTopicCollection(response.topics().size());
                     var toRemove = new ArrayList<MetadataResponseData.MetadataResponseTopic>();
 
                     for (var t : response.topics()) {
@@ -208,43 +236,49 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                 toRemove.add(t);
                             }
                             else {
+                                // TODO in this case do we return the topic Id if the client didn't already know it?
                                 t.setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
                                 t.partitions().clear();
                                 t.setIsInternal(false);
                                 t.setTopicAuthorizedOperations(Integer.MIN_VALUE);
+                                t.setTopicId(Uuid.ZERO_UUID);
                             }
                         }
                         else { // ALLOW
                             if (includeTopicAuthorizedOperations) {
-                                    int flag = 0;
-                                    for (var clusterOp : TopicResource.values()) {
-                                        if (authorize.decision(clusterOp, t.name()) == Decision.ALLOW) {
-                                            flag |= (0x1 << clusterOp.kafkaOrdinal);
-                                        }
-                                    }
-                                    t.setTopicAuthorizedOperations(flag);
+                                t.setTopicAuthorizedOperations(topicAuthzOptions(authorize, t));
                             }
                         }
-//                            xx.add(new MetadataResponseData.MetadataResponseTopic()
-//                                    .setName(t.name())
-//                                    .setTopicId(t.topicId()) // TODO should this be included?
-//                                    .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code()));
-
                     }
 
                     if (includeClusterAuthorizedOperations) {
-                        int flag = 0;
-                        for (var clusterOp : ClusterResource.values()) {
-                            if (authorize.decision(clusterOp, "") == Decision.ALLOW) {
-                                flag |= (0x1 << clusterOp.kafkaOrdinal);
-                            }
-                        }
-                        response.setClusterAuthorizedOperations(flag);
+                        response.setClusterAuthorizedOperations(clusterAuthzOptions(authorize));
                     }
                     response.topics().removeAll(toRemove);
+                    mergePartialResponse(header, response);
 
                     return context.forwardResponse(header, response);
                 });
+    }
+
+    private static int clusterAuthzOptions(Authorization authorize) {
+        int flag = 0;
+        for (var clusterOp : ClusterResource.values()) {
+            if (authorize.decision(clusterOp, "") == Decision.ALLOW) {
+                flag |= (0x1 << clusterOp.kafkaOrdinal);
+            }
+        }
+        return flag;
+    }
+
+    private static int topicAuthzOptions(Authorization authorize, MetadataResponseData.MetadataResponseTopic t) {
+        int flag = 0;
+        for (var clusterOp : TopicResource.values()) {
+            if (authorize.decision(clusterOp, t.name()) == Decision.ALLOW) {
+                flag |= (0x1 << clusterOp.kafkaOrdinal);
+            }
+        }
+        return flag;
     }
 
     public CompletionStage<RequestFilterResult> onProduceRequest(RequestHeaderData header,
@@ -255,7 +289,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                 .map(t -> new Action(TopicResource.WRITE, t.name()))
                 .toList();
 
-        Authorization authorize = getAuthorizationCompletionStage(context, topicWriteActions).toCompletableFuture().join();
+        Authorization authorize = authorization(context, topicWriteActions).toCompletableFuture().join();
 
         var topicWriteDecisions = request.topicData().stream()
                 .collect(Collectors.groupingBy(tc -> authorize.decision(TopicResource.WRITE, tc.name())));
@@ -302,7 +336,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         var topicReadActions = request.topics().stream()
                 .map(t -> new Action(TopicResource.READ, t.topic()))
                 .toList();
-        return getAuthorizationCompletionStage(context, topicReadActions)
+        return authorization(context, topicReadActions)
                 .thenCompose(authorization -> {
                     var topicReadDecisions = request.topics().stream()
                             .collect(Collectors.groupingBy(t -> authorization.decision(TopicResource.READ, t.topic())));
@@ -349,7 +383,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         var topicReadActions = TopicResource.CREATE.actionsOf(
                 request.topics().stream()
                         .map(CreateTopicsRequestData.CreatableTopic::name));
-        return getAuthorizationCompletionStage(context, topicReadActions)
+        return authorization(context, topicReadActions)
                 .thenCompose(authorization -> {
                     var topicReadDecisions = authorization.partition(request.topics(),
                             TopicResource.CREATE,
@@ -390,7 +424,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                                                          FilterContext context) {
 
         List<Action> actions = TopicResource.DESCRIBE_CONFIGS.actionsOf(response.topics().stream().map(t -> t.name()));
-        return getAuthorizationCompletionStage(context, actions)
+        return authorization(context, actions)
                 .thenCompose(authorization -> {
                     for (var creatableTopicResult : response.topics()) {
                         if (authorization.decision(TopicResource.DESCRIBE_CONFIGS, creatableTopicResult.name()) == Decision.DENY) {
@@ -425,7 +459,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         else {
             actions = operation.actionsOf(request.topicNames().stream());
         }
-        return getAuthorizationCompletionStage(context, actions)
+        return authorization(context, actions)
                 .thenCompose(authorization -> {
                     if (useStates) {
                         var decisions = authorization.partition(request.topics(), operation, DeleteTopicsRequestData.DeleteTopicState::name);
@@ -566,7 +600,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                     request.topics().stream()
                             .map(OffsetFetchRequestData.OffsetFetchRequestTopic::name));
         }
-        return getAuthorizationCompletionStage(context, actions)
+        return authorization(context, actions)
                 .thenCompose(authorization -> {
                     if (isBatched) {
                         var t2 = authorization.partition(request.groups().stream()

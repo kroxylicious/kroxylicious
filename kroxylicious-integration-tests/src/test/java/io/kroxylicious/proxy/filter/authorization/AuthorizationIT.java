@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -46,6 +46,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
@@ -71,22 +72,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(KafkaClusterExtension.class)
 public class AuthorizationIT extends BaseIT {
 
-    public static final ObjectMapper MAPPER = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
-    static Path rulesFile;
-
-    @BeforeAll
-    static void beforeAll() throws IOException {
-        rulesFile = Files.createTempFile(AuthorizationIT.class.getName(), ".aclRules");
-        Files.writeString(rulesFile, """
-            version 1;
-            import User from io.kroxylicious.proxy.internal.subject; // TODO This can't remain in the internal package!
-            import TopicResource as Topic from io.kroxylicious.filter.authorization;
-            allow User with name = "alice" to * Topic with name = "topic";
-            allow User with name = "bob" to READ Topic with name = "topic";
-            otherwise deny;
-            """);
-    }
-
     // 1. Spin a cluster with Users:
     // * Alice directly authorized for operation
     // * Bob indirectly authorized for operation (by implication)
@@ -101,9 +86,44 @@ public class AuthorizationIT extends BaseIT {
     // 9. Assert that the responses are ==
     // 10. Assert no visible side effects
 
+    public static final ObjectMapper MAPPER = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
+    private static Path rulesFile;
+    private static String topicName = "topic";
+    private static String nonExistingTopicCreateAllowed = "non-existing-topic-create-allowed";
+    private static String nonExistingTopicCreateDenied = "non-existing-topic-create-denied";
+    private static List<AclBinding> aclBindings;
+
+    @BeforeAll
+    static void beforeAll() throws IOException {
+        // TODO need to add Carol who has Cluster.CREATE
+        rulesFile = Files.createTempFile(AuthorizationIT.class.getName(), ".aclRules");
+        Files.writeString(rulesFile, """
+            version 1;
+            import User from io.kroxylicious.proxy.internal.subject; // TODO This can't remain in the internal package!
+            import TopicResource as Topic from io.kroxylicious.filter.authorization;
+            allow User with name = "alice" to * Topic with name = "%s";
+            allow User with name = "alice" to * Topic with name = "%s";
+            allow User with name = "bob" to READ Topic with name = "%s";
+            otherwise deny;
+            """.formatted(topicName, nonExistingTopicCreateAllowed, topicName));
+        /*
+         * The correctness of this test is predicated on the equivalence of the Proxy ACLs (above) and the Kafka ACLs (below)
+         * If you add a rule to one you'll need to add an equivalent rule to the other
+         */
+        aclBindings = List.of(new AclBinding(
+                new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
+                new AccessControlEntry("User:alice", "*", AclOperation.ALL, AclPermissionType.ALLOW)),
+                new AclBinding(
+                        new ResourcePattern(ResourceType.TOPIC, nonExistingTopicCreateAllowed, PatternType.LITERAL),
+                        new AccessControlEntry("User:alice", "*", AclOperation.ALL, AclPermissionType.ALLOW)),
+                new AclBinding(
+                        new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
+                        new AccessControlEntry("User:bob", "*", AclOperation.READ, AclPermissionType.ALLOW)));
+    }
+
     static List<Arguments> metadata() {
         // The tuples
-        List<Short> apiVersions = List.of(ApiKeys.METADATA.latestVersion()); //ApiKeys.METADATA.allVersions();
+        List<Short> apiVersions = ApiKeys.METADATA.allVersions();
         boolean[] allowTopicCreations = { true, false };
         boolean[] clusterAuthz = { true, false };
         boolean[] topicAuthz = { true, false };
@@ -111,15 +131,18 @@ public class AuthorizationIT extends BaseIT {
                 null,
                 List.of(),
                 List.of(
-                        new MetadataRequestData.MetadataRequestTopic().setName("topic"),
-                        new MetadataRequestData.MetadataRequestTopic().setName("non-existing-topic"))
+                        new MetadataRequestData.MetadataRequestTopic().setName(topicName),
+                        new MetadataRequestData.MetadataRequestTopic().setName(nonExistingTopicCreateDenied),
+                        new MetadataRequestData.MetadataRequestTopic().setName(nonExistingTopicCreateAllowed))
         };
 
-        // Compute the n-fold Cartesian product of the tuples
+        // Compute the n-fold Cartesian product of the tuples (except for pruning)
         List<Arguments> result = new ArrayList<>();
         for (var apiVersion : apiVersions) {
             for (boolean allowAutoCreation : allowTopicCreations) {
                 if (!allowAutoCreation && apiVersion < 4) {
+                    // We have to prune some combinations because the RequestData will reject
+                    // non-default values for fields which don't exist in a certain version
                     continue;
                 }
                 for (boolean includeClusterAuthz : clusterAuthz) {
@@ -171,15 +194,8 @@ public class AuthorizationIT extends BaseIT {
                 "bob", "Bob",
                 "eve", "Eve");
 
-        prepCluster(unproxiedCluster, topicName,
-                new AclBinding(
-                        new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
-                        new AccessControlEntry("User:alice", "*", AclOperation.ALL, AclPermissionType.ALLOW)),
-                new AclBinding(
-                        new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
-                        new AccessControlEntry("User:bob", "*", AclOperation.READ, AclPermissionType.ALLOW)));
-
-        prepCluster(proxiedCluster, topicName);
+        prepCluster(unproxiedCluster, topicName, aclBindings);
+        prepCluster(proxiedCluster, topicName, List.of());
 
         var unproxiedResponsesByUser = responsesByUser(apiVersion,
                 allowAutoCreation,
@@ -188,6 +204,7 @@ public class AuthorizationIT extends BaseIT {
                 includeTopicsAuthz,
                 unproxiedCluster.getBootstrapServers(),
                 passwords);
+        // TODO assertions about side effects (topics created, or not)
 
         if (topics == null || !topics.isEmpty()) {
             // When topics are requested, we expect alice and bob to be able to see them
@@ -215,7 +232,7 @@ public class AuthorizationIT extends BaseIT {
                 .addToDefaultFilters(saslTermination.name(), authorization.name());
 
         try (var tester = kroxyliciousTester(config)) {
-            var proxiedResponsedByUser = responsesByUser(
+            var proxiedResponsesByUser = responsesByUser(
                     apiVersion,
                     allowAutoCreation,
                     topics,
@@ -224,26 +241,19 @@ public class AuthorizationIT extends BaseIT {
                     tester.getBootstrapAddress(),
                     passwords);
 
-            assertThat(clobberMap(proxiedResponsedByUser))
+            assertThat(clobberMap(proxiedResponsesByUser))
                     .isEqualTo(clobberMap(unproxiedResponsesByUser));
+            // TODO assertions about side effects (topics created, or not)
         }
     }
 
-    @NonNull
-    private static Map<String, String> clobberMap(Map<String, ObjectNode> unproxiedResponsesByUser) {
-        return unproxiedResponsesByUser.entrySet().stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        entry -> clobber(entry.getValue())));
-    }
-
     private static Map<String, ObjectNode> responsesByUser(short apiVersion,
-                                                                     boolean allowAutoCreation,
-                                                                     List<MetadataRequestData.MetadataRequestTopic> topics,
-                                                                     boolean includeClusterAuthz,
-                                                                     boolean includeTopicsAuthz,
-                                                                     String bootstrapServers,
-                                                                     Map<String, String> passwords) throws JsonProcessingException {
+                                                           boolean allowAutoCreation,
+                                                           List<MetadataRequestData.MetadataRequestTopic> topics,
+                                                           boolean includeClusterAuthz,
+                                                           boolean includeTopicsAuthz,
+                                                           String bootstrapServers,
+                                                           Map<String, String> passwords) {
         var responsesByUser = new HashMap<String, ObjectNode>();
         for (var entry : passwords.entrySet()) {
             try (KafkaClient unproxiedClient = client(bootstrapServers)) {
@@ -257,14 +267,43 @@ public class AuthorizationIT extends BaseIT {
                                 .setIncludeTopicAuthorizedOperations(includeTopicsAuthz)));
 
                 var r = (MetadataResponseData) resp.payload().message();
-                assertThat(Errors.forCode(r.errorCode())).isEqualTo(Errors.NONE);
-
                 ObjectNode json = (ObjectNode) MetadataResponseDataJsonConverter.write(r, apiVersion);
-
                 responsesByUser.put(entry.getKey(), json);
             }
         }
         return responsesByUser;
+    }
+
+    @NonNull
+    private static Map<String, String> clobberMap(Map<String, ObjectNode> unproxiedResponsesByUser) {
+        return unproxiedResponsesByUser.entrySet().stream()
+                .collect(Collectors.toMap(
+                        Map.Entry::getKey,
+                        entry -> clobberMetadata(entry.getValue())));
+    }
+
+    private static String clobberMetadata(final ObjectNode root) {
+        clobberUuid(root, "clusterId");
+        JsonNode brokers = root.path("brokers");
+        for (var broker : brokers) {
+            if (broker.isObject()) {
+                ((ObjectNode) broker).put("port", "CLOBBERED");
+            }
+        }
+
+        var topics = sortArray(root, "topics", "name");
+        for (var topics1 : topics) {
+            if (topics1.isObject()) {
+                clobberUuid((ObjectNode) topics1, "topicId");
+            }
+        }
+        
+        try {
+            return MAPPER.writeValueAsString(root);
+        }
+        catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private static JsonNode maybeClobberedUuid(JsonNode uuid) {
@@ -280,33 +319,31 @@ public class AuthorizationIT extends BaseIT {
         return uuid;
     }
 
-    private static String clobber(ObjectNode json) {
+    private static void clobberUuid(ObjectNode root, String propertyName) {
+        root.replace(propertyName, maybeClobberedUuid(root.get(propertyName)));
+    }
 
-        json.replace("clusterId", maybeClobberedUuid(json.get("clusterId")));
-        ((ObjectNode) json.path("brokers").path(0)).put("port", "CLOBBERED");
-        var topics1 = json.path("topics").path(0);
-        if (topics1.isObject()) { // could be missingnode
-            ((ObjectNode) topics1).replace("topicId", maybeClobberedUuid(json.get("topicId")));
+    private static ArrayNode sortArray(ObjectNode root, String arrayProperty, String sortProperty) {
+        JsonNode topics = root.path("topics");
+        if (topics.isArray()) {
+            var sortedTopics = topics.valueStream().sorted(Comparator.comparing(itemNode -> itemNode.get(sortProperty).textValue())).toList();
+            root.putArray(arrayProperty).addAll(sortedTopics);
+            return (ArrayNode) root.get(arrayProperty);
         }
-        try {
-            return MAPPER.writeValueAsString(json);
-        }
-        catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        return null;
     }
 
     private static Uuid prepCluster(KafkaCluster unproxiedCluster,
                                     String topicName,
-                                    AclBinding... bindings) {
+                                    List<AclBinding> bindings) {
         Uuid topicIdInUnproxiedCluster;
         try (var admin = AdminClient.create(unproxiedCluster.getKafkaClientConfiguration("super", "Super"))) {
             topicIdInUnproxiedCluster = admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1)))
                     .topicId(topicName)
                     .toCompletionStage().toCompletableFuture().join();
 
-            if (bindings.length > 0) {
-                admin.createAcls(Arrays.asList(bindings)).all()
+            if (!bindings.isEmpty()) {
+                admin.createAcls(bindings).all()
                         .toCompletionStage().toCompletableFuture().join();
             }
         }
@@ -316,16 +353,17 @@ public class AuthorizationIT extends BaseIT {
     private static void authenticate(KafkaClient client, String username, String password) {
         // For this test we don't really care what the authn mechanism is, so we use the simplest, plain
         // because we have to do the SASL dance ourselves via the very basic `KafkaClient`
-        var h = (SaslHandshakeResponseData) client.getSync(new Request(ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_HANDSHAKE.latestVersion(), "test",
+        var handshakeResponse = (SaslHandshakeResponseData) client.getSync(new Request(ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_HANDSHAKE.latestVersion(), "test",
                 new SaslHandshakeRequestData()
                         .setMechanism("PLAIN")))
                 .payload().message();
-        assertThat(Errors.forCode(h.errorCode())).isEqualTo(Errors.NONE);
-        var a = (SaslAuthenticateResponseData) client.getSync(new Request(ApiKeys.SASL_AUTHENTICATE, ApiKeys.SASL_AUTHENTICATE.latestVersion(), "test",
+        assertThat(Errors.forCode(handshakeResponse.errorCode())).isEqualTo(Errors.NONE);
+
+        var authenticateResponse = (SaslAuthenticateResponseData) client.getSync(new Request(ApiKeys.SASL_AUTHENTICATE, ApiKeys.SASL_AUTHENTICATE.latestVersion(), "test",
                 new SaslAuthenticateRequestData()
                         .setAuthBytes((username + "\0" + username + "\0" + password).getBytes(StandardCharsets.UTF_8))))
                 .payload().message();
-        assertThat(Errors.forCode(a.errorCode())).isEqualTo(Errors.NONE);
+        assertThat(Errors.forCode(authenticateResponse.errorCode())).isEqualTo(Errors.NONE);
     }
 
     /**
