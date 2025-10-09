@@ -6,9 +6,12 @@
 
 package io.kroxylicious.systemtests;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
+import java.util.Map;
 
+import org.apache.kafka.common.protocol.ApiKeys;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,12 +32,15 @@ import io.kroxylicious.systemtests.steps.KroxyliciousSteps;
 import io.kroxylicious.systemtests.templates.metrics.ScraperTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaNodePoolTemplates;
 import io.kroxylicious.systemtests.templates.strimzi.KafkaTemplates;
+import io.kroxylicious.test.tester.SimpleMetric;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
+import static io.kroxylicious.proxy.internal.util.Metrics.API_KEY_LABEL;
+import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
-import static io.kroxylicious.systemtests.utils.MetricsUtils.assertMetricValue;
-import static io.kroxylicious.systemtests.utils.MetricsUtils.assertMetricValueCount;
-import static io.kroxylicious.systemtests.utils.MetricsUtils.assertMetricValueHigherThan;
-import static org.junit.jupiter.api.Assertions.assertAll;
+import static io.kroxylicious.test.tester.SimpleMetricAssert.assertThat;
+
 
 /**
  * This test suite is designed for testing metrics exposed by kroxylicious.
@@ -43,61 +49,134 @@ class MetricsST extends AbstractST {
     private static final Logger LOGGER = LoggerFactory.getLogger(MetricsST.class);
     private final String clusterName = "my-cluster";
     protected static final String BROKER_NODE_NAME = "kafka";
-    private static final String MESSAGE = "Hello-world";
+    private static final String RECORD_VALUE = "Hello-world";
     private MetricsCollector kroxyliciousCollector;
     private String bootstrap;
     private KroxyliciousOperator kroxyliciousOperator;
 
     @Test
-    void kroxyliciousMetricsBeforeSendingMessages() {
+    void kroxyliciousMessageTotals(String namespace) {
+        int numberOfRecords = 1;
+
+        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
+
+        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfRecords).addArgument(RECORD_VALUE).addArgument(topicName).log();
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, RECORD_VALUE, numberOfRecords);
+        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
+        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfRecords, Duration.ofMinutes(2));
+        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
+        kroxyliciousCollector.collectMetricsFromPods();
         LOGGER.atInfo().setMessage("Metrics: {}").addArgument(kroxyliciousCollector.getCollectedData().values()).log();
-        assertAll("Checking the presence of the metrics",
-                () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_inbound_downstream_messages_total", 1),
-                () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_inbound_downstream_decoded_messages_total", 1));
-        assertAll("Checking the value of the metrics",
-                () -> assertMetricValue(kroxyliciousCollector, "kroxylicious_inbound_downstream_messages_total", 0),
-                () -> assertMetricValue(kroxyliciousCollector, "kroxylicious_inbound_downstream_decoded_messages_total", 0));
+
+        var parsedMetrics = convertToSimpleMetrics(kroxyliciousCollector);
+
+        var produceLabels = Map.of(API_KEY_LABEL, ApiKeys.PRODUCE.name(), NODE_ID_LABEL, "0");
+
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_client_to_proxy_request_total", produceLabels)
+                .value()
+                .isOne();
+
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_proxy_to_server_request_total", produceLabels)
+                .value()
+                .isOne();
+
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_server_to_proxy_response_total", produceLabels)
+                .value()
+                .isOne();
+
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_proxy_to_client_response_total", produceLabels)
+                .value()
+                .isOne();
+
+        var fetchLabels = Map.of(API_KEY_LABEL, ApiKeys.FETCH.name(), NODE_ID_LABEL, "0");
+
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_client_to_proxy_request_total", fetchLabels)
+                .value()
+                .isGreaterThanOrEqualTo(1);
+
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_proxy_to_server_request_total", fetchLabels)
+                .value()
+                .isGreaterThanOrEqualTo(1);
+
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_server_to_proxy_response_total", fetchLabels)
+                .value()
+                .isGreaterThanOrEqualTo(1);
+
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_proxy_to_client_response_total", fetchLabels)
+                .value()
+                .isGreaterThanOrEqualTo(1);
     }
 
     @Test
-    void kroxyliciousDownstreamMessages(String namespace) {
+    void kroxyliciousMessageSize(String namespace) {
         int numberOfMessages = 1;
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
 
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
+        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(RECORD_VALUE).addArgument(topicName).log();
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, RECORD_VALUE, numberOfMessages);
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
         List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
         kroxyliciousCollector.collectMetricsFromPods();
         LOGGER.atInfo().setMessage("Metrics: {}").addArgument(kroxyliciousCollector.getCollectedData().values()).log();
-        assertAll(
-                () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_inbound_downstream_messages_total", 1),
-                () -> assertMetricValueHigherThan(kroxyliciousCollector, "kroxylicious_inbound_downstream_messages_total", 0),
-                () -> assertMetricValueHigherThan(kroxyliciousCollector, "kroxylicious_inbound_downstream_decoded_messages_total", 0));
-    }
 
-    @Test
-    void kroxyliciousPayloadSize(String namespace) {
-        int numberOfMessages = 1;
+        int recordValueSize = RECORD_VALUE.getBytes(StandardCharsets.UTF_8).length;
+        var parsedMetrics = convertToSimpleMetrics(kroxyliciousCollector);
 
-        LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
-        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
+        var produceLabels = Map.of(API_KEY_LABEL, ApiKeys.PRODUCE.name(), NODE_ID_LABEL, "0");
 
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
-        LOGGER.atInfo().setMessage("Then the messages are consumed").log();
-        List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
-        LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
-        kroxyliciousCollector.collectMetricsFromPods();
-        LOGGER.atInfo().setMessage("Metrics: {}").addArgument(kroxyliciousCollector.getCollectedData().values()).log();
-        assertAll(
-                () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_payload_size_bytes_count", 1),
-                () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_payload_size_bytes_sum", 1),
-                () -> assertMetricValueCount(kroxyliciousCollector, "kroxylicious_payload_size_bytes_max", 1));
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_client_to_proxy_request_size_bytes_count", produceLabels)
+                .value()
+                .isOne();
 
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_client_to_proxy_request_size_bytes_sum", produceLabels)
+                .value()
+                .isGreaterThan(recordValueSize);
+
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_proxy_to_server_request_size_bytes_count", produceLabels)
+                .value()
+                .isOne();
+
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_proxy_to_server_request_size_bytes_sum", produceLabels)
+                .value()
+                .isGreaterThan(recordValueSize);
+
+        var fetchLabels = Map.of(API_KEY_LABEL, ApiKeys.FETCH.name(), NODE_ID_LABEL, "0");
+
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_server_to_proxy_response_size_bytes_count", fetchLabels)
+                .value()
+                .isGreaterThanOrEqualTo(1);
+
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_server_to_proxy_response_size_bytes_sum", fetchLabels)
+                .value()
+                .isGreaterThan(recordValueSize);
+
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_proxy_to_client_response_size_bytes_count", fetchLabels)
+                .value()
+                .isGreaterThanOrEqualTo(1);
+
+        assertThat(parsedMetrics)
+                .withUniqueMetric("kroxylicious_proxy_to_client_response_size_bytes_sum", fetchLabels)
+                .value()
+                .isGreaterThan(recordValueSize);
     }
 
     @BeforeAll
@@ -150,5 +229,12 @@ class MetricsST extends AbstractST {
                 .withComponentName(Constants.KROXYLICIOUS_PROXY_SIMPLE_NAME)
                 .build();
         kroxyliciousCollector.collectMetricsFromPods();
+    }
+
+    @NonNull
+    private static List<SimpleMetric> convertToSimpleMetrics(MetricsCollector collector) {
+        return collector.getCollectedData().values().stream()
+                .map(SimpleMetric::parse)
+                .flatMap(List::stream).toList();
     }
 }
