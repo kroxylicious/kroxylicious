@@ -72,6 +72,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(KafkaClusterExtension.class)
 public class AuthorizationIT extends BaseIT {
 
+    private static final Uuid SENTINEL_TOPIC_ID = Uuid.randomUuid();
+
     // 1. Spin a cluster with Users:
     // * Alice directly authorized for operation
     // * Bob indirectly authorized for operation (by implication)
@@ -133,7 +135,10 @@ public class AuthorizationIT extends BaseIT {
                 List.of(
                         new MetadataRequestData.MetadataRequestTopic().setName(topicName),
                         new MetadataRequestData.MetadataRequestTopic().setName(nonExistingTopicCreateDenied),
-                        new MetadataRequestData.MetadataRequestTopic().setName(nonExistingTopicCreateAllowed))
+                        new MetadataRequestData.MetadataRequestTopic().setName(nonExistingTopicCreateAllowed)),
+                List.of(
+                        // this is just a placeholder, replaced by the real id of topicName
+                        new MetadataRequestData.MetadataRequestTopic().setName(topicName).setTopicId(SENTINEL_TOPIC_ID))
         };
 
         // Compute the n-fold Cartesian product of the tuples (except for pruning)
@@ -158,6 +163,11 @@ public class AuthorizationIT extends BaseIT {
                         }
                         for (List<MetadataRequestData.MetadataRequestTopic> topics : requestedTopics) {
                             if (topics == null && apiVersion < 1) {
+                                continue;
+                            }
+                            if (apiVersion < 12 && topics != null && topics.stream().anyMatch(t -> t.topicId() != null)) {
+                                // version 10 added support for topic ids, but
+                                // "Versions 10 and 11 should not use the topicId field or set topic name to null." (from JSON IDL)
                                 continue;
                             }
                             result.addAll(List.of(
@@ -186,7 +196,7 @@ public class AuthorizationIT extends BaseIT {
                   }) @BrokerConfig(name = "authorizer.class.name", value = "org.apache.kafka.metadata.authorizer.StandardAuthorizer")
                   // ANONYMOUS is the broker
                   @BrokerConfig(name = "super.users", value = "User:ANONYMOUS;User:super") KafkaCluster unproxiedCluster,
-                  KafkaCluster proxiedCluster) throws JsonProcessingException {
+                  KafkaCluster proxiedCluster) {
 
         String topicName = "topic";
         Map<String, String> passwords = Map.of(
@@ -194,15 +204,17 @@ public class AuthorizationIT extends BaseIT {
                 "bob", "Bob",
                 "eve", "Eve");
 
-        prepCluster(unproxiedCluster, topicName, aclBindings);
-        prepCluster(proxiedCluster, topicName, List.of());
+        var topicIdInUnproxiedCluster = prepCluster(unproxiedCluster, topicName, aclBindings);
+        System.err.println("id in proxied cluster=" + topicIdInUnproxiedCluster);
+
 
         var unproxiedResponsesByUser = responsesByUser(apiVersion,
                 allowAutoCreation,
-                topics,
+                topics != null ? topics.stream().map(t -> t.duplicate()).collect(Collectors.toList()) : null,
                 includeClusterAuthz,
                 includeTopicsAuthz,
                 unproxiedCluster.getBootstrapServers(),
+                topicIdInUnproxiedCluster,
                 passwords);
         // TODO assertions about side effects (topics created, or not)
 
@@ -232,13 +244,16 @@ public class AuthorizationIT extends BaseIT {
                 .addToDefaultFilters(saslTermination.name(), authorization.name());
 
         try (var tester = kroxyliciousTester(config)) {
+            var topicIdInProxiedCluster = prepCluster(proxiedCluster, topicName, List.of());
+            System.err.println("id in proxied cluster=" + topicIdInProxiedCluster);
             var proxiedResponsesByUser = responsesByUser(
                     apiVersion,
                     allowAutoCreation,
-                    topics,
+                    topics != null ? topics.stream().map(t -> t.duplicate()).collect(Collectors.toList()) : null,
                     includeClusterAuthz,
                     includeTopicsAuthz,
                     tester.getBootstrapAddress(),
+                    topicIdInProxiedCluster,
                     passwords);
 
             assertThat(clobberMap(proxiedResponsesByUser))
@@ -253,11 +268,22 @@ public class AuthorizationIT extends BaseIT {
                                                            boolean includeClusterAuthz,
                                                            boolean includeTopicsAuthz,
                                                            String bootstrapServers,
+                                                           Uuid topicIdReplacement,
                                                            Map<String, String> passwords) {
         var responsesByUser = new HashMap<String, ObjectNode>();
         for (var entry : passwords.entrySet()) {
             try (KafkaClient unproxiedClient = client(bootstrapServers)) {
                 authenticate(unproxiedClient, entry.getKey(), entry.getValue());
+
+                if (topics != null) {
+                    for (var topic : topics) {
+                        if (topic.topicId().equals(SENTINEL_TOPIC_ID)) {
+                            System.err.println("Replacing " + SENTINEL_TOPIC_ID + " with " + topicIdReplacement);
+                            topic.setTopicId(topicIdReplacement)
+                                    .setName(null);
+                        }
+                    }
+                }
 
                 var resp = unproxiedClient.getSync(new Request(ApiKeys.METADATA, apiVersion, "test",
                         new MetadataRequestData()
@@ -326,7 +352,9 @@ public class AuthorizationIT extends BaseIT {
     private static ArrayNode sortArray(ObjectNode root, String arrayProperty, String sortProperty) {
         JsonNode topics = root.path("topics");
         if (topics.isArray()) {
-            var sortedTopics = topics.valueStream().sorted(Comparator.comparing(itemNode -> itemNode.get(sortProperty).textValue())).toList();
+            var sortedTopics = topics.valueStream().sorted(
+                    Comparator.comparing(itemNode -> itemNode.get(sortProperty).textValue(),
+                            Comparator.nullsFirst((String x, String y) -> x.compareTo(y)))).toList();
             root.putArray(arrayProperty).addAll(sortedTopics);
             return (ArrayNode) root.get(arrayProperty);
         }
@@ -336,18 +364,19 @@ public class AuthorizationIT extends BaseIT {
     private static Uuid prepCluster(KafkaCluster unproxiedCluster,
                                     String topicName,
                                     List<AclBinding> bindings) {
-        Uuid topicIdInUnproxiedCluster;
+        Uuid topicId;
         try (var admin = AdminClient.create(unproxiedCluster.getKafkaClientConfiguration("super", "Super"))) {
-            topicIdInUnproxiedCluster = admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1)))
+            topicId = admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1)))
                     .topicId(topicName)
                     .toCompletionStage().toCompletableFuture().join();
+            System.err.println("Got " + topicId + " from the admin client");
 
             if (!bindings.isEmpty()) {
                 admin.createAcls(bindings).all()
                         .toCompletionStage().toCompletableFuture().join();
             }
         }
-        return topicIdInUnproxiedCluster;
+        return topicId;
     }
 
     private static void authenticate(KafkaClient client, String username, String password) {
