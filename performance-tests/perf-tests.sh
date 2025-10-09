@@ -8,6 +8,7 @@
 set -eo pipefail
 PERF_TESTS_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+AP_LOADER_JAR_VERSION=4.1-10
 TEST=${TEST:-'[0-9][0-9]-.*'}
 RECORD_SIZE=${RECORD_SIZE:-1024}
 NUM_RECORDS=${NUM_RECORDS:-10000000}
@@ -99,7 +100,7 @@ setupAsyncProfilerKroxy() {
   ensureSysCtlValue kernel.kptr_restrict 0
 
   mkdir -p /tmp/asprof
-  curl -s -o /tmp/asprof/ap-loader-all.jar "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/3.0-9/ap-loader-all-3.0-9.jar"
+  curl -s -o /tmp/asprof/ap-loader-all.jar "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/${AP_LOADER_JAR_VERSION}/ap-loader-all-${AP_LOADER_JAR_VERSION}.jar"
 
   mkdir -p "${LOADER_DIR}"
   unzip -o -q /tmp/asprof/ap-loader-all.jar -d "${LOADER_DIR}"
@@ -122,11 +123,11 @@ startAsyncProfilerKroxy() {
   esac
 
   echo "TARGETARCH: ${TARGETARCH}"
+  echo "loader dir: ${LOADER_DIR}"
 
   ${CONTAINER_ENGINE} exec ${KROXYLICIOUS_CONTAINER_ID} mkdir -p "${LOADER_DIR}/"""{bin,lib} && chmod +r -R "${LOADER_DIR}"
-  ${CONTAINER_ENGINE} cp "${LOADER_DIR}/libs/libasyncProfiler-3.0-${TARGETARCH}.so" "${KROXYLICIOUS_CONTAINER_ID}:${LOADER_DIR}/lib/libasyncProfiler.so"
-
-  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler start "${KROXYLICIOUS_PID}"
+  ${CONTAINER_ENGINE} cp "${LOADER_DIR}/libs/libasyncProfiler-*-${TARGETARCH}.so" "${KROXYLICIOUS_CONTAINER_ID}:${LOADER_DIR}/lib/libasyncProfiler.so"
+  java -Dap_loader_extraction_dir="${LOADER_DIR}" -jar /tmp/asprof/ap-loader-all.jar jattach "${KROXYLICIOUS_PID}" load "${LOADER_DIR}/lib/libasyncProfiler.so" false
 }
 
 stopAsyncProfilerKroxy() {
@@ -259,7 +260,7 @@ TMP=$(mktemp -d)
 ON_SHUTDOWN+=("rm -rf ${TMP}")
 
 # Bring up Kafka
-ON_SHUTDOWN+=("runDockerCompose down")
+#ON_SHUTDOWN+=("runDockerCompose down")
 
 [[ -n ${PULL_CONTAINERS} ]] && runDockerCompose pull
 
