@@ -15,15 +15,18 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 import java.util.stream.Collectors;
 
 import org.apache.kafka.clients.admin.AdminClient;
 import org.apache.kafka.clients.admin.NewTopic;
+import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AccessControlEntry;
 import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
+import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseDataJsonConverter;
@@ -36,7 +39,10 @@ import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -64,6 +70,7 @@ import io.kroxylicious.testing.kafka.common.SaslMechanism;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -94,27 +101,29 @@ public class AuthorizationIT extends BaseIT {
     private static String nonExistingTopicCreateAllowed = "non-existing-topic-create-allowed";
     private static String nonExistingTopicCreateDenied = "non-existing-topic-create-denied";
     private static List<AclBinding> aclBindings;
+    private Uuid topicIdInUnproxiedCluster;
+    private Uuid topicIdInProxiedCluster;
 
     @BeforeAll
     static void beforeAll() throws IOException {
         // TODO need to add Carol who has Cluster.CREATE
         rulesFile = Files.createTempFile(AuthorizationIT.class.getName(), ".aclRules");
         Files.writeString(rulesFile, """
-            version 1;
-            import User from io.kroxylicious.proxy.internal.subject; // TODO This can't remain in the internal package!
-            import TopicResource as Topic from io.kroxylicious.filter.authorization;
-            allow User with name = "alice" to * Topic with name = "%s";
-            allow User with name = "alice" to * Topic with name = "%s";
-            allow User with name = "bob" to READ Topic with name = "%s";
-            otherwise deny;
-            """.formatted(topicName, nonExistingTopicCreateAllowed, topicName));
+                version 1;
+                import User from io.kroxylicious.proxy.internal.subject; // TODO This can't remain in the internal package!
+                import TopicResource as Topic from io.kroxylicious.filter.authorization;
+                allow User with name = "alice" to * Topic with name = "%s";
+                allow User with name = "alice" to * Topic with name = "%s";
+                allow User with name = "bob" to READ Topic with name = "%s";
+                otherwise deny;
+                """.formatted(topicName, nonExistingTopicCreateAllowed, topicName));
         /*
          * The correctness of this test is predicated on the equivalence of the Proxy ACLs (above) and the Kafka ACLs (below)
          * If you add a rule to one you'll need to add an equivalent rule to the other
          */
         aclBindings = List.of(new AclBinding(
-                new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
-                new AccessControlEntry("User:alice", "*", AclOperation.ALL, AclPermissionType.ALLOW)),
+                        new ResourcePattern(ResourceType.TOPIC, topicName, PatternType.LITERAL),
+                        new AccessControlEntry("User:alice", "*", AclOperation.ALL, AclPermissionType.ALLOW)),
                 new AclBinding(
                         new ResourcePattern(ResourceType.TOPIC, nonExistingTopicCreateAllowed, PatternType.LITERAL),
                         new AccessControlEntry("User:alice", "*", AclOperation.ALL, AclPermissionType.ALLOW)),
@@ -123,143 +132,91 @@ public class AuthorizationIT extends BaseIT {
                         new AccessControlEntry("User:bob", "*", AclOperation.READ, AclPermissionType.ALLOW)));
     }
 
-    static List<Arguments> metadata() {
-        // The tuples
-        List<Short> apiVersions = ApiKeys.METADATA.allVersions();
-        boolean[] allowTopicCreations = { true, false };
-        boolean[] clusterAuthz = { true, false };
-        boolean[] topicAuthz = { true, false };
-        List[] requestedTopics = {
-                null,
-                List.of(),
-                List.of(
-                        new MetadataRequestData.MetadataRequestTopic().setName(topicName),
-                        new MetadataRequestData.MetadataRequestTopic().setName(nonExistingTopicCreateDenied),
-                        new MetadataRequestData.MetadataRequestTopic().setName(nonExistingTopicCreateAllowed)),
-                List.of(
-                        // this is just a placeholder, replaced by the real id of topicName
-                        new MetadataRequestData.MetadataRequestTopic().setName(topicName).setTopicId(SENTINEL_TOPIC_ID))
-        };
-
-        // Compute the n-fold Cartesian product of the tuples (except for pruning)
-        List<Arguments> result = new ArrayList<>();
-        for (var apiVersion : apiVersions) {
-            for (boolean allowAutoCreation : allowTopicCreations) {
-                if (!allowAutoCreation && apiVersion < 4) {
-                    // We have to prune some combinations because the RequestData will reject
-                    // non-default values for fields which don't exist in a certain version
-                    continue;
-                }
-                for (boolean includeClusterAuthz : clusterAuthz) {
-                    if (apiVersion < 8 && includeClusterAuthz) {
-                        continue;
-                    }
-                    if (apiVersion >= 11 && includeClusterAuthz) {
-                        continue;
-                    }
-                    for (boolean includeTopicAuthz : topicAuthz) {
-                        if (apiVersion < 8 && includeTopicAuthz) {
-                            continue;
-                        }
-                        for (List<MetadataRequestData.MetadataRequestTopic> topics : requestedTopics) {
-                            if (topics == null && apiVersion < 1) {
-                                continue;
-                            }
-                            if (apiVersion < 12 && topics != null && topics.stream().anyMatch(t -> t.topicId() != null)) {
-                                // version 10 added support for topic ids, but
-                                // "Versions 10 and 11 should not use the topicId field or set topic name to null." (from JSON IDL)
-                                continue;
-                            }
-                            result.addAll(List.of(
-                                    Arguments.of(apiVersion, allowAutoCreation, includeClusterAuthz, includeTopicAuthz, topics)));
-                        }
-                    }
-                }
-            }
-        }
-        return result;
+    @AfterAll
+    static void afterAll() throws IOException {
+        Files.deleteIfExists(rulesFile);
     }
 
-    @ParameterizedTest
-    @MethodSource
-    void metadata(
-                  short apiVersion,
-                  boolean allowAutoCreation,
-                  boolean includeClusterAuthz,
-                  boolean includeTopicsAuthz,
-                  List<MetadataRequestData.MetadataRequestTopic> topics,
-                  @SaslMechanism(principals = {
-                          @SaslMechanism.Principal(user = "super", password = "Super"),
-                          @SaslMechanism.Principal(user = "alice", password = "Alice"),
-                          @SaslMechanism.Principal(user = "bob", password = "Bob"),
-                          @SaslMechanism.Principal(user = "eve", password = "Eve")
-                  }) @BrokerConfig(name = "authorizer.class.name", value = "org.apache.kafka.metadata.authorizer.StandardAuthorizer")
-                  // ANONYMOUS is the broker
-                  @BrokerConfig(name = "super.users", value = "User:ANONYMOUS;User:super") KafkaCluster unproxiedCluster,
-                  KafkaCluster proxiedCluster) {
+    private static Uuid prepCluster(KafkaCluster unproxiedCluster,
+                                    String topicName,
+                                    List<AclBinding> bindings) {
+        Uuid topicId;
+        try (var admin = AdminClient.create(unproxiedCluster.getKafkaClientConfiguration("super", "Super"))) {
+            topicId = admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1)))
+                    .topicId(topicName)
+                    .toCompletionStage().toCompletableFuture().join();
+            System.err.println("Got " + topicId + " from the admin client");
 
-        String topicName = "topic";
-        Map<String, String> passwords = Map.of(
-                "alice", "Alice",
-                "bob", "Bob",
-                "eve", "Eve");
-
-        var topicIdInUnproxiedCluster = prepCluster(unproxiedCluster, topicName, aclBindings);
-        System.err.println("id in proxied cluster=" + topicIdInUnproxiedCluster);
-
-
-        var unproxiedResponsesByUser = responsesByUser(apiVersion,
-                allowAutoCreation,
-                topics != null ? topics.stream().map(t -> t.duplicate()).collect(Collectors.toList()) : null,
-                includeClusterAuthz,
-                includeTopicsAuthz,
-                unproxiedCluster.getBootstrapServers(),
-                topicIdInUnproxiedCluster,
-                passwords);
-        // TODO assertions about side effects (topics created, or not)
-
-        if (topics == null || !topics.isEmpty()) {
-            // When topics are requested, we expect alice and bob to be able to see them
-            JsonNode path = unproxiedResponsesByUser.get("alice").path("topics");
-            assertThat(path.isArray()).isTrue();
-            assertThat(path.size()).isGreaterThan(0);
-            path = unproxiedResponsesByUser.get("bob").path("topics");
-            assertThat(path.isArray()).isTrue();
-            assertThat(path.size()).isGreaterThan(0);
+            if (!bindings.isEmpty()) {
+                admin.createAcls(bindings).all()
+                        .toCompletionStage().toCompletableFuture().join();
+            }
         }
+        return topicId;
+    }
 
-        NamedFilterDefinition saslTermination = new NamedFilterDefinitionBuilder(
-                "authn",
-                SaslPlainTermination.class.getName())
-                .withConfig("userNameToPassword", passwords)
-                .build();
-        NamedFilterDefinition authorization = new NamedFilterDefinitionBuilder(
-                "authz",
-                Authorization.class.getName())
-                .withConfig("authorizer", AclAuthorizerService.class.getName(),
-                        "authorizerConfig", Map.of("aclFile", rulesFile.toFile().getAbsolutePath()))
-                .build();
-        var config = proxy(proxiedCluster)
-                .addToFilterDefinitions(saslTermination, authorization)
-                .addToDefaultFilters(saslTermination.name(), authorization.name());
+    private static void deleteTopicsAndAcls(KafkaCluster unproxiedCluster,
+                                            List<String> topicNames,
+                                            List<AclBinding> bindings) {
 
-        try (var tester = kroxyliciousTester(config)) {
-            var topicIdInProxiedCluster = prepCluster(proxiedCluster, topicName, List.of());
-            System.err.println("id in proxied cluster=" + topicIdInProxiedCluster);
-            var proxiedResponsesByUser = responsesByUser(
-                    apiVersion,
-                    allowAutoCreation,
-                    topics != null ? topics.stream().map(t -> t.duplicate()).collect(Collectors.toList()) : null,
-                    includeClusterAuthz,
-                    includeTopicsAuthz,
-                    tester.getBootstrapAddress(),
-                    topicIdInProxiedCluster,
-                    passwords);
+        try (var admin = AdminClient.create(unproxiedCluster.getKafkaClientConfiguration("super", "Super"))) {
+            try {
+                admin.deleteTopics(TopicCollection.ofTopicNames(topicNames))
+                        .all().toCompletionStage().toCompletableFuture().join();
+            }
+            catch (CompletionException e) {
+                if (!(e.getCause() instanceof UnknownTopicOrPartitionException)) {
+                    throw e;
+                }
+            }
 
-            assertThat(clobberMap(proxiedResponsesByUser))
-                    .isEqualTo(clobberMap(unproxiedResponsesByUser));
-            // TODO assertions about side effects (topics created, or not)
+            if (!bindings.isEmpty()) {
+                var filters = bindings.stream().map(AclBinding::toFilter).toList();
+                admin.deleteAcls(filters).all()
+                        .toCompletionStage().toCompletableFuture().join();
+            }
         }
+    }
+
+    /**
+     * @param bootstrapServers The cluster to connect to.
+     * @return A KafkaClient connected to the given cluster.
+     */
+    @NonNull
+    private static KafkaClient client(String bootstrapServers) {
+        String[] hostPort = bootstrapServers.split(",")[0].split(":");
+        return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]));
+    }
+
+    private static void authenticate(KafkaClient client, String username, String password) {
+        // For this test we don't really care what the authn mechanism is, so we use the simplest, plain
+        // because we have to do the SASL dance ourselves via the very basic `KafkaClient`
+        var handshakeResponse = (SaslHandshakeResponseData) client.getSync(new Request(ApiKeys.SASL_HANDSHAKE,
+                        ApiKeys.SASL_HANDSHAKE.latestVersion(),
+                        "test",
+                        new SaslHandshakeRequestData()
+                                .setMechanism("PLAIN")))
+                .payload().message();
+        assertThat(Errors.forCode(handshakeResponse.errorCode())).isEqualTo(Errors.NONE);
+
+        byte[] bytes = (username + "\0" + username + "\0" + password).getBytes(StandardCharsets.UTF_8);
+        var authenticateResponse = (SaslAuthenticateResponseData) client.getSync(new Request(ApiKeys.SASL_AUTHENTICATE,
+                        ApiKeys.SASL_AUTHENTICATE.latestVersion(),
+                        "test",
+                        new SaslAuthenticateRequestData()
+                                .setAuthBytes(bytes)))
+                .payload().message();
+        assertThat(Errors.forCode(authenticateResponse.errorCode())).isEqualTo(Errors.NONE);
+    }
+
+    @Nullable
+    private static List<MetadataRequestData.MetadataRequestTopic> duplicateTopics(List<MetadataRequestData.MetadataRequestTopic> topics) {
+        if (topics != null) {
+            return topics.stream()
+                    .map(MetadataRequestData.MetadataRequestTopic::duplicate)
+                    .toList();
+        }
+        return null;
     }
 
     private static Map<String, ObjectNode> responsesByUser(short apiVersion,
@@ -323,7 +280,7 @@ public class AuthorizationIT extends BaseIT {
                 clobberUuid((ObjectNode) topics1, "topicId");
             }
         }
-        
+
         try {
             return MAPPER.writeValueAsString(root);
         }
@@ -361,47 +318,155 @@ public class AuthorizationIT extends BaseIT {
         return null;
     }
 
-    private static Uuid prepCluster(KafkaCluster unproxiedCluster,
-                                    String topicName,
-                                    List<AclBinding> bindings) {
-        Uuid topicId;
-        try (var admin = AdminClient.create(unproxiedCluster.getKafkaClientConfiguration("super", "Super"))) {
-            topicId = admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1)))
-                    .topicId(topicName)
-                    .toCompletionStage().toCompletableFuture().join();
-            System.err.println("Got " + topicId + " from the admin client");
+    static List<Arguments> metadata() {
+        // The tuples
+        List<Short> apiVersions = ApiKeys.METADATA.allVersions();
+        boolean[] allowTopicCreations = { true, false };
+        boolean[] clusterAuthz = { true, false };
+        boolean[] topicAuthz = { true, false };
+        List[] requestedTopics = {
+                null,
+                List.of(),
+                List.of(
+                        new MetadataRequestData.MetadataRequestTopic().setName(topicName),
+                        new MetadataRequestData.MetadataRequestTopic().setName(nonExistingTopicCreateDenied),
+                        new MetadataRequestData.MetadataRequestTopic().setName(nonExistingTopicCreateAllowed)),
+                List.of(
+                        // this is just a placeholder, replaced by the real id of topicName
+                        new MetadataRequestData.MetadataRequestTopic().setName(topicName).setTopicId(SENTINEL_TOPIC_ID))
+        };
 
-            if (!bindings.isEmpty()) {
-                admin.createAcls(bindings).all()
-                        .toCompletionStage().toCompletableFuture().join();
+        // Compute the n-fold Cartesian product of the tuples (except for pruning)
+        List<Arguments> result = new ArrayList<>();
+        for (var apiVersion : apiVersions) {
+            for (boolean allowAutoCreation : allowTopicCreations) {
+                if (!allowAutoCreation && apiVersion < 4) {
+                    // We have to prune some combinations because the RequestData will reject
+                    // non-default values for fields which don't exist in a certain version
+                    continue;
+                }
+                for (boolean includeClusterAuthz : clusterAuthz) {
+                    if (apiVersion < 8 && includeClusterAuthz) {
+                        continue;
+                    }
+                    if (apiVersion >= 11 && includeClusterAuthz) {
+                        continue;
+                    }
+                    for (boolean includeTopicAuthz : topicAuthz) {
+                        if (apiVersion < 8 && includeTopicAuthz) {
+                            continue;
+                        }
+                        for (List<MetadataRequestData.MetadataRequestTopic> topics : requestedTopics) {
+                            if (topics == null && apiVersion < 1) {
+                                continue;
+                            }
+                            if (apiVersion < 12 && topics != null && topics.stream().anyMatch(t -> t.topicId() != null)) {
+                                // version 10 added support for topic ids, but
+                                // "Versions 10 and 11 should not use the topicId field or set topic name to null." (from JSON IDL)
+                                continue;
+                            }
+                            result.addAll(List.of(
+                                    Arguments.of(apiVersion, allowAutoCreation, includeClusterAuthz, includeTopicAuthz, topics)));
+                        }
+                    }
+                }
             }
         }
-        return topicId;
+        return result;
     }
 
-    private static void authenticate(KafkaClient client, String username, String password) {
-        // For this test we don't really care what the authn mechanism is, so we use the simplest, plain
-        // because we have to do the SASL dance ourselves via the very basic `KafkaClient`
-        var handshakeResponse = (SaslHandshakeResponseData) client.getSync(new Request(ApiKeys.SASL_HANDSHAKE, ApiKeys.SASL_HANDSHAKE.latestVersion(), "test",
-                new SaslHandshakeRequestData()
-                        .setMechanism("PLAIN")))
-                .payload().message();
-        assertThat(Errors.forCode(handshakeResponse.errorCode())).isEqualTo(Errors.NONE);
+    @SaslMechanism(principals = {
+            @SaslMechanism.Principal(user = "super", password = "Super"),
+            @SaslMechanism.Principal(user = "alice", password = "Alice"),
+            @SaslMechanism.Principal(user = "bob", password = "Bob"),
+            @SaslMechanism.Principal(user = "eve", password = "Eve")
+    }) @BrokerConfig(name = "authorizer.class.name", value = "org.apache.kafka.metadata.authorizer.StandardAuthorizer")
+    // ANONYMOUS is the broker
+    @BrokerConfig(name = "super.users", value = "User:ANONYMOUS;User:super")
+    static KafkaCluster unproxiedCluster;
+    static KafkaCluster proxiedCluster;
 
-        var authenticateResponse = (SaslAuthenticateResponseData) client.getSync(new Request(ApiKeys.SASL_AUTHENTICATE, ApiKeys.SASL_AUTHENTICATE.latestVersion(), "test",
-                new SaslAuthenticateRequestData()
-                        .setAuthBytes((username + "\0" + username + "\0" + password).getBytes(StandardCharsets.UTF_8))))
-                .payload().message();
-        assertThat(Errors.forCode(authenticateResponse.errorCode())).isEqualTo(Errors.NONE);
+    Map<String, String> passwords = Map.of(
+            "alice", "Alice",
+            "bob", "Bob",
+            "eve", "Eve");
+
+    @BeforeEach
+    void prepClusters() {
+        this.topicIdInUnproxiedCluster = prepCluster(unproxiedCluster, topicName, aclBindings);
+        System.err.println("id in proxied cluster=" + topicIdInUnproxiedCluster);
+
+        this.topicIdInProxiedCluster = prepCluster(proxiedCluster, topicName, List.of());
+        System.err.println("id in proxied cluster=" + topicIdInProxiedCluster);
     }
 
-    /**
-     * @param bootstrapServers The cluster to connect to.
-     * @return A KafkaClient connected to the given cluster.
-     */
-    @NonNull
-    private static KafkaClient client(String bootstrapServers) {
-        String[] hostPort = bootstrapServers.split(",")[0].split(":");
-        return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]));
+    @AfterEach
+    void tidyClusters() {
+        deleteTopicsAndAcls(unproxiedCluster, List.of(topicName, nonExistingTopicCreateAllowed, nonExistingTopicCreateDenied), aclBindings);
+        deleteTopicsAndAcls(proxiedCluster, List.of(topicName, nonExistingTopicCreateAllowed, nonExistingTopicCreateDenied), List.of());
     }
+
+    @ParameterizedTest
+    @MethodSource
+    void metadata(
+            short apiVersion,
+            boolean allowAutoCreation,
+            boolean includeClusterAuthz,
+            boolean includeTopicsAuthz,
+            List<MetadataRequestData.MetadataRequestTopic> topics) {
+
+        var unproxiedResponsesByUser = responsesByUser(apiVersion,
+                allowAutoCreation,
+                duplicateTopics(topics),
+                includeClusterAuthz,
+                includeTopicsAuthz,
+                unproxiedCluster.getBootstrapServers(),
+                topicIdInUnproxiedCluster,
+                passwords);
+        // TODO assertions about side effects (topics created, or not)
+
+        if (topics == null || !topics.isEmpty()) {
+            // When topics are requested, we expect alice and bob to be able to see them
+            JsonNode path = unproxiedResponsesByUser.get("alice").path("topics");
+            assertThat(path.isArray()).isTrue();
+            assertThat(path.size()).isGreaterThan(0);
+            path = unproxiedResponsesByUser.get("bob").path("topics");
+            assertThat(path.isArray()).isTrue();
+            assertThat(path.size()).isGreaterThan(0);
+        }
+
+        NamedFilterDefinition saslTermination = new NamedFilterDefinitionBuilder(
+                "authn",
+                SaslPlainTermination.class.getName())
+                .withConfig("userNameToPassword", passwords)
+                .build();
+        NamedFilterDefinition authorization = new NamedFilterDefinitionBuilder(
+                "authz",
+                Authorization.class.getName())
+                .withConfig("authorizer", AclAuthorizerService.class.getName(),
+                        "authorizerConfig", Map.of("aclFile", rulesFile.toFile().getAbsolutePath()))
+                .build();
+        var config = proxy(proxiedCluster)
+                .addToFilterDefinitions(saslTermination, authorization)
+                .addToDefaultFilters(saslTermination.name(), authorization.name());
+
+        try (var tester = kroxyliciousTester(config)) {
+
+            var proxiedResponsesByUser = responsesByUser(
+                    apiVersion,
+                    allowAutoCreation,
+                    duplicateTopics(topics),
+                    includeClusterAuthz,
+                    includeTopicsAuthz,
+                    tester.getBootstrapAddress(),
+                    topicIdInProxiedCluster,
+                    passwords);
+
+            assertThat(clobberMap(proxiedResponsesByUser))
+                    .isEqualTo(clobberMap(unproxiedResponsesByUser));
+            // TODO assertions about side effects (topics created, or not)
+        }
+    }
+
+
 }

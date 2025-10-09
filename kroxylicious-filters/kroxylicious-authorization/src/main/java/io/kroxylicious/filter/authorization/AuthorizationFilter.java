@@ -9,12 +9,10 @@ package io.kroxylicious.filter.authorization;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.TreeSet;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.UnaryOperator;
@@ -22,6 +20,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
@@ -65,6 +64,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
     private boolean includeTopicAuthorizedOperations; // TODO should be keys on correlation id
     private boolean isAllTopics;
     private boolean requestUsesTopicIds;
+    private short useMetadataVersion = -1;
 
     public AuthorizationFilter(Authorizer authorizer) {
         this.authorizer = authorizer;
@@ -143,12 +143,12 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         // our authorizer and then forward it again without the _disallowed_ topic creations.
         // Merge the two responses and return to the client.
         // Subtlety: V4 added the flag, before that all requests are allowAutoTopicCreation=true
-        // Solution: Always use a version > 4 for the initial request, and revert to the client's chosen
+        // Solution: Always use a version >= 4 for the initial request, and revert to the client's chosen
         // version for the subsequent request.
 
         var initialRequestHeader = new RequestHeaderData()
                 .setRequestApiKey(ApiKeys.METADATA.id)
-                .setRequestApiVersion(ApiKeys.METADATA.latestVersion()) // Should support topic ids
+                .setRequestApiVersion(useMetadataVersion != -1 ? useMetadataVersion : ApiKeys.METADATA.latestVersion()) // Should support topic ids
                 .setClientId(header.clientId());
         var initialRequest = new MetadataRequestData()
                 .setTopics(request.topics())
@@ -156,10 +156,6 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         return context.sendRequest(initialRequestHeader, initialRequest)
                 .thenCompose(notCreateResponse -> {
                     var notCreateMetadataResponse = (MetadataResponseData) notCreateResponse;
-//                    this.idToName = notCreateMetadataResponse.topics().stream()
-//                            .filter(responseTopic ->
-//                                    responseTopic.topicId() != null && responseTopic.name() != null)
-//                            .collect(Collectors.toMap(MetadataResponseData.MetadataResponseTopic::topicId, MetadataResponseData.MetadataResponseTopic::name));
                     var responseTopicsByExistence = notCreateMetadataResponse.topics().stream()
                             .collect(Collectors.partitioningBy(responseTopic ->
                                     Errors.UNKNOWN_TOPIC_OR_PARTITION.code() == responseTopic.errorCode()));
@@ -586,6 +582,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                                             ApiMessage response,
                                                             FilterContext context) {
         return switch (apiKey) {
+            case API_VERSIONS -> checkCompat(header, (ApiVersionsResponseData) response, context);
             case PRODUCE -> onProduceResponse(header, (ProduceResponseData) response, context);
             case FETCH -> onFetchResponse(header, (FetchResponseData) response, context);
             case METADATA -> onMetadataResponse(header, (MetadataResponseData) response, context);
@@ -599,6 +596,20 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
             // TODO DESCRIBE: ShareGroupHeartbeat, ShareGroupDescribe,
             default -> context.forwardResponse(header, response);
         };
+    }
+
+    private CompletionStage<ResponseFilterResult> checkCompat(ResponseHeaderData header, ApiVersionsResponseData response, FilterContext context) {
+        ApiVersionsResponseData.ApiVersion apiVersion = response.apiKeys().find(ApiKeys.METADATA.id);
+        var minMetadataVersion = apiVersion.minVersion();
+        var maxMetadataVersion = apiVersion.maxVersion();
+        if (maxMetadataVersion < 4) {
+            LOG.error("Filter {} requires the broker to support at least METADATA API version 4. "
+                            + "The connected broker supports only {}-{}.",
+                    AuthorizationFilter.class.getName(), minMetadataVersion, maxMetadataVersion);
+            return context.responseFilterResultBuilder().withCloseConnection().completed();
+        }
+        this.useMetadataVersion = (short) Math.min(ApiKeys.METADATA.latestVersion(), maxMetadataVersion);
+        return context.forwardResponse(header, response);
     }
 
     private CompletionStage<RequestFilterResult> onOffsetFetchRequest(RequestHeaderData header,
