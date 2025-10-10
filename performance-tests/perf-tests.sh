@@ -8,6 +8,7 @@
 set -eo pipefail
 PERF_TESTS_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+AP_LOADER_JAR_VERSION=4.1-10
 TEST=${TEST:-'[0-9][0-9]-.*'}
 RECORD_SIZE=${RECORD_SIZE:-1024}
 NUM_RECORDS=${NUM_RECORDS:-10000000}
@@ -15,7 +16,6 @@ PRODUCER_PROPERTIES=${PRODUCER_PROPERTIES:-"acks=all"}
 WARM_UP_NUM_RECORDS_POST_BROKER_START=${WARM_UP_NUM_RECORDS_POST_BROKER_START:-1000}
 WARM_UP_NUM_RECORDS_PRE_TEST=${WARM_UP_NUM_RECORDS_PRE_TEST:-1000}
 COMMIT_ID=${COMMIT_ID:=$(git rev-parse --short HEAD)}
-
 
 PROFILING_OUTPUT_DIRECTORY=${PROFILING_OUTPUT_DIRECTORY:-"/tmp/results"}
 
@@ -33,6 +33,17 @@ then
   DOCKER_REGISTRY="mirror.gcr.io"
 fi
 
+selinux_mount_opts () {
+  local targetCommand=getenforce
+  local resolvedCommand
+  resolvedCommand=$(command -v "${targetCommand}")
+  if [[ -z ${resolvedCommand} ]]; then
+    echo ""
+  else
+    getenforce | grep -q "Enforcing" && echo ",z" || echo ""
+  fi
+}
+
 KAFKA_VERSION=${KAFKA_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=kafka.version -q -DforceStdout -pl kroxylicious-systemtests)}
 STRIMZI_VERSION=${STRIMZI_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=strimzi.version -q -DforceStdout)}
 KROXYLICIOUS_VERSION=${KROXYLICIOUS_VERSION:-$(mvn -f "${KROXYLICIOUS_CHECKOUT}"/pom.xml org.apache.maven.plugins:maven-help-plugin:3.4.0:evaluate -Dexpression=project.version -q -DforceStdout)}
@@ -43,7 +54,9 @@ VAULT_IMAGE=${VAULT_IMAGE:-"${DOCKER_REGISTRY}/hashicorp/vault:1.20.4"}
 PERF_NETWORK=performance-tests_perf_network
 CONTAINER_ENGINE=${CONTAINER_ENGINE:-"docker"}
 LOADER_DIR=${LOADER_DIR:-"/tmp/asprof-extracted"}
-export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE KROXYLICIOUS_IMAGE VAULT_IMAGE CONTAINER_ENGINE
+CONFIG_MOUNT_OPTS="ro"$(selinux_mount_opts)
+
+export KAFKA_VERSION KAFKA_TOOL_IMAGE KAFKA_IMAGE KROXYLICIOUS_IMAGE VAULT_IMAGE CONTAINER_ENGINE CONFIG_MOUNT_OPTS
 
 printf "KAFKA_VERSION: ${KAFKA_VERSION}\n"
 printf "STRIMZI_VERSION: ${STRIMZI_VERSION}\n"
@@ -99,7 +112,7 @@ setupAsyncProfilerKroxy() {
   ensureSysCtlValue kernel.kptr_restrict 0
 
   mkdir -p /tmp/asprof
-  curl -s -o /tmp/asprof/ap-loader-all.jar "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/3.0-9/ap-loader-all-3.0-9.jar"
+  curl -s -o /tmp/asprof/ap-loader-all.jar "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/${AP_LOADER_JAR_VERSION}/ap-loader-all-${AP_LOADER_JAR_VERSION}.jar"
 
   mkdir -p "${LOADER_DIR}"
   unzip -o -q /tmp/asprof/ap-loader-all.jar -d "${LOADER_DIR}"
@@ -114,28 +127,20 @@ startAsyncProfilerKroxy() {
 
   echo -e "${PURPLE}Starting async profiler${NOCOLOR}"
 
-  local TARGETARCH=""
-  case $(uname -m) in
-      aarch64)  TARGETARCH="linux-arm64" ;;
-      x86_64 | i686 | i386)   TARGETARCH="linux-x64" ;;
-      *)        echo -n "Unsupported arch"
-  esac
+  ${CONTAINER_ENGINE} exec "${KROXYLICIOUS_CONTAINER_ID}" bash -c "mkdir -p ${LOADER_DIR}/{bin,libs} && chmod +r -R ${LOADER_DIR}"
+  ${CONTAINER_ENGINE} cp "${LOADER_DIR}/libs" "${KROXYLICIOUS_CONTAINER_ID}:${LOADER_DIR}/libs"
+  ${CONTAINER_ENGINE} cp "/tmp/asprof/ap-loader-all.jar" "${KROXYLICIOUS_CONTAINER_ID}:${LOADER_DIR}/ap-loader-all.jar"
 
-  echo "TARGETARCH: ${TARGETARCH}"
-
-  ${CONTAINER_ENGINE} exec ${KROXYLICIOUS_CONTAINER_ID} mkdir -p "${LOADER_DIR}/"""{bin,lib} && chmod +r -R "${LOADER_DIR}"
-  ${CONTAINER_ENGINE} cp "${LOADER_DIR}/libs/libasyncProfiler-3.0-${TARGETARCH}.so" "${KROXYLICIOUS_CONTAINER_ID}:${LOADER_DIR}/lib/libasyncProfiler.so"
-
-  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler start "${KROXYLICIOUS_PID}"
+  ${CONTAINER_ENGINE} exec "${KROXYLICIOUS_CONTAINER_ID}" java -Dap_loader_extraction_dir="${LOADER_DIR}" -jar "${LOADER_DIR}/ap-loader-all.jar" profiler start "${KROXYLICIOUS_PID}"
 }
 
 stopAsyncProfilerKroxy() {
-  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler status "${KROXYLICIOUS_PID}"
+  ${CONTAINER_ENGINE} exec "${KROXYLICIOUS_CONTAINER_ID}" java -Dap_loader_extraction_dir="${LOADER_DIR}" -jar /tmp/asprof/ap-loader-all.jar profiler status "${KROXYLICIOUS_PID}"
 
   echo -e "${PURPLE}Stopping async profiler${NOCOLOR}"
 
   ${CONTAINER_ENGINE} exec "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /tmp/asprof-results
-  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler stop "${KROXYLICIOUS_PID}" -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
+  ${CONTAINER_ENGINE} exec "${KROXYLICIOUS_CONTAINER_ID}" java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler stop "${KROXYLICIOUS_PID}" -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
 
   mkdir -p "${PROFILING_OUTPUT_DIRECTORY}"
   ${CONTAINER_ENGINE} cp "${KROXYLICIOUS_CONTAINER_ID}":/tmp/asprof-results/. "${PROFILING_OUTPUT_DIRECTORY}"
@@ -247,10 +252,12 @@ doPerfTest () {
 }
 
 onExit() {
+  local trigger_code=$?
   for cmd in "${ON_SHUTDOWN[@]}"
   do
     eval "${cmd}"
   done
+  echo ${trigger_code} # make sure any of the shutdown commands don't mask the original exit code
 }
 
 trap onExit EXIT
