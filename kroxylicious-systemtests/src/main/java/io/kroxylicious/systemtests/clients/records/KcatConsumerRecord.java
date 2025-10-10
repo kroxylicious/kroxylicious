@@ -37,6 +37,7 @@ public class KcatConsumerRecord extends ConsumerRecord {
                               @JsonProperty("payload") String payload,
                               @JsonProperty("partition") int partition,
                               @JsonProperty("offset") long offset) {
+        super(topic, key, payload, partition, offset);
         this.recordHeaders = new HashMap<>();
         if (headers != null) {
             int headersSize = headers.size();
@@ -47,10 +48,5 @@ public class KcatConsumerRecord extends ConsumerRecord {
                 recordHeaders.put(headers.get(i), Optional.ofNullable(headers.get(i + 1)).orElse(""));
             }
         }
-        this.topic = topic;
-        this.key = key;
-        this.value = payload;
-        this.partition = partition;
-        this.offset = offset;
     }
 }
