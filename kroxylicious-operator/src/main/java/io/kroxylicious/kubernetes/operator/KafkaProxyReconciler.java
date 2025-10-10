@@ -130,6 +130,7 @@ public class KafkaProxyReconciler implements
     public static final String CONFIG_STATE_DEP = "config-state";
     public static final String CONFIG_DEP = "config";
     public static final String DEPLOYMENT_DEP = "deployment";
+    public static final String KAFKA_DEP = "kafkas";
     public static final String CLUSTERS_DEP = "clusters";
     public static final Path MOUNTS_BASE_DIR = Path.of("/opt/kroxylicious/");
     private static final Path TARGET_CLUSTER_MOUNTS_BASE = MOUNTS_BASE_DIR.resolve("target-cluster");
@@ -319,7 +320,14 @@ public class KafkaProxyReconciler implements
 
     private static ConfigurationFragment<TargetCluster> buildTargetCluster(KafkaService kafkaServiceRef) {
         return buildTargetClusterTls(kafkaServiceRef)
-                .map(tls -> new TargetCluster(kafkaServiceRef.getSpec().getBootstrapServers(), tls));
+                .map(tls -> {
+                    if (kafkaServiceRef.getSpec().getStrimziKafkaRef() != null) {
+                        return new TargetCluster(kafkaServiceRef.getStatus().getBootstrapServerAddress(), tls);
+                    }
+                    else {
+                        return new TargetCluster(kafkaServiceRef.getSpec().getBootstrapServers(), tls);
+                    }
+                });
     }
 
     private static ConfigurationFragment<Optional<Tls>> buildTargetClusterTls(KafkaService kafkaServiceRef) {

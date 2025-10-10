@@ -27,8 +27,10 @@ import io.javaoperatorsdk.operator.processing.event.source.EventSource;
 import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
+import io.strimzi.api.kafka.model.kafka.Kafka;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
+import io.kroxylicious.kubernetes.api.common.StrimziKafkaRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceSpec;
@@ -39,6 +41,7 @@ import io.kroxylicious.proxy.tag.VisibleForTesting;
 import static io.kroxylicious.kubernetes.api.common.Condition.Type.ResolvedRefs;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.name;
 import static io.kroxylicious.kubernetes.operator.ResourcesUtil.namespace;
+import static io.kroxylicious.kubernetes.operator.ResourcesUtil.updateServiceWithBootstrapAddress;
 
 /**
  * <p>Reconciles a {@link KafkaService} by checking whether resources referred to in {@code spec.tls.certificateRef}
@@ -55,6 +58,9 @@ public final class KafkaServiceReconciler implements
 
     public static final String SECRETS_EVENT_SOURCE_NAME = "secrets";
     public static final String CONFIG_MAPS_EVENT_SOURCE_NAME = "configmaps";
+    public static final String KAFKA_EVENT_SOURCE_NAME = "kafkas";
+
+    private static final String SPEC_REF = "spec.strimziKafkaRef";
     private static final String SPEC_TLS_TRUST_ANCHOR_REF = "spec.tls.trustAnchorRef";
     private static final String SPEC_TLS_CERTIFICATE_REF = "spec.tls.certificateRef";
 
@@ -73,6 +79,7 @@ public final class KafkaServiceReconciler implements
                 .withPrimaryToSecondaryMapper(kafkaServiceToSecret())
                 .withSecondaryToPrimaryMapper(secretToKafkaService(context))
                 .build();
+
         InformerEventSourceConfiguration<ConfigMap> serviceToConfigMap = InformerEventSourceConfiguration.from(
                 ConfigMap.class,
                 KafkaService.class)
@@ -80,8 +87,18 @@ public final class KafkaServiceReconciler implements
                 .withPrimaryToSecondaryMapper(kafkaServiceToConfigMap())
                 .withSecondaryToPrimaryMapper(configMapToKafkaService(context))
                 .build();
+
+        InformerEventSourceConfiguration<Kafka> serviceToStrimziKafka = InformerEventSourceConfiguration.from(
+                Kafka.class,
+                KafkaService.class)
+                .withName(KAFKA_EVENT_SOURCE_NAME)
+                .withPrimaryToSecondaryMapper(kafkaServiceToKafka())
+                .withSecondaryToPrimaryMapper(kafkaToKafkaService(context))
+                .build();
+
         return List.of(
                 new InformerEventSource<>(serviceToSecret, context),
+                new InformerEventSource<>(serviceToStrimziKafka, context),
                 new InformerEventSource<>(serviceToConfigMap, context));
     }
 
@@ -123,6 +140,24 @@ public final class KafkaServiceReconciler implements
                 .orElse(Set.of());
     }
 
+    @VisibleForTesting
+    static SecondaryToPrimaryMapper<Kafka> kafkaToKafkaService(EventSourceContext<KafkaService> context) {
+        return kafka -> ResourcesUtil.findReferrers(context,
+                kafka,
+                KafkaService.class,
+                service -> Optional.ofNullable(service.getSpec())
+                        .map(KafkaServiceSpec::getStrimziKafkaRef)
+                        .map(StrimziKafkaRef::getRef));
+    }
+
+    @VisibleForTesting
+    static PrimaryToSecondaryMapper<KafkaService> kafkaServiceToKafka() {
+        return (KafkaService cluster) -> Optional.ofNullable(cluster.getSpec())
+                .map(KafkaServiceSpec::getStrimziKafkaRef)
+                .map(strimziKafkaRef -> ResourcesUtil.localRefAsResourceId(cluster, strimziKafkaRef.getRef()))
+                .orElse(Set.of());
+    }
+
     @Override
     public UpdateControl<KafkaService> reconcile(KafkaService service, Context<KafkaService> context) {
 
@@ -134,6 +169,16 @@ public final class KafkaServiceReconciler implements
         if (trustAnchorRefOpt.isPresent()) {
             ResourceCheckResult<KafkaService> result = ResourcesUtil.checkTrustAnchorRef(service, context, CONFIG_MAPS_EVENT_SOURCE_NAME, trustAnchorRefOpt.get(),
                     SPEC_TLS_TRUST_ANCHOR_REF,
+                    statusFactory);
+            updatedService = result.resource();
+            referents.addAll(result.referents());
+        }
+
+        var strimziKafkaRefOpt = Optional.ofNullable(service.getSpec())
+                .map(KafkaServiceSpec::getStrimziKafkaRef);
+        if (strimziKafkaRefOpt.isPresent()) {
+            ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziKafkaRef(service, context, KAFKA_EVENT_SOURCE_NAME, strimziKafkaRefOpt.get(),
+                    SPEC_REF,
                     statusFactory);
             updatedService = result.resource();
             referents.addAll(result.referents());
@@ -155,6 +200,10 @@ public final class KafkaServiceReconciler implements
             var checksumGenerator = new Crc32ChecksumGenerator();
             for (HasMetadata metadataSource : referents) {
                 checksumGenerator.appendMetadata(metadataSource);
+            }
+
+            if (service.getSpec().getStrimziKafkaRef() != null) {
+                service = updateServiceWithBootstrapAddress(context, service, KAFKA_EVENT_SOURCE_NAME);
             }
 
             updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs,
