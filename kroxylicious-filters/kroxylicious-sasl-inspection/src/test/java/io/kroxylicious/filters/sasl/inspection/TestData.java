@@ -6,6 +6,8 @@
 
 package io.kroxylicious.filters.sasl.inspection;
 
+import java.util.Base64;
+
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 final class TestData {
@@ -37,6 +39,12 @@ final class TestData {
             .getBytes(UTF_8);
     static final byte[] SASL_SCRAM_SHA_512_SERVER_FINAL = "v=BQuhnKHqYDwQWS5jAw4sZed+C9KFUALsbrq81bB0mh+bcUUbbMPNNmBIupnS2AmyyDnG5CTBQtkjJ9kyY4kzmw==".getBytes(
             UTF_8);
+
+    //
+    // SASL OAUTHBEARER - Known good from https://datatracker.ietf.org/doc/html/rfc7628#section-4.1
+    //
+
+    public static final Object SASL_OAUTHBEARER_CLIENT_INITIAL = Base64.getDecoder().decode("bixhPXVzZXJAZXhhbXBsZS5jb20sAWhvc3Q9c2VydmVyLmV4YW1wbGUuY29tAXBvcnQ9MTQzAWF1dGg9QmVhcmVyIHZGOWRmdDRxbVRjMk52YjNSbGNrQmhiSFJoZG1semRHRXVZMjl0Q2c9PQEB");
 
     private TestData() {
         //
