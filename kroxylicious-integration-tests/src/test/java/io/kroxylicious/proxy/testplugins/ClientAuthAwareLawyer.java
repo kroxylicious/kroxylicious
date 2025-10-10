@@ -13,7 +13,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 @Plugin(configType = Void.class)
-public class ClientTlsAwareLawyer
+public class ClientAuthAwareLawyer
         implements FilterFactory<Void, Void> {
 
     @Override

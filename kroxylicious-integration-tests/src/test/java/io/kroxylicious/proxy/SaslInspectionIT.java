@@ -33,8 +33,8 @@ import io.kroxylicious.filters.sasl.inspection.SaslInspection;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
+import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
-import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
 import io.kroxylicious.proxy.testplugins.ProtocolCounter;
 import io.kroxylicious.proxy.testplugins.ProtocolCounterFilter;
 import io.kroxylicious.test.assertj.KafkaAssertions;
@@ -51,7 +51,9 @@ import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Integration test for the SASL Inspection Filter.
+ * Integration test for the SASL Inspection Filter. These IT tests cover PLAIN and SCRAM mechanism.
+ *
+ * @see SaslInspectionOauthBearerIT
  */
 @ExtendWith(KafkaClusterExtension.class)
 @ExtendWith(NettyLeakDetectorExtension.class)
@@ -366,8 +368,8 @@ class SaslInspectionIT {
                         "countResponses", Set.of(ApiKeys.SASL_AUTHENTICATE))
                 .build();
         NamedFilterDefinition lawyer = new NamedFilterDefinitionBuilder(
-                ClientTlsAwareLawyer.class.getName(),
-                ClientTlsAwareLawyer.class.getName())
+                ClientAuthAwareLawyer.class.getName(),
+                ClientAuthAwareLawyer.class.getName())
                 .build();
         return proxy(cluster)
                 .addToFilterDefinitions(saslInspection, counter, lawyer)
