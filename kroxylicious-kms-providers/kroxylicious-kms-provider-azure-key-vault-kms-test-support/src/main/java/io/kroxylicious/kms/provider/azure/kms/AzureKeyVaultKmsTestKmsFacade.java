@@ -6,7 +6,10 @@
 
 package io.kroxylicious.kms.provider.azure.kms;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.net.URI;
+import java.security.KeyStore;
 import java.time.Duration;
 import java.util.Set;
 
@@ -46,6 +49,8 @@ import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.Tls;
+import io.kroxylicious.proxy.config.tls.TrustStore;
+import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -67,6 +72,8 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
             }
             """;
     public static final String TENANT_ID = "identity";
+
+    private final KeytoolCertificateGenerator entraCertGen = entraCerts();
     @Nullable
     private LowkeyVaultContainer kms;
     @Nullable
@@ -82,11 +89,23 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
 
     public void startKms() {
         this.kms = startVault();
-        this.entraMock = new WireMockServer(wireMockConfig().dynamicPort());
+        this.entraMock = new WireMockServer(wireMockConfig().dynamicPort().keystorePath(entraCertGen.getKeyStoreLocation()).keystorePassword(entraCertGen.getPassword()));
         entraMock.start();
         entraMock.stubFor(post("/" + TENANT_ID + "/oauth2/v2.0/token")
                 .willReturn(WireMock.aResponse().withStatus(200).withHeader("Content-type", "application/json").withBody(MOCK_AUTH_RESPONSE)));
         entraMock.start();
+    }
+
+    private static KeytoolCertificateGenerator entraCerts() {
+        try {
+            KeytoolCertificateGenerator entraCertGen = new KeytoolCertificateGenerator();
+            entraCertGen.generateSelfSignedCertificateEntry("webmaster@example.com", "example.com", "Engineering", "kroxylicious.io", null, null, "NZ");
+            entraCertGen.generateTrustStore(entraCertGen.getCertFilePath(), "website");
+            return entraCertGen;
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void stopKms() {
@@ -124,9 +143,23 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
             throw new IllegalStateException("entraMock is not initialized");
         }
         URI defaultVaultBaseUrl = URI.create(kms.getDefaultVaultBaseUrl());
-        return new AzureKeyVaultConfig(
-                new EntraIdentityConfig(URI.create(entraMock.baseUrl()), TENANT_ID, new InlinePassword("abc"), new InlinePassword("def"), null, INSECURE_TLS),
-                "default", defaultVaultBaseUrl.getHost(), null, defaultVaultBaseUrl.getPort(), true, INSECURE_TLS);
+        try {
+            KeyStore defaultKeyStore = kms.getDefaultKeyStore();
+            File tempFile = File.createTempFile("lowkey-store", ".jks");
+            try (FileOutputStream stream = new FileOutputStream(tempFile)) {
+                kms.getDefaultKeyStore().store(stream, kms.getDefaultKeyStorePassword().toCharArray());
+            }
+            TrustStore vaultTrust = new TrustStore(tempFile.getAbsolutePath(), new InlinePassword(kms.getDefaultKeyStorePassword()), defaultKeyStore.getType());
+            Tls vaultTls = new Tls(null, vaultTrust, null, null);
+            TrustStore entraTrust = new TrustStore(entraCertGen.getTrustStoreLocation(), new InlinePassword(entraCertGen.getPassword()), defaultKeyStore.getType());
+            Tls entraTls = new Tls(null, entraTrust, null, null);
+            return new AzureKeyVaultConfig(
+                    new EntraIdentityConfig(URI.create(entraMock.baseUrl()), TENANT_ID, new InlinePassword("abc"), new InlinePassword("def"), null, entraTls),
+                    "default", defaultVaultBaseUrl.getHost(), null, defaultVaultBaseUrl.getPort(), true, vaultTls);
+        }
+        catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

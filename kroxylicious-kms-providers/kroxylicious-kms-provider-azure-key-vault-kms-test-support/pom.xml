@@ -42,6 +42,11 @@
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious.testing</groupId>
+            <artifactId>testing-impl</artifactId>
+            <scope>compile</scope>
+        </dependency>
 
         <!-- third party dependencies - runtime and compile -->
         <dependency>
