@@ -36,11 +36,9 @@ import io.kroxylicious.test.tester.SimpleMetric;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
-import static io.kroxylicious.proxy.internal.util.Metrics.API_KEY_LABEL;
-import static io.kroxylicious.proxy.internal.util.Metrics.NODE_ID_LABEL;
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static io.kroxylicious.test.tester.SimpleMetricAssert.assertThat;
-
+import static org.junit.jupiter.api.Assertions.assertAll;
 
 /**
  * This test suite is designed for testing metrics exposed by kroxylicious.
@@ -61,7 +59,8 @@ class MetricsST extends AbstractST {
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
 
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfRecords).addArgument(RECORD_VALUE).addArgument(topicName).log();
+        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfRecords).addArgument(RECORD_VALUE).addArgument(topicName)
+                .log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, RECORD_VALUE, numberOfRecords);
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
         List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfRecords, Duration.ofMinutes(2));
@@ -71,49 +70,49 @@ class MetricsST extends AbstractST {
 
         var parsedMetrics = convertToSimpleMetrics(kroxyliciousCollector);
 
-        var produceLabels = Map.of(API_KEY_LABEL, ApiKeys.PRODUCE.name(), NODE_ID_LABEL, "0");
+        var produceLabels = Map.of("api_key", ApiKeys.PRODUCE.name(), "node_id", "0");
+        var fetchLabels = Map.of("api_key", ApiKeys.FETCH.name(), "node_id", "0");
 
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_client_to_proxy_request_total", produceLabels)
-                .value()
-                .isOne();
+        assertAll(
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_client_to_proxy_request_total", produceLabels)
+                        .value()
+                        .isOne() /* We send one record, so there has to be exactly one produce message */,
 
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_proxy_to_server_request_total", produceLabels)
-                .value()
-                .isOne();
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_proxy_to_server_request_total", produceLabels)
+                        .value()
+                        .isOne(),
 
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_server_to_proxy_response_total", produceLabels)
-                .value()
-                .isOne();
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_server_to_proxy_response_total", produceLabels)
+                        .value()
+                        .isOne(),
 
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_proxy_to_client_response_total", produceLabels)
-                .value()
-                .isOne();
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_proxy_to_client_response_total", produceLabels)
+                        .value()
+                        .isOne(),
 
-        var fetchLabels = Map.of(API_KEY_LABEL, ApiKeys.FETCH.name(), NODE_ID_LABEL, "0");
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_client_to_proxy_request_total", fetchLabels)
+                        .value()
+                        .isGreaterThanOrEqualTo(1), /* We expect to consume 1 record, but the client may call fetch more than once */
 
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_client_to_proxy_request_total", fetchLabels)
-                .value()
-                .isGreaterThanOrEqualTo(1);
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_proxy_to_server_request_total", fetchLabels)
+                        .value()
+                        .isGreaterThanOrEqualTo(1),
 
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_proxy_to_server_request_total", fetchLabels)
-                .value()
-                .isGreaterThanOrEqualTo(1);
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_server_to_proxy_response_total", fetchLabels)
+                        .value()
+                        .isGreaterThanOrEqualTo(1),
 
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_server_to_proxy_response_total", fetchLabels)
-                .value()
-                .isGreaterThanOrEqualTo(1);
-
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_proxy_to_client_response_total", fetchLabels)
-                .value()
-                .isGreaterThanOrEqualTo(1);
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_proxy_to_client_response_total", fetchLabels)
+                        .value()
+                        .isGreaterThanOrEqualTo(1));
     }
 
     @Test
@@ -123,7 +122,8 @@ class MetricsST extends AbstractST {
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
         KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
 
-        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(RECORD_VALUE).addArgument(topicName).log();
+        LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(RECORD_VALUE).addArgument(topicName)
+                .log();
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, RECORD_VALUE, numberOfMessages);
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
         List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
@@ -134,49 +134,51 @@ class MetricsST extends AbstractST {
         int recordValueSize = RECORD_VALUE.getBytes(StandardCharsets.UTF_8).length;
         var parsedMetrics = convertToSimpleMetrics(kroxyliciousCollector);
 
-        var produceLabels = Map.of(API_KEY_LABEL, ApiKeys.PRODUCE.name(), NODE_ID_LABEL, "0");
+        var produceLabels = Map.of("api_key", ApiKeys.PRODUCE.name(), "node_id", "0");
+        var fetchLabels = Map.of("api_key", ApiKeys.FETCH.name(), "node_id", "0");
 
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_client_to_proxy_request_size_bytes_count", produceLabels)
-                .value()
-                .isOne();
+        assertAll(
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_client_to_proxy_request_size_bytes_count", produceLabels)
+                        .value()
+                        .isOne(), /* We send one record, so there has to be exactly one produce message */
 
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_client_to_proxy_request_size_bytes_sum", produceLabels)
-                .value()
-                .isGreaterThan(recordValueSize);
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_client_to_proxy_request_size_bytes_sum", produceLabels)
+                        .value()
+                        .isGreaterThan(recordValueSize),
 
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_proxy_to_server_request_size_bytes_count", produceLabels)
-                .value()
-                .isOne();
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_proxy_to_server_request_size_bytes_count", produceLabels)
+                        .value()
+                        .isOne(),
 
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_proxy_to_server_request_size_bytes_sum", produceLabels)
-                .value()
-                .isGreaterThan(recordValueSize);
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_proxy_to_server_request_size_bytes_sum", produceLabels)
+                        .value()
+                        .isGreaterThan(recordValueSize),
 
-        var fetchLabels = Map.of(API_KEY_LABEL, ApiKeys.FETCH.name(), NODE_ID_LABEL, "0");
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_server_to_proxy_response_size_bytes_count", fetchLabels)
+                        .value()
+                        .isGreaterThanOrEqualTo(1), /* We expect to consume 1 record, but the client may call fetch more than once */
 
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_server_to_proxy_response_size_bytes_count", fetchLabels)
-                .value()
-                .isGreaterThanOrEqualTo(1);
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_server_to_proxy_response_size_bytes_sum", fetchLabels)
+                        .value()
+                        .isGreaterThan(recordValueSize),
 
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_server_to_proxy_response_size_bytes_sum", fetchLabels)
-                .value()
-                .isGreaterThan(recordValueSize);
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_proxy_to_client_response_size_bytes_count", fetchLabels)
+                        .value()
+                        .isGreaterThanOrEqualTo(1),
 
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_proxy_to_client_response_size_bytes_count", fetchLabels)
-                .value()
-                .isGreaterThanOrEqualTo(1);
+                () -> assertThat(parsedMetrics)
+                        .withUniqueMetric("kroxylicious_proxy_to_client_response_size_bytes_sum", fetchLabels)
+                        .value()
+                        .isGreaterThan(recordValueSize)
 
-        assertThat(parsedMetrics)
-                .withUniqueMetric("kroxylicious_proxy_to_client_response_size_bytes_sum", fetchLabels)
-                .value()
-                .isGreaterThan(recordValueSize);
+        );
     }
 
     @BeforeAll
