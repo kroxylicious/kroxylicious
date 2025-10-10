@@ -63,4 +63,13 @@ public interface SaslObserver {
      * @throws AuthenticationException if the authorization identity has not been established.
      */
     String authorizationId() throws SaslException;
+
+    /**
+     * Returns true if the mechanism uses session lifetime, false otherwise.
+     *
+     * @return true if the mechanism uses session lifetime, false otherwise.
+     */
+    default boolean usesSessionLifetime() {
+        return false;
+    }
 }

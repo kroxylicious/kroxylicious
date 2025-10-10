@@ -469,7 +469,12 @@ class SaslInspectionFilterTest {
                                 new ChallengeResponse(
                                         TestData.SASL_SCRAM_SHA_512_SERVER_FINAL,
                                         null)),
-                        "user"));
+                        "user"),
+                Arguments.argumentSet("SASL OAUTHBEARER",
+                        new OauthBearerSaslObserverFactory(),
+                        new InitialResponse(TestData.SASL_OAUTHBEARER_SIGNED_JWT),
+                        List.of(new ChallengeResponse(new byte[0], null)),
+                        "johndoe"));
     }
 
     @ParameterizedTest
@@ -527,7 +532,7 @@ class SaslInspectionFilterTest {
         doSaslHandshakeResponse("PLAIN", filter);
 
         doSaslAuthenticateRequest(TestData.SASL_PLAIN_CLIENT_INITIAL, filter, (short) 0);
-        doSaslAuthenticateResponse(new byte[0], filter);
+        doSaslAuthenticateResponse(new byte[0], filter, 1);
 
         var unexpectedHandshake = new SaslHandshakeRequestData().setMechanism("PLAIN");
         var unexpectedHandshakeHeader = new RequestHeaderData().setRequestApiKey(unexpectedHandshake.apiKey());
@@ -548,6 +553,21 @@ class SaslInspectionFilterTest {
                 });
     }
 
+    @Test
+    void shouldReportRecentlyExpiredTokenAsFailedAuthentication() {
+        // Given
+        var filter = new SaslInspectionFilter(Map.of("OAUTHBEAER", new OauthBearerSaslObserverFactory()));
+
+        doSaslHandshakeRequest("OAUTHBEAER", filter);
+        doSaslHandshakeResponse("OAUTHBEAER", filter);
+
+        doSaslAuthenticateRequest(TestData.SASL_OAUTHBEARER_SIGNED_JWT, filter, (short) 0);
+        doSaslAuthenticateResponse(new byte[0], filter, 0 /* a session lifespan of 0ms means the client must re-auth next */);
+
+        verify(context, never()).clientSaslAuthenticationSuccess(anyString(), anyString());
+        verify(context).clientSaslAuthenticationFailure(eq("OAUTHBEARER"), eq("johndoe"), isA(SaslException.class));
+    }
+
     private void doAuthenticateSuccessfully(SaslObserverFactory saslObserverFactory, InitialResponse initialResponse, List<ChallengeResponse> challengeResponses) {
         // Given
         var filter = new SaslInspectionFilter(Map.of(saslObserverFactory.mechanismName(), saslObserverFactory));
@@ -559,7 +579,7 @@ class SaslInspectionFilterTest {
         doSaslAuthenticateRequest(initialResponse.response(), filter);
 
         challengeResponses.forEach(cr -> {
-            doSaslAuthenticateResponse(cr.challenge(), filter);
+            doSaslAuthenticateResponse(cr.challenge(), filter, 1);
             Optional.ofNullable(cr.response()).ifPresent(r -> doSaslAuthenticateRequest(r, filter));
         });
 
@@ -618,8 +638,8 @@ class SaslInspectionFilterTest {
                         .isEqualTo(expectedAuthenticateRequest));
     }
 
-    private void doSaslAuthenticateResponse(byte[] challenge, SaslInspectionFilter filter) {
-        var authenticateResponse = new SaslAuthenticateResponseData().setAuthBytes(challenge);
+    private void doSaslAuthenticateResponse(byte[] challenge, SaslInspectionFilter filter, int sessionLifetimeMs) {
+        var authenticateResponse = new SaslAuthenticateResponseData().setAuthBytes(challenge).setSessionLifetimeMs(sessionLifetimeMs);
         var expectedAuthenticateResponse = authenticateResponse.duplicate();
 
         var actualResponse = filter.onSaslAuthenticateResponse(authenticateResponse.highestSupportedVersion(),

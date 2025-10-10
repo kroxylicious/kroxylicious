@@ -30,8 +30,8 @@ import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsBuilder;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
+import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
-import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
 import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
@@ -136,7 +136,7 @@ public class PluginTlsApiIT extends AbstractTlsIT {
         // @formatter:off
         String demoCluster = "demo";
         var builder = new ConfigurationBuilder()
-                .addNewFilterDefinition("clientConnection", ClientTlsAwareLawyer.class.getName(), null)
+                .addNewFilterDefinition("clientConnection", ClientAuthAwareLawyer.class.getName(), null)
                 .addToVirtualClusters(new VirtualClusterBuilder()
                         .withName(demoCluster)
                         .addToFilters("clientConnection")
