@@ -19,7 +19,6 @@
     </parent>
 
     <artifactId>kroxylicious-kms-provider-kroxylicious-inmemory</artifactId>
-    <packaging>jar</packaging>
     <name>In-memory KMS</name>
     <description>An in-memory KMS provider for test purposes</description>
 

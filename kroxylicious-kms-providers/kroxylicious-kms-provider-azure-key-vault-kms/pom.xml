@@ -18,9 +18,10 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>kroxylicious-kms-provider-hashicorp-vault</artifactId>
-    <name>HashiCorp Vault KMS</name>
-    <description>A KMS provider backed by a remote instance of HashiCorp Vault</description>
+    <artifactId>kroxylicious-kms-provider-azure-key-vault-kms</artifactId>
+    <name>Azure Key Vault KMS</name>
+    <description>An Azure Key Vault KMS Implementation</description>
+
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>
@@ -28,22 +29,11 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-annotations</artifactId>
+            <artifactId>kroxylicious-kms-tls-support</artifactId>
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-api</artifactId>
-        </dependency>
-
-        <!-- project dependencies - test -->
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kms-test-support</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-kms-tls-support</artifactId>
         </dependency>
 
         <!-- third party dependencies - build and compile -->
@@ -53,13 +43,12 @@
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-core</artifactId>
+            <artifactId>jackson-databind</artifactId>
         </dependency>
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-databind</artifactId>
+            <artifactId>jackson-core</artifactId>
         </dependency>
-        <!-- For ByteUtils used by the Serde etc -->
         <dependency>
             <groupId>org.apache.kafka</groupId>
             <artifactId>kafka-clients</artifactId>
@@ -68,7 +57,15 @@
             <groupId>com.github.spotbugs</groupId>
             <artifactId>spotbugs-annotations</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.wiremock</groupId>
+            <artifactId>wiremock</artifactId>
+            <scope>test</scope>
+        </dependency>
         <!-- third party dependencies - test -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -86,8 +83,13 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.testcontainers</groupId>
-            <artifactId>vault</artifactId>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -96,14 +98,46 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.wiremock</groupId>
-            <artifactId>wiremock</artifactId>
+            <groupId>com.azure</groupId>
+            <artifactId>azure-security-keyvault-keys</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.nagyesta.lowkey-vault</groupId>
+            <artifactId>lowkey-vault-testcontainers</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.nagyesta.lowkey-vault</groupId>
+            <artifactId>lowkey-vault-client</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
+            <plugin>
+                <groupId>com.github.spotbugs</groupId>
+                <artifactId>spotbugs-maven-plugin</artifactId>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>analyze</id>
+                        <goals>
+                            <goal>analyze-only</goal>
+                        </goals>
+                        <configuration>
+                            <ignoredUnusedDeclaredDependencies>
+                                <!-- this is a provided dependency we only need for testing-->
+                                <ignoredUnusedDeclaredDependency>com.github.nagyesta.lowkey-vault:lowkey-vault-client</ignoredUnusedDeclaredDependency>
+                            </ignoredUnusedDeclaredDependencies>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
