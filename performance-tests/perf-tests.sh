@@ -115,28 +115,20 @@ startAsyncProfilerKroxy() {
 
   echo -e "${PURPLE}Starting async profiler${NOCOLOR}"
 
-  local TARGETARCH=""
-  case $(uname -m) in
-      aarch64)  TARGETARCH="linux-arm64" ;;
-      x86_64 | i686 | i386)   TARGETARCH="linux-x64" ;;
-      *)        echo -n "Unsupported arch"
-  esac
+  ${CONTAINER_ENGINE} exec "${KROXYLICIOUS_CONTAINER_ID}" bash -c "mkdir -p ${LOADER_DIR}/{bin,libs} && chmod +r -R ${LOADER_DIR}"
+  ${CONTAINER_ENGINE} cp "${LOADER_DIR}/libs" "${KROXYLICIOUS_CONTAINER_ID}:${LOADER_DIR}/libs"
+  ${CONTAINER_ENGINE} cp "/tmp/asprof/ap-loader-all.jar" "${KROXYLICIOUS_CONTAINER_ID}:${LOADER_DIR}/ap-loader-all.jar"
 
-  echo "TARGETARCH: ${TARGETARCH}"
-  echo "loader dir: ${LOADER_DIR}"
-
-  ${CONTAINER_ENGINE} exec ${KROXYLICIOUS_CONTAINER_ID} mkdir -p "${LOADER_DIR}/"""{bin,lib} && chmod +r -R "${LOADER_DIR}"
-  ${CONTAINER_ENGINE} cp "${LOADER_DIR}/libs/libasyncProfiler-*-${TARGETARCH}.so" "${KROXYLICIOUS_CONTAINER_ID}:${LOADER_DIR}/lib/libasyncProfiler.so"
-  java -Dap_loader_extraction_dir="${LOADER_DIR}" -jar /tmp/asprof/ap-loader-all.jar jattach "${KROXYLICIOUS_PID}" load "${LOADER_DIR}/lib/libasyncProfiler.so" false
+  ${CONTAINER_ENGINE} exec "${KROXYLICIOUS_CONTAINER_ID}" java -Dap_loader_extraction_dir="${LOADER_DIR}" -jar "${LOADER_DIR}/ap-loader-all.jar" profiler start "${KROXYLICIOUS_PID}"
 }
 
 stopAsyncProfilerKroxy() {
-  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler status "${KROXYLICIOUS_PID}"
+  ${CONTAINER_ENGINE} exec "${KROXYLICIOUS_CONTAINER_ID}" java -Dap_loader_extraction_dir="${LOADER_DIR}" -jar /tmp/asprof/ap-loader-all.jar profiler status "${KROXYLICIOUS_PID}"
 
   echo -e "${PURPLE}Stopping async profiler${NOCOLOR}"
 
   ${CONTAINER_ENGINE} exec "${KROXYLICIOUS_CONTAINER_ID}" mkdir -p /tmp/asprof-results
-  java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler stop "${KROXYLICIOUS_PID}" -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
+  ${CONTAINER_ENGINE} exec "${KROXYLICIOUS_CONTAINER_ID}" java -Dap_loader_extraction_dir=${LOADER_DIR} -jar /tmp/asprof/ap-loader-all.jar profiler stop "${KROXYLICIOUS_PID}" -o flamegraph -f "/tmp/asprof-results/${TESTNAME}-cpu-%t.html"
 
   mkdir -p "${PROFILING_OUTPUT_DIRECTORY}"
   ${CONTAINER_ENGINE} cp "${KROXYLICIOUS_CONTAINER_ID}":/tmp/asprof-results/. "${PROFILING_OUTPUT_DIRECTORY}"
