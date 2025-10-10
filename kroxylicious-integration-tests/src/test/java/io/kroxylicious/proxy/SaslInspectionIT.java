@@ -34,7 +34,7 @@ import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
-import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
+import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.proxy.testplugins.ProtocolCounter;
 import io.kroxylicious.proxy.testplugins.ProtocolCounterFilter;
 import io.kroxylicious.test.assertj.KafkaAssertions;
@@ -366,8 +366,8 @@ class SaslInspectionIT {
                         "countResponses", Set.of(ApiKeys.SASL_AUTHENTICATE))
                 .build();
         NamedFilterDefinition lawyer = new NamedFilterDefinitionBuilder(
-                ClientTlsAwareLawyer.class.getName(),
-                ClientTlsAwareLawyer.class.getName())
+                ClientAuthAwareLawyer.class.getName(),
+                ClientAuthAwareLawyer.class.getName())
                 .build();
         return proxy(cluster)
                 .addToFilterDefinitions(saslInspection, counter, lawyer)

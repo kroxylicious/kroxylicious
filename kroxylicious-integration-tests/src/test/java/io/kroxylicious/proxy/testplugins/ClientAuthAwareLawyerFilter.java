@@ -24,7 +24,8 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * A filter that adds {@linkplain FilterContext#clientTlsContext() client-facing TLS context}-dependent headers to produced records.
+ * A filter that adds {@linkplain FilterContext#clientTlsContext() client-facing TLS context}-dependent or
+ * {@linkplain FilterContext#clientSaslContext() SASL context} headers to produced records.
  * Tests can consume the produced records and assert that those records have the expected header values.
  */
 public class ClientAuthAwareLawyerFilter

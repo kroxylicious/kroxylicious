@@ -31,7 +31,7 @@ import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
-import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
+import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.proxy.testplugins.SaslPlainTermination;
 import io.kroxylicious.test.assertj.KafkaAssertions;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
@@ -76,8 +76,8 @@ public class SaslPlainTerminatorIT extends BaseIT {
                 SaslPlainTermination.class.getName())
                 .build();
         NamedFilterDefinition lawyer = new NamedFilterDefinitionBuilder(
-                ClientTlsAwareLawyer.class.getName(),
-                ClientTlsAwareLawyer.class.getName())
+                ClientAuthAwareLawyer.class.getName(),
+                ClientAuthAwareLawyer.class.getName())
                 .build();
         var config = proxy(cluster)
                 .addToFilterDefinitions(saslTermination, lawyer)
