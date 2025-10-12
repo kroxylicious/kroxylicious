@@ -112,7 +112,7 @@ setupAsyncProfilerKroxy() {
   ensureSysCtlValue kernel.kptr_restrict 0
 
   mkdir -p /tmp/asprof
-  curl -s -o /tmp/asprof/ap-loader-all.jar -fail "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/${AP_LOADER_JAR_VERSION}/ap-loader-all-${AP_LOADER_JAR_VERSION}.jar"
+  curl -v -o /tmp/asprof/ap-loader-all.jar -fail "https://repo1.maven.org/maven2/me/bechberger/ap-loader-all/${AP_LOADER_JAR_VERSION}/ap-loader-all-${AP_LOADER_JAR_VERSION}.jar"
 
   mkdir -p "${LOADER_DIR}"
   unzip -o -q /tmp/asprof/ap-loader-all.jar -d "${LOADER_DIR}"
