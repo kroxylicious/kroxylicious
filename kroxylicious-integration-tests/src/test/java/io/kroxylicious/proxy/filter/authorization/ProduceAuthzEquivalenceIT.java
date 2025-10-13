@@ -29,10 +29,6 @@ import org.apache.kafka.common.compress.Compression;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.ProduceResponseDataJsonConverter;
-import org.apache.kafka.common.message.SaslAuthenticateRequestData;
-import org.apache.kafka.common.message.SaslAuthenticateResponseData;
-import org.apache.kafka.common.message.SaslHandshakeRequestData;
-import org.apache.kafka.common.message.SaslHandshakeResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.record.TimestampType;
@@ -75,7 +71,7 @@ import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class ProduceAuthorizationIT extends AbstractAuthzEquivalenceIT {
+public class ProduceAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
 
     private static final Uuid SENTINEL_TOPIC_ID = Uuid.randomUuid();
 
@@ -108,7 +104,7 @@ public class ProduceAuthorizationIT extends AbstractAuthzEquivalenceIT {
     @BeforeAll
     static void beforeAll() throws IOException {
         // TODO need to add Carol who has Cluster.CREATE
-        rulesFile = Files.createTempFile(ProduceAuthorizationIT.class.getName(), ".aclRules");
+        rulesFile = Files.createTempFile(ProduceAuthzEquivalenceIT.class.getName(), ".aclRules");
         Files.writeString(rulesFile, """
                 version 1;
                 import User from io.kroxylicious.proxy.internal.subject; // TODO This can't remain in the internal package!
@@ -148,69 +144,6 @@ public class ProduceAuthorizationIT extends AbstractAuthzEquivalenceIT {
         deleteTopicsAndAcls(unproxiedCluster, List.of(topicName), aclBindings);
         deleteTopicsAndAcls(proxiedCluster, List.of(topicName), List.of());
     }
-
-//    private Uuid prepCluster(KafkaCluster unproxiedCluster,
-//                                    String topicName,
-//                                    List<AclBinding> bindings) {
-//        Uuid topicId;
-//        try (var admin = AdminClient.create(unproxiedCluster.getKafkaClientConfiguration(SUPER, "Super"))) {
-//            topicId = admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1).configs(Map.of(TopicConfig.MESSAGE_TIMESTAMP_TYPE_CONFIG,
-//                            TimestampType.CREATE_TIME.name))))
-//                    .topicId(topicName)
-//                    .toCompletionStage().toCompletableFuture().join();
-//
-//            if (!bindings.isEmpty()) {
-//                admin.createAcls(bindings).all()
-//                        .toCompletionStage().toCompletableFuture().join();
-//            }
-//        }
-//        return topicId;
-//    }
-//
-//    private void deleteTopicsAndAcls(KafkaCluster unproxiedCluster,
-//                                            List<String> topicNames,
-//                                            List<AclBinding> bindings) {
-//
-//        try (var admin = AdminClient.create(unproxiedCluster.getKafkaClientConfiguration(SUPER, "Super"))) {
-//            try {
-//                admin.deleteTopics(TopicCollection.ofTopicNames(topicNames))
-//                        .all().toCompletionStage().toCompletableFuture().join();
-//            }
-//            catch (CompletionException e) {
-//                if (!(e.getCause() instanceof UnknownTopicOrPartitionException)) {
-//                    throw e;
-//                }
-//                throw e;
-//            }
-//
-//            if (!bindings.isEmpty()) {
-//                var filters = bindings.stream().map(AclBinding::toFilter).toList();
-//                admin.deleteAcls(filters).all()
-//                        .toCompletionStage().toCompletableFuture().join();
-//            }
-//        }
-//    }
-//
-//    private static void authenticate(KafkaClient client, String username, String password) {
-//        // For this test we don't really care what the authn mechanism is, so we use the simplest, plain
-//        // because we have to do the SASL dance ourselves via the very basic `KafkaClient`
-//        var handshakeResponse = (SaslHandshakeResponseData) client.getSync(new Request(ApiKeys.SASL_HANDSHAKE,
-//                        ApiKeys.SASL_HANDSHAKE.latestVersion(),
-//                        "test",
-//                        new SaslHandshakeRequestData()
-//                                .setMechanism("PLAIN")))
-//                .payload().message();
-//        assertThat(Errors.forCode(handshakeResponse.errorCode())).isEqualTo(Errors.NONE);
-//
-//        byte[] bytes = (username + "\0" + username + "\0" + password).getBytes(StandardCharsets.UTF_8);
-//        var authenticateResponse = (SaslAuthenticateResponseData) client.getSync(new Request(ApiKeys.SASL_AUTHENTICATE,
-//                        ApiKeys.SASL_AUTHENTICATE.latestVersion(),
-//                        "test",
-//                        new SaslAuthenticateRequestData()
-//                                .setAuthBytes(bytes)))
-//                .payload().message();
-//        assertThat(Errors.forCode(authenticateResponse.errorCode())).isEqualTo(Errors.NONE);
-//    }
 
     @Nullable
     private static List<ProduceRequestData.TopicProduceData> duplicateTopics(List<ProduceRequestData.TopicProduceData> topics) {
@@ -374,10 +307,10 @@ public class ProduceAuthorizationIT extends AbstractAuthzEquivalenceIT {
             // assert the responses from the proxied cluster at the same as from the unproxied cluster
             // (modulo clobbbering things like UUIDs which will be unavoidably different)
             assertThat(mapValues(proxiedResponsesByUser,
-                        ProduceAuthorizationIT::prettyJsonString))
+                    AbstractAuthzEquivalenceIT::prettyJsonString))
                     .as("Expect equivalent response to an unproxied Kafka cluster with the equivalent AuthZ")
                     .isEqualTo(mapValues(unproxiedResponsesByUser,
-                            ProduceAuthorizationIT::prettyJsonString));
+                            AbstractAuthzEquivalenceIT::prettyJsonString));
             // assertions about side effects
             assertVisibleSideEffects(proxiedCluster);
         }

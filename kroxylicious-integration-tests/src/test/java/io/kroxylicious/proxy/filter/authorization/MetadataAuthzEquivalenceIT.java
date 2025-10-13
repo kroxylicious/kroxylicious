@@ -7,7 +7,6 @@
 package io.kroxylicious.proxy.filter.authorization;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -24,12 +23,7 @@ import org.apache.kafka.common.acl.AclPermissionType;
 import org.apache.kafka.common.message.MetadataRequestData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.message.MetadataResponseDataJsonConverter;
-import org.apache.kafka.common.message.SaslAuthenticateRequestData;
-import org.apache.kafka.common.message.SaslAuthenticateResponseData;
-import org.apache.kafka.common.message.SaslHandshakeRequestData;
-import org.apache.kafka.common.message.SaslHandshakeResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
@@ -66,7 +60,7 @@ import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class MetadataAuthorizationIT extends AbstractAuthzEquivalenceIT {
+public class MetadataAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
 
     private static final Uuid SENTINEL_TOPIC_ID = Uuid.randomUuid();
 
@@ -97,7 +91,7 @@ public class MetadataAuthorizationIT extends AbstractAuthzEquivalenceIT {
     @BeforeAll
     static void beforeAll() throws IOException {
         // TODO need to add Carol who has Cluster.CREATE
-        rulesFile = Files.createTempFile(MetadataAuthorizationIT.class.getName(), ".aclRules");
+        rulesFile = Files.createTempFile(MetadataAuthzEquivalenceIT.class.getName(), ".aclRules");
         Files.writeString(rulesFile, """
                 version 1;
                 import User from io.kroxylicious.proxy.internal.subject; // TODO This can't remain in the internal package!
@@ -188,7 +182,7 @@ public class MetadataAuthorizationIT extends AbstractAuthzEquivalenceIT {
 
     @NonNull
     private static Map<String, String> clobberMap(Map<String, ObjectNode> unproxiedResponsesByUser) {
-        return mapValues(unproxiedResponsesByUser, MetadataAuthorizationIT::clobberMetadata);
+        return mapValues(unproxiedResponsesByUser, MetadataAuthzEquivalenceIT::clobberMetadata);
     }
 
     private static String clobberMetadata(final ObjectNode root) {
@@ -208,18 +202,6 @@ public class MetadataAuthorizationIT extends AbstractAuthzEquivalenceIT {
         }
 
         return prettyJsonString(root);
-    }
-
-    private static ArrayNode sortArray(ObjectNode root, String arrayProperty, String sortProperty) {
-        JsonNode topics = root.path("topics");
-        if (topics.isArray()) {
-            var sortedTopics = topics.valueStream().sorted(
-                    Comparator.comparing(itemNode -> itemNode.get(sortProperty).textValue(),
-                            Comparator.nullsFirst((String x, String y) -> x.compareTo(y)))).toList();
-            root.putArray(arrayProperty).addAll(sortedTopics);
-            return (ArrayNode) root.get(arrayProperty);
-        }
-        return null;
     }
 
     static List<Arguments> metadata() {

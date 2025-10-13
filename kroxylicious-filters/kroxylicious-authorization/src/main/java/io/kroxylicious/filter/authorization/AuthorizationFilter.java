@@ -401,26 +401,34 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                         .map(CreateTopicsRequestData.CreatableTopic::name));
         return authorization(context, topicReadActions)
                 .thenCompose(authorization -> {
-                    var topicReadDecisions = authorization.partition(request.topics(),
+                    var decisions = authorization.partition(request.topics(),
                             TopicResource.CREATE,
                             CreateTopicsRequestData.CreatableTopic::name);
-                    if (topicReadDecisions.get(Decision.ALLOW).isEmpty()) {
+                    if (decisions.get(Decision.ALLOW).isEmpty()) {
                         // Shortcircuit if there's no allowed topics
-                        return context.requestFilterResultBuilder()
-                                .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED.exception())
-                                .completed();
+                        CreateTopicsResponseData.CreatableTopicResultCollection creatableTopics = new CreateTopicsResponseData.CreatableTopicResultCollection();
+                        decisions.get(Decision.DENY).stream()
+                                .map(ct -> getCreatableTopicResult(header, ct))
+                                .forEach(creatableTopics::add);
+                        return context.requestFilterResultBuilder().shortCircuitResponse(
+                                new ResponseHeaderData().setCorrelationId(header.correlationId()),
+                                new CreateTopicsResponseData().setTopics(creatableTopics)).completed();
+//                        return context.requestFilterResultBuilder()
+//                                .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED.exception())
+//                                .completed();
                     }
-                    else if (topicReadDecisions.get(Decision.DENY).isEmpty()) {
+                    else if (decisions.get(Decision.DENY).isEmpty()) {
                         // Just forward if there's no denied topics
                         return context.forwardRequest(header, request);
                     }
                     else {
-                        request.setTopics(new CreateTopicsRequestData.CreatableTopicCollection(topicReadDecisions.get(Decision.ALLOW).iterator()));
-                        var creatableTopicResults = topicReadDecisions.get(Decision.DENY)
-                                .stream().map(t -> new CreateTopicsResponseData.CreatableTopicResult()
-                                        .setName(t.name())
-                                        .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
-                                        .setErrorMessage(header.requestApiVersion() >= 1 ? Errors.TOPIC_AUTHORIZATION_FAILED.message() : null))
+                        var xx = new CreateTopicsRequestData.CreatableTopicCollection();
+                        for (var yy : decisions.get(Decision.ALLOW)) {
+                            xx.mustAdd(yy.duplicate());
+                        }
+                        request.setTopics(xx);
+                        var creatableTopicResults = decisions.get(Decision.DENY)
+                                .stream().map(t -> getCreatableTopicResult(header, t))
                                 .toList();
                         savePartialResponse(header, (CreateTopicsResponseData response) -> {
                             response.topics().addAll(creatableTopicResults);
@@ -429,6 +437,14 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                         return context.forwardRequest(header, request);
                     }
                 });
+    }
+
+    private static CreateTopicsResponseData.CreatableTopicResult getCreatableTopicResult(RequestHeaderData header,
+                                                                                         CreateTopicsRequestData.CreatableTopic t) {
+        return new CreateTopicsResponseData.CreatableTopicResult()
+                .setName(t.name())
+                .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
+                .setErrorMessage(header.requestApiVersion() >= 1 ? "Authorization failed." : null);
     }
 
     /**
@@ -442,9 +458,13 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         List<Action> actions = TopicResource.DESCRIBE_CONFIGS.actionsOf(response.topics().stream().map(t -> t.name()));
         return authorization(context, actions)
                 .thenCompose(authorization -> {
+
                     for (var creatableTopicResult : response.topics()) {
                         if (authorization.decision(TopicResource.DESCRIBE_CONFIGS, creatableTopicResult.name()) == Decision.DENY) {
-                            creatableTopicResult.setConfigs(null);
+                            creatableTopicResult.setConfigs(List.of());
+                            creatableTopicResult.setReplicationFactor((short) -1);
+                            creatableTopicResult.setNumPartitions(-1);
+                            creatableTopicResult.setTopicConfigErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
                         }
                     }
                     return context.forwardResponse(header, mergePartialResponse(header, response));
@@ -571,9 +591,9 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
             case DELETE_TOPICS -> onDeleteTopicsRequest(header, (DeleteTopicsRequestData) request, context);
             case OFFSET_FETCH -> onOffsetFetchRequest(header, (OffsetFetchRequestData) request, context);
 
+            // TODO WRITE: InitProducerId, AddPartitionsToTxn
             // TODO READ: OffsetCommit, TxnOffsetCommit, OffsetDelete
             // TODO ALTER: AlterConfigs, IncrementalAlterConfigs, CreatePartitions
-            // TODO WRITE: InitProducerId, AddPartitionsToTxn
             default -> context.forwardRequest(header, request);
         };
     }

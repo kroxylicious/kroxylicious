@@ -78,16 +78,17 @@ public record Authorization(
      * @param operation The operation
      * @param toName A function that returns the name of each item.
      * @return A pair of lists of the items which the subject is allowed to, or denied from, performing the operation on.
+     * It is guaranteed that there is always an entry for both {@code ALLOW} and {@code DENY} in the returned map.
      * @param <T> The type of item.
      */
     public <T> Map<Decision, List<T>> partition(Collection<T> items, Operation<?> operation, Function<T, String> toName) {
-        HashMap<Decision, List<T>> collect = items.stream().collect(Collectors.groupingBy(
+        HashMap<Decision, List<T>> byDecision = items.stream().collect(Collectors.groupingBy(
                 item -> decision(operation, toName.apply(item)),
                 HashMap::new,
                 Collectors.toList()));
-        collect.putIfAbsent(Decision.ALLOW, List.of());
-        collect.putIfAbsent(Decision.DENY, List.of());
-        return collect;
+        byDecision.putIfAbsent(Decision.ALLOW, List.of());
+        byDecision.putIfAbsent(Decision.DENY, List.of());
+        return byDecision;
     }
 
 }

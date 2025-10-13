@@ -7,9 +7,11 @@
 package io.kroxylicious.proxy.filter.authorization;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -30,6 +32,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fasterxml.jackson.databind.node.TextNode;
 
@@ -64,6 +67,18 @@ public class AbstractAuthzEquivalenceIT extends BaseIT {
                         entry -> valueMapper.apply(entry.getValue())));
     }
 
+    protected static ArrayNode sortArray(ObjectNode root, String arrayProperty, String sortProperty) {
+        JsonNode topics = root.path(arrayProperty);
+        if (topics.isArray()) {
+            var sortedTopics = topics.valueStream().sorted(
+                    Comparator.comparing(itemNode -> itemNode.get(sortProperty).textValue(),
+                            Comparator.nullsFirst((String x, String y) -> x.compareTo(y)))).toList();
+            root.putArray(arrayProperty).addAll(sortedTopics);
+            return (ArrayNode) root.get(arrayProperty);
+        }
+        return null;
+    }
+
     protected static String prettyJsonString(final ObjectNode root) {
         try {
             return MAPPER.writeValueAsString(root);
@@ -91,20 +106,37 @@ public class AbstractAuthzEquivalenceIT extends BaseIT {
     }
 
     protected static Uuid prepCluster(KafkaCluster unproxiedCluster,
-                                    String topicName,
-                                    List<AclBinding> bindings) {
-        Uuid topicId;
+                                      String topicName,
+                                      List<AclBinding> bindings) {
+        return prepCluster(unproxiedCluster, List.of(topicName), bindings)
+                .get(topicName);
+    }
+
+    protected static Map<String, Uuid> prepCluster(KafkaCluster unproxiedCluster,
+                                                   List<String> topicNames,
+                                                   List<AclBinding> bindings) {
+        Map<String, Uuid> result;
         try (var admin = AdminClient.create(unproxiedCluster.getKafkaClientConfiguration("super", "Super"))) {
-            topicId = admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1)))
-                    .topicId(topicName)
-                    .toCompletionStage().toCompletableFuture().join();
+            var res = admin.createTopics(topicNames.stream().map(topicName -> new NewTopic(topicName, 1, (short) 1)).toList());
+            res.all().toCompletionStage().toCompletableFuture().join();
+            result = topicNames.stream().collect(Collectors.toMap(Function.identity(), topicName -> {
+                try {
+                    return res.topicId(topicName).get();
+                }
+                catch (InterruptedException e) {
+                    throw new RuntimeException(e);
+                }
+                catch (ExecutionException e) {
+                    throw new RuntimeException(e);
+                }
+            }));
 
             if (!bindings.isEmpty()) {
                 admin.createAcls(bindings).all()
                         .toCompletionStage().toCompletableFuture().join();
             }
         }
-        return topicId;
+        return result;
     }
 
     protected static void deleteTopicsAndAcls(KafkaCluster unproxiedCluster,
