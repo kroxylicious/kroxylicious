@@ -573,8 +573,15 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                         var decisions = authorization.partition(request.topics(), operation, DeleteTopicsRequestData.DeleteTopicState::name);
                         if (decisions.get(Decision.ALLOW).isEmpty()) {
                             // Shortcircuit if there's no allowed actions
+                            // Shortcircuit if there's no allowed actions
+                            DeleteTopicsResponseData.DeletableTopicResultCollection v = new DeleteTopicsResponseData.DeletableTopicResultCollection();
+                            request.topics().stream()
+                                    .map(topicState -> topicAuthzFailed(apiVersion, topicState))
+                                    .forEach(v::mustAdd);
                             return context.requestFilterResultBuilder()
-                                    .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED.exception())
+                                    .shortCircuitResponse(
+                                            new DeleteTopicsResponseData()
+                                                    .setResponses(v))
                                     .completed();
                         }
                         else if (decisions.get(Decision.DENY).isEmpty()) {
@@ -582,19 +589,15 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                             return context.forwardRequest(header, request);
                         }
                         else {
-                            request.setTopicNames(request.topicNames().stream()
-                                    .filter(tn -> authorization.decision(operation, tn) == Decision.ALLOW)
-                                    .toList());
+//                            request.setTopicNames(request.topicNames().stream()
+//                                    .filter(tn -> authorization.decision(operation, tn) == Decision.ALLOW)
+//                                    .toList());
                             request.setTopics(request.topics().stream()
                                     .filter(topicState -> authorization.decision(operation, topicState.name()) == Decision.ALLOW)
                                     .toList());
 
                             var list = decisions.get(Decision.DENY)
-                                    .stream().map(t -> new DeleteTopicsResponseData.DeletableTopicResult()
-                                            .setName(t.name())
-                                            .setTopicId(Uuid.ZERO_UUID) // TODO topic Ids
-                                            .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
-                                            .setErrorMessage(apiVersion >= 5 ? Errors.TOPIC_AUTHORIZATION_FAILED.message() : null))
+                                    .stream().map(t -> topicAuthzFailed(apiVersion, t))
                                     .toList();
                             savePartialResponse(header, (DeleteTopicsResponseData response) -> {
                                 response.responses().addAll(list);
@@ -603,12 +606,18 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                             return context.forwardRequest(header, request);
                         }
                     }
-                    else {
+                    else { // using topic names
                         var decisions = authorization.partition(request.topicNames(), operation, Function.identity());
                         if (decisions.get(Decision.ALLOW).isEmpty()) {
                             // Shortcircuit if there's no allowed actions
+                            DeleteTopicsResponseData.DeletableTopicResultCollection v = new DeleteTopicsResponseData.DeletableTopicResultCollection();
+                            request.topicNames().stream()
+                                    .map(topicName -> topicAuthzFailed(apiVersion, topicName))
+                                    .forEach(v::mustAdd);
                             return context.requestFilterResultBuilder()
-                                    .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED.exception())
+                                    .shortCircuitResponse(
+                                            new DeleteTopicsResponseData()
+                                                    .setResponses(v))
                                     .completed();
                         }
                         else if (decisions.get(Decision.DENY).isEmpty()) {
@@ -621,10 +630,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                                     .toList());
 
                             var list = decisions.get(Decision.DENY)
-                                    .stream().map(t -> new DeleteTopicsResponseData.DeletableTopicResult()
-                                            .setName(t)
-                                            .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
-                                            .setErrorMessage(apiVersion >= 5 ? Errors.TOPIC_AUTHORIZATION_FAILED.message() : null))
+                                    .stream().map(t -> topicAuthzFailed(apiVersion, t))
                                     .toList();
                             savePartialResponse(header, (DeleteTopicsResponseData response) -> {
                                 response.responses().addAll(list);
@@ -634,6 +640,33 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                         }
                     }
                 });
+    }
+
+    static DeleteTopicsResponseData.DeletableTopicResult topicAuthzFailed(short apiVersion,
+                                                                          String topicName) {
+        if (apiVersion >= 6) {
+            throw new IllegalStateException();
+        }
+        return topicAuthzFailed(apiVersion, new DeleteTopicsResponseData.DeletableTopicResult())
+                .setName(topicName);
+    }
+
+    static DeleteTopicsResponseData.DeletableTopicResult topicAuthzFailed(short apiVersion,
+                                                                          DeleteTopicsRequestData.DeleteTopicState state) {
+
+        if (apiVersion < 6) {
+            throw new IllegalStateException();
+        }
+        return topicAuthzFailed(apiVersion, new DeleteTopicsResponseData.DeletableTopicResult())
+                .setTopicId(state.topicId())
+                .setName(state.name());
+    }
+
+    static DeleteTopicsResponseData.DeletableTopicResult topicAuthzFailed(short apiVersion,
+                                                                          DeleteTopicsResponseData.DeletableTopicResult topicResult) {
+        return topicResult
+                .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
+                .setErrorMessage(apiVersion >= 5 ? Errors.TOPIC_AUTHORIZATION_FAILED.message() : null);
     }
 
     /**
