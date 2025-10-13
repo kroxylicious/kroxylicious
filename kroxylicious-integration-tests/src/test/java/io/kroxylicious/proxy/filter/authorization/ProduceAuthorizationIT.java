@@ -15,15 +15,10 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletionException;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import org.apache.kafka.clients.admin.AdminClient;
-import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
-import org.apache.kafka.common.TopicCollection;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.acl.AccessControlEntry;
@@ -31,8 +26,6 @@ import org.apache.kafka.common.acl.AclBinding;
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.acl.AclPermissionType;
 import org.apache.kafka.common.compress.Compression;
-import org.apache.kafka.common.config.TopicConfig;
-import org.apache.kafka.common.errors.UnknownTopicOrPartitionException;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.ProduceResponseData;
 import org.apache.kafka.common.message.ProduceResponseDataJsonConverter;
@@ -58,15 +51,11 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.core.JsonPointer;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.authorizer.provider.acl.AclAuthorizerService;
 import io.kroxylicious.filter.authorization.Authorization;
-import io.kroxylicious.proxy.BaseIT;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.testplugins.SaslPlainTermination;
@@ -86,25 +75,10 @@ import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class ProduceAuthorizationIT extends BaseIT {
+public class ProduceAuthorizationIT extends AbstractAuthzEquivalenceIT {
 
     private static final Uuid SENTINEL_TOPIC_ID = Uuid.randomUuid();
 
-    // 1. Spin a cluster with Users:
-    // * Alice directly authorized for operation
-    // * Bob indirectly authorized for operation (by implication)
-    // * Eve not authorized for operation
-    // 2. Do some prep (e.g. create a topic T, create a group G)
-    // 3. Make a request for T as each of Alice, Bob and Eve. Record the response
-    // 4. Assert visible side effects
-    // 5. Tear down the cluster
-    // 6. Spin a proxied cluster with proxy users authorised the same way
-    // 7. Do the same prep (e.g. create a topic T, create a group G) (non proxied)
-    // 8. Make a proxied request for T as each of Alice, Bob and Eve
-    // 9. Assert that the responses are ==
-    // 10. Assert no visible side effects
-
-    public static final ObjectMapper MAPPER = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
     private static Path rulesFile;
     private static String topicName = "topic";
     private static List<AclBinding> aclBindings;
@@ -175,78 +149,68 @@ public class ProduceAuthorizationIT extends BaseIT {
         deleteTopicsAndAcls(proxiedCluster, List.of(topicName), List.of());
     }
 
-    private Uuid prepCluster(KafkaCluster unproxiedCluster,
-                                    String topicName,
-                                    List<AclBinding> bindings) {
-        Uuid topicId;
-        try (var admin = AdminClient.create(unproxiedCluster.getKafkaClientConfiguration(SUPER, "Super"))) {
-            topicId = admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1).configs(Map.of(TopicConfig.MESSAGE_TIMESTAMP_TYPE_CONFIG,
-                            TimestampType.CREATE_TIME.name))))
-                    .topicId(topicName)
-                    .toCompletionStage().toCompletableFuture().join();
-
-            if (!bindings.isEmpty()) {
-                admin.createAcls(bindings).all()
-                        .toCompletionStage().toCompletableFuture().join();
-            }
-        }
-        return topicId;
-    }
-
-    private void deleteTopicsAndAcls(KafkaCluster unproxiedCluster,
-                                            List<String> topicNames,
-                                            List<AclBinding> bindings) {
-
-        try (var admin = AdminClient.create(unproxiedCluster.getKafkaClientConfiguration(SUPER, "Super"))) {
-            try {
-                admin.deleteTopics(TopicCollection.ofTopicNames(topicNames))
-                        .all().toCompletionStage().toCompletableFuture().join();
-            }
-            catch (CompletionException e) {
-                if (!(e.getCause() instanceof UnknownTopicOrPartitionException)) {
-                    throw e;
-                }
-                throw e;
-            }
-
-            if (!bindings.isEmpty()) {
-                var filters = bindings.stream().map(AclBinding::toFilter).toList();
-                admin.deleteAcls(filters).all()
-                        .toCompletionStage().toCompletableFuture().join();
-            }
-        }
-    }
-
-    /**
-     * @param bootstrapServers The cluster to connect to.
-     * @return A KafkaClient connected to the given cluster.
-     */
-    @NonNull
-    private static KafkaClient client(String bootstrapServers) {
-        String[] hostPort = bootstrapServers.split(",")[0].split(":");
-        return new KafkaClient(hostPort[0], Integer.parseInt(hostPort[1]));
-    }
-
-    private static void authenticate(KafkaClient client, String username, String password) {
-        // For this test we don't really care what the authn mechanism is, so we use the simplest, plain
-        // because we have to do the SASL dance ourselves via the very basic `KafkaClient`
-        var handshakeResponse = (SaslHandshakeResponseData) client.getSync(new Request(ApiKeys.SASL_HANDSHAKE,
-                        ApiKeys.SASL_HANDSHAKE.latestVersion(),
-                        "test",
-                        new SaslHandshakeRequestData()
-                                .setMechanism("PLAIN")))
-                .payload().message();
-        assertThat(Errors.forCode(handshakeResponse.errorCode())).isEqualTo(Errors.NONE);
-
-        byte[] bytes = (username + "\0" + username + "\0" + password).getBytes(StandardCharsets.UTF_8);
-        var authenticateResponse = (SaslAuthenticateResponseData) client.getSync(new Request(ApiKeys.SASL_AUTHENTICATE,
-                        ApiKeys.SASL_AUTHENTICATE.latestVersion(),
-                        "test",
-                        new SaslAuthenticateRequestData()
-                                .setAuthBytes(bytes)))
-                .payload().message();
-        assertThat(Errors.forCode(authenticateResponse.errorCode())).isEqualTo(Errors.NONE);
-    }
+//    private Uuid prepCluster(KafkaCluster unproxiedCluster,
+//                                    String topicName,
+//                                    List<AclBinding> bindings) {
+//        Uuid topicId;
+//        try (var admin = AdminClient.create(unproxiedCluster.getKafkaClientConfiguration(SUPER, "Super"))) {
+//            topicId = admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1).configs(Map.of(TopicConfig.MESSAGE_TIMESTAMP_TYPE_CONFIG,
+//                            TimestampType.CREATE_TIME.name))))
+//                    .topicId(topicName)
+//                    .toCompletionStage().toCompletableFuture().join();
+//
+//            if (!bindings.isEmpty()) {
+//                admin.createAcls(bindings).all()
+//                        .toCompletionStage().toCompletableFuture().join();
+//            }
+//        }
+//        return topicId;
+//    }
+//
+//    private void deleteTopicsAndAcls(KafkaCluster unproxiedCluster,
+//                                            List<String> topicNames,
+//                                            List<AclBinding> bindings) {
+//
+//        try (var admin = AdminClient.create(unproxiedCluster.getKafkaClientConfiguration(SUPER, "Super"))) {
+//            try {
+//                admin.deleteTopics(TopicCollection.ofTopicNames(topicNames))
+//                        .all().toCompletionStage().toCompletableFuture().join();
+//            }
+//            catch (CompletionException e) {
+//                if (!(e.getCause() instanceof UnknownTopicOrPartitionException)) {
+//                    throw e;
+//                }
+//                throw e;
+//            }
+//
+//            if (!bindings.isEmpty()) {
+//                var filters = bindings.stream().map(AclBinding::toFilter).toList();
+//                admin.deleteAcls(filters).all()
+//                        .toCompletionStage().toCompletableFuture().join();
+//            }
+//        }
+//    }
+//
+//    private static void authenticate(KafkaClient client, String username, String password) {
+//        // For this test we don't really care what the authn mechanism is, so we use the simplest, plain
+//        // because we have to do the SASL dance ourselves via the very basic `KafkaClient`
+//        var handshakeResponse = (SaslHandshakeResponseData) client.getSync(new Request(ApiKeys.SASL_HANDSHAKE,
+//                        ApiKeys.SASL_HANDSHAKE.latestVersion(),
+//                        "test",
+//                        new SaslHandshakeRequestData()
+//                                .setMechanism("PLAIN")))
+//                .payload().message();
+//        assertThat(Errors.forCode(handshakeResponse.errorCode())).isEqualTo(Errors.NONE);
+//
+//        byte[] bytes = (username + "\0" + username + "\0" + password).getBytes(StandardCharsets.UTF_8);
+//        var authenticateResponse = (SaslAuthenticateResponseData) client.getSync(new Request(ApiKeys.SASL_AUTHENTICATE,
+//                        ApiKeys.SASL_AUTHENTICATE.latestVersion(),
+//                        "test",
+//                        new SaslAuthenticateRequestData()
+//                                .setAuthBytes(bytes)))
+//                .payload().message();
+//        assertThat(Errors.forCode(authenticateResponse.errorCode())).isEqualTo(Errors.NONE);
+//    }
 
     @Nullable
     private static List<ProduceRequestData.TopicProduceData> duplicateTopics(List<ProduceRequestData.TopicProduceData> topics) {
@@ -308,23 +272,7 @@ public class ProduceAuthorizationIT extends BaseIT {
                 .isEqualTo(expectedErrorCode);
     }
 
-    @NonNull
-    private static Map<String, String> mapValues(Map<String, ObjectNode> responsesByUser,
-                                                 Function<ObjectNode, String> valueMapper) {
-        return responsesByUser.entrySet().stream()
-                .collect(Collectors.toMap(
-                        Map.Entry::getKey,
-                        entry -> valueMapper.apply(entry.getValue())));
-    }
 
-    private static String prettyJsonString(final ObjectNode root) {
-        try {
-            return MAPPER.writeValueAsString(root);
-        }
-        catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     static List<Arguments> produce() {
         // The tuples
