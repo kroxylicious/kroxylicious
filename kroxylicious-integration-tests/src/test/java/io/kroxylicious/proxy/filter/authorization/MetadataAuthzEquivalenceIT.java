@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +36,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.authorizer.provider.acl.AclAuthorizerService;
@@ -53,7 +51,6 @@ import io.kroxylicious.testing.kafka.common.SaslMechanism;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
@@ -131,16 +128,6 @@ public class MetadataAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
     void tidyClusters() {
         deleteTopicsAndAcls(unproxiedCluster, List.of(topicName, nonExistingTopicCreateAllowed, nonExistingTopicCreateDenied), aclBindings);
         deleteTopicsAndAcls(proxiedCluster, List.of(topicName, nonExistingTopicCreateAllowed, nonExistingTopicCreateDenied), List.of());
-    }
-
-    @Nullable
-    private static List<MetadataRequestData.MetadataRequestTopic> duplicateTopics(List<MetadataRequestData.MetadataRequestTopic> topics) {
-        if (topics != null) {
-            return topics.stream()
-                    .map(MetadataRequestData.MetadataRequestTopic::duplicate)
-                    .toList();
-        }
-        return null;
     }
 
     private static Map<String, ObjectNode> responsesByUser(short apiVersion,
@@ -273,7 +260,7 @@ public class MetadataAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
 
         var unproxiedResponsesByUser = responsesByUser(apiVersion,
                 allowAutoCreation,
-                duplicateTopics(topics),
+                duplicateList(topics),
                 includeClusterAuthz,
                 includeTopicsAuthz,
                 unproxiedCluster.getBootstrapServers(),
@@ -311,7 +298,7 @@ public class MetadataAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
             var proxiedResponsesByUser = responsesByUser(
                     apiVersion,
                     allowAutoCreation,
-                    duplicateTopics(topics),
+                    duplicateList(topics),
                     includeClusterAuthz,
                     includeTopicsAuthz,
                     tester.getBootstrapAddress(),

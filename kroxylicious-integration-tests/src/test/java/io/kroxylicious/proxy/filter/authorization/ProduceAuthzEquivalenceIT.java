@@ -36,7 +36,6 @@ import org.apache.kafka.common.resource.PatternType;
 import org.apache.kafka.common.resource.ResourcePattern;
 import org.apache.kafka.common.resource.ResourceType;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.assertj.core.api.AbstractComparableAssert;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -47,7 +46,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import com.fasterxml.jackson.core.JsonPointer;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.kroxylicious.authorizer.provider.acl.AclAuthorizerService;
@@ -145,16 +143,6 @@ public class ProduceAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
         deleteTopicsAndAcls(proxiedCluster, List.of(topicName), List.of());
     }
 
-    @Nullable
-    private static List<ProduceRequestData.TopicProduceData> duplicateTopics(List<ProduceRequestData.TopicProduceData> topics) {
-        if (topics != null) {
-            return topics.stream()
-                    .map(ProduceRequestData.TopicProduceData::duplicate)
-                    .toList();
-        }
-        return null;
-    }
-
     private Map<String, ObjectNode> responsesByUser(short apiVersion,
                                                            String transactionalId,
                                                            List<ProduceRequestData.TopicProduceData> topics,
@@ -190,22 +178,6 @@ public class ProduceAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
         }
         return responsesByUser;
     }
-
-    private static AbstractComparableAssert<?, Errors> assertErrorCodeAtPointer(
-            String user,
-            ObjectNode root,
-            JsonPointer errorPtr,
-            Errors expectedErrorCode) {
-        JsonNode node = root.at(errorPtr);
-        assertThat(node.isMissingNode())
-                .as("%s should have a result at %s, but node is missing", user, errorPtr)
-                .isFalse();
-        return assertThat(Errors.forCode(node.shortValue()))
-                .as("%s should have result %s", user, expectedErrorCode)
-                .isEqualTo(expectedErrorCode);
-    }
-
-
 
     static List<Arguments> produce() {
         // The tuples
@@ -266,7 +238,7 @@ public class ProduceAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
 
         var unproxiedResponsesByUser = responsesByUser(apiVersion,
                 transactionalId,
-                duplicateTopics(topics),
+                duplicateList(topics),
                 unproxiedCluster.getBootstrapServers(),
                 topicIdInUnproxiedCluster);
         // assertions about responses
@@ -300,7 +272,7 @@ public class ProduceAuthzEquivalenceIT extends AbstractAuthzEquivalenceIT {
             var proxiedResponsesByUser = responsesByUser(
                     apiVersion,
                     transactionalId,
-                    duplicateTopics(topics),
+                    duplicateList(topics),
                     tester.getBootstrapAddress(),
                     topicIdInProxiedCluster);
 

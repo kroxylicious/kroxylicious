@@ -27,7 +27,10 @@ import org.apache.kafka.common.message.SaslHandshakeRequestData;
 import org.apache.kafka.common.message.SaslHandshakeResponseData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.Errors;
+import org.apache.kafka.common.protocol.Message;
+import org.assertj.core.api.AbstractComparableAssert;
 
+import com.fasterxml.jackson.core.JsonPointer;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -40,6 +43,8 @@ import io.kroxylicious.proxy.BaseIT;
 import io.kroxylicious.test.Request;
 import io.kroxylicious.test.client.KafkaClient;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -190,6 +195,30 @@ public class AbstractAuthzEquivalenceIT extends BaseIT {
                                 .setAuthBytes(bytes)))
                 .payload().message();
         assertThat(Errors.forCode(authenticateResponse.errorCode())).isEqualTo(Errors.NONE);
+    }
+
+    static AbstractComparableAssert<?, Errors> assertErrorCodeAtPointer(
+            String user,
+            ObjectNode root,
+            JsonPointer errorPtr,
+            Errors expectedErrorCode) {
+        JsonNode node = root.at(errorPtr);
+        assertThat(node.isMissingNode())
+                .as("%s should have a result at %s, but node is missing", user, errorPtr)
+                .isFalse();
+        return assertThat(Errors.forCode(node.shortValue()))
+                .as("%s should have result %s", user, expectedErrorCode)
+                .isEqualTo(expectedErrorCode);
+    }
+
+    @SuppressWarnings("unchecked")
+    static <M extends Message> @Nullable List<M> duplicateList(@Nullable List<M> topics) {
+        if (topics != null) {
+            return topics.stream()
+                    .map(m -> (M) m.duplicate())
+                    .toList();
+        }
+        return null;
     }
 
 }

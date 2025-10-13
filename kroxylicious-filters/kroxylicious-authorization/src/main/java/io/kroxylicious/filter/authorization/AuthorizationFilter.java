@@ -21,6 +21,8 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
+import org.apache.kafka.common.message.CreatePartitionsRequestData;
+import org.apache.kafka.common.message.CreatePartitionsResponseData;
 import org.apache.kafka.common.message.CreateTopicsRequestData;
 import org.apache.kafka.common.message.CreateTopicsResponseData;
 import org.apache.kafka.common.message.DeleteTopicsRequestData;
@@ -107,7 +109,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         }
     }
 
-    public CompletionStage<RequestFilterResult> onMetadataRequest(RequestHeaderData header,
+    CompletionStage<RequestFilterResult> onMetadataRequest(RequestHeaderData header,
                                                                   MetadataRequestData request,
                                                                   FilterContext context) {
         this.includeClusterAuthorizedOperations = header.requestApiVersion() >= 8
@@ -211,7 +213,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                 });
     }
 
-    public CompletionStage<ResponseFilterResult> onMetadataResponse(ResponseHeaderData header,
+    CompletionStage<ResponseFilterResult> onMetadataResponse(ResponseHeaderData header,
                                                                     MetadataResponseData response,
                                                                     FilterContext context) {
         List<Action> actions = new ArrayList<>();
@@ -295,7 +297,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         return flag;
     }
 
-    public CompletionStage<RequestFilterResult> onProduceRequest(RequestHeaderData header,
+    CompletionStage<RequestFilterResult> onProduceRequest(RequestHeaderData header,
                                                                  ProduceRequestData request,
                                                                  FilterContext context) {
         var topicWriteActions = request.topicData().stream()
@@ -390,9 +392,6 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
         return context.forwardResponse(header, mergePartialResponse(header, response));
     }
 
-    /**
-     * Buffer responses for topics where the subject lacks CREATE
-     */
     private CompletionStage<RequestFilterResult> onCreateTopicsRequest(RequestHeaderData header,
                                                                        CreateTopicsRequestData request,
                                                                        FilterContext context) {
@@ -470,6 +469,79 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                     return context.forwardResponse(header, mergePartialResponse(header, response));
                 });
     }
+
+    private CompletionStage<RequestFilterResult> onCreatePartitionsRequest(RequestHeaderData header,
+                                                                       CreatePartitionsRequestData request,
+                                                                       FilterContext context) {
+        var actions = TopicResource.ALTER.actionsOf(
+                request.topics().stream()
+                        .map(CreatePartitionsRequestData.CreatePartitionsTopic::name));
+        return authorization(context, actions)
+                .thenCompose(authorization -> {
+                    var decisions = authorization.partition(request.topics(),
+                            TopicResource.ALTER,
+                            CreatePartitionsRequestData.CreatePartitionsTopic::name);
+                    if (decisions.get(Decision.ALLOW).isEmpty()) {
+                        // Shortcircuit if there's no allowed topics
+                        var creatableTopics = decisions.get(Decision.DENY).stream()
+                                .map(ct -> getCreatableTopicResult(header, ct))
+                                .toList();
+                        return context.requestFilterResultBuilder().shortCircuitResponse(
+                                new ResponseHeaderData().setCorrelationId(header.correlationId()),
+                                new CreatePartitionsResponseData().setResults(creatableTopics)).completed();
+                    }
+                    else if (decisions.get(Decision.DENY).isEmpty()) {
+                        // Just forward if there's no denied topics
+                        return context.forwardRequest(header, request);
+                    }
+                    else {
+                        var topicCollection = new CreatePartitionsRequestData.CreatePartitionsTopicCollection();
+                        for (var topic : decisions.get(Decision.ALLOW)) {
+                            topicCollection.mustAdd(topic.duplicate());
+                        }
+                        request.setTopics(topicCollection);
+                        var creatableTopicResults = decisions.get(Decision.DENY)
+                                .stream().map(t -> getCreatableTopicResult(header, t))
+                                .toList();
+                        savePartialResponse(header, (CreatePartitionsResponseData response) -> {
+                            response.results().addAll(creatableTopicResults);
+                            return response;
+                        });
+                        return context.forwardRequest(header, request);
+                    }
+                });
+    }
+
+    static CreatePartitionsResponseData.CreatePartitionsTopicResult getCreatableTopicResult(RequestHeaderData header,
+                                                                                             CreatePartitionsRequestData.CreatePartitionsTopic t) {
+        return new CreatePartitionsResponseData.CreatePartitionsTopicResult()
+                .setName(t.name())
+                .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
+    }
+
+//    /**
+//     * Filter out any topic configs if the subject lacks DESCRIBE_CONFIGS
+//     * Append responses buffered when checking the request
+//     */
+//    CompletionStage<ResponseFilterResult> onCreatePartitionsResponse(ResponseHeaderData header,
+//                                                                     CreatePartitionsResponseData response,
+//                                                                     FilterContext context) {
+//
+//        List<Action> actions = TopicResource.DESCRIBE_CONFIGS.actionsOf(response.topics().stream().map(t -> t.name()));
+//        return authorization(context, actions)
+//                .thenCompose(authorization -> {
+//
+//                    for (var creatableTopicResult : response.results()) {
+//                        if (authorization.decision(TopicResource.DESCRIBE_CONFIGS, creatableTopicResult.name()) == Decision.DENY) {
+//                            creatableTopicResult.setConfigs(List.of());
+//                            creatableTopicResult.setReplicationFactor((short) -1);
+//                            creatableTopicResult.setNumPartitions(-1);
+//                            creatableTopicResult.setTopicConfigErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
+//                        }
+//                    }
+//                    return context.forwardResponse(header, mergePartialResponse(header, response));
+//                });
+//    }
 
     /**
      * Buffer responses for topics where the subject lacks DELETE
@@ -587,13 +659,14 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
             case PRODUCE -> onProduceRequest(header, (ProduceRequestData) request, context);
             case FETCH -> onFetchRequest(header, (FetchRequestData) request, context);
             case METADATA -> onMetadataRequest(header, (MetadataRequestData) request, context);
+            case OFFSET_FETCH -> onOffsetFetchRequest(header, (OffsetFetchRequestData) request, context);
             case CREATE_TOPICS -> onCreateTopicsRequest(header, (CreateTopicsRequestData) request, context);
             case DELETE_TOPICS -> onDeleteTopicsRequest(header, (DeleteTopicsRequestData) request, context);
-            case OFFSET_FETCH -> onOffsetFetchRequest(header, (OffsetFetchRequestData) request, context);
+            case CREATE_PARTITIONS -> onCreatePartitionsRequest(header, (CreatePartitionsRequestData) request, context);
 
             // TODO WRITE: InitProducerId, AddPartitionsToTxn
             // TODO READ: OffsetCommit, TxnOffsetCommit, OffsetDelete
-            // TODO ALTER: AlterConfigs, IncrementalAlterConfigs, CreatePartitions
+            // TODO ALTER: AlterConfigs, IncrementalAlterConfigs
             default -> context.forwardRequest(header, request);
         };
     }
