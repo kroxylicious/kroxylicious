@@ -35,8 +35,6 @@ import com.github.nagyesta.lowkeyvault.http.ApacheHttpClient;
 import com.github.nagyesta.lowkeyvault.http.AuthorityOverrideFunction;
 import com.github.nagyesta.lowkeyvault.http.management.LowkeyVaultException;
 import com.github.nagyesta.lowkeyvault.testcontainers.LowkeyVaultContainer;
-import com.github.tomakehurst.wiremock.WireMockServer;
-import com.github.tomakehurst.wiremock.client.WireMock;
 
 import io.kroxylicious.kms.provider.azure.AzureKeyVaultEdek;
 import io.kroxylicious.kms.provider.azure.AzureKeyVaultKmsService;
@@ -50,35 +48,21 @@ import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
-import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static com.github.nagyesta.lowkeyvault.testcontainers.LowkeyVaultContainerBuilder.lowkeyVault;
-import static com.github.tomakehurst.wiremock.client.WireMock.post;
-import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.wireMockConfig;
 
 @SuppressWarnings("java:S112")
 public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaultConfig, WrappingKey, AzureKeyVaultEdek> {
 
-    public static final String MOCK_AUTH_RESPONSE = """
-            {
-                "access_token": "aaa",
-                "token_type": "Bearer",
-                "expires_in": 3599,
-                "scope": "https%3A%2F%2Fgraph.microsoft.com%2Fmail.read",
-                "refresh_token": "bbb",
-                "id_token": "ccc"
-            }
-            """;
     public static final String TENANT_ID = "identity";
     public static final String KEY_VAULT_NAME = "default";
 
-    private final KeytoolCertificateGenerator entraCertGen = entraCerts();
     @Nullable
     private LowkeyVaultContainer kms;
     @Nullable
-    private WireMockServer entraMock;
+    private OauthServerContainer oauthServer;
 
     protected AzureKeyVaultKmsTestKmsFacade() {
     }
@@ -89,36 +73,26 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
     }
 
     public void startKms() {
-        this.kms = startVault();
-        this.entraMock = new WireMockServer(wireMockConfig().dynamicPort().keystorePath(entraCertGen.getKeyStoreLocation()).keystorePassword(entraCertGen.getPassword()));
-        entraMock.start();
-        entraMock.stubFor(post("/" + TENANT_ID + "/oauth2/v2.0/token")
-                .willReturn(WireMock.aResponse().withStatus(200).withHeader("Content-type", "application/json").withBody(MOCK_AUTH_RESPONSE)));
-        entraMock.start();
+        this.kms = startKeyVault();
+        this.oauthServer = startMockOauthServer();
     }
 
-    private static KeytoolCertificateGenerator entraCerts() {
-        try {
-            KeytoolCertificateGenerator entraCertGen = new KeytoolCertificateGenerator();
-            entraCertGen.generateSelfSignedCertificateEntry("webmaster@example.com", "example.com", "Engineering", "kroxylicious.io", null, null, "NZ");
-            entraCertGen.generateTrustStore(entraCertGen.getCertFilePath(), "website");
-            return entraCertGen;
-        }
-        catch (Exception e) {
-            throw new TestKmsFacadeException(e);
-        }
+    private static OauthServerContainer startMockOauthServer() {
+        OauthServerContainer oauthServerContainer = new OauthServerContainer();
+        oauthServerContainer.start();
+        return oauthServerContainer;
     }
 
     public void stopKms() {
         if (kms != null) {
             kms.stop();
         }
-        if (entraMock != null) {
-            entraMock.stop();
+        if (oauthServer != null) {
+            oauthServer.stop();
         }
     }
 
-    public LowkeyVaultContainer startVault() {
+    public static LowkeyVaultContainer startKeyVault() {
         String image = "nagyesta/lowkey-vault:4.0.0";
         final DockerImageName imageName = DockerImageName.parse("mirror.gcr.io/" + image)
                 .asCompatibleSubstituteFor(DockerImageName.parse(image));
@@ -141,7 +115,7 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
         if (kms == null) {
             throw new IllegalStateException("kms is not initialized");
         }
-        if (entraMock == null) {
+        if (oauthServer == null) {
             throw new IllegalStateException("entraMock is not initialized");
         }
         URI defaultVaultBaseUrl = URI.create(kms.getDefaultVaultBaseUrl());
@@ -153,10 +127,12 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
             }
             TrustStore vaultTrust = new TrustStore(tempFile.getAbsolutePath(), new InlinePassword(kms.getDefaultKeyStorePassword()), defaultKeyStore.getType());
             Tls vaultTls = new Tls(null, vaultTrust, null, null);
-            TrustStore entraTrust = new TrustStore(entraCertGen.getTrustStoreLocation(), new InlinePassword(entraCertGen.getPassword()), defaultKeyStore.getType());
+            TrustStore entraTrust = new TrustStore(oauthServer.getTrustStoreLocation(), new InlinePassword(oauthServer.getTrustStorePassword()),
+                    oauthServer.getTrustStoreType());
             Tls entraTls = new Tls(null, entraTrust, null, null);
             return new AzureKeyVaultConfig(
-                    new EntraIdentityConfig(URI.create(entraMock.baseUrl()), TENANT_ID, new InlinePassword("abc"), new InlinePassword("def"), null, entraTls),
+                    new EntraIdentityConfig(oauthServer.getBaseUri(), TENANT_ID, new InlinePassword("abc"), new InlinePassword("def"), null,
+                            entraTls),
                     KEY_VAULT_NAME, defaultVaultBaseUrl.getHost(), null, defaultVaultBaseUrl.getPort(), vaultTls);
         }
         catch (Exception e) {
@@ -257,4 +233,5 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
             }
         }
     }
+
 }

@@ -67,7 +67,10 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["kroxylicious-integration-tests/src/test/java/io/kroxylicious/proxy/filter/oauthbearer/OauthBearerValidationIT.java"],
+      "fileMatch": [
+        "kroxylicious-integration-tests/src/test/java/io/kroxylicious/proxy/filter/oauthbearer/OauthBearerValidationIT.java",
+        "kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms-test-support/src/main/java/io/kroxylicious/kms/provider/azure/kms/OauthServerContainer.java"
+      ],
       "matchStrings": [
         "DockerImageName\\.parse\\(\"(?<depName>ghcr.io/navikt/mock-oauth2-server):(?<currentValue>\\d+\\.\\d+.\\d+)\"\\)"
       ],
