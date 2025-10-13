@@ -6,7 +6,9 @@
 
 package io.kroxylicious.authorizer.service;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -79,7 +81,13 @@ public record Authorization(
      * @param <T> The type of item.
      */
     public <T> Map<Decision, List<T>> partition(Collection<T> items, Operation<?> operation, Function<T, String> toName) {
-        return items.stream().collect(Collectors.groupingBy(item -> decision(operation, toName.apply(item))));
+        HashMap<Decision, List<T>> collect = items.stream().collect(Collectors.groupingBy(
+                item -> decision(operation, toName.apply(item)),
+                HashMap::new,
+                Collectors.toList()));
+        collect.putIfAbsent(Decision.ALLOW, List.of());
+        collect.putIfAbsent(Decision.DENY, List.of());
+        return collect;
     }
 
 }

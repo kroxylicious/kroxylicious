@@ -77,7 +77,7 @@ import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester
 import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class AuthorizationIT extends BaseIT {
+public class MetadataAuthorizationIT extends BaseIT {
 
     private static final Uuid SENTINEL_TOPIC_ID = Uuid.randomUuid();
 
@@ -104,10 +104,26 @@ public class AuthorizationIT extends BaseIT {
     private Uuid topicIdInUnproxiedCluster;
     private Uuid topicIdInProxiedCluster;
 
+    @SaslMechanism(principals = {
+            @SaslMechanism.Principal(user = "super", password = "Super"),
+            @SaslMechanism.Principal(user = "alice", password = "Alice"),
+            @SaslMechanism.Principal(user = "bob", password = "Bob"),
+            @SaslMechanism.Principal(user = "eve", password = "Eve")
+    }) @BrokerConfig(name = "authorizer.class.name", value = "org.apache.kafka.metadata.authorizer.StandardAuthorizer")
+    // ANONYMOUS is the broker
+    @BrokerConfig(name = "super.users", value = "User:ANONYMOUS;User:super")
+    static KafkaCluster unproxiedCluster;
+    static KafkaCluster proxiedCluster;
+
+    Map<String, String> passwords = Map.of(
+            "alice", "Alice",
+            "bob", "Bob",
+            "eve", "Eve");
+
     @BeforeAll
     static void beforeAll() throws IOException {
         // TODO need to add Carol who has Cluster.CREATE
-        rulesFile = Files.createTempFile(AuthorizationIT.class.getName(), ".aclRules");
+        rulesFile = Files.createTempFile(MetadataAuthorizationIT.class.getName(), ".aclRules");
         Files.writeString(rulesFile, """
                 version 1;
                 import User from io.kroxylicious.proxy.internal.subject; // TODO This can't remain in the internal package!
@@ -137,6 +153,19 @@ public class AuthorizationIT extends BaseIT {
         Files.deleteIfExists(rulesFile);
     }
 
+    @BeforeEach
+    void prepClusters() {
+        this.topicIdInUnproxiedCluster = prepCluster(unproxiedCluster, topicName, aclBindings);
+
+        this.topicIdInProxiedCluster = prepCluster(proxiedCluster, topicName, List.of());
+    }
+
+    @AfterEach
+    void tidyClusters() {
+        deleteTopicsAndAcls(unproxiedCluster, List.of(topicName, nonExistingTopicCreateAllowed, nonExistingTopicCreateDenied), aclBindings);
+        deleteTopicsAndAcls(proxiedCluster, List.of(topicName, nonExistingTopicCreateAllowed, nonExistingTopicCreateDenied), List.of());
+    }
+
     private static Uuid prepCluster(KafkaCluster unproxiedCluster,
                                     String topicName,
                                     List<AclBinding> bindings) {
@@ -145,7 +174,6 @@ public class AuthorizationIT extends BaseIT {
             topicId = admin.createTopics(List.of(new NewTopic(topicName, 1, (short) 1)))
                     .topicId(topicName)
                     .toCompletionStage().toCompletableFuture().join();
-            System.err.println("Got " + topicId + " from the admin client");
 
             if (!bindings.isEmpty()) {
                 admin.createAcls(bindings).all()
@@ -229,20 +257,19 @@ public class AuthorizationIT extends BaseIT {
                                                            Map<String, String> passwords) {
         var responsesByUser = new HashMap<String, ObjectNode>();
         for (var entry : passwords.entrySet()) {
-            try (KafkaClient unproxiedClient = client(bootstrapServers)) {
-                authenticate(unproxiedClient, entry.getKey(), entry.getValue());
+            try (KafkaClient client = client(bootstrapServers)) {
+                authenticate(client, entry.getKey(), entry.getValue());
 
                 if (topics != null) {
                     for (var topic : topics) {
                         if (topic.topicId().equals(SENTINEL_TOPIC_ID)) {
-                            System.err.println("Replacing " + SENTINEL_TOPIC_ID + " with " + topicIdReplacement);
                             topic.setTopicId(topicIdReplacement)
                                     .setName(null);
                         }
                     }
                 }
 
-                var resp = unproxiedClient.getSync(new Request(ApiKeys.METADATA, apiVersion, "test",
+                var resp = client.getSync(new Request(ApiKeys.METADATA, apiVersion, "test",
                         new MetadataRequestData()
                                 .setAllowAutoTopicCreation(allowAutoCreation)
                                 .setTopics(topics)
@@ -375,36 +402,6 @@ public class AuthorizationIT extends BaseIT {
         return result;
     }
 
-    @SaslMechanism(principals = {
-            @SaslMechanism.Principal(user = "super", password = "Super"),
-            @SaslMechanism.Principal(user = "alice", password = "Alice"),
-            @SaslMechanism.Principal(user = "bob", password = "Bob"),
-            @SaslMechanism.Principal(user = "eve", password = "Eve")
-    }) @BrokerConfig(name = "authorizer.class.name", value = "org.apache.kafka.metadata.authorizer.StandardAuthorizer")
-    // ANONYMOUS is the broker
-    @BrokerConfig(name = "super.users", value = "User:ANONYMOUS;User:super")
-    static KafkaCluster unproxiedCluster;
-    static KafkaCluster proxiedCluster;
-
-    Map<String, String> passwords = Map.of(
-            "alice", "Alice",
-            "bob", "Bob",
-            "eve", "Eve");
-
-    @BeforeEach
-    void prepClusters() {
-        this.topicIdInUnproxiedCluster = prepCluster(unproxiedCluster, topicName, aclBindings);
-        System.err.println("id in proxied cluster=" + topicIdInUnproxiedCluster);
-
-        this.topicIdInProxiedCluster = prepCluster(proxiedCluster, topicName, List.of());
-        System.err.println("id in proxied cluster=" + topicIdInProxiedCluster);
-    }
-
-    @AfterEach
-    void tidyClusters() {
-        deleteTopicsAndAcls(unproxiedCluster, List.of(topicName, nonExistingTopicCreateAllowed, nonExistingTopicCreateDenied), aclBindings);
-        deleteTopicsAndAcls(proxiedCluster, List.of(topicName, nonExistingTopicCreateAllowed, nonExistingTopicCreateDenied), List.of());
-    }
 
     @ParameterizedTest
     @MethodSource
@@ -467,6 +464,4 @@ public class AuthorizationIT extends BaseIT {
             // TODO assertions about side effects (topics created, or not)
         }
     }
-
-
 }
