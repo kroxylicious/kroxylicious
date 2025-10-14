@@ -6,9 +6,9 @@
 
 package io.kroxylicious.microbenchmarks;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
@@ -47,7 +47,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
-import io.kroxylicious.proxy.filter.TopicNameResult;
+import io.kroxylicious.proxy.filter.TopicNameMapping;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
@@ -215,7 +215,7 @@ public class InvokerDispatchBenchmark {
         }
 
         @Override
-        public CompletionStage<Map<Uuid, TopicNameResult>> getTopicNames(Set<Uuid> topicUuids) {
+        public CompletionStage<TopicNameMapping> getTopicNames(Collection<Uuid> topicUuids) {
             return null;
         }
 

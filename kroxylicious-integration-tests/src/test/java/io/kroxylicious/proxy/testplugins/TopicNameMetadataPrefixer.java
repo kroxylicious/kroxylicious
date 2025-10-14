@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.testplugins;
 
-import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.message.MetadataResponseData;
@@ -24,7 +23,7 @@ import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * This filter exists to test that {@link FilterContext#getTopicNames(Set)} is composable with Filters that
+ * This filter exists to test that {@link FilterContext#getTopicNames(java.util.Collection)} is composable with Filters that
  * manipulate topic names in the Metadata Response.
  */
 @Plugin(configType = Void.class)

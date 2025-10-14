@@ -76,8 +76,7 @@ public class TopicIdToNameResponseStamper implements FilterFactory<Void, Void> {
 
             Set<Uuid> uuids = Arrays.stream(list.getFirst().split(",")).map(Uuid::fromString).collect(Collectors.toSet());
             return context.getTopicNames(uuids).thenCompose(topicNames -> {
-                // should we stamp it with name || errormessage to make it more visible?
-                correlated.put(header.correlationId(), topicNames);
+                correlated.put(header.correlationId(), topicNames.topicNameResults());
                 return context.forwardRequest(header, request);
             });
         }

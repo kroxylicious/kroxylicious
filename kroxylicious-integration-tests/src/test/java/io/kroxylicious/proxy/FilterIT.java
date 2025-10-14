@@ -160,6 +160,34 @@ class FilterIT {
     }
 
     @Test
+    void filtersCanLookUpPartiallyExistingTopics(KafkaCluster cluster, Topic topic1, Admin admin) throws Exception {
+        Map<String, TopicDescription> descriptionMap = admin.describeTopics(List.of(topic1.name())).allTopicNames().get(5, TimeUnit.SECONDS);
+        Uuid topic1Id = descriptionMap.get(topic1.name()).topicId();
+
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder("topicIdLookup",
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            MetadataRequestData message = new MetadataRequestData();
+            Uuid nonexistentTopic = Uuid.randomUuid();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, (nonexistentTopic + "," + topic1Id.toString()).getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
+            List<String> tags = unknownTaggedFieldsToStrings(response.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
+            assertThat(tags).hasSize(1);
+            String tag = tags.getFirst();
+            String[] topicNames = tag.split(",");
+            assertThat(topicNames).containsExactlyInAnyOrder(topicNameMapping(topic1Id, topic1.name(), null),
+                    topicNameMapping(nonexistentTopic, null, "errorCode(UNKNOWN_TOPIC_ID)"));
+        }
+    }
+
+    @Test
     void topicNameLookupComposesWithOtherFilters(KafkaCluster cluster, Topic topic1, Topic topic2, Admin admin) throws Exception {
 
         Map<String, TopicDescription> descriptionMap = admin.describeTopics(List.of(topic1.name(), topic2.name())).allTopicNames().get(5, TimeUnit.SECONDS);

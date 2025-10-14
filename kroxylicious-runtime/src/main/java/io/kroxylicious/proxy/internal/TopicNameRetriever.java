@@ -6,10 +6,10 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
@@ -24,6 +24,7 @@ import org.apache.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.KafkaErrorTopicNameLookupException;
 import io.kroxylicious.proxy.filter.TopicNameLookupException;
+import io.kroxylicious.proxy.filter.TopicNameMapping;
 import io.kroxylicious.proxy.filter.TopicNameResult;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
@@ -37,15 +38,16 @@ public class TopicNameRetriever {
         this.filterContext = filterContext;
     }
 
-    public CompletionStage<Map<Uuid, TopicNameResult>> getTopicNames(Set<Uuid> topicIds) {
+    public CompletionStage<TopicNameMapping> getTopicNames(Collection<Uuid> topicIds) {
         Objects.requireNonNull(topicIds);
         return requestTopicMetadata(topicIds)
                 .thenApply(f -> extractTopicNames(topicIds, f))
                 .exceptionally(throwable -> topicIds.stream().collect(
-                        Collectors.toMap(i -> i, i -> TopicNameResult.forException(new TopicNameLookupException("get topic names failed unexpectedly", throwable)))));
+                        Collectors.toMap(i -> i, i -> TopicNameResult.forException(new TopicNameLookupException("get topic names failed unexpectedly", throwable)))))
+                .thenApply(TopicNameMapping::new);
     }
 
-    private CompletionStage<ApiMessage> requestTopicMetadata(Set<Uuid> topicIds) {
+    private CompletionStage<ApiMessage> requestTopicMetadata(Collection<Uuid> topicIds) {
         MetadataRequestData request = new MetadataRequestData();
         request.setTopics(topicIds.stream().map(topicId -> new MetadataRequestData.MetadataRequestTopic().setTopicId(topicId)).toList());
         request.setAllowAutoTopicCreation(false);
@@ -58,7 +60,7 @@ public class TopicNameRetriever {
     }
 
     @VisibleForTesting
-    static Map<Uuid, TopicNameResult> extractTopicNames(Set<Uuid> topicIds, ApiMessage metadataResponse) {
+    static Map<Uuid, TopicNameResult> extractTopicNames(Collection<Uuid> topicIds, ApiMessage metadataResponse) {
         if (metadataResponse instanceof MetadataResponseData d) {
             Errors errors = Errors.forCode(d.errorCode());
             if (errors != Errors.NONE) {
@@ -67,7 +69,7 @@ public class TopicNameRetriever {
                                 new KafkaErrorTopicNameLookupException(errors, "MetadataResponse top level error: " + errors + ", " + errors.message()))));
             }
             else {
-                return extractTopicNames(topicIds, d);
+                return doExtractTopicNames(topicIds, d);
             }
         }
         else {
@@ -76,7 +78,7 @@ public class TopicNameRetriever {
         }
     }
 
-    private static Map<Uuid, TopicNameResult> extractTopicNames(Set<Uuid> topicIds, MetadataResponseData d) {
+    private static Map<Uuid, TopicNameResult> doExtractTopicNames(Collection<Uuid> topicIds, MetadataResponseData d) {
         Map<Uuid, TopicNameResult> results = d.topics().stream()
                 .collect(Collectors.toMap(MetadataResponseData.MetadataResponseTopic::topicId, metadataResponseTopic -> {
                     Errors topicError = Errors.forCode(metadataResponseTopic.errorCode());

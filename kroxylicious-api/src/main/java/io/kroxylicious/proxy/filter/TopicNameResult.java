@@ -8,6 +8,11 @@ package io.kroxylicious.proxy.filter;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+/**
+ * The result of an attempt to retrieve a topic name for a topic id.
+ * @param topicName name of topic if discovered
+ * @param exception exception if topic name not discovered
+ */
 public record TopicNameResult(@Nullable String topicName, @Nullable TopicNameLookupException exception) {
     public TopicNameResult {
         if (topicName != null && exception != null) {
