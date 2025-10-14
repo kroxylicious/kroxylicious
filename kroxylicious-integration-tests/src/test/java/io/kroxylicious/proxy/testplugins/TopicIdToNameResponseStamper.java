@@ -11,7 +11,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
@@ -28,6 +28,7 @@ import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.filter.KafkaErrorTopicNameLookupException;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilter;
@@ -37,6 +38,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
  * Filter that intercepts all requests and if they have an unknownTaggedField with id {@link #TOPIC_ID_TAG}
@@ -63,7 +65,7 @@ public class TopicIdToNameResponseStamper implements FilterFactory<Void, Void> {
 
     public static class TopicIdToNameResponseStamperFilter implements RequestFilter, ResponseFilter {
 
-        Map<Integer, Set<String>> correlated = new HashMap<>();
+        Map<Integer, Map<Uuid, TopicNameResult>> correlated = new HashMap<>();
 
         @Override
         public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
@@ -75,25 +77,36 @@ public class TopicIdToNameResponseStamper implements FilterFactory<Void, Void> {
             Set<Uuid> uuids = Arrays.stream(list.getFirst().split(",")).map(Uuid::fromString).collect(Collectors.toSet());
             return context.getTopicNames(uuids).thenCompose(topicNames -> {
                 // should we stamp it with name || errormessage to make it more visible?
-                Set<String> topicNameSet = uuids.stream().map(topicNames::get)
-                        .map(TopicNameResult::topicName)
-                        .filter(Objects::nonNull).collect(Collectors.toSet());
-                correlated.put(header.correlationId(), topicNameSet);
+                correlated.put(header.correlationId(), topicNames);
                 return context.forwardRequest(header, request);
             });
         }
 
         @Override
         public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
-            Set<String> topicNames = correlated.remove(header.correlationId());
+            Map<Uuid, TopicNameResult> topicNames = correlated.remove(header.correlationId());
             if (topicNames == null) {
                 return context.forwardResponse(header, response);
             }
             else {
-                String collect = topicNames.stream().collect(Collectors.joining(","));
-                response.unknownTaggedFields().add(new RawTaggedField(TOPIC_NAME_TAG, collect.getBytes(StandardCharsets.UTF_8)));
+                String outcomes = topicNames.entrySet().stream().map(e -> {
+                    var error = Optional.ofNullable(e.getValue().exception()).map(e1 -> {
+                        if (e1 instanceof KafkaErrorTopicNameLookupException ex) {
+                            return "errorCode(" + ex.getError().name() + ")";
+                        }
+                        else {
+                            return "otherError";
+                        }
+                    }).orElse("null");
+                    return topicNameMapping(e.getKey(), e.getValue().topicName(), error);
+                }).collect(Collectors.joining(","));
+                response.unknownTaggedFields().add(new RawTaggedField(TOPIC_NAME_TAG, outcomes.getBytes(StandardCharsets.UTF_8)));
                 return context.forwardResponse(header, response);
             }
         }
+    }
+
+    public static String topicNameMapping(Uuid topicId, @Nullable String topicName, @Nullable String error) {
+        return topicId + "::" + topicName + "::" + error;
     }
 }

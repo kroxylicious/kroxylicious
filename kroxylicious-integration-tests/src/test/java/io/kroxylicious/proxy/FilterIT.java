@@ -71,6 +71,7 @@ import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
 import static io.kroxylicious.UnknownTaggedFields.unknownTaggedFieldsToStrings;
 import static io.kroxylicious.proxy.filter.RequestResponseMarkingFilter.FILTER_NAME_TAG;
+import static io.kroxylicious.proxy.testplugins.TopicIdToNameResponseStamper.topicNameMapping;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.mockKafkaKroxyliciousTester;
@@ -131,7 +132,30 @@ class FilterIT {
             assertThat(tags).hasSize(1);
             String tag = tags.getFirst();
             String[] topicNames = tag.split(",");
-            assertThat(topicNames).containsExactlyInAnyOrder(topic1.name(), topic2.name());
+            assertThat(topicNames).containsExactlyInAnyOrder(topicNameMapping(topic1Id, topic1.name(), null), topicNameMapping(topic2Id, topic2.name(), null));
+        }
+    }
+
+    @Test
+    void filtersCanLookUpNonExistentTopicNames(KafkaCluster cluster) {
+        NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder("topicIdLookup",
+                TopicIdToNameResponseStamper.class.getName())
+                .build();
+        var config = proxy(cluster)
+                .addToFilterDefinitions(namedFilterDefinition)
+                .addToDefaultFilters(namedFilterDefinition.name());
+
+        try (var tester = kroxyliciousTester(config);
+                var client = tester.simpleTestClient()) {
+            MetadataRequestData message = new MetadataRequestData();
+            Uuid nonexistentTopic = Uuid.randomUuid();
+            message.unknownTaggedFields().add(
+                    new RawTaggedField(TopicIdToNameResponseStamper.TOPIC_ID_TAG, nonexistentTopic.toString().getBytes(StandardCharsets.UTF_8)));
+            Response response = client.getSync(new Request(METADATA, METADATA.latestVersion(), "client", message));
+            List<String> tags = unknownTaggedFieldsToStrings(response.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
+            assertThat(tags).hasSize(1);
+            String tag = tags.getFirst();
+            assertThat(tag).isEqualTo(topicNameMapping(nonexistentTopic, null, "errorCode(UNKNOWN_TOPIC_ID)"));
         }
     }
 
@@ -163,7 +187,8 @@ class FilterIT {
             assertThat(tags).hasSize(1);
             String tag = tags.getFirst();
             String[] topicNames = tag.split(",");
-            assertThat(topicNames).containsExactlyInAnyOrder(TopicNameMetadataPrefixer.PREFIX + topic1.name(), TopicNameMetadataPrefixer.PREFIX + topic2.name());
+            assertThat(topicNames).containsExactlyInAnyOrder(topicNameMapping(topic1Id, TopicNameMetadataPrefixer.PREFIX + topic1.name(), null),
+                    topicNameMapping(topic2Id, TopicNameMetadataPrefixer.PREFIX + topic2.name(), null));
         }
     }
 
