@@ -407,14 +407,11 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                         // Shortcircuit if there's no allowed topics
                         CreateTopicsResponseData.CreatableTopicResultCollection creatableTopics = new CreateTopicsResponseData.CreatableTopicResultCollection();
                         decisions.get(Decision.DENY).stream()
-                                .map(ct -> getCreatableTopicResult(header, ct))
-                                .forEach(creatableTopics::add);
+                                .map(ct -> topicAuthzFailed(header.requestApiVersion(), ct))
+                                .forEach(creatableTopics::mustAdd);
                         return context.requestFilterResultBuilder().shortCircuitResponse(
                                 new ResponseHeaderData().setCorrelationId(header.correlationId()),
                                 new CreateTopicsResponseData().setTopics(creatableTopics)).completed();
-//                        return context.requestFilterResultBuilder()
-//                                .errorResponse(header, request, Errors.TOPIC_AUTHORIZATION_FAILED.exception())
-//                                .completed();
                     }
                     else if (decisions.get(Decision.DENY).isEmpty()) {
                         // Just forward if there's no denied topics
@@ -427,7 +424,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                         }
                         request.setTopics(xx);
                         var creatableTopicResults = decisions.get(Decision.DENY)
-                                .stream().map(t -> getCreatableTopicResult(header, t))
+                                .stream().map(t -> topicAuthzFailed(header.requestApiVersion(), t))
                                 .toList();
                         savePartialResponse(header, (CreateTopicsResponseData response) -> {
                             response.topics().addAll(creatableTopicResults);
@@ -438,12 +435,12 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                 });
     }
 
-    private static CreateTopicsResponseData.CreatableTopicResult getCreatableTopicResult(RequestHeaderData header,
-                                                                                         CreateTopicsRequestData.CreatableTopic t) {
+    static CreateTopicsResponseData.CreatableTopicResult topicAuthzFailed(short apiVersion,
+                                                                                  CreateTopicsRequestData.CreatableTopic creatableTopic) {
         return new CreateTopicsResponseData.CreatableTopicResult()
-                .setName(t.name())
+                .setName(creatableTopic.name())
                 .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code())
-                .setErrorMessage(header.requestApiVersion() >= 1 ? "Authorization failed." : null);
+                .setErrorMessage(apiVersion >= 1 ? "Authorization failed." : null);
     }
 
     /**
@@ -484,7 +481,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                     if (decisions.get(Decision.ALLOW).isEmpty()) {
                         // Shortcircuit if there's no allowed topics
                         var creatableTopics = decisions.get(Decision.DENY).stream()
-                                .map(ct -> getCreatableTopicResult(header, ct))
+                                .map(AuthorizationFilter::topicAuthzFailed)
                                 .toList();
                         return context.requestFilterResultBuilder().shortCircuitResponse(
                                 new ResponseHeaderData().setCorrelationId(header.correlationId()),
@@ -501,7 +498,7 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                         }
                         request.setTopics(topicCollection);
                         var creatableTopicResults = decisions.get(Decision.DENY)
-                                .stream().map(t -> getCreatableTopicResult(header, t))
+                                .stream().map(AuthorizationFilter::topicAuthzFailed)
                                 .toList();
                         savePartialResponse(header, (CreatePartitionsResponseData response) -> {
                             response.results().addAll(creatableTopicResults);
@@ -512,36 +509,12 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                 });
     }
 
-    static CreatePartitionsResponseData.CreatePartitionsTopicResult getCreatableTopicResult(RequestHeaderData header,
-                                                                                             CreatePartitionsRequestData.CreatePartitionsTopic t) {
+    static CreatePartitionsResponseData.CreatePartitionsTopicResult topicAuthzFailed(CreatePartitionsRequestData.CreatePartitionsTopic t) {
         return new CreatePartitionsResponseData.CreatePartitionsTopicResult()
                 .setName(t.name())
                 .setErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
     }
 
-//    /**
-//     * Filter out any topic configs if the subject lacks DESCRIBE_CONFIGS
-//     * Append responses buffered when checking the request
-//     */
-//    CompletionStage<ResponseFilterResult> onCreatePartitionsResponse(ResponseHeaderData header,
-//                                                                     CreatePartitionsResponseData response,
-//                                                                     FilterContext context) {
-//
-//        List<Action> actions = TopicResource.DESCRIBE_CONFIGS.actionsOf(response.topics().stream().map(t -> t.name()));
-//        return authorization(context, actions)
-//                .thenCompose(authorization -> {
-//
-//                    for (var creatableTopicResult : response.results()) {
-//                        if (authorization.decision(TopicResource.DESCRIBE_CONFIGS, creatableTopicResult.name()) == Decision.DENY) {
-//                            creatableTopicResult.setConfigs(List.of());
-//                            creatableTopicResult.setReplicationFactor((short) -1);
-//                            creatableTopicResult.setNumPartitions(-1);
-//                            creatableTopicResult.setTopicConfigErrorCode(Errors.TOPIC_AUTHORIZATION_FAILED.code());
-//                        }
-//                    }
-//                    return context.forwardResponse(header, mergePartialResponse(header, response));
-//                });
-//    }
 
     /**
      * Buffer responses for topics where the subject lacks DELETE
@@ -669,15 +642,6 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
                 .setErrorMessage(apiVersion >= 5 ? Errors.TOPIC_AUTHORIZATION_FAILED.message() : null);
     }
 
-    /**
-     * Append responses buffered when checking the request
-     */
-    private CompletionStage<ResponseFilterResult> onDeleteTopicsResponse(ResponseHeaderData header,
-                                                                         DeleteTopicsResponseData response,
-                                                                         FilterContext context) {
-        return context.forwardResponse(header, mergePartialResponse(header, response));
-    }
-
     @NonNull
     private static IllegalStateException topicIdsNotSupported() {
         return new IllegalStateException("Topic ids not supported yet");
@@ -715,7 +679,6 @@ public class AuthorizationFilter implements RequestFilter, ResponseFilter {
             case FETCH -> onFetchResponse(header, (FetchResponseData) response, context);
             case METADATA -> onMetadataResponse(header, (MetadataResponseData) response, context);
             case CREATE_TOPICS -> onCreateTopicsResponse(header, (CreateTopicsResponseData) response, context);
-            case DELETE_TOPICS -> onDeleteTopicsResponse(header, (DeleteTopicsResponseData) response, context);
 
             // TODO DESCRIBE: DescribeTopicPartitions, ListOffset, OffsetFetch, OffsetFetchForLeaderEpoch,
             // TODO DESCRIBE: ConsumerGroupHeartbeat, ConsumerGroupDescribe, ConsumerGroupDescribe
