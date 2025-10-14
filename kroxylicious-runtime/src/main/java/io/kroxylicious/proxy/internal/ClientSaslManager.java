@@ -81,7 +81,7 @@ public class ClientSaslManager {
     private final SubjectBuilder subjectBuilder;
     private final @Nullable ClientTlsContext clientTlsContext;
     private @Nullable Authorized clientAuthorization;
-    private CompletionStage<Subject> clientSubject = CompletableFuture.completedFuture(Subject.ANONYMOUS);
+    private CompletionStage<Subject> clientSubject = CompletableFuture.completedFuture(Subject.anonymous());
 
     ClientSaslManager(SubjectBuilder subjectBuilder,
                       @Nullable ClientTlsContext clientTlsContext) {
@@ -136,7 +136,7 @@ public class ClientSaslManager {
 
     void clientSaslAuthenticationFailure() {
         this.clientAuthorization = null;
-        this.clientSubject = CompletableFuture.completedFuture(Subject.ANONYMOUS);
+        this.clientSubject = CompletableFuture.completedFuture(Subject.anonymous());
     }
 
     public Optional<ClientSaslContext> clientSaslContext() {

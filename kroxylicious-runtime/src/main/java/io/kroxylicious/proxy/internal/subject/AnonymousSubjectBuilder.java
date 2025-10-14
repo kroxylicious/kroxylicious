@@ -17,6 +17,6 @@ public class AnonymousSubjectBuilder implements SubjectBuilder {
 
     @Override
     public CompletionStage<Subject> buildSubject(Context context) {
-        return CompletableFuture.completedStage(Subject.ANONYMOUS);
+        return CompletableFuture.completedStage(Subject.anonymous());
     }
 }

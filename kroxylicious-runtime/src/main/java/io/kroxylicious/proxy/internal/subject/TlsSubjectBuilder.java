@@ -93,9 +93,9 @@ public class TlsSubjectBuilder implements SubjectBuilder {
                             }
 
                             Set<Principal> principals = names.map(User::new).collect(Collectors.toSet());
-                            return principals.isEmpty() ? Subject.ANONYMOUS : new Subject(principals);
+                            return principals.isEmpty() ? Subject.anonymous() : new Subject(principals);
                         })
-                .orElse(Subject.ANONYMOUS);
+                .orElse(Subject.anonymous());
         return CompletableFuture.completedStage(s);
     }
 }
