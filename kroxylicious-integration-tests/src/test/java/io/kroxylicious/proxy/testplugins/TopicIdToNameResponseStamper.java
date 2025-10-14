@@ -91,7 +91,7 @@ public class TopicIdToNameResponseStamper implements FilterFactory<Void, Void> {
                 String outcomes = topicNames.entrySet().stream().map(e -> {
                     var error = Optional.ofNullable(e.getValue().exception()).map(e1 -> {
                         if (e1 instanceof KafkaErrorTopicNameLookupException ex) {
-                            return "errorCode(" + ex.getError().name() + ")";
+                            return "errorCode(" + ex.kafkaServerError().name() + ")";
                         }
                         else {
                             return "otherError";
