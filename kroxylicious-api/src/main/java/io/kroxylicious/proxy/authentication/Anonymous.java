@@ -17,7 +17,8 @@ public class Anonymous implements Principal {
         return INSTANCE;
     }
 
-    private Anonymous() {}
+    private Anonymous() {
+    }
 
     @Override
     public String name() {
