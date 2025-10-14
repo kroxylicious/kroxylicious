@@ -40,6 +40,8 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.subject.SaslSubjectBuilder;
+import io.kroxylicious.proxy.internal.subject.SubjectBuilder;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
@@ -256,6 +258,10 @@ public class VirtualClusterModel {
 
     public Map<String, EndpointGateway> gateways() {
         return Collections.unmodifiableMap(gateways);
+    }
+
+    public SubjectBuilder subjectBuilder() {
+        return new SaslSubjectBuilder();
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
