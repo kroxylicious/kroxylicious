@@ -19,7 +19,7 @@ public class KafkaErrorTopicNameLookupException extends TopicNameLookupException
         this.error = error;
     }
 
-    public Errors getError() {
+    public Errors kafkaServerError() {
         return error;
     }
 }
