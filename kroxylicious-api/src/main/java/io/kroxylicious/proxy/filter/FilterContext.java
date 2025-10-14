@@ -117,12 +117,12 @@ public interface FilterContext {
                                                           ApiMessage request);
 
     /**
-     * Resolves all topicUuids in a Set to topic names.
-     * @param topicUuids topic uuids to resolve
+     * Resolves all of the given {@code topicIds} to the current corresponding topic names.
+     * @param topicIds topic ids to resolve
      * @return CompletionStage for a map containing an entry for each topicUuid, mapping the uuid to the topicNameResult.
      * A topicNameResult will contain either the name, or an exception if the name could not be obtained.
      */
-    CompletionStage<TopicNameMapping> getTopicNames(Collection<Uuid> topicUuids);
+    CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds);
 
     /**
      * Generates a completed filter results containing the given header and response.  When

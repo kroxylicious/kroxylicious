@@ -75,7 +75,7 @@ public class TopicIdToNameResponseStamper implements FilterFactory<Void, Void> {
             }
 
             Set<Uuid> uuids = Arrays.stream(list.getFirst().split(",")).map(Uuid::fromString).collect(Collectors.toSet());
-            return context.getTopicNames(uuids).thenCompose(topicNames -> {
+            return context.topicNames(uuids).thenCompose(topicNames -> {
                 correlated.put(header.correlationId(), topicNames.topicNameResults());
                 return context.forwardRequest(header, request);
             });

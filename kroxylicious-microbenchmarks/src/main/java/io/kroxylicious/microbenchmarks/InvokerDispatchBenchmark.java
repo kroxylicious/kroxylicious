@@ -215,7 +215,7 @@ public class InvokerDispatchBenchmark {
         }
 
         @Override
-        public CompletionStage<TopicNameMapping> getTopicNames(Collection<Uuid> topicUuids) {
+        public CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds) {
             return null;
         }
 

@@ -28,15 +28,9 @@ import io.kroxylicious.proxy.filter.TopicNameMapping;
 import io.kroxylicious.proxy.filter.TopicNameResult;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-public class TopicNameRetriever {
+record TopicNameRetriever(FilterContext filterContext) {
     // Version 12 was the first version that uses topic ids.
     private static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
-
-    private final FilterContext filterContext;
-
-    public TopicNameRetriever(FilterContext filterContext) {
-        this.filterContext = filterContext;
-    }
 
     public CompletionStage<TopicNameMapping> getTopicNames(Collection<Uuid> topicIds) {
         Objects.requireNonNull(topicIds);
@@ -60,21 +54,21 @@ public class TopicNameRetriever {
     }
 
     @VisibleForTesting
-    static Map<Uuid, TopicNameResult> extractTopicNames(Collection<Uuid> topicIds, ApiMessage metadataResponse) {
-        if (metadataResponse instanceof MetadataResponseData d) {
-            Errors errors = Errors.forCode(d.errorCode());
+    static Map<Uuid, TopicNameResult> extractTopicNames(Collection<Uuid> topicIds, ApiMessage response) {
+        if (response instanceof MetadataResponseData metadataResponse) {
+            Errors errors = Errors.forCode(metadataResponse.errorCode());
             if (errors != Errors.NONE) {
                 return topicIds.stream().collect(Collectors.toMap(it -> it,
                         it -> TopicNameResult.forException(
                                 new KafkaErrorTopicNameLookupException(errors, "MetadataResponse top level error: " + errors + ", " + errors.message()))));
             }
             else {
-                return doExtractTopicNames(topicIds, d);
+                return doExtractTopicNames(topicIds, metadataResponse);
             }
         }
         else {
             return topicIds.stream().collect(Collectors.toMap(it -> it,
-                    it -> TopicNameResult.forException(new TopicNameLookupException("Unexpected response type " + metadataResponse.getClass()))));
+                    it -> TopicNameResult.forException(new TopicNameLookupException("Unexpected response type " + response.getClass()))));
         }
     }
 
