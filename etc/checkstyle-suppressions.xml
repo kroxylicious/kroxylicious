@@ -20,4 +20,7 @@
               files="io[/\\]kroxylicious[/\\]kubernetes[/\\]filter[/\\]api[/\\].*\.java"/>
     <suppress checks=".*"
               files="io[/\\]kroxylicious[/\\]microbenchmarks[/\\]jmh_generated[/\\].*"/>
+
+    <suppress checks=".*"
+              files="generated-sources/antlr4/.*"/>
 </suppressions>

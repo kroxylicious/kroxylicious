@@ -50,6 +50,7 @@
                                     </excludes>
                                     <includes combine.children="append">
                                         <include>io.kroxylicious:kroxylicious-annotations</include>
+                                        <include>io.kroxylicious:kroxylicious-authorizer</include>
                                         <include>io.kroxylicious:kroxylicious-api</include>
                                         <include>io.kroxylicious:kroxylicious-filter-toolkit</include>
                                         <include>io.kroxylicious:kroxylicious-filter-test-support</include>
