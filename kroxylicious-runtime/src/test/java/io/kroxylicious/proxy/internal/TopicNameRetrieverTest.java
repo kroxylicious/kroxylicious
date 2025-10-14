@@ -26,6 +26,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.TopicNameLookupException;
+import io.kroxylicious.proxy.filter.TopicNameMapping;
 import io.kroxylicious.proxy.filter.TopicNameResult;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -58,7 +59,7 @@ class TopicNameRetrieverTest {
         response.topics().add(getResponseTopic(UUID, TOPIC_NAME));
         givenSendRequestResponse(completedFuture(response));
         // when
-        CompletionStage<Map<Uuid, TopicNameResult>> topicNames = getTopicNames(Set.of(UUID));
+        CompletionStage<TopicNameMapping> topicNames = getTopicNames(Set.of(UUID));
         // then
         assertOnlyTopicNameResultSatisfies(topicNames, UUID, topicNameResult -> {
             assertThat(topicNameResult.exception()).isNull();
@@ -75,16 +76,17 @@ class TopicNameRetrieverTest {
         Set<Uuid> topicIds = Set.of(UUID, UUID_2);
         givenSendRequestResponse(completedFuture(response));
         // when
-        CompletionStage<Map<Uuid, TopicNameResult>> topicNames = getTopicNames(topicIds);
+        CompletionStage<TopicNameMapping> topicNames = getTopicNames(topicIds);
         // then
         assertThat(topicNames.toCompletableFuture()).succeedsWithin(Duration.ZERO)
-                .satisfies(topicNamesResult -> {
-                    assertThat(topicNamesResult).containsOnlyKeys(UUID, UUID_2);
-                    assertThat(topicNamesResult).hasEntrySatisfying(UUID, topicNameResult -> {
+                .satisfies(topicNameMapping -> {
+                    Map<Uuid, TopicNameResult> uuidTopicNameResultMap = topicNameMapping.topicNameResults();
+                    assertThat(uuidTopicNameResultMap).containsOnlyKeys(UUID, UUID_2);
+                    assertThat(uuidTopicNameResultMap).hasEntrySatisfying(UUID, topicNameResult -> {
                         assertThat(topicNameResult.exception()).isNull();
                         assertThat(topicNameResult.topicName()).isEqualTo(TOPIC_NAME);
                     });
-                    assertThat(topicNamesResult).hasEntrySatisfying(UUID_2, topicNameResult -> {
+                    assertThat(uuidTopicNameResultMap).hasEntrySatisfying(UUID_2, topicNameResult -> {
                         assertThat(topicNameResult.exception()).isNull();
                         assertThat(topicNameResult.topicName()).isEqualTo(TOPIC_NAME_2);
                     });
@@ -99,10 +101,11 @@ class TopicNameRetrieverTest {
         Set<Uuid> topicIds = Set.of(UUID, UUID_2);
         givenSendRequestResponse(completedFuture(response));
         // when
-        CompletionStage<Map<Uuid, TopicNameResult>> topicNames = getTopicNames(topicIds);
+        CompletionStage<TopicNameMapping> topicNames = getTopicNames(topicIds);
         // then
         assertThat(topicNames.toCompletableFuture()).succeedsWithin(Duration.ZERO)
-                .satisfies(topicNamesResult -> {
+                .satisfies(topicNameMapping -> {
+                    Map<Uuid, TopicNameResult> topicNamesResult = topicNameMapping.topicNameResults();
                     assertThat(topicNamesResult).containsOnlyKeys(UUID, UUID_2);
                     assertThat(topicNamesResult).hasEntrySatisfying(UUID, topicNameResult -> {
                         assertThat(topicNameResult.exception()).isNull();
@@ -121,7 +124,7 @@ class TopicNameRetrieverTest {
         // given
         givenSendRequestResponse(failedFuture(new RuntimeException("BOOM")));
         // when
-        CompletionStage<Map<Uuid, TopicNameResult>> topicNames = getTopicNames(Set.of(UUID));
+        CompletionStage<TopicNameMapping> topicNames = getTopicNames(Set.of(UUID));
         // then
         assertOnlyTopicNameResultSatisfies(topicNames, UUID, topicNameResult -> {
             assertThat(topicNameResult.topicName()).isNull();
@@ -136,7 +139,7 @@ class TopicNameRetrieverTest {
         ApiMessage response = new ApiVersionsResponseData();
         givenSendRequestResponse(completedFuture(response));
         // when
-        CompletionStage<Map<Uuid, TopicNameResult>> topicNames = getTopicNames(Set.of(UUID));
+        CompletionStage<TopicNameMapping> topicNames = getTopicNames(Set.of(UUID));
         // then
         assertOnlyTopicNameResultSatisfies(topicNames, UUID, topicNameResult -> {
             assertThat(topicNameResult.topicName()).isNull();
@@ -151,7 +154,7 @@ class TopicNameRetrieverTest {
         MetadataResponseData response = new MetadataResponseData();
         givenSendRequestResponse(completedFuture(response));
         // when
-        CompletionStage<Map<Uuid, TopicNameResult>> topicNames = getTopicNames(Set.of(UUID));
+        CompletionStage<TopicNameMapping> topicNames = getTopicNames(Set.of(UUID));
         // then
         assertOnlyTopicNameResultSatisfies(topicNames, UUID, topicNameResult -> {
             assertThat(topicNameResult.topicName()).isNull();
@@ -167,7 +170,7 @@ class TopicNameRetrieverTest {
         response.setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code());
         givenSendRequestResponse(completedFuture(response));
         // when
-        CompletionStage<Map<Uuid, TopicNameResult>> topicNames = getTopicNames(Set.of(UUID));
+        CompletionStage<TopicNameMapping> topicNames = getTopicNames(Set.of(UUID));
         // then
         assertOnlyTopicNameResultSatisfies(topicNames, UUID, topicNameResult -> {
             assertThat(topicNameResult.topicName()).isNull();
@@ -186,7 +189,7 @@ class TopicNameRetrieverTest {
         response.topics().add(responseTopic);
         givenSendRequestResponse(completedFuture(response));
         // when
-        CompletionStage<Map<Uuid, TopicNameResult>> topicNames = getTopicNames(Set.of(UUID));
+        CompletionStage<TopicNameMapping> topicNames = getTopicNames(Set.of(UUID));
         // then
         assertOnlyTopicNameResultSatisfies(topicNames, UUID, topicNameResult -> {
             assertThat(topicNameResult.topicName()).isNull();
@@ -202,12 +205,12 @@ class TopicNameRetrieverTest {
                 .setName(topicName);
     }
 
-    private static void assertOnlyTopicNameResultSatisfies(CompletionStage<Map<Uuid, TopicNameResult>> topicNames, Uuid uuid,
+    private static void assertOnlyTopicNameResultSatisfies(CompletionStage<TopicNameMapping> topicNames, Uuid uuid,
                                                            Consumer<TopicNameResult> topicNameResultConsumer) {
         assertThat(topicNames.toCompletableFuture()).succeedsWithin(Duration.ZERO)
-                .satisfies(topicNamesResult -> {
-                    assertThat(topicNamesResult).containsOnlyKeys(uuid);
-                    assertThat(topicNamesResult).hasEntrySatisfying(uuid, topicNameResultConsumer);
+                .satisfies(topicNamesMapping -> {
+                    assertThat(topicNamesMapping.topicNameResults()).containsOnlyKeys(uuid);
+                    assertThat(topicNamesMapping.topicNameResults()).hasEntrySatisfying(uuid, topicNameResultConsumer);
                 });
     }
 
@@ -215,7 +218,7 @@ class TopicNameRetrieverTest {
         when(filterContext.sendRequest(any(), any())).thenReturn(response);
     }
 
-    private CompletionStage<Map<Uuid, TopicNameResult>> getTopicNames(Set<Uuid> topicIds) {
+    private CompletionStage<TopicNameMapping> getTopicNames(Set<Uuid> topicIds) {
         return retriever.getTopicNames(topicIds);
     }
 

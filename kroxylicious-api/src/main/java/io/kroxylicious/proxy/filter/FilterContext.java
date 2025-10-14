@@ -5,9 +5,8 @@
  */
 package io.kroxylicious.proxy.filter;
 
-import java.util.Map;
+import java.util.Collection;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
 import javax.annotation.Nullable;
@@ -115,7 +114,7 @@ public interface FilterContext {
      * @return CompletionStage for a map containing an entry for each topicUuid, mapping the uuid to the topicNameResult.
      * A topicNameResult will contain either the name, or an exception if the name could not be obtained.
      */
-    CompletionStage<Map<Uuid, TopicNameResult>> getTopicNames(Set<Uuid> topicUuids);
+    CompletionStage<TopicNameMapping> getTopicNames(Collection<Uuid> topicUuids);
 
     /**
      * Generates a completed filter results containing the given header and response.  When

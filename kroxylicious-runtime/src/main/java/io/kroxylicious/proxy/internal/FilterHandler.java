@@ -7,10 +7,9 @@ package io.kroxylicious.proxy.internal;
 
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
-import java.util.Map;
+import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
@@ -45,7 +44,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
-import io.kroxylicious.proxy.filter.TopicNameResult;
+import io.kroxylicious.proxy.filter.TopicNameMapping;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -610,7 +609,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
         @Override
-        public CompletionStage<Map<Uuid, TopicNameResult>> getTopicNames(Set<Uuid> topicIds) {
+        public CompletionStage<TopicNameMapping> getTopicNames(Collection<Uuid> topicIds) {
             return new TopicNameRetriever(this).getTopicNames(topicIds);
         }
 
