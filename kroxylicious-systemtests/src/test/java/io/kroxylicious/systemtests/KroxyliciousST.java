@@ -115,7 +115,7 @@ class KroxyliciousST extends AbstractST {
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
+                .extracting(ConsumerRecord::getPayload)
                 .hasSize(numberOfMessages)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
@@ -148,7 +148,7 @@ class KroxyliciousST extends AbstractST {
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
+                .extracting(ConsumerRecord::getPayload)
                 .hasSize(numberOfMessages)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
@@ -182,7 +182,7 @@ class KroxyliciousST extends AbstractST {
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
+                .extracting(ConsumerRecord::getPayload)
                 .hasSize(numberOfMessages)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }
@@ -224,7 +224,7 @@ class KroxyliciousST extends AbstractST {
         LOGGER.atInfo().setMessage("Received: {}").addArgument(result).log();
 
         assertThat(result).withFailMessage("expected messages have not been received!")
-                .extracting(ConsumerRecord::getValue)
+                .extracting(ConsumerRecord::getPayload)
                 .hasSize(numberOfMessages)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
     }

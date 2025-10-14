@@ -8,20 +8,20 @@ package io.kroxylicious.systemtests.clients.records;
 
 import java.util.HashMap;
 import java.util.List;
-import java.util.Map.Entry;
+import java.util.Map;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
- * The type Strimzi Test Client consumer record.
+ * The type Python test client consumer record.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class StrimziTestClientConsumerRecord extends ConsumerRecord {
+public class PythonTestClientConsumerRecord extends ConsumerRecord {
 
     /**
-     * Instantiates a new Client consumer record.
+     * Instantiates a new python test client consumer record.
      *
      * @param headers the headers
      * @param topic the topic
@@ -31,16 +31,16 @@ public class StrimziTestClientConsumerRecord extends ConsumerRecord {
      * @param offset the offset
      */
     @JsonCreator
-    public StrimziTestClientConsumerRecord(@JsonProperty("headers") List<Entry<String, String>> headers,
-                                           @JsonProperty("topic") String topic,
-                                           @JsonProperty("key") String key,
-                                           @JsonProperty("payload") String payload,
-                                           @JsonProperty("partition") int partition,
-                                           @JsonProperty("offset") long offset) {
+    public PythonTestClientConsumerRecord(@JsonProperty("headers") List<Map<String, String>> headers,
+                                          @JsonProperty("topic") String topic,
+                                          @JsonProperty("key") String key,
+                                          @JsonProperty("value") String payload,
+                                          @JsonProperty("partition") int partition,
+                                          @JsonProperty("offset") long offset) {
         super(topic, key, payload, partition, offset);
         this.recordHeaders = new HashMap<>();
         if (headers != null) {
-            headers.forEach(h -> recordHeaders.put(h.getKey(), h.getValue()));
+            headers.forEach(h -> recordHeaders.put(h.get("Key"), h.get("Value")));
         }
     }
 }
