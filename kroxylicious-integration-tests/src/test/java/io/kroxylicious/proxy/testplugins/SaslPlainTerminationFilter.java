@@ -7,10 +7,8 @@
 package io.kroxylicious.proxy.testplugins;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletionStage;
 
-import javax.security.auth.login.AppConfigurationEntry;
 import javax.security.sasl.Sasl;
 import javax.security.sasl.SaslException;
 import javax.security.sasl.SaslServer;
@@ -25,15 +23,12 @@ import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
-import org.apache.kafka.common.security.plain.PlainLoginModule;
-import org.apache.kafka.common.security.plain.internals.PlainServerCallbackHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.proxy.internal.KafkaAuthnHandler;
 
 /**
  * A minimal SASL termination filter supporting the {@code PLAIN} mechanism only.
@@ -47,17 +42,12 @@ public class SaslPlainTerminationFilter
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SaslPlainTerminationFilter.class);
 
+    private final SaslPlainTermination.PasswordVerifier passwordVerifier;
+
     private SaslServer saslServer;
 
-    private AuthenticateCallbackHandler saslPlainCallbackHandler(String user,
-                                                                 String password) {
-        PlainServerCallbackHandler plainServerCallbackHandler = new PlainServerCallbackHandler();
-        plainServerCallbackHandler.configure(Map.of(),
-                KafkaAuthnHandler.SaslMechanism.PLAIN.mechanismName(),
-                List.of(new AppConfigurationEntry(PlainLoginModule.class.getName(),
-                        AppConfigurationEntry.LoginModuleControlFlag.REQUIRED,
-                        Map.of("user_" + user, password))));
-        return plainServerCallbackHandler;
+    public SaslPlainTerminationFilter(SaslPlainTermination.PasswordVerifier passwordVerifier) {
+        this.passwordVerifier = passwordVerifier;
     }
 
     CompletionStage<RequestFilterResult> onSaslHandshakeRequest(SaslHandshakeRequestData request,
@@ -66,7 +56,7 @@ public class SaslPlainTerminationFilter
         AuthenticateCallbackHandler cbh = null;
         List<String> supportedMechanisms;
         if ("PLAIN".equals(request.mechanism())) {
-            cbh = saslPlainCallbackHandler("alice", "alice-secret");
+            cbh = this.passwordVerifier;
             errorCode = Errors.NONE;
             supportedMechanisms = List.of();
         }

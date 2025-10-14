@@ -21,7 +21,6 @@
     <artifactId>kroxylicious-kms-provider-hashicorp-vault</artifactId>
     <name>HashiCorp Vault KMS</name>
     <description>A KMS provider backed by a remote instance of HashiCorp Vault</description>
-    <packaging>jar</packaging>
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>

@@ -45,7 +45,7 @@
         <guava.version>33.5.0-jre</guava.version>
         <hamcrest.version>3.0</hamcrest.version>
         <jackson.version>2.20.0</jackson.version>
-        <junit.version>5.13.4</junit.version>
+        <junit.version>5.14.0</junit.version>
         <kafka.version>4.1.0</kafka.version>
         <kroxy.extension.version>0.12.0</kroxy.extension.version>
         <log4j.version>2.25.2</log4j.version>
@@ -61,10 +61,10 @@
         <micrometer.version>1.15.4</micrometer.version>
         <slf4j.version>2.0.17</slf4j.version>
         <sundr-builder-annotations.version>0.220.1</sundr-builder-annotations.version>
-        <spotbugs-annotations.version>4.9.5</spotbugs-annotations.version>
+        <spotbugs-annotations.version>4.9.6</spotbugs-annotations.version>
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
-        <jacoco-maven-plugin.version>0.8.13</jacoco-maven-plugin.version>
+        <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
         <apicurio-schema-validation.version>0.0.7</apicurio-schema-validation.version>
         <apicurio-registry.version>2.6.13.Final</apicurio-registry.version>
         <apicurio-common.version>0.1.18.Final</apicurio-common.version>
@@ -76,6 +76,8 @@
         <maven.core.version>3.9.11</maven.core.version>
         <awaitility.version>4.3.0</awaitility.version>
         <testcontainers.version>1.21.3</testcontainers.version>
+        <azure.security.keyvault.keys.version>4.10.1</azure.security.keyvault.keys.version>
+        <lowkey.version>4.0.0</lowkey.version>
         <bouncycastle.version>1.82</bouncycastle.version>
         <netty-leak-detector-junit-extension.version>0.2.0</netty-leak-detector-junit-extension.version>
         <wiremock.version>3.13.1</wiremock.version>
@@ -84,6 +86,9 @@
         <junit-pioneer.version>2.3.0</junit-pioneer.version>
         <skip-validate-yaml-snippets>true</skip-validate-yaml-snippets>
         <opentest4j.version>1.3.0</opentest4j.version>
+        <azure.core.version>1.55.5</azure.core.version>
+        <apache.httpclient.version>4.5.14</apache.httpclient.version>
+        <apache.httpcore.version>4.4.16</apache.httpcore.version>
     </properties>
 
     <name>Parent POM</name>
@@ -362,11 +367,47 @@
                 <version>${strimzi.version}</version>
             </dependency>
             <dependency>
+                <groupId>com.azure</groupId>
+                <artifactId>azure-core</artifactId>
+                <version>${azure.core.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpclient</artifactId>
+                <version>${apache.httpclient.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.httpcomponents</groupId>
+                <artifactId>httpcore</artifactId>
+                <version>${apache.httpcore.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.azure</groupId>
+                <artifactId>azure-security-keyvault-keys</artifactId>
+                <version>${azure.security.keyvault.keys.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
                 <version>${testcontainers.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.github.nagyesta.lowkey-vault</groupId>
+                <artifactId>lowkey-vault-testcontainers</artifactId>
+                <version>${lowkey.version}</version>
+                <scope>test</scope>
+            </dependency>
+            <dependency>
+                <groupId>com.github.nagyesta.lowkey-vault</groupId>
+                <artifactId>lowkey-vault-client</artifactId>
+                <version>${lowkey.version}</version>
+                <scope>test</scope>
             </dependency>
             <dependency>
                 <groupId>com.github.docker-java</groupId>
@@ -457,7 +498,6 @@
         <module>kroxylicious-filter-archetype</module>
         <module>kroxylicious-runtime</module>
         <module>kroxylicious-filters</module>
-        <module>kroxylicious-sample</module>
         <module>kroxylicious-kubernetes-api</module>
         <module>kroxylicious-operator-test-support</module>
         <module>kroxylicious-operator</module>
@@ -756,7 +796,7 @@
                 <plugin>
                     <groupId>com.github.siom79.japicmp</groupId>
                     <artifactId>japicmp-maven-plugin</artifactId>
-                    <version>0.24.1</version>
+                    <version>0.24.2</version>
                 </plugin>
 
                 <plugin>

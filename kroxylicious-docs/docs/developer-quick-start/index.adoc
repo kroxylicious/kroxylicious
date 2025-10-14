@@ -15,46 +15,74 @@ To start developing your own custom filters for Kroxylicious, you will need to i
 
 You'll also need to install the link:https://maven.apache.org/index.html[Apache Maven CLI] and one of either link:https://podman.io/docs/installation[Podman] or link:https://docs.docker.com/install/[Docker].
 
-NOTE: If you are using Podman, you may encounter issues with the integration tests. There are instructions link:https://github.com/kroxylicious/kroxylicious/blob/main/DEV_GUIDE.md#running-integration-tests-on-podman[here] to resolve this.
+NOTE: If you are using Podman, you may encounter issues with the integration tests.
+There are instructions link:https://github.com/kroxylicious/kroxylicious/blob/main/DEV_GUIDE.md#running-integration-tests-on-podman[here] to resolve this.
 
-=== Get the code
+=== Generate a Sample Filter Project
 
-The easiest way to learn how to build custom filters is with our `kroxylicious-sample` module, which contains some basic find-and-replace filters for you to experiment with.
-Begin by downloading the latest `kroxylicious-sample` sources from the link:https://github.com/kroxylicious/kroxylicious[Kroxylicious repository].
+The easiest way to learn how to build custom filters is with our `kroxylicious-filter-archetype` maven archetype, which will generate some basic find-and-replace filters for you to experiment with.
+Begin by generating a sample project:
 
 [source,shell,subs="attributes"]
 ----
-git clone https://github.com/kroxylicious/kroxylicious.git
-cd kroxylicious
-git checkout {KroxyliciousReleaseTag}
+mvn archetype:generate -DarchetypeGroupId=io.kroxylicious \
+                       -DarchetypeArtifactId=kroxylicious-filter-archetype \
+                       -DarchetypeVersion={KroxyliciousVersion} \
+                       -DgroupId=org.example \
+                       -DartifactId=sample-filter \
+                       -Dversion=1.0-SNAPSHOT \
+                       -DinteractiveMode=false
+cd sample-filter
 ----
 
-== Build the sample Filter project
+== Build the Sample Filter project
 
-Building the sample project is easy! You can build the `kroxylicious-sample` jar either on its own or with the rest of the Kroxylicious project.
-
-To build all of Kroxylicious, including the sample:
+Building the sample project is easy!
 
 [source,shell]
 ----
-mvn verify -Pdist -Dquick
+mvn verify
 ----
 
-Note that the `quick` flag prevents tests from running. For more instructions about working with the build, see the {github-blob-root}/DEV_GUIDE.md#build[Development Guide].
+Note that the sample project includes automated unit and integration tests. The project's powerful integration tests run
+against an in-VM Kafka cluster, enabling you to rapidly iterate on your filter's business logic.
 
-== Run the built sample Filter in a Proxy
+== Run the built Sample Filter module in a Proxy
 
-Build both `kroxylicious-sample` and `kroxylicious-app` with the `dist` profile as above, then run the following command:
+To build and run your sample filter
 
 [source,shell,subs="attributes"]
 ----
-KROXYLICIOUS_CLASSPATH="kroxylicious-sample/target/*" kroxylicious-app/target/kroxylicious-app-{KroxyliciousVersion}-bin/kroxylicious-app-{KroxyliciousVersion}/bin/kroxylicious-start.sh --config kroxylicious-sample/sample-proxy-config.yaml
+chmod +x run.sh
+./run.sh --config sample-proxy-config.yaml
+----
+
+Send a Kafka message containing `foo` through the proxy.
+You should see the content transformed, with the word `foo` replaced by `baz` in the message received by the consumer.
+
+[source,shell,subs="attributes"]
+----
+podman run -it --net host \
+           --entrypoint /opt/kafka/bin/kafka-console-producer.sh \
+           apache/kafka:{LatestKafkaVersion} \
+           --bootstrap-server localhost:9192 \
+           --topic hello
+>foo
+
+podman run -it --net host \
+           --entrypoint /opt/kafka/bin/kafka-console-consumer.sh \
+           apache/kafka:{LatestKafkaVersion} \
+           --bootstrap-server localhost:9192 \
+           --topic hello \
+           --from-beginning
+baz
 ----
 
 == Configure the Filter
 
-Filters can be added and removed by altering the `filterDefinitions` list in the `kroxylicious-sample/sample-proxy-config.yaml` file.
+Filters can be added and removed by altering the `filterDefinitions` list in the `sample-proxy-config.yaml` file.
 You can also reconfigure the sample filters by changing the configuration values in this file.
+Note that the proxy must be restarted when you modify the configuration.
 
 The *SampleFetchResponseFilter* and *SampleProduceRequestFilter* each have two configuration values that must be specified for them to work:
 
@@ -95,4 +123,5 @@ For example, if a Kafka Broker sent a fetch response with data `{"myValue":"bar"
 
 === Modify
 
-Now that you know how the sample filters work, you can start modifying them! Replace the `SampleFilterTransformer` logic with your own code, change which messages they apply to, or whatever else you like!
+Now that you know how the sample filters work, you can start modifying them!
+Replace the `SampleFilterTransformer` logic with your own code, change which messages they apply to, or whatever else you like!

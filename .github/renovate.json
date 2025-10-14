@@ -33,6 +33,18 @@
     {
       "customType": "regex",
       "fileMatch": [
+        "kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms-test-support/src/main/java/io/kroxylicious/kms/provider/azure/kms/AzureKeyVaultKmsTestKmsFacade.java",
+        "kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms/src/test/java/io/kroxylicious/kms/provider/azure/keyvault/KeyVaultClientIT.java"
+      ],
+      "matchStrings": [
+        "\"nagyesta/lowkey-vault:(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "nagyesta/lowkey-vault",
+      "datasourceTemplate": "docker"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": [
         "kroxylicious-systemtests/src/main/resources/helm_cert_manager_overrides.yaml"
       ],
       "matchStrings": [
@@ -55,7 +67,10 @@
     },
     {
       "customType": "regex",
-      "fileMatch": ["kroxylicious-integration-tests/src/test/java/io/kroxylicious/proxy/filter/oauthbearer/OauthBearerValidationIT.java"],
+      "fileMatch": [
+        "kroxylicious-integration-tests/src/test/java/io/kroxylicious/proxy/filter/oauthbearer/OauthBearerValidationIT.java",
+        "kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms-test-support/src/main/java/io/kroxylicious/kms/provider/azure/kms/OauthServerContainer.java"
+      ],
       "matchStrings": [
         "DockerImageName\\.parse\\(\"(?<depName>ghcr.io/navikt/mock-oauth2-server):(?<currentValue>\\d+\\.\\d+.\\d+)\"\\)"
       ],
