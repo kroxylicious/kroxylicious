@@ -6,11 +6,14 @@
 
 package io.kroxylicious.proxy.authentication;
 
+import java.util.Objects;
 import java.util.Set;
 
 /**
  * <p>Represents an actor in the system.
- * Subjects are composed of a set of identifiers represented as {@link Principal} instances.</p>
+ * Subjects are composed of a non-empty set of identifiers represented as {@link Principal} instances.
+ * {@link Subject#anonymous()} can be used as the subject when nothing else is known about an actor.
+ * </p>
  *
  * <p>The principals chosen depend on the calling code but in general might comprise the following:</p>
  * <ul>
@@ -33,16 +36,17 @@ import java.util.Set;
  */
 public record Subject(Set<Principal> principals) {
 
-    public static final Subject ANONYMOUS = new Subject(Set.of());
+    private static final Subject ANONYMOUS = new Subject(Set.of(Anonymous.anonymous()));
+
+    public static Subject anonymous() {
+        return ANONYMOUS;
+    }
 
     public Subject(Set<Principal> principals) {
+        if (Objects.requireNonNull(principals).isEmpty()) {
+            throw new IllegalArgumentException("A Subject's principals cannot be empty");
+        }
         this.principals = Set.copyOf(principals);
     }
 
-    public static Subject create(Set<Principal> principals) {
-        if (principals.isEmpty()) {
-            return ANONYMOUS;
-        }
-        return new Subject(principals);
-    }
 }
