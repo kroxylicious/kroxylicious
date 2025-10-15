@@ -333,7 +333,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         if (LOGGER.isWarnEnabled()) {
             var direction = decodedFrame.header() instanceof RequestHeaderData ? "request" : "response";
             LOGGER.atWarn().setMessage("{}: Filter '{}' for {} {} ended exceptionally - closing connection. Cause message {}")
-                    .addArgument(channelDescriptor())
+                    .addArgument(proxyChannelStateMachine.sessionId())
                     .addArgument(direction)
                     .addArgument(filterDescriptor())
                     .addArgument(decodedFrame.apiKey())
@@ -514,7 +514,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         public void clientSaslAuthenticationSuccess(String mechanism,
                                                     String authorizedId) {
             LOGGER.atInfo().setMessage("{}: Filter '{}' announces client has passed SASL authentication using mechanism '{}' and authorizationId '{}'.")
-                    .addArgument(channelDescriptor())
+                    .addArgument(sessionId())
                     .addArgument(filterDescriptor())
                     .addArgument(mechanism)
                     .addArgument(authorizedId)
@@ -531,7 +531,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .setMessage("{}: Filter '{}' announces client has failed SASL authentication using mechanism '{}' and authorizationId '{}'. Cause message {}."
                             + (LOGGER.isDebugEnabled() ? "" : " Increase log level to DEBUG for stacktrace."))
                     .setCause(LOGGER.isDebugEnabled() ? exception : null)
-                    .addArgument(channelDescriptor())
+                    .addArgument(sessionId())
                     .addArgument(filterDescriptor())
                     .addArgument(mechanism)
                     .addArgument(authorizedId)
