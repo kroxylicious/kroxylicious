@@ -183,7 +183,7 @@ class FilterIT {
             String tag = tags.getFirst();
             String[] topicNames = tag.split(",");
             assertThat(topicNames).containsExactlyInAnyOrder(topicNameMapping(topic1Id, topic1.name(), null),
-                    topicNameMapping(nonexistentTopic, null, "errorCode(UNKNOWN_TOPIC_ID)"));
+                    topicNameMapping(nonexistentTopic, null, "UNKNOWN_TOPIC_ID"));
         }
     }
 

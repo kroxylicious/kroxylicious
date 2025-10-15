@@ -119,8 +119,15 @@ public interface FilterContext {
     /**
      * Resolves all of the given {@code topicIds} to the current corresponding topic names.
      * @param topicIds topic ids to resolve
-     * @return CompletionStage for a map containing an entry for each topicUuid, mapping the uuid to the topicNameResult.
-     * A topicNameResult will contain either the name, or an exception if the name could not be obtained.
+     * @return CompletionStage for a TopicNameMapping. The TopicNameMapping is guaranteed to contain either
+     * a name or {@link org.apache.kafka.common.protocol.Errors} for each topic id requested. If a name or
+     * error cannot be determined for any topic id then this stage will be completed exceptionally with a
+     * {@link TopicNameLookupException}.
+     * <h4>Chained Computation stages</h4>
+     * <p>Default and asynchronous default computation stages chained to the returned
+     * {@link java.util.concurrent.CompletionStage} are guaranteed to be executed by the thread associated with the
+     * connection. See {@link io.kroxylicious.proxy.filter} for more details.
+     * </p>
      */
     CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds);
 
