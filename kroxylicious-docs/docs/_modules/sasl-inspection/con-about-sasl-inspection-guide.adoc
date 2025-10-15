@@ -1,0 +1,13 @@
+:_mod-docs-content-type: CONCEPT
+
+
+[discrete]
+[id='con-about-sasl-inspection-guide-{context}']
+= About this guide
+
+[role="_abstract"]
+This guide covers using the *Kroxylicious SASL Inspection Filter*.
+This filter extracts the authenticated principal from the SASL exchange between Kafka Client
+and Kafka Broker and makes it available to the other filters in the chain.
+
+Refer to other Kroxylicious guides for information on running the proxy or for advanced topics such as plugin development.

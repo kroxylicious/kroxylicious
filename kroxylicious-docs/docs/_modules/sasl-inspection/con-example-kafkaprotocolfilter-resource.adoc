@@ -1,0 +1,30 @@
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-oauth-bearer-validation-filter.adoc
+
+[id='con-example-kafkaprotocolfilter-resource-{context}']
+= Example `KafkaProtocolFilter` resource
+
+[role="_abstract"]
+If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProcotolFilter` resource to contain the filter configuration.
+
+Here's a complete example of a `KafkaProtocolFilter` resource configured for Oauth Bearer validation:
+
+.Example `KafkaProtocolFilter` resource for record validation
+[source,yaml]
+----
+kind: KafkaProtocolFilter
+metadata:
+  name: my-sasl-inspection-filter
+spec:
+  type: SaslInspectionFiler
+  configTemplate:
+      enabledMechanisms: [ "OAUTHBEARER" ] # <1>
+----
+<1> The (optional) list of SASL mechanisms that are to be enabled.
+Refer to SASL mechanism by its https://www.iana.org/assignments/sasl-mechanisms/sasl-mechanisms.xhtml[IANA registered name].
+If omitted, SASL mechanism SCRAM-SHA-256, SCRAM-SHA-512 and OAUTHBEARER will be enabled by default.
+
+Refer to the {OperatorGuide} for more information about configuration on Kubernetes.

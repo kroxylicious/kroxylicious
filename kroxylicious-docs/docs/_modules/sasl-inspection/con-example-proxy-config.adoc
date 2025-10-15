@@ -1,0 +1,28 @@
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-oauth-bearer-validation-filter.adoc
+
+[id='con-example-proxy-config-{context}']
+= Example proxy configuration file
+
+[role="_abstract"]
+If your instance of the Kroxylicious Proxy runs directly on an operating system, provide the filter configuration in the `filterDefinitions` list of your proxy configuration.
+
+Here's a complete example of a `filterDefinitions` entry configured for Oauth Bearer validation:
+
+.Example `filterDefinitions` configuration
+[source, yaml]
+----
+filterDefinitions:
+  - name: my-sasl-inspection-filter
+    type: SaslInspectionFilter
+    config:
+      enabledMechanisms: [ "OAUTHBEARER" ] # <1>
+----
+<1> The (optional) list of SASL mechanisms that are to be enabled.
+Refer to SASL mechanism by its https://www.iana.org/assignments/sasl-mechanisms/sasl-mechanisms.xhtml[IANA registered name].
+If omitted, SASL mechanism SCRAM-SHA-256, SCRAM-SHA-512 and OAUTHBEARER will be enabled by default.
+
+Refer to the {ProxyGuide} for more information about configuring the proxy.
