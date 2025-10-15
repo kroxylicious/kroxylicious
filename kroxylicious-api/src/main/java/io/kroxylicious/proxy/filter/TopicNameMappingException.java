@@ -9,12 +9,12 @@ package io.kroxylicious.proxy.filter;
 /**
  * Indicates there was some problem obtaining topic name mappings
  */
-public class TopicNameLookupException extends RuntimeException {
-    public TopicNameLookupException(String message) {
+public class TopicNameMappingException extends RuntimeException {
+    public TopicNameMappingException(String message) {
         super(message);
     }
 
-    public TopicNameLookupException(String message, Throwable cause) {
+    public TopicNameMappingException(String message, Throwable cause) {
         super(message, cause);
     }
 }

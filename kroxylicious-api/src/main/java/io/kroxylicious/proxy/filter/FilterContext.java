@@ -117,12 +117,12 @@ public interface FilterContext {
                                                           ApiMessage request);
 
     /**
-     * Resolves all of the given {@code topicIds} to the current corresponding topic names.
-     * @param topicIds topic ids to resolve
+     * Maps all of the given {@code topicIds} to the current corresponding topic names.
+     * @param topicIds topic ids to map to names
      * @return CompletionStage for a TopicNameMapping. The TopicNameMapping is guaranteed to contain either
      * a name or {@link org.apache.kafka.common.protocol.Errors} for each topic id requested. If a name or
      * error cannot be determined for any topic id then this stage will be completed exceptionally with a
-     * {@link TopicNameLookupException}.
+     * {@link TopicNameMappingException}.
      * <h4>Chained Computation stages</h4>
      * <p>Default and asynchronous default computation stages chained to the returned
      * {@link java.util.concurrent.CompletionStage} are guaranteed to be executed by the thread associated with the

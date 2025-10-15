@@ -27,8 +27,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.TopicNameLookupException;
 import io.kroxylicious.proxy.filter.TopicNameMapping;
+import io.kroxylicious.proxy.filter.TopicNameMappingException;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.failedFuture;
@@ -101,7 +101,7 @@ class TopicNameRetrieverTest {
         // then
         assertThat(topicNames.toCompletableFuture()).failsWithin(Duration.ZERO)
                 .withThrowableThat().isInstanceOf(ExecutionException.class)
-                .havingCause().isInstanceOf(TopicNameLookupException.class)
+                .havingCause().isInstanceOf(TopicNameMappingException.class)
                 .withMessage("Not all requested uuids present in Metadata, missing uuids: [" + UUID_2 + "]");
     }
 
@@ -115,7 +115,7 @@ class TopicNameRetrieverTest {
         // then
         assertThat(topicNames.toCompletableFuture()).failsWithin(Duration.ZERO)
                 .withThrowableThat().isInstanceOf(ExecutionException.class)
-                .havingCause().isInstanceOf(TopicNameLookupException.class)
+                .havingCause().isInstanceOf(TopicNameMappingException.class)
                 .withMessage("getTopicNames resulted in unhandled exception")
                 .havingCause().isInstanceOf(CompletionException.class)
                 .withCause(exception);
@@ -131,7 +131,7 @@ class TopicNameRetrieverTest {
         // then
         assertThat(topicNames.toCompletableFuture()).failsWithin(Duration.ZERO)
                 .withThrowableThat().isInstanceOf(ExecutionException.class)
-                .havingCause().isInstanceOf(TopicNameLookupException.class)
+                .havingCause().isInstanceOf(TopicNameMappingException.class)
                 .withMessage("unexpected response type: ApiVersionsResponseData");
     }
 
@@ -145,7 +145,7 @@ class TopicNameRetrieverTest {
         // then
         assertThat(topicNames.toCompletableFuture()).failsWithin(Duration.ZERO)
                 .withThrowableThat().isInstanceOf(ExecutionException.class)
-                .havingCause().isInstanceOf(TopicNameLookupException.class)
+                .havingCause().isInstanceOf(TopicNameMappingException.class)
                 .withMessage("Not all requested uuids present in Metadata, missing uuids: [" + UUID + "]");
     }
 
@@ -160,7 +160,7 @@ class TopicNameRetrieverTest {
         // then
         assertThat(topicNames.toCompletableFuture()).failsWithin(Duration.ZERO)
                 .withThrowableThat().isInstanceOf(ExecutionException.class)
-                .havingCause().isInstanceOf(TopicNameLookupException.class)
+                .havingCause().isInstanceOf(TopicNameMappingException.class)
                 .withMessage("getTopicNames Metadata response contained a top level Error code: UNKNOWN_SERVER_ERROR")
                 .havingCause().isInstanceOf(UnknownServerException.class);
     }
