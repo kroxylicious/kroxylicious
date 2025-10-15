@@ -163,7 +163,12 @@ public class InvokerDispatchBenchmark {
     private static class StubFilterContext implements FilterContext {
         @Override
         public String channelDescriptor() {
-            return null;
+            return "";
+        }
+
+        @Override
+        public String sessionId() {
+            return "";
         }
 
         @Override

@@ -649,7 +649,8 @@ public class KafkaProxyFrontendHandler
                             sniHostname,
                             virtualClusterModel,
                             inboundChannel,
-                            clientSaslManager));
+                            clientSaslManager,
+                            proxyChannelStateMachine));
         }
     }
 
