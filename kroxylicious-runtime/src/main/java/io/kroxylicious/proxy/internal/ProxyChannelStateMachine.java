@@ -471,13 +471,11 @@ public class ProxyChannelStateMachine {
     }
 
     /**
-     * Return the session ID which connects a frontend channel with a backend channel
-     * @return <code>null</code> if there are no channels associated with the session.
+     * @return Return the session ID which connects a frontend channel with a backend channel
      */
     @CheckReturnValue
-    @Nullable
     public String sessionId() {
-        return sessionId;
+        return Objects.requireNonNull(sessionId);
     }
 
     @SuppressWarnings("java:S5738")

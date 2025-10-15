@@ -23,10 +23,16 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
  */
 public interface FilterContext {
     /**
-     * A description of this channel.
+     * A description of the downstream/client channel.
      * @return A description of this channel (typically used for logging).
      */
     String channelDescriptor();
+
+    /**
+     *
+     * @return the ID allocated to this client session.
+     */
+    String sessionId();
 
     /**
      * Create a ByteBufferOutputStream of the given capacity.
@@ -183,5 +189,4 @@ public interface FilterContext {
      * has not successfully authenticated using SASL.
      */
     Optional<ClientSaslContext> clientSaslContext();
-
 }

@@ -71,6 +71,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
     private final ClientSaslManager clientSaslManager;
+    private final ProxyChannelStateMachine proxyChannelStateMachine;
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private @Nullable ChannelHandlerContext ctx;
@@ -81,13 +82,15 @@ public class FilterHandler extends ChannelDuplexHandler {
                          @Nullable String sniHostname,
                          VirtualClusterModel virtualClusterModel,
                          Channel inboundChannel,
-                         ClientSaslManager clientSaslManager) {
+                         ClientSaslManager clientSaslManager,
+                         ProxyChannelStateMachine proxyChannelStateMachine) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
         this.virtualClusterModel = virtualClusterModel;
         this.inboundChannel = inboundChannel;
         this.clientSaslManager = clientSaslManager;
+        this.proxyChannelStateMachine = proxyChannelStateMachine;
     }
 
     @Override
@@ -476,6 +479,11 @@ public class FilterHandler extends ChannelDuplexHandler {
         @Override
         public String channelDescriptor() {
             return FilterHandler.this.channelDescriptor();
+        }
+
+        @Override
+        public String sessionId() {
+            return proxyChannelStateMachine.sessionId();
         }
 
         @Override
