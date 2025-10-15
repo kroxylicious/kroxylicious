@@ -23,8 +23,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.TopicNameLookupException;
 import io.kroxylicious.proxy.filter.TopicNameMapping;
+import io.kroxylicious.proxy.filter.TopicNameMappingException;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -59,14 +59,14 @@ record TopicNameRetriever(FilterContext filterContext) {
         if (response instanceof MetadataResponseData metadataResponse) {
             Errors errors = Errors.forCode(metadataResponse.errorCode());
             if (errors != Errors.NONE) {
-                throw new TopicNameLookupException("getTopicNames Metadata response contained a top level Error code: " + errors.name(), errors.exception());
+                throw new TopicNameMappingException("getTopicNames Metadata response contained a top level Error code: " + errors.name(), errors.exception());
             }
             else {
                 return doExtractTopicNames(topicIds, metadataResponse);
             }
         }
         else {
-            throw new TopicNameLookupException("unexpected response type: " + response.getClass().getSimpleName());
+            throw new TopicNameMappingException("unexpected response type: " + response.getClass().getSimpleName());
         }
     }
 
@@ -84,7 +84,7 @@ record TopicNameRetriever(FilterContext filterContext) {
         });
         List<Uuid> notFound = topicIds.stream().filter(uuid -> !topicNames.containsKey(uuid) && !failures.containsKey(uuid)).toList();
         if (!notFound.isEmpty()) {
-            throw new TopicNameLookupException("Not all requested uuids present in Metadata, missing uuids: " + notFound);
+            throw new TopicNameMappingException("Not all requested uuids present in Metadata, missing uuids: " + notFound);
         }
         return new MapTopicNameMapping(unmodifiableMap(topicNames), unmodifiableMap(failures));
     }
@@ -94,16 +94,16 @@ record TopicNameRetriever(FilterContext filterContext) {
             return topicNameMapping;
         }
         if (throwable != null) {
-            if (throwable instanceof CompletionException ex && ex.getCause() instanceof TopicNameLookupException) {
+            if (throwable instanceof CompletionException ex && ex.getCause() instanceof TopicNameMappingException) {
                 throw ex;
             }
             else {
-                throw new TopicNameLookupException("getTopicNames resulted in unhandled exception", throwable);
+                throw new TopicNameMappingException("getTopicNames resulted in unhandled exception", throwable);
             }
         }
         else {
             // should never happen, but for completeness
-            throw new TopicNameLookupException("getTopicNames resulted in null mapping and throwable");
+            throw new TopicNameMappingException("getTopicNames resulted in null mapping and throwable");
         }
     }
 
