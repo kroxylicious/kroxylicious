@@ -29,7 +29,9 @@ public interface FilterContext {
     String channelDescriptor();
 
     /**
-     *
+     * An id which uniquely identifies the connection with the client in both time and space.
+     * In other words this will have a different value even if a client re-establishes a
+     * TCP connection from the same IP address and source port.
      * @return the ID allocated to this client session.
      */
     String sessionId();
