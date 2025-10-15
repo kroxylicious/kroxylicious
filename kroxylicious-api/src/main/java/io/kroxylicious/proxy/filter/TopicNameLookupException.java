@@ -7,7 +7,7 @@
 package io.kroxylicious.proxy.filter;
 
 /**
- * Indicates there was some problem obtaining a name for a topic id
+ * Indicates there was some problem obtaining topic name mappings
  */
 public class TopicNameLookupException extends RuntimeException {
     public TopicNameLookupException(String message) {

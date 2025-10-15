@@ -8,10 +8,11 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
-import java.util.stream.Collectors;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.MetadataRequestData;
@@ -22,11 +23,13 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
 
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.KafkaErrorTopicNameLookupException;
 import io.kroxylicious.proxy.filter.TopicNameLookupException;
 import io.kroxylicious.proxy.filter.TopicNameMapping;
-import io.kroxylicious.proxy.filter.TopicNameResult;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+
+import edu.umd.cs.findbugs.annotations.Nullable;
+
+import static java.util.Collections.unmodifiableMap;
 
 record TopicNameRetriever(FilterContext filterContext) {
     // Version 12 was the first version that uses topic ids.
@@ -36,9 +39,7 @@ record TopicNameRetriever(FilterContext filterContext) {
         Objects.requireNonNull(topicIds);
         return requestTopicMetadata(topicIds)
                 .thenApply(f -> extractTopicNames(topicIds, f))
-                .exceptionally(throwable -> topicIds.stream().collect(
-                        Collectors.toMap(i -> i, i -> TopicNameResult.forException(new TopicNameLookupException("get topic names failed unexpectedly", throwable)))))
-                .thenApply(TopicNameMapping::new);
+                .handle(TopicNameRetriever::wrapUnhandledException);
     }
 
     private CompletionStage<ApiMessage> requestTopicMetadata(Collection<Uuid> topicIds) {
@@ -54,48 +55,74 @@ record TopicNameRetriever(FilterContext filterContext) {
     }
 
     @VisibleForTesting
-    static Map<Uuid, TopicNameResult> extractTopicNames(Collection<Uuid> topicIds, ApiMessage response) {
+    static TopicNameMapping extractTopicNames(Collection<Uuid> topicIds, ApiMessage response) {
         if (response instanceof MetadataResponseData metadataResponse) {
             Errors errors = Errors.forCode(metadataResponse.errorCode());
             if (errors != Errors.NONE) {
-                return topicIds.stream().collect(Collectors.toMap(it -> it,
-                        it -> TopicNameResult.forException(
-                                new KafkaErrorTopicNameLookupException(errors, "MetadataResponse top level error: " + errors + ", " + errors.message()))));
+                throw new TopicNameLookupException("getTopicNames Metadata response contained a top level Error code: " + errors.name(), errors.exception());
             }
             else {
                 return doExtractTopicNames(topicIds, metadataResponse);
             }
         }
         else {
-            return topicIds.stream().collect(Collectors.toMap(it -> it,
-                    it -> TopicNameResult.forException(new TopicNameLookupException("Unexpected response type " + response.getClass()))));
+            throw new TopicNameLookupException("unexpected response type: " + response.getClass().getSimpleName());
         }
     }
 
-    private static Map<Uuid, TopicNameResult> doExtractTopicNames(Collection<Uuid> topicIds, MetadataResponseData d) {
-        Map<Uuid, TopicNameResult> results = d.topics().stream()
-                .collect(Collectors.toMap(MetadataResponseData.MetadataResponseTopic::topicId, metadataResponseTopic -> {
-                    Errors topicError = Errors.forCode(metadataResponseTopic.errorCode());
-                    if (topicError != Errors.NONE) {
-                        return TopicNameResult.forException(
-                                new KafkaErrorTopicNameLookupException(topicError, "topic level error: " + topicError + ", " + topicError.message()));
-                    }
-                    else {
-                        return TopicNameResult.forName(metadataResponseTopic.name());
-                    }
-                }));
-        boolean allMapped = results.keySet().containsAll(topicIds);
-        if (allMapped) {
-            return results;
+    private static TopicNameMapping doExtractTopicNames(Collection<Uuid> topicIds, MetadataResponseData d) {
+        Map<Uuid, String> topicNames = new HashMap<>();
+        Map<Uuid, Errors> failures = new HashMap<>();
+        d.topics().forEach(metadataResponseTopic -> {
+            Errors topicError = Errors.forCode(metadataResponseTopic.errorCode());
+            if (topicError == Errors.NONE) {
+                topicNames.put(metadataResponseTopic.topicId(), metadataResponseTopic.name());
+            }
+            else {
+                failures.put(metadataResponseTopic.topicId(), topicError);
+            }
+        });
+        List<Uuid> notFound = topicIds.stream().filter(uuid -> !topicNames.containsKey(uuid) && !failures.containsKey(uuid)).toList();
+        if (!notFound.isEmpty()) {
+            throw new TopicNameLookupException("Not all requested uuids present in Metadata, missing uuids: " + notFound);
+        }
+        return new MapTopicNameMapping(unmodifiableMap(topicNames), unmodifiableMap(failures));
+    }
+
+    private static TopicNameMapping wrapUnhandledException(@Nullable TopicNameMapping topicNameMapping, @Nullable Throwable throwable) {
+        if (topicNameMapping != null) {
+            return topicNameMapping;
+        }
+        if (throwable != null) {
+            if (throwable instanceof CompletionException ex && ex.getCause() instanceof TopicNameLookupException) {
+                throw ex;
+            }
+            else {
+                throw new TopicNameLookupException("getTopicNames resulted in unhandled exception", throwable);
+            }
         }
         else {
-            HashMap<Uuid, TopicNameResult> mutableResults = new HashMap<>(results);
-            for (Uuid topicId : topicIds) {
-                if (!mutableResults.containsKey(topicId)) {
-                    mutableResults.put(topicId, TopicNameResult.forException(new TopicNameLookupException("Topic not found in Metadata response")));
-                }
-            }
-            return mutableResults;
+            // should never happen, but for completeness
+            throw new TopicNameLookupException("getTopicNames resulted in null mapping and throwable");
         }
+    }
+
+    /**
+     * The result of discovering the topic names for a collection of topic ids
+     * @param topicNames successfully mapped topic names, non-null
+     * @param failures failed topic name mappings, non-null
+     */
+    public record MapTopicNameMapping(Map<Uuid, String> topicNames, Map<Uuid, Errors> failures) implements TopicNameMapping {
+
+        public MapTopicNameMapping {
+            Objects.requireNonNull(topicNames);
+            Objects.requireNonNull(failures);
+        }
+
+        @Override
+        public boolean anyFailures() {
+            return !failures.isEmpty();
+        }
+
     }
 }

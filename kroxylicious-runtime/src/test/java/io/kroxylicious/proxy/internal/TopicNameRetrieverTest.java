@@ -10,10 +10,12 @@ import java.time.Duration;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
-import java.util.function.Consumer;
+import java.util.concurrent.ExecutionException;
 
 import org.apache.kafka.common.Uuid;
+import org.apache.kafka.common.errors.UnknownServerException;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -27,11 +29,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.TopicNameLookupException;
 import io.kroxylicious.proxy.filter.TopicNameMapping;
-import io.kroxylicious.proxy.filter.TopicNameResult;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static java.util.concurrent.CompletableFuture.failedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -61,10 +63,11 @@ class TopicNameRetrieverTest {
         // when
         CompletionStage<TopicNameMapping> topicNames = getTopicNames(Set.of(UUID));
         // then
-        assertOnlyTopicNameResultSatisfies(topicNames, UUID, topicNameResult -> {
-            assertThat(topicNameResult.exception()).isNull();
-            assertThat(topicNameResult.topicName()).isEqualTo(TOPIC_NAME);
-        });
+        assertThat(topicNames.toCompletableFuture()).succeedsWithin(Duration.ZERO)
+                .satisfies(topicNamesMapping -> {
+                    assertThat(topicNamesMapping.anyFailures()).isFalse();
+                    assertThat(topicNamesMapping.topicNames()).containsExactly(entry(UUID, TOPIC_NAME));
+                });
     }
 
     @Test
@@ -80,16 +83,9 @@ class TopicNameRetrieverTest {
         // then
         assertThat(topicNames.toCompletableFuture()).succeedsWithin(Duration.ZERO)
                 .satisfies(topicNameMapping -> {
-                    Map<Uuid, TopicNameResult> uuidTopicNameResultMap = topicNameMapping.topicNameResults();
-                    assertThat(uuidTopicNameResultMap).containsOnlyKeys(UUID, UUID_2);
-                    assertThat(uuidTopicNameResultMap).hasEntrySatisfying(UUID, topicNameResult -> {
-                        assertThat(topicNameResult.exception()).isNull();
-                        assertThat(topicNameResult.topicName()).isEqualTo(TOPIC_NAME);
-                    });
-                    assertThat(uuidTopicNameResultMap).hasEntrySatisfying(UUID_2, topicNameResult -> {
-                        assertThat(topicNameResult.exception()).isNull();
-                        assertThat(topicNameResult.topicName()).isEqualTo(TOPIC_NAME_2);
-                    });
+                    assertThat(topicNameMapping.anyFailures()).isFalse();
+                    Map<Uuid, String> uuidTopicNameResultMap = topicNameMapping.topicNames();
+                    assertThat(uuidTopicNameResultMap).containsExactlyInAnyOrderEntriesOf(Map.of(UUID, TOPIC_NAME, UUID_2, TOPIC_NAME_2));
                 });
     }
 
@@ -103,34 +99,26 @@ class TopicNameRetrieverTest {
         // when
         CompletionStage<TopicNameMapping> topicNames = getTopicNames(topicIds);
         // then
-        assertThat(topicNames.toCompletableFuture()).succeedsWithin(Duration.ZERO)
-                .satisfies(topicNameMapping -> {
-                    Map<Uuid, TopicNameResult> topicNamesResult = topicNameMapping.topicNameResults();
-                    assertThat(topicNamesResult).containsOnlyKeys(UUID, UUID_2);
-                    assertThat(topicNamesResult).hasEntrySatisfying(UUID, topicNameResult -> {
-                        assertThat(topicNameResult.exception()).isNull();
-                        assertThat(topicNameResult.topicName()).isEqualTo(TOPIC_NAME);
-                    });
-                    assertThat(topicNamesResult).hasEntrySatisfying(UUID_2, topicNameResult -> {
-                        assertThat(topicNameResult.topicName()).isNull();
-                        assertThat(topicNameResult.exception()).isNotNull().isInstanceOf(TopicNameLookupException.class)
-                                .hasMessageContaining("Topic not found in Metadata response");
-                    });
-                });
+        assertThat(topicNames.toCompletableFuture()).failsWithin(Duration.ZERO)
+                .withThrowableThat().isInstanceOf(ExecutionException.class)
+                .havingCause().isInstanceOf(TopicNameLookupException.class)
+                .withMessage("Not all requested uuids present in Metadata, missing uuids: [" + UUID_2 + "]");
     }
 
     @Test
     void retrieveTopicNamesHandlesSendFutureFailing() {
         // given
-        givenSendRequestResponse(failedFuture(new RuntimeException("BOOM")));
+        RuntimeException exception = new RuntimeException("BOOM");
+        givenSendRequestResponse(failedFuture(exception));
         // when
         CompletionStage<TopicNameMapping> topicNames = getTopicNames(Set.of(UUID));
         // then
-        assertOnlyTopicNameResultSatisfies(topicNames, UUID, topicNameResult -> {
-            assertThat(topicNameResult.topicName()).isNull();
-            assertThat(topicNameResult.exception())
-                    .hasMessageContaining("get topic names failed unexpectedly");
-        });
+        assertThat(topicNames.toCompletableFuture()).failsWithin(Duration.ZERO)
+                .withThrowableThat().isInstanceOf(ExecutionException.class)
+                .havingCause().isInstanceOf(TopicNameLookupException.class)
+                .withMessage("getTopicNames resulted in unhandled exception")
+                .havingCause().isInstanceOf(CompletionException.class)
+                .withCause(exception);
     }
 
     @Test
@@ -141,11 +129,10 @@ class TopicNameRetrieverTest {
         // when
         CompletionStage<TopicNameMapping> topicNames = getTopicNames(Set.of(UUID));
         // then
-        assertOnlyTopicNameResultSatisfies(topicNames, UUID, topicNameResult -> {
-            assertThat(topicNameResult.topicName()).isNull();
-            assertThat(topicNameResult.exception()).isNotNull().isInstanceOf(TopicNameLookupException.class)
-                    .hasMessageContaining("Unexpected response type class org.apache.kafka.common.message.ApiVersionsResponseData");
-        });
+        assertThat(topicNames.toCompletableFuture()).failsWithin(Duration.ZERO)
+                .withThrowableThat().isInstanceOf(ExecutionException.class)
+                .havingCause().isInstanceOf(TopicNameLookupException.class)
+                .withMessage("unexpected response type: ApiVersionsResponseData");
     }
 
     @Test
@@ -156,11 +143,10 @@ class TopicNameRetrieverTest {
         // when
         CompletionStage<TopicNameMapping> topicNames = getTopicNames(Set.of(UUID));
         // then
-        assertOnlyTopicNameResultSatisfies(topicNames, UUID, topicNameResult -> {
-            assertThat(topicNameResult.topicName()).isNull();
-            assertThat(topicNameResult.exception()).isNotNull().isInstanceOf(TopicNameLookupException.class)
-                    .hasMessageContaining("Topic not found in Metadata response");
-        });
+        assertThat(topicNames.toCompletableFuture()).failsWithin(Duration.ZERO)
+                .withThrowableThat().isInstanceOf(ExecutionException.class)
+                .havingCause().isInstanceOf(TopicNameLookupException.class)
+                .withMessage("Not all requested uuids present in Metadata, missing uuids: [" + UUID + "]");
     }
 
     @Test
@@ -172,12 +158,11 @@ class TopicNameRetrieverTest {
         // when
         CompletionStage<TopicNameMapping> topicNames = getTopicNames(Set.of(UUID));
         // then
-        assertOnlyTopicNameResultSatisfies(topicNames, UUID, topicNameResult -> {
-            assertThat(topicNameResult.topicName()).isNull();
-            assertThat(topicNameResult.exception()).isNotNull().isInstanceOf(TopicNameLookupException.class)
-                    .hasMessageContaining(
-                            "MetadataResponse top level error: UNKNOWN_SERVER_ERROR, The server experienced an unexpected error when processing the request.");
-        });
+        assertThat(topicNames.toCompletableFuture()).failsWithin(Duration.ZERO)
+                .withThrowableThat().isInstanceOf(ExecutionException.class)
+                .havingCause().isInstanceOf(TopicNameLookupException.class)
+                .withMessage("getTopicNames Metadata response contained a top level Error code: UNKNOWN_SERVER_ERROR")
+                .havingCause().isInstanceOf(UnknownServerException.class);
     }
 
     @Test
@@ -185,33 +170,45 @@ class TopicNameRetrieverTest {
         // given
         MetadataResponseData response = new MetadataResponseData();
         MetadataResponseData.MetadataResponseTopic responseTopic = new MetadataResponseData.MetadataResponseTopic().setTopicId(UUID)
-                .setErrorCode(Errors.UNKNOWN_SERVER_ERROR.code());
+                .setErrorCode(Errors.UNKNOWN_TOPIC_ID.code());
         response.topics().add(responseTopic);
         givenSendRequestResponse(completedFuture(response));
         // when
         CompletionStage<TopicNameMapping> topicNames = getTopicNames(Set.of(UUID));
         // then
-        assertOnlyTopicNameResultSatisfies(topicNames, UUID, topicNameResult -> {
-            assertThat(topicNameResult.topicName()).isNull();
-            assertThat(topicNameResult.exception()).isNotNull().isInstanceOf(TopicNameLookupException.class)
-                    .hasMessageContaining(
-                            "topic level error: UNKNOWN_SERVER_ERROR, The server experienced an unexpected error when processing the request.");
-        });
+        assertThat(topicNames.toCompletableFuture()).succeedsWithin(Duration.ZERO)
+                .satisfies(topicNamesMapping -> {
+                    assertThat(topicNamesMapping.anyFailures()).isTrue();
+                    assertThat(topicNamesMapping.failures()).containsExactly(entry(UUID, Errors.UNKNOWN_TOPIC_ID));
+                });
+    }
+
+    @Test
+    void mixtureOfSuccessAndTopicLevelFailure() {
+        // given
+        MetadataResponseData response = new MetadataResponseData();
+        MetadataResponseData.MetadataResponseTopic responseTopic = new MetadataResponseData.MetadataResponseTopic().setTopicId(UUID)
+                .setErrorCode(Errors.UNKNOWN_TOPIC_ID.code());
+        MetadataResponseData.MetadataResponseTopic responseTopic2 = new MetadataResponseData.MetadataResponseTopic().setTopicId(UUID_2)
+                .setName(TOPIC_NAME_2);
+        response.topics().add(responseTopic);
+        response.topics().add(responseTopic2);
+        givenSendRequestResponse(completedFuture(response));
+        // when
+        CompletionStage<TopicNameMapping> topicNames = getTopicNames(Set.of(UUID, UUID_2));
+        // then
+        assertThat(topicNames.toCompletableFuture()).succeedsWithin(Duration.ZERO)
+                .satisfies(topicNamesMapping -> {
+                    assertThat(topicNamesMapping.anyFailures()).isTrue();
+                    assertThat(topicNamesMapping.topicNames()).containsExactly(entry(UUID_2, TOPIC_NAME_2));
+                    assertThat(topicNamesMapping.failures()).containsExactly(entry(UUID, Errors.UNKNOWN_TOPIC_ID));
+                });
     }
 
     private static MetadataResponseData.MetadataResponseTopic getResponseTopic(Uuid uuid, String topicName) {
         return new MetadataResponseData.MetadataResponseTopic()
                 .setTopicId(uuid)
                 .setName(topicName);
-    }
-
-    private static void assertOnlyTopicNameResultSatisfies(CompletionStage<TopicNameMapping> topicNames, Uuid uuid,
-                                                           Consumer<TopicNameResult> topicNameResultConsumer) {
-        assertThat(topicNames.toCompletableFuture()).succeedsWithin(Duration.ZERO)
-                .satisfies(topicNamesMapping -> {
-                    assertThat(topicNamesMapping.topicNameResults()).containsOnlyKeys(uuid);
-                    assertThat(topicNamesMapping.topicNameResults()).hasEntrySatisfying(uuid, topicNameResultConsumer);
-                });
     }
 
     private void givenSendRequestResponse(CompletableFuture<ApiMessage> response) {

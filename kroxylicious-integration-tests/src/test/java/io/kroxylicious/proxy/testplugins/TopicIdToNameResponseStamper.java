@@ -11,10 +11,10 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.RequestHeaderData;
@@ -28,12 +28,11 @@ import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
-import io.kroxylicious.proxy.filter.KafkaErrorTopicNameLookupException;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilter;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
-import io.kroxylicious.proxy.filter.TopicNameResult;
+import io.kroxylicious.proxy.filter.TopicNameMapping;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
@@ -65,7 +64,7 @@ public class TopicIdToNameResponseStamper implements FilterFactory<Void, Void> {
 
     public static class TopicIdToNameResponseStamperFilter implements RequestFilter, ResponseFilter {
 
-        Map<Integer, Map<Uuid, TopicNameResult>> correlated = new HashMap<>();
+        Map<Integer, TopicNameMapping> correlated = new HashMap<>();
 
         @Override
         public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
@@ -76,29 +75,23 @@ public class TopicIdToNameResponseStamper implements FilterFactory<Void, Void> {
 
             Set<Uuid> uuids = Arrays.stream(list.getFirst().split(",")).map(Uuid::fromString).collect(Collectors.toSet());
             return context.topicNames(uuids).thenCompose(topicNames -> {
-                correlated.put(header.correlationId(), topicNames.topicNameResults());
+                correlated.put(header.correlationId(), topicNames);
                 return context.forwardRequest(header, request);
             });
         }
 
         @Override
         public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
-            Map<Uuid, TopicNameResult> topicNames = correlated.remove(header.correlationId());
+            TopicNameMapping topicNames = correlated.remove(header.correlationId());
             if (topicNames == null) {
                 return context.forwardResponse(header, response);
             }
             else {
-                String outcomes = topicNames.entrySet().stream().map(e -> {
-                    var error = Optional.ofNullable(e.getValue().exception()).map(e1 -> {
-                        if (e1 instanceof KafkaErrorTopicNameLookupException ex) {
-                            return "errorCode(" + ex.kafkaServerError().name() + ")";
-                        }
-                        else {
-                            return "otherError";
-                        }
-                    }).orElse("null");
-                    return topicNameMapping(e.getKey(), e.getValue().topicName(), error);
-                }).collect(Collectors.joining(","));
+                Stream<String> success = topicNames.topicNames().entrySet().stream()
+                        .map(uuidStringEntry -> topicNameMapping(uuidStringEntry.getKey(), uuidStringEntry.getValue(), null));
+                Stream<String> fail = topicNames.failures().entrySet().stream()
+                        .map(topicIdToError -> topicNameMapping(topicIdToError.getKey(), null, topicIdToError.getValue().name()));
+                String outcomes = Stream.concat(success, fail).collect(Collectors.joining(","));
                 response.unknownTaggedFields().add(new RawTaggedField(TOPIC_NAME_TAG, outcomes.getBytes(StandardCharsets.UTF_8)));
                 return context.forwardResponse(header, response);
             }
