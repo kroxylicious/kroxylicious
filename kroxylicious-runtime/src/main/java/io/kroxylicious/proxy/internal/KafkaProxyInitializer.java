@@ -90,8 +90,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     @Override
     public void initChannel(Channel ch) {
-        String sessionId = MobyNamesGenerator.getRandomName() + "_" + ch.id().asShortText();
-        LOGGER.info("Allocating sessionId: {} to channel: {}", sessionId, ch.id());
         LOGGER.trace("Connection from {} to my address {}", ch.remoteAddress(), ch.localAddress());
 
         if (tls) {
