@@ -1,0 +1,6 @@
+$schema: https://kroxylicious.io/doc-schema.yaml
+title: SASL Inspection Guide
+description: Covers using the SASL Inspection filter.
+tags:
+  - filter
+rank: "023"
