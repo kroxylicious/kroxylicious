@@ -24,6 +24,10 @@
     <name>Azure Key Vault KMS test support</name>
     <description>Test support code for modules testing the Azure Key Vault</description>
 
+    <properties>
+        <java.test.version>21</java.test.version>
+    </properties>
+
     <dependencies>
         <!-- project dependencies - runtime and compile -->
         <dependency>
