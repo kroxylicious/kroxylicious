@@ -38,8 +38,6 @@ import io.kroxylicious.proxy.model.VirtualClusterModel;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
-import edu.umd.cs.findbugs.annotations.CheckReturnValue;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
@@ -260,7 +258,7 @@ public class ProxyChannelStateMachine {
     void onClientActive(KafkaProxyFrontendHandler frontendHandler) {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
-            this.sessionId = allocateSessionId(frontendHandler);
+            allocateSessionId(frontendHandler.channelId());
             toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
         }
         else {
@@ -268,12 +266,11 @@ public class ProxyChannelStateMachine {
         }
     }
 
-    @NonNull
-    private String allocateSessionId(KafkaProxyFrontendHandler frontendHandler) {
-        ChannelId channelId = Objects.requireNonNull(frontendHandler.channelId(), "unable to allocate session ID due to null channel ID");
-        String sessionId = String.format("%s-%s", MobyNamesGenerator.getRandomName(), channelId.asShortText());
+    @VisibleForTesting
+    void allocateSessionId(ChannelId channelId) {
+        Objects.requireNonNull(channelId, "unable to allocate session ID due to null channel ID");
+        this.sessionId = String.format("%s-%s", MobyNamesGenerator.getRandomName(), channelId.asShortText());
         LOGGER.info("Allocated session ID: {} for connection from {}", sessionId, channelId.asLongText());
-        return sessionId;
     }
 
     /**
@@ -473,7 +470,6 @@ public class ProxyChannelStateMachine {
     /**
      * @return Return the session ID which connects a frontend channel with a backend channel
      */
-    @CheckReturnValue
     public String sessionId() {
         return Objects.requireNonNull(sessionId);
     }
