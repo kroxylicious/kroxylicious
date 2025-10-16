@@ -133,7 +133,6 @@ public final class KafkaProxy implements AutoCloseable {
 
             enableNettyMetrics(serverEventGroup);
 
-
             var managementFuture = maybeStartManagementListener(managementEventGroup, meterRegistries);
 
             var overrideMap = getApiKeyMaxVersionOverride(config);
