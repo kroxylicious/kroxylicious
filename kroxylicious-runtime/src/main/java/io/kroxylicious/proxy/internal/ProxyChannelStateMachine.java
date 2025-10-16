@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Function;
 
 import org.apache.kafka.common.errors.ApiException;
@@ -39,7 +40,6 @@ import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
-import info.schnatterer.mobynamesgenerator.MobyNamesGenerator;
 
 import static io.kroxylicious.proxy.internal.ProxyChannelState.Startup.STARTING_STATE;
 import static org.slf4j.LoggerFactory.getLogger;
@@ -258,7 +258,7 @@ public class ProxyChannelStateMachine {
     void onClientActive(KafkaProxyFrontendHandler frontendHandler) {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
-            allocateSessionId(Objects.requireNonNull(frontendHandler.channelId())); //this is just keeping the tooling happy it should never be null at this point
+            allocateSessionId(Objects.requireNonNull(frontendHandler.channelId())); // this is just keeping the tooling happy it should never be null at this point
             toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
         }
         else {
@@ -269,8 +269,8 @@ public class ProxyChannelStateMachine {
     @VisibleForTesting
     void allocateSessionId(ChannelId channelId) {
         Objects.requireNonNull(channelId, "unable to allocate session ID due to null channel ID");
-        this.sessionId = String.format("%s-%s", MobyNamesGenerator.getRandomName(), channelId.asShortText());
-        //channelId.toString is the same as channelId.asShortText and is thus just a getter here
+        this.sessionId = UUID.randomUUID().toString();
+        // channelId.toString is the same as channelId.asShortText and is thus just a getter here
         LOGGER.info("Allocated session ID: {} for connection from {}", sessionId, channelId);
     }
 
