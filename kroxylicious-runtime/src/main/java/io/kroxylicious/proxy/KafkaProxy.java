@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
@@ -130,6 +131,9 @@ public final class KafkaProxy implements AutoCloseable {
             this.managementEventGroup = buildNettyEventGroups("management", availableCores, config.isUseIoUring());
             this.serverEventGroup = buildNettyEventGroups("server", availableCores, config.isUseIoUring());
 
+            enableNettyMetrics(serverEventGroup);
+
+
             var managementFuture = maybeStartManagementListener(managementEventGroup, meterRegistries);
 
             var overrideMap = getApiKeyMaxVersionOverride(config);
@@ -159,6 +163,12 @@ public final class KafkaProxy implements AutoCloseable {
             shutdown();
             throw e;
         }
+    }
+
+    private void enableNettyMetrics(final EventGroupConfig config) {
+        Metrics.bindNettyAllocatorMetrics(ByteBufAllocator.DEFAULT);
+        Metrics.bindNettyEventExecutorMetrics(config.bossGroup());
+        Metrics.bindNettyEventExecutorMetrics(config.workerGroup());
     }
 
     private void initVersionInfoMetric() {

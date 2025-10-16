@@ -20,6 +20,11 @@ import io.micrometer.core.instrument.Meter.MeterProvider;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.binder.BaseUnits;
+import io.micrometer.core.instrument.binder.netty4.NettyAllocatorMetrics;
+import io.micrometer.core.instrument.binder.netty4.NettyEventExecutorMetrics;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.ByteBufAllocatorMetricProvider;
+import io.netty.channel.EventLoopGroup;
 
 import io.kroxylicious.proxy.VersionInfo;
 
@@ -287,5 +292,15 @@ public class Metrics {
     public static void clear() {
         CLIENT_TO_PROXY_CONNECTION_CACHE.clear();
         PROXY_TO_SERVER_CONNECTION_CACHE.clear();
+    }
+
+    public static void bindNettyEventExecutorMetrics(final EventLoopGroup eventLoopGroup) {
+        new NettyEventExecutorMetrics(eventLoopGroup).bindTo(io.micrometer.core.instrument.Metrics.globalRegistry);
+    }
+
+    public static void bindNettyAllocatorMetrics(final ByteBufAllocator alloc) {
+        if (alloc instanceof ByteBufAllocatorMetricProvider byteBufAllocatorMetricProvider) {
+            new NettyAllocatorMetrics(byteBufAllocatorMetricProvider).bindTo(io.micrometer.core.instrument.Metrics.globalRegistry);
+        }
     }
 }
