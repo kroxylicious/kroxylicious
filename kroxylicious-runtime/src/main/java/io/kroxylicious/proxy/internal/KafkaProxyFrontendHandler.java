@@ -550,7 +550,6 @@ public class KafkaProxyFrontendHandler
      * Called by the {@link ProxyChannelStateMachine} on entry to the {@link Forwarding} state.
      */
     void inForwarding() {
-        LOGGER.debug("{}: Connected to {}", this.proxyChannelStateMachine.sessionId(), Objects.requireNonNull(channelId()).asLongText());
         // connection is complete, so first forward the buffered message
         if (bufferedMsgs != null) {
             for (Object bufferedMsg : bufferedMsgs) {

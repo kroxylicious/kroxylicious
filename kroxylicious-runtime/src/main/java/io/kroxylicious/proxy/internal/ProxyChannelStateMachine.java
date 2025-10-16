@@ -258,7 +258,7 @@ public class ProxyChannelStateMachine {
     void onClientActive(KafkaProxyFrontendHandler frontendHandler) {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
-            allocateSessionId(frontendHandler.channelId());
+            allocateSessionId(Objects.requireNonNull(frontendHandler.channelId())); //this is just keeping the tooling happy it should never be null at this point
             toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
         }
         else {
@@ -270,7 +270,8 @@ public class ProxyChannelStateMachine {
     void allocateSessionId(ChannelId channelId) {
         Objects.requireNonNull(channelId, "unable to allocate session ID due to null channel ID");
         this.sessionId = String.format("%s-%s", MobyNamesGenerator.getRandomName(), channelId.asShortText());
-        LOGGER.info("Allocated session ID: {} for connection from {}", sessionId, channelId.asLongText());
+        //channelId.toString is the same as channelId.asShortText and is thus just a getter here
+        LOGGER.info("Allocated session ID: {} for connection from {}", sessionId, channelId);
     }
 
     /**
