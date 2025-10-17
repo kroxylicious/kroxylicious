@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Function;
 
 import org.apache.kafka.common.errors.ApiException;
@@ -19,6 +20,7 @@ import org.slf4j.Logger;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Timer;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelId;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
@@ -120,6 +122,9 @@ public class ProxyChannelStateMachine {
     @VisibleForTesting
     @Nullable
     Timer.Sample serverBackpressureTimer;
+
+    @Nullable
+    private String sessionId;
 
     @SuppressWarnings("java:S5738")
     public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
@@ -253,11 +258,20 @@ public class ProxyChannelStateMachine {
     void onClientActive(KafkaProxyFrontendHandler frontendHandler) {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
+            allocateSessionId(Objects.requireNonNull(frontendHandler.channelId())); // this is just keeping the tooling happy it should never be null at this point
             toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
         }
         else {
             illegalState("Client activation while not in the start state");
         }
+    }
+
+    @VisibleForTesting
+    void allocateSessionId(ChannelId channelId) {
+        Objects.requireNonNull(channelId, "unable to allocate session ID due to null channel ID");
+        this.sessionId = UUID.randomUUID().toString();
+        // channelId.toString is the same as channelId.asShortText and is thus just a getter here
+        LOGGER.info("Allocated session ID: {} for connection from {}", sessionId, channelId);
     }
 
     /**
@@ -452,6 +466,13 @@ public class ProxyChannelStateMachine {
         }
         clientToProxyErrorCounter.increment();
         toClosed(errorCodeEx);
+    }
+
+    /**
+     * @return Return the session ID which connects a frontend channel with a backend channel
+     */
+    public String sessionId() {
+        return Objects.requireNonNull(sessionId);
     }
 
     @SuppressWarnings("java:S5738")

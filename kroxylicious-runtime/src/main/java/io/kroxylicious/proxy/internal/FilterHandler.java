@@ -71,6 +71,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
     private final ClientSaslManager clientSaslManager;
+    private final ProxyChannelStateMachine proxyChannelStateMachine;
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private @Nullable ChannelHandlerContext ctx;
@@ -81,13 +82,15 @@ public class FilterHandler extends ChannelDuplexHandler {
                          @Nullable String sniHostname,
                          VirtualClusterModel virtualClusterModel,
                          Channel inboundChannel,
-                         ClientSaslManager clientSaslManager) {
+                         ClientSaslManager clientSaslManager,
+                         ProxyChannelStateMachine proxyChannelStateMachine) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
         this.virtualClusterModel = virtualClusterModel;
         this.inboundChannel = inboundChannel;
         this.clientSaslManager = clientSaslManager;
+        this.proxyChannelStateMachine = proxyChannelStateMachine;
     }
 
     @Override
@@ -330,7 +333,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         if (LOGGER.isWarnEnabled()) {
             var direction = decodedFrame.header() instanceof RequestHeaderData ? "request" : "response";
             LOGGER.atWarn().setMessage("{}: Filter '{}' for {} {} ended exceptionally - closing connection. Cause message {}")
-                    .addArgument(channelDescriptor())
+                    .addArgument(proxyChannelStateMachine.sessionId())
                     .addArgument(direction)
                     .addArgument(filterDescriptor())
                     .addArgument(decodedFrame.apiKey())
@@ -479,6 +482,11 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
         @Override
+        public String sessionId() {
+            return proxyChannelStateMachine.sessionId();
+        }
+
+        @Override
         public ByteBufferOutputStream createByteBufferOutputStream(int initialCapacity) {
             final ByteBuf buffer = ctx.alloc().ioBuffer(initialCapacity);
             decodedFrame.add(buffer);
@@ -506,7 +514,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         public void clientSaslAuthenticationSuccess(String mechanism,
                                                     String authorizedId) {
             LOGGER.atInfo().setMessage("{}: Filter '{}' announces client has passed SASL authentication using mechanism '{}' and authorizationId '{}'.")
-                    .addArgument(channelDescriptor())
+                    .addArgument(sessionId())
                     .addArgument(filterDescriptor())
                     .addArgument(mechanism)
                     .addArgument(authorizedId)
@@ -523,7 +531,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .setMessage("{}: Filter '{}' announces client has failed SASL authentication using mechanism '{}' and authorizationId '{}'. Cause message {}."
                             + (LOGGER.isDebugEnabled() ? "" : " Increase log level to DEBUG for stacktrace."))
                     .setCause(LOGGER.isDebugEnabled() ? exception : null)
-                    .addArgument(channelDescriptor())
+                    .addArgument(sessionId())
                     .addArgument(filterDescriptor())
                     .addArgument(mechanism)
                     .addArgument(authorizedId)
