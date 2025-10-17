@@ -226,7 +226,7 @@ class KafkaProxyTest {
         void build_whenIoUringIsConfiguredToBeUsedAndNotAvailable_shouldThrowException() {
             try (var mockIOUring = Mockito.mockStatic(IOUring.class)) {
                 mockIOUring.when(IOUring::isAvailable).thenReturn(false);
-                //noinspection ResultOfMethodCallIgnored
+                // noinspection ResultOfMethodCallIgnored
                 mockIOUring.when(IOUring::unavailabilityCause).thenReturn(new Throwable());
                 assertThatThrownBy(() -> KafkaProxy.EventGroupConfig.build("test", 1, true)).isInstanceOf(IllegalStateException.class);
             }
