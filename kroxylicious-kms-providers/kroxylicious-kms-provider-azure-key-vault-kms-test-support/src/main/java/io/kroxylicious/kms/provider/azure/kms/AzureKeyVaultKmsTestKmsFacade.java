@@ -170,7 +170,7 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
         @Override
         public void generateKek(String alias) {
             String normalizedAlias = normalize(alias);
-            // createKey succeeds imdempotently, not sure if azure or lowkey behaviour
+            // createKey succeeds idempotently, not sure if azure or lowkey behaviour
             try {
                 read(alias);
                 throw new IllegalStateException("key '" + normalizedAlias + "' already exists");
