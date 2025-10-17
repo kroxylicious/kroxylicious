@@ -582,7 +582,7 @@ public class KafkaProxyExceptionMapper {
             builder = new LeaveGroupRequest.Builder(reqBody.groupId(), reqBody.members());
         }
         else {
-            //This should never happen with a legitimate client but as a edge service we should handle malicious ones too
+            // This should never happen with a legitimate client but as a edge service we should handle malicious ones too
             builder = new LeaveGroupRequest.Builder(reqBody.groupId(), List.of(new LeaveGroupRequestData.MemberIdentity()));
         }
         return builder;
