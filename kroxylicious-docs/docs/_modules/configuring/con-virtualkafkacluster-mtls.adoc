@@ -1,10 +1,13 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // kroxylicious-operator/_assemblies/assembly-operator-secure-client-proxy-connection.adoc
 
-[id='con-kafka-client-mtls-{context}']
+[id='con-virtualkafkacluster-mtls-{context}']
 = Mutual TLS configuration for client-to-proxy connections
 
+[role="_abstract"]
 You can configure a virtual cluster ingress to request or require Kafka clients to authenticate to the proxy using TLS.
 This configuration is known as mutual TLS (mTLS), because both the client and the proxy authenticate each other using TLS.
 

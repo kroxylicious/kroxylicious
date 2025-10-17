@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // assembly-configuring-record-encryption-filter
@@ -5,6 +7,7 @@
 [id='con-fortanix-dsm-plugin-configuration-{context}']
 = Fortanix DSM plugin configuration
 
+[role="_abstract"]
 For Fortanix DSM, the KMS configuration looks like this. Use the API key and Fortanix DSM Cluster URL values from the
 KMS setup.
 

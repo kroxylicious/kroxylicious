@@ -1,10 +1,13 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // kroxylicious-operator/_assemblies/assembly-operator-secure-client-proxy-connection.adoc
 
-[id='con-configuring-virtualkafkacluster-{context}']
+[id='con-configuring-tls-between-client-and-proxy-{context}']
 = TLS configuration for client-to-proxy connections
 
+[role="_abstract"]
 This example shows a `VirtualKafkaCluster`, exposing it to Kafka clients running on the same Kubernetes cluster.
 It uses TLS as the transport protocol so that communication between Kafka clients and the proxy is encrypted.
 

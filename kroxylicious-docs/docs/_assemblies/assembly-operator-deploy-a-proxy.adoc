@@ -1,9 +1,11 @@
+:_mod-docs-content-type: ASSEMBLY
+
 // file included in the following:
 //
 // kroxylicious-operator/index.adoc
 
 
-[id='assembly-operator-deploying-a-proxy-{context}']
+[id='assembly-operator-deploy-a-proxy-{context}']
 = Deploying a proxy
 
 [role="_abstract"]

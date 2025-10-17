@@ -13,7 +13,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.16.0-SNAPSHOT</version>
+        <version>0.17.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-filter-parent</artifactId>
@@ -28,6 +28,7 @@
         <module>kroxylicious-record-validation</module>
         <module>kroxylicious-simple-transform</module>
         <module>kroxylicious-oauthbearer-validation</module>
+        <module>kroxylicious-sasl-inspection</module>
     </modules>
 
     <build>

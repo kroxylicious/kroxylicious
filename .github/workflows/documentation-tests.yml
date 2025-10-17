@@ -36,21 +36,21 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392
       - name: 'Set up Java'
         uses: actions/setup-java@v5
         with:
           java-version: 21
           distribution: 'temurin'
       - name: Setup Minikube
-        uses: manusa/actions-setup-minikube@v2.14.0
+        uses: manusa/actions-setup-minikube@b589f2d61bf96695c546929c72b38563e856059d
         with:
           "minikube version": 'v1.35.0'
           "kubernetes version": 'v1.32.0'
           "github token": ${{ secrets.GITHUB_TOKEN }}
           driver: docker
       - name: 'Set up Docker Buildx'
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435
       - name: 'Cache Maven packages'
         uses: actions/cache@v4
         with:
@@ -59,7 +59,7 @@ jobs:
           restore-keys: ${{ runner.os }}-m2
       - name: 'Build Kroxylicious Operator/Operand Container Images & Operator Zip'
         run: |
-          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -DskipTests package -amd
+          mvn --batch-mode --activate-profiles dist --also-make --projects :kroxylicious-app,:kroxylicious-operator,:kroxylicious-operator-dist -Dquick package
       - name: 'Load Kroxylicious Operand Docker Image in Minikube'
         run: |
           minikube image load kroxylicious-app/target/kroxylicious-proxy.img.tar.gz
@@ -72,4 +72,4 @@ jobs:
           minikube image ls | grep --fixed-strings ${KROXYLICIOUS_OPERATOR_IMAGE}
       - name: 'Run documentation tests'
         run: |
-          mvn -DskipUTs=true -DskipITs=true -DskipKTs=true -DskipDTs=false --batch-mode verify --activate-profiles dist --projects ':kroxylicious-docs-tests' --also-make
+          mvn -Djapicmp.skip=true -DskipUTs=true -DskipITs=true -DskipKTs=true -DskipDTs=false --batch-mode verify --activate-profiles dist --projects ':kroxylicious-docs-tests' --also-make

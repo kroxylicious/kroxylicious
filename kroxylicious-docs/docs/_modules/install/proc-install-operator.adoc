@@ -1,8 +1,10 @@
+:_mod-docs-content-type: PROCEDURE
+
 // Module included in the following _assemblies:
 //
 // _assemblies/assembly-operator-install.adoc
 
-[id='install-cluster-operator-{context}']
+[id='proc-install-operator-{context}']
 = Installing the operator using installation files
 
 [role="_abstract"]
@@ -11,7 +13,7 @@ This procedure shows how to install the Kroxylicious Operator in your Kubernetes
 .Prerequisites
 
 * You need an account with permission to create and manage `CustomResourceDefinition` and RBAC (`ClusterRole`) resources.
-* You have downloaded the xref:downloads-{context}[release artifacts] and extracted the contents into the current directory.
+* You have downloaded the xref:con-install-product-downloads-{context}[release artifacts] and extracted the contents into the current directory.
 
 .Procedure
 

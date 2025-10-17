@@ -50,7 +50,6 @@ import io.kroxylicious.proxy.internal.codec.KafkaMessageListener;
 import io.kroxylicious.proxy.internal.codec.KafkaRequestEncoder;
 import io.kroxylicious.proxy.internal.codec.KafkaResponseDecoder;
 import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener;
-import io.kroxylicious.proxy.internal.metrics.UpstreamPayloadSizeMetricRecordingKafkaMessageListener;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
 import io.kroxylicious.proxy.internal.util.Metrics;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
@@ -555,14 +554,7 @@ public class KafkaProxyFrontendHandler
 
         var serverToProxyMessageSizeDistributionProvider = Metrics.serverToProxyMessageSizeDistributionProvider(clusterName,
                 nodeId);
-        return KafkaMessageListener.chainOf(
-                new MetricEmittingKafkaMessageListener(serverToProxyMessageCounterProvider, serverToProxyMessageSizeDistributionProvider),
-                getDeprecatedUpstreamMessageMetrics(clusterName));
-    }
-
-    @SuppressWarnings("removal")
-    private KafkaMessageListener getDeprecatedUpstreamMessageMetrics(String clusterName) {
-        return new UpstreamPayloadSizeMetricRecordingKafkaMessageListener(Metrics.payloadSizeBytesDownstreamSummary(clusterName));
+        return new MetricEmittingKafkaMessageListener(serverToProxyMessageCounterProvider, serverToProxyMessageSizeDistributionProvider);
     }
 
     /** Ugly hack used for testing */

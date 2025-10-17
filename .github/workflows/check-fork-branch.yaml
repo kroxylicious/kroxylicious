@@ -1,0 +1,38 @@
+#
+#  Licensed to the Apache Software Foundation (ASF) under one or more
+#  contributor license agreements. See the NOTICE file distributed with
+#  this work for additional information regarding copyright ownership.
+#  The ASF licenses this file to You under the Apache License, Version 2.0
+#  (the "License"); you may not use this file except in compliance with
+#  the License. You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+#  Unless required by applicable law or agreed to in writing, software
+#  distributed under the License is distributed on an "AS IS" BASIS,
+#  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#  See the License for the specific language governing permissions and
+#  limitations under the License.
+#
+
+# check-fork-branch.yaml - checks the fork branch where the PR is done
+#
+# If the branch is main, the build will fail. We need to avoid PRs
+# done from main branch: Sonar currently breaks if a PR is created from main on a fork.
+
+name: Ensure PR comes from Branch
+
+on:
+  pull_request:
+    types: [ opened, synchronize, reopened ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check fork branch
+        if: github.event.pull_request.head.repo.full_name != github.repository && github.head_ref == 'main'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            core.setFailed('main branch should not be used in pull requests from a fork"')

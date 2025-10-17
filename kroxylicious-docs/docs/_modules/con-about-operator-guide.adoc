@@ -1,6 +1,10 @@
+:_mod-docs-content-type: CONCEPT
+
 
 [discrete]
+[id='con-about-operator-guide-{context}']
 = About this guide
 
+[role="_abstract"]
 This guide covers using the *Kroxylicious Operator* to configure, deploy, secure, and operate the Kroxylicious Proxy on Kubernetes.
 Refer to other Kroxylicious guides for information on running the proxy outside Kubernetes or for advanced topics such as plugin development.

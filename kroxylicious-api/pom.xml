@@ -14,7 +14,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.16.0-SNAPSHOT</version>
+        <version>0.17.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -23,7 +23,7 @@
 
     <properties>
         <libs.dir>libs</libs.dir>
-        <ApiCompatability.ReferenceVersion>0.15.0</ApiCompatability.ReferenceVersion>
+        <ApiCompatability.ReferenceVersion>0.16.0</ApiCompatability.ReferenceVersion>
         <ApiCompatability.EnforceForMajorVersionZero>true</ApiCompatability.EnforceForMajorVersionZero>
     </properties>
 
@@ -81,10 +81,6 @@
     <build>
         <plugins>
             <plugin>
-                <groupId>com.github.spotbugs</groupId>
-                <artifactId>spotbugs-maven-plugin</artifactId>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <executions>
@@ -140,7 +136,7 @@
             <plugin>
                 <groupId>com.github.siom79.japicmp</groupId>
                 <artifactId>japicmp-maven-plugin</artifactId>
-                <version>0.23.1</version>
+                <version>0.24.2</version>
                 <configuration>
                     <oldVersion>
                         <!-- specify the old version directly so its deterministic -->
@@ -157,17 +153,9 @@
                         <breakBuildOnBinaryIncompatibleModifications>false</breakBuildOnBinaryIncompatibleModifications>
                         <breakBuildBasedOnSemanticVersioningForMajorVersionZero>${ApiCompatability.EnforceForMajorVersionZero}</breakBuildBasedOnSemanticVersioningForMajorVersionZero>
                         <excludes>
-                            <exclude>io.kroxylicious.proxy.filter.FilterFactoryContext#eventLoop()</exclude> <!-- https://github.com/kroxylicious/kroxylicious/issues/1380 scheduled removal of deprecated API method -->
-                            <exclude>io.kroxylicious.proxy.config.tls.Tls#Tls(io.kroxylicious.proxy.config.tls.KeyProvider, io.kroxylicious.proxy.config.tls.TrustProvider)</exclude>
-                            <!-- The following filter exclusions relate to RPCs that were removed at Kafka 4.0 -->
-                            <exclude>io.kroxylicious.proxy.filter.ControlledShutdownRequestFilter</exclude>
-                            <exclude>io.kroxylicious.proxy.filter.ControlledShutdownResponseFilter</exclude>
-                            <excludes>io.kroxylicious.proxy.filter.LeaderAndIsrRequestFilter</excludes>
-                            <excludes>io.kroxylicious.proxy.filter.LeaderAndIsrResponseFilter</excludes>
-                            <excludes>io.kroxylicious.proxy.filter.StopReplicaRequestFilter</excludes>
-                            <excludes>io.kroxylicious.proxy.filter.StopReplicaResponseFilter</excludes>
-                            <excludes>io.kroxylicious.proxy.filter.UpdateMetadataRequestFilter</excludes>
-                            <excludes>io.kroxylicious.proxy.filter.UpdateMetadataResponseFilter</excludes>
+                            <!-- The following filter exclusions relate to RPCs that were renamed in kafka-clients 4.1 -->
+                            <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesResponseFilter</exclude>
+                            <exclude>io.kroxylicious.proxy.filter.ListClientMetricsResourcesRequestFilter</exclude>
                         </excludes>
                         <!-- see documentation -->
                     </parameter>

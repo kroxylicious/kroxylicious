@@ -1,4 +1,9 @@
+:_mod-docs-content-type: REFERENCE
+
 = Glossary
+
+[role="_abstract"]
+Glossary of terms used in the Kroxylicious documentation.
 
 API:: Application Programmer Interface.
 CA:: Certificate Authority. An organization that issues certificates.

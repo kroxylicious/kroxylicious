@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // kroxylicious-operator/_assemblies/assembly-operator-secure-proxy-broker-connection.adoc
@@ -5,6 +7,7 @@
 [id='con-configuring-kafkaservice-trust-{context}']
 = TLS trust configuration for proxy-to-cluster connections
 
+[role="_abstract"]
 By default, the proxy uses the platform's default trust store when connecting to the proxied cluster over TLS.  
 This works if the cluster's TLS certificates are signed by a well-known public Certificate Authority (CA), but fails if they’re signed by a private CA instead.
 

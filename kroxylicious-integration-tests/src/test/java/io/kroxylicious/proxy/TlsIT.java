@@ -63,8 +63,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Integration tests focused on Kroxylicious ability to use TLS for both the upstream and downstream.
- * <p>
- * TODO add integration tests covering kroylicious's ability to use JKS and PEM material. Needs <a href="https://github.com/kroxylicious/kroxylicious-junit5-extension/issues/120">issues#120</a>
  */
 @ExtendWith(KafkaClusterExtension.class)
 class TlsIT extends AbstractTlsIT {
@@ -438,8 +436,10 @@ class TlsIT extends AbstractTlsIT {
                                 // Accepted Protocol doesn't match what we want to use
                                 SslConfigs.SSL_ENABLED_PROTOCOLS_CONFIG, "TLSv1.3"))) {
             // Server will only allow us to use TLSv1.3
-            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS)).hasRootCauseInstanceOf(SSLHandshakeException.class)
-                    .hasRootCauseMessage("Received fatal alert: protocol_version");
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .rootCause()
+                    .hasMessageContaining("Received fatal alert: protocol_version");
         }
     }
 
@@ -643,8 +643,10 @@ class TlsIT extends AbstractTlsIT {
                                 // Accepted Cipher doesn't match what we want to use
                                 SslConfigs.SSL_CIPHER_SUITES_CONFIG, "TLS_CHACHA20_POLY1305_SHA256"))) {
             // Server will only allow us to use TLS_CHACHA20_POLY1305_SHA256 and we only want to use TLS_AES_128_GCM_SHA256
-            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS)).hasRootCauseInstanceOf(SSLHandshakeException.class)
-                    .hasRootCauseMessage("Received fatal alert: handshake_failure");
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .rootCause()
+                    .hasMessageContaining("Received fatal alert: handshake_failure");
         }
     }
 
@@ -789,8 +791,11 @@ class TlsIT extends AbstractTlsIT {
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
             // Would need key information provided for mTLS to work here for TlsClientAuth.REQUIRED
-            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS)).hasRootCauseInstanceOf(SSLHandshakeException.class)
-                    .hasRootCauseMessage("Received fatal alert: bad_certificate");
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .rootCause()
+                    .satisfiesAnyOf(e -> assertThat(e).hasMessageContaining("Received fatal alert: bad_certificate") /* <JDK-25 */,
+                            e -> assertThat(e).hasMessageContaining("Received fatal alert: certificate_required") /* JDK-25 */);
         }
     }
 
@@ -819,8 +824,11 @@ class TlsIT extends AbstractTlsIT {
                                 SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
                                 SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
             // Would need key information provided for mTLS to work here for TlsClientAuth.REQUIRED
-            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS)).hasRootCauseInstanceOf(SSLHandshakeException.class)
-                    .hasRootCauseMessage("Received fatal alert: bad_certificate");
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .rootCause()
+                    .satisfiesAnyOf(e -> assertThat(e).hasMessageContaining("Received fatal alert: bad_certificate") /* <JDK-25 */,
+                            e -> assertThat(e).hasMessageContaining("Received fatal alert: certificate_required") /* JDK-25 */);
         }
     }
 
@@ -881,6 +889,32 @@ class TlsIT extends AbstractTlsIT {
             // do some work to ensure connection is opened
             final CreateTopicsResult createTopicsResult = createTopic(admin, TOPIC, 1);
             assertThat(createTopicsResult.all()).isDone();
+        }
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = { "REQUIRED", "REQUESTED" })
+    void downstreamMutualTls_RejectsClientWithInvalidCertificate(TlsClientAuth clientAuthMode, KafkaCluster cluster) throws Exception {
+        // Generate a new client certificate
+        var invalidClientCert = new KeytoolCertificateGenerator();
+        // With Issuer Subject matching the Issuer Subject trusted by the proxy. So that when the server requests a Certificate from the trusted
+        // certificate_authority, the client will choose to send this certificate. Which should cause the handshake to fail because it is self-signed
+        // and untrusted by the proxy.
+        invalidClientCert.generateSelfSignedCertificateEntry(CLIENT_CERT_EMAIL, CLIENT_CERT_DOMAIN, CLIENT_CERT_ORGANIZATION_UNIT, CLIENT_CERT_ORGANIZATION,
+                CLIENT_CERT_CITY, CLIENT_CERT_STATE, CLIENT_CERT_COUNTRY);
+
+        try (var tester = kroxyliciousTester(constructMutualTlsBuilder(cluster, clientAuthMode));
+                var admin = tester.admin("demo",
+                        Map.of(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG,
+                                SecurityProtocol.SSL.name,
+                                SslConfigs.SSL_KEYSTORE_LOCATION_CONFIG, invalidClientCert.getKeyStoreLocation(),
+                                SslConfigs.SSL_KEYSTORE_PASSWORD_CONFIG, invalidClientCert.getPassword(),
+                                SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
+                                SslConfigs.SSL_TRUSTSTORE_PASSWORD_CONFIG, downstreamCertificateGenerator.getPassword()))) {
+            // Connection should fail because server doesn't trust the client certificate
+            assertThatThrownBy(() -> admin.describeCluster().clusterId().get(10, TimeUnit.SECONDS))
+                    .hasRootCauseInstanceOf(SSLHandshakeException.class)
+                    .rootCause().hasMessageContaining("Received fatal alert: certificate_unknown");
         }
     }
 

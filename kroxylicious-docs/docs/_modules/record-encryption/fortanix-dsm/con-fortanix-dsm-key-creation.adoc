@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // assembly-fortanix-dsm.adoc
@@ -5,6 +7,7 @@
 [id='con-fortanix-dsm-key-creation-{context}']
 = Creating Fortanix DSM keys
 
+[role="_abstract"]
 As the administrator, create AES-256 symmetric keys following your key naming convention and belonging to the required group.
 When creating keys specify the key operations as `ENCRYPT,DECRYPT,APPMANAGEABLE`.
 These are the minimal permissions required for record encryption to function.

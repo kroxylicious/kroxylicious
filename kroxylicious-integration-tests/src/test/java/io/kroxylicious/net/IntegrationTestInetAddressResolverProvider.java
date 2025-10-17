@@ -12,6 +12,7 @@ import java.net.spi.InetAddressResolver;
 import java.net.spi.InetAddressResolverProvider;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -25,18 +26,17 @@ public class IntegrationTestInetAddressResolverProvider extends InetAddressResol
     // Note there is no deliberately no logger in this class.
     // Logging frameworks have a habit of trying to resolve hostnames as part of initialisation
     // and thus break if they are initialised by this class.
-    public static final String TEST_DOMAIN = ".int.kroxylicious.test";
-
-    public IntegrationTestInetAddressResolverProvider() {
-
-    }
+    public static final String INT_KROXYLICIOUS_TEST_DOMAIN = ".int.kroxylicious.test";
+    // supports Azure lowkey mock which uses ${vaultName}.localhost hostnames, which some platforms cannot resolve
+    private static final String LOCALHOST_SUBDOMAIN = ".localhost";
+    private static final Set<String> TEST_DOMAINS = Set.of(INT_KROXYLICIOUS_TEST_DOMAIN, LOCALHOST_SUBDOMAIN);
 
     @Override
     public InetAddressResolver get(Configuration configuration) {
         return new InetAddressResolver() {
             @Override
             public Stream<InetAddress> lookupByName(String host, LookupPolicy lookupPolicy) throws UnknownHostException {
-                if (host != null && host.toLowerCase(Locale.ROOT).endsWith(TEST_DOMAIN)) {
+                if (host != null && TEST_DOMAINS.stream().anyMatch(s -> host.toLowerCase(Locale.ROOT).endsWith(s))) {
                     var inetAddressStream = configuration.builtinResolver().lookupByName("localhost", lookupPolicy);
                     return inetAddressStream.map(in -> {
                         try {
@@ -77,7 +77,7 @@ public class IntegrationTestInetAddressResolverProvider extends InetAddressResol
         if (prefix.endsWith(".")) {
             prefix = prefix.substring(0, prefix.lastIndexOf("."));
         }
-        return prefix.concat(TEST_DOMAIN);
+        return prefix.concat(INT_KROXYLICIOUS_TEST_DOMAIN);
 
     }
 

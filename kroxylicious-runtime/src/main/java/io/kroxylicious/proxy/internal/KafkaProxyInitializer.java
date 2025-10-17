@@ -39,7 +39,6 @@ import io.kroxylicious.proxy.internal.filter.ApiVersionsIntersectFilter;
 import io.kroxylicious.proxy.internal.filter.BrokerAddressFilter;
 import io.kroxylicious.proxy.internal.filter.EagerMetadataLearner;
 import io.kroxylicious.proxy.internal.filter.NettyFilterContext;
-import io.kroxylicious.proxy.internal.metrics.DownstreamMessageCountingKafkaMessageListener;
 import io.kroxylicious.proxy.internal.metrics.MetricEmittingKafkaMessageListener;
 import io.kroxylicious.proxy.internal.net.Endpoint;
 import io.kroxylicious.proxy.internal.net.EndpointBinding;
@@ -254,9 +253,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         var clientToProxyMessageCounterProvider = Metrics.clientToProxyMessageCounterProvider(clusterName, nodeId);
         var clientToProxyMessageSizeDistributionProvider = Metrics.clientToProxyMessageSizeDistributionProvider(clusterName, nodeId);
 
-        return KafkaMessageListener.chainOf(
-                new MetricEmittingKafkaMessageListener(clientToProxyMessageCounterProvider, clientToProxyMessageSizeDistributionProvider),
-                deprecatedMessageMetricHandler(clusterName));
+        return new MetricEmittingKafkaMessageListener(clientToProxyMessageCounterProvider, clientToProxyMessageSizeDistributionProvider);
     }
 
     private static MetricEmittingKafkaMessageListener buildMetricsMessageListenerForEncode(EndpointBinding binding, VirtualClusterModel virtualCluster) {
@@ -266,14 +263,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         var proxyToClientMessageSizeDistributionProvider = Metrics.proxyToClientMessageSizeDistributionProvider(clusterName, nodeId);
         return new MetricEmittingKafkaMessageListener(proxyToClientMessageCounterProvider,
                 proxyToClientMessageSizeDistributionProvider);
-    }
-
-    @SuppressWarnings("removal")
-    private KafkaMessageListener deprecatedMessageMetricHandler(String clusterName) {
-        return new DownstreamMessageCountingKafkaMessageListener(
-                Metrics.inboundDownstreamMessageCounter(clusterName),
-                Metrics.inboundDownstreamDecodedMessageCounter(clusterName),
-                Metrics.payloadSizeBytesUpstreamSummary(clusterName));
     }
 
     private static void addLoggingErrorHandler(ChannelPipeline pipeline) {

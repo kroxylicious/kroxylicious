@@ -1,8 +1,10 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // record-encryption-guide/assembly-monitoring-record-encryption-filter.adoc
 
-[id='con-monitoring-record-encryption-filter-{context}']
+[id='con-metrics-{context}']
 = Record Encryption filter metrics
 
 [role="_abstract"]

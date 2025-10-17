@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 // Assembly included in the following:
 //
 // kroxylicious-proxy/index.adoc
@@ -16,10 +18,10 @@ There is currently one class of Custom Filters users can implement:
 
 The following sections explain in more detail how to write your own filters.
 
-== Sample Custom Filter Project
+== Custom Filter Project Generation
 
-A collection of sample filters is available within the Kroxylicious repository for you to download, try out, and customise.
-You can find them {github-source-tree-root}/kroxylicious-sample[here] for a hands-on introduction to creating your own custom filters.
+You can generate a standalone filter project. This bootstraps a project to allow you to build your own Custom Filters.
+You can follow the {DeveloperQuickstart} for a hands-on introduction to creating your own custom filters.
 
 == API docs
 
@@ -439,9 +441,9 @@ implementation that can create an instance of your custom Filter. The factory ca
 populate (using Jackson) when loading your custom Filter. The module must package a `META-INF/services/io.kroxylicious.proxy.filter.FilterFactory`
 file containing the classnames of each filter factory implementation into the JAR file.
 
-For example in the kroxylicious-samples we have the {github-blob-root}/kroxylicious-sample/src/main/java/io/kroxylicious/sample/config/SampleFilterConfig.java[SampleFilterConfig] class.
-This is used in the {github-blob-root}/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleFetchResponseFilter.java[SampleFetchResponseFilter]). The configuration is routed to the Filter instance via the
-{github-blob-root}/kroxylicious-sample/src/main/java/io/kroxylicious/sample/SampleFetchResponse.java[SampleFetchResponse].
+For example in the kroxylicious-filter-archetype we have the {github-blob-root}/kroxylicious-filter-archetype/src/main/resources/archetype-resources/src/main/java/config/SampleFilterConfig.java[SampleFilterConfig] class.
+This is used in the {github-blob-root}/kroxylicious-filter-archetype/src/main/resources/archetype-resources/src/main/java/SampleFetchResponseFilter.java[SampleFetchResponseFilter]). The configuration is routed to the Filter instance via the
+{github-blob-root}/kroxylicious-filter-archetype/src/main/resources/archetype-resources/src/main/java/SampleFetchResponse.java[SampleFetchResponse].
 
 Then, when we configure a filter in Kroxylicious configuration like:
 

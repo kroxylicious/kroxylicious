@@ -1,8 +1,9 @@
-[id='ref-configuring-toplevel-other-settings-{context}']
-= Configuring other top level settings
+:_mod-docs-content-type: CONCEPT
 
-== Management HTTP endpoints
+[id='con-configuring-toplevel-other-settings-{context}']
+= Configuring management HTTP endpoints
 
+[role="_abstract"]
 The proxy can run an HTTP server for exposing basic management information.
 This is configured with the top level `management` property.
 

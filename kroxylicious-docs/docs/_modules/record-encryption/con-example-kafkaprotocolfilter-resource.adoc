@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // assembly-configuring-record-encryption-filter
@@ -5,6 +7,7 @@
 [id='con-example-kafkaprotocolfilter-resource-{context}']
 = Example `KafkaProtocolFilter` resource
 
+[role="_abstract"]
 If your instance of Kroxylicious runs on Kubernetes, you must use a `KafkaProcotolFilter` resource to contain the filter configuration.
 
 Here's a complete example of a `KafkaProtocolFilter` resource configured for record encryption with Vault KMS:

@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 [id='con-configuring-virtual-clusters-{context}']
 = Configuring virtual clusters
 
@@ -15,4 +17,8 @@ Responses back to clients are rewritten to reflect the appropriate network addre
 
 You can secure virtual cluster connections from clients and to target clusters.
 
-Kroxylicious accepts keys and certificates in PEM (Privacy Enhanced Mail), PKCS #12 (Public-Key Cryptography Standards), or JKS (Java KeyStore) keystore format.
+Kroxylicious accepts key material in the following formats:
+
+* PKCS #12 keystore format (Public-Key Cryptography Standards).
+* Keys and certificates as separate PEM (Privacy Enhanced Mail) files. The key *must* be in PKCS #8 format.
+* JKS (Java KeyStore) keystore format.

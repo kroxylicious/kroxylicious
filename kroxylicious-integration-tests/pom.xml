@@ -13,7 +13,7 @@
     <parent>
         <artifactId>kroxylicious-parent</artifactId>
         <groupId>io.kroxylicious</groupId>
-        <version>0.16.0-SNAPSHOT</version>
+        <version>0.17.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-integration-tests</artifactId>
@@ -55,6 +55,11 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-sasl-inspection</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-provider-kroxylicious-inmemory</artifactId>
             <scope>test</scope>
         </dependency>
@@ -81,6 +86,11 @@
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-kms-provider-fortanix-dsm-test-support</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-kms-provider-azure-key-vault-kms-test-support</artifactId>
             <scope>runtime</scope>
         </dependency>
         <dependency>

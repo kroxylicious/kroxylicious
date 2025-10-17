@@ -7,6 +7,17 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2580](https://github.com/kroxylicious/kroxylicious/issues/2580): Add an Azure Key Vault KMS implementation for Record Encryption
+* [#2759](https://github.com/kroxylicious/kroxylicious/pull/2759): Remove kroxylicious-sample and document how to use io.kroxylicious:kroxylicious-filter-archetype
+* [#2671](https://github.com/kroxylicious/kroxylicious/pull/2671): SASL inspection filter supoporting PLAIN, SCRAM-SHA-256 and SCRAM-SHA-512.
+* [#2681](https://github.com/kroxylicious/kroxylicious/pull/2681): Create a maven archetype for filter development io.kroxylicious:kroxylicious-filter-archetype
+
+## 0.16.0
+
+* [#2710](https://github.com/kroxylicious/kroxylicious/pull/2710): bump org.apache.logging.log4j:log4j-bom from 2.25.1 to 2.25.2
+* [#2542](https://github.com/kroxylicious/kroxylicious/issues/2542): Add support for Kafka 4.1.0
+* [#2688](https://github.com/kroxylicious/kroxylicious/pull/2688): bump io.netty:netty-bom from 4.1.126.Final to 4.1.127.Final
+* [#2685](https://github.com/kroxylicious/kroxylicious/pull/2685): build(deps): bump kubernetes-client.version from 7.3.1 to 7.4.0
 * [#1927](https://github.com/kroxylicious/kroxylicious/issues/1927): chore(docs): Remove deprecated adminHttp configuration property.
 * [#1885](https://github.com/kroxylicious/kroxylicious/issues/1885): chore(docs): Remove deprecated support for virtualClusters expressed as a map.
 * [#2598](https://github.com/kroxylicious/kroxylicious/pull/2598): feat(metrics): Add metrics for the number of active connections
@@ -17,6 +28,10 @@ Format `<github issue/pr number>: <short description>`.
   for supplying a virtual cluster map (which was deprecated at 0.11.0) is now removed.
 * Support for the `adminHttp` configuration property (which was deprecated in 0.11.0) is removed. Use `management` instead.
   Also support for the `host` configuration property within that object (which was also deprecated in 0.11.0) is removed. Use `bindAddress` instead.
+* **breaking** kroxylicious-api change. `ListClientMetricsResourcesResponseFilter` and `ListClientMetricsResourcesRequestFilter` are removed, replaced
+  with `ListConfigResourcesResponseFilter` and `ListConfigResourcesRequestFilter` due to the RPC being renamed in kafka-clients. Filters that implement
+  the old interfaces will be incompatible with this version of the proxy and must migrate to the new interfaces.
+* The 'old' metrics that were deprecated at 0.13.0 are now removed. See the documentation for the details of the new metrics.
 
 ## 0.15.0
 

@@ -1,3 +1,5 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // con-virtualkafkafkacluster-overview.adoc
@@ -20,7 +22,7 @@ The exact procedure for generating the certificate depends on the tooling and pr
 The certificate must meet the following criteria:
 
 * The certificate needs to be signed by a CA that is trusted by the *off-cluster applications* that connect to the virtual cluster.
-* The format of the certificate must be PKCS#8 encoded PEM (Privacy Enhanced Mail).
+* The format of the key must be PKCS#8 encoded PEM (Privacy Enhanced Mail).
   It must not be password protected.
 * The certificate must use SANs (Subject Alternate Names) to list the bootstrap and all the broker names or use a wildcard TLS certificate that covers them all.
 Assuming a `bootstrapAddress` of `$(virtualClusterName).kafkaproxy.example.com`, an `advertisedBrokerAddressPattern` of `broker-$(nodeId).$(virtualClusterName).kafkaproxy.example.com`, a Kafka cluster using node IDs (0-2), and a virtual cluster name of `my-cluster`, the following SANs must be listed in the certificate:

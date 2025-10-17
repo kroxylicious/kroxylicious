@@ -119,10 +119,6 @@ updateVersions() {
   local NEW_VERSION=$2
   mvn -q -B versions:set -DnewVersion="${NEW_VERSION}" -DgenerateBackupPoms=false -DprocessAllModules=true
 
-  # Bump version ref in files not controlled by Maven
-  # shellcheck disable=SC2046
-  ${SED} -i -e "s#${FROM_VERSION//./\\.}#${NEW_VERSION}#g" $(find kubernetes-examples -name "*.yaml" -type f)
-
   git add '**/*.yaml' '**/pom.xml' 'pom.xml'
 }
 

@@ -4,7 +4,7 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
-FROM registry.access.redhat.com/ubi9/openjdk-17:1.23-6.1757607787 AS builder
+FROM registry.access.redhat.com/ubi9/openjdk-17:1.23-6.1758133908 AS builder
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -38,9 +38,9 @@ RUN set -ex; \
     chmod +x ${TINI_DEST}
 
 COPY . .
-RUN mvn -q -B clean package -Pdist -Dquick -DskipDocker=true -DskipDocs=true
+RUN mvn -q -B clean package -Pdist -Dquick -DskipDocker=true -DskipDocs=true -Dmaven.test.skip
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6-1755695350
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6-1760515502
 
 ARG JAVA_VERSION=17
 ARG KROXYLICIOUS_VERSION

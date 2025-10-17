@@ -1,10 +1,13 @@
+:_mod-docs-content-type: CONCEPT
+
 // file included in the following:
 //
 // kroxylicious-operator/_assemblies/assembly-operator-deploy-a-proxy.adoc
 
-[id='con-configuring-kafkaservice-bootstrap-{context}']
+[id='con-kafkaservice-by-bootstrap-{context}']
 = Configuration for proxied Kafka clusters
 
+[role="_abstract"]
 A proxied Kafka cluster is configured in a `KafkaService` resource, which specifies how the proxy connects to the cluster.
 The Kafka cluster may or may not be running in the same Kubernetes cluster as the proxy: Network connectivity is all that's required.
 

@@ -1,10 +1,13 @@
+:_mod-docs-content-type: CONCEPT
+
 // Module included in the following _assemblies:
 //
 // _assemblies/assembly-operator-install.adoc
 
-[id='install-prereqs-{context}']
+[id='con-install-prereqs-{context}']
 = Install prerequisites
 
+[role="_abstract"]
 To install Kroxylicious, you will need the following:
 
 ifndef::OpenShiftOnly[]
