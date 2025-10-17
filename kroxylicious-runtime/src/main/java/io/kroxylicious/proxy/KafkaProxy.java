@@ -5,6 +5,8 @@
  */
 package io.kroxylicious.proxy;
 
+import java.nio.file.Path;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -45,9 +47,18 @@ import io.kroxylicious.proxy.config.MicrometerDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
 import io.kroxylicious.proxy.internal.ApiVersionsServiceImpl;
+import io.kroxylicious.proxy.internal.ConfigWatcherService;
+import io.kroxylicious.proxy.internal.ConfigurationChangeContext;
+import io.kroxylicious.proxy.internal.ConfigurationChangeHandler;
+import io.kroxylicious.proxy.internal.ConnectionDrainManager;
+import io.kroxylicious.proxy.internal.ConnectionTracker;
+import io.kroxylicious.proxy.internal.FilterChangeDetector;
+import io.kroxylicious.proxy.internal.InFlightMessageTracker;
 import io.kroxylicious.proxy.internal.KafkaProxyInitializer;
 import io.kroxylicious.proxy.internal.MeterRegistries;
 import io.kroxylicious.proxy.internal.PortConflictDetector;
+import io.kroxylicious.proxy.internal.VirtualClusterChangeDetector;
+import io.kroxylicious.proxy.internal.VirtualClusterManager;
 import io.kroxylicious.proxy.internal.admin.ManagementInitializer;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.internal.net.DefaultNetworkBindingOperationProcessor;
@@ -74,26 +85,51 @@ public final class KafkaProxy implements AutoCloseable {
         }
     }
 
-    private final Configuration config;
+    private Configuration config;
+    private Features features;
     private final @Nullable ManagementConfiguration managementConfiguration;
     private final List<MicrometerDefinition> micrometerConfig;
-    private final List<VirtualClusterModel> virtualClusterModels;
+    private List<VirtualClusterModel> virtualClusterModels;
     private final AtomicBoolean running = new AtomicBoolean();
     private final CompletableFuture<Void> shutdown = new CompletableFuture<>();
     private final NetworkBindingOperationProcessor bindingOperationProcessor = new DefaultNetworkBindingOperationProcessor();
     private final EndpointRegistry endpointRegistry = new EndpointRegistry(bindingOperationProcessor);
     private final PluginFactoryRegistry pfr;
+    private final ConnectionTracker connectionTracker = new ConnectionTracker();
+    private final InFlightMessageTracker inFlightTracker = new InFlightMessageTracker();
+    private final ConnectionDrainManager connectionDrainManager;
+    private final VirtualClusterManager virtualClusterManager;
+    private final ConfigurationChangeHandler configurationChangeHandler;
+    private ConfigWatcherService configWatcherService;
+    private final Path configFilePath;
     private @Nullable MeterRegistries meterRegistries;
     private @Nullable FilterChainFactory filterChainFactory;
     private @Nullable EventGroupConfig managementEventGroup;
     private @Nullable EventGroupConfig serverEventGroup;
 
     public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
+        this(pfr, config, features, null);
+    }
+
+    public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features, Path configFilePath) {
         this.pfr = requireNonNull(pfr);
         this.config = validate(requireNonNull(config), requireNonNull(features));
+        this.features = features;
         this.virtualClusterModels = config.virtualClusterModel(pfr);
         this.managementConfiguration = config.management();
         this.micrometerConfig = config.getMicrometer();
+        this.configFilePath = configFilePath;
+
+        // Initialize connection management components
+        this.connectionDrainManager = new ConnectionDrainManager(connectionTracker, inFlightTracker);
+        this.virtualClusterManager = new VirtualClusterManager(endpointRegistry, connectionDrainManager);
+
+        // Initialize configuration change handler with direct list of detectors
+        this.configurationChangeHandler = new ConfigurationChangeHandler(
+                List.of(
+                        new VirtualClusterChangeDetector(),
+                        new FilterChangeDetector()),
+                virtualClusterManager);
     }
 
     @VisibleForTesting
@@ -138,9 +174,11 @@ public final class KafkaProxy implements AutoCloseable {
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
 
             var tlsServerBootstrap = buildServerBootstrap(serverEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of(), apiVersionsService));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of(),
+                            apiVersionsService, connectionTracker, connectionDrainManager, inFlightTracker));
             var plainServerBootstrap = buildServerBootstrap(serverEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, Map.of(), apiVersionsService));
+                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, Map.of(),
+                            apiVersionsService, connectionTracker, connectionDrainManager, inFlightTracker));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
 
@@ -154,6 +192,20 @@ public final class KafkaProxy implements AutoCloseable {
                     .join();
 
             initDeprecatedMessageMetrics();
+
+            // Start configuration file watcher if config file path is provided
+            if (configFilePath != null) {
+                startConfigurationWatcher(configFilePath)
+                        .thenRun(() -> LOGGER.info("Configuration file watcher started successfully for: {}", configFilePath))
+                        .exceptionally(e -> {
+                            LOGGER.error("Failed to start configuration watcher for: {}", configFilePath, e);
+                            return null;
+                        });
+            }
+            else {
+                LOGGER.info("No configuration file path provided - hot-reload disabled");
+            }
+
             STARTUP_SHUTDOWN_LOGGER.info("Kroxylicious is started");
             return this;
         }
@@ -266,6 +318,76 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     /**
+     * Starts watching the configuration file for changes and enables hot-reloading.
+     *
+     * @param configFilePath the path to the configuration file to watch
+     * @return CompletableFuture that completes when the watcher is started
+     */
+    public CompletableFuture<Void> startConfigurationWatcher(Path configFilePath) {
+        if (configWatcherService != null) {
+            LOGGER.warn("Configuration watcher is already running");
+            return CompletableFuture.completedFuture(null);
+        }
+
+        LOGGER.info("Starting configuration file watcher for: {}", configFilePath);
+        this.configWatcherService = new ConfigWatcherService(
+                configFilePath,
+                this::handleConfigurationChange,
+                Duration.ofMillis(500) // 500ms debounce delay
+        );
+
+        return configWatcherService.start();
+    }
+
+    /**
+     * Stops the configuration file watcher.
+     *
+     * @return CompletableFuture that completes when the watcher is stopped
+     */
+    public CompletableFuture<Void> stopConfigurationWatcher() {
+        if (configWatcherService == null) {
+            return CompletableFuture.completedFuture(null);
+        }
+
+        LOGGER.info("Stopping configuration file watcher");
+        return configWatcherService.stop().thenRun(() -> {
+            configWatcherService = null;
+        });
+    }
+
+    /**
+     * Handles configuration changes detected by the file watcher.
+     * Delegates to ConfigurationChangeHandler for processing.
+     *
+     * @param newConfig the new configuration
+     */
+    private void handleConfigurationChange(Configuration newConfig) {
+        try {
+            Configuration newValidatedConfig = validate(newConfig, features);
+            Configuration oldConfig = this.config;
+
+            // Create models once to avoid excessive logging during change detection
+            List<VirtualClusterModel> oldModels = oldConfig.virtualClusterModel(pfr);
+            List<VirtualClusterModel> newModels = newValidatedConfig.virtualClusterModel(pfr);
+            ConfigurationChangeContext changeContext = new ConfigurationChangeContext(
+                    oldConfig, newValidatedConfig, oldModels, newModels);
+
+            // Delegate to the configuration change handler
+            configurationChangeHandler.handleConfigurationChange(changeContext)
+                    .thenRun(() -> {
+                        // Update the stored configuration after successful hot-reload
+                        this.config = newValidatedConfig;
+                        // Synchronize the virtualClusterModels with the new configuration to ensure consistency
+                        this.virtualClusterModels = newModels;
+                        LOGGER.info("Configuration and virtual cluster models successfully updated");
+                    });
+        }
+        catch (Exception e) {
+            LOGGER.error("Failed to validate or process configuration change", e);
+        }
+    }
+
+    /**
      * Shuts down a running proxy.
      */
     public void shutdown() {
@@ -274,6 +396,17 @@ public final class KafkaProxy implements AutoCloseable {
         }
         try {
             STARTUP_SHUTDOWN_LOGGER.info("Shutting down");
+
+            // Stop configuration watcher first
+            if (configWatcherService != null) {
+                try {
+                    stopConfigurationWatcher().join();
+                }
+                catch (Exception e) {
+                    LOGGER.warn("Error stopping configuration watcher during shutdown", e);
+                }
+            }
+
             endpointRegistry.shutdown().handle((u, t) -> {
                 bindingOperationProcessor.close();
                 var closeFutures = new ArrayList<Future<?>>();
@@ -300,6 +433,9 @@ public final class KafkaProxy implements AutoCloseable {
             if (meterRegistries != null) {
                 meterRegistries.close();
             }
+
+            // Close connection management components
+            connectionDrainManager.close();
         }
         finally {
             managementEventGroup = null;

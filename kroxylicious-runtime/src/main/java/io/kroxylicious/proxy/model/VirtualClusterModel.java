@@ -258,6 +258,32 @@ public class VirtualClusterModel {
         return Collections.unmodifiableMap(gateways);
     }
 
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (obj == null || getClass() != obj.getClass()) {
+            return false;
+        }
+        VirtualClusterModel that = (VirtualClusterModel) obj;
+
+        return logNetwork == that.logNetwork &&
+                logFrames == that.logFrames &&
+                Objects.equals(clusterName, that.clusterName) &&
+                Objects.equals(targetCluster, that.targetCluster) &&
+                Objects.equals(filters, that.filters) &&
+                Objects.equals(gateways, that.gateways);
+        // Note: upstreamSslContext is excluded as it's computed and may differ
+        // between instances even when the logical configuration is the same
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(clusterName, targetCluster, logNetwork, logFrames, filters, gateways);
+        // Note: upstreamSslContext is excluded for the same reason as equals()
+    }
+
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     public static class VirtualClusterGatewayModel implements EndpointGateway {
         private final VirtualClusterModel virtualCluster;
@@ -395,6 +421,29 @@ public class VirtualClusterModel {
                     throw new UncheckedIOException(e);
                 }
             });
+        }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null || getClass() != obj.getClass()) {
+                return false;
+            }
+            VirtualClusterGatewayModel that = (VirtualClusterGatewayModel) obj;
+
+            return Objects.equals(name, that.name) &&
+                    Objects.equals(virtualCluster.getClusterName(), that.virtualCluster.getClusterName()) &&
+                    Objects.equals(nodeIdentificationStrategy, that.nodeIdentificationStrategy) &&
+                    Objects.equals(tls, that.tls);
+            // Note: downstreamSslContext is excluded as it's computed and may differ between instances
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(name, virtualCluster.getClusterName(), nodeIdentificationStrategy, tls);
+            // Note: downstreamSslContext is excluded for the same reason as equals()
         }
 
         @Override

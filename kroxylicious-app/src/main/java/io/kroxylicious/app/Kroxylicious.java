@@ -43,6 +43,10 @@ public class Kroxylicious implements Callable<Integer> {
 
     interface KafkaProxyBuilder {
         KafkaProxy build(PluginFactoryRegistry registry, Configuration config, Features features);
+        
+        default KafkaProxy build(PluginFactoryRegistry registry, Configuration config, Features features, java.nio.file.Path configFilePath) {
+            return new KafkaProxy(registry, config, features, configFilePath);
+        }
     }
 
     Kroxylicious() {
@@ -74,7 +78,7 @@ public class Kroxylicious implements Callable<Integer> {
             Configuration config = configParser.parseConfiguration(stream);
             Features features = getFeatures();
             printBannerAndVersions(features);
-            try (KafkaProxy kafkaProxy = proxyBuilder.build(configParser, config, features)) {
+            try (KafkaProxy kafkaProxy = proxyBuilder.build(configParser, config, features, configFile.toPath())) {
                 kafkaProxy.startup();
                 kafkaProxy.block();
             }

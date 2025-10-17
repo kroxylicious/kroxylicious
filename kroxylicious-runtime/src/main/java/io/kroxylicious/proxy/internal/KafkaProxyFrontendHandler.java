@@ -80,6 +80,7 @@ public class KafkaProxyFrontendHandler
     private final NetFilter netFilter;
     private final SaslDecodePredicate dp;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
+    private final @Nullable ConnectionDrainManager connectionDrainManager;
 
     private @Nullable ChannelHandlerContext clientCtx;
     @VisibleForTesting
@@ -110,8 +111,12 @@ public class KafkaProxyFrontendHandler
                               NetFilter netFilter,
                               SaslDecodePredicate dp,
                               EndpointBinding endpointBinding,
-                              String clusterName) {
-        this(netFilter, dp, endpointBinding, new ProxyChannelStateMachine(clusterName, endpointBinding.nodeId()));
+                              String clusterName,
+                              ConnectionTracker connectionTracker,
+                              ConnectionDrainManager connectionDrainManager,
+                              InFlightMessageTracker inFlightTracker) {
+        this(netFilter, dp, endpointBinding, new ProxyChannelStateMachine(clusterName, endpointBinding.nodeId(), connectionTracker, inFlightTracker),
+                connectionDrainManager);
     }
 
     @VisibleForTesting
@@ -120,6 +125,16 @@ public class KafkaProxyFrontendHandler
                               SaslDecodePredicate dp,
                               EndpointBinding endpointBinding,
                               ProxyChannelStateMachine proxyChannelStateMachine) {
+        this(netFilter, dp, endpointBinding, proxyChannelStateMachine, null);
+    }
+
+    @VisibleForTesting
+    KafkaProxyFrontendHandler(
+                              NetFilter netFilter,
+                              SaslDecodePredicate dp,
+                              EndpointBinding endpointBinding,
+                              ProxyChannelStateMachine proxyChannelStateMachine,
+                              @Nullable ConnectionDrainManager connectionDrainManager) {
         this.netFilter = netFilter;
         this.dp = dp;
         this.endpointBinding = endpointBinding;
@@ -127,6 +142,7 @@ public class KafkaProxyFrontendHandler
         this.proxyChannelStateMachine = proxyChannelStateMachine;
         this.logNetwork = virtualClusterModel.isLogNetwork();
         this.logFrames = virtualClusterModel.isLogFrames();
+        this.connectionDrainManager = connectionDrainManager;
     }
 
     @Override
@@ -183,6 +199,15 @@ public class KafkaProxyFrontendHandler
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         this.clientCtx = ctx;
+
+        // Check if we should accept this connection (not draining)
+        String clusterName = virtualClusterModel.getClusterName();
+        if (connectionDrainManager != null && !connectionDrainManager.shouldAcceptConnection(clusterName)) {
+            LOGGER.info("Rejecting new connection for draining cluster '{}'", clusterName);
+            ctx.close();
+            return;
+        }
+
         this.proxyChannelStateMachine.onClientActive(this);
         super.channelActive(this.clientCtx);
     }
@@ -671,7 +696,7 @@ public class KafkaProxyFrontendHandler
         proxyChannelStateMachine.onClientWritable();
     }
 
-    private ChannelHandlerContext clientCtx() {
+    ChannelHandlerContext clientCtx() {
         return Objects.requireNonNull(this.clientCtx, "clientCtx was null while in state " + this.proxyChannelStateMachine.currentState());
     }
 

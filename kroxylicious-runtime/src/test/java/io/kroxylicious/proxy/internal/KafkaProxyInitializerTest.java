@@ -350,7 +350,7 @@ class KafkaProxyInitializerTest {
                 (virtualCluster, upstreamNodes) -> null,
                 false,
                 authnMechanismHandlers,
-                new ApiVersionsServiceImpl());
+                new ApiVersionsServiceImpl(), null, null, null);
     }
 
     private void assertErrorHandlerAdded() {

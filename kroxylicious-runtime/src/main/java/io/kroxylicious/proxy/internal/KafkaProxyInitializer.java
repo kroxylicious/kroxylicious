@@ -67,6 +67,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     private final FilterChainFactory filterChainFactory;
     private final ApiVersionsServiceImpl apiVersionsService;
     private final Counter clientToProxyErrorCounter;
+    private final ConnectionTracker connectionTracker;
+    private final ConnectionDrainManager connectionDrainManager;
+    private final InFlightMessageTracker inFlightTracker;
 
     public KafkaProxyInitializer(FilterChainFactory filterChainFactory,
                                  PluginFactoryRegistry pfr,
@@ -75,7 +78,10 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                                  EndpointReconciler endpointReconciler,
                                  boolean haproxyProtocol,
                                  Map<KafkaAuthnHandler.SaslMechanism, AuthenticateCallbackHandler> authnMechanismHandlers,
-                                 ApiVersionsServiceImpl apiVersionsService) {
+                                 ApiVersionsServiceImpl apiVersionsService,
+                                 ConnectionTracker connectionTracker,
+                                 ConnectionDrainManager connectionDrainManager,
+                                 InFlightMessageTracker inFlightTracker) {
         this.pfr = pfr;
         this.endpointReconciler = endpointReconciler;
         this.haproxyProtocol = haproxyProtocol;
@@ -85,6 +91,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         this.filterChainFactory = filterChainFactory;
         this.apiVersionsService = apiVersionsService;
         this.clientToProxyErrorCounter = Metrics.clientToProxyErrorCounter("", null).withTags();
+        this.connectionTracker = connectionTracker;
+        this.connectionDrainManager = connectionDrainManager;
+        this.inFlightTracker = inFlightTracker;
     }
 
     @Override
@@ -230,7 +239,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 endpointReconciler,
                 new ApiVersionsIntersectFilter(apiVersionsService),
                 new ApiVersionsDowngradeFilter(apiVersionsService));
-        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, binding, virtualCluster.getClusterName());
+        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, binding, virtualCluster.getClusterName(),
+                connectionTracker, connectionDrainManager, inFlightTracker);
 
         pipeline.addLast("netHandler", frontendHandler);
         addLoggingErrorHandler(pipeline);

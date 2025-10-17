@@ -280,6 +280,30 @@ public class PortIdentifiesNodeIdentificationStrategy
                     .collect(Collectors.toMap(Function.identity(), this::getBrokerAddress));
         }
 
+        @Override
+        public boolean equals(Object obj) {
+            if (this == obj) {
+                return true;
+            }
+            if (obj == null || getClass() != obj.getClass()) {
+                return false;
+            }
+            // Two Strategy instances are equal if their outer class instances are equal
+            Strategy that = (Strategy) obj;
+            return PortIdentifiesNodeIdentificationStrategy.this.equals(that.getOuterInstance());
+        }
+
+        @Override
+        public int hashCode() {
+            // Use the outer class's hashCode for consistency
+            return PortIdentifiesNodeIdentificationStrategy.this.hashCode();
+        }
+
+        // Helper method to get the outer instance for comparison
+        private PortIdentifiesNodeIdentificationStrategy getOuterInstance() {
+            return PortIdentifiesNodeIdentificationStrategy.this;
+        }
+
     }
 
 }
