@@ -12,11 +12,26 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.Mockito;
+
+import io.netty.channel.epoll.Epoll;
+import io.netty.channel.epoll.EpollEventLoopGroup;
+import io.netty.channel.epoll.EpollServerSocketChannel;
+import io.netty.channel.kqueue.KQueue;
+import io.netty.channel.kqueue.KQueueEventLoopGroup;
+import io.netty.channel.kqueue.KQueueServerSocketChannel;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.incubator.channel.uring.IOUring;
+import io.netty.incubator.channel.uring.IOUringEventLoopGroup;
+import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
@@ -186,6 +201,78 @@ class KafkaProxyTest {
             var uri = URI.create("http://localhost:9190/livez");
             var response = client.send(HttpRequest.newBuilder(uri).GET().build(), HttpResponse.BodyHandlers.discarding());
             assertThat(response.statusCode()).isEqualTo(200);
+        }
+    }
+
+    @Nested
+    @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
+    class EventGroupConfigTest {
+
+        @Test
+        void build_whenIoUringIsConfiguredToBeUsedAndAvailable_shouldUseIoUring() {
+            // the constructor is mocked since native classes used in actual constructors can be unavailable based on the test infra
+            try (var mockIOUring = Mockito.mockStatic(IOUring.class);
+                    var mockGroupConstructor = Mockito.mockConstruction(IOUringEventLoopGroup.class)) {
+                mockIOUring.when(IOUring::isAvailable).thenReturn(true);
+                final var config = KafkaProxy.EventGroupConfig.build("test", 1, true);
+                assertThat(config.bossGroup()).isInstanceOf(IOUringEventLoopGroup.class);
+                assertThat(config.workerGroup()).isInstanceOf(IOUringEventLoopGroup.class);
+                assertThat(config.clazz()).isEqualTo(IOUringServerSocketChannel.class);
+                assertThat(mockGroupConstructor.constructed().size()).isEqualTo(2);
+            }
+        }
+
+        @Test
+        void build_whenIoUringIsConfiguredToBeUsedAndNotAvailable_shouldThrowException() {
+            try (var mockIOUring = Mockito.mockStatic(IOUring.class)) {
+                mockIOUring.when(IOUring::isAvailable).thenReturn(false);
+                //noinspection ResultOfMethodCallIgnored
+                mockIOUring.when(IOUring::unavailabilityCause).thenReturn(new Throwable());
+                assertThatThrownBy(() -> KafkaProxy.EventGroupConfig.build("test", 1, true)).isInstanceOf(IllegalStateException.class);
+            }
+        }
+
+        @Test
+        void build_whenEpollIsAvailable_shouldUseEpoll() {
+            try (var mockEpoll = Mockito.mockStatic(Epoll.class);
+                    var mockGroupConstructor = Mockito.mockConstruction(EpollEventLoopGroup.class)) {
+                mockEpoll.when(Epoll::isAvailable).thenReturn(true);
+                final var config = KafkaProxy.EventGroupConfig.build("test", 1, false);
+                assertThat(config.bossGroup()).isInstanceOf(EpollEventLoopGroup.class);
+                assertThat(config.workerGroup()).isInstanceOf(EpollEventLoopGroup.class);
+                assertThat(config.clazz()).isEqualTo(EpollServerSocketChannel.class);
+                assertThat(mockGroupConstructor.constructed().size()).isEqualTo(2);
+            }
+        }
+
+        @Test
+        void build_whenEpollIsUnavailableAndKQueueIsAvailable_shouldUseKQueue() {
+            try (var mockEpoll = Mockito.mockStatic(Epoll.class);
+                    var mockKQueue = Mockito.mockStatic(KQueue.class);
+                    var mockGroupConstructor = Mockito.mockConstruction(KQueueEventLoopGroup.class)) {
+                mockEpoll.when(Epoll::isAvailable).thenReturn(false);
+                mockKQueue.when(KQueue::isAvailable).thenReturn(true);
+                final var config = KafkaProxy.EventGroupConfig.build("test", 1, false);
+                assertThat(config.bossGroup()).isInstanceOf(KQueueEventLoopGroup.class);
+                assertThat(config.workerGroup()).isInstanceOf(KQueueEventLoopGroup.class);
+                assertThat(config.clazz()).isEqualTo(KQueueServerSocketChannel.class);
+                assertThat(mockGroupConstructor.constructed().size()).isEqualTo(2);
+            }
+        }
+
+        @Test
+        void build_whenEpollAndKqueueAreUnavailable_shouldFallbackToNio() {
+            try (var mockEpoll = Mockito.mockStatic(Epoll.class);
+                    var mockKQueue = Mockito.mockStatic(KQueue.class);
+                    var mockGroupConstructor = Mockito.mockConstruction(NioEventLoopGroup.class)) {
+                mockEpoll.when(Epoll::isAvailable).thenReturn(false);
+                mockKQueue.when(KQueue::isAvailable).thenReturn(false);
+                final var config = KafkaProxy.EventGroupConfig.build("test", 1, false);
+                assertThat(config.bossGroup()).isInstanceOf(NioEventLoopGroup.class);
+                assertThat(config.workerGroup()).isInstanceOf(NioEventLoopGroup.class);
+                assertThat(config.clazz()).isEqualTo(NioServerSocketChannel.class);
+                assertThat(mockGroupConstructor.constructed().size()).isEqualTo(2);
+            }
         }
     }
 }
