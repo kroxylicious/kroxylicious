@@ -314,7 +314,7 @@ class KafkaServiceReconcilerTest {
                             .singleElement()
                             .isResolvedRefsFalse(
                                     Condition.REASON_INVALID,
-                                    "spec.strimziKafkaReflistener should be `plain`")));
+                                    "spec.strimziKafkaRef: listener should be `plain`")));
         }
 
         // unsupported kind

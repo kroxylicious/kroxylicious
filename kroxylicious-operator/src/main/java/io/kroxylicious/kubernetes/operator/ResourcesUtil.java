@@ -569,7 +569,7 @@ public class ResourcesUtil {
                 if (!isSupportedListenerType(listenerName)) {
                     return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                             Condition.REASON_INVALID,
-                            path + "listener should be `plain`"), List.of());
+                            path + ": listener should be `plain`"), List.of());
                 }
                 else {
                     return handleListener(resource, strimziKafkaRef, statusFactory, kafkaOpt.get());
@@ -622,7 +622,7 @@ public class ResourcesUtil {
     }
 
     private static boolean isListenerPresent(StrimziKafkaRef strimziKafkaRef, Kafka kafka) {
-        return kafka.getStatus().getListeners() != null && kafka.getStatus().getListeners().stream()
+        return kafka.getStatus() != null && kafka.getStatus().getListeners() != null && kafka.getStatus().getListeners().stream()
                 .anyMatch(listenerStatus -> listenerStatus.getName()
                         .equals(strimziKafkaRef.getListenerName()));
     }

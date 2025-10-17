@@ -11,7 +11,7 @@ Format `<github issue/pr number>: <short description>`.
 * [#2759](https://github.com/kroxylicious/kroxylicious/pull/2759): Remove kroxylicious-sample and document how to use io.kroxylicious:kroxylicious-filter-archetype
 * [#2671](https://github.com/kroxylicious/kroxylicious/pull/2671): SASL inspection filter supoporting PLAIN, SCRAM-SHA-256 and SCRAM-SHA-512.
 * [#2681](https://github.com/kroxylicious/kroxylicious/pull/2681): Create a maven archetype for filter development io.kroxylicious:kroxylicious-filter-archetype
-* [#2693](https://github.com/kroxylicious/kroxylicious/pull/2693): Automatic discovery of the upstream bootstrap address by Kroxylicious operator
+* [#2693](https://github.com/kroxylicious/kroxylicious/pull/2693): Kroxylicious operator can now discover plain bootstrap address from Strimzi Kafka custom resource 
 
 ## 0.16.0
 

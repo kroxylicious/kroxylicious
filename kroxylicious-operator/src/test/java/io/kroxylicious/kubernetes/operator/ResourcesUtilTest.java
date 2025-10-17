@@ -925,6 +925,6 @@ class ResourcesUtilTest {
                         new StrimziKafkaRefBuilder().withListenerName("").withNewRef().withName("my-cluster").endRef().build(),
                         EMPTY_KAFKA,
                         Condition.REASON_INVALID,
-                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("spec.strimziKafkaReflistener should be `plain`")));
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("spec.strimziKafkaRef: listener should be `plain`")));
     }
 }

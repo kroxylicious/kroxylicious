@@ -216,7 +216,7 @@ public final class KafkaServiceReconciler implements
             }
 
             if (service.getSpec().getStrimziKafkaRef() != null) {
-                Optional<ListenerStatus> result = retrieveBootstrapServerAddress(context, service, CONFIG_MAPS_EVENT_SOURCE_NAME);
+                Optional<ListenerStatus> result = retrieveBootstrapServerAddress(context, service, KAFKA_EVENT_SOURCE_NAME);
                 if (result.isEmpty()) {
                     throw new IllegalStateException("Bootstrap server address is empty");
                 }
