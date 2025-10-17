@@ -29,6 +29,15 @@ rules:
       - watch
       - patch
       - update
+  - # The operator needs to know about its own CRs and be able to patch the annotations
+    apiGroups:
+      - "kafka.strimzi.io"
+    resources:
+      - kafkas
+    verbs:
+      - get
+      - list
+      - watch
   - # The operator needs to update the status on its own CRs
     apiGroups:
       - "kroxylicious.io"

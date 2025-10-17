@@ -12,6 +12,6 @@ resource:
     name: fooref
     namespace: proxy-ns
   spec:
-    bootstrapServers: null
+    strimziKafkaRef: ""
 expectFailureMessageToContain: |
-  <nil>: Invalid value: ""
+  spec.strimziKafkaRef: Invalid value
