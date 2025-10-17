@@ -218,7 +218,7 @@ class KafkaProxyTest {
                 assertThat(config.bossGroup()).isInstanceOf(IOUringEventLoopGroup.class);
                 assertThat(config.workerGroup()).isInstanceOf(IOUringEventLoopGroup.class);
                 assertThat(config.clazz()).isEqualTo(IOUringServerSocketChannel.class);
-                assertThat(mockGroupConstructor.constructed().size()).isEqualTo(2);
+                assertThat(mockGroupConstructor.constructed()).hasSize(2);
             }
         }
 
@@ -241,7 +241,7 @@ class KafkaProxyTest {
                 assertThat(config.bossGroup()).isInstanceOf(EpollEventLoopGroup.class);
                 assertThat(config.workerGroup()).isInstanceOf(EpollEventLoopGroup.class);
                 assertThat(config.clazz()).isEqualTo(EpollServerSocketChannel.class);
-                assertThat(mockGroupConstructor.constructed().size()).isEqualTo(2);
+                assertThat(mockGroupConstructor.constructed()).hasSize(2);
             }
         }
 
@@ -256,7 +256,7 @@ class KafkaProxyTest {
                 assertThat(config.bossGroup()).isInstanceOf(KQueueEventLoopGroup.class);
                 assertThat(config.workerGroup()).isInstanceOf(KQueueEventLoopGroup.class);
                 assertThat(config.clazz()).isEqualTo(KQueueServerSocketChannel.class);
-                assertThat(mockGroupConstructor.constructed().size()).isEqualTo(2);
+                assertThat(mockGroupConstructor.constructed()).hasSize(2);
             }
         }
 
@@ -271,7 +271,7 @@ class KafkaProxyTest {
                 assertThat(config.bossGroup()).isInstanceOf(NioEventLoopGroup.class);
                 assertThat(config.workerGroup()).isInstanceOf(NioEventLoopGroup.class);
                 assertThat(config.clazz()).isEqualTo(NioServerSocketChannel.class);
-                assertThat(mockGroupConstructor.constructed().size()).isEqualTo(2);
+                assertThat(mockGroupConstructor.constructed()).hasSize(2);
             }
         }
     }
