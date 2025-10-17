@@ -294,13 +294,15 @@ public class Metrics {
         PROXY_TO_SERVER_CONNECTION_CACHE.clear();
     }
 
-    public static void bindNettyEventExecutorMetrics(final EventLoopGroup eventLoopGroup) {
-        new NettyEventExecutorMetrics(eventLoopGroup).bindTo(io.micrometer.core.instrument.Metrics.globalRegistry);
+    public static void bindNettyEventExecutorMetrics(final EventLoopGroup... eventLoopGroups) {
+        for (final var eventLoopGroup : eventLoopGroups) {
+            new NettyEventExecutorMetrics(eventLoopGroup).bindTo(globalRegistry);
+        }
     }
 
     public static void bindNettyAllocatorMetrics(final ByteBufAllocator alloc) {
         if (alloc instanceof ByteBufAllocatorMetricProvider byteBufAllocatorMetricProvider) {
-            new NettyAllocatorMetrics(byteBufAllocatorMetricProvider).bindTo(io.micrometer.core.instrument.Metrics.globalRegistry);
+            new NettyAllocatorMetrics(byteBufAllocatorMetricProvider).bindTo(globalRegistry);
         }
     }
 }

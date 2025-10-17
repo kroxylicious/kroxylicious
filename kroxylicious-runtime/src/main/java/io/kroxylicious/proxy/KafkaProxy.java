@@ -72,6 +72,28 @@ public final class KafkaProxy implements AutoCloseable {
         public List<Future<?>> shutdownGracefully() {
             return List.of(bossGroup.shutdownGracefully(), workerGroup.shutdownGracefully());
         }
+
+        public EventGroupConfig withMetrics() {
+            Metrics.bindNettyAllocatorMetrics(ByteBufAllocator.DEFAULT);
+            Metrics.bindNettyEventExecutorMetrics(this.bossGroup(), this.workerGroup());
+            return this;
+        }
+
+        public static EventGroupConfig build(String name, int availableCores, boolean useIoUring) {
+            if (useIoUring) {
+                if (!IOUring.isAvailable()) {
+                    throw new IllegalStateException("io_uring not available due to: " + IOUring.unavailabilityCause());
+                }
+                return new EventGroupConfig(name, new IOUringEventLoopGroup(1), new IOUringEventLoopGroup(availableCores), IOUringServerSocketChannel.class);
+            }
+            if (Epoll.isAvailable()) {
+                return new EventGroupConfig(name, new EpollEventLoopGroup(1), new EpollEventLoopGroup(availableCores), EpollServerSocketChannel.class);
+            }
+            if (KQueue.isAvailable()) {
+                return new EventGroupConfig(name, new KQueueEventLoopGroup(1), new KQueueEventLoopGroup(availableCores), KQueueServerSocketChannel.class);
+            }
+            return new EventGroupConfig(name, new NioEventLoopGroup(1), new NioEventLoopGroup(availableCores), NioServerSocketChannel.class);
+        }
     }
 
     private final Configuration config;
@@ -128,10 +150,8 @@ public final class KafkaProxy implements AutoCloseable {
 
             var availableCores = Runtime.getRuntime().availableProcessors();
 
-            this.managementEventGroup = buildNettyEventGroups("management", availableCores, config.isUseIoUring());
-            this.serverEventGroup = buildNettyEventGroups("server", availableCores, config.isUseIoUring());
-
-            enableNettyMetrics(serverEventGroup);
+            this.managementEventGroup = EventGroupConfig.build("management", availableCores, config.isUseIoUring()).withMetrics();
+            this.serverEventGroup = EventGroupConfig.build("server", availableCores, config.isUseIoUring()).withMetrics();
 
             var managementFuture = maybeStartManagementListener(managementEventGroup, meterRegistries);
 
@@ -164,12 +184,6 @@ public final class KafkaProxy implements AutoCloseable {
         }
     }
 
-    private void enableNettyMetrics(final EventGroupConfig config) {
-        Metrics.bindNettyAllocatorMetrics(ByteBufAllocator.DEFAULT);
-        Metrics.bindNettyEventExecutorMetrics(config.bossGroup());
-        Metrics.bindNettyEventExecutorMetrics(config.workerGroup());
-    }
-
     private void initVersionInfoMetric() {
         Metrics.versionInfoMetric(VersionInfo.VERSION_INFO);
     }
@@ -193,37 +207,6 @@ public final class KafkaProxy implements AutoCloseable {
                 .option(ChannelOption.SO_REUSEADDR, true)
                 .childHandler(kafkaProxyInitializer)
                 .childOption(ChannelOption.TCP_NODELAY, true);
-    }
-
-    private EventGroupConfig buildNettyEventGroups(String name, int availableCores, boolean useIoUring) {
-        final Class<? extends ServerChannel> channelClass;
-        final EventLoopGroup bossGroup;
-        final EventLoopGroup workerGroup;
-
-        if (useIoUring) {
-            if (!IOUring.isAvailable()) {
-                throw new IllegalStateException("io_uring not available due to: " + IOUring.unavailabilityCause());
-            }
-            bossGroup = new IOUringEventLoopGroup(1);
-            workerGroup = new IOUringEventLoopGroup(availableCores);
-            channelClass = IOUringServerSocketChannel.class;
-        }
-        else if (Epoll.isAvailable()) {
-            bossGroup = new EpollEventLoopGroup(1);
-            workerGroup = new EpollEventLoopGroup(availableCores);
-            channelClass = EpollServerSocketChannel.class;
-        }
-        else if (KQueue.isAvailable()) {
-            bossGroup = new KQueueEventLoopGroup(1);
-            workerGroup = new KQueueEventLoopGroup(availableCores);
-            channelClass = KQueueServerSocketChannel.class;
-        }
-        else {
-            bossGroup = new NioEventLoopGroup(1);
-            workerGroup = new NioEventLoopGroup(availableCores);
-            channelClass = NioServerSocketChannel.class;
-        }
-        return new EventGroupConfig(name, bossGroup, workerGroup, channelClass);
     }
 
     private CompletableFuture<Void> maybeStartManagementListener(EventGroupConfig eventGroupConfig, MeterRegistries meterRegistries) {
