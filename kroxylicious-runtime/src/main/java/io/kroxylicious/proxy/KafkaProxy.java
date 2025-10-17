@@ -190,8 +190,6 @@ public final class KafkaProxy implements AutoCloseable {
                             .toArray(CompletableFuture[]::new))
                     .join();
 
-            initDeprecatedMessageMetrics();
-
             // Start configuration file watcher if config file path is provided
             if (configFilePath != null) {
                 startConfigurationWatcher(configFilePath)
