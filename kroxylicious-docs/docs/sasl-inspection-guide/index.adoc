@@ -11,7 +11,7 @@ include::_modules/sasl-inspection/con-about-{guide}-guide.adoc[leveloffset=+1]
 
 [role="_abstract"]
 This filter inspects the SASL exchange between Kafka Client and Broker and extracts the *authenticated principal*.
-It makes the authenticated principal available to the other filters in the chain, so that they may know on whose behalf they are acting.
+If the client's authentication with the broker is successful, the filter makes the authenticated principal available to the other filters in the chain, so that they may know on whose behalf they are acting.
 
 NOTE: The SASL Inspection Filter plays no part in deciding if the authentication is successful or not.
 That role remains the exclusive responsibility of the broker.
@@ -39,7 +39,7 @@ This filter supports the following SASL mechanisms:
 |===
 
 Mechanisms that transmit credentials in plain text are disabled by default.
-This is done to avoid the plain-text passwords existing tin the proxy's memory.
+This is done to avoid the plain-text passwords existing in the proxy's memory.
 To use such a mechanism, you must enable it in the filter's configuration.
 
 For the `OAUTHBEARER` inspection, only JWT tokens are supported and only JWT tokens using
