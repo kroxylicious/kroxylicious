@@ -256,13 +256,25 @@ class SaslInspectionFilter
 
             }
 
-            LOGGER.atInfo()
-                    .setMessage("Server accepts SASL credentials for client on channel {}, announcing that client has authorizationId {}")
-                    .addArgument(context::channelDescriptor)
-                    .addArgument(authorizationIdFromClient)
-                    .log();
-            context.clientSaslAuthenticationSuccess(saslObserver.mechanismName(), authorizationIdFromClient);
+            var expiredCredential = state.saslObserver().usesSessionLifetime() && response.sessionLifetimeMs() == 0;
+            if (expiredCredential) {
+                LOGGER.atInfo()
+                        .setMessage(
+                                "Server has accepted an expired SASL credentials on channel {}. Client must re-authenticate on the next request, or the server will disconnect.")
+                        .addArgument(context::channelDescriptor)
+                        .addArgument(authorizationIdFromClient)
+                        .log();
+                context.clientSaslAuthenticationFailure(state.saslObserver().mechanismName(), authorizationIdFromClient, new SaslException("expired credential"));
+            }
+            else {
+                LOGGER.atInfo()
+                        .setMessage("Server accepts SASL credentials for client on channel {}, announcing that client has authorizationId {}")
+                        .addArgument(context::channelDescriptor)
+                        .addArgument(authorizationIdFromClient)
+                        .log();
+                context.clientSaslAuthenticationSuccess(saslObserver.mechanismName(), authorizationIdFromClient);
 
+            }
         }
         currentState = state.nextState(saslObserver.isFinished());
         return context.forwardResponse(header, response);
