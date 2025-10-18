@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-public class SampleFilterIT {
+class SampleFilterIT {
 
     private static final Map<String, Object> CONSUMER_CONFIGURATION =
             Map.of(ConsumerConfig.GROUP_ID_CONFIG, "group-id-0",
