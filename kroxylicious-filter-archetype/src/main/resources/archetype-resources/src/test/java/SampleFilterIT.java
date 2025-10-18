@@ -1,4 +1,4 @@
-package org.example;
+package ${package};
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -30,7 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
-public class SimplifiedSampleFilterIT {
+public class SampleFilterIT {
 
     private static final Map<String, Object> CONSUMER_CONFIGURATION =
             Map.of(ConsumerConfig.GROUP_ID_CONFIG, "group-id-0",
