@@ -1,0 +1,58 @@
+////
+  // Copyright Kroxylicious Authors.
+  //
+  // Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+////
+:_mod-docs-content-type: CONCEPT
+
+[id='con-configuring-vc-target-{context}']
+= Configuring target cluster
+
+[role="_abstract"]
+The target cluster specifies the physical upstream Kafka cluster which is proxied by the `my-cluster-proxy` virtual cluster.
+
+The target cluster configuration has 3 properties.
+
+1. `bootstrapServers`: The bootstrap addresses of the physical Kafka cluster being proxied.
+You can specify multiple addresses by providing a comma separated list.
+Having multiple addresses helps spread the load and also provides better reliability.
+2. `bootstrapServerSelection.strategy`: The bootstrapping process will select one bootstrap server from the list of configured servers.
+This property configures the strategy used for selecting the bootstrap server.
+If this is not explicitly configured the strategy defaults to `round-robin`.
+3. `tls`: TLS configuration for connecting to the target Kafka cluster.
+See xref:con-configuring-vc-target-tls-{context}[Securing connections to target clusters] for more details.
+
+Examples below illustrate the various strategies which can be used for selecting a bootstrap server from the list of addresses configured.
+
+When multiple bootstrap servers are configured with no bootstrap server selection strategy explicitly configured, the bootstrap server is selected using the `round-robin` strategy.
+
+.Example using default strategy
+[source,yaml]
+----
+#...
+virtualClusters:
+    - name: my-cluster-proxy
+      # ...
+      targetCluster:
+        bootstrapServers: my-cluster-kafka-bootstrap-0.kafka.svc.cluster.local:9093, my-cluster-kafka-bootstrap-1.kafka.svc.cluster.local:9093, my-cluster-kafka-bootstrap-2.kafka.svc.cluster.local:9093
+        tls: {}
+#...
+----
+
+The below example illustrates explicitly configuring a bootstrap server selection strategy.
+
+.Example configuring a bootstrap server selection strategy
+[source,yaml]
+----
+#...
+virtualClusters:
+  - name: my-cluster-proxy
+    #...
+    targetCluster:
+      bootstrapServers: my-cluster-kafka-bootstrap-0.kafka.svc.cluster.local:9093, my-cluster-kafka-bootstrap-1.kafka.svc.cluster.local:9093, my-cluster-kafka-bootstrap-2.kafka.svc.cluster.local:9093
+      bootstrapServerSelection:
+        strategy: "round-robin" # <1>
+----
+
+<1> Round-robin strategy for bootstrap server selection.
+Other supported strategy is `random`.
