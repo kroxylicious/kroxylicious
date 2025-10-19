@@ -42,6 +42,7 @@ import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEven
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
+import io.kroxylicious.kubernetes.api.common.Protocol;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -53,7 +54,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.ingresses.Tls;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses.Protocol;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.ingresses.LoadBalancerIngressPointsBuilder;
 import io.kroxylicious.kubernetes.operator.checksum.Crc32ChecksumGenerator;
@@ -630,7 +630,7 @@ public final class VirtualKafkaClusterReconciler implements
         if (proxyIngressOpt.isPresent()) {
             KafkaProxyIngress proxyIngress = proxyIngressOpt.get();
 
-            var proxyIngressDefinesTls = getIngressProtocol(proxyIngress) == ClusterIP.Protocol.TLS;
+            var proxyIngressDefinesTls = getIngressProtocol(proxyIngress) == Protocol.TLS;
             var clusterDefinesTls = clusterIngress.getTls() != null;
             if (clusterDefinesTls != proxyIngressDefinesTls) {
                 var slug = ResourcesUtil.namespacedSlug(toLocalRef(proxyIngress), proxyIngress);
@@ -648,14 +648,14 @@ public final class VirtualKafkaClusterReconciler implements
         return null;
     }
 
-    private static ClusterIP.Protocol getIngressProtocol(KafkaProxyIngress proxyIngress) {
+    private static Protocol getIngressProtocol(KafkaProxyIngress proxyIngress) {
         ClusterIP clusterIP = proxyIngress.getSpec().getClusterIP();
         if (clusterIP != null) {
             return clusterIP.getProtocol();
         }
         LoadBalancer loadBalancer = proxyIngress.getSpec().getLoadBalancer();
         if (loadBalancer != null) {
-            return ClusterIP.Protocol.TLS;
+            return Protocol.TLS;
         }
         throw new IllegalStateException("No protocol could be determined for " + proxyIngress);
     }
