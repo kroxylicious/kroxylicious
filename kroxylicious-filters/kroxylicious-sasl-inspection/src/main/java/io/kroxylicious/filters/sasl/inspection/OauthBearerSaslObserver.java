@@ -23,9 +23,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * <a href="https://datatracker.ietf.org/doc/html/rfc7628">OAUTHBEARER</a> initial client response.
  * <br/>
  * The authorization id is obtained in the following manner.
- * If the authorization id is present in the <a href="https://www.rfc-editor.org/rfc/rfc5801.html#page-8">gs2-header</a> it is used.
- * If there is no authorization id in the header, the subject claim in the JWT payload is used.  If the subject
- * claim is absent, the payload is encrypted (JWE), or opaque tokens are in use, the authentication will fail.
+ * <ol>
+ *     <li>If the authorization id is present in the <a href="https://www.rfc-editor.org/rfc/rfc5801.html#page-8">gs2-header</a> it is used.</li>
+ *     <li>If there is no authorization id in the header, the subject claim in the JWT payload is used.</li>
+ *     <li>If the subject claim is absent, the payload is encrypted (JWE), or opaque tokens are in use, the authentication will fail.</li>
+ * </ol>
  */
 class OauthBearerSaslObserver implements SaslObserver {
 
