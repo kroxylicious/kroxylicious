@@ -8,7 +8,7 @@ package io.kroxylicious.filters.sasl.inspection;
 
 import javax.security.sasl.SaslException;
 
-import org.apache.kafka.common.errors.AuthenticationException;
+import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 
 /**
  * A Sasl observer merely watches a SASL negotiation between client and server extracting the
@@ -36,7 +36,7 @@ public interface SaslObserver {
      *
      * @param response client response
      * @return true if this response yields the authorization id, false otherwise.
-     * @throws AuthenticationException if the response is incorrectly formatted
+     * @throws SaslException if the response is incorrectly formatted
      */
     boolean clientResponse(byte[] response) throws SaslException;
 
@@ -44,7 +44,7 @@ public interface SaslObserver {
      * Used to inform the observer of the bytes of each server response.
      *
      * @param challenge server challenge
-     * @throws AuthenticationException if the challenge is incorrectly formatted
+     * @throws SaslException if the challenge is incorrectly formatted
      */
     void serverChallenge(byte[] challenge) throws SaslException;
 
@@ -60,16 +60,16 @@ public interface SaslObserver {
      * Returns the negotiated authorization identity
      * @return negotiated authorization identity.
      *
-     * @throws AuthenticationException if the authorization identity has not been established.
+     * @throws SaslException if the authorization identity has not been established.
      */
     String authorizationId() throws SaslException;
 
     /**
-     * Returns true if the mechanism uses session lifetime, false otherwise.
-     *
-     * @return true if the mechanism uses session lifetime, false otherwise.
+     * Returns true if the server mechanism indicates an expired authorization id using a zero {@link SaslAuthenticateResponseData#sessionLifetimeMs()}.
+     * @return true if the server mechanism indicates an expired authorization id that way, false otherwise.
+     * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate">KIP-368</a>
      */
-    default boolean usesSessionLifetime() {
+    default boolean serverReturnsExpiredAuthorizationIdWithZeroSessionLifetime() {
         return false;
     }
 }

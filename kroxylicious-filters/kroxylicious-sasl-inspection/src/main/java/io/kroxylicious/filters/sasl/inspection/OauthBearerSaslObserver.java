@@ -11,6 +11,7 @@ import java.util.function.Predicate;
 
 import javax.security.sasl.SaslException;
 
+import org.apache.kafka.common.message.SaslAuthenticateResponseData;
 import org.apache.kafka.common.security.oauthbearer.internals.OAuthBearerClientInitialResponse;
 import org.jose4j.jwt.GeneralJwtException;
 import org.jose4j.jwt.consumer.InvalidJwtException;
@@ -112,8 +113,17 @@ class OauthBearerSaslObserver implements SaslObserver {
         return authorizationId;
     }
 
+    /**
+     * The server's OAuthBearerSaslServer will accept an expired token as authenticated successfully but with a
+     * zero {@link SaslAuthenticateResponseData#sessionLifetimeMs()} sent the client. In this circumstance we want to
+     * avoid announcing {@link io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(String, String)}
+     * and flag a {@link io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationFailure(String, String, Exception)}
+     * instead.
+     *
+     * @return true
+     */
     @Override
-    public boolean usesSessionLifetime() {
+    public boolean serverReturnsExpiredAuthorizationIdWithZeroSessionLifetime() {
         return true;
     }
 }

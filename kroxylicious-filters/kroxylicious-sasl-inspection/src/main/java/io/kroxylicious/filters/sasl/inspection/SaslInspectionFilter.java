@@ -256,7 +256,7 @@ class SaslInspectionFilter
 
             }
 
-            var expiredCredential = state.saslObserver().usesSessionLifetime() && response.sessionLifetimeMs() == 0;
+            var expiredCredential = state.saslObserver().serverReturnsExpiredAuthorizationIdWithZeroSessionLifetime() && response.sessionLifetimeMs() == 0;
             if (expiredCredential) {
                 LOGGER.atInfo()
                         .setMessage(
