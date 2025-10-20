@@ -687,7 +687,7 @@ public class KafkaProxyFrontendHandler
     @Nullable
     public ChannelId channelId() {
         Channel channel = this.clientCtx != null ? this.clientCtx.channel() : null;
-        return channel == null ? null : channel.id();
+        return channel != null ? channel.id() : null;
     }
 
     protected String remoteHost() {
