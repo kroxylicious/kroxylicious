@@ -74,12 +74,6 @@ public final class KafkaProxy implements AutoCloseable {
             return List.of(bossGroup.shutdownGracefully(), workerGroup.shutdownGracefully());
         }
 
-        public EventGroupConfig withMetrics() {
-            Metrics.bindNettyAllocatorMetrics(ByteBufAllocator.DEFAULT);
-            Metrics.bindNettyEventExecutorMetrics(this.bossGroup(), this.workerGroup());
-            return this;
-        }
-
         public static EventGroupConfig build(String name, int availableCores, boolean useIoUring) {
             if (useIoUring) {
                 if (!IOUring.isAvailable()) {
@@ -151,8 +145,10 @@ public final class KafkaProxy implements AutoCloseable {
 
             var availableCores = Runtime.getRuntime().availableProcessors();
 
-            this.managementEventGroup = EventGroupConfig.build("management", availableCores, config.isUseIoUring()).withMetrics();
-            this.serverEventGroup = EventGroupConfig.build("server", availableCores, config.isUseIoUring()).withMetrics();
+            this.managementEventGroup = EventGroupConfig.build("management", availableCores, config.isUseIoUring());
+            this.serverEventGroup = EventGroupConfig.build("server", availableCores, config.isUseIoUring());
+
+            enableNettyMetrics(managementEventGroup, serverEventGroup);
 
             var managementFuture = maybeStartManagementListener(managementEventGroup, meterRegistries);
 
@@ -182,6 +178,13 @@ public final class KafkaProxy implements AutoCloseable {
         catch (RuntimeException e) {
             shutdown();
             throw e;
+        }
+    }
+
+    private void enableNettyMetrics(final EventGroupConfig... eventGroups) {
+        Metrics.bindNettyAllocatorMetrics(ByteBufAllocator.DEFAULT);
+        for (final var group: eventGroups) {
+            Metrics.bindNettyEventExecutorMetrics(group.bossGroup(), group.workerGroup());
         }
     }
 
