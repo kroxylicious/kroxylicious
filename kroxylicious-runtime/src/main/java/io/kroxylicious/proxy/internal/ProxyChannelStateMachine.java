@@ -258,6 +258,12 @@ public class ProxyChannelStateMachine {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
             allocateSessionId(); // this is just keeping the tooling happy it should never be null at this point
+            LOGGER.atDebug()
+                    .setMessage("Allocated session ID: {} for downstream connection from {}:{}")
+                    .addArgument(sessionId)
+                    .addArgument(Objects.requireNonNull(this.frontendHandler).remoteHost())
+                    .addArgument(this.frontendHandler.remotePort())
+                    .log();
             toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
         }
         else {
@@ -268,13 +274,6 @@ public class ProxyChannelStateMachine {
     @VisibleForTesting
     void allocateSessionId() {
         this.sessionId = UUID.randomUUID().toString();
-        // We definitely have a front end handler by this point.
-        LOGGER.atDebug()
-                .setMessage("Allocated session ID: {} for downstream connection from {}:{}")
-                .addArgument(sessionId)
-                .addArgument(Objects.requireNonNull(this.frontendHandler).remoteHost())
-                .addArgument(this.frontendHandler.remotePort())
-                .log();
     }
 
     /**
