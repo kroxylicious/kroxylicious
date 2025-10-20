@@ -20,7 +20,6 @@ import org.slf4j.Logger;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Timer;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelId;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
 
@@ -258,7 +257,7 @@ public class ProxyChannelStateMachine {
     void onClientActive(KafkaProxyFrontendHandler frontendHandler) {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
-            allocateSessionId(Objects.requireNonNull(frontendHandler.channelId())); // this is just keeping the tooling happy it should never be null at this point
+            allocateSessionId(); // this is just keeping the tooling happy it should never be null at this point
             toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
         }
         else {
@@ -267,11 +266,15 @@ public class ProxyChannelStateMachine {
     }
 
     @VisibleForTesting
-    void allocateSessionId(ChannelId channelId) {
-        Objects.requireNonNull(channelId, "unable to allocate session ID due to null channel ID");
+    void allocateSessionId() {
         this.sessionId = UUID.randomUUID().toString();
-        // channelId.toString is the same as channelId.asShortText and is thus just a getter here
-        LOGGER.info("Allocated session ID: {} for connection from {}", sessionId, channelId);
+        // We definitely have a front end handler by this point.
+        LOGGER.atDebug()
+                .setMessage("Allocated session ID: {} for downstream connection from {}:{}")
+                .addArgument(sessionId)
+                .addArgument(Objects.requireNonNull(this.frontendHandler).remoteHost())
+                .addArgument(this.frontendHandler.remotePort())
+                .log();
     }
 
     /**
@@ -494,6 +497,13 @@ public class ProxyChannelStateMachine {
         backendHandler = new KafkaProxyBackendHandler(this, virtualClusterModel);
         Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), filters, backendHandler);
         proxyToServerConnectionCounter.increment();
+        LOGGER.atDebug()
+                .setMessage("{}: Upstream connection to {} established for client at {}:{}")
+                .addArgument(sessionId)
+                .addArgument(connecting.remote())
+                .addArgument(Objects.requireNonNull(this.frontendHandler).remoteHost())
+                .addArgument(this.frontendHandler.remotePort())
+                .log();
     }
 
     @SuppressWarnings("java:S5738")

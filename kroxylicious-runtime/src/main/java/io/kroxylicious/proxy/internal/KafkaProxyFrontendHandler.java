@@ -323,13 +323,7 @@ public class KafkaProxyFrontendHandler
             return selectingServer.haProxyMessage().sourceAddress();
         }
         else {
-            SocketAddress socketAddress = clientCtx().channel().remoteAddress();
-            if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
-                return inetSocketAddress.getAddress().getHostAddress();
-            }
-            else {
-                return String.valueOf(socketAddress);
-            }
+            return remoteHost();
         }
     }
 
@@ -347,13 +341,7 @@ public class KafkaProxyFrontendHandler
             return selectingServer.haProxyMessage().sourcePort();
         }
         else {
-            SocketAddress socketAddress = clientCtx().channel().remoteAddress();
-            if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
-                return inetSocketAddress.getPort();
-            }
-            else {
-                return -1;
-            }
+            return remotePort();
         }
     }
 
@@ -445,7 +433,7 @@ public class KafkaProxyFrontendHandler
                                 List<FilterAndInvoker> filters) {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Connecting to backend broker {} using filters {}",
-                    clientCtx().channel().id(), remote, filters);
+                    this.proxyChannelStateMachine.sessionId(), remote, filters);
         }
         this.proxyChannelStateMachine.onNetFilterInitiateConnect(remote, filters, virtualClusterModel, netFilter);
     }
@@ -701,4 +689,25 @@ public class KafkaProxyFrontendHandler
         Channel channel = this.clientCtx != null ? this.clientCtx.channel() : null;
         return channel == null ? null : channel.id();
     }
+
+    protected String remoteHost() {
+        SocketAddress socketAddress = clientCtx().channel().remoteAddress();
+        if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
+            return inetSocketAddress.getAddress().getHostAddress();
+        }
+        else {
+            return String.valueOf(socketAddress);
+        }
+    }
+
+    protected int remotePort() {
+        SocketAddress socketAddress = clientCtx().channel().remoteAddress();
+        if (socketAddress instanceof InetSocketAddress inetSocketAddress) {
+            return inetSocketAddress.getPort();
+        }
+        else {
+            return -1;
+        }
+    }
+
 }
