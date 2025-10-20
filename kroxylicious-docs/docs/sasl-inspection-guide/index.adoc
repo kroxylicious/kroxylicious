@@ -22,6 +22,8 @@ the client will be disconnected with an unsupported SASL mechanism error.
 
 This filter supports the following SASL mechanisms:
 
+[id='supported-mechansisms-{context}']
+.Table of supported SASL mechanisms
 |===
 |SASL mechanism|Enabled by default
 
@@ -42,9 +44,11 @@ Mechanisms that transmit credentials in plain text are disabled by default.
 This is done to avoid the plain-text passwords existing in the proxy's memory.
 To use such a mechanism, you must enable it in the filter's configuration.
 
-For the `OAUTHBEARER` inspection, only JWT tokens are supported and only JWT tokens using
-signatures (JWS) rather than encryption (JWE). Unsigned JWT tokens are supported but not
-recommended for production use.
+For the `OAUTHBEARER` inspection, only JWT tokens that use using signatures (JWS) are supported.
+JWT tokens that use encryption (JWE) are not supported.
+Unsigned JWT tokens are supported but not recommended for production use.
+
+If an attempted is made to use a unsupported token type, the authentication will fail with a SASL error.
 
 .Sequence diagram showing the SASL inspection filter extracting an authenticated principal from an SASL negotiation.
 image::{realimagesdir}/sasl-inspection-seq.svg["Sequence diagram showing SASL inspection."]
@@ -54,3 +58,6 @@ include::_assemblies/assembly-configuring-sasl-inspection-filter.adoc[leveloffse
 
 //trademark notices
 include::_assets/trademarks.adoc[leveloffset=+1]
+
+// glossary
+include::_modules/sasl-inspection/ref-glossary.adoc[leveloffset=+1]

@@ -2,7 +2,7 @@
 
 // file included in the following:
 //
-// assembly-configuring-oauth-bearer-validation-filter.adoc
+// assembly-configuring-sasl-inspection-filter.adoc
 
 [id='con-example-proxy-config-{context}']
 = Example proxy configuration file
@@ -17,12 +17,12 @@ Here's a complete example of a `filterDefinitions` entry configured for Oauth Be
 ----
 filterDefinitions:
   - name: my-sasl-inspection-filter
-    type: SaslInspectionFilter
+    type: SaslInspection
     config:
       enabledMechanisms: [ "OAUTHBEARER" ] # <1>
 ----
-<1> The (optional) list of SASL mechanisms that are to be enabled.
-Refer to SASL mechanism by its https://www.iana.org/assignments/sasl-mechanisms/sasl-mechanisms.xhtml[IANA registered name].
-If omitted, SASL mechanism SCRAM-SHA-256, SCRAM-SHA-512 and OAUTHBEARER will be enabled by default.
+<1> Restricts the filter to the given SASL mechanism(s).
+Refer to SASL mechanism by its name given in the xref:supported-mechansisms-{context}[supported mechanisms] table.
+If omitted, the SASL mechanisms `SCRAM-SHA-256`, `SCRAM-SHA-512` and `OAUTHBEARER` will be enabled by default.
 
 Refer to the {ProxyGuide} for more information about configuring the proxy.
