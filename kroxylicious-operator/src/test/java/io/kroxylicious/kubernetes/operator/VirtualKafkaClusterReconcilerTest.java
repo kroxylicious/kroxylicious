@@ -51,6 +51,7 @@ import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMap
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
+import io.kroxylicious.kubernetes.api.common.Protocol;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -62,10 +63,8 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterStatus;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses;
-import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.Ingresses.Protocol;
 import io.kroxylicious.kubernetes.operator.assertj.ConditionListAssert;
 import io.kroxylicious.kubernetes.operator.assertj.MetadataAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
@@ -194,7 +193,7 @@ class VirtualKafkaClusterReconcilerTest {
             .endMetadata()
             .withNewSpec()
              .withNewProxyRef().withName(PROXY_NAME).endProxyRef()
-             .withNewClusterIP().withProtocol(ClusterIP.Protocol.TCP).endClusterIP()
+             .withNewClusterIP().withProtocol(Protocol.TCP).endClusterIP()
             .endSpec()
             .build();
 
@@ -216,7 +215,7 @@ class VirtualKafkaClusterReconcilerTest {
     public static final KafkaProxyIngress INGRESS_WITH_TLS = new KafkaProxyIngressBuilder(CLUSTERIP_INGRESS)
             .editOrNewSpec()
                 .withNewClusterIP()
-                    .withProtocol(ClusterIP.Protocol.TLS)
+                    .withProtocol(Protocol.TLS)
                 .endClusterIP()
             .endSpec()
             .build();

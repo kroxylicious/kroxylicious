@@ -29,7 +29,7 @@
     <properties>
         <josdk.version>5.1.4</josdk.version>
         <log4j.version>2.20.0</log4j.version>
-        <fabric8-client.version>7.1.0</fabric8-client.version>
+        <fabric8-client.version>7.4.0</fabric8-client.version>
         <lombok.version>1.18.42</lombok.version>
     </properties>
 
@@ -223,6 +223,12 @@
                         <io.kroxylicious.kubernetes.api.v1alpha1.kafkaprotocolfilterspec.ConfigTemplate>
                             java.lang.Object
                         </io.kroxylicious.kubernetes.api.v1alpha1.kafkaprotocolfilterspec.ConfigTemplate>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.clusterip.Protocol>
+                            io.kroxylicious.kubernetes.api.common.Protocol
+                        </io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.clusterip.Protocol>
+                        <io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.ingresses.Protocol>
+                            io.kroxylicious.kubernetes.api.common.Protocol
+                        </io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterstatus.ingresses.Protocol>
                     </existingJavaTypes>
                     <packageOverrides>
                         <!-- the default package name ($apiGroup.$apiVersion) doesn't work for us -->
