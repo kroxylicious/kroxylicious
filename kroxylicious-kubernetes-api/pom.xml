@@ -27,7 +27,7 @@
     </description>
 
     <properties>
-        <josdk.version>5.1.2</josdk.version>
+        <josdk.version>5.1.4</josdk.version>
         <log4j.version>2.20.0</log4j.version>
         <fabric8-client.version>7.1.0</fabric8-client.version>
         <lombok.version>1.18.42</lombok.version>
