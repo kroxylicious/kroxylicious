@@ -5,9 +5,6 @@ import java.util.concurrent.CompletionStage;
 import org.apache.kafka.common.message.FetchResponseData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 
-import io.micrometer.core.instrument.Metrics;
-import io.micrometer.core.instrument.Timer;
-
 import io.kroxylicious.proxy.filter.FetchResponseFilter;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -31,15 +28,8 @@ import ${package}.util.SampleFilterTransformer;
 class SampleFetchResponseFilter implements FetchResponseFilter {
 
     private final SampleFilterConfig config;
-    private final Timer timer;
-
     SampleFetchResponseFilter(SampleFilterConfig config) {
         this.config = config;
-        this.timer = Timer
-                .builder("sample_fetch_response_filter_transform")
-                .description("Time taken for the SampleFetchResponseFilter to transform the produce data.")
-                .tag("filter", "SampleFetchResponseFilter")
-                .register(Metrics.globalRegistry);
     }
 
     /**
@@ -54,7 +44,7 @@ class SampleFetchResponseFilter implements FetchResponseFilter {
      */
     @Override
     public CompletionStage<ResponseFilterResult> onFetchResponse(short apiVersion, ResponseHeaderData header, FetchResponseData response, FilterContext context) {
-        this.timer.record(() -> applyTransformation(response, context)); // We're timing this to report how long it takes through Micrometer
+        applyTransformation(response, context);
         return context.forwardResponse(header, response);
     }
 
