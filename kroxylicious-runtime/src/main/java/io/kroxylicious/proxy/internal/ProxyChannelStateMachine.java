@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.internal;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.function.Function;
 
 import org.apache.kafka.common.errors.ApiException;
@@ -120,6 +121,9 @@ public class ProxyChannelStateMachine {
     @VisibleForTesting
     @Nullable
     Timer.Sample serverBackpressureTimer;
+
+    @Nullable
+    private String sessionId;
 
     @SuppressWarnings("java:S5738")
     public ProxyChannelStateMachine(String clusterName, @Nullable Integer nodeId) {
@@ -253,11 +257,23 @@ public class ProxyChannelStateMachine {
     void onClientActive(KafkaProxyFrontendHandler frontendHandler) {
         if (STARTING_STATE.equals(this.state)) {
             this.frontendHandler = frontendHandler;
+            allocateSessionId(); // this is just keeping the tooling happy it should never be null at this point
+            LOGGER.atDebug()
+                    .setMessage("Allocated session ID: {} for downstream connection from {}:{}")
+                    .addArgument(sessionId)
+                    .addArgument(Objects.requireNonNull(this.frontendHandler).remoteHost())
+                    .addArgument(this.frontendHandler.remotePort())
+                    .log();
             toClientActive(STARTING_STATE.toClientActive(), frontendHandler);
         }
         else {
             illegalState("Client activation while not in the start state");
         }
+    }
+
+    @VisibleForTesting
+    void allocateSessionId() {
+        this.sessionId = UUID.randomUUID().toString();
     }
 
     /**
@@ -454,6 +470,13 @@ public class ProxyChannelStateMachine {
         toClosed(errorCodeEx);
     }
 
+    /**
+     * @return Return the session ID which connects a frontend channel with a backend channel
+     */
+    public String sessionId() {
+        return Objects.requireNonNull(sessionId);
+    }
+
     @SuppressWarnings("java:S5738")
     private void toClientActive(
                                 ProxyChannelState.ClientActive clientActive,
@@ -473,6 +496,13 @@ public class ProxyChannelStateMachine {
         backendHandler = new KafkaProxyBackendHandler(this, virtualClusterModel);
         Objects.requireNonNull(frontendHandler).inConnecting(connecting.remote(), filters, backendHandler);
         proxyToServerConnectionCounter.increment();
+        LOGGER.atDebug()
+                .setMessage("{}: Upstream connection to {} established for client at {}:{}")
+                .addArgument(sessionId)
+                .addArgument(connecting.remote())
+                .addArgument(Objects.requireNonNull(this.frontendHandler).remoteHost())
+                .addArgument(this.frontendHandler.remotePort())
+                .log();
     }
 
     @SuppressWarnings("java:S5738")
