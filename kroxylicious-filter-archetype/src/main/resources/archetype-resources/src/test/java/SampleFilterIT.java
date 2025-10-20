@@ -41,68 +41,64 @@ import static org.assertj.core.api.Assertions.assertThat;
  * </ol>
  */
 @ExtendWith(KafkaClusterExtension.class)
-@DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
 class SampleFilterIT {
 
     private static final Map<String, Object> CONSUMER_CONFIGURATION =
             Map.of(ConsumerConfig.GROUP_ID_CONFIG, "group-id-0",
                     ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-    private static final int TIMEOUT = 10;
+    private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
     private static final Map<String, Object> FILTER_CONFIGURATION =
             Map.of("findValue", "foo", "replacementValue", "bar");
 
     @Test
     void produceRequestFilter_shouldFindAndReplaceConfiguredWordInProducedMessages(
-            @BrokerCluster final KafkaCluster kafkaCluster, final Topic topic) throws Exception {
+            @BrokerCluster final KafkaCluster kafkaCluster, final Topic topic) {
         // configure the filters with the proxy
         final var filterDefinition = new NamedFilterDefinitionBuilder("find-and-replace-produce-filter",
                 SampleProduceRequest.class.getName()).withConfig(FILTER_CONFIGURATION).build();
         final var proxyConfiguration = KroxyliciousConfigUtils.proxy(kafkaCluster);
         proxyConfiguration.addToFilterDefinitions(filterDefinition);
         proxyConfiguration.addToDefaultFilters(filterDefinition.name());
-        // create proxy instance and producer, consumer to the proxy
+        // create proxy instance and a producer and a consumer connected to it
         try (final var tester = KroxyliciousTesters.kroxyliciousTester(proxyConfiguration);
                 final var producer = tester.producer();
                 final var consumer = tester.consumer(Serdes.String(), Serdes.ByteArray(), CONSUMER_CONFIGURATION)) {
             final ProducerRecord<String, String> producerRecord =
                     new ProducerRecord<>(topic.name(), "This is foo!");
-            producer.send(producerRecord).get(TIMEOUT, TimeUnit.SECONDS);
+            assertThat(producer.send(producerRecord)).succeedsWithin(TIMEOUT);
             consumer.subscribe(List.of(topic.name()));
-            final var message = consume(consumer, topic.name());
-            assertThat(message).isEqualTo("This is bar!");
+            assertThat(consumer.poll(TIMEOUT).records(topic.name()))
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .extracting(String::new)
+                    .isEqualTo("This is bar!");
         }
     }
 
     @Test
     void fetchResponseFilter_shouldFindAndReplaceConfiguredWordInConsumedMessages(
-            @BrokerCluster final KafkaCluster kafkaCluster, final Topic topic) throws Exception {
+            @BrokerCluster final KafkaCluster kafkaCluster, final Topic topic) {
         // configure the filters with the proxy
         final var filterDefinition = new NamedFilterDefinitionBuilder("find-and-replace-consume-filter",
                 SampleFetchResponse.class.getName()).withConfig(FILTER_CONFIGURATION).build();
         final var proxyConfiguration = KroxyliciousConfigUtils.proxy(kafkaCluster);
         proxyConfiguration.addToFilterDefinitions(filterDefinition);
         proxyConfiguration.addToDefaultFilters(filterDefinition.name());
-        // create proxy instance and producer, consumer to the proxy
+        // create proxy instance and a producer and a consumer connected to it
         try (final var tester = KroxyliciousTesters.kroxyliciousTester(proxyConfiguration);
                 final var producer = tester.producer();
                 final var consumer = tester.consumer(Serdes.String(), Serdes.ByteArray(), CONSUMER_CONFIGURATION)) {
             final ProducerRecord<String, String> producerRecord =
                     new ProducerRecord<>(topic.name(), "This is foo!");
-            producer.send(producerRecord).get(TIMEOUT, TimeUnit.SECONDS);
+            assertThat(producer.send(producerRecord)).succeedsWithin(TIMEOUT);
             consumer.subscribe(List.of(topic.name()));
-            final var message = consume(consumer, topic.name());
-            assertThat(message).isEqualTo("This is bar!");
+            assertThat(consumer.poll(TIMEOUT).records(topic.name()))
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .extracting(String::new)
+                    .isEqualTo("This is bar!");
         }
     }
-
-    private static String consume(final Consumer<String, byte[]> consumer, final String topic) {
-        final ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofSeconds(TIMEOUT));
-        assertThat(records.count()).isGreaterThan(0);
-        final var record = records.records(topic).iterator().next();
-        assertThat(record).isNotNull();
-        return new String(record.value(), StandardCharsets.UTF_8);
-    }
-
 }
