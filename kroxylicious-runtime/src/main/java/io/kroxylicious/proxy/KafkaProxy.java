@@ -183,7 +183,7 @@ public final class KafkaProxy implements AutoCloseable {
 
     private void enableNettyMetrics(final EventGroupConfig... eventGroups) {
         Metrics.bindNettyAllocatorMetrics(ByteBufAllocator.DEFAULT);
-        for (final var group: eventGroups) {
+        for (final var group : eventGroups) {
             Metrics.bindNettyEventExecutorMetrics(group.bossGroup(), group.workerGroup());
         }
     }
