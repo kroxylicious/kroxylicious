@@ -13,12 +13,15 @@ The target cluster specifies the physical upstream Kafka cluster which is proxie
 
 The target cluster configuration has 3 properties.
 
-1. `bootstrapServers`: The bootstrap addresses of the physical Kafka cluster being proxied.
-You can specify multiple addresses by providing a comma separated list.
-Having multiple addresses helps spread the load and also provides better reliability.
+1. `bootstrapServers`: The bootstrap addresses of the physical Kafka cluster being proxied. You can specify multiple addresses by providing a comma separated list. If you want to bootstrap to individual Kafka brokers, then having multiple addresses helps spread the bootstrapping load and also provides better reliability.
++
+NOTE: If the target cluster is a *Strimzi* managed Kafka cluster, you can specify the address of the *bootstrap service* which takes care of distributing the requests.
+
 2. `bootstrapServerSelection.strategy`: The bootstrapping process will select one bootstrap server from the list of configured servers.
-This property configures the strategy used for selecting the bootstrap server.
-If this is not explicitly configured the strategy defaults to `round-robin`.
+This property configures the strategy used for selecting the bootstrap server. +
+The following strategies are supported:
+.. `round-robin`: This strategy selects a server from the configured list of servers in a round-robin manner starting from the first server looping back after the last server is selected. This is default strategy used when no strategy is explicitly configured.
+.. `random`: This strategy selects a random server from the configured list of servers.
 3. `tls`: TLS configuration for connecting to the target Kafka cluster.
 See xref:con-configuring-vc-target-tls-{context}[Securing connections to target clusters] for more details.
 
@@ -52,7 +55,8 @@ virtualClusters:
       bootstrapServers: my-cluster-kafka-bootstrap-0.kafka.svc.cluster.local:9093, my-cluster-kafka-bootstrap-1.kafka.svc.cluster.local:9093, my-cluster-kafka-bootstrap-2.kafka.svc.cluster.local:9093
       bootstrapServerSelection:
         strategy: "round-robin" # <1>
+      tls: {}
+#...
 ----
 
 <1> Round-robin strategy for bootstrap server selection.
-Other supported strategy is `random`.
