@@ -19,7 +19,6 @@
         <junit.version>@junit.version@</junit.version>
         <mockito.version>@mockito.version@</mockito.version>
         <log4j.version>@log4j.version@</log4j.version>
-        <micrometer.version>@micrometer.version@</micrometer.version>
         <assertj-core.version>@assertj-core.version@</assertj-core.version>
         <java.version>17</java.version>
         <maven.compiler.version>@maven.compiler.version@</maven.compiler.version>
@@ -68,13 +67,6 @@
                 <scope>import</scope>
                 <type>pom</type>
             </dependency>
-            <dependency>
-                <groupId>io.micrometer</groupId>
-                <artifactId>micrometer-bom</artifactId>
-                <version>${micrometer.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -116,11 +108,6 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.micrometer</groupId>
-            <artifactId>micrometer-core</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>
