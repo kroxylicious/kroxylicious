@@ -182,6 +182,11 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>io.netty.incubator</groupId>
+            <artifactId>netty-incubator-transport-classes-io_uring</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-codec-http</artifactId>
             <scope>test</scope>

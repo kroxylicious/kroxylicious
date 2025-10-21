@@ -16,10 +16,13 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import io.netty.incubator.channel.uring.IOUring;
+
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
+import static io.kroxylicious.test.tester.IOUringMemlockLimitCalculator.isMemlockLimitSufficientForMultipleIOUringEventLoops;
 import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -28,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Integration test that tests Kroxylicious ability to utilise Linux io_uring.
  */
 @ExtendWith(KafkaClusterExtension.class)
-@EnabledIf(value = "io.netty.incubator.channel.uring.IOUring#isAvailable", disabledReason = "IOUring is not available")
+@EnabledIf(value = "io.kroxylicious.proxy.IOUringIT#isEnvironmentValid", disabledReason = "Either IOUring is not available or memlock limit is insufficient for it")
 class IOUringIT extends BaseIT {
 
     private static final String HELLO_WORLD = "helloworld";
@@ -53,5 +56,20 @@ class IOUringIT extends BaseIT {
                     .isEqualTo(HELLO_WORLD);
 
         }
+    }
+
+    public static boolean isEnvironmentValid() {
+        boolean ioUringIsAvailable = IOUring.isAvailable();
+        if (!ioUringIsAvailable) {
+            return false;
+        }
+
+        if (Boolean.parseBoolean(System.getenv("SKIP_MEMLOCK_SNIFF"))) {
+            return true;
+        }
+
+        // buildNettyEventGroups(availableCores) is called twice in KafkaProxy#startup()
+        int availableCores = Runtime.getRuntime().availableProcessors();
+        return isMemlockLimitSufficientForMultipleIOUringEventLoops(availableCores * 2);
     }
 }
