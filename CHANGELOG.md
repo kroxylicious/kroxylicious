@@ -7,6 +7,7 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#2784](https://github.com/kroxylicious/kroxylicious/issues/2784): Add support for Managed Identity authentication to Azure KMS provider for Record Encryption
 * [#2754](https://github.com/kroxylicious/kroxylicious/issues/2754): Add support for OAUTHBEARER tokens into SaslInspectionFilter
 * [#2580](https://github.com/kroxylicious/kroxylicious/issues/2580): Add an Azure Key Vault KMS implementation for Record Encryption
 * [#2759](https://github.com/kroxylicious/kroxylicious/pull/2759): Remove kroxylicious-sample and document how to use io.kroxylicious:kroxylicious-filter-archetype
