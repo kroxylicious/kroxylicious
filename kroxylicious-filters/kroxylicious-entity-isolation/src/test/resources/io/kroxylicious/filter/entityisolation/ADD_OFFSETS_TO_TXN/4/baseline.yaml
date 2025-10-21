@@ -1,0 +1,22 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: ADD_OFFSETS_TO_TXN
+  disabled: false
+  version: 4
+  request:
+    payload:
+      transactionalId: "12345"
+      producerId: 0
+      producerEpoch: 0
+      groupId: mygroup
+    diff:
+      - op: replace
+        path: "/transactionalId"
+        value: tenant1-12345
+      - op: replace
+        path: "/groupId"
+        value: tenant1-mygroup
