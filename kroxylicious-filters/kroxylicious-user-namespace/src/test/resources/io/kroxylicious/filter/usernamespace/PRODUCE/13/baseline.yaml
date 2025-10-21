@@ -1,0 +1,37 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: PRODUCE
+  disabled: false
+  version: 13
+  request:
+    payload:
+      transactionalId: null
+      acks: -1
+      timeoutMs: 0
+      topicData:
+        - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+          partitionData:
+            - index: 0
+              records: !!binary |
+                Zm9v
+    diff: []
+  response:
+    payload:
+      responses:
+        - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+          partitionResponses:
+            - index: 0
+              errorCode: 0
+              baseOffset: 0
+              logAppendTimeMs: 0
+              logStartOffset: 0
+              recordErrors:
+                - batchIndex: 0
+                  batchIndexErrorMessage: null
+              errorMessage: null
+      throttleTimeMs: 0
+    diff: []

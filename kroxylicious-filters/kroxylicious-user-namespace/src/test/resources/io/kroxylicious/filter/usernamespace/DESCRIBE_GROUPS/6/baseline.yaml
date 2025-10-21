@@ -1,0 +1,34 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: DESCRIBE_GROUPS
+  version: 6
+  request:
+    payload:
+      groups: [mygroup]
+      includeAuthorizedOperations: false
+    diff:
+      - op: replace
+        path: "/groups/0"
+        value: tenant1-mygroup
+  response:
+    payload:
+      groups:
+        - groupId: tenant1-mygroup
+          errorCode: 0
+          errorMessage: ""
+          groupState: ""
+          protocolType: ""
+          protocolData: ""
+          members: []
+          authorizedOperations: 0
+      throttleTimeMs: 0
+      authorizedOperations: 0
+    diff:
+      - op: replace
+        path: "/groups/0/groupId"
+        value: mygroup
+  disabled: false

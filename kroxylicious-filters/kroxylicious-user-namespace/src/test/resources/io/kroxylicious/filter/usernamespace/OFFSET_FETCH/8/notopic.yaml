@@ -1,0 +1,44 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: OFFSET_FETCH
+  disabled: false
+  description: offset fetch group without topic
+  version: 8
+  request:
+    payload:
+      groups:
+        - groupId: mygroup
+          topics: null
+      requireStable: false
+    diff:
+      - op: replace
+        path: "/groups/0/groupId"
+        value: tenant1-mygroup
+- apiMessageType: OFFSET_FETCH
+  disabled: true
+  description: offset fetch group without topic
+  version: 2
+  request:
+    payload:
+      groupId: mygroup
+      topics: null
+      requireStable: false
+    diff:
+      - op: replace
+        path: "/groupId"
+        value: tenant1-mygroup
+  response:
+    payload:
+      topics:
+        - name: foo
+          partitions:
+            - partitionIndex: 0
+              committedOffset: 0
+              metadata: null
+              errorCode: 0
+      errorCode: 0
+    diff: []
