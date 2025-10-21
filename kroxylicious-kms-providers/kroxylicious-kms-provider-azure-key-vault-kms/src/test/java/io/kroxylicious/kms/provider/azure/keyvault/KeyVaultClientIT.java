@@ -118,7 +118,7 @@ class KeyVaultClientIT {
     }
 
     private static AzureKeyVaultConfig getAzureKeyVaultConfig(EntraIdentityConfig unused, URI baseUri) {
-        return new AzureKeyVaultConfig(unused, VAULT_NAME, baseUri.getHost(), null, baseUri.getPort(), INSECURE_TLS);
+        return new AzureKeyVaultConfig(unused, null, VAULT_NAME, baseUri.getHost(), null, baseUri.getPort(), INSECURE_TLS);
     }
 
     @Test
