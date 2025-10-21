@@ -1,0 +1,27 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: CREATE_PARTITIONS
+  disabled: false
+  version: 3
+  request:
+    payload:
+      topics:
+        - name: foo
+          count: 0
+          assignments:
+            - brokerIds: [0]
+      timeoutMs: 0
+      validateOnly: false
+    diff: []
+  response:
+    payload:
+      results:
+        - name: tenant1-foo
+          errorCode: 0
+          errorMessage:
+      throttleTimeMs: 0
+    diff: []

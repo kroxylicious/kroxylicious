@@ -125,6 +125,11 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-entity-isolation</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-authorizer-acl</artifactId>
             <scope>test</scope>
         </dependency>
@@ -314,7 +319,6 @@
         <dependency>
             <groupId>net.javacrumbs.json-unit</groupId>
             <artifactId>json-unit-assertj</artifactId>
-            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.bitbucket.b_c</groupId>

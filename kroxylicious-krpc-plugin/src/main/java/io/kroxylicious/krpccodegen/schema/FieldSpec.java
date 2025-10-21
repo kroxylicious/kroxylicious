@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -245,4 +246,41 @@ public final class FieldSpec {
         return zeroCopy;
     }
 
+    /**
+     * Returns true if this message spec has at least one field of one of the given entity field types.
+     *
+     * @param entityFieldTypeNames entity field types
+     * @return true if present, false otherwise
+     */
+    public boolean hasAtLeastOneEntityField(Set<EntityType> entityFieldTypeNames) {
+        return hasAtLeastOneEntityField(fields(), entityFieldTypeNames);
+    }
+
+    private boolean hasAtLeastOneEntityField(List<FieldSpec> fields, Set<EntityType> entityFieldTypeNames) {
+        var found = fields.stream().anyMatch(f -> entityFieldTypeNames.contains(f.entityType()));
+        if (found) {
+            return true;
+        }
+        return fields.stream().anyMatch(f -> hasAtLeastOneEntityField(f.fields(), entityFieldTypeNames));
+    }
+
+    @Override
+    public String toString() {
+        return "FieldSpec{" +
+                "name='" + name + '\'' +
+                ", versions=" + versions +
+                ", fields=" + fields +
+                ", type=" + type +
+                ", mapKey=" + mapKey +
+                ", nullableVersions=" + nullableVersions +
+                ", fieldDefault='" + fieldDefault + '\'' +
+                ", ignorable=" + ignorable +
+                ", entityType=" + entityType +
+                ", about='" + about + '\'' +
+                ", taggedVersions=" + taggedVersions +
+                ", flexibleVersions=" + flexibleVersions +
+                ", tag=" + tag +
+                ", zeroCopy=" + zeroCopy +
+                '}';
+    }
 }

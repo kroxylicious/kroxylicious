@@ -28,6 +28,15 @@ flexibleVersions: ${messageSpec.flexibleVersions}
 flexibleVersionsString: ${messageSpec.flexibleVersionsString}
 dataClassName: ${messageSpec.dataClassName}
 latestVersionUnstable: ${messageSpec.latestVersionUnstable.isPresent()?string('yes', 'no')}
+<#assign entityTypes = createEntityTypeSet("GROUP_ID", "TRANSACTIONAL_ID", "TOPIC_NAME")>
+entityFields:
+<#list entityTypes as et>
+  ${et}: ${messageSpec.hasAtLeastOneEntityField(et)?string('yes', 'no')}
+</#list>
+intersectedVersionsForEntityFields:
+<#list entityTypes as et>
+  ${et}:<#list messageSpec.intersectedVersionsForEntityFields(et)> <#items as v>${v}<#sep>,</#items></#list>
+</#list>
 fields:
 <#list messageSpec.fields as field>
   name: ${field.name}

@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
+<?xml version="1.0" encoding="UTF-8"?><!--
 
     Copyright Kroxylicious Authors.
 
@@ -30,6 +29,7 @@
         <module>kroxylicious-oauthbearer-validation</module>
         <module>kroxylicious-sasl-inspection</module>
         <module>kroxylicious-authorization</module>
+        <module>kroxylicious-entity-isolation</module>
     </modules>
 
     <build>

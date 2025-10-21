@@ -1,0 +1,37 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: STREAMS_GROUP_DESCRIBE
+  version: 0
+  response:
+    payload:
+      throttleTimeMs: 0
+      groups:
+        - errorCode: 0
+          errorMessage: ""
+          groupId: tenant1-mygroup
+          groupState: ""
+          groupEpoch: 0
+          assignmentEpoch: 0
+          topology: null
+          members: []
+          authorizedOperations: 0
+        - errorCode: 0
+          errorMessage: ""
+          groupId: tenant2-mygroup
+          groupState: ""
+          groupEpoch: 0
+          assignmentEpoch: 0
+          topology: null
+          members: []
+          authorizedOperations: 0
+    diff:
+      - op: replace
+        path: "/groups/0/groupId"
+        value: mygroup
+      - op: remove
+        path: "/groups/1"
+  disabled: false

@@ -98,4 +98,15 @@ public final class StructSpec {
     public boolean hasKeys() {
         return hasKeys;
     }
+
+    @Override
+    public String toString() {
+        return "StructSpec{" +
+                "name='" + name + '\'' +
+                ", versions=" + versions +
+                ", deprecatedVersions=" + deprecatedVersions +
+                ", fields=" + fields +
+                ", hasKeys=" + hasKeys +
+                '}';
+    }
 }

@@ -1,0 +1,41 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: DESCRIBE_SHARE_GROUP_OFFSETS
+  version: 0
+  request:
+    payload:
+      groups:
+        - groupId: mygroup
+          topics:
+            - topicName: foo
+              partitions: [0]
+    diff:
+      - op: replace
+        path: "/groups/0/groupId"
+        value: tenant1-mygroup
+  response:
+    payload:
+      throttleTimeMs: 0
+      groups:
+        - groupId: tenant1-mygroup
+          topics:
+            - topicName: foo
+              topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+              partitions:
+                - partitionIndex: 0
+                  startOffset: 0
+                  leaderEpoch: 0
+                  errorCode: 0
+                  errorMessage: ""
+          errorCode: 0
+          errorMessage: ""
+      authorizedOperations: 0
+    diff:
+      - op: replace
+        path: "/groups/0/groupId"
+        value: mygroup
+  disabled: false

@@ -1,0 +1,30 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: OFFSET_FOR_LEADER_EPOCH
+  disabled: false
+  version: 4
+  request:
+    payload:
+      replicaId: 1
+      topics:
+        - topic: foo
+          partitions:
+            - partition: 0
+              currentLeaderEpoch: 0
+              leaderEpoch: 0
+    diff: []
+  response:
+    payload:
+      topics:
+        - topic: foo
+          partitions:
+            - partition: 0
+              errorCode: 0
+              leaderEpoch: 0
+              endOffset: 0
+      throttleTimeMs: 0
+    diff: []

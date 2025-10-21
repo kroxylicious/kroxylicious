@@ -1,0 +1,44 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: DESCRIBE_TOPIC_PARTITIONS
+  version: 0
+  request:
+    payload:
+      topics:
+        - name: foo
+      responsePartitionLimit: 0
+      cursor:
+        topicName: foo
+        partitionIndex: 0
+      timeoutMs: 0
+      validateOnly: false
+    diff: []
+  response:
+    payload:
+      throttleTimeMs: 0
+      topics:
+        - name: foo
+          topicId: AAAAAAAAAAAAAAAAAAAAAA
+          errorCode: 0
+          errorMessage:
+          isInternal: false
+          partitions:
+            - errorCode: 0
+              partitionIndex: 0
+              leaderId: 0
+              leaderEpoch: 0
+              replicaNodes: [0]
+              isrNodes: [0]
+              eligibleLeaderReplicas: [0]
+              lastKnownElr: [0]
+              offlineReplicas: [0]
+          topicAuthorizedOperations: 0
+      nextCursor:
+        topicName: foo
+        partitionIndex: 0
+    diff: []
+  disabled: false

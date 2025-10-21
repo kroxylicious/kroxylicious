@@ -1,0 +1,63 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: SHARE_FETCH
+  disabled: false
+  version: 1
+  request:
+    payload:
+      groupId: mygroup
+      memberId: mymember
+      shareSessionEpoch: 0
+      maxWaitMs: 0
+      minBytes: 0
+      maxBytes: 0
+      maxRecords: 0
+      batchSize: 0
+      topics:
+        - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+          partitions:
+            - partitionIndex: 0
+              partitionMaxBytes: 0
+              acknowledgementBatches:
+                - firstOffset: 0
+                  lastOffset: 0
+                  acknowledgeTypes: [0]
+      forgottenTopicsData:
+        - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+          partitions: [0]
+    diff:
+      - op: replace
+        path: "/groupId"
+        value: tenant1-mygroup
+  response:
+    payload:
+      throttleTimeMs: 0
+      errorCode: 0
+      errorMessage: ""
+      acquisitionLockTimeoutMs: 0
+      responses:
+        - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+          partitions:
+           - partitionIndex: 0
+             errorCode: 0
+             errorMessage: ""
+             acknowledgeErrorCode: 0
+             acknowledgeErrorMessage:
+             currentLeader:
+               leaderId: 0
+               leaderEpoch: 0
+             records: aGVsbG8K
+             acquiredRecords:
+               - firstOffset: 0
+                 lastOffset: 0
+                 deliveryCount: 0
+      nodeEndpoints:
+        - nodeId: 0
+          host: localhost
+          port: 0
+          rack: us-east1
+    diff: []
