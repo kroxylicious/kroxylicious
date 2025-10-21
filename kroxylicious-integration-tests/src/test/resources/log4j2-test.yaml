@@ -42,6 +42,11 @@ Configuration:
       -  name: io.kroxylicious.proxy.filter.authorization
          additivity: false
          level: INFO
+
+      -  name: io.kroxylicious.filter.usernamespace
+         additivity: false
+         level: DEBUG
+
          AppenderRef:
            - ref: Console
 
