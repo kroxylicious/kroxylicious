@@ -38,7 +38,7 @@ class AzureKeyVaultConfigTest {
     @MethodSource
     @ParameterizedTest
     void keyVaultNameValid(String name) {
-        AzureKeyVaultConfig azureKeyVaultConfig = new AzureKeyVaultConfig(ENTRA_IDENTITY, name, "vault.azure.net", null, null, null);
+        AzureKeyVaultConfig azureKeyVaultConfig = new AzureKeyVaultConfig(ENTRA_IDENTITY, null, name, "vault.azure.net", null, null, null);
         assertThat(azureKeyVaultConfig.keyVaultName()).isEqualTo(name);
     }
 
@@ -56,7 +56,7 @@ class AzureKeyVaultConfigTest {
     @MethodSource
     @ParameterizedTest
     void keyVaultNameInvalid(String name, String error) {
-        assertThatThrownBy(() -> new AzureKeyVaultConfig(ENTRA_IDENTITY, name, "vault.azure.net", null, null, null))
+        assertThatThrownBy(() -> new AzureKeyVaultConfig(ENTRA_IDENTITY, null, name, "vault.azure.net", null, null, null))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage(error);
     }
 
@@ -69,20 +69,20 @@ class AzureKeyVaultConfigTest {
     @MethodSource
     @ParameterizedTest
     void hostInvalid(String host, String error) {
-        assertThatThrownBy(() -> new AzureKeyVaultConfig(ENTRA_IDENTITY, "default", host, null, null, null))
+        assertThatThrownBy(() -> new AzureKeyVaultConfig(ENTRA_IDENTITY, null, "default", host, null, null, null))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage(error);
     }
 
     @CsvSource({ "localhost", "vault.azure.net", "vault.azure.cn", "vault.usgovcloudapi.net", "vault.microsoftazure.de" })
     @ParameterizedTest
     void hostValid(String host) {
-        AzureKeyVaultConfig config = new AzureKeyVaultConfig(ENTRA_IDENTITY, "default", host, null, null, null);
+        AzureKeyVaultConfig config = new AzureKeyVaultConfig(ENTRA_IDENTITY, null, "default", host, null, null, null);
         assertThat(config.keyVaultHost()).isEqualTo(host);
     }
 
     @Test
     void portValid() {
-        AzureKeyVaultConfig config = new AzureKeyVaultConfig(ENTRA_IDENTITY, "default", "localhost", null, 8080, null);
+        AzureKeyVaultConfig config = new AzureKeyVaultConfig(ENTRA_IDENTITY, null, "default", "localhost", null, 8080, null);
         assertThat(config.keyVaultPort()).isEqualTo(8080);
     }
 
@@ -101,20 +101,20 @@ class AzureKeyVaultConfigTest {
     @CsvSource({ "0", "-1", "65536" })
     @ParameterizedTest
     void portInvalid(int port) {
-        assertThatThrownBy(() -> new AzureKeyVaultConfig(ENTRA_IDENTITY, "default", "localhost", null, port, null))
+        assertThatThrownBy(() -> new AzureKeyVaultConfig(ENTRA_IDENTITY, null, "default", "localhost", null, port, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("keyVaultPort must be in the range (1, 65535) inclusive");
     }
 
     @Test
     void schemeShouldNotEndInColonSlashSlash() {
-        assertThatThrownBy(() -> new AzureKeyVaultConfig(ENTRA_IDENTITY, "default", "localhost", "http://", null, null))
+        assertThatThrownBy(() -> new AzureKeyVaultConfig(ENTRA_IDENTITY, null, "default", "localhost", "http://", null, null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("keyVaultScheme must not end with ://");
     }
 
     private static AzureKeyVaultConfig minimalConfig() {
-        return new AzureKeyVaultConfig(ENTRA_IDENTITY, "default", "localhost", null, null, null);
+        return new AzureKeyVaultConfig(ENTRA_IDENTITY, null, "default", "localhost", null, null, null);
     }
 
 }

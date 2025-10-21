@@ -9,7 +9,9 @@ package io.kroxylicious.kms.provider.azure;
 import java.security.SecureRandom;
 import java.time.Clock;
 
+import io.kroxylicious.kms.provider.azure.auth.BearerTokenService;
 import io.kroxylicious.kms.provider.azure.auth.CachingBearerTokenService;
+import io.kroxylicious.kms.provider.azure.auth.ManagedIdentityAccessTokenService;
 import io.kroxylicious.kms.provider.azure.auth.OauthClientCredentialsTokenService;
 import io.kroxylicious.kms.provider.azure.config.AzureKeyVaultConfig;
 import io.kroxylicious.kms.provider.azure.keyvault.KeyVaultClient;
@@ -34,7 +36,16 @@ public class AzureKeyVaultKmsService implements KmsService<AzureKeyVaultConfig, 
     public void initialize(AzureKeyVaultConfig config) {
         this.config = config;
         Clock clock = Clock.systemUTC();
-        var service = new CachingBearerTokenService(new OauthClientCredentialsTokenService(config.entraIdentity(), clock), clock);
+        BearerTokenService service;
+        if (config.entraIdentity() != null) {
+            service = new CachingBearerTokenService(new OauthClientCredentialsTokenService(config.entraIdentity(), clock), clock);
+        }
+        else if (config.managedIdentity() != null) {
+            service = new CachingBearerTokenService(new ManagedIdentityAccessTokenService(config.managedIdentity(), clock), clock);
+        }
+        else {
+            throw new IllegalStateException("No identity provider configured");
+        }
         client = new KeyVaultClient(service, config);
     }
 

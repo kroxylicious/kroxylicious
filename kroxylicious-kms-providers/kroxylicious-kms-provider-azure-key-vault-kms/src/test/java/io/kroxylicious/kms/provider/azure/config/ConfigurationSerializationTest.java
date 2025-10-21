@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 
 import io.kroxylicious.kms.provider.azure.config.auth.EntraIdentityConfig;
+import io.kroxylicious.kms.provider.azure.config.auth.ManagedIdentityConfig;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,7 +38,7 @@ class ConfigurationSerializationTest {
 
     public static Stream<Arguments> invalidJson() throws IOException {
         Path tempDir = Files.createTempDirectory(UUID.randomUUID().toString());
-        return Stream.of(argumentSet("empty", "{}", MismatchedInputException.class, "Missing required creator property 'entraIdentity'"),
+        return Stream.of(argumentSet("empty", "{}", MismatchedInputException.class, "Missing required creator property 'keyVaultName'"),
                 argumentSet("oauthEndpoint not string",
                         """
                                 {
@@ -360,7 +361,7 @@ class ConfigurationSerializationTest {
     }
 
     @Test
-    void validMinimalJson() throws IOException {
+    void validMinimalJsonWithEntraIdentity() throws IOException {
         String json = """
                 {
                   "keyVaultName": "my-key-vault",
@@ -379,6 +380,23 @@ class ConfigurationSerializationTest {
         AzureKeyVaultConfig config = mapper.readValue(json, AzureKeyVaultConfig.class);
         assertThat(config).isEqualTo(
                 new AzureKeyVaultConfig(new EntraIdentityConfig(null, "123", new InlinePassword("abc"), new InlinePassword("def"), null, null),
+                        null, "my-key-vault", "vault.azure.net", null, null, null));
+    }
+
+    @Test
+    void validMinimalJsonWithManagedIdentity() throws IOException {
+        String json = """
+                {
+                  "keyVaultName": "my-key-vault",
+                  "keyVaultHost": "vault.azure.net",
+                  "managedIdentity": {
+                    "targetResource": "https://example.com/"
+                  }
+                }
+                """;
+        AzureKeyVaultConfig config = mapper.readValue(json, AzureKeyVaultConfig.class);
+        assertThat(config).isEqualTo(
+                new AzureKeyVaultConfig(null, new ManagedIdentityConfig("https://example.com/", null, null),
                         "my-key-vault", "vault.azure.net", null, null, null));
     }
 
@@ -406,7 +424,7 @@ class ConfigurationSerializationTest {
     }
 
     @Test
-    void validComprehensiveJson() throws IOException {
+    void validComprehensiveJsonWithEntraIdentity() throws IOException {
         String json = """
                    {
                   "keyVaultName": "my-key-vault",
@@ -432,6 +450,25 @@ class ConfigurationSerializationTest {
                         new EntraIdentityConfig(URI.create("http://localhost:8080"), "123", new InlinePassword("abc"), new InlinePassword("def"),
                                 URI.create("http://scope/.default"),
                                 null),
+                        null, "my-key-vault", "vault.azure.net", "https", 8080, null));
+    }
+
+    @Test
+    void validComprehensiveJsonWithManagedIdentity() throws IOException {
+        String json = """
+                   {
+                  "keyVaultName": "my-key-vault",
+                  "keyVaultHost": "vault.azure.net",
+                  "keyVaultScheme": "https",
+                  "keyVaultPort": 8080,
+                  "managedIdentity": {
+                    "targetResource": "https://example.com/"
+                  }
+                }
+                """;
+        AzureKeyVaultConfig config = mapper.readValue(json, AzureKeyVaultConfig.class);
+        assertThat(config).isEqualTo(
+                new AzureKeyVaultConfig(null, new ManagedIdentityConfig("https://example.com/", null, null),
                         "my-key-vault", "vault.azure.net", "https", 8080, null));
     }
 

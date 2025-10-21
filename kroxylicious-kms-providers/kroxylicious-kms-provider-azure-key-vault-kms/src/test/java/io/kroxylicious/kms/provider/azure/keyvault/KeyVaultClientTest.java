@@ -493,7 +493,7 @@ class KeyVaultClientTest {
         Integer port = baseUri.getPort() == -1 ? null : baseUri.getPort();
         // note that we rely on `baseUri.getHost()` being localhost, so that LocalhostSubdomainResolverProvider can resolve ${VAULT_NAME}.localhost to localhost.
         return new KeyVaultClient(service,
-                new AzureKeyVaultConfig(arbitraryEntraConfig, VAULT_NAME, baseUri.getHost(), baseUri.getScheme(), port, null));
+                new AzureKeyVaultConfig(arbitraryEntraConfig, null, VAULT_NAME, baseUri.getHost(), baseUri.getScheme(), port, null));
     }
 
 }
