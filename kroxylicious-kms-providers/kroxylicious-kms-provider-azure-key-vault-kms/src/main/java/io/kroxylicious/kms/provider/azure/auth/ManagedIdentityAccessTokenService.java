@@ -39,7 +39,10 @@ import static java.time.temporal.ChronoUnit.SECONDS;
  *     How to use managed identities for Azure resources on an Azure VM to acquire an access token
  * </a>
  * <p>
- * This
+ * This is a simple client that naively sends an HTTP request for a token on every call to {@link #getBearerToken()}.
+ * Caching and sharing of tokens is left to other components.
+ * The token endpoint is fixed and non-configurable, as it is recommended to always use the Azure Instance Metadata
+ * Service (IMDS) endpoint for this. See the "Get a token using HTTP" section at the link above for details.
  * </p>
  */
 public class ManagedIdentityAccessTokenService implements BearerTokenService {
