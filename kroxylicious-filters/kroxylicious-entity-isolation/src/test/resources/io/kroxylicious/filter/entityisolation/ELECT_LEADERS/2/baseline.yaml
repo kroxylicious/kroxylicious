@@ -1,0 +1,28 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: ELECT_LEADERS
+  disabled: false
+  version: 2
+  request:
+    payload:
+      electionType: 1
+      topicPartitions:
+        - topic: foo
+          partitions: [0]
+      timeoutMs: 0
+    diff: []
+  response:
+    payload:
+      throttleTimeMs: 0
+      errorCode: 0
+      replicaElectionResults:
+        - topic: foo
+          partitionResult:
+            - partitionId: 0
+              errorCode: 0
+              errorMessage: ""
+    diff: []

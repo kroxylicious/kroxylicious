@@ -33,6 +33,12 @@ Configuration:
          AppenderRef:
            - ref: Console
 
+      -  name: io.kroxylicious.proxy
+         additivity: false
+         level: WARN
+         AppenderRef:
+           - ref: Console
+
       -  name: io.kroxylicious.proxy.testcluster
          additivity: false
          level: INFO
@@ -42,6 +48,11 @@ Configuration:
       -  name: io.kroxylicious.proxy.filter.authorization
          additivity: false
          level: INFO
+
+      -  name: io.kroxylicious.filter.resourceisolation
+         additivity: false
+         level: DEBUG
+
          AppenderRef:
            - ref: Console
 
