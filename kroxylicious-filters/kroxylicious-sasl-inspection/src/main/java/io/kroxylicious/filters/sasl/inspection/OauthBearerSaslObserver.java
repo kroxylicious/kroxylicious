@@ -46,10 +46,11 @@ class OauthBearerSaslObserver implements SaslObserver {
     @Override
     public boolean clientResponse(byte[] response) throws SaslException {
         if (authorizationId == null) {
-            var initialResponse = new OAuthBearerClientInitialResponse(response);
-            var authzid = Optional.of(initialResponse.authorizationId()).filter(Predicate.not(String::isEmpty)).map(SaslUtils::username);
 
             try {
+                var initialResponse = new OAuthBearerClientInitialResponse(response);
+                var authzid = Optional.of(initialResponse.authorizationId()).filter(Predicate.not(String::isEmpty)).map(SaslUtils::decodeSaslName);
+
                 if (authzid.isEmpty()) {
                     // It is not the role of the observer to validate the JWT - the server
                     // will decide if it is acceptable. We merely need to extract

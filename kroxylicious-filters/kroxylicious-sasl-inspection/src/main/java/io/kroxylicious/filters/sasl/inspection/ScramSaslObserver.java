@@ -46,7 +46,7 @@ public class ScramSaslObserver implements SaslObserver {
             }
             var authzid = tokens.get(1).startsWith("a=") ? tokens.get(1).substring(2) : "";
             try {
-                authorizationId = SaslUtils.username(authzid.isEmpty() ? username : authzid);
+                authorizationId = SaslUtils.decodeSaslName(authzid.isEmpty() ? username : authzid);
             }
             catch (IllegalArgumentException e) {
                 throw new SaslException("error decoding sasl name", e);

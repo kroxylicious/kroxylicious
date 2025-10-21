@@ -22,7 +22,7 @@ final class SaslUtils {
      * @return user name
      * @throws IllegalArgumentException sasl name contains unexpected encoded characters.
      */
-    public static String username(String saslName) throws IllegalArgumentException {
+    public static String decodeSaslName(String saslName) throws IllegalArgumentException {
         // The RFC says: "If the server receives a username that contains '=' not followed by either '2C' or '3D', then the
         // server MUST fail the authentication"
         if (saslName.replace(ENCODED_COMMA, "").replace(ENCODED_EQUALS_SIGN, "").contains("=")) {
