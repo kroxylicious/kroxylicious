@@ -1,0 +1,41 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: CONSUMER_GROUP_HEARTBEAT
+  disabled: false
+  version: 1
+  request:
+    payload:
+      groupId: mygroup
+      memberId: ""
+      memberEpoch: 0
+      instanceId: ""
+      rackId: ""
+      rebalanceTimeoutMs: 0
+      subscribedTopicNames: []
+      subscribedTopicRegex: ""
+      serverAssignor: ""
+      topicPartitions:
+        - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+          partitions: [0]
+
+    diff:
+      - op: replace
+        path: "/groupId"
+        value: tenant1-mygroup
+  response:
+    payload:
+      errorCode: 0
+      errorMessage: ""
+      throttleTimeMs: 0
+      memberId: ""
+      memberEpoch: 0
+      heartbeatIntervalMs: 0
+      assignment:
+        topicPartitions:
+          - topicId: "AAAAAAAAAAAAAAAAAAAAAA"
+            partitions: [0]
+    diff: []

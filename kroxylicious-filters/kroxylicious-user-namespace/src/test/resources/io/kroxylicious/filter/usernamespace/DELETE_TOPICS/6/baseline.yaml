@@ -1,0 +1,26 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+- apiMessageType: DELETE_TOPICS
+  version: 6
+  request:
+    payload:
+      topics:
+        - name: foo
+          topicId: AAAAAAAAAAAAAAAAAAAAAA
+      timeoutMs: 0
+      validateOnly: false
+    diff: []
+  response:
+    payload:
+      responses:
+        - name: foo
+          topicId: AAAAAAAAAAAAAAAAAAAAAA
+          errorCode: 0
+          errorMessage:
+      throttleTimeMs: 0
+    diff: []
+  disabled: false
