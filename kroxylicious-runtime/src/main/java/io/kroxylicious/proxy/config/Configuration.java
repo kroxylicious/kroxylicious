@@ -36,8 +36,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param micrometer The micrometer config
  * @param useIoUring true to use iouring
  * @param development Development options
+ * @param eventLoopThreadCount An optional number of threads for the proxy to operate with. If unspecified we will default to <code>Runtime.getRuntime().availableProcessors()</code>.
  */
-@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development" })
+@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "eventLoopThreadCount" })
 public record Configuration(
                             @Nullable ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
@@ -45,7 +46,8 @@ public record Configuration(
                             @JsonProperty(required = true) List<VirtualCluster> virtualClusters,
                             @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
-                            Optional<Map<String, Object>> development) {
+                            Optional<Map<String, Object>> development,
+                            Optional<Integer> eventLoopThreadCount) {
 
     /**
      * Creates an instance of configuration.

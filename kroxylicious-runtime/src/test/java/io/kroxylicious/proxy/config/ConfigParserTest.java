@@ -743,6 +743,7 @@ class ConfigParserTest {
                 List.of(new VirtualCluster("demo", targetCluster, List.of(gateway), false, false, List.of())),
                 null,
                 false,
+                Optional.empty(),
                 Optional.empty());
 
         ConfigParser cp = new ConfigParser();

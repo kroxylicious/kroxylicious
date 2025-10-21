@@ -143,7 +143,7 @@ public final class KafkaProxy implements AutoCloseable {
                     .map(c -> new HostPort(c.getEffectiveBindAddress(), c.getEffectivePort()));
             portConflictDefector.validate(virtualClusterModels, managementHostPort);
 
-            var availableCores = Runtime.getRuntime().availableProcessors();
+            int availableCores = config.eventLoopThreadCount().orElse(Runtime.getRuntime().availableProcessors());
 
             this.managementEventGroup = EventGroupConfig.build("management", availableCores, config.isUseIoUring());
             this.serverEventGroup = EventGroupConfig.build("server", availableCores, config.isUseIoUring());
