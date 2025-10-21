@@ -5,10 +5,18 @@
  */
 package io.kroxylicious.krpccodegen.model;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import io.kroxylicious.krpccodegen.schema.EntityType;
 import io.kroxylicious.krpccodegen.schema.MessageSpec;
 
 import freemarker.template.AdapterTemplateModel;
+import freemarker.template.ObjectWrapperAndUnwrapper;
+import freemarker.template.SimpleSequence;
 import freemarker.template.TemplateHashModel;
+import freemarker.template.TemplateMethodModelEx;
 import freemarker.template.TemplateModel;
 import freemarker.template.TemplateModelException;
 
@@ -37,7 +45,9 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
             case "type" -> wrapper.wrap(spec.type());
             case "listeners" -> wrapper.wrap(spec.listeners());
             case "dataClassName" -> wrapper.wrap(spec.dataClassName());
-            default -> throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property " + key);
+            case "hasAtLeastOneEntityField" -> wrapper.wrap((TemplateMethodModelEx) this::handleHasAtLeastOneEntityField);
+            case "intersectedVersionsForEntityFields" -> wrapper.wrap((TemplateMethodModelEx) this::handleIntersectedVersionsForEntityFields);
+            default -> throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property '" + key + "'");
         };
     }
 
@@ -49,5 +59,33 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
     @Override
     public Object getAdaptedObject(Class<?> hint) {
         return spec;
+    }
+
+    private boolean handleHasAtLeastOneEntityField(List args) {
+        var seq = (SimpleSequence) args.get(0);
+        var set = getTypeHashSet(seq);
+        return spec.hasAtLeastOneEntityField(set);
+    }
+
+    private List<Short> handleIntersectedVersionsForEntityFields(List args) {
+        var seq = (SimpleSequence) args.get(0);
+        var set = getTypeHashSet(seq);
+        return spec.intersectedVersionsForEntityFields(set);
+    }
+
+    private static Set<EntityType> getTypeHashSet(SimpleSequence seq) {
+        var ow = (ObjectWrapperAndUnwrapper) seq.getObjectWrapper();
+        var set = new HashSet<EntityType>(seq.size());
+        for (int i = 0; i < seq.size(); i++) {
+            try {
+                TemplateModel obj = seq.get(i);
+                var unwrapped = ow.unwrap(obj);
+                set.add(unwrapped instanceof EntityType et ? et : EntityType.valueOf(String.valueOf(unwrapped)));
+            }
+            catch (TemplateModelException e) {
+                throw new RuntimeException("Failed to unwrap template model object at index " + i, e);
+            }
+        }
+        return set;
     }
 }
