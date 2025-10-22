@@ -31,6 +31,14 @@ public record ManagedIdentityConfig(@JsonProperty(required = true) String target
                                     @JsonInclude(NON_NULL) @Nullable @JsonProperty Integer identityServicePort) {
 
     private static final Logger LOG = LoggerFactory.getLogger(ManagedIdentityConfig.class);
+
+    /**
+     * The IMDS host IP recommended by Microsoft for use with retrieving Managed Identity tokens (see
+     * <a href="https://learn.microsoft.com/en-us/entra/identity/managed-identities-azure-resources/how-to-use-vm-token#get-a-token-using-http">
+     *     How to use managed identities for Azure resources on an Azure VM to acquire an access token - Get a token using HTTP
+     * </a>). This IP should be used in all cases outside of test scenarios (where a mock host may be configured instead).
+     */
+    @SuppressWarnings("java:S1313") // Suppress warning about hard-coded IP addresses posing a security risk, it's what Microsoft say to use so there's no way around it here.
     public static final String DEFAULT_IMDS_HOST = "169.254.169.254";
 
     public ManagedIdentityConfig {
