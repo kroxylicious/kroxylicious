@@ -37,23 +37,18 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param micrometer The micrometer config
  * @param useIoUring true to use iouring
  * @param development Development options
- * @param eventLoopThreadCount An optional number of threads for the proxy to operate with. If unspecified we will default to <code>Runtime.getRuntime().availableProcessors()</code>.
+ * @param network Controls aspects of network configuration for the proxy.
  */
-@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "eventLoopThreadCount" })
+@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network" })
 public record Configuration(
                             @Nullable ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
                             @Nullable List<String> defaultFilters,
                             @JsonProperty(required = true) List<VirtualCluster> virtualClusters,
                             @Nullable List<MicrometerDefinition> micrometer,
-                            boolean useIoUring,
+                            @Deprecated boolean useIoUring,
                             Optional<Map<String, Object>> development,
-                            Optional<Integer> eventLoopThreadCount) {
-
-    @JsonIgnore
-    public int activeEventLoopThreadCount() {
-        return eventLoopThreadCount.orElse(Runtime.getRuntime().availableProcessors());
-    }
+                            @Nullable NetworkDefinition network) {
 
     /**
      * Creates an instance of configuration.
@@ -85,6 +80,11 @@ public record Configuration(
 
             checkAllNamedFilterAreUsed(filterDefinitions, virtualClusters, defaultFilters);
         }
+    }
+
+    @JsonIgnore
+    public NetworkDefinition networkDefinition() {
+        return Objects.nonNull(network) ? network : NetworkDefinition.defaultNetworkDefinition();
     }
 
     private static void checkNamedFiltersAreDefined(Set<String> filterDefsByName,

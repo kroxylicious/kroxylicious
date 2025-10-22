@@ -744,7 +744,7 @@ class ConfigParserTest {
                 null,
                 false,
                 Optional.empty(),
-                Optional.empty());
+                null);
 
         ConfigParser cp = new ConfigParser();
         assertThatThrownBy(() -> {

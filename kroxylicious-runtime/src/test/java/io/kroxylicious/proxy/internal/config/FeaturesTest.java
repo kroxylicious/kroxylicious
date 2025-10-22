@@ -69,7 +69,7 @@ class FeaturesTest {
         VirtualCluster mockCluster = mock(VirtualCluster.class);
         when(mockCluster.name()).thenReturn("test");
         Configuration configuration = new Configuration(null, List.of(), List.of(), List.of(mockCluster), null, false, Optional.ofNullable(developmentConfig),
-                Optional.empty());
+                null);
         List<String> errorMessages = features.supports(configuration);
         assertThat(errorMessages).isEmpty();
     }
@@ -80,7 +80,7 @@ class FeaturesTest {
         Optional<Map<String, Object>> a = Optional.of(Map.of("a", "b"));
         VirtualCluster mockCluster = mock(VirtualCluster.class);
         when(mockCluster.name()).thenReturn("test");
-        Configuration configuration = new Configuration(null, List.of(), List.of(), List.of(mockCluster), null, false, a, Optional.empty());
+        Configuration configuration = new Configuration(null, List.of(), List.of(), List.of(mockCluster), null, false, a, null);
         List<String> errors = Features.defaultFeatures().supports(configuration);
         assertThat(errors).containsExactly("test-only configuration for proxy present, but loading test-only configuration not enabled");
     }
