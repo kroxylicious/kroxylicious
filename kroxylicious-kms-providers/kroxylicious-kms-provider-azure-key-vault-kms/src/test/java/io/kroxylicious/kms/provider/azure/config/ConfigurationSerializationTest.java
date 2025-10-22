@@ -39,7 +39,7 @@ class ConfigurationSerializationTest {
         Path tempDir = Files.createTempDirectory(UUID.randomUUID().toString());
         return Stream.of(
                 argumentSet("empty", "{}", MismatchedInputException.class, "Missing required creator property 'keyVaultName'"),
-                argumentSet("oauthEndpoint not string",
+                argumentSet("entraIdentity oauthEndpoint not string",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
@@ -57,7 +57,7 @@ class ConfigurationSerializationTest {
                                 """,
                         MismatchedInputException.class,
                         "Cannot deserialize value of type `java.net.URI` from Array value"),
-                argumentSet("oauthEndpoint not uri",
+                argumentSet("entraIdentity oauthEndpoint not uri",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
@@ -75,7 +75,7 @@ class ConfigurationSerializationTest {
                                 """,
                         InvalidFormatException.class,
                         "Cannot deserialize value of type `java.net.URI` from String \"bogus non uri\""),
-                argumentSet("scope not string",
+                argumentSet("entraIdentity scope not string",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
@@ -94,7 +94,7 @@ class ConfigurationSerializationTest {
                                 """,
                         MismatchedInputException.class,
                         "Cannot deserialize value of type `java.net.URI` from Array value"),
-                argumentSet("scope not uri",
+                argumentSet("entraIdentity scope not uri",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
@@ -113,7 +113,7 @@ class ConfigurationSerializationTest {
                                 """,
                         InvalidFormatException.class,
                         "Cannot deserialize value of type `java.net.URI` from String \"bogus not uri\""),
-                argumentSet("tenantId missing",
+                argumentSet("entraIdentity tenantId missing",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
@@ -130,7 +130,7 @@ class ConfigurationSerializationTest {
                                 """,
                         MismatchedInputException.class,
                         "Missing required creator property 'tenantId'"),
-                argumentSet("clientId missing",
+                argumentSet("entraIdentity clientId missing",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
@@ -145,7 +145,7 @@ class ConfigurationSerializationTest {
                                 """,
                         MismatchedInputException.class,
                         "Missing required creator property 'clientId'"),
-                argumentSet("clientSecret missing",
+                argumentSet("entraIdentity clientSecret missing",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
@@ -160,7 +160,7 @@ class ConfigurationSerializationTest {
                                 """,
                         MismatchedInputException.class,
                         "Missing required creator property 'clientSecret'"),
-                argumentSet("clientSecret file doesn't exist",
+                argumentSet("entraIdentity clientSecret file doesn't exist",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
@@ -178,7 +178,7 @@ class ConfigurationSerializationTest {
                                 """.formatted(NON_EXISTENT_PATH),
                         ValueInstantiationException.class,
                         "Exception reading " + NON_EXISTENT_PATH),
-                argumentSet("clientId file doesn't exist",
+                argumentSet("entraIdentity clientId file doesn't exist",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
@@ -196,7 +196,7 @@ class ConfigurationSerializationTest {
                                 """.formatted(NON_EXISTENT_PATH),
                         ValueInstantiationException.class,
                         "Exception reading " + NON_EXISTENT_PATH),
-                argumentSet("clientId file not a file",
+                argumentSet("entraIdentity clientId file not a file",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
@@ -334,7 +334,7 @@ class ConfigurationSerializationTest {
                                 }
                                 """, MismatchedInputException.class,
                         "Cannot deserialize value of type `io.kroxylicious.kms.provider.azure.config.auth.EntraIdentityConfig` from Array value "),
-                argumentSet("clientSecret file not a file",
+                argumentSet("entraIdentity clientSecret file not a file",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
@@ -351,7 +351,48 @@ class ConfigurationSerializationTest {
                                 }
                                 """.formatted(tempDir),
                         ValueInstantiationException.class,
-                        "Exception reading " + tempDir));
+                        "Exception reading " + tempDir),
+                argumentSet("managedIdentity targetResource missing",
+                        """
+                                {
+                                  "keyVaultName": "my-key-vault",
+                                  "keyVaultHost": "vault.azure.net",
+                                  "managedIdentity": {
+                                    "identityServiceHost": "localhost",
+                                    "identityServicePort": 8080
+                                  }
+                                }
+                                """,
+                        MismatchedInputException.class,
+                        "Missing required creator property 'targetResource'"),
+                argumentSet("managedIdentity identityServicePort is not a valid port number",
+                        """
+                                {
+                                  "keyVaultName": "my-key-vault",
+                                  "keyVaultHost": "vault.azure.net",
+                                  "managedIdentity": {
+                                    "targetResource": "https://example.com/",
+                                    "identityServiceHost": "localhost",
+                                    "identityServicePort": 0
+                                  }
+                                }
+                                """,
+                        ValueInstantiationException.class,
+                        "identityServicePort must be in the range (1, 65535) inclusive"),
+                argumentSet("managedIdentity identityServiceHost not a valid hostname",
+                        """
+                                {
+                                  "keyVaultName": "my-key-vault",
+                                  "keyVaultHost": "vault.azure.net",
+                                  "managedIdentity": {
+                                    "targetResource": "https://example.com/",
+                                    "identityServiceHost": "http://bad.hostname/",
+                                    "identityServicePort": 8080
+                                  }
+                                }
+                                """,
+                        ValueInstantiationException.class,
+                        "identityServiceHost 'http://bad.hostname/' is not a valid host"));
     }
 
     @MethodSource
