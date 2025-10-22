@@ -81,6 +81,42 @@
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>unpack-message-specs</id>
+                        <phase>generate-sources</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-krpc-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>generate-usernamespace-filer</id>
+                        <goals>
+                            <goal>generate-multi</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+
+                        <configuration>
+                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
+                            <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
+                            <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
+                            <templateNames>UserNamespaceFilter.ftl</templateNames>
+                            <!--suppress UnresolvedMavenProperty -->
+                            <outputFilePattern>${templateName}.java</outputFilePattern>
+                            <outputPackage>io.kroxylicious</outputPackage>
+                            <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
+                        </configuration>
+
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <version>3.5.4</version>
                 <configuration>
