@@ -90,10 +90,11 @@ class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                     describeGroupsRequestData.setGroups(describeGroupsRequestData.groups().stream().map(g -> aid + "-" + g).toList());
                     System.out.println(request);
                 }
-            };
+            }
+            ;
 
         });
-        return  context.forwardRequest(header, request);
+        return context.forwardRequest(header, request);
     }
 
     @Override
@@ -104,8 +105,7 @@ class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                 case FIND_COORDINATOR -> {
                     FindCoordinatorResponseData findCoordinatorResponseData = (FindCoordinatorResponseData) response;
                     findCoordinatorResponseData.coordinators().forEach(
-                            coordinator -> coordinator.setKey(coordinator.key().substring(aid.length() + 1))
-                    );
+                            coordinator -> coordinator.setKey(coordinator.key().substring(aid.length() + 1)));
                     System.out.println(findCoordinatorResponseData);
                 }
                 case OFFSET_COMMIT -> {
@@ -127,11 +127,11 @@ class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                     System.out.println(response);
                 }
 
-
-            };
+            }
+            ;
 
         });
 
-        return  context.forwardResponse(header, response);
+        return context.forwardResponse(header, response);
     }
 }
