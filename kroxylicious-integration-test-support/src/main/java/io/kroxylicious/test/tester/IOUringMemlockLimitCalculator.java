@@ -82,7 +82,12 @@ public final class IOUringMemlockLimitCalculator {
             BufferedReader ulimitOutputReader = new BufferedReader(new InputStreamReader(ulimitProcess.getInputStream()));
             String ulimitOutputLine = ulimitOutputReader.readLine();
 
-            currentMemlockLimit = Integer.parseInt(ulimitOutputLine);
+            if (ulimitOutputLine.trim().equals("unlimited")) {
+                currentMemlockLimit = Integer.MAX_VALUE;
+            }
+            else {
+                currentMemlockLimit = Integer.parseInt(ulimitOutputLine);
+            }
         }
         catch (Exception e) {
             currentMemlockLimit = DEFAULT_MEMLOCK_LIMIT;
