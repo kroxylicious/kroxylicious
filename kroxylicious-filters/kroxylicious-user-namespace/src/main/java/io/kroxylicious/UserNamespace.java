@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
-import io.kroxylicious.proxy.plugin.Plugins;
 
 /**
  * A {@link FilterFactory} for {@link UserNamespaceFilter}.
@@ -15,7 +14,7 @@ public class UserNamespace implements FilterFactory<UserNamespace.SampleFilterCo
 
     @Override
     public SampleFilterConfig initialize(FilterFactoryContext context, SampleFilterConfig config) {
-        //return Plugins.requireConfig(this, config);
+        // return Plugins.requireConfig(this, config);
         return config;
     }
 

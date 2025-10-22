@@ -286,6 +286,11 @@
             <artifactId>apicurio-registry-serdes-jsonschema-serde</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-user-namespace</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
