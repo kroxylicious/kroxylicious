@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -118,6 +117,7 @@ class ConfigurationTest {
                 .hasMessageContaining("Missing required creator property 'advertisedBrokerAddressPattern'");
     }
 
+    @SuppressWarnings("deprecation")
     static Stream<Arguments> fluentApiConfigYamlFidelity() {
         NamedFilterDefinition filter = new NamedFilterDefinitionBuilder("filter-1", ExampleFilterFactory.class.getSimpleName())
                 .withConfig("examplePlugin", "ExamplePluginInstance",
@@ -437,6 +437,38 @@ class ConfigurationTest {
                                     - name: default
                                       portIdentifiesNode:
                                         bootstrapAddress: cluster1:9192
+                                """),
+                argumentSet("Proxy worker thread count",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewProxy().withWorkerThreadCount(5).endProxy().endNetwork()
+                                .build(),
+                        """
+                                network:
+                                    proxy:
+                                        workerThreadCount: 5
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
+                                """),
+                argumentSet("Manaegment worker thread count",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewManagement().withWorkerThreadCount(2).endManagement()
+                                .endNetwork().build(),
+                        """
+                                network:
+                                    management:
+                                        workerThreadCount: 2
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
                                 """)
 
         );
@@ -470,52 +502,6 @@ class ConfigurationTest {
                 network))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' contains multiple items with the same names: [foo]");
-    }
-
-    @Test
-    @Disabled("Refactoring in progress")
-    void shouldUseConfiguredThreadCount() {
-        // Given
-        Optional<Map<String, Object>> development = Optional.empty();
-        var virtualCluster = List.of(VIRTUAL_CLUSTER);
-        int threadCount = 1;
-        Optional<Integer> nettyThreadCount = Optional.of(threadCount);
-
-        // When
-        // Configuration configuration = new Configuration(null,
-        // List.of(),
-        // null,
-        // virtualCluster,
-        // null,
-        // false,
-        // development,
-        // nettyThreadCount);
-        //
-        // // Then
-        // assertThat(configuration.network()).hasValue(threadCount);
-        // assertThat(configuration.activeEventLoopThreadCount()).isEqualTo(threadCount);
-    }
-
-    @Disabled("Refactoring in progress")
-    @Test
-    void shouldDefaultThreadCountToEmpty() {
-        // Given
-        Optional<Map<String, Object>> development = Optional.empty();
-        var virtualCluster = List.of(VIRTUAL_CLUSTER);
-
-        // When
-        // Configuration configuration = new Configuration(null,
-        // List.of(),
-        // null,
-        // virtualCluster,
-        // null,
-        // false,
-        // development,
-        // Optional.empty());
-        //
-        // // Then
-        // assertThat(configuration.network()).isEmpty();
-        // assertThat(configuration.activeEventLoopThreadCount()).isEqualTo(Runtime.getRuntime().availableProcessors());
     }
 
     @Test

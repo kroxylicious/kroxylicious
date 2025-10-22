@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import io.kroxylicious.proxy.config.NettyTransport;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
@@ -36,7 +37,7 @@ class IOUringIT extends BaseIT {
     @Test
     void proxyUsingIOUring(KafkaCluster cluster, Topic topic) throws Exception {
 
-        var proxy = proxy(cluster).withUseIoUring().withEventLoopThreadCount(2);
+        var proxy = proxy(cluster).withNewNetwork().withNewProxy().withNettyTransport(NettyTransport.IO_URING).withWorkerThreadCount(2).endProxy().endNetwork();
 
         try (var tester = kroxyliciousTester(proxy);
                 var producer = tester.producer();

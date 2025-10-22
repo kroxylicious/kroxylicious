@@ -199,7 +199,7 @@ public class KafkaProxyReconciler implements
                         false,
                         // micrometer
                         Optional.empty(),
-                        Optional.empty()),
+                        null),
                 allVolumes,
                 allMounts);
     }

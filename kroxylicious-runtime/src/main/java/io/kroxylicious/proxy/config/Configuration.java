@@ -17,7 +17,6 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
@@ -80,11 +79,6 @@ public record Configuration(
 
             checkAllNamedFilterAreUsed(filterDefinitions, virtualClusters, defaultFilters);
         }
-    }
-
-    @JsonIgnore
-    public NetworkDefinition networkDefinition() {
-        return Objects.nonNull(network) ? network : NetworkDefinition.defaultNetworkDefinition();
     }
 
     private static void checkNamedFiltersAreDefined(Set<String> filterDefsByName,

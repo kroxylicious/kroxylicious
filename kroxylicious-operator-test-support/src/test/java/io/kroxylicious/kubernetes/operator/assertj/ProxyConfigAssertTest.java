@@ -29,7 +29,7 @@ class ProxyConfigAssertTest {
         VirtualCluster virtualCluster = new VirtualCluster("cluster", new TargetCluster("localhost:9092", Optional.empty()),
                 List.of(virtualClusterGateway), false,
                 false, List.of());
-        Configuration config = new Configuration(null, null, null, List.of(virtualCluster), List.of(), false, Optional.empty(), Optional.empty());
+        Configuration config = new Configuration(null, null, null, List.of(virtualCluster), List.of(), false, Optional.empty(), null);
 
         Assertions.assertThatThrownBy(() -> {
             OperatorAssertions.assertThat(config).cluster("arbitrary");
@@ -44,7 +44,7 @@ class ProxyConfigAssertTest {
         VirtualCluster virtualCluster = new VirtualCluster(clusterName, new TargetCluster("localhost:9092", Optional.empty()),
                 List.of(virtualClusterGateway), false,
                 false, List.of());
-        Configuration config = new Configuration(null, null, null, List.of(virtualCluster), List.of(), false, Optional.empty(), Optional.empty());
+        Configuration config = new Configuration(null, null, null, List.of(virtualCluster), List.of(), false, Optional.empty(), null);
 
         ProxyConfigAssert.ProxyConfigClusterAssert cluster = OperatorAssertions.assertThat(config).cluster(clusterName);
         Assertions.assertThat(cluster.actual()).isNotNull().isSameAs(virtualCluster);
