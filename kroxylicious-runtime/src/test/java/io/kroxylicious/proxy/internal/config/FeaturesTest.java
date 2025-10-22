@@ -68,7 +68,8 @@ class FeaturesTest {
     void supportsValidTestConfiguration(Features features, Map<String, Object> developmentConfig) {
         VirtualCluster mockCluster = mock(VirtualCluster.class);
         when(mockCluster.name()).thenReturn("test");
-        Configuration configuration = new Configuration(null, List.of(), List.of(), List.of(mockCluster), null, false, Optional.ofNullable(developmentConfig), Optional.empty());
+        Configuration configuration = new Configuration(null, List.of(), List.of(), List.of(mockCluster), null, false, Optional.ofNullable(developmentConfig),
+                Optional.empty());
         List<String> errorMessages = features.supports(configuration);
         assertThat(errorMessages).isEmpty();
     }
