@@ -29,6 +29,7 @@ import io.javaoperatorsdk.operator.processing.event.source.PrimaryToSecondaryMap
 import io.javaoperatorsdk.operator.processing.event.source.SecondaryToPrimaryMapper;
 import io.javaoperatorsdk.operator.processing.event.source.informer.InformerEventSource;
 import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.StrimziKafkaRef;
@@ -90,16 +91,16 @@ public final class KafkaServiceReconciler implements
                 .withSecondaryToPrimaryMapper(configMapToKafkaService(context))
                 .build();
 
-        // TODO we want to revisit this as we are currently making
-        // to make numerous API calls to check if it exists
         APIGroup apiGroup = context.getClient().getApiGroup(KAFKA_GROUP_NAME);
         List<EventSource<?, KafkaService>> informersList = new ArrayList<>();
 
         informersList.add(new InformerEventSource<>(serviceToSecret, context));
         informersList.add(new InformerEventSource<>(serviceToConfigMap, context));
 
+        // TODO we want to revisit this as we are currently making
+        // to make numerous API calls to check if it exists
         if (apiGroup != null) {
-            LOGGER.info("Strimzi Kafka cluster detected in namespace: {}", context.getClient().getNamespace());
+            LOGGER.debug("Adding `kafkas.strimzi.io.kafkas` informer because the Strimzi Kafka CRD is present: {}", context.getClient().getNamespace());
             InformerEventSourceConfiguration<Kafka> serviceToStrimziKafka = InformerEventSourceConfiguration.from(
                     Kafka.class,
                     KafkaService.class)
@@ -215,8 +216,14 @@ public final class KafkaServiceReconciler implements
             }
 
             if (service.getSpec().getStrimziKafkaRef() != null) {
-                updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs,
-                        checksumGenerator.encode(), retrieveBootstrapServerAddress(context, service, KAFKA_EVENT_SOURCE_NAME));
+
+                Optional<ListenerStatus> listenerStatus = retrieveBootstrapServerAddress(context, service, KAFKA_EVENT_SOURCE_NAME);
+
+                updatedService = listenerStatus.map(status -> statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs,
+                        checksumGenerator.encode(), status.getBootstrapServers()))
+                        .orElseGet(() -> statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
+                                Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED,
+                                "Referenced resource has not yet reconciled listener name: "));
             }
             else {
                 updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs, checksumGenerator.encode(), service.getSpec().getBootstrapServers());

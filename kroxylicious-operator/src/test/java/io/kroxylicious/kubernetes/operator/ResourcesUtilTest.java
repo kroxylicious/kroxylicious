@@ -920,11 +920,6 @@ class ResourcesUtilTest {
                         new StrimziKafkaRefBuilder().withNewRef().withName("unknown_cluster").endRef().build(),
                         null,
                         Condition.REASON_REFS_NOT_FOUND,
-                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced Kafka resource not found")),
-                argumentSet("blank listener name",
-                        new StrimziKafkaRefBuilder().withListenerName("").withNewRef().withName("my-cluster").endRef().build(),
-                        EMPTY_KAFKA,
-                        Condition.REASON_INVALID,
-                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("spec.strimziKafkaRef: listener should be `plain`")));
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced Kafka resource not found")));
     }
 }

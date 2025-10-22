@@ -46,7 +46,7 @@ public class KafkaServiceStatusFactory extends StatusFactory<KafkaService> {
                 .endStatus();
 
         if (bootstrapServers != null && !bootstrapServers.isEmpty()) {
-            service.editStatus().withBootstrapServerAddress(bootstrapServers).endStatus();
+            service.editStatus().withBootstrapServers(bootstrapServers).endStatus();
         }
 
         return service.build();

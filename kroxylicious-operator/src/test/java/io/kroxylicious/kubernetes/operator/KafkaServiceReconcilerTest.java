@@ -39,6 +39,7 @@ import io.javaoperatorsdk.operator.api.reconciler.UpdateControl;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
+import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerAddressBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatusBuilder;
 
@@ -124,6 +125,14 @@ class KafkaServiceReconcilerTest {
             .withUid("uid")
             .withResourceVersion("7782")
             .endMetadata()
+            .withNewSpec()
+                .withNewKafka()
+                    .withListeners(new GenericKafkaListenerBuilder()
+                            .withName("plain")
+                            .withTls(false)
+                            .build())
+                .endKafka()
+            .endSpec()
             .withNewStatus()
             .withListeners(List.of(new ListenerStatusBuilder()
                             .withName("plain")
@@ -141,6 +150,14 @@ class KafkaServiceReconcilerTest {
             .withUid("uid")
             .withResourceVersion("7782")
             .endMetadata()
+            .withNewSpec()
+                .withNewKafka()
+                    .withListeners(new GenericKafkaListenerBuilder()
+                            .withName("tls")
+                            .withTls(false)
+                        .build())
+                .endKafka()
+            .endSpec()
             .withNewStatus()
             .withListeners(List.of(new ListenerStatusBuilder()
                     .withName("tls")
@@ -313,8 +330,8 @@ class KafkaServiceReconcilerTest {
                     (Consumer<ConditionListAssert>) conditionList -> conditionList
                             .singleElement()
                             .isResolvedRefsFalse(
-                                    Condition.REASON_INVALID,
-                                    "spec.strimziKafkaRef: listener should be `plain`")));
+                                    Condition.REASON_INVALID_REFERENCED_RESOURCE,
+                                    "Referenced resource does not contain listener name: ")));
         }
 
         // unsupported kind

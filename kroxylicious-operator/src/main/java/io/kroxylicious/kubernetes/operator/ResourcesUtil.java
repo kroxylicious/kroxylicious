@@ -30,6 +30,7 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
@@ -554,7 +555,7 @@ public class ResourcesUtil {
         if (context.getClient().getApiGroup("kafka.strimzi.io") == null) {
             return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_REFS_NOT_FOUND,
-                    "strimziKafkaRef present but Kafka resource not found"), List.of());
+                    "strimziKafkaRef present but Kafka api group not found on cluster. Is the Strimzi Operator installed?"), List.of());
         }
 
         if (isKafka(strimziKafkaRef.getRef())) {
@@ -565,15 +566,7 @@ public class ResourcesUtil {
                         path + ": referenced Kafka resource not found"), List.of());
             }
             else {
-                String listenerName = strimziKafkaRef.getListenerName();
-                if (!isSupportedListenerType(listenerName)) {
-                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
-                            Condition.REASON_INVALID,
-                            path + ": listener should be `plain`"), List.of());
-                }
-                else {
-                    return handleListener(resource, strimziKafkaRef, statusFactory, kafkaOpt.get());
-                }
+                return handleListener(resource, strimziKafkaRef, statusFactory, kafkaOpt.get());
             }
         }
         else {
@@ -583,22 +576,15 @@ public class ResourcesUtil {
         }
     }
 
-    static String retrieveBootstrapServerAddress(Context<KafkaService> context,
-                                                 KafkaService service,
-                                                 String eventSourceName) {
+    static Optional<ListenerStatus> retrieveBootstrapServerAddress(Context<KafkaService> context,
+                                                                   KafkaService service,
+                                                                   String eventSourceName) {
 
         Optional<Kafka> kafka = getKafka(context, eventSourceName);
-        Optional<ListenerStatus> listener = kafka.flatMap(value -> value.getStatus().getListeners().stream()
+        return kafka.flatMap(value -> value.getStatus().getListeners().stream()
                 .filter(listenerStatus -> listenerStatus.getName()
                         .equals(service.getSpec().getStrimziKafkaRef().getListenerName()))
                 .findFirst());
-
-        if (listener.isEmpty()) {
-            throw new IllegalStateException("Bootstrap server address is empty");
-        }
-        else {
-            return listener.get().getBootstrapServers();
-        }
     }
 
     private static <T extends CustomResource<?, ?>> @NonNull ResourceCheckResult<T> handleSupportedFileExtension(T resource, TrustAnchorRef trustAnchorRef, String path,
@@ -616,10 +602,25 @@ public class ResourcesUtil {
     private static <T extends CustomResource<?, ?>> ResourceCheckResult<T> handleListener(T resource, StrimziKafkaRef strimziKafkaRef,
                                                                                           StatusFactory<T> statusFactory,
                                                                                           Kafka kafka) {
-        if (!isListenerPresent(strimziKafkaRef, kafka)) {
+        if (!isListenerPresentInSpec(strimziKafkaRef, kafka)) {
             return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                     Condition.REASON_INVALID_REFERENCED_RESOURCE,
                     "Referenced resource does not contain listener name: "
+                            + strimziKafkaRef.getListenerName()),
+                    List.of());
+        }
+
+        if (!isSpecifiedListenerPlain(strimziKafkaRef, kafka)) {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_INVALID_REFERENCED_RESOURCE,
+                    "Referenced resource should have listener as `plain`"),
+                    List.of());
+        }
+
+        if (!isListenerPresentInStatus(strimziKafkaRef, kafka)) {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED,
+                    "Referenced resource has not yet reconciled listener name: "
                             + strimziKafkaRef.getListenerName()),
                     List.of());
         }
@@ -628,7 +629,21 @@ public class ResourcesUtil {
         }
     }
 
-    private static boolean isListenerPresent(StrimziKafkaRef strimziKafkaRef, Kafka kafka) {
+    private static boolean isSpecifiedListenerPlain(StrimziKafkaRef strimziKafkaRef, Kafka kafka) {
+        Optional<GenericKafkaListener> listener = kafka.getSpec().getKafka().getListeners().stream()
+                .filter(listenerStatus -> listenerStatus.getName()
+                        .equals(strimziKafkaRef.getListenerName()))
+                .findFirst();
+        return !listener.map(GenericKafkaListener::isTls).orElse(false);
+    }
+
+    private static boolean isListenerPresentInSpec(StrimziKafkaRef strimziKafkaRef, Kafka kafka) {
+        return kafka.getSpec().getKafka().getListeners().stream()
+                .anyMatch(listenerStatus -> listenerStatus.getName()
+                        .equals(strimziKafkaRef.getListenerName()));
+    }
+
+    private static boolean isListenerPresentInStatus(StrimziKafkaRef strimziKafkaRef, Kafka kafka) {
         return kafka.getStatus() != null && kafka.getStatus().getListeners() != null && kafka.getStatus().getListeners().stream()
                 .anyMatch(listenerStatus -> listenerStatus.getName()
                         .equals(strimziKafkaRef.getListenerName()));
@@ -642,10 +657,6 @@ public class ResourcesUtil {
         return !key.endsWith(".pem")
                 && !key.endsWith(".p12")
                 && !key.endsWith(".jks");
-    }
-
-    private static boolean isSupportedListenerType(String listenerName) {
-        return listenerName.equals("plain");
     }
 
     /**

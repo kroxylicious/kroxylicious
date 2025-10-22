@@ -29,7 +29,7 @@ rules:
       - watch
       - patch
       - update
-  - # The operator needs to know about its own CRs and be able to patch the annotations
+  - # The operator should be able to access the Strimzi Kafka CR's for retrieving bootstrap address
     apiGroups:
       - "kafka.strimzi.io"
     resources:

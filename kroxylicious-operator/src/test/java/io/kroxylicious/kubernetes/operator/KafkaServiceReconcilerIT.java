@@ -8,6 +8,7 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.List;
 
 import org.assertj.core.api.Assertions;
 import org.awaitility.core.ConditionFactory;
@@ -30,6 +31,7 @@ import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
 import io.strimzi.api.kafka.Crds;
 import io.strimzi.api.kafka.model.kafka.Kafka;
 import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
+import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerAddressBuilder;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatusBuilder;
 
@@ -250,10 +252,20 @@ class KafkaServiceReconcilerIT {
     @Test
     void shouldHandleStrimziKafkaWithNoPlainListeners() {
         // Given
-        var kafka = testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
         String listenerHost = "mylistener";
         int listenerPort = 9092;
-        Kafka withTlsListener = new KafkaBuilder(kafka)
+        Kafka withTlsListener = new KafkaBuilder()
+                .withNewMetadata()
+                .withName(KAFKA_RESOURCE_NAME)
+                .endMetadata()
+                .withNewSpec()
+                .withNewKafka()
+                .withListeners(List.of(new GenericKafkaListenerBuilder()
+                        .withName("tls")
+                        .withTls(true)
+                        .build()))
+                .endKafka()
+                .endSpec()
                 .withNewStatus()
                 .withListeners(
                         new ListenerStatusBuilder()
@@ -266,13 +278,13 @@ class KafkaServiceReconcilerIT {
                 .endStatus()
                 .build();
 
-        testActor.patchStatus(withTlsListener);
+        testActor.create(withTlsListener);
 
         // When
         KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "tls", KAFKA_RESOURCE_NAME));
 
         // Then
-        assertResolvedRefsFalse(service, Condition.REASON_INVALID, "spec.strimziKafkaRef: listener should be `plain`");
+        assertResolvedRefsFalse(service, Condition.REASON_INVALID_REFERENCED_RESOURCE, "Referenced resource should have listener as `plain`");
     }
 
     @Test
@@ -291,7 +303,7 @@ class KafkaServiceReconcilerIT {
         KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
 
         // Then
-        assertResolvedRefsFalse(service, Condition.REASON_INVALID_REFERENCED_RESOURCE, "Referenced resource does not contain listener name: plain");
+        assertResolvedRefsFalse(service, Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED, "Referenced resource has not yet reconciled listener name: plain");
     }
 
     @Test
@@ -304,7 +316,7 @@ class KafkaServiceReconcilerIT {
         KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
 
         // Then
-        assertResolvedRefsFalse(service, Condition.REASON_INVALID_REFERENCED_RESOURCE, "Referenced resource does not contain listener name: plain");
+        assertResolvedRefsFalse(service, Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED, "Referenced resource has not yet reconciled listener name: plain");
     }
 
     @Test
@@ -350,10 +362,21 @@ class KafkaServiceReconcilerIT {
     }
 
     private Kafka kafkaResource(String resourceName) {
+        // @formatter:off
         return new KafkaBuilder()
                 .withNewMetadata()
-                .withName(resourceName)
-                .endMetadata().build();
+                    .withName(resourceName)
+                .endMetadata()
+                .withNewSpec()
+                    .withNewKafka()
+                        .withListeners(new GenericKafkaListenerBuilder()
+                                .withName("plain")
+                                .withTls(false)
+                                .build())
+                    .endKafka()
+                .endSpec()
+                .build();
+        // @formatter:on
     }
 
     private static Secret tlsCertificateSecret(String name) {
@@ -430,7 +453,7 @@ class KafkaServiceReconcilerIT {
         AWAIT.untilAsserted(() -> {
             final KafkaService kafkaService = testActor.get(KafkaService.class, ResourcesUtil.name(cr));
             Assertions.assertThat(kafkaService).isNotNull();
-            Assertions.assertThat(kafkaService.getStatus().getBootstrapServerAddress()).isEqualTo(expectedBootstrap);
+            Assertions.assertThat(kafkaService.getStatus().getBootstrapServers()).isEqualTo(expectedBootstrap);
             assertThat(kafkaService.getStatus())
                     .isNotNull()
                     .conditionList()
