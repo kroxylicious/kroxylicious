@@ -17,6 +17,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyOrder;
 
@@ -48,6 +49,11 @@ public record Configuration(
                             boolean useIoUring,
                             Optional<Map<String, Object>> development,
                             Optional<Integer> eventLoopThreadCount) {
+
+    @JsonIgnore
+    public int activeEventLoopThreadCount() {
+        return eventLoopThreadCount.orElse(Runtime.getRuntime().availableProcessors());
+    }
 
     /**
      * Creates an instance of configuration.

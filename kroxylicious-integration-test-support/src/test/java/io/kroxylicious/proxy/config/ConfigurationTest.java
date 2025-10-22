@@ -458,6 +458,7 @@ class ConfigurationTest {
                 new NamedFilterDefinition("foo", "", ""));
         Optional<Map<String, Object>> development = Optional.empty();
         var virtualCluster = List.of(VIRTUAL_CLUSTER);
+        Optional<Integer> nettyThreadCount = Optional.of(1);
         assertThatThrownBy(() -> new Configuration(null,
                 filterDefinitions,
                 null,
@@ -465,9 +466,54 @@ class ConfigurationTest {
                 null,
                 false,
                 development,
-                Optional.empty()))
+                nettyThreadCount))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' contains multiple items with the same names: [foo]");
+    }
+
+    @Test
+    void shouldUseConfiguredThreadCount() {
+        // Given
+        Optional<Map<String, Object>> development = Optional.empty();
+        var virtualCluster = List.of(VIRTUAL_CLUSTER);
+        int threadCount = 1;
+        Optional<Integer> nettyThreadCount = Optional.of(threadCount);
+
+        // When
+
+        Configuration configuration = new Configuration(null,
+                List.of(),
+                null,
+                virtualCluster,
+                null,
+                false,
+                development,
+                nettyThreadCount);
+
+        // Then
+        assertThat(configuration.eventLoopThreadCount()).hasValue(threadCount);
+        assertThat(configuration.activeEventLoopThreadCount()).isEqualTo(threadCount);
+    }
+
+    @Test
+    void shouldDefaultThreadCountToEmpty() {
+        // Given
+        Optional<Map<String, Object>> development = Optional.empty();
+        var virtualCluster = List.of(VIRTUAL_CLUSTER);
+
+        // When
+        Configuration configuration = new Configuration(null,
+                List.of(),
+                null,
+                virtualCluster,
+                null,
+                false,
+                development,
+                Optional.empty());
+
+        // Then
+        assertThat(configuration.eventLoopThreadCount()).isEmpty();
+        assertThat(configuration.activeEventLoopThreadCount()).isEqualTo(Runtime.getRuntime().availableProcessors());
     }
 
     @Test
@@ -496,7 +542,8 @@ class ConfigurationTest {
         List<VirtualCluster> virtualClusters = List
                 .of(new VirtualCluster("vc1", targetCluster, defaultGateway, false, false, List.of("missing")));
         assertThatThrownBy(() -> new Configuration(
-                null, filterDefinitions,
+                null,
+                filterDefinitions,
                 null,
                 virtualClusters,
                 null, false,
