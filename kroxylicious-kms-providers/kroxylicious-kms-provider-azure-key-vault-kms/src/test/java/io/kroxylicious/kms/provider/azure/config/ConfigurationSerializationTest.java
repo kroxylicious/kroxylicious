@@ -13,7 +13,6 @@ import java.nio.file.Path;
 import java.util.UUID;
 import java.util.stream.Stream;
 
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -38,7 +37,8 @@ class ConfigurationSerializationTest {
 
     public static Stream<Arguments> invalidJson() throws IOException {
         Path tempDir = Files.createTempDirectory(UUID.randomUUID().toString());
-        return Stream.of(argumentSet("empty", "{}", MismatchedInputException.class, "Missing required creator property 'keyVaultName'"),
+        return Stream.of(
+                argumentSet("empty", "{}", MismatchedInputException.class, "Missing required creator property 'keyVaultName'"),
                 argumentSet("oauthEndpoint not string",
                         """
                                 {
@@ -360,139 +360,153 @@ class ConfigurationSerializationTest {
         assertThatThrownBy(() -> mapper.readValue(json, AzureKeyVaultConfig.class)).isInstanceOf(expectedType).hasMessageContaining(expectedMessage);
     }
 
-    @Test
-    void validMinimalJsonWithEntraIdentity() throws IOException {
-        String json = """
-                {
-                  "keyVaultName": "my-key-vault",
-                  "keyVaultHost": "vault.azure.net",
-                  "entraIdentity": {
-                    "tenantId": "123",
-                    "clientId": {
-                      "password": "abc"
-                    },
-                    "clientSecret": {
-                      "password": "def"
-                    }
-                  }
-                }
-                """;
-        AzureKeyVaultConfig config = mapper.readValue(json, AzureKeyVaultConfig.class);
-        assertThat(config).isEqualTo(
-                new AzureKeyVaultConfig(new EntraIdentityConfig(null, "123", new InlinePassword("abc"), new InlinePassword("def"), null, null),
-                        null, "my-key-vault", "vault.azure.net", null, null, null));
+    public static Stream<Arguments> validJson() {
+        return Stream.of(
+                argumentSet("valid minimal json with entra identity authentication",
+                        """
+                                {
+                                  "keyVaultName": "my-key-vault",
+                                  "keyVaultHost": "vault.azure.net",
+                                  "entraIdentity": {
+                                    "tenantId": "123",
+                                    "clientId": {
+                                      "password": "abc"
+                                    },
+                                    "clientSecret": {
+                                      "password": "def"
+                                    }
+                                  }
+                                }
+                                """,
+                        new AzureKeyVaultConfig(new EntraIdentityConfig(null, "123", new InlinePassword("abc"), new InlinePassword("def"), null, null), null,
+                                "my-key-vault", "vault.azure.net", null, null, null)),
+                argumentSet("valid minimal json with managed identity authentication",
+                        """
+                                {
+                                  "keyVaultName": "my-key-vault",
+                                  "keyVaultHost": "vault.azure.net",
+                                  "managedIdentity": {
+                                    "targetResource": "https://example.com/"
+                                  }
+                                }
+                                """,
+                        new AzureKeyVaultConfig(null, new ManagedIdentityConfig("https://example.com/", null, null), "my-key-vault", "vault.azure.net", null, null,
+                                null)),
+                argumentSet("valid comprehensive json with entra identity authentication",
+                        """
+                                {
+                                  "keyVaultName": "my-key-vault",
+                                  "keyVaultHost": "vault.azure.net",
+                                  "keyVaultScheme": "https",
+                                  "keyVaultPort": 8080,
+                                  "entraIdentity": {
+                                    "oauthEndpoint": "http://localhost:8080",
+                                    "tenantId": "123",
+                                    "clientId": {
+                                      "password": "abc"
+                                    },
+                                    "clientSecret": {
+                                      "password": "def"
+                                    },
+                                    "scope": "http://scope/.default"
+                                  }
+                                }
+                                """,
+                        new AzureKeyVaultConfig(new EntraIdentityConfig(URI.create("http://localhost:8080"), "123", new InlinePassword("abc"), new InlinePassword("def"),
+                                URI.create("http://scope/.default"), null), null, "my-key-vault", "vault.azure.net", "https", 8080, null)),
+                argumentSet("valid comprehensive json with managed identity authentication",
+                        """
+                                {
+                                  "keyVaultName": "my-key-vault",
+                                  "keyVaultHost": "vault.azure.net",
+                                  "keyVaultScheme": "https",
+                                  "keyVaultPort": 8080,
+                                  "managedIdentity": {
+                                    "targetResource": "https://example.com/",
+                                    "identityServiceHost": "localhost",
+                                    "identityServicePort": 8080
+                                  }
+                                }
+                                """,
+                        new AzureKeyVaultConfig(null, new ManagedIdentityConfig("https://example.com/", "localhost", 8080), "my-key-vault", "vault.azure.net", "https",
+                                8080,
+                                null)));
     }
 
-    @Test
-    void validMinimalJsonWithManagedIdentity() throws IOException {
-        String json = """
-                {
-                  "keyVaultName": "my-key-vault",
-                  "keyVaultHost": "vault.azure.net",
-                  "managedIdentity": {
-                    "targetResource": "https://example.com/"
-                  }
-                }
-                """;
+    @MethodSource
+    @ParameterizedTest
+    void validJson(String json, AzureKeyVaultConfig expectedSerializedObject) throws IOException {
         AzureKeyVaultConfig config = mapper.readValue(json, AzureKeyVaultConfig.class);
-        assertThat(config).isEqualTo(
-                new AzureKeyVaultConfig(null, new ManagedIdentityConfig("https://example.com/", null, null),
-                        "my-key-vault", "vault.azure.net", null, null, null));
+        assertThat(config).isEqualTo(expectedSerializedObject);
     }
 
-    @Test
-    void minimumJsonFidelity() throws IOException {
-        String json = """
-                {
-                  "entraIdentity": {
-                        "tenantId": "123",
-                        "clientId": {
-                          "password": "abc"
-                        },
-                        "clientSecret": {
-                          "password": "def"
-                        }
-                  },
-                  "keyVaultName": "my-key-vault",
-                  "keyVaultHost": "vault.azure.net"
-                }
-                """;
-        String normalized = mapper.writeValueAsString(mapper.readValue(json, JsonNode.class));
-        AzureKeyVaultConfig config = mapper.readValue(json, AzureKeyVaultConfig.class);
-        String actual = mapper.writeValueAsString(config);
-        assertThat(actual).isEqualTo(normalized);
+    public static Stream<Arguments> jsonFidelity() {
+        return Stream.of(
+                argumentSet("minimum json fidelity with entra identity authentication",
+                        """
+                                {
+                                  "entraIdentity": {
+                                        "tenantId": "123",
+                                        "clientId": {
+                                          "password": "abc"
+                                        },
+                                        "clientSecret": {
+                                          "password": "def"
+                                        }
+                                  },
+                                  "keyVaultName": "my-key-vault",
+                                  "keyVaultHost": "vault.azure.net"
+                                }
+                                """),
+                argumentSet("minimum json fidelity with managed identity authentication",
+                        """
+                                {
+                                  "managedIdentity": {
+                                    "targetResource": "https://example.com/"
+                                  },
+                                  "keyVaultName": "my-key-vault",
+                                  "keyVaultHost": "vault.azure.net"
+                                }
+                                """),
+                argumentSet("comprehensive json fidelity with entra identity authentication",
+                        """
+                                {
+                                  "entraIdentity": {
+                                    "oauthEndpoint": "http://localhost:8080",
+                                    "tenantId": "123",
+                                    "clientId": {
+                                      "password": "abc"
+                                    },
+                                    "clientSecret": {
+                                      "password": "def"
+                                    },
+                                    "scope": "http://scope/.default"
+                                  },
+                                  "keyVaultScheme": "https",
+                                  "keyVaultName": "my-key-vault",
+                                  "keyVaultHost": "vault.azure.net",
+                                  "keyVaultPort": 8080
+                                }
+                                """),
+                argumentSet("comprehensive json fidelity with managed identity authentication",
+                        """
+                                {
+                                  "managedIdentity": {
+                                    "targetResource": "https://example.com/",
+                                    "identityServiceHost": "localhost",
+                                    "identityServicePort": 8080
+                                  },
+                                  "keyVaultScheme": "https",
+                                  "keyVaultName": "my-key-vault",
+                                  "keyVaultHost": "vault.azure.net",
+                                  "keyVaultPort": 8080
+                                }
+                                """));
     }
 
-    @Test
-    void validComprehensiveJsonWithEntraIdentity() throws IOException {
-        String json = """
-                   {
-                  "keyVaultName": "my-key-vault",
-                  "keyVaultHost": "vault.azure.net",
-                  "keyVaultScheme": "https",
-                  "keyVaultPort": 8080,
-                  "entraIdentity": {
-                    "oauthEndpoint": "http://localhost:8080",
-                    "tenantId": "123",
-                    "clientId": {
-                      "password": "abc"
-                    },
-                    "clientSecret": {
-                      "password": "def"
-                    },
-                    "scope": "http://scope/.default"
-                  }
-                }
-                """;
-        AzureKeyVaultConfig config = mapper.readValue(json, AzureKeyVaultConfig.class);
-        assertThat(config).isEqualTo(
-                new AzureKeyVaultConfig(
-                        new EntraIdentityConfig(URI.create("http://localhost:8080"), "123", new InlinePassword("abc"), new InlinePassword("def"),
-                                URI.create("http://scope/.default"),
-                                null),
-                        null, "my-key-vault", "vault.azure.net", "https", 8080, null));
-    }
-
-    @Test
-    void validComprehensiveJsonWithManagedIdentity() throws IOException {
-        String json = """
-                   {
-                  "keyVaultName": "my-key-vault",
-                  "keyVaultHost": "vault.azure.net",
-                  "keyVaultScheme": "https",
-                  "keyVaultPort": 8080,
-                  "managedIdentity": {
-                    "targetResource": "https://example.com/"
-                  }
-                }
-                """;
-        AzureKeyVaultConfig config = mapper.readValue(json, AzureKeyVaultConfig.class);
-        assertThat(config).isEqualTo(
-                new AzureKeyVaultConfig(null, new ManagedIdentityConfig("https://example.com/", null, null),
-                        "my-key-vault", "vault.azure.net", "https", 8080, null));
-    }
-
-    @Test
-    void comprehensiveJsonFidelity() throws IOException {
-        String json = """
-                   {
-                  "entraIdentity": {
-                    "oauthEndpoint": "http://localhost:8080",
-                    "tenantId": "123",
-                    "clientId": {
-                      "password": "abc"
-                    },
-                    "clientSecret": {
-                      "password": "def"
-                    },
-                    "scope": "http://scope/.default"
-                  },
-                  "keyVaultScheme": "https",
-                  "keyVaultName": "my-key-vault",
-                  "keyVaultHost": "vault.azure.net",
-                  "keyVaultPort": 8080
-                }
-                """;
+    @MethodSource
+    @ParameterizedTest
+    void jsonFidelity(String json) throws IOException {
         String normalized = mapper.writeValueAsString(mapper.readValue(json, JsonNode.class));
         AzureKeyVaultConfig config = mapper.readValue(json, AzureKeyVaultConfig.class);
         String actual = mapper.writeValueAsString(config);
