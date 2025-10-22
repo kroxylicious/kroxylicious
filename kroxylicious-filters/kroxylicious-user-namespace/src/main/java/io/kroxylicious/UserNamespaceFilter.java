@@ -1,14 +1,32 @@
 package io.kroxylicious;
 
+import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
-import org.apache.kafka.common.message.ProduceRequestData;
+import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
+import org.apache.kafka.common.message.ConsumerGroupDescribeResponseData;
+import org.apache.kafka.common.message.DescribeGroupsRequestData;
+import org.apache.kafka.common.message.DescribeGroupsResponseData;
+import org.apache.kafka.common.message.FindCoordinatorRequestData;
+import org.apache.kafka.common.message.FindCoordinatorResponseData;
+import org.apache.kafka.common.message.OffsetCommitRequestData;
+import org.apache.kafka.common.message.OffsetCommitResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
+import org.apache.kafka.common.message.ResponseHeaderData;
+import org.apache.kafka.common.protocol.ApiKeys;
+import org.apache.kafka.common.protocol.ApiMessage;
 
+import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.filter.FilterContext;
-import io.kroxylicious.proxy.filter.ProduceRequestFilter;
+import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
-import io.kroxylicious.util.SampleFilterTransformer;
+import io.kroxylicious.proxy.filter.ResponseFilter;
+import io.kroxylicious.proxy.filter.ResponseFilterResult;
+
+import static org.apache.kafka.common.protocol.ApiKeys.CONSUMER_GROUP_DESCRIBE;
+import static org.apache.kafka.common.protocol.ApiKeys.DESCRIBE_GROUPS;
+import static org.apache.kafka.common.protocol.ApiKeys.FIND_COORDINATOR;
+import static org.apache.kafka.common.protocol.ApiKeys.OFFSET_COMMIT;
 
 /**
  * A sample ProduceRequestFilter implementation, intended to demonstrate how custom filters work with
@@ -24,41 +42,96 @@ import io.kroxylicious.util.SampleFilterTransformer;
  * could be further modified to apply different transformations to different topics, or when sent by
  * particular producers.
  */
-class UserNamespaceFilter implements ProduceRequestFilter {
+class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 
     private final UserNamespace.SampleFilterConfig config;
+
+    private final Set<ApiKeys> keys = Set.of(FIND_COORDINATOR, OFFSET_COMMIT, CONSUMER_GROUP_DESCRIBE, DESCRIBE_GROUPS);
 
     UserNamespaceFilter(UserNamespace.SampleFilterConfig config) {
         this.config = config;
     }
 
-    /**
-     * Handle the given request, transforming the data in-place according to the configuration, and returning
-     * the ProduceRequestData instance to be passed to the next filter.
-     *
-     * @param apiVersion the apiVersion of the request
-     * @param header     request header.
-     * @param request    The KRPC message to handle.
-     * @param context    The context.
-     * @return CompletionStage that will yield a {@link RequestFilterResult} containing the request to be forwarded.
-     */
     @Override
-    public CompletionStage<RequestFilterResult> onProduceRequest(short apiVersion, RequestHeaderData header, ProduceRequestData request, FilterContext context) {
-        applyTransformation(request, context);
-        return context.forwardRequest(header, request);
+    public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
+        return keys.contains(apiKey);
     }
 
-    /**
-     * Applies the transformation to the request data.
-     * @param request the request to be transformed
-     * @param context the context
-     */
-    private void applyTransformation(ProduceRequestData request, FilterContext context) {
-        request.topicData().forEach(topicData -> {
-            for (ProduceRequestData.PartitionProduceData partitionData : topicData.partitionData()) {
-                SampleFilterTransformer.transform(partitionData, context, this.config);
-            }
+    @Override
+    public boolean shouldHandleResponse(ApiKeys apiKey, short apiVersion) {
+        return keys.contains(apiKey);
+    }
+
+    @Override
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey, RequestHeaderData header, ApiMessage request, FilterContext context) {
+        var authzId = context.clientSaslContext().map(ClientSaslContext::authorizationId);
+        authzId.ifPresent(aid -> {
+
+            switch (apiKey) {
+                case FIND_COORDINATOR -> {
+                    FindCoordinatorRequestData findCoordinatorRequestData = (FindCoordinatorRequestData) request;
+                    if (findCoordinatorRequestData.keyType() == 0 /* CHECK ME */) {
+                        findCoordinatorRequestData.setCoordinatorKeys(findCoordinatorRequestData.coordinatorKeys().stream().map(k -> aid + "-" + k).toList());
+                    }
+                    System.out.println(findCoordinatorRequestData);
+                }
+                case OFFSET_COMMIT -> {
+                    OffsetCommitRequestData offsetCommitRequestData = (OffsetCommitRequestData) request;
+                    offsetCommitRequestData.setGroupId(aid + "-" + offsetCommitRequestData.groupId());
+                    System.out.println(offsetCommitRequestData);
+                }
+                case CONSUMER_GROUP_DESCRIBE -> {
+                    ConsumerGroupDescribeRequestData consumerGroupDescribeRequestData = (ConsumerGroupDescribeRequestData) request;
+                    consumerGroupDescribeRequestData.setGroupIds(consumerGroupDescribeRequestData.groupIds().stream().map(g -> aid + "-" + g).toList());
+                    System.out.println(consumerGroupDescribeRequestData);
+                }
+                case DESCRIBE_GROUPS -> {
+                    DescribeGroupsRequestData describeGroupsRequestData = (DescribeGroupsRequestData) request;
+                    describeGroupsRequestData.setGroups(describeGroupsRequestData.groups().stream().map(g -> aid + "-" + g).toList());
+                    System.out.println(request);
+                }
+            };
+
         });
+        return  context.forwardRequest(header, request);
     }
 
+    @Override
+    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey, ResponseHeaderData header, ApiMessage response, FilterContext context) {
+        var authzId = context.clientSaslContext().map(ClientSaslContext::authorizationId);
+        authzId.ifPresent(aid -> {
+            switch (apiKey) {
+                case FIND_COORDINATOR -> {
+                    FindCoordinatorResponseData findCoordinatorResponseData = (FindCoordinatorResponseData) response;
+                    findCoordinatorResponseData.coordinators().forEach(
+                            coordinator -> coordinator.setKey(coordinator.key().substring(aid.length() + 1))
+                    );
+                    System.out.println(findCoordinatorResponseData);
+                }
+                case OFFSET_COMMIT -> {
+                    OffsetCommitResponseData offsetCommitResponseData = (OffsetCommitResponseData) response;
+                    System.out.println(response);
+                }
+                case CONSUMER_GROUP_DESCRIBE -> {
+                    ConsumerGroupDescribeResponseData consumerGroupDescribeResponseData = (ConsumerGroupDescribeResponseData) response;
+                    consumerGroupDescribeResponseData.groups().forEach(group -> {
+                        group.setGroupId(group.groupId().substring(aid.length() + 1));
+                    });
+                    System.out.println(response);
+                }
+                case DESCRIBE_GROUPS -> {
+                    DescribeGroupsResponseData describeGroupsResponseData = (DescribeGroupsResponseData) response;
+                    describeGroupsResponseData.groups().forEach(g -> {
+                        g.setGroupId(g.groupId().substring(aid.length() + 1));
+                    });
+                    System.out.println(response);
+                }
+
+
+            };
+
+        });
+
+        return  context.forwardResponse(header, response);
+    }
 }

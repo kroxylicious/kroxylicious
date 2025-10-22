@@ -77,7 +77,7 @@ class UserNamespaceFilterIT {
                 SaslInspection.class.getName(),
                 SaslInspection.class.getName());
 
-        saslInspectionFilter.withConfig("enabledMechanisms", "PLAIN");
+        saslInspectionFilter.withConfig("enabledMechanisms", Set.of("PLAIN"));
         var saslInspection = saslInspectionFilter.build();
 
         var userNamespaceFilter = new NamedFilterDefinitionBuilder(
