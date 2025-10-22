@@ -15,7 +15,8 @@ public class UserNamespace implements FilterFactory<UserNamespace.SampleFilterCo
 
     @Override
     public SampleFilterConfig initialize(FilterFactoryContext context, SampleFilterConfig config) {
-        return Plugins.requireConfig(this, config);
+        //return Plugins.requireConfig(this, config);
+        return config;
     }
 
     @Override
