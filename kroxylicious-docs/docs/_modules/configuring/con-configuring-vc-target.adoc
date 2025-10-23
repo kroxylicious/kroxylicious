@@ -9,21 +9,21 @@
 = Configuring a target cluster
 
 [role="_abstract"]
-The target cluster specifies the physical upstream Kafka cluster which is proxied by the `my-cluster-proxy` virtual cluster.
+The target cluster defines the physical upstream Kafka cluster that is proxied by the `my-cluster-proxy` virtual cluster.
 
-The target cluster configuration has 3 properties.
+The target cluster configuration defines three properties:
 
-1. `bootstrapServers`: Comma-separated list of bootstrap address(es) for the Kafka cluster being proxied.   If the cluster exposes a bootstrap endpoint (as is the case with some cloud-based Kafka services or clusters managed by Strimzi), use that address.  If the cluster does not have a specific bootstrap endpoint (as is the case with a traditional kafka deployment) list the address of several broker nodes. This helps spread the bootstrapping load and also provides better reliability.
+1. `bootstrapServers`: Comma-separated list of bootstrap addresses for the Kafka cluster being proxied.   If the cluster exposes a bootstrap endpoint (as is the case with some cloud-based Kafka services or clusters managed by Strimzi), use that address.  If the cluster does not have a specific bootstrap endpoint (as is the case with a standard Kafka deployment) list the address of several broker nodes. This helps spread the bootstrapping load and improves reliability.
 
-2. `bootstrapServerSelection.strategy`: The bootstrapping process will select one bootstrap server from the list of configured servers.
-This property configures the strategy used for selecting the bootstrap server. +
+2. `bootstrapServerSelection.strategy`: The bootstrapping process selects one bootstrap server from the list of configured servers.
+This property defines the strategy used to select the bootstrap server.
 The following strategies are supported:
-.. `round-robin`: This strategy selects a server from the configured list of servers in a round-robin manner starting from the first server looping back after the last server is selected. This is default strategy used when no strategy is explicitly configured.
+.. `round-robin`: This strategy selects a server from the configured list of servers in a round-robin manner starting from the first server, looping back after the last server is selected. This is the default strategy used when no strategy is explicitly configured.
 .. `random`: This strategy selects a random server from the configured list of servers.
 3. `tls`: TLS configuration for connecting to the target Kafka cluster.
 See xref:con-configuring-vc-target-tls-{context}[Securing connections to target clusters] for more details.
 
-Examples below illustrate the various strategies which can be used for selecting a bootstrap server from the list of addresses configured.
+The following examples illustrate the strategies that can be used for selecting a bootstrap server from the list of  configured addresses.
 
 When multiple bootstrap servers are configured with no bootstrap server selection strategy explicitly configured, the bootstrap server is selected using the `round-robin` strategy.
 
@@ -40,7 +40,7 @@ virtualClusters:
 #...
 ----
 
-The below example illustrates explicitly configuring a bootstrap server selection strategy.
+The following example illustrates how to explicitly configure a bootstrap server selection strategy.
 
 .Example configuring a bootstrap server selection strategy
 [source,yaml]
