@@ -8,6 +8,6 @@ package io.kroxylicious.proxy.config;
 
 import java.util.Optional;
 
-public record NettySettings(Optional<Integer> workerThreadCount, Optional<NettyTransport> nettyTransport) {
+public record NettySettings(Optional<Integer> workerThreadCount) {
 
 }
