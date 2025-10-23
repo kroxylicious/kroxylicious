@@ -196,11 +196,11 @@ class KafkaProxyTest {
         var configParser = new ConfigParser();
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
             proxy.startup();
-
-            var client = HttpClient.newHttpClient();
-            var uri = URI.create("http://localhost:9190/livez");
-            var response = client.send(HttpRequest.newBuilder(uri).GET().build(), HttpResponse.BodyHandlers.discarding());
-            assertThat(response.statusCode()).isEqualTo(200);
+            try (var client = HttpClient.newHttpClient()) {
+                var uri = URI.create("http://localhost:9190/livez");
+                var response = client.send(HttpRequest.newBuilder(uri).GET().build(), HttpResponse.BodyHandlers.discarding());
+                assertThat(response.statusCode()).isEqualTo(200);
+            }
         }
     }
 
