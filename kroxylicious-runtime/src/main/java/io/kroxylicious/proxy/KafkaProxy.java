@@ -206,21 +206,10 @@ public final class KafkaProxy implements AutoCloseable {
     }
 
     private Integer resolveThreadCount(Function<NetworkDefinition, NettySettings> settingsSupplier) {
-        Optional<Integer> result;
-        NetworkDefinition network = config.network();
-        if (Objects.isNull(network)) {
-            result = Optional.empty();
-        }
-        else {
-            NettySettings nettySettings = settingsSupplier.apply(network);
-            if (Objects.isNull(nettySettings)) {
-                result = Optional.empty();
-            }
-            else {
-                result = nettySettings.workerThreadCount();
-            }
-        }
-        return result.orElse(Runtime.getRuntime().availableProcessors());
+        return Optional.ofNullable(config.network())
+                .map(settingsSupplier)
+                .flatMap(NettySettings::workerThreadCount)
+                .orElse(Runtime.getRuntime().availableProcessors());
     }
 
     private void initVersionInfoMetric() {
