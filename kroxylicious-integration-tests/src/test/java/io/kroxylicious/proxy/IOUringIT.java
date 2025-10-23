@@ -36,7 +36,7 @@ class IOUringIT extends BaseIT {
     @Test
     void proxyUsingIOUring(KafkaCluster cluster, Topic topic) throws Exception {
 
-        var proxy = proxy(cluster).withUseIoUring();
+        var proxy = proxy(cluster).withUseIoUring().withNewNetwork().withNewProxy().withWorkerThreadCount(2).endProxy().endNetwork();
 
         try (var tester = kroxyliciousTester(proxy);
                 var producer = tester.producer();

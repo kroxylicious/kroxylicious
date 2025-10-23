@@ -12,6 +12,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.stream.Stream;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayNameGeneration;
 import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Nested;
@@ -36,6 +37,7 @@ import io.netty.incubator.channel.uring.IOUringServerSocketChannel;
 import io.kroxylicious.proxy.config.ConfigParser;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
+import io.kroxylicious.proxy.config.NetworkDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.internal.config.Features;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
@@ -44,6 +46,25 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KafkaProxyTest {
+
+    private final static String MINIMAL_CONFIG_YAML = """
+               management:
+                port: 9190
+               virtualClusters:
+                 - name: demo1
+                   targetCluster:
+                     bootstrapServers: kafka.example:1234
+                   gateways:
+                   - name: default
+                     portIdentifiesNode:
+                       bootstrapAddress: localhost:9192
+            """;
+    private ConfigParser configParser;
+
+    @BeforeEach
+    void setUp() {
+        configParser = new ConfigParser();
+    }
 
     @Test
     void shouldFailToStartIfRequireFilterConfigIsMissing() throws Exception {
@@ -62,7 +83,6 @@ class KafkaProxyTest {
                    defaultFilters:
                    - filter1
                 """;
-        var configParser = new ConfigParser();
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
             assertThatThrownBy(kafkaProxy::startup)
                     .isInstanceOf(PluginConfigurationException.class)
@@ -114,7 +134,6 @@ class KafkaProxyTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void detectsConflictingPorts(String name, String config, String expectedMessage) throws Exception {
-        ConfigParser configParser = new ConfigParser();
         try (var kafkaProxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
             assertThatThrownBy(kafkaProxy::startup).hasMessageContaining(expectedMessage);
         }
@@ -138,8 +157,6 @@ class KafkaProxyTest {
     @ParameterizedTest(name = "{0}")
     @MethodSource
     void missingTls(String name, String config, String expectedMessage) {
-        ConfigParser configParser = new ConfigParser();
-
         assertThatThrownBy(() -> configParser.parseConfiguration(config))
                 .hasStackTraceContaining(expectedMessage);
     }
@@ -172,7 +189,7 @@ class KafkaProxyTest {
                      a: b
                 """;
 
-        var configuration = new ConfigParser().parseConfiguration(config);
+        var configuration = configParser.parseConfiguration(config);
         Features features = Features.defaultFeatures();
         assertThatThrownBy(() -> KafkaProxy.validate(configuration, features))
                 .isInstanceOf(IllegalConfigurationException.class)
@@ -181,6 +198,19 @@ class KafkaProxyTest {
 
     @Test
     void supportsLivezEndpoint() throws Exception {
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMAL_CONFIG_YAML), Features.defaultFeatures())) {
+            proxy.startup();
+            @SuppressWarnings("resource") // it's not auto closable in java 17
+            var client = HttpClient.newHttpClient();
+            var uri = URI.create("http://localhost:9190/livez");
+            var response = client.send(HttpRequest.newBuilder(uri).GET().build(), HttpResponse.BodyHandlers.discarding());
+            assertThat(response.statusCode()).isEqualTo(200);
+        }
+    }
+
+    @SuppressWarnings("resource")
+    @Test
+    void shouldDefaultManagementThreadCountWhenNoNetworkNodePresent() throws Exception {
         var config = """
                    management:
                     port: 9190
@@ -193,14 +223,64 @@ class KafkaProxyTest {
                          portIdentifiesNode:
                            bootstrapAddress: localhost:9192
                 """;
-        var configParser = new ConfigParser();
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
             proxy.startup();
 
-            var client = HttpClient.newHttpClient();
-            var uri = URI.create("http://localhost:9190/livez");
-            var response = client.send(HttpRequest.newBuilder(uri).GET().build(), HttpResponse.BodyHandlers.discarding());
-            assertThat(response.statusCode()).isEqualTo(200);
+            assertThat(proxy.managementEventGroup())
+                    .satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
+                            .hasSize(Runtime.getRuntime().availableProcessors()));
+        }
+    }
+
+    @SuppressWarnings("resource")
+    @Test
+    void shouldDefaultManagementThreadCountWhenNetworkNodePresentWithoutManagementSettings() throws Exception {
+        var config = """
+                   management:
+                    port: 9190
+                   network:
+                    proxy:
+                      workerThreadCount: 2
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                """;
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+            proxy.startup();
+
+            assertThat(proxy.managementEventGroup())
+                    .satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
+                            .hasSize(Runtime.getRuntime().availableProcessors()));
+        }
+    }
+
+    @SuppressWarnings("resource")
+    @Test
+    void shouldUseConfiguredManagementThreadCount() throws Exception {
+        var config = """
+                   management:
+                    port: 9190
+                   network:
+                    management:
+                      workerThreadCount: 2
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                """;
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+            proxy.startup();
+
+            assertThat(proxy.managementEventGroup()).satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable().hasSize(2));
         }
     }
 
@@ -208,13 +288,20 @@ class KafkaProxyTest {
     @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
     class EventGroupConfigTest {
 
+        private Configuration configuration;
+
+        @BeforeEach
+        void setUp() {
+            configuration = configParser.parseConfiguration(MINIMAL_CONFIG_YAML);
+        }
+
         @Test
         void build_whenIoUringIsConfiguredToBeUsedAndAvailable_shouldUseIoUring() {
             // the constructor is mocked since native classes used in actual constructors can be unavailable based on the test infra
             try (var mockIOUring = Mockito.mockStatic(IOUring.class);
                     var mockGroupConstructor = Mockito.mockConstruction(IOUringEventLoopGroup.class)) {
                 mockIOUring.when(IOUring::isAvailable).thenReturn(true);
-                final var config = KafkaProxy.EventGroupConfig.build("test", 1, true);
+                final var config = KafkaProxy.EventGroupConfig.build("test", configuration, NetworkDefinition::proxy, true);
                 assertThat(config.bossGroup()).isInstanceOf(IOUringEventLoopGroup.class);
                 assertThat(config.workerGroup()).isInstanceOf(IOUringEventLoopGroup.class);
                 assertThat(config.clazz()).isEqualTo(IOUringServerSocketChannel.class);
@@ -228,7 +315,8 @@ class KafkaProxyTest {
                 mockIOUring.when(IOUring::isAvailable).thenReturn(false);
                 // noinspection ResultOfMethodCallIgnored
                 mockIOUring.when(IOUring::unavailabilityCause).thenReturn(new Throwable());
-                assertThatThrownBy(() -> KafkaProxy.EventGroupConfig.build("test", 1, true)).isInstanceOf(IllegalStateException.class);
+                assertThatThrownBy(() -> KafkaProxy.EventGroupConfig.build("test", configuration, NetworkDefinition::proxy, true))
+                        .isInstanceOf(IllegalStateException.class);
             }
         }
 
@@ -237,7 +325,7 @@ class KafkaProxyTest {
             try (var mockEpoll = Mockito.mockStatic(Epoll.class);
                     var mockGroupConstructor = Mockito.mockConstruction(EpollEventLoopGroup.class)) {
                 mockEpoll.when(Epoll::isAvailable).thenReturn(true);
-                final var config = KafkaProxy.EventGroupConfig.build("test", 1, false);
+                final var config = KafkaProxy.EventGroupConfig.build("test", configuration, NetworkDefinition::proxy, false);
                 assertThat(config.bossGroup()).isInstanceOf(EpollEventLoopGroup.class);
                 assertThat(config.workerGroup()).isInstanceOf(EpollEventLoopGroup.class);
                 assertThat(config.clazz()).isEqualTo(EpollServerSocketChannel.class);
@@ -252,7 +340,7 @@ class KafkaProxyTest {
                     var mockGroupConstructor = Mockito.mockConstruction(KQueueEventLoopGroup.class)) {
                 mockEpoll.when(Epoll::isAvailable).thenReturn(false);
                 mockKQueue.when(KQueue::isAvailable).thenReturn(true);
-                final var config = KafkaProxy.EventGroupConfig.build("test", 1, false);
+                final var config = KafkaProxy.EventGroupConfig.build("test", configuration, NetworkDefinition::proxy, false);
                 assertThat(config.bossGroup()).isInstanceOf(KQueueEventLoopGroup.class);
                 assertThat(config.workerGroup()).isInstanceOf(KQueueEventLoopGroup.class);
                 assertThat(config.clazz()).isEqualTo(KQueueServerSocketChannel.class);
@@ -267,7 +355,7 @@ class KafkaProxyTest {
                     var mockGroupConstructor = Mockito.mockConstruction(NioEventLoopGroup.class)) {
                 mockEpoll.when(Epoll::isAvailable).thenReturn(false);
                 mockKQueue.when(KQueue::isAvailable).thenReturn(false);
-                final var config = KafkaProxy.EventGroupConfig.build("test", 1, false);
+                final var config = KafkaProxy.EventGroupConfig.build("test", configuration, NetworkDefinition::proxy, false);
                 assertThat(config.bossGroup()).isInstanceOf(NioEventLoopGroup.class);
                 assertThat(config.workerGroup()).isInstanceOf(NioEventLoopGroup.class);
                 assertThat(config.clazz()).isEqualTo(NioServerSocketChannel.class);

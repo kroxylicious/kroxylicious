@@ -36,8 +36,9 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * @param micrometer The micrometer config
  * @param useIoUring true to use iouring
  * @param development Development options
+ * @param network Controls aspects of network configuration for the proxy.
  */
-@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development" })
+@JsonPropertyOrder({ "management", "filterDefinitions", "defaultFilters", "virtualClusters", "micrometer", "useIoUring", "development", "network" })
 public record Configuration(
                             @Nullable ManagementConfiguration management,
                             @Nullable List<NamedFilterDefinition> filterDefinitions,
@@ -45,7 +46,8 @@ public record Configuration(
                             @JsonProperty(required = true) List<VirtualCluster> virtualClusters,
                             @Nullable List<MicrometerDefinition> micrometer,
                             boolean useIoUring,
-                            Optional<Map<String, Object>> development) {
+                            Optional<Map<String, Object>> development,
+                            @Nullable NetworkDefinition network) {
 
     /**
      * Creates an instance of configuration.
