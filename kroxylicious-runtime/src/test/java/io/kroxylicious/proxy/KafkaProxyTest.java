@@ -223,8 +223,10 @@ class KafkaProxyTest {
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
             proxy.startup();
 
-            assertThat(proxy.managementEventGroup()).satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable().hasSize(Runtime.getRuntime()
-                    .availableProcessors()) );
+            assertThat(proxy.managementEventGroup())
+                    .satisfies(eventGroupConfig ->
+                            assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
+                                    .hasSize(Runtime.getRuntime().availableProcessors()));
         }
     }
 
@@ -250,8 +252,10 @@ class KafkaProxyTest {
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
             proxy.startup();
 
-            assertThat(proxy.managementEventGroup()).satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable().hasSize(Runtime.getRuntime()
-                    .availableProcessors()) );
+            assertThat(proxy.managementEventGroup())
+                    .satisfies(eventGroupConfig ->
+                            assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
+                                    .hasSize(Runtime.getRuntime().availableProcessors()));
         }
     }
 
@@ -277,7 +281,7 @@ class KafkaProxyTest {
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
             proxy.startup();
 
-            assertThat(proxy.managementEventGroup()).satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable().hasSize(2) );
+            assertThat(proxy.managementEventGroup()).satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable().hasSize(2));
         }
     }
 
