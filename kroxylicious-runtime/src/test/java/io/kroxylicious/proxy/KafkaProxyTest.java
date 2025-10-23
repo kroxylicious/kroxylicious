@@ -47,7 +47,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class KafkaProxyTest {
 
-    private final String MINIMAL_CONFIG_YAML = """
+    private final static String MINIMAL_CONFIG_YAML = """
                management:
                 port: 9190
                virtualClusters:
@@ -288,13 +288,20 @@ class KafkaProxyTest {
     @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
     class EventGroupConfigTest {
 
+        private Configuration configuration;
+
+        @BeforeEach
+        void setUp() {
+            configuration = configParser.parseConfiguration(MINIMAL_CONFIG_YAML);
+        }
+
         @Test
         void build_whenIoUringIsConfiguredToBeUsedAndAvailable_shouldUseIoUring() {
             // the constructor is mocked since native classes used in actual constructors can be unavailable based on the test infra
             try (var mockIOUring = Mockito.mockStatic(IOUring.class);
                     var mockGroupConstructor = Mockito.mockConstruction(IOUringEventLoopGroup.class)) {
                 mockIOUring.when(IOUring::isAvailable).thenReturn(true);
-                final var config = KafkaProxy.EventGroupConfig.build("test", configParser.parseConfiguration(MINIMAL_CONFIG_YAML), NetworkDefinition::proxy, true);
+                final var config = KafkaProxy.EventGroupConfig.build("test", configuration, NetworkDefinition::proxy, true);
                 assertThat(config.bossGroup()).isInstanceOf(IOUringEventLoopGroup.class);
                 assertThat(config.workerGroup()).isInstanceOf(IOUringEventLoopGroup.class);
                 assertThat(config.clazz()).isEqualTo(IOUringServerSocketChannel.class);
@@ -308,7 +315,7 @@ class KafkaProxyTest {
                 mockIOUring.when(IOUring::isAvailable).thenReturn(false);
                 // noinspection ResultOfMethodCallIgnored
                 mockIOUring.when(IOUring::unavailabilityCause).thenReturn(new Throwable());
-                assertThatThrownBy(() -> KafkaProxy.EventGroupConfig.build("test", configParser.parseConfiguration(MINIMAL_CONFIG_YAML), NetworkDefinition::proxy, true))
+                assertThatThrownBy(() -> KafkaProxy.EventGroupConfig.build("test", configuration, NetworkDefinition::proxy, true))
                         .isInstanceOf(IllegalStateException.class);
             }
         }
@@ -318,7 +325,7 @@ class KafkaProxyTest {
             try (var mockEpoll = Mockito.mockStatic(Epoll.class);
                     var mockGroupConstructor = Mockito.mockConstruction(EpollEventLoopGroup.class)) {
                 mockEpoll.when(Epoll::isAvailable).thenReturn(true);
-                final var config = KafkaProxy.EventGroupConfig.build("test", configParser.parseConfiguration(MINIMAL_CONFIG_YAML), NetworkDefinition::proxy, false);
+                final var config = KafkaProxy.EventGroupConfig.build("test", configuration, NetworkDefinition::proxy, false);
                 assertThat(config.bossGroup()).isInstanceOf(EpollEventLoopGroup.class);
                 assertThat(config.workerGroup()).isInstanceOf(EpollEventLoopGroup.class);
                 assertThat(config.clazz()).isEqualTo(EpollServerSocketChannel.class);
@@ -333,7 +340,7 @@ class KafkaProxyTest {
                     var mockGroupConstructor = Mockito.mockConstruction(KQueueEventLoopGroup.class)) {
                 mockEpoll.when(Epoll::isAvailable).thenReturn(false);
                 mockKQueue.when(KQueue::isAvailable).thenReturn(true);
-                final var config = KafkaProxy.EventGroupConfig.build("test", configParser.parseConfiguration(MINIMAL_CONFIG_YAML), NetworkDefinition::proxy, false);
+                final var config = KafkaProxy.EventGroupConfig.build("test", configuration, NetworkDefinition::proxy, false);
                 assertThat(config.bossGroup()).isInstanceOf(KQueueEventLoopGroup.class);
                 assertThat(config.workerGroup()).isInstanceOf(KQueueEventLoopGroup.class);
                 assertThat(config.clazz()).isEqualTo(KQueueServerSocketChannel.class);
@@ -348,7 +355,7 @@ class KafkaProxyTest {
                     var mockGroupConstructor = Mockito.mockConstruction(NioEventLoopGroup.class)) {
                 mockEpoll.when(Epoll::isAvailable).thenReturn(false);
                 mockKQueue.when(KQueue::isAvailable).thenReturn(false);
-                final var config = KafkaProxy.EventGroupConfig.build("test", configParser.parseConfiguration(MINIMAL_CONFIG_YAML), NetworkDefinition::proxy, false);
+                final var config = KafkaProxy.EventGroupConfig.build("test", configuration, NetworkDefinition::proxy, false);
                 assertThat(config.bossGroup()).isInstanceOf(NioEventLoopGroup.class);
                 assertThat(config.workerGroup()).isInstanceOf(NioEventLoopGroup.class);
                 assertThat(config.clazz()).isEqualTo(NioServerSocketChannel.class);
