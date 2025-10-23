@@ -548,6 +548,7 @@
                                     <exclude>**/.dontdelete</exclude>
                                     <exclude>**/goal.txt</exclude>
                                     <exclude>**/.jbang/**</exclude>
+                                    <exclude>**/*.bicep</exclude>
                                     <exclude>docs/**</exclude>
                                     <exclude>**/*.adoc</exclude>
                                     <exclude>src/main/resources/archetype-resources/**</exclude>
