@@ -45,7 +45,7 @@ public record Configuration(
                             @Nullable List<String> defaultFilters,
                             @JsonProperty(required = true) List<VirtualCluster> virtualClusters,
                             @Nullable List<MicrometerDefinition> micrometer,
-                            @Deprecated boolean useIoUring,
+                            boolean useIoUring,
                             Optional<Map<String, Object>> development,
                             @Nullable NetworkDefinition network) {
 
