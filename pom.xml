@@ -33,6 +33,7 @@
         <jacoco.argline/>
 
         <skipTests>false</skipTests>
+        <skipDTs>${skipTests}</skipDTs>
         <skipKTs>${skipTests}</skipKTs>
         <skipITs>${skipTests}</skipITs>
         <skipUTs>${skipTests}</skipUTs>
