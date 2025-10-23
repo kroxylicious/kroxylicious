@@ -33,10 +33,12 @@
         <jacoco.argline/>
 
         <skipTests>false</skipTests>
+        <skipKTs>${skipTests}</skipKTs>
         <skipITs>${skipTests}</skipITs>
         <skipUTs>${skipTests}</skipUTs>
         <skipSTs>true</skipSTs>
         <skipDocs>true</skipDocs>
+        <skipDocker>false</skipDocker>
 
         <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
 
@@ -1320,6 +1322,18 @@
             <id>dist</id>
             <properties>
                 <skipDocs>false</skipDocs>
+            </properties>
+        </profile>
+        <profile>
+            <id>skipDocker</id>
+            <activation>
+                <property>
+                    <name>skipDocker</name>
+                    <value>true</value>
+                </property>
+            </activation>
+            <properties>
+                <skipKTs>true</skipKTs>
             </properties>
         </profile>
         <profile>

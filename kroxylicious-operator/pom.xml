@@ -330,10 +330,6 @@
     <profiles>
         <profile>
             <id>dist</id>
-            <properties>
-                <skipDocker>false</skipDocker>
-                <skipKTs>${skipDocker}</skipKTs>
-            </properties>
             <build>
                 <plugins>
                     <plugin>
