@@ -9,10 +9,10 @@ Format `<github issue/pr number>: <short description>`.
 
 * [#2580](https://github.com/kroxylicious/kroxylicious/issues/2580): Add an Azure Key Vault KMS implementation for Record Encryption
 * [#2759](https://github.com/kroxylicious/kroxylicious/pull/2759): Remove kroxylicious-sample and document how to use io.kroxylicious:kroxylicious-filter-archetype
-* [#2671](https://github.com/kroxylicious/kroxylicious/pull/2671): SASL inspection filter supoporting PLAIN, SCRAM-SHA-256 and SCRAM-SHA-512.
+* [#2671](https://github.com/kroxylicious/kroxylicious/pull/2671): SASL inspection filter supporting PLAIN, SCRAM-SHA-256 and SCRAM-SHA-512.
 * [#2681](https://github.com/kroxylicious/kroxylicious/pull/2681): Create a maven archetype for filter development io.kroxylicious:kroxylicious-filter-archetype
 * [#2778](https://github.com/kroxylicious/kroxylicious/pull/2778): The proxy now allocates a sessionId to connect client and server channels for logging purposes. Allowing users to track activity between downstream and upstream channels.
-
+* [#143](https://github.com/kroxylicious/kroxylicious/issues/143): Add support for Netty metrics
 
 ## 0.16.0
 
