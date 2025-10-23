@@ -204,6 +204,83 @@ class KafkaProxyTest {
         }
     }
 
+    @SuppressWarnings("resource")
+    @Test
+    void shouldDefaultManagementThreadCountWhenNoNetworkNodePresent() throws Exception {
+        var config = """
+                   management:
+                    port: 9190
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                """;
+        var configParser = new ConfigParser();
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+            proxy.startup();
+
+            assertThat(proxy.managementEventGroup()).satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable().hasSize(Runtime.getRuntime()
+                    .availableProcessors()) );
+        }
+    }
+
+    @SuppressWarnings("resource")
+    @Test
+    void shouldDefaultManagementThreadCountWhenNetworkNodePresentWithoutManagementSettings() throws Exception {
+        var config = """
+                   management:
+                    port: 9190
+                   network:
+                    proxy:
+                      workerThreadCount: 2
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                """;
+        var configParser = new ConfigParser();
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+            proxy.startup();
+
+            assertThat(proxy.managementEventGroup()).satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable().hasSize(Runtime.getRuntime()
+                    .availableProcessors()) );
+        }
+    }
+
+    @SuppressWarnings("resource")
+    @Test
+    void shouldUseConfiguredManagementThreadCount() throws Exception {
+        var config = """
+                   management:
+                    port: 9190
+                   network:
+                    management:
+                      workerThreadCount: 2
+                   virtualClusters:
+                     - name: demo1
+                       targetCluster:
+                         bootstrapServers: kafka.example:1234
+                       gateways:
+                       - name: default
+                         portIdentifiesNode:
+                           bootstrapAddress: localhost:9192
+                """;
+        var configParser = new ConfigParser();
+        try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
+            proxy.startup();
+
+            assertThat(proxy.managementEventGroup()).satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable().hasSize(2) );
+        }
+    }
+
     @Nested
     @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
     class EventGroupConfigTest {

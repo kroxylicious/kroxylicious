@@ -13,6 +13,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -43,6 +44,7 @@ import io.kroxylicious.proxy.bootstrap.FilterChainFactory;
 import io.kroxylicious.proxy.config.Configuration;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.MicrometerDefinition;
+import io.kroxylicious.proxy.config.NettySettings;
 import io.kroxylicious.proxy.config.NetworkDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
 import io.kroxylicious.proxy.config.admin.ManagementConfiguration;
@@ -126,6 +128,18 @@ public final class KafkaProxy implements AutoCloseable {
         return config;
     }
 
+    @VisibleForTesting
+    @Nullable
+    EventGroupConfig managementEventGroup() {
+        return managementEventGroup;
+    }
+
+    @VisibleForTesting
+    @Nullable
+    EventGroupConfig serverEventGroup() {
+        return serverEventGroup;
+    }
+
     /**
      * Starts this proxy.
      * @return This proxy.
@@ -145,10 +159,11 @@ public final class KafkaProxy implements AutoCloseable {
                     .map(c -> new HostPort(c.getEffectiveBindAddress(), c.getEffectivePort()));
             portConflictDefector.validate(virtualClusterModels, managementHostPort);
 
-            int availableCores = resolveThreadCount().orElse(Runtime.getRuntime().availableProcessors());
+            int proxyWorkerThreadCount = resolveThreadCount(NetworkDefinition::proxy);
+            int managementWorkerThreadCount = resolveThreadCount(NetworkDefinition::management);
 
-            this.managementEventGroup = EventGroupConfig.build("management", availableCores, config.isUseIoUring());
-            this.serverEventGroup = EventGroupConfig.build("server", availableCores, config.isUseIoUring());
+            this.managementEventGroup = EventGroupConfig.build("management", managementWorkerThreadCount, config.isUseIoUring());
+            this.serverEventGroup = EventGroupConfig.build("proxy", proxyWorkerThreadCount, config.isUseIoUring());
 
             enableNettyMetrics(managementEventGroup, serverEventGroup);
 
@@ -190,19 +205,22 @@ public final class KafkaProxy implements AutoCloseable {
         }
     }
 
-    private Optional<Integer> resolveThreadCount() {
+    private Integer resolveThreadCount(Function<NetworkDefinition, NettySettings> settingsSupplier) {
         Optional<Integer> result;
         NetworkDefinition network = config.network();
         if (Objects.isNull(network)) {
             result = Optional.empty();
         }
-        else if (Objects.isNull(network.proxy())) {
-            result = Optional.empty();
-        }
         else {
-            result = network.proxy().workerThreadCount();
+            NettySettings nettySettings = settingsSupplier.apply(network);
+            if (Objects.isNull(nettySettings)) {
+                result = Optional.empty();
+            }
+            else {
+                result = nettySettings.workerThreadCount();
+            }
         }
-        return result;
+        return result.orElse(Runtime.getRuntime().availableProcessors());
     }
 
     private void initVersionInfoMetric() {
