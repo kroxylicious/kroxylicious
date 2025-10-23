@@ -20,6 +20,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
@@ -66,10 +67,27 @@ public final class KafkaProxy implements AutoCloseable {
     private static final Logger LOGGER = LoggerFactory.getLogger(KafkaProxy.class);
     private static final Logger STARTUP_SHUTDOWN_LOGGER = LoggerFactory.getLogger("io.kroxylicious.proxy.StartupShutdownLogger");
 
-    private record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
+    @VisibleForTesting
+    record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
 
         public List<Future<?>> shutdownGracefully() {
             return List.of(bossGroup.shutdownGracefully(), workerGroup.shutdownGracefully());
+        }
+
+        public static EventGroupConfig build(String name, int availableCores, boolean useIoUring) {
+            if (useIoUring) {
+                if (!IOUring.isAvailable()) {
+                    throw new IllegalStateException("io_uring not available due to: " + IOUring.unavailabilityCause());
+                }
+                return new EventGroupConfig(name, new IOUringEventLoopGroup(1), new IOUringEventLoopGroup(availableCores), IOUringServerSocketChannel.class);
+            }
+            if (Epoll.isAvailable()) {
+                return new EventGroupConfig(name, new EpollEventLoopGroup(1), new EpollEventLoopGroup(availableCores), EpollServerSocketChannel.class);
+            }
+            if (KQueue.isAvailable()) {
+                return new EventGroupConfig(name, new KQueueEventLoopGroup(1), new KQueueEventLoopGroup(availableCores), KQueueServerSocketChannel.class);
+            }
+            return new EventGroupConfig(name, new NioEventLoopGroup(1), new NioEventLoopGroup(availableCores), NioServerSocketChannel.class);
         }
     }
 
@@ -127,8 +145,10 @@ public final class KafkaProxy implements AutoCloseable {
 
             var availableCores = Runtime.getRuntime().availableProcessors();
 
-            this.managementEventGroup = buildNettyEventGroups("management", availableCores, config.isUseIoUring());
-            this.serverEventGroup = buildNettyEventGroups("server", availableCores, config.isUseIoUring());
+            this.managementEventGroup = EventGroupConfig.build("management", availableCores, config.isUseIoUring());
+            this.serverEventGroup = EventGroupConfig.build("server", availableCores, config.isUseIoUring());
+
+            enableNettyMetrics(managementEventGroup, serverEventGroup);
 
             var managementFuture = maybeStartManagementListener(managementEventGroup, meterRegistries);
 
@@ -161,6 +181,13 @@ public final class KafkaProxy implements AutoCloseable {
         }
     }
 
+    private void enableNettyMetrics(final EventGroupConfig... eventGroups) {
+        Metrics.bindNettyAllocatorMetrics(ByteBufAllocator.DEFAULT);
+        for (final var group : eventGroups) {
+            Metrics.bindNettyEventExecutorMetrics(group.bossGroup(), group.workerGroup());
+        }
+    }
+
     private void initVersionInfoMetric() {
         Metrics.versionInfoMetric(VersionInfo.VERSION_INFO);
     }
@@ -184,37 +211,6 @@ public final class KafkaProxy implements AutoCloseable {
                 .option(ChannelOption.SO_REUSEADDR, true)
                 .childHandler(kafkaProxyInitializer)
                 .childOption(ChannelOption.TCP_NODELAY, true);
-    }
-
-    private EventGroupConfig buildNettyEventGroups(String name, int availableCores, boolean useIoUring) {
-        final Class<? extends ServerChannel> channelClass;
-        final EventLoopGroup bossGroup;
-        final EventLoopGroup workerGroup;
-
-        if (useIoUring) {
-            if (!IOUring.isAvailable()) {
-                throw new IllegalStateException("io_uring not available due to: " + IOUring.unavailabilityCause());
-            }
-            bossGroup = new IOUringEventLoopGroup(1);
-            workerGroup = new IOUringEventLoopGroup(availableCores);
-            channelClass = IOUringServerSocketChannel.class;
-        }
-        else if (Epoll.isAvailable()) {
-            bossGroup = new EpollEventLoopGroup(1);
-            workerGroup = new EpollEventLoopGroup(availableCores);
-            channelClass = EpollServerSocketChannel.class;
-        }
-        else if (KQueue.isAvailable()) {
-            bossGroup = new KQueueEventLoopGroup(1);
-            workerGroup = new KQueueEventLoopGroup(availableCores);
-            channelClass = KQueueServerSocketChannel.class;
-        }
-        else {
-            bossGroup = new NioEventLoopGroup(1);
-            workerGroup = new NioEventLoopGroup(availableCores);
-            channelClass = NioServerSocketChannel.class;
-        }
-        return new EventGroupConfig(name, bossGroup, workerGroup, channelClass);
     }
 
     private CompletableFuture<Void> maybeStartManagementListener(EventGroupConfig eventGroupConfig, MeterRegistries meterRegistries) {
