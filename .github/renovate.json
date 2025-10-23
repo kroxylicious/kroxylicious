@@ -162,6 +162,17 @@
       ],
       "depNameTemplate": "strimzi/strimzi-kafka-operator",
       "datasourceTemplate": "github-releases"
+    },
+    {
+      "customType": "regex",
+      "fileMatch": [
+        "performance-tests/perf-tests.sh"
+      ],
+      "matchStrings": [
+        "AP_LOADER_JAR_VERSION=(?<currentValue>\\d+\\.\\d+-\\d+)"
+      ],
+      "depNameTemplate": "me.bechberger:ap-loader-all",
+      "datasourceTemplate": "maven"
     }
   ]
 }
