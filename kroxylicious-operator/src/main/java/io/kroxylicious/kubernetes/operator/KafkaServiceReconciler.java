@@ -100,7 +100,7 @@ public final class KafkaServiceReconciler implements
         // TODO we want to revisit this as we are currently making
         // to make numerous API calls to check if it exists
         if (apiGroup != null) {
-            LOGGER.debug("Adding `kafkas.strimzi.io.kafkas` informer because the Strimzi Kafka CRD is present: {}", context.getClient().getNamespace());
+            LOGGER.debug("Adding `kafkas.strimzi.io.kafkas` informer because the Strimzi Kafka CRD is present in namespace: {}", context.getClient().getNamespace());
             InformerEventSourceConfiguration<Kafka> serviceToStrimziKafka = InformerEventSourceConfiguration.from(
                     Kafka.class,
                     KafkaService.class)
@@ -223,7 +223,8 @@ public final class KafkaServiceReconciler implements
                         checksumGenerator.encode(), status.getBootstrapServers()))
                         .orElseGet(() -> statusFactory.newFalseConditionStatusPatch(service, ResolvedRefs,
                                 Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED,
-                                "Referenced resource has not yet reconciled listener name: "));
+                                "Referenced resource has not yet reconciled listener name: "
+                                        + service.getSpec().getStrimziKafkaRef().getListenerName()));
             }
             else {
                 updatedService = statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs, checksumGenerator.encode(), service.getSpec().getBootstrapServers());
