@@ -196,11 +196,11 @@ class KafkaProxyTest {
         var configParser = new ConfigParser();
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(config), Features.defaultFeatures())) {
             proxy.startup();
-            try (var client = HttpClient.newHttpClient()) {
-                var uri = URI.create("http://localhost:9190/livez");
-                var response = client.send(HttpRequest.newBuilder(uri).GET().build(), HttpResponse.BodyHandlers.discarding());
-                assertThat(response.statusCode()).isEqualTo(200);
-            }
+            @SuppressWarnings("resource") // it's not auto closable in java 17
+            var client = HttpClient.newHttpClient();
+            var uri = URI.create("http://localhost:9190/livez");
+            var response = client.send(HttpRequest.newBuilder(uri).GET().build(), HttpResponse.BodyHandlers.discarding());
+            assertThat(response.statusCode()).isEqualTo(200);
         }
     }
 
@@ -224,9 +224,8 @@ class KafkaProxyTest {
             proxy.startup();
 
             assertThat(proxy.managementEventGroup())
-                    .satisfies(eventGroupConfig ->
-                            assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
-                                    .hasSize(Runtime.getRuntime().availableProcessors()));
+                    .satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
+                            .hasSize(Runtime.getRuntime().availableProcessors()));
         }
     }
 
@@ -253,9 +252,8 @@ class KafkaProxyTest {
             proxy.startup();
 
             assertThat(proxy.managementEventGroup())
-                    .satisfies(eventGroupConfig ->
-                            assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
-                                    .hasSize(Runtime.getRuntime().availableProcessors()));
+                    .satisfies(eventGroupConfig -> assertThat(eventGroupConfig.workerGroup().iterator()).toIterable()
+                            .hasSize(Runtime.getRuntime().availableProcessors()));
         }
     }
 
