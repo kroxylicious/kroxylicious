@@ -25,7 +25,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
 * A filter that adds headers to produced records with information from the
-* {@linkplain FilterContext#clientTlsContext() TLS} and 
+* {@linkplain FilterContext#clientTlsContext() TLS} and
 * {@linkplain FilterContext#clientSaslContext() SASL} context, if present.
  * Tests can consume the produced records and assert that those records have the expected header values.
  */

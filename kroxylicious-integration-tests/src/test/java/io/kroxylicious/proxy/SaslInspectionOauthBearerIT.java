@@ -19,7 +19,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.KafkaFuture;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.security.oauthbearer.OAuthBearerLoginModule;
-import org.apache.kafka.common.serialization.Serdes;
+import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -118,40 +118,36 @@ class SaslInspectionOauthBearerIT extends BaseOauthBearerIT {
     @Test
     @SuppressWarnings("java:S2925") // Can't test Kafka re-auth (KIP-368) without Thread#sleep.
     void shouldReauthenticateSuccessfully(@SaslMechanism(value = OAuthBearerLoginModule.OAUTHBEARER_MECHANISM) @BrokerConfig(name = "connections.max.reauth.ms", value = "5000") @BrokerConfig(name = "listener.name.external.oauthbearer.sasl.server.callback.handler.class", value = "org.apache.kafka.common.security.oauthbearer.OAuthBearerValidatorCallbackHandler") @BrokerConfig(name = "listener.name.external.sasl.oauthbearer.jwt.validator.class", value = "org.apache.kafka.common.security.oauthbearer.BrokerJwtValidator") @BrokerConfig(name = "listener.name.external.sasl.oauthbearer.jwks.endpoint.url", value = JWKS_ENDPOINT_URL) @BrokerConfig(name = "listener.name.external.sasl.oauthbearer.expected.audience", value = EXPECTED_AUDIENCE) KafkaCluster cluster,
-                                          Topic topic)
-            throws Exception {
+                                          Topic topic) {
 
         var config = getConfiguredProxyBuilder(cluster);
 
-        try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(getProducerConfig());
-                var consumer = tester
-                        .consumer(Serdes.String(), Serdes.ByteArray(), getConsumerConfig())) {
-            int batchNumOneBased = 1;
-            while (batchNumOneBased <= 2) {
-                assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
-                        .succeedsWithin(Duration.ofSeconds(5));
+        try (var tester = kroxyliciousTester(config)) {
 
-                consumer.subscribe(Set.of(topic.name()));
-                var records = consumer.poll(Duration.ofSeconds(10));
-
-                assertThat(records).hasSize(1);
-                var recordHeaders = assertThat(records.records(topic.name()))
+            var sleepTime = Duration.ofMillis(10_000); // Needs to be larger than connections.max.reauth.ms in order to be sure that the client has to re-auth
+            SaslInspectionIT.sendReceiveBatches(tester, topic, getProducerConfig(), getConsumerConfig(), 2, (batchNum, records) -> {
+                var headers = Assertions.assertThat(records.records(topic.name()))
                         .as("topic %s records", topic.name())
                         .singleElement()
                         .asInstanceOf(new InstanceOfAssertFactory<>(ConsumerRecord.class, KafkaAssertions::assertThat))
                         .headers();
 
-                recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
+                headers.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
                         .hasValueEqualTo(CLIENT_ID);
-                recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
+                headers.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
                         .hasValueEqualTo(OAuthBearerLoginModule.OAUTHBEARER_MECHANISM);
 
-                if (batchNumOneBased < 2) {
-                    Thread.sleep(10_000);
+                if (batchNum < 2) {
+                    try {
+                        Thread.sleep(sleepTime);
+                    }
+                    catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(e);
+                    }
                 }
-                batchNumOneBased += 1;
-            }
+
+            });
         }
     }
 

@@ -11,11 +11,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 import org.apache.kafka.clients.CommonClientConfigs;
 import org.apache.kafka.clients.admin.DescribeClusterOptions;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.errors.SaslAuthenticationException;
@@ -23,6 +25,7 @@ import org.apache.kafka.common.errors.TimeoutException;
 import org.apache.kafka.common.errors.UnsupportedSaslMechanismException;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.serialization.Serdes;
+import org.assertj.core.api.Assertions;
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,6 +41,7 @@ import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
 import io.kroxylicious.proxy.testplugins.ProtocolCounter;
 import io.kroxylicious.proxy.testplugins.ProtocolCounterFilter;
 import io.kroxylicious.test.assertj.KafkaAssertions;
+import io.kroxylicious.test.tester.KroxyliciousTester;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerConfig;
 import io.kroxylicious.testing.kafka.common.SaslMechanism;
@@ -59,6 +63,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @ExtendWith(NettyLeakDetectorExtension.class)
 @SuppressWarnings("java:S5976") // Ignoring 'replace these n tests with a single parameterized one' - we are using the annotated parameters that a parameterized test wouldn't handle nicely.
 class SaslInspectionIT {
+
     /**
      * client handshakes with PLAIN
      * proxy has PLAIN inspection enabled
@@ -69,8 +74,7 @@ class SaslInspectionIT {
     @Test
     void shouldAuthenticateWhenSameMechanism_PLAIN(@SaslMechanism(value = "PLAIN", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
-                                                   Topic topic)
-            throws Exception {
+                                                   Topic topic) {
 
         String mechanism = "PLAIN";
         String clientLoginModule = "org.apache.kafka.common.security.plain.PlainLoginModule";
@@ -90,8 +94,7 @@ class SaslInspectionIT {
     @Test
     void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_256(@SaslMechanism(value = "SCRAM-SHA-256", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
-                                                           Topic topic)
-            throws Exception {
+                                                           Topic topic) {
 
         String mechanism = "SCRAM-SHA-256";
         String clientLoginModule = "org.apache.kafka.common.security.scram.ScramLoginModule";
@@ -111,8 +114,7 @@ class SaslInspectionIT {
     @Test
     void shouldAuthenticateWhenSameMechanism_implict_SCRAM_SHA_256(@SaslMechanism(value = "SCRAM-SHA-256", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
-                                                                   Topic topic)
-            throws Exception {
+                                                                   Topic topic) {
 
         String mechanism = "SCRAM-SHA-256";
         String clientLoginModule = "org.apache.kafka.common.security.scram.ScramLoginModule";
@@ -121,7 +123,7 @@ class SaslInspectionIT {
 
         assertClientsCanAccessCluster(cluster, null, topic, mechanism,
                 clientLoginModule, username, password,
-                1, 2, 0);
+                1, 2, Duration.ofMillis(0));
     }
 
     /**
@@ -131,8 +133,7 @@ class SaslInspectionIT {
     @Test
     void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_512(@SaslMechanism(value = "SCRAM-SHA-512", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret") }) KafkaCluster cluster,
-                                                           Topic topic)
-            throws Exception {
+                                                           Topic topic) {
 
         String mechanism = "SCRAM-SHA-512";
         String clientLoginModule = "org.apache.kafka.common.security.scram.ScramLoginModule";
@@ -170,8 +171,7 @@ class SaslInspectionIT {
     void shouldAuthenticateWhenSameMechanism_PLAIN_withReauth(@SaslMechanism(value = "PLAIN", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret")
     }) @BrokerConfig(name = "connections.max.reauth.ms", value = "5000") KafkaCluster cluster,
-                                                              Topic topic)
-            throws Exception {
+                                                              Topic topic) {
 
         String mechanism = "PLAIN";
         String clientLoginModule = "org.apache.kafka.common.security.plain.PlainLoginModule";
@@ -180,7 +180,7 @@ class SaslInspectionIT {
 
         assertClientsCanAccessCluster(cluster, Set.of(mechanism), topic, mechanism, clientLoginModule, username, password,
                 2, 1,
-                10_000);
+                Duration.ofMillis(10_000));
     }
 
     /**
@@ -191,8 +191,7 @@ class SaslInspectionIT {
     void shouldAuthenticateWhenSameMechanism_SCRAM_SHA_512_withReauth(@SaslMechanism(value = "SCRAM-SHA-256", principals = {
             @SaslMechanism.Principal(user = "alice", password = "alice-secret")
     }) @BrokerConfig(name = "connections.max.reauth.ms", value = "5000") KafkaCluster cluster,
-                                                                      Topic topic)
-            throws Exception {
+                                                                      Topic topic) {
 
         String mechanism = "SCRAM-SHA-256";
         String clientLoginModule = "org.apache.kafka.common.security.scram.ScramLoginModule";
@@ -201,7 +200,7 @@ class SaslInspectionIT {
 
         assertClientsCanAccessCluster(cluster, Set.of(mechanism), topic, mechanism, clientLoginModule, username, password,
                 2, 2,
-                10_000);
+                Duration.ofMillis(10_000));
     }
 
     /**
@@ -280,11 +279,10 @@ class SaslInspectionIT {
                                                       final int numAuthReqPerAuth,
                                                       String clientLoginModule,
                                                       String username,
-                                                      String password)
-            throws InterruptedException {
+                                                      String password) {
         assertClientsCanAccessCluster(cluster, Set.of(mechanism), topic, mechanism,
                 clientLoginModule, username, password,
-                1, numAuthReqPerAuth, 0);
+                1, numAuthReqPerAuth, Duration.ofMillis(0));
     }
 
     @SuppressWarnings("java:S2925") // Impossible to integration test reauth without Thread.sleep
@@ -297,26 +295,68 @@ class SaslInspectionIT {
                                                       String password,
                                                       final int numBatches,
                                                       final int numAuthReqPerAuth,
-                                                      long pauseMs)
-            throws InterruptedException {
+                                                      Duration pauseTime) {
         var config = buildProxyConfig(cluster, proxyEnabledSaslMechanisms);
 
         String jaasConfig = "%s required%n  username=\"%s\"%n   password=\"%s\";".formatted(clientLoginModule, username, password);
-        try (var tester = kroxyliciousTester(config);
-                var producer = tester.producer(Map.of(
-                        CommonClientConfigs.CLIENT_ID_CONFIG, clientSaslMechanism + "-producer",
-                        CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
-                        SaslConfigs.SASL_MECHANISM, clientSaslMechanism,
-                        SaslConfigs.SASL_JAAS_CONFIG, jaasConfig));
+        try (var tester = kroxyliciousTester(config)) {
+
+            var producerConfig = Map.<String, Object> of(
+                    CommonClientConfigs.CLIENT_ID_CONFIG, clientSaslMechanism + "-producer",
+                    CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
+                    SaslConfigs.SASL_MECHANISM, clientSaslMechanism,
+                    SaslConfigs.SASL_JAAS_CONFIG, jaasConfig);
+            var consumerConfig = Map.<String, Object> of(
+                    CommonClientConfigs.CLIENT_ID_CONFIG, clientSaslMechanism + "-consumer",
+                    CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
+                    SaslConfigs.SASL_MECHANISM, clientSaslMechanism,
+                    SaslConfigs.SASL_JAAS_CONFIG, jaasConfig,
+                    ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
+                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+                    ConsumerConfig.FETCH_MAX_BYTES_CONFIG, "1");
+
+            sendReceiveBatches(tester, topic, producerConfig, consumerConfig, numBatches, (batchNum, records) -> {
+                var headers = Assertions.assertThat(records.records(topic.name()))
+                        .as("topic %s records", topic.name())
+                        .singleElement()
+                        .asInstanceOf(new InstanceOfAssertFactory<>(ConsumerRecord.class, KafkaAssertions::assertThat))
+                        .headers();
+
+                int newCount = ProtocolCounterFilter.fromBytes(
+                        headers.singleHeaderWithKey(ProtocolCounterFilter.requestCountHeaderKey(ApiKeys.SASL_AUTHENTICATE)).value().actual());
+
+                assertThat(newCount)
+                        .as("Observed number of %s requests @ batch #%s", ApiKeys.SASL_AUTHENTICATE, batchNum)
+                        .isEqualTo(numAuthReqPerAuth * batchNum);
+
+                headers.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
+                        .hasValueEqualTo("alice");
+                headers.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
+                        .hasValueEqualTo(clientSaslMechanism);
+
+                if (batchNum < 2 && pauseTime.isPositive()) {
+                    try {
+                        Thread.sleep(pauseTime);
+                    }
+                    catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new RuntimeException(e);
+                    }
+                }
+
+            });
+        }
+    }
+
+    public static void sendReceiveBatches(KroxyliciousTester tester,
+                                          Topic topic,
+                                          Map<String, Object> producerConfig,
+                                          Map<String, Object> consumerConfig,
+                                          int numBatches,
+                                          BiConsumer<Integer, ConsumerRecords<String, byte[]>> recordConsumer) {
+        try (var producer = tester.producer(producerConfig);
                 var consumer = tester
-                        .consumer(Serdes.String(), Serdes.ByteArray(), Map.of(
-                                CommonClientConfigs.CLIENT_ID_CONFIG, clientSaslMechanism + "-consumer",
-                                CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, "SASL_PLAINTEXT",
-                                SaslConfigs.SASL_MECHANISM, clientSaslMechanism,
-                                SaslConfigs.SASL_JAAS_CONFIG, jaasConfig,
-                                ConsumerConfig.GROUP_ID_CONFIG, "my-group-id",
-                                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
-                                ConsumerConfig.FETCH_MAX_BYTES_CONFIG, "1"))) {
+                        .consumer(Serdes.String(), Serdes.ByteArray(), consumerConfig)) {
             int batchNumOneBased = 1;
             while (batchNumOneBased <= numBatches) {
                 assertThat(producer.send(new ProducerRecord<>(topic.name(), "my-key", "my-value")))
@@ -326,26 +366,7 @@ class SaslInspectionIT {
                 var records = consumer.poll(Duration.ofSeconds(10));
 
                 assertThat(records).hasSize(1);
-                var recordHeaders = assertThat(records.records(topic.name()))
-                        .as("topic %s records", topic.name())
-                        .singleElement()
-                        .asInstanceOf(new InstanceOfAssertFactory<>(ConsumerRecord.class, KafkaAssertions::assertThat))
-                        .headers();
-                int newCount = ProtocolCounterFilter.fromBytes(
-                        recordHeaders.singleHeaderWithKey(ProtocolCounterFilter.requestCountHeaderKey(ApiKeys.SASL_AUTHENTICATE)).value().actual());
-
-                assertThat(newCount)
-                        .as("Observed number of %s requests @ batch #%s", ApiKeys.SASL_AUTHENTICATE, batchNumOneBased)
-                        .isEqualTo(numAuthReqPerAuth * batchNumOneBased);
-
-                recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID)
-                        .hasValueEqualTo("alice");
-                recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
-                        .hasValueEqualTo(clientSaslMechanism);
-
-                if (batchNumOneBased < numBatches) {
-                    Thread.sleep(pauseMs);
-                }
+                recordConsumer.accept(batchNumOneBased, records);
                 batchNumOneBased += 1;
             }
         }
