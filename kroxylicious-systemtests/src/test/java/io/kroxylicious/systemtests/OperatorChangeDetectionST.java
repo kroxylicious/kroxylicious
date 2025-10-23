@@ -42,6 +42,7 @@ import io.fabric8.kubernetes.client.utils.KubernetesResourceUtil;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.FilterRef;
 import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
+import io.kroxylicious.kubernetes.api.common.Protocol;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
@@ -50,7 +51,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 import io.kroxylicious.systemtests.installation.kroxylicious.CertManager;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
@@ -83,11 +83,11 @@ class OperatorChangeDetectionST extends AbstractST {
 
         String originalChecksum = getInitialChecksum(namespace);
 
-        updateIngresProtocol(ClusterIP.Protocol.TLS, namespace); // move to TLS but this is invalid
+        updateIngresProtocol(Protocol.TLS, namespace); // move to TLS but this is invalid
 
         // When
         // So move back to TCP and check things get updated.
-        updateIngresProtocol(ClusterIP.Protocol.TCP, namespace);
+        updateIngresProtocol(Protocol.TCP, namespace);
         LOGGER.info("Kafka proxy ingress edited");
 
         // Then
@@ -419,7 +419,7 @@ class OperatorChangeDetectionST extends AbstractST {
         }
     }
 
-    private static void updateIngresProtocol(ClusterIP.Protocol protocol, String namespace) {
+    private static void updateIngresProtocol(Protocol protocol, String namespace) {
         KafkaProxyIngress resolver = new KafkaProxyIngressBuilder()
                 .withNewMetadata()
                 .withNamespace(namespace)
