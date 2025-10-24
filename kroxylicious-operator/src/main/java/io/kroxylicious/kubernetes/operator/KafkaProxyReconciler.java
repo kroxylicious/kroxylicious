@@ -198,7 +198,8 @@ public class KafkaProxyReconciler implements
                         List.of(),
                         false,
                         // micrometer
-                        Optional.empty()),
+                        Optional.empty(),
+                        null),
                 allVolumes,
                 allMounts);
     }

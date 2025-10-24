@@ -125,7 +125,7 @@ public final class MockServer implements AutoCloseable {
         final EventGroupConfig eventGroupConfig = EventGroupConfig.create();
         bossGroup = eventGroupConfig.newBossGroup();
         workerGroup = eventGroupConfig.newWorkerGroup();
-        serverHandler = new MockHandler(response);
+        serverHandler = new MockHandler(null);
         ServerBootstrap b = new ServerBootstrap();
         b.group(bossGroup, workerGroup)
                 .channel(eventGroupConfig.serverChannelClass())
@@ -142,6 +142,10 @@ public final class MockServer implements AutoCloseable {
                         p.addLast(serverHandler);
                     }
                 });
+
+        if (response != null) {
+            addMockResponseForApiKey(response);
+        }
 
         // Start the server.
         ChannelFuture f;
