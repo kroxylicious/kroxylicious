@@ -23,6 +23,7 @@ import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.channel.uring.IoUring;
+import io.netty.channel.uring.IoUringIoHandler;
 import io.netty.channel.uring.IoUringServerSocketChannel;
 import io.netty.channel.uring.IoUringSocketChannel;
 
@@ -53,10 +54,10 @@ public record EventGroupConfig(
         return new EventGroupConfig(clientChannelClass, serverChannelClass);
     }
 
-    private static EventLoopGroup newGroup(int nThreads) {
+    private static EventLoopGroup newGroup() {
         final IoHandlerFactory ioHandlerFactory;
         if (IoUring.isAvailable()) {
-            ioHandlerFactory = io.netty.channel.uring.IoUringIoHandler.newFactory();
+            ioHandlerFactory = IoUringIoHandler.newFactory();
         }
         else if (Epoll.isAvailable()) {
             ioHandlerFactory = EpollIoHandler.newFactory();
@@ -67,14 +68,14 @@ public record EventGroupConfig(
         else {
             ioHandlerFactory = NioIoHandler.newFactory();
         }
-        return new MultiThreadIoEventLoopGroup(nThreads, ioHandlerFactory);
+        return new MultiThreadIoEventLoopGroup(1, ioHandlerFactory);
     }
 
     public EventLoopGroup newWorkerGroup() {
-        return newGroup(1);
+        return newGroup();
     }
 
     public EventLoopGroup newBossGroup() {
-        return newGroup(1);
+        return newGroup();
     }
 }

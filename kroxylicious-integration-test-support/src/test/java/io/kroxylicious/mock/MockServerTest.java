@@ -14,6 +14,8 @@ import java.util.stream.Stream;
 
 import org.apache.kafka.common.message.ApiMessageType;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -31,6 +33,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 class MockServerTest {
     private static final Map<ApiAndVersion, ApiMessage> responseSamples = ApiMessageSampleGenerator.createResponseSamples();
     private static final Map<ApiAndVersion, ApiMessage> requestSamples = ApiMessageSampleGenerator.createRequestSamples();
+    private static MockServer mockServer;
+
+    @BeforeAll
+    static void beforeAll() {
+        mockServer = MockServer.startOnRandomPort(null);
+    }
+
+    @AfterAll
+    static void afterAll() {
+        mockServer.close();
+    }
 
     public static Stream<ApiAndVersion> allSupportedApiVersions() {
         return DataClasses.getRequestClasses().keySet().stream().flatMap(apiKeys -> {
@@ -44,8 +57,8 @@ class MockServerTest {
     @MethodSource("allSupportedApiVersions")
     void testClientCanSendAndReceiveRPCToMock(ApiAndVersion apiKey) throws Exception {
         ResponsePayload mockResponse = getResponse(apiKey);
-        try (var mockServer = MockServer.startOnRandomPort(mockResponse);
-                var kafkaClient = new KafkaClient("127.0.0.1", mockServer.port())) {
+        mockServer = MockServer.startOnRandomPort(mockResponse);
+        try (var kafkaClient = new KafkaClient("127.0.0.1", mockServer.port())) {
             CompletableFuture<Response> future = kafkaClient.get(getRequest(apiKey));
             Response clientResponse = future.get(10, TimeUnit.SECONDS);
             assertEquals(mockResponse, clientResponse.payload());
