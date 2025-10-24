@@ -37,6 +37,7 @@ import io.netty.channel.kqueue.KQueueServerSocketChannel;
 import io.netty.channel.nio.NioIoHandler;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.channel.uring.IoUring;
+import io.netty.channel.uring.IoUringIoHandler;
 import io.netty.channel.uring.IoUringServerSocketChannel;
 import io.netty.util.concurrent.Future;
 
@@ -79,25 +80,37 @@ public final class KafkaProxy implements AutoCloseable {
         }
 
         public static EventGroupConfig build(String name, Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier, boolean useIoUring) {
+            final Class<? extends ServerChannel> channelClass;
+            final EventLoopGroup bossGroup;
+            final EventLoopGroup workerGroup;
+            final IoHandlerFactory ioHandlerFactory;
+
             // Specifying 0 threads means we apply Netty defaults which are (2 * availableCores) or the system property io.netty.eventLoopThreads.
             int workerThreadCount = resolveThreadCount(configuration, settingsSupplier);
-            if (useIoUring) {
-                if (!IOUring.isAvailable()) {
-                    throw new IllegalStateException("io_uring not available due to: " + IOUring.unavailabilityCause());
-                }
-                LOGGER.info("Using IOUring with {} event loop threads", workerThreadCount);
-                return new EventGroupConfig(name, new IOUringEventLoopGroup(1), new IOUringEventLoopGroup(workerThreadCount), IOUringServerSocketChannel.class);
+            if (useIoUring && !IoUring.isAvailable()) {
+                throw new IllegalStateException("io_uring not available due to: " + IoUring.unavailabilityCause());
             }
-            if (Epoll.isAvailable()) {
-                LOGGER.info("Using EPOll with {} event loop threads", workerThreadCount);
-                return new EventGroupConfig(name, new EpollEventLoopGroup(1), new EpollEventLoopGroup(workerThreadCount), EpollServerSocketChannel.class);
+            if (IoUring.isAvailable() && useIoUring) {
+                ioHandlerFactory = IoUringIoHandler.newFactory();
+                channelClass = IoUringServerSocketChannel.class;
             }
-            if (KQueue.isAvailable()) {
-                LOGGER.info("Using KQueue with {} event loop threads", workerThreadCount);
-                return new EventGroupConfig(name, new KQueueEventLoopGroup(1), new KQueueEventLoopGroup(workerThreadCount), KQueueServerSocketChannel.class);
+            else if (Epoll.isAvailable()) {
+                ioHandlerFactory = EpollIoHandler.newFactory();
+                channelClass = EpollServerSocketChannel.class;
             }
-            LOGGER.info("Falling back to NIO with {} event loop threads", workerThreadCount);
-            return new EventGroupConfig(name, new NioEventLoopGroup(1), new NioEventLoopGroup(workerThreadCount), NioServerSocketChannel.class);
+            else if (KQueue.isAvailable()) {
+                ioHandlerFactory = KQueueIoHandler.newFactory();
+                channelClass = KQueueServerSocketChannel.class;
+            }
+            else {
+                ioHandlerFactory = NioIoHandler.newFactory();
+                channelClass = NioServerSocketChannel.class;
+            }
+
+            bossGroup = new MultiThreadIoEventLoopGroup(workerThreadCount, ioHandlerFactory);
+            workerGroup = new MultiThreadIoEventLoopGroup(workerThreadCount, ioHandlerFactory);
+
+            return new EventGroupConfig(name, bossGroup, workerGroup, channelClass);
         }
 
         private static int resolveThreadCount(Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier) {
@@ -120,7 +133,7 @@ public final class KafkaProxy implements AutoCloseable {
     private @Nullable MeterRegistries meterRegistries;
     private @Nullable FilterChainFactory filterChainFactory;
     private @Nullable EventGroupConfig managementEventGroup;
-    private @Nullable EventGroupConfig serverEventGroup;
+    private @Nullable EventGroupConfig proxyEventGroup;
 
     public KafkaProxy(PluginFactoryRegistry pfr, Configuration config, Features features) {
         this.pfr = requireNonNull(pfr);
@@ -149,8 +162,8 @@ public final class KafkaProxy implements AutoCloseable {
 
     @VisibleForTesting
     @Nullable
-    EventGroupConfig serverEventGroup() {
-        return serverEventGroup;
+    EventGroupConfig proxyEventGroup() {
+        return proxyEventGroup;
     }
 
     /**
@@ -173,9 +186,9 @@ public final class KafkaProxy implements AutoCloseable {
             portConflictDefector.validate(virtualClusterModels, managementHostPort);
 
             this.managementEventGroup = EventGroupConfig.build("management", config, NetworkDefinition::management, config.isUseIoUring());
-            this.serverEventGroup = EventGroupConfig.build("proxy", config, NetworkDefinition::proxy, config.isUseIoUring());
+            this.proxyEventGroup = EventGroupConfig.build("proxy", config, NetworkDefinition::proxy, config.isUseIoUring());
 
-            enableNettyMetrics(managementEventGroup, serverEventGroup);
+            enableNettyMetrics(managementEventGroup, proxyEventGroup);
 
             var managementFuture = maybeStartManagementListener(managementEventGroup, meterRegistries);
 
@@ -183,9 +196,9 @@ public final class KafkaProxy implements AutoCloseable {
             ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(overrideMap);
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
 
-            var tlsServerBootstrap = buildServerBootstrap(serverEventGroup,
+            var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
                     new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of(), apiVersionsService));
-            var plainServerBootstrap = buildServerBootstrap(serverEventGroup,
+            var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
                     new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, Map.of(), apiVersionsService));
 
             bindingOperationProcessor.start(plainServerBootstrap, tlsServerBootstrap);
@@ -241,38 +254,6 @@ public final class KafkaProxy implements AutoCloseable {
                 .childOption(ChannelOption.TCP_NODELAY, true);
     }
 
-    private EventGroupConfig buildNettyEventGroups(String name, int availableCores, boolean useIoUring) {
-        final Class<? extends ServerChannel> channelClass;
-        final EventLoopGroup bossGroup;
-        final EventLoopGroup workerGroup;
-
-        final IoHandlerFactory ioHandlerFactory;
-        if (useIoUring && !IoUring.isAvailable()) {
-            throw new IllegalStateException("io_uring not available due to: " + IoUring.unavailabilityCause());
-        }
-        if (IoUring.isAvailable() && useIoUring) {
-            ioHandlerFactory = io.netty.channel.uring.IoUringIoHandler.newFactory();
-            channelClass = IoUringServerSocketChannel.class;
-        }
-        else if (Epoll.isAvailable()) {
-            ioHandlerFactory = EpollIoHandler.newFactory();
-            channelClass = EpollServerSocketChannel.class;
-        }
-        else if (KQueue.isAvailable()) {
-            ioHandlerFactory = KQueueIoHandler.newFactory();
-            channelClass = KQueueServerSocketChannel.class;
-        }
-        else {
-            ioHandlerFactory = NioIoHandler.newFactory();
-            channelClass = NioServerSocketChannel.class;
-        }
-
-        bossGroup = new MultiThreadIoEventLoopGroup(availableCores, ioHandlerFactory);
-        workerGroup = new MultiThreadIoEventLoopGroup(availableCores, ioHandlerFactory);
-
-        return new EventGroupConfig(name, bossGroup, workerGroup, channelClass);
-    }
-
     private CompletableFuture<Void> maybeStartManagementListener(EventGroupConfig eventGroupConfig, MeterRegistries meterRegistries) {
         return Optional.ofNullable(managementConfiguration)
                 .map(mc -> {
@@ -320,8 +301,8 @@ public final class KafkaProxy implements AutoCloseable {
             endpointRegistry.shutdown().handle((u, t) -> {
                 bindingOperationProcessor.close();
                 var closeFutures = new ArrayList<Future<?>>();
-                if (serverEventGroup != null) {
-                    closeFutures.addAll(serverEventGroup.shutdownGracefully());
+                if (proxyEventGroup != null) {
+                    closeFutures.addAll(proxyEventGroup.shutdownGracefully());
                 }
                 if (managementEventGroup != null) {
                     closeFutures.addAll(managementEventGroup.shutdownGracefully());
@@ -346,7 +327,7 @@ public final class KafkaProxy implements AutoCloseable {
         }
         finally {
             managementEventGroup = null;
-            serverEventGroup = null;
+            proxyEventGroup = null;
             meterRegistries = null;
             filterChainFactory = null;
             shutdown.complete(null);
