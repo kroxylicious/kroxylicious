@@ -69,7 +69,7 @@ public interface SaslObserver {
      * @return true if the server mechanism indicates an expired authorization id that way, false otherwise.
      * @see <a href="https://cwiki.apache.org/confluence/display/KAFKA/KIP-368%3A+Allow+SASL+Connections+to+Periodically+Re-Authenticate">KIP-368</a>
      */
-    default boolean serverReturnsExpiredAuthorizationIdWithZeroSessionLifetime() {
+    default boolean zeroLengthSessionImpliesAuthnFailure() {
         return false;
     }
 }

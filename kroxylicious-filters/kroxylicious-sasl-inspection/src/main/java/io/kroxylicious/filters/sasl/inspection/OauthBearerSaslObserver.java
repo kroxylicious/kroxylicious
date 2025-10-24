@@ -124,7 +124,7 @@ class OauthBearerSaslObserver implements SaslObserver {
      * @return true
      */
     @Override
-    public boolean serverReturnsExpiredAuthorizationIdWithZeroSessionLifetime() {
+    public boolean zeroLengthSessionImpliesAuthnFailure() {
         return true;
     }
 }
