@@ -1334,6 +1334,7 @@
                 </property>
             </activation>
             <properties>
+                <!-- The KTs require the container image archives to be built, so if we are skipping docker, we must skip the KTs too -->
                 <skipKTs>true</skipKTs>
             </properties>
         </profile>
