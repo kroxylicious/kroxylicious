@@ -12,6 +12,10 @@ resource:
     name: fooref
     namespace: proxy-ns
   spec:
-    bootstrapServers: null
+    strimziKafkaRef:
+      group: kafka.strimzi.io
+      kind: Kafka
+      namespace: kafka
+      listenerName: plain
 expectFailureMessageToContain: |
-  <nil>: Invalid value: ""
+  spec.strimziKafkaRef.name: Required value

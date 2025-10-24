@@ -32,6 +32,7 @@ import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
+import io.fabric8.kubernetes.client.ResourceNotFoundException;
 import io.javaoperatorsdk.operator.OperatorException;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -130,6 +131,7 @@ public class KafkaProxyReconciler implements
     public static final String CONFIG_STATE_DEP = "config-state";
     public static final String CONFIG_DEP = "config";
     public static final String DEPLOYMENT_DEP = "deployment";
+    public static final String KAFKA_DEP = "kafkas";
     public static final String CLUSTERS_DEP = "clusters";
     public static final Path MOUNTS_BASE_DIR = Path.of("/opt/kroxylicious/");
     private static final Path TARGET_CLUSTER_MOUNTS_BASE = MOUNTS_BASE_DIR.resolve("target-cluster");
@@ -320,7 +322,17 @@ public class KafkaProxyReconciler implements
 
     private static ConfigurationFragment<TargetCluster> buildTargetCluster(KafkaService kafkaServiceRef) {
         return buildTargetClusterTls(kafkaServiceRef)
-                .map(tls -> new TargetCluster(kafkaServiceRef.getSpec().getBootstrapServers(), tls));
+                .map(tls -> {
+                    if (kafkaServiceRef.getStatus().getBootstrapServerAddress() != null) {
+                        return new TargetCluster(kafkaServiceRef.getStatus().getBootstrapServerAddress(), tls);
+                    }
+                    else if (kafkaServiceRef.getSpec().getBootstrapServers() != null) {
+                        return new TargetCluster(kafkaServiceRef.getSpec().getBootstrapServers(), tls);
+                    }
+                    else {
+                        throw new ResourceNotFoundException("Bootstrap server address not found");
+                    }
+                });
     }
 
     private static ConfigurationFragment<Optional<Tls>> buildTargetClusterTls(KafkaService kafkaServiceRef) {

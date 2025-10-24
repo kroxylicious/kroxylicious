@@ -29,11 +29,14 @@ import io.fabric8.kubernetes.client.CustomResource;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
+import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
 import io.kroxylicious.kubernetes.api.common.CertificateRef;
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.common.LocalRef;
+import io.kroxylicious.kubernetes.api.common.StrimziKafkaRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterStatus;
@@ -105,6 +108,11 @@ public class ResourcesUtil {
     static boolean isSecret(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "Secret".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
+    }
+
+    static boolean isKafka(LocalRef<?> ref) {
+        return (ref.getKind() == null || ref.getKind().isEmpty() || "Kafka".equals(ref.getKind()))
+                && (ref.getGroup() == null || ref.getGroup().isEmpty() || "kafka.strimzi.io".equals(ref.getGroup()));
     }
 
     static boolean isConfigMap(LocalRef<?> ref) {
@@ -455,7 +463,7 @@ public class ResourcesUtil {
             if (secretOpt.isEmpty()) {
                 return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                         Condition.REASON_REFS_NOT_FOUND,
-                        path + ": referenced resource not found"), List.of());
+                        path + ": referenced secret not found"), List.of());
             }
             else {
                 Secret secret = secretOpt.get();
@@ -506,7 +514,7 @@ public class ResourcesUtil {
             if (configMapOpt.isEmpty()) {
                 return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
                         Condition.REASON_REFS_NOT_FOUND,
-                        path + ": referenced resource not found"), List.of());
+                        path + ": referenced configmap not found"), List.of());
             }
             else {
                 String key = trustAnchorRef.getKey();
@@ -532,6 +540,67 @@ public class ResourcesUtil {
         }
     }
 
+    static <T extends CustomResource<?, ?>> Optional<Kafka> getKafka(Context<T> context, String eventSourceName) {
+        return context.getSecondaryResource(Kafka.class, eventSourceName);
+    }
+
+    public static <T extends CustomResource<?, ?>> ResourceCheckResult<T> checkStrimziKafkaRef(T resource,
+                                                                                               Context<T> context,
+                                                                                               String eventSourceName,
+                                                                                               StrimziKafkaRef strimziKafkaRef,
+                                                                                               String path,
+                                                                                               StatusFactory<T> statusFactory) {
+
+        if (context.getClient().getApiGroup("kafka.strimzi.io") == null) {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_REFS_NOT_FOUND,
+                    "strimziKafkaRef present but Kafka resource not found"), List.of());
+        }
+
+        if (isKafka(strimziKafkaRef.getRef())) {
+            Optional<Kafka> kafkaOpt = getKafka(context, eventSourceName);
+            if (kafkaOpt.isEmpty()) {
+                return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                        Condition.REASON_REFS_NOT_FOUND,
+                        path + ": referenced Kafka resource not found"), List.of());
+            }
+            else {
+                String listenerName = strimziKafkaRef.getListenerName();
+                if (!isSupportedListenerType(listenerName)) {
+                    return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                            Condition.REASON_INVALID,
+                            path + ": listener should be `plain`"), List.of());
+                }
+                else {
+                    return handleListener(resource, strimziKafkaRef, statusFactory, kafkaOpt.get());
+                }
+            }
+        }
+        else {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
+                    path + " supports referents: kafka"), List.of());
+        }
+    }
+
+    static String retrieveBootstrapServerAddress(Context<KafkaService> context,
+                                                 KafkaService service,
+                                                 String eventSourceName) {
+
+        Optional<Kafka> kafka = getKafka(context, eventSourceName);
+        Optional<ListenerStatus> listener = kafka.flatMap(value -> value.getStatus().getListeners().stream()
+                .filter(listenerStatus -> listenerStatus.getName()
+                        .equals(service.getSpec().getStrimziKafkaRef().getListenerName()))
+                .findFirst());
+
+        if (listener.isEmpty()) {
+            throw new IllegalStateException("Bootstrap server address is empty");
+        }
+        else {
+            return listener.get().getBootstrapServers();
+        }
+    }
+
     private static <T extends CustomResource<?, ?>> @NonNull ResourceCheckResult<T> handleSupportedFileExtension(T resource, TrustAnchorRef trustAnchorRef, String path,
                                                                                                                  StatusFactory<T> statusFactory, ConfigMap configMap) {
         if (keyIsMissingFromConfigMap(trustAnchorRef, configMap)) {
@@ -544,6 +613,27 @@ public class ResourcesUtil {
         }
     }
 
+    private static <T extends CustomResource<?, ?>> ResourceCheckResult<T> handleListener(T resource, StrimziKafkaRef strimziKafkaRef,
+                                                                                          StatusFactory<T> statusFactory,
+                                                                                          Kafka kafka) {
+        if (!isListenerPresent(strimziKafkaRef, kafka)) {
+            return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
+                    Condition.REASON_INVALID_REFERENCED_RESOURCE,
+                    "Referenced resource does not contain listener name: "
+                            + strimziKafkaRef.getListenerName()),
+                    List.of());
+        }
+        else {
+            return new ResourceCheckResult<>(null, List.of(kafka));
+        }
+    }
+
+    private static boolean isListenerPresent(StrimziKafkaRef strimziKafkaRef, Kafka kafka) {
+        return kafka.getStatus() != null && kafka.getStatus().getListeners() != null && kafka.getStatus().getListeners().stream()
+                .anyMatch(listenerStatus -> listenerStatus.getName()
+                        .equals(strimziKafkaRef.getListenerName()));
+    }
+
     private static boolean keyIsMissingFromConfigMap(TrustAnchorRef trustAnchorRef, ConfigMap configMap) {
         return !configMap.getData().containsKey(trustAnchorRef.getKey());
     }
@@ -552,6 +642,10 @@ public class ResourcesUtil {
         return !key.endsWith(".pem")
                 && !key.endsWith(".p12")
                 && !key.endsWith(".jks");
+    }
+
+    private static boolean isSupportedListenerType(String listenerName) {
+        return listenerName.equals("plain");
     }
 
     /**
