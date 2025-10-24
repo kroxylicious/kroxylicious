@@ -523,7 +523,7 @@ class VirtualKafkaClusterReconcilerTest {
                             .singleElement()
                             .isResolvedRefsFalse(
                                     Condition.REASON_REFS_NOT_FOUND,
-                                    "spec.ingresses[].tls.certificateRef: referenced resource not found")));
+                                    "spec.ingresses[].tls.certificateRef: referenced secret not found")));
         }
 
         {
@@ -583,7 +583,7 @@ class VirtualKafkaClusterReconcilerTest {
                             .singleElement()
                             .isResolvedRefsFalse(
                                     Condition.REASON_REFS_NOT_FOUND,
-                                    "spec.ingresses[].tls.trustAnchor: referenced resource not found")));
+                                    "spec.ingresses[].tls.trustAnchor: referenced configmap not found")));
         }
 
         {

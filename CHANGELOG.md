@@ -16,6 +16,7 @@ Format `<github issue/pr number>: <short description>`.
 * [#143](https://github.com/kroxylicious/kroxylicious/issues/143): Add support for Netty metrics
 * [#2809](https://github.com/kroxylicious/kroxylicious/pull/2809): Add optional configuration parameter to control the number of worker threads used by Netty.
 * [#1467](https://github.com/kroxylicious/kroxylicious/pull/1467): Migrate to Netty 4.2
+* [#2693](https://github.com/kroxylicious/kroxylicious/pull/2693): Kroxylicious operator can now discover plain bootstrap address from Strimzi Kafka custom resource 
 
 ## 0.16.0
 
