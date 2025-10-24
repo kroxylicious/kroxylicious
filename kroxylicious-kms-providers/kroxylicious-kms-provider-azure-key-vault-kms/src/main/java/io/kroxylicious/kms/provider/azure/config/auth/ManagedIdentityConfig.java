@@ -22,13 +22,11 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
 
 /**
  * @param targetResource required App ID URI of the target resource
- * @param identityServiceHost optional host address for Managed Identity Service (should only be configured for testing), defaults to "169.254.169.254" which is the Azure Instance Metadata Service (IMDS)
- * @param identityServicePort optional port for Managed Identity Service (should only be configured for testing), defaults to null implying no port will be included in requests
+ * @param identityServiceEndpoint optional base URI for Managed Identity Service endpoint (should only be configured for testing), defaults to "http://169.254.169.254" which is the Azure Instance Metadata Service (IMDS)
  */
-@JsonPropertyOrder({ "targetResource", "identityServiceHost", "identityServicePort" })
+@JsonPropertyOrder({ "targetResource", "identityServiceEndpoint" })
 public record ManagedIdentityConfig(@JsonProperty(required = true) String targetResource,
-                                    @JsonInclude(NON_NULL) @Nullable @JsonProperty String identityServiceHost,
-                                    @JsonInclude(NON_NULL) @Nullable @JsonProperty Integer identityServicePort) {
+                                    @JsonInclude(NON_NULL) @Nullable @JsonProperty URI identityServiceEndpoint) {
 
     private static final Logger LOG = LoggerFactory.getLogger(ManagedIdentityConfig.class);
 
@@ -39,28 +37,21 @@ public record ManagedIdentityConfig(@JsonProperty(required = true) String target
      * </a>). This IP should be used in all cases outside of test scenarios (where a mock host may be configured instead).
      */
     @SuppressWarnings("java:S1313") // Suppress warning about hard-coded IP addresses posing a security risk, it's what Microsoft say to use so there's no way around it here.
-    public static final String DEFAULT_IMDS_HOST = "169.254.169.254";
+    public static final String DEFAULT_IMDS_HOST = "http://169.254.169.254";
 
     public ManagedIdentityConfig {
         Objects.requireNonNull(targetResource, "targetResource cannot be null");
-        if (identityServicePort != null && (identityServicePort < 1 || identityServicePort > 65535)) {
-            throw new IllegalArgumentException("identityServicePort must be in the range (1, 65535) inclusive");
-        }
-        if (identityServiceHost != null) {
-            String host = URI.create("http://" + identityServiceHost).getHost();
-            if (!Objects.equals(host, identityServiceHost)) {
-                throw new IllegalArgumentException("identityServiceHost '" + identityServiceHost + "' is not a valid host (host is '" + host + "')");
+        if (identityServiceEndpoint != null) {
+            if (!identityServiceEndpoint.toString().startsWith("http://")) {
+                LOG.warn(
+                        "identityServiceEndpoint {} does not begin with http://, production installations should not use HTTPS as Azure Instance Metadata Service (IMDS) endpoint is not TLS enabled",
+                        identityServiceEndpoint);
             }
-            LOG.warn("identityServiceHost {} has been configured, this property should not be used in production", identityServiceHost);
-        }
-        if (identityServicePort != null) {
-            LOG.warn("identityServicePort {} has been configured, this property should not be used in production", identityServicePort);
+            LOG.warn("identityServiceEndpoint {} has been configured, this property should not be used in production", identityServiceEndpoint);
         }
     }
 
     public String identityServiceURL() {
-        String host = identityServiceHost == null ? DEFAULT_IMDS_HOST : identityServiceHost;
-        String portSpec = identityServicePort == null ? "" : ":" + identityServicePort;
-        return "http://" + host + portSpec;
+        return identityServiceEndpoint == null ? DEFAULT_IMDS_HOST : identityServiceEndpoint.toString();
     }
 }

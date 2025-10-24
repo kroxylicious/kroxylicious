@@ -91,7 +91,7 @@ class ManagedIdentityAccessTokenServiceTest {
         Clock clock = Clock.fixed(fixedInstant, ZoneId.of("UTC"));
         server.stubFor(tokenRespondsWithJson(KNOWN_GOOD_RESPONSE));
         try (ManagedIdentityAccessTokenService service = new ManagedIdentityAccessTokenService(
-                new ManagedIdentityConfig(TARGET_RESOURCE, URI.create(server.baseUrl()).getHost(), server.port()), clock)) {
+                new ManagedIdentityConfig(TARGET_RESOURCE, URI.create(server.baseUrl())), clock)) {
             assertThat(service.getBearerToken().toCompletableFuture()).succeedsWithin(Duration.of(5, SECONDS))
                     .satisfies(token -> {
                         assertThat(token).isNotNull();
@@ -160,7 +160,7 @@ class ManagedIdentityAccessTokenServiceTest {
         Clock clock = Clock.fixed(fixedInstant, ZoneId.of("UTC"));
         server.stubFor(resp);
         try (ManagedIdentityAccessTokenService service = new ManagedIdentityAccessTokenService(
-                new ManagedIdentityConfig(TARGET_RESOURCE, URI.create(server.baseUrl()).getHost(), server.port()), clock)) {
+                new ManagedIdentityConfig(TARGET_RESOURCE, URI.create(server.baseUrl())), clock)) {
             ThrowableAssertAlternative<?> causeAssert = assertThat(service.getBearerToken().toCompletableFuture()).failsWithin(
                     Duration.of(5, SECONDS)).withThrowableThat().isInstanceOf(ExecutionException.class).havingCause();
             asserter.accept(causeAssert);

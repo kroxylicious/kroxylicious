@@ -32,7 +32,7 @@ class AzureKeyVaultKmsServiceTest {
     @Test
     void wholeLifeCycleWithManagedIdentity() {
         try (AzureKeyVaultKmsService service = new AzureKeyVaultKmsService()) {
-            ManagedIdentityConfig managedIdentity = new ManagedIdentityConfig("http://example.com/", null, null);
+            ManagedIdentityConfig managedIdentity = new ManagedIdentityConfig("http://example.com/", null);
             service.initialize(new AzureKeyVaultConfig(null, managedIdentity, "default", "vault.azure.net", null, null, null));
             Kms<WrappingKey, AzureKeyVaultEdek> kms = service.buildKms();
             assertThat(kms).isNotNull();

@@ -358,41 +358,25 @@ class ConfigurationSerializationTest {
                                   "keyVaultName": "my-key-vault",
                                   "keyVaultHost": "vault.azure.net",
                                   "managedIdentity": {
-                                    "identityServiceHost": "localhost",
-                                    "identityServicePort": 8080
+                                    "identityServiceEndpoint": "http://localhost:8080"
                                   }
                                 }
                                 """,
                         MismatchedInputException.class,
                         "Missing required creator property 'targetResource'"),
-                argumentSet("managedIdentity identityServicePort is not a valid port number",
+                argumentSet("managedIdentity identityServiceEndpoint not valid uri",
                         """
                                 {
                                   "keyVaultName": "my-key-vault",
                                   "keyVaultHost": "vault.azure.net",
                                   "managedIdentity": {
                                     "targetResource": "https://example.com/",
-                                    "identityServiceHost": "localhost",
-                                    "identityServicePort": 0
+                                    "identityServiceEndpoint": "bogus not uri"
                                   }
                                 }
                                 """,
-                        ValueInstantiationException.class,
-                        "identityServicePort must be in the range (1, 65535) inclusive"),
-                argumentSet("managedIdentity identityServiceHost not a valid hostname",
-                        """
-                                {
-                                  "keyVaultName": "my-key-vault",
-                                  "keyVaultHost": "vault.azure.net",
-                                  "managedIdentity": {
-                                    "targetResource": "https://example.com/",
-                                    "identityServiceHost": "http://bad.hostname/",
-                                    "identityServicePort": 8080
-                                  }
-                                }
-                                """,
-                        ValueInstantiationException.class,
-                        "identityServiceHost 'http://bad.hostname/' is not a valid host"));
+                        InvalidFormatException.class,
+                        "Cannot deserialize value of type `java.net.URI` from String \"bogus not uri\""));
     }
 
     @MethodSource
@@ -431,7 +415,7 @@ class ConfigurationSerializationTest {
                                   }
                                 }
                                 """,
-                        new AzureKeyVaultConfig(null, new ManagedIdentityConfig("https://example.com/", null, null), "my-key-vault", "vault.azure.net", null, null,
+                        new AzureKeyVaultConfig(null, new ManagedIdentityConfig("https://example.com/", null), "my-key-vault", "vault.azure.net", null, null,
                                 null)),
                 argumentSet("valid comprehensive json with entra identity authentication",
                         """
@@ -464,12 +448,12 @@ class ConfigurationSerializationTest {
                                   "keyVaultPort": 8080,
                                   "managedIdentity": {
                                     "targetResource": "https://example.com/",
-                                    "identityServiceHost": "localhost",
-                                    "identityServicePort": 8080
+                                    "identityServiceEndpoint": "http://localhost:8080"
                                   }
                                 }
                                 """,
-                        new AzureKeyVaultConfig(null, new ManagedIdentityConfig("https://example.com/", "localhost", 8080), "my-key-vault", "vault.azure.net", "https",
+                        new AzureKeyVaultConfig(null, new ManagedIdentityConfig("https://example.com/", URI.create("http://localhost:8080")), "my-key-vault",
+                                "vault.azure.net", "https",
                                 8080,
                                 null)));
     }
@@ -534,8 +518,7 @@ class ConfigurationSerializationTest {
                                 {
                                   "managedIdentity": {
                                     "targetResource": "https://example.com/",
-                                    "identityServiceHost": "localhost",
-                                    "identityServicePort": 8080
+                                    "identityServiceEndpoint": "http://localhost:8080"
                                   },
                                   "keyVaultScheme": "https",
                                   "keyVaultName": "my-key-vault",
