@@ -380,6 +380,29 @@ You'll see an API response.  If the service_timeout change is effective, the soc
 will continue for 3 minutes.  If `socat` terminates after about 10 seconds, the workaround
 has been applied ineffectively.
 
+## Running integration tests with IO_Uring
+
+THe integration test suite enables IO_Uring un-conditionally which may trigger issues with memory limits. Certain platforms e.g. Fedora default to running with `RLIMIT_MEMLOCK` set.
+
+If you see test failures such as 
+```shell
+[ERROR] Errors:
+[ERROR]   MockServerTest.testClientCanSendAndReceiveRPCToMock:47 » IllegalState failed to create a child event loop
+```
+or 
+```shell
+java.lang.IllegalStateException: failed to create a child event loop
+...
+Caused by: java.lang.RuntimeException: failed to allocate memory for io_uring ring; try raising memlock limit (see getrlimit(RLIMIT_MEMLOCK, ...) or ulimit -l): Cannot allocate memory
+```
+
+Raise the `RLIMIT_MEMLOCK` (see https://lwn.net/Articles/876288/ for a discussion on the merits or otherwise of the default) by adding entries to `/etc/security/limits.conf` (see https://access.redhat.com/solutions/61334 for details on the file) the updates will take effect in the next login shell.
+example config entry:
+```text
+* hard memlock unlimited
+* soft memlock unlimited
+```
+
 ## Running system tests locally
 
 ### Prerequisites
