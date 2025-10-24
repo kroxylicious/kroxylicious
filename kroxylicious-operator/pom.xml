@@ -364,7 +364,7 @@
                                 </goals>
                                 <configuration>
                                     <!--suppress MavenModelInspection -->
-                                    <skip>${skipDocker}</skip>
+                                    <skip>${skipContainerImageBuild}</skip>
                                     <images>
                                         <image>
                                             <name>${io.kroxylicious.operator.image.name}</name>

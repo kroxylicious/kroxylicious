@@ -39,7 +39,7 @@
         <skipUTs>${skipTests}</skipUTs>
         <skipSTs>true</skipSTs>
         <skipDocs>true</skipDocs>
-        <skipDocker>false</skipDocker>
+        <skipContainerImageBuild>false</skipContainerImageBuild>
 
         <impsort-maven-plugin.goal>sort</impsort-maven-plugin.goal>
 
@@ -1326,10 +1326,10 @@
             </properties>
         </profile>
         <profile>
-            <id>skipDocker</id>
+            <id>skipContainerImageBuild</id>
             <activation>
                 <property>
-                    <name>skipDocker</name>
+                    <name>skipContainerImageBuild</name>
                     <value>true</value>
                 </property>
             </activation>

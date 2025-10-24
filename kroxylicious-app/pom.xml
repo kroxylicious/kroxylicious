@@ -217,7 +217,7 @@
                             </goals>
                             <phase>package</phase>
                             <configuration>
-                                <skip>${skipDocker}</skip>
+                                <skip>${skipContainerImageBuild}</skip>
                                 <images>
                                     <image>
                                         <name>${io.kroxylicious.proxy.image.name}</name>
