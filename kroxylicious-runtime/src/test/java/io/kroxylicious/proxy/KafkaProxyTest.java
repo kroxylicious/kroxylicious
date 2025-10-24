@@ -373,7 +373,6 @@ class KafkaProxyTest {
 
     @Test
     void shouldNotAllowMultipleConcurrentStarts() throws Exception {
-        var configParser = new ConfigParser();
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
             proxy.startup();
 
@@ -383,7 +382,6 @@ class KafkaProxyTest {
 
     @Test
     void shouldNotAllowShuttingDownOfAStoppedInstance() throws Exception {
-        var configParser = new ConfigParser();
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration(MINIMUM_VIABLE_CONFIG_YAML), Features.defaultFeatures())) {
             assertThatThrownBy(proxy::shutdown).isInstanceOf(IllegalStateException.class).hasMessage("This proxy is not running");
         }
@@ -393,7 +391,6 @@ class KafkaProxyTest {
     @EnabledIf(value = "io.netty.channel.uring.IoUring#isAvailable", disabledReason = "IOUring is not available")
     void shouldEnableIOUring() throws Exception {
         // Given
-        var configParser = new ConfigParser();
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration("""
                    useIoUring: true
                    virtualClusters:
@@ -419,7 +416,6 @@ class KafkaProxyTest {
     @Test
     void shouldFallbackIfIOUringDisabled() throws Exception {
         // Given
-        var configParser = new ConfigParser();
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration("""
                    useIoUring: false
                    virtualClusters:
@@ -448,7 +444,6 @@ class KafkaProxyTest {
     @DisabledIf(value = "io.netty.channel.uring.IoUring#isAvailable", disabledReason = "IOUring is available")
     void shouldFailToStartIfIouUringConfiguredAndUnavailable() throws Exception {
         // Given
-        var configParser = new ConfigParser();
         try (var proxy = new KafkaProxy(configParser, configParser.parseConfiguration("""
                    useIoUring: true
                    virtualClusters:
@@ -468,6 +463,7 @@ class KafkaProxyTest {
 
     @Nested
     @DisplayNameGeneration(DisplayNameGenerator.ReplaceUnderscores.class)
+    // prevents Netty actually trying to load the native libraries, in a static initializer block, so we can mock the responses on all platforms
     @SetSystemProperty(key = "io.netty.transport.noNative", value = "true")
     @RestoreSystemProperties
     class EventGroupConfigTest {
