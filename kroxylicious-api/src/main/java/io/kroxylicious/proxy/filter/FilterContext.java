@@ -5,11 +5,13 @@
  */
 package io.kroxylicious.proxy.filter;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import javax.annotation.Nullable;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
@@ -113,6 +115,18 @@ public interface FilterContext {
      */
     <M extends ApiMessage> CompletionStage<M> sendRequest(RequestHeaderData header,
                                                           ApiMessage request);
+
+    /**
+     * Attempts to map all the given {@code topicIds} to the current corresponding topic names.
+     * @param topicIds topic ids to map to names
+     * @return {@link TopicNameResult} result
+     * <h4>Chained Computation stages</h4>
+     * <p>Default and asynchronous default computation stages chained to the returned
+     * {@link java.util.concurrent.CompletionStage}s offered by {@link TopicNameResult} are guaranteed to be executed by the thread
+     * associated with the connection. See {@link io.kroxylicious.proxy.filter} for more details.
+     * </p>
+     */
+    TopicNameResult topicNames(Collection<Uuid> topicIds);
 
     /**
      * Generates a completed filter results containing the given header and response.  When
