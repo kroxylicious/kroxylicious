@@ -295,7 +295,7 @@ class KafkaProxyTest {
         }
     }
 
-@SuppressWarnings("resource")
+    @SuppressWarnings("resource")
     @Test
     void shouldDefaultProxyThreadCountWhenNoNetworkNodePresent() throws Exception {
         var config = """
@@ -527,8 +527,11 @@ class KafkaProxyTest {
         void build_whenEpollIsUnavailableAndKQueueIsAvailable_shouldUseKQueue() {
             // Given
             // the constructor is mocked since native classes used in actual constructors can be unavailable based on the test infra
-            try (var mockTransport = Mockito.mockStatic(KQueue.class); var mockGroupConstructor = Mockito.mockConstruction(MultiThreadIoEventLoopGroup.class)) {
-                mockTransport.when(KQueue::isAvailable).thenReturn(true);
+            try (var kQueueTransport = Mockito.mockStatic(KQueue.class);
+                    var epollTransport = Mockito.mockStatic(Epoll.class);
+                    var mockGroupConstructor = Mockito.mockConstruction(MultiThreadIoEventLoopGroup.class)) {
+                epollTransport.when(Epoll::isAvailable).thenReturn(false);
+                kQueueTransport.when(KQueue::isAvailable).thenReturn(true);
 
                 // When
                 final var config = KafkaProxy.EventGroupConfig.build("test", configuration, NetworkDefinition::proxy, false);
