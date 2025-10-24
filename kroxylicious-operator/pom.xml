@@ -335,10 +335,6 @@
     <profiles>
         <profile>
             <id>dist</id>
-            <properties>
-                <skipDocker>false</skipDocker>
-                <skipKTs>${skipDocker}</skipKTs>
-            </properties>
             <build>
                 <plugins>
                     <plugin>
@@ -373,7 +369,7 @@
                                 </goals>
                                 <configuration>
                                     <!--suppress MavenModelInspection -->
-                                    <skip>${skipDocker}</skip>
+                                    <skip>${skipContainerImageBuild}</skip>
                                     <images>
                                         <image>
                                             <name>${io.kroxylicious.operator.image.name}</name>
