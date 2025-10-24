@@ -13,6 +13,8 @@ Format `<github issue/pr number>: <short description>`.
 * [#2681](https://github.com/kroxylicious/kroxylicious/pull/2681): Create a maven archetype for filter development io.kroxylicious:kroxylicious-filter-archetype
 * [#2778](https://github.com/kroxylicious/kroxylicious/pull/2778): The proxy now allocates a sessionId to connect client and server channels for logging purposes. Allowing users to track activity between downstream and upstream channels.
 * [#143](https://github.com/kroxylicious/kroxylicious/issues/143): Add support for Netty metrics
+* [#2809](https://github.com/kroxylicious/kroxylicious/pull/2809): Add optional configuration parameter to control the number of worker threads used by Netty.
+* [#1467](https://github.com/kroxylicious/kroxylicious/pull/1467): Migrate to Netty 4.2
 
 ## 0.16.0
 
