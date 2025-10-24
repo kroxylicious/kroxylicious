@@ -126,8 +126,7 @@ public class OauthBearerValidationFilter
             if (server == null) {
                 SaslAuthenticateResponseData failedResponse = new SaslAuthenticateResponseData()
                         .setErrorCode(ILLEGAL_SASL_STATE.code())
-                        .setErrorMessage("Unexpected SASL request")
-                        .setAuthBytes(request.authBytes());
+                        .setErrorMessage("Unexpected SASL request");
                 LOGGER.debug("SASL invalid state");
                 notifyThrowable(context, INVALID_SASL_STATE_EXCEPTION);
                 return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
@@ -140,8 +139,7 @@ public class OauthBearerValidationFilter
                         if (e.getCause() instanceof SaslAuthenticationException cause) {
                             SaslAuthenticateResponseData failedResponse = new SaslAuthenticateResponseData()
                                     .setErrorCode(SASL_AUTHENTICATION_FAILED.code())
-                                    .setErrorMessage(e.getMessage())
-                                    .setAuthBytes(request.authBytes());
+                                    .setErrorMessage(e.getMessage());
                             LOGGER.debug("SASL Authentication failed : {}", e.getMessage(), e);
                             notifyThrowable(context, cause);
                             return context.requestFilterResultBuilder().shortCircuitResponse(failedResponse).withCloseConnection().completed();
@@ -157,8 +155,7 @@ public class OauthBearerValidationFilter
                             return context.requestFilterResultBuilder()
                                     .shortCircuitResponse(
                                             new SaslAuthenticateResponseData()
-                                                    .setErrorCode(UNKNOWN_SERVER_ERROR.code())
-                                                    .setAuthBytes(request.authBytes()))
+                                                    .setErrorCode(UNKNOWN_SERVER_ERROR.code()))
                                     .withCloseConnection()
                                     .completed();
                         }
