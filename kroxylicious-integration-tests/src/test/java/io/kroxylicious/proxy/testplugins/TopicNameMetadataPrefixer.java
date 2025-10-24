@@ -20,8 +20,6 @@ import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
-
 /**
  * This filter exists to test that {@link FilterContext#topicNames(java.util.Collection)} is composable with Filters that
  * manipulate topic names in the Metadata Response.
@@ -36,7 +34,6 @@ public class TopicNameMetadataPrefixer implements FilterFactory<Void, Void> {
         return null;
     }
 
-    @NonNull
     @Override
     public Filter createFilter(FilterFactoryContext context, Void initializationData) {
         return new TopicNamePrefixerFilter();

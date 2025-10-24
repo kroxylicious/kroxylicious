@@ -36,7 +36,6 @@ import io.kroxylicious.proxy.filter.TopicNameMapping;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -56,7 +55,6 @@ public class TopicIdToNameResponseStamper implements FilterFactory<Void, Void> {
         return null;
     }
 
-    @NonNull
     @Override
     public Filter createFilter(FilterFactoryContext context, Void initializationData) {
         return new TopicIdToNameResponseStamperFilter();
@@ -74,7 +72,7 @@ public class TopicIdToNameResponseStamper implements FilterFactory<Void, Void> {
             }
 
             Set<Uuid> uuids = Arrays.stream(list.getFirst().split(",")).map(Uuid::fromString).collect(Collectors.toSet());
-            return context.topicNames(uuids).thenCompose(topicNames -> {
+            return context.topicNames(uuids).topicNameMapping().thenCompose(topicNames -> {
                 correlated.put(header.correlationId(), topicNames);
                 return context.forwardRequest(header, request);
             });

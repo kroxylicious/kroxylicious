@@ -44,7 +44,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
-import io.kroxylicious.proxy.filter.TopicNameMapping;
+import io.kroxylicious.proxy.filter.TopicNameResult;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -617,8 +617,8 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
         @Override
-        public CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds) {
-            return new TopicNameRetriever(this).getTopicNames(topicIds);
+        public TopicNameResult topicNames(Collection<Uuid> topicIds) {
+            return new TopicNameRetriever(this, Objects.requireNonNull(ctx).executor()).getTopicNamesResult(topicIds);
         }
 
     }

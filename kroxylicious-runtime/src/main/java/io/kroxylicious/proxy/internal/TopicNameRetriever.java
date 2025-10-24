@@ -11,8 +11,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.MetadataRequestData;
@@ -25,21 +26,26 @@ import org.apache.kafka.common.protocol.Errors;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.TopicNameMapping;
 import io.kroxylicious.proxy.filter.TopicNameMappingException;
+import io.kroxylicious.proxy.filter.TopicNameResult;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
-
-import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static java.util.Collections.unmodifiableMap;
 
-record TopicNameRetriever(FilterContext filterContext) {
+final class TopicNameRetriever {
     // Version 12 was the first version that uses topic ids.
     private static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
+    private final FilterContext filterContext;
+    private final ExecutorService executor;
 
-    public CompletionStage<TopicNameMapping> getTopicNames(Collection<Uuid> topicIds) {
+    TopicNameRetriever(FilterContext filterContext, ExecutorService executor) {
+        this.filterContext = filterContext;
+        this.executor = executor;
+    }
+
+    TopicNameResult getTopicNamesResult(Collection<Uuid> topicIds) {
         Objects.requireNonNull(topicIds);
-        return requestTopicMetadata(topicIds)
-                .thenApply(f -> extractTopicNames(topicIds, f))
-                .handle(TopicNameRetriever::wrapUnhandledException);
+        CompletionStage<ApiMessage> apiMessageCompletionStage = requestTopicMetadata(topicIds);
+        return new Result(executor, apiMessageCompletionStage, topicIds);
     }
 
     private CompletionStage<ApiMessage> requestTopicMetadata(Collection<Uuid> topicIds) {
@@ -84,27 +90,11 @@ record TopicNameRetriever(FilterContext filterContext) {
         });
         List<Uuid> notFound = topicIds.stream().filter(uuid -> !topicNames.containsKey(uuid) && !failures.containsKey(uuid)).toList();
         if (!notFound.isEmpty()) {
-            throw new TopicNameMappingException("Not all requested uuids present in Metadata, missing uuids: " + notFound);
+            for (Uuid uuid : notFound) {
+                failures.put(uuid, Errors.UNKNOWN_SERVER_ERROR);
+            }
         }
         return new MapTopicNameMapping(unmodifiableMap(topicNames), unmodifiableMap(failures));
-    }
-
-    private static TopicNameMapping wrapUnhandledException(@Nullable TopicNameMapping topicNameMapping, @Nullable Throwable throwable) {
-        if (topicNameMapping != null) {
-            return topicNameMapping;
-        }
-        if (throwable != null) {
-            if (throwable instanceof CompletionException ex && ex.getCause() instanceof TopicNameMappingException) {
-                throw ex;
-            }
-            else {
-                throw new TopicNameMappingException("getTopicNames resulted in unhandled exception", throwable);
-            }
-        }
-        else {
-            // should never happen, but for completeness
-            throw new TopicNameMappingException("getTopicNames resulted in null mapping and throwable");
-        }
     }
 
     /**
@@ -112,9 +102,10 @@ record TopicNameRetriever(FilterContext filterContext) {
      * @param topicNames successfully mapped topic names, non-null
      * @param failures failed topic name mappings, non-null
      */
-    public record MapTopicNameMapping(Map<Uuid, String> topicNames, Map<Uuid, Errors> failures) implements TopicNameMapping {
+    // TODO, currently if there is an unhandled exception at the top level we map that to an UNKNOWN_SERVER_ERROR, maybe it should be an Exception class not Errors
+    private record MapTopicNameMapping(Map<Uuid, String> topicNames, Map<Uuid, Errors> failures) implements TopicNameMapping {
 
-        public MapTopicNameMapping {
+        private MapTopicNameMapping {
             Objects.requireNonNull(topicNames);
             Objects.requireNonNull(failures);
         }
@@ -124,5 +115,42 @@ record TopicNameRetriever(FilterContext filterContext) {
             return !failures.isEmpty();
         }
 
+    }
+
+    private static class Result implements TopicNameResult {
+
+        private final CompletionStage<TopicNameMapping> topicNameMappingStage;
+        private final ExecutorService executorService;
+        private final Map<Uuid, CompletionStage<String>> individualFutures;
+
+        private Result(ExecutorService executorService, CompletionStage<ApiMessage> apiMessageCompletionStage, Collection<Uuid> topicIds) {
+            this.executorService = executorService;
+            topicNameMappingStage = apiMessageCompletionStage
+                    .thenApply(message -> extractTopicNames(topicIds, message))
+                    .exceptionally(
+                            throwable -> new MapTopicNameMapping(Map.of(), topicIds.stream().collect(Collectors.toMap(i -> i, i -> Errors.UNKNOWN_SERVER_ERROR))));
+            individualFutures = topicIds.stream().collect(Collectors.toMap(uuid -> uuid, uuid -> topicNameMapping().thenApply(m -> {
+                if (m.failures().containsKey(uuid)) {
+                    Errors errors = m.failures().get(uuid);
+                    throw new TopicNameMappingException(errors.message(), errors.exception());
+                }
+                else if (m.topicNames().containsKey(uuid)) {
+                    return m.topicNames().get(uuid);
+                }
+                else {
+                    throw new TopicNameMappingException("no result for uuid " + uuid);
+                }
+            }).thenApplyAsync(mapping -> mapping, executorService)));
+        }
+
+        @Override
+        public CompletionStage<TopicNameMapping> topicNameMapping() {
+            return topicNameMappingStage.thenApplyAsync(mapping -> mapping, executorService);
+        }
+
+        @Override
+        public Map<Uuid, CompletionStage<String>> topicNames() {
+            return individualFutures;
+        }
     }
 }

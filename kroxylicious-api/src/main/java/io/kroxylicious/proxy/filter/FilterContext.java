@@ -117,19 +117,16 @@ public interface FilterContext {
                                                           ApiMessage request);
 
     /**
-     * Maps all of the given {@code topicIds} to the current corresponding topic names.
+     * Attempts to map all the given {@code topicIds} to the current corresponding topic names.
      * @param topicIds topic ids to map to names
-     * @return CompletionStage for a TopicNameMapping. The TopicNameMapping is guaranteed to contain either
-     * a name or {@link org.apache.kafka.common.protocol.Errors} for each topic id requested. If a name or
-     * error cannot be determined for any topic id then this stage will be completed exceptionally with a
-     * {@link TopicNameMappingException}.
+     * @return {@link TopicNameResult} result
      * <h4>Chained Computation stages</h4>
      * <p>Default and asynchronous default computation stages chained to the returned
-     * {@link java.util.concurrent.CompletionStage} are guaranteed to be executed by the thread associated with the
-     * connection. See {@link io.kroxylicious.proxy.filter} for more details.
+     * {@link java.util.concurrent.CompletionStage}s offered by {@link TopicNameResult} are guaranteed to be executed by the thread
+     * associated with the connection. See {@link io.kroxylicious.proxy.filter} for more details.
      * </p>
      */
-    CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds);
+    TopicNameResult topicNames(Collection<Uuid> topicIds);
 
     /**
      * Generates a completed filter results containing the given header and response.  When

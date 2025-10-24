@@ -155,7 +155,7 @@ class FilterIT {
             List<String> tags = unknownTaggedFieldsToStrings(response.payload().message(), TopicIdToNameResponseStamper.TOPIC_NAME_TAG).toList();
             assertThat(tags).hasSize(1);
             String tag = tags.getFirst();
-            assertThat(tag).isEqualTo(topicNameMapping(nonexistentTopic, null, "errorCode(UNKNOWN_TOPIC_ID)"));
+            assertThat(tag).isEqualTo(topicNameMapping(nonexistentTopic, null, "UNKNOWN_TOPIC_ID"));
         }
     }
 
