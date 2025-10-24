@@ -8,7 +8,6 @@ package io.kroxylicious.kubernetes.operator;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.util.List;
 
 import org.assertj.core.api.Assertions;
 import org.awaitility.core.ConditionFactory;
@@ -23,15 +22,7 @@ import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.Secret;
 import io.fabric8.kubernetes.api.model.SecretBuilder;
-import io.fabric8.kubernetes.client.KubernetesClient;
-import io.fabric8.kubernetes.client.dsl.Updatable;
 import io.javaoperatorsdk.operator.junit.LocallyRunOperatorExtension;
-import io.strimzi.api.kafka.Crds;
-import io.strimzi.api.kafka.model.kafka.Kafka;
-import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
-import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListenerBuilder;
-import io.strimzi.api.kafka.model.kafka.listener.ListenerAddressBuilder;
-import io.strimzi.api.kafka.model.kafka.listener.ListenerStatusBuilder;
 
 import io.kroxylicious.kubernetes.api.common.Condition;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
@@ -40,21 +31,19 @@ import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-import static io.kroxylicious.kubernetes.operator.OperatorTestUtils.kubeClient;
 import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
 import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
 import static org.awaitility.Awaitility.await;
 
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
-class KafkaServiceReconcilerIT {
+class KafkaServiceBootstrapReconcilerIT {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceReconcilerIT.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceBootstrapReconcilerIT.class);
     public static final String FOO_BOOTSTRAP_9090 = "foo.bootstrap:9090";
     private static final String BAR_BOOTSTRAP_9090 = "bar.bootstrap:9090";
     public static final String SERVICE_A = "service-a";
     public static final String SECRET_X = "secret-x";
     public static final String CONFIG_MAP_T = "configmap-t";
-    public static final String KAFKA_RESOURCE_NAME = "my-cluster";
 
     private static final ConditionFactory AWAIT = await().timeout(Duration.ofSeconds(60));
 
@@ -70,20 +59,6 @@ class KafkaServiceReconcilerIT {
             .waitForNamespaceDeletion(false)
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
-
-    static void installKafkaCRD() {
-        // note that we could not find a nice way to do this via the LocallyRunOperatorExtension. I tried serializing the CRD to
-        // a temp file and using `withAdditionalCRD(path)` but it didn't load those CRDs before initializing the reconciler.
-        try (KubernetesClient client = kubeClient()) {
-            client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(Updatable::update);
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        finally {
-            kubeClient().apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(Updatable::update);
-        }
-    }
 
     private final LocallyRunningOperatorRbacHandler.TestActor testActor = rbacHandler.testActor(extension);
 
@@ -213,139 +188,6 @@ class KafkaServiceReconcilerIT {
         assertResolvedRefsFalse(resource, Condition.REASON_REFS_NOT_FOUND, "spec.tls.trustAnchorRef: referenced configmap not found");
     }
 
-    @Test
-    void shouldResolveStrimziKafka() {
-        // Given
-        installKafkaCRD();
-        var kafka = testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
-        String listenerHost = "foo.bootstrap";
-        int listenerPort = 9090;
-        Kafka withStatus = new KafkaBuilder(kafka)
-                .withNewStatus()
-                .withListeners(
-                        new ListenerStatusBuilder()
-                                .withName("plain")
-                                .withAddresses(new ListenerAddressBuilder()
-                                        .withHost(listenerHost)
-                                        .withPort(listenerPort)
-                                        .build())
-                                .build())
-                .endStatus()
-                .build();
-        testActor.patchStatus(withStatus);
-
-        // When
-        KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
-
-        // Then
-        assertResolvedRefsTrue(service, FOO_BOOTSTRAP_9090, true);
-    }
-
-    @Test
-    void shouldHandleStrimziKafkaWithNoPlainListeners() {
-        // Given
-        installKafkaCRD();
-        String listenerHost = "mylistener";
-        int listenerPort = 9092;
-        Kafka withTlsListener = new KafkaBuilder()
-                .withNewMetadata()
-                .withName(KAFKA_RESOURCE_NAME)
-                .endMetadata()
-                .withNewSpec()
-                .withNewKafka()
-                .withListeners(List.of(new GenericKafkaListenerBuilder()
-                        .withName("tls")
-                        .withTls(true)
-                        .build()))
-                .endKafka()
-                .endSpec()
-                .withNewStatus()
-                .withListeners(
-                        new ListenerStatusBuilder()
-                                .withName("tls")
-                                .withAddresses(new ListenerAddressBuilder()
-                                        .withHost(listenerHost)
-                                        .withPort(listenerPort)
-                                        .build())
-                                .build())
-                .endStatus()
-                .build();
-
-        testActor.create(withTlsListener);
-
-        // When
-        KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "tls", KAFKA_RESOURCE_NAME));
-
-        // Then
-        assertResolvedRefsFalse(service, Condition.REASON_INVALID_REFERENCED_RESOURCE, "Referenced resource should have listener as `plain`");
-    }
-
-    @Test
-    void shouldHandleStrimziKafkaWithNoListeners() {
-        // Given
-        installKafkaCRD();
-        var kafka = testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
-
-        Kafka withNoListener = new KafkaBuilder(kafka)
-                .withNewStatus()
-                .endStatus()
-                .build();
-
-        testActor.patchStatus(withNoListener);
-
-        // When
-        KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
-
-        // Then
-        assertResolvedRefsFalse(service, Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED, "Referenced resource has not yet reconciled listener name: plain");
-    }
-
-    @Test
-    void shouldHandleStrimziKafkaWithNoStatus() {
-        // Given
-        installKafkaCRD();
-        testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
-
-        // When
-
-        KafkaService service = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
-
-        // Then
-        assertResolvedRefsFalse(service, Condition.REASON_REFERENCED_RESOURCE_NOT_RECONCILED, "Referenced resource has not yet reconciled listener name: plain");
-    }
-
-    @Test
-    void shouldUpdateStatusOnceStrimziKafkaResourceDeleted() {
-        // Given
-        installKafkaCRD();
-        var kafka = testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
-        String listenerHost = "foo.bootstrap";
-        int listenerPort = 9090;
-        Kafka withListeners = new KafkaBuilder(kafka)
-                .withNewStatus()
-                .withListeners(
-                        new ListenerStatusBuilder()
-                                .withName("plain")
-                                .withAddresses(new ListenerAddressBuilder()
-                                        .withHost(listenerHost)
-                                        .withPort(listenerPort)
-                                        .build())
-                                .build())
-                .endStatus()
-                .build();
-        testActor.patchStatus(withListeners);
-
-        // When
-        KafkaService updated = testActor.create(kafkaServiceWithStrimziKafkaRef(SERVICE_A, "plain", KAFKA_RESOURCE_NAME));
-        assertResolvedRefsTrue(updated, FOO_BOOTSTRAP_9090, true);
-
-        // When
-        testActor.delete(kafka);
-
-        // Then
-        assertResolvedRefsFalse(updated, Condition.REASON_REFS_NOT_FOUND, "spec.strimziKafkaRef: referenced Kafka resource not found");
-    }
-
     private ConfigMap trustAnchorConfigMap(String name) {
         // @formatter:off
         return new ConfigMapBuilder()
@@ -353,24 +195,6 @@ class KafkaServiceReconcilerIT {
                     .withName(name)
                 .endMetadata()
                 .addToData("ca-bundle.pem", "whatever")
-                .build();
-        // @formatter:on
-    }
-
-    private Kafka kafkaResource(String resourceName) {
-        // @formatter:off
-        return new KafkaBuilder()
-                .withNewMetadata()
-                    .withName(resourceName)
-                .endMetadata()
-                .withNewSpec()
-                    .withNewKafka()
-                        .withListeners(new GenericKafkaListenerBuilder()
-                                .withName("plain")
-                                .withTls(false)
-                                .build())
-                    .endKafka()
-                .endSpec()
                 .build();
         // @formatter:on
     }
@@ -384,24 +208,6 @@ class KafkaServiceReconcilerIT {
                 .withType("kubernetes.io/tls")
                 .addToData("tls.key", "whatever")
                 .addToData("tls.crt", "whatever")
-                .build();
-        // @formatter:on
-    }
-
-    private static KafkaService kafkaServiceWithStrimziKafkaRef(String resourceName, String listenerName, String clusterName) {
-        // @formatter:off
-        return new KafkaServiceBuilder()
-                .withNewMetadata()
-                    .withName(resourceName)
-                .endMetadata()
-                .editOrNewSpec()
-                    .withNewStrimziKafkaRef()
-                    .withListenerName(listenerName)
-                    .withNewRef()
-                        .withName(clusterName)
-                     .endRef()
-                    .endStrimziKafkaRef()
-                .endSpec()
                 .build();
         // @formatter:on
     }
