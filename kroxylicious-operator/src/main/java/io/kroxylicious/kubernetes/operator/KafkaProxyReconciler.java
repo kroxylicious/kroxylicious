@@ -131,7 +131,6 @@ public class KafkaProxyReconciler implements
     public static final String CONFIG_STATE_DEP = "config-state";
     public static final String CONFIG_DEP = "config";
     public static final String DEPLOYMENT_DEP = "deployment";
-    public static final String KAFKA_DEP = "kafkas";
     public static final String CLUSTERS_DEP = "clusters";
     public static final Path MOUNTS_BASE_DIR = Path.of("/opt/kroxylicious/");
     private static final Path TARGET_CLUSTER_MOUNTS_BASE = MOUNTS_BASE_DIR.resolve("target-cluster");

@@ -12,9 +12,7 @@ import java.util.List;
 
 import org.assertj.core.api.Assertions;
 import org.awaitility.core.ConditionFactory;
-import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIf;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -42,6 +40,7 @@ import io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
+import static io.kroxylicious.kubernetes.operator.OperatorTestUtils.kubeClient;
 import static io.kroxylicious.kubernetes.operator.assertj.OperatorAssertions.assertThat;
 import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGenerator.NO_CHECKSUM_SPECIFIED;
 import static org.awaitility.Awaitility.await;
@@ -72,25 +71,17 @@ class KafkaServiceReconcilerIT {
             .withConfigurationService(x -> x.withCloseClientOnStop(false))
             .build();
 
-    @BeforeAll
-    static void beforeAll() {
+    static void installKafkaCRD() {
         // note that we could not find a nice way to do this via the LocallyRunOperatorExtension. I tried serializing the CRD to
         // a temp file and using `withAdditionalCRD(path)` but it didn't load those CRDs before initializing the reconciler.
-        try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
+        try (KubernetesClient client = kubeClient()) {
             client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(Updatable::update);
         }
         catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    @AfterAll
-    static void afterAll() {
-        try (KubernetesClient client = OperatorTestUtils.kubeClient()) {
-            client.apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).delete();
-        }
-        catch (Exception e) {
-            throw new RuntimeException(e);
+        finally {
+            kubeClient().apiextensions().v1().customResourceDefinitions().resource(Crds.kafka()).createOr(Updatable::update);
         }
     }
 
@@ -225,6 +216,7 @@ class KafkaServiceReconcilerIT {
     @Test
     void shouldResolveStrimziKafka() {
         // Given
+        installKafkaCRD();
         var kafka = testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
         String listenerHost = "foo.bootstrap";
         int listenerPort = 9090;
@@ -252,6 +244,7 @@ class KafkaServiceReconcilerIT {
     @Test
     void shouldHandleStrimziKafkaWithNoPlainListeners() {
         // Given
+        installKafkaCRD();
         String listenerHost = "mylistener";
         int listenerPort = 9092;
         Kafka withTlsListener = new KafkaBuilder()
@@ -290,6 +283,7 @@ class KafkaServiceReconcilerIT {
     @Test
     void shouldHandleStrimziKafkaWithNoListeners() {
         // Given
+        installKafkaCRD();
         var kafka = testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
 
         Kafka withNoListener = new KafkaBuilder(kafka)
@@ -309,6 +303,7 @@ class KafkaServiceReconcilerIT {
     @Test
     void shouldHandleStrimziKafkaWithNoStatus() {
         // Given
+        installKafkaCRD();
         testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
 
         // When
@@ -320,8 +315,9 @@ class KafkaServiceReconcilerIT {
     }
 
     @Test
-    void shouldUpdateStatusOnceKafkaResourceDeleted() {
+    void shouldUpdateStatusOnceStrimziKafkaResourceDeleted() {
         // Given
+        installKafkaCRD();
         var kafka = testActor.create(kafkaResource(KAFKA_RESOURCE_NAME));
         String listenerHost = "foo.bootstrap";
         int listenerPort = 9090;

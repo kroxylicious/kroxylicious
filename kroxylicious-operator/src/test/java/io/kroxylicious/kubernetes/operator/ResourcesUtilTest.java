@@ -820,12 +820,12 @@ class ResourcesUtilTest {
         KubernetesClient client = mock();
         when(reconcilerContext.getClient()).thenReturn(client);
         when(reconcilerContext.getClient().getApiGroup(KAFKA_GROUP_NAME)).thenReturn(new APIGroup());
-        when(reconcilerContext.getSecondaryResource(Kafka.class, KafkaServiceReconciler.KAFKA_EVENT_SOURCE_NAME))
+        when(reconcilerContext.getSecondaryResource(Kafka.class, KafkaServiceReconciler.STRIMZI_KAFKA_EVENT_SOURCE_NAME))
                 .thenReturn(Optional.ofNullable(kafka));
 
         // When
         ResourceCheckResult<KafkaService> actual = ResourcesUtil.checkStrimziKafkaRef(service, reconcilerContext,
-                KafkaServiceReconciler.KAFKA_EVENT_SOURCE_NAME, strimziKafkaRef,
+                KafkaServiceReconciler.STRIMZI_KAFKA_EVENT_SOURCE_NAME, strimziKafkaRef,
                 "spec.strimziKafkaRef", new KafkaServiceStatusFactory(TEST_CLOCK));
 
         // Then

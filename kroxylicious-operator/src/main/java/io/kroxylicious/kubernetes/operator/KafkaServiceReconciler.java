@@ -60,8 +60,8 @@ public final class KafkaServiceReconciler implements
 
     public static final String SECRETS_EVENT_SOURCE_NAME = "secrets";
     public static final String CONFIG_MAPS_EVENT_SOURCE_NAME = "configmaps";
-    public static final String KAFKA_EVENT_SOURCE_NAME = "kafkas";
-    public static final String KAFKA_GROUP_NAME = "kafka.strimzi.io";
+    public static final String STRIMZI_KAFKA_EVENT_SOURCE_NAME = "kafkas";
+    public static final String STRIMZI_KAFKA_GROUP_NAME = "kafka.strimzi.io";
 
     private static final String SPEC_REF = "spec.strimziKafkaRef";
     private static final String SPEC_TLS_TRUST_ANCHOR_REF = "spec.tls.trustAnchorRef";
@@ -91,22 +91,21 @@ public final class KafkaServiceReconciler implements
                 .withSecondaryToPrimaryMapper(configMapToKafkaService(context))
                 .build();
 
-        APIGroup apiGroup = context.getClient().getApiGroup(KAFKA_GROUP_NAME);
         List<EventSource<?, KafkaService>> informersList = new ArrayList<>();
 
         informersList.add(new InformerEventSource<>(serviceToSecret, context));
         informersList.add(new InformerEventSource<>(serviceToConfigMap, context));
 
-        // TODO we want to revisit this as we are currently making
-        // to make numerous API calls to check if it exists
-        if (apiGroup != null) {
+        APIGroup strimziKafkaApiGroup = context.getClient().getApiGroup(STRIMZI_KAFKA_GROUP_NAME);
+
+        if (strimziKafkaApiGroup != null) {
             LOGGER.debug("Adding `kafkas.strimzi.io.kafkas` informer because the Strimzi Kafka CRD is present in namespace: {}", context.getClient().getNamespace());
             InformerEventSourceConfiguration<Kafka> serviceToStrimziKafka = InformerEventSourceConfiguration.from(
                     Kafka.class,
                     KafkaService.class)
-                    .withName(KAFKA_EVENT_SOURCE_NAME)
-                    .withPrimaryToSecondaryMapper(kafkaServiceToKafka())
-                    .withSecondaryToPrimaryMapper(kafkaToKafkaService(context))
+                    .withName(STRIMZI_KAFKA_EVENT_SOURCE_NAME)
+                    .withPrimaryToSecondaryMapper(kafkaServiceToStrimziKafka())
+                    .withSecondaryToPrimaryMapper(strimziKafkaToKafkaService(context))
                     .build();
             informersList.add(new InformerEventSource<>(serviceToStrimziKafka, context));
         }
@@ -153,7 +152,7 @@ public final class KafkaServiceReconciler implements
     }
 
     @VisibleForTesting
-    static SecondaryToPrimaryMapper<Kafka> kafkaToKafkaService(EventSourceContext<KafkaService> context) {
+    static SecondaryToPrimaryMapper<Kafka> strimziKafkaToKafkaService(EventSourceContext<KafkaService> context) {
         return kafka -> ResourcesUtil.findReferrers(context,
                 kafka,
                 KafkaService.class,
@@ -163,7 +162,7 @@ public final class KafkaServiceReconciler implements
     }
 
     @VisibleForTesting
-    static PrimaryToSecondaryMapper<KafkaService> kafkaServiceToKafka() {
+    static PrimaryToSecondaryMapper<KafkaService> kafkaServiceToStrimziKafka() {
         return (KafkaService cluster) -> Optional.ofNullable(cluster.getSpec())
                 .map(KafkaServiceSpec::getStrimziKafkaRef)
                 .map(strimziKafkaRef -> ResourcesUtil.localRefAsResourceId(cluster, strimziKafkaRef.getRef()))
@@ -190,7 +189,7 @@ public final class KafkaServiceReconciler implements
                 .map(KafkaServiceSpec::getStrimziKafkaRef);
 
         if (strimziKafkaRefOpt.isPresent()) {
-            ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziKafkaRef(service, context, KAFKA_EVENT_SOURCE_NAME, strimziKafkaRefOpt.get(),
+            ResourceCheckResult<KafkaService> result = ResourcesUtil.checkStrimziKafkaRef(service, context, STRIMZI_KAFKA_EVENT_SOURCE_NAME, strimziKafkaRefOpt.get(),
                     SPEC_REF,
                     statusFactory);
             updatedService = result.resource();
@@ -217,7 +216,7 @@ public final class KafkaServiceReconciler implements
 
             if (service.getSpec().getStrimziKafkaRef() != null) {
 
-                Optional<ListenerStatus> listenerStatus = retrieveBootstrapServerAddress(context, service, KAFKA_EVENT_SOURCE_NAME);
+                Optional<ListenerStatus> listenerStatus = retrieveBootstrapServerAddress(context, service, STRIMZI_KAFKA_EVENT_SOURCE_NAME);
 
                 updatedService = listenerStatus.map(status -> statusFactory.newTrueConditionStatusPatch(service, ResolvedRefs,
                         checksumGenerator.encode(), status.getBootstrapServers()))

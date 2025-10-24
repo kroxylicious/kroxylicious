@@ -30,6 +30,7 @@ import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
 import io.strimzi.api.kafka.model.kafka.Kafka;
+import io.strimzi.api.kafka.model.kafka.KafkaStatus;
 import io.strimzi.api.kafka.model.kafka.listener.GenericKafkaListener;
 import io.strimzi.api.kafka.model.kafka.listener.ListenerStatus;
 
@@ -111,7 +112,7 @@ public class ResourcesUtil {
                 && (ref.getGroup() == null || ref.getGroup().isEmpty());
     }
 
-    static boolean isKafka(LocalRef<?> ref) {
+    static boolean isStrimziKafka(LocalRef<?> ref) {
         return (ref.getKind() == null || ref.getKind().isEmpty() || "Kafka".equals(ref.getKind()))
                 && (ref.getGroup() == null || ref.getGroup().isEmpty() || "kafka.strimzi.io".equals(ref.getGroup()));
     }
@@ -558,7 +559,7 @@ public class ResourcesUtil {
                     "strimziKafkaRef present but Kafka api group not found on cluster. Is the Strimzi Operator installed?"), List.of());
         }
 
-        if (isKafka(strimziKafkaRef.getRef())) {
+        if (isStrimziKafka(strimziKafkaRef.getRef())) {
             Optional<Kafka> kafkaOpt = getKafka(context, eventSourceName);
             if (kafkaOpt.isEmpty()) {
                 return new ResourceCheckResult<>(statusFactory.newFalseConditionStatusPatch(resource, ResolvedRefs,
@@ -644,7 +645,10 @@ public class ResourcesUtil {
     }
 
     private static boolean isListenerPresentInStatus(StrimziKafkaRef strimziKafkaRef, Kafka kafka) {
-        return kafka.getStatus() != null && kafka.getStatus().getListeners() != null && kafka.getStatus().getListeners().stream()
+        return Optional.ofNullable(kafka.getStatus())
+                .map(KafkaStatus::getListeners)
+                .stream()
+                .flatMap(Collection::stream)
                 .anyMatch(listenerStatus -> listenerStatus.getName()
                         .equals(strimziKafkaRef.getListenerName()));
     }

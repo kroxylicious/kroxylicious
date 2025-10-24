@@ -540,7 +540,7 @@ class KafkaServiceReconcilerTest {
     private static void mockGetKafka(
                                      Context<KafkaService> context,
                                      Optional<Kafka> optional) {
-        when(context.getSecondaryResource(Kafka.class, KafkaServiceReconciler.KAFKA_EVENT_SOURCE_NAME)).thenReturn(optional);
+        when(context.getSecondaryResource(Kafka.class, KafkaServiceReconciler.STRIMZI_KAFKA_EVENT_SOURCE_NAME)).thenReturn(optional);
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -628,9 +628,9 @@ class KafkaServiceReconcilerTest {
     }
 
     @Test
-    void canMapFromKafkaServiceWithStrimziKafkaRefToConfigMap() {
+    void canMapFromKafkaServiceWithStrimziKafkaRefToStrimziKafka() {
         // Given
-        var mapper = KafkaServiceReconciler.kafkaServiceToKafka();
+        var mapper = KafkaServiceReconciler.kafkaServiceToStrimziKafka();
 
         // When
         var secondaryResourceIDs = mapper.toSecondaryResourceIDs(SERVICE);
@@ -640,9 +640,9 @@ class KafkaServiceReconcilerTest {
     }
 
     @Test
-    void canMapFromKafkaServiceWithoutStrimziKafkaRefToConfigMap() {
+    void canMapFromKafkaServiceWithoutStrimziKafkaRefToStrimziKafka() {
         // Given
-        var mapper = KafkaServiceReconciler.kafkaServiceToKafka();
+        var mapper = KafkaServiceReconciler.kafkaServiceToStrimziKafka();
         var serviceNoStrimziKafkaRef = new KafkaServiceBuilder(SERVICE).editSpec().withStrimziKafkaRef(null).endSpec().build();
 
         // When
@@ -653,7 +653,7 @@ class KafkaServiceReconcilerTest {
     }
 
     @Test
-    void canMapFromKafkaToKafkaService() {
+    void canMapFromStrimziKafkaToKafkaService() {
         // Given
         EventSourceContext<KafkaService> eventSourceContext = mock();
         KubernetesClient client = mock();
@@ -662,7 +662,7 @@ class KafkaServiceReconcilerTest {
         KubernetesResourceList<KafkaService> mockList = mockKafkaServiceListOperation(client);
         when(mockList.getItems()).thenReturn(List.of(SERVICE));
 
-        var mapper = KafkaServiceReconciler.kafkaToKafkaService(eventSourceContext);
+        var mapper = KafkaServiceReconciler.strimziKafkaToKafkaService(eventSourceContext);
 
         // When
         var primaryResourceIDs = mapper.toPrimaryResourceIDs(KAFKA);
