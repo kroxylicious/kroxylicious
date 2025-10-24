@@ -1,0 +1,63 @@
+:experimental:
+include::_assets/attributes.adoc[]
+
+:context: sasl-inspection
+:guide: sasl-inspection
+
+[id="using-book-{context}"]
+= SASL Inspection Guide
+
+include::_modules/sasl-inspection/con-about-{guide}-guide.adoc[leveloffset=+1]
+
+[role="_abstract"]
+This filter inspects the SASL exchange between Kafka Client and Broker and extracts the *authenticated principal*.
+If the client's authentication with the broker is successful, the filter makes the authenticated principal available to the other filters in the chain, so that they may know on whose behalf they are acting.
+
+NOTE: The SASL Inspection Filter plays no part in deciding if the authentication is successful or not.
+That role remains the exclusive responsibility of the broker.
+
+To use this filter, the Kafka Cluster's listener must be configured to authenticate using SASL, and it must use a SASL mechanism that enabled by this filter.
+If the Kafka Client is configured to use a SASL mechanism that is not supported by the proxy, or the proxy and Kafka Cluster do not have the same mechanism available
+the client will be disconnected with an unsupported SASL mechanism error.
+
+This filter supports the following SASL mechanisms:
+
+[id='supported-mechansisms-{context}']
+.Table of supported SASL mechanisms
+|===
+|SASL mechanism|Enabled by default
+
+|https://tools.ietf.org/html/rfc4616[PLAIN]
+|No
+
+|https://datatracker.ietf.org/doc/html/rfc7677[SCRAM-SHA-256]
+|Yes
+
+|https://datatracker.ietf.org/doc/html/draft-melnikov-scram-sha-512-00[SCRAM-SHA-512]
+|Yes
+
+|https://datatracker.ietf.org/doc/html/rfc7628[OAUTHBEARER]
+|Yes
+|===
+
+Mechanisms that transmit credentials in plain text are disabled by default.
+This is done to avoid the plain-text passwords existing in the proxy's memory.
+To use such a mechanism, you must enable it in the filter's configuration.
+
+For the `OAUTHBEARER` inspection, only JWT tokens that use using signatures (JWS) are supported.
+JWT tokens that use encryption (JWE) are not supported.
+Unsigned JWT tokens are supported but not recommended for production use.
+
+If an attempted is made to use a unsupported token type, the authentication will fail with a SASL error.
+
+.Sequence diagram showing the SASL inspection filter extracting an authenticated principal from an SASL negotiation.
+image::{realimagesdir}/sasl-inspection-seq.svg["Sequence diagram showing SASL inspection."]
+
+//configuring the sasl inspection filter
+include::_assemblies/assembly-configuring-sasl-inspection-filter.adoc[leveloffset=+1]
+
+//trademark notices
+include::_assets/trademarks.adoc[leveloffset=+1]
+
+// glossary
+include::_modules/sasl-inspection/ref-glossary.adoc[leveloffset=+1]

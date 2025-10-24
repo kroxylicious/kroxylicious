@@ -4,11 +4,11 @@
 //
 // index.adoc
 
-[id='assembly-configuring-oauth-bearer-validation-filter-{context}']
-= Configuring the Oauth Bearer Validation filter
+[id='assembly-configuring-sasl-inspection-filter-{context}']
+= Configuring the SASL inspection filter
 
 [role="_abstract"]
-This procedure describes how to set up the Oauth Bearer Validation filter by configuring it in Kroxylicious.
+This procedure describes how to set up the SASL Inspection Filter by configuring it in Kroxylicious.
 
 .Prerequisites
 
@@ -22,7 +22,7 @@ endif::OpenShiftOnly[]
 
 .Procedure
 
-. Configure a `OauthBearerValidation` type filter.
+. Configure a `SaslInspection` type filter.
 ifdef::include-platform-bare-metal[]
 * In a standalone proxy deployment. See <<con-example-proxy-config-{context}>>
 endif::[]
@@ -30,12 +30,10 @@ ifdef::include-platform-kubernetes[]
 * In a Kubernetes deployment using a `KafkaProcotolFilter` resource. See <<con-example-kafkaprotocolfilter-resource-{context}>>
 endif::[]
 
-Note: OauthBearer config follows https://kafka.apache.org/documentation/#security_ssl[kafka's properties]
-
 ifdef::include-platform-bare-metal[]
-include::../_modules/oauth-bearer-validation/con-example-proxy-config.adoc[leveloffset=+1]
+include::../_modules/sasl-inspection/con-example-proxy-config.adoc[leveloffset=+1]
 endif::[]
 
 ifdef::include-platform-kubernetes[]
-include::../_modules/oauth-bearer-validation/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+1]
+include::../_modules/sasl-inspection/con-example-kafkaprotocolfilter-resource.adoc[leveloffset=+1]
 endif::[]
