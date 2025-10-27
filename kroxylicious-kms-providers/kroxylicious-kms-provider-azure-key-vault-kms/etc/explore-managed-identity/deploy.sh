@@ -5,6 +5,10 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
+# This file is for developer use cases and exploratory testing. It will:
+# 1. Create a Resource Group to contain all further resources manifested
+# 2. Provision a Key Vault and Key appropriate for use with Record Encryption
+# 3. Provision a VM with RBAC permissions to use that Key, and SSH access from the internet enabled
 cd -- "$( dirname -- "${BASH_SOURCE[0]}" )"
 
 RESOURCE_GROUP="my-keyvault-vm-rg"

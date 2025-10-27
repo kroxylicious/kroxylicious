@@ -57,7 +57,7 @@ broad permissions.
 ### 8. Install Kafka
 * Install a java 17 JRE: `sudo apt update && sudo apt install openjdk-17-jre-headless`
 * Follow the Kafka quickstart https://kafka.apache.org/quickstart to download and run Kafka on the VM.
-* Consider tuning down it's network thread count and heap memory. You can set `KAFKA_HEAP_OPTS="-Xmx256m"` and
+* Consider tuning down its network thread count and heap memory. You can set `KAFKA_HEAP_OPTS="-Xmx256m"` and
   in `config/server.properties` tune down `num.network.threads=1`, `num.io.threads=1` and set `log.cleaner.enable=false`.
 
 ### 9. Install Kroxylicious
