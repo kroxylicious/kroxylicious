@@ -152,7 +152,7 @@ resource vm 'Microsoft.Compute/virtualMachines@2023-07-01' = {
   }
   properties: {
     hardwareProfile: {
-      vmSize: 'Standard_B1s' // A cheap, burstable VM size
+      vmSize: 'Standard_B2s' // A cheap, burstable VM size
     }
     storageProfile: {
       imageReference: {
