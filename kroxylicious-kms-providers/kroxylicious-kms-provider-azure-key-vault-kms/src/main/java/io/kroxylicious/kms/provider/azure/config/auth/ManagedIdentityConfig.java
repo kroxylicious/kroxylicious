@@ -37,7 +37,7 @@ public record ManagedIdentityConfig(@JsonProperty(required = true) String target
      * </a>). This IP should be used in all cases outside of test scenarios (where a mock host may be configured instead).
      */
     @SuppressWarnings("java:S1313") // Suppress warning about hard-coded IP addresses posing a security risk, it's what Microsoft say to use so there's no way around it here.
-    public static final String DEFAULT_IMDS_HOST = "http://169.254.169.254";
+    public static final URI DEFAULT_IMDS_HOST = URI.create("http://169.254.169.254");
 
     public ManagedIdentityConfig {
         Objects.requireNonNull(targetResource, "targetResource cannot be null");
@@ -51,7 +51,7 @@ public record ManagedIdentityConfig(@JsonProperty(required = true) String target
         }
     }
 
-    public String identityServiceURL() {
-        return identityServiceEndpoint == null ? DEFAULT_IMDS_HOST : identityServiceEndpoint.toString();
+    public URI identityServiceURL() {
+        return identityServiceEndpoint == null ? DEFAULT_IMDS_HOST : identityServiceEndpoint;
     }
 }

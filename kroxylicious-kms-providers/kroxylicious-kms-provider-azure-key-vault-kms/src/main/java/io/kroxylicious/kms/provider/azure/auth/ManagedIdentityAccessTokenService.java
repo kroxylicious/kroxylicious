@@ -71,7 +71,7 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
     public CompletionStage<BearerToken> getBearerToken() {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(
-                        managedIdentityConfig.identityServiceURL()
+                        managedIdentityConfig.identityServiceURL().toString()
                                 + "/metadata/identity/oauth2/token?api-version=2018-02-01&resource="
                                 + URLEncoder.encode(managedIdentityConfig.targetResource(), StandardCharsets.UTF_8)))
                 .header("Metadata", "true")
