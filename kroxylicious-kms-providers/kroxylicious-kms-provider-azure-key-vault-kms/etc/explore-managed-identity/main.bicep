@@ -1,3 +1,9 @@
+//
+// Copyright Kroxylicious Authors.
+//
+// Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+//
+
 @description('The unique name for your Key Vault. Must be globally unique.')
 param keyVaultName string = 'kv-${uniqueString(resourceGroup().id)}'
 
