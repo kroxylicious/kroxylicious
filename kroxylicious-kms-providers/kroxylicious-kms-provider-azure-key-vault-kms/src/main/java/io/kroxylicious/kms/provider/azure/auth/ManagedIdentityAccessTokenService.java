@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.azure.MalformedResponseBodyException;
 import io.kroxylicious.kms.provider.azure.UnexpectedHttpStatusCodeException;
-import io.kroxylicious.kms.provider.azure.config.auth.ManagedIdentityConfig;
+import io.kroxylicious.kms.provider.azure.config.auth.ManagedIdentityCredentialsConfig;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
 
@@ -47,17 +47,17 @@ import static java.time.temporal.ChronoUnit.SECONDS;
  */
 public class ManagedIdentityAccessTokenService implements BearerTokenService {
 
-    private final ManagedIdentityConfig managedIdentityConfig;
+    private final ManagedIdentityCredentialsConfig managedIdentityCredentialsConfig;
     private final Clock clock;
 
     private final HttpClient httpClient;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    public ManagedIdentityAccessTokenService(ManagedIdentityConfig managedIdentityConfig, Clock clock) {
-        Objects.requireNonNull(managedIdentityConfig, "authentication configuration is null");
+    public ManagedIdentityAccessTokenService(ManagedIdentityCredentialsConfig managedIdentityCredentialsConfig, Clock clock) {
+        Objects.requireNonNull(managedIdentityCredentialsConfig, "authentication configuration is null");
         Objects.requireNonNull(clock, "clock is null");
-        this.managedIdentityConfig = managedIdentityConfig;
+        this.managedIdentityCredentialsConfig = managedIdentityCredentialsConfig;
         this.clock = clock;
         HttpClient.Builder builder = HttpClient.newBuilder();
         httpClient = builder
@@ -71,9 +71,9 @@ public class ManagedIdentityAccessTokenService implements BearerTokenService {
     public CompletionStage<BearerToken> getBearerToken() {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(
-                        managedIdentityConfig.identityServiceURL().toString()
+                        managedIdentityCredentialsConfig.identityServiceURL().toString()
                                 + "/metadata/identity/oauth2/token?api-version=2018-02-01&resource="
-                                + URLEncoder.encode(managedIdentityConfig.targetResource(), StandardCharsets.UTF_8)))
+                                + URLEncoder.encode(managedIdentityCredentialsConfig.targetResource(), StandardCharsets.UTF_8)))
                 .header("Metadata", "true")
                 .GET()
                 .build();

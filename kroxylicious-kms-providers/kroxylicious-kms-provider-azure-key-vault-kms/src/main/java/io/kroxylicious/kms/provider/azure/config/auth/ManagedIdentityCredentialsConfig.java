@@ -25,10 +25,10 @@ import static com.fasterxml.jackson.annotation.JsonInclude.Include.NON_NULL;
  * @param identityServiceEndpoint optional base URI for Managed Identity Service endpoint (should only be configured for testing), defaults to "http://169.254.169.254" which is the Azure Instance Metadata Service (IMDS)
  */
 @JsonPropertyOrder({ "targetResource", "identityServiceEndpoint" })
-public record ManagedIdentityConfig(@JsonProperty(required = true) String targetResource,
-                                    @JsonInclude(NON_NULL) @Nullable @JsonProperty URI identityServiceEndpoint) {
+public record ManagedIdentityCredentialsConfig(@JsonProperty(required = true) String targetResource,
+                                               @JsonInclude(NON_NULL) @Nullable @JsonProperty URI identityServiceEndpoint) {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ManagedIdentityConfig.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ManagedIdentityCredentialsConfig.class);
 
     /**
      * The IMDS host IP recommended by Microsoft for use with retrieving Managed Identity tokens (see
@@ -39,10 +39,10 @@ public record ManagedIdentityConfig(@JsonProperty(required = true) String target
     @SuppressWarnings("java:S1313") // Suppress warning about hard-coded IP addresses posing a security risk, it's what Microsoft say to use so there's no way around it here.
     public static final URI DEFAULT_IMDS_HOST = URI.create("http://169.254.169.254");
 
-    public ManagedIdentityConfig {
+    public ManagedIdentityCredentialsConfig {
         Objects.requireNonNull(targetResource, "targetResource cannot be null");
         if (identityServiceEndpoint != null) {
-            if (!identityServiceEndpoint.toString().startsWith("http://")) {
+            if (!identityServiceEndpoint.getScheme().equalsIgnoreCase("http")) {
                 LOG.warn(
                         "identityServiceEndpoint {} does not begin with http://, production installations should not use HTTPS as Azure Instance Metadata Service (IMDS) endpoint is not TLS enabled",
                         identityServiceEndpoint);
