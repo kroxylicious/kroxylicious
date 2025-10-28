@@ -15,6 +15,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>kroxylicious-filter-archetype</artifactId>
+    <name>Filter Archetype</name>
     <packaging>maven-archetype</packaging>
     <build>
         <extensions>
