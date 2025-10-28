@@ -18,14 +18,14 @@ class ManagedIdentityConfigTest {
 
     @Test
     void minimumAuthConfiguration() {
-        ManagedIdentityConfig managedIdentityConfig = new ManagedIdentityConfig(TARGET_RESOURCE, null);
-        assertThat(managedIdentityConfig.targetResource()).isEqualTo(TARGET_RESOURCE);
-        assertThat(managedIdentityConfig.identityServiceURL()).isEqualTo(URI.create("http://169.254.169.254"));
+        ManagedIdentityCredentialsConfig managedIdentityCredentialsConfig = new ManagedIdentityCredentialsConfig(TARGET_RESOURCE, null);
+        assertThat(managedIdentityCredentialsConfig.targetResource()).isEqualTo(TARGET_RESOURCE);
+        assertThat(managedIdentityCredentialsConfig.identityServiceURL()).isEqualTo(URI.create("http://169.254.169.254"));
     }
 
     @Test
     void overrideEndpoint() {
-        ManagedIdentityConfig managedIdentityConfig = new ManagedIdentityConfig(TARGET_RESOURCE, URI.create("http://example.com"));
-        assertThat(managedIdentityConfig.identityServiceURL()).isEqualTo(URI.create("http://example.com"));
+        ManagedIdentityCredentialsConfig managedIdentityCredentialsConfig = new ManagedIdentityCredentialsConfig(TARGET_RESOURCE, URI.create("http://example.com"));
+        assertThat(managedIdentityCredentialsConfig.identityServiceURL()).isEqualTo(URI.create("http://example.com"));
     }
 }

@@ -40,7 +40,7 @@ import io.kroxylicious.kms.provider.azure.AzureKeyVaultEdek;
 import io.kroxylicious.kms.provider.azure.AzureKeyVaultKmsService;
 import io.kroxylicious.kms.provider.azure.WrappingKey;
 import io.kroxylicious.kms.provider.azure.config.AzureKeyVaultConfig;
-import io.kroxylicious.kms.provider.azure.config.auth.EntraIdentityConfig;
+import io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeException;
@@ -131,7 +131,7 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
                     oauthServer.getTrustStoreType());
             Tls entraTls = new Tls(null, entraTrust, null, null);
             return new AzureKeyVaultConfig(
-                    new EntraIdentityConfig(oauthServer.getBaseUri(), TENANT_ID, new InlinePassword("abc"), new InlinePassword("def"), null,
+                    new Oauth2ClientCredentialsConfig(oauthServer.getBaseUri(), TENANT_ID, new InlinePassword("abc"), new InlinePassword("def"), null,
                             entraTls),
                     null, KEY_VAULT_NAME, defaultVaultBaseUrl.getHost(), null, defaultVaultBaseUrl.getPort(), vaultTls);
         }

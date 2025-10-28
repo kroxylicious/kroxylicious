@@ -22,25 +22,28 @@ class EntraIdentityConfigTest {
 
     @Test
     void minimumAuthConfiguration() {
-        EntraIdentityConfig entraIdentityConfig = new EntraIdentityConfig(null, TENANT_ID, new InlinePassword(CLIENT_ID), new InlinePassword(CLIENT_SECRET), null, null);
-        assertThat(entraIdentityConfig.getOauthEndpointOrDefault()).isEqualTo(URI.create("https://login.microsoftonline.com"));
-        assertThat(entraIdentityConfig.getAuthScope()).isEqualTo(URI.create("https://vault.azure.net/.default"));
-        assertThat(entraIdentityConfig.clientId().getProvidedPassword()).isEqualTo(CLIENT_ID);
-        assertThat(entraIdentityConfig.clientSecret().getProvidedPassword()).isEqualTo(CLIENT_SECRET);
-        assertThat(entraIdentityConfig.tenantId()).isEqualTo(TENANT_ID);
+        Oauth2ClientCredentialsConfig oauth2ClientCredentials = new Oauth2ClientCredentialsConfig(null, TENANT_ID, new InlinePassword(CLIENT_ID),
+                new InlinePassword(CLIENT_SECRET), null, null);
+        assertThat(oauth2ClientCredentials.getOauthEndpointOrDefault()).isEqualTo(URI.create("https://login.microsoftonline.com"));
+        assertThat(oauth2ClientCredentials.getAuthScope()).isEqualTo(URI.create("https://vault.azure.net/.default"));
+        assertThat(oauth2ClientCredentials.clientId().getProvidedPassword()).isEqualTo(CLIENT_ID);
+        assertThat(oauth2ClientCredentials.clientSecret().getProvidedPassword()).isEqualTo(CLIENT_SECRET);
+        assertThat(oauth2ClientCredentials.tenantId()).isEqualTo(TENANT_ID);
     }
 
     @Test
     void overrideOauthEndpoint() {
-        EntraIdentityConfig entraIdentityConfig = new EntraIdentityConfig(URI.create("http://override.com"), TENANT_ID, new InlinePassword(CLIENT_ID),
+        Oauth2ClientCredentialsConfig oauth2ClientCredentials = new Oauth2ClientCredentialsConfig(URI.create("http://override.com"), TENANT_ID,
+                new InlinePassword(CLIENT_ID),
                 new InlinePassword(CLIENT_SECRET), null, null);
-        assertThat(entraIdentityConfig.getOauthEndpointOrDefault()).isEqualTo(URI.create("http://override.com"));
+        assertThat(oauth2ClientCredentials.getOauthEndpointOrDefault()).isEqualTo(URI.create("http://override.com"));
     }
 
     @Test
     void overrideScope() {
-        EntraIdentityConfig entraIdentityConfig = new EntraIdentityConfig(null, TENANT_ID, new InlinePassword(CLIENT_ID), new InlinePassword(CLIENT_SECRET),
+        Oauth2ClientCredentialsConfig oauth2ClientCredentials = new Oauth2ClientCredentialsConfig(null, TENANT_ID, new InlinePassword(CLIENT_ID),
+                new InlinePassword(CLIENT_SECRET),
                 URI.create("http://override.com/.default"), null);
-        assertThat(entraIdentityConfig.getAuthScope()).isEqualTo(URI.create("http://override.com/.default"));
+        assertThat(oauth2ClientCredentials.getAuthScope()).isEqualTo(URI.create("http://override.com/.default"));
     }
 }

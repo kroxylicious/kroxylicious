@@ -37,7 +37,7 @@ import io.kroxylicious.kms.provider.azure.WrappingKey;
 import io.kroxylicious.kms.provider.azure.auth.BearerToken;
 import io.kroxylicious.kms.provider.azure.auth.BearerTokenService;
 import io.kroxylicious.kms.provider.azure.config.AzureKeyVaultConfig;
-import io.kroxylicious.kms.provider.azure.config.auth.EntraIdentityConfig;
+import io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig;
 import io.kroxylicious.kms.service.KmsException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
@@ -193,7 +193,7 @@ class KeyVaultClientTest {
         // given
         KmsException exception = new KmsException("failed to get token");
         givenMockEntraBearerFuture(CompletableFuture.failedFuture(exception));
-        new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+        new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient("http://localhost:8080")) {
             // when
             CompletionStage<GetKeyResponse> key = keyVaultClient.getKey(VAULT_NAME, KEY_NAME);
@@ -275,7 +275,7 @@ class KeyVaultClientTest {
     void wrapFailsIfInputBytesEmpty() {
         // given
 
-        new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+        new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient("http://localhost:8080")) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
@@ -290,7 +290,7 @@ class KeyVaultClientTest {
     @Test
     void unwrapFailsIfInputBytesEmpty() {
         // given
-        new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+        new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient("http://localhost:8080")) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
@@ -307,7 +307,7 @@ class KeyVaultClientTest {
         // given
         KmsException failedToGetToken = new KmsException("failed to get token");
         givenMockEntraBearerFuture(CompletableFuture.failedFuture(failedToGetToken));
-        new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+        new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient("http://localhost:8080")) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
@@ -324,7 +324,7 @@ class KeyVaultClientTest {
         // given
         KmsException failedToGetToken = new KmsException("failed to get token");
         givenMockEntraBearerFuture(CompletableFuture.failedFuture(failedToGetToken));
-        new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+        new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient("http://localhost:8080")) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
@@ -488,7 +488,8 @@ class KeyVaultClientTest {
 
     @NonNull
     private KeyVaultClient getKeyVaultClient(String address) {
-        EntraIdentityConfig arbitraryEntraConfig = new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+        Oauth2ClientCredentialsConfig arbitraryEntraConfig = new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null,
+                null);
         URI baseUri = URI.create(address);
         Integer port = baseUri.getPort() == -1 ? null : baseUri.getPort();
         // note that we rely on `baseUri.getHost()` being localhost, so that LocalhostSubdomainResolverProvider can resolve ${VAULT_NAME}.localhost to localhost.

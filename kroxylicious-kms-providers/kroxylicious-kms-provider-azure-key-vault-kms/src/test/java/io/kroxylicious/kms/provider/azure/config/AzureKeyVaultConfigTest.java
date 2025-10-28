@@ -14,7 +14,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
-import io.kroxylicious.kms.provider.azure.config.auth.EntraIdentityConfig;
+import io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -22,7 +22,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AzureKeyVaultConfigTest {
 
-    private static final EntraIdentityConfig ENTRA_IDENTITY = new EntraIdentityConfig(null, "tenant", new InlinePassword("pazz"), new InlinePassword("pazz"), null, null);
+    private static final Oauth2ClientCredentialsConfig ENTRA_IDENTITY = new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("pazz"),
+            new InlinePassword("pazz"), null, null);
 
     static Stream<Arguments> keyVaultNameValid() {
         return Stream.of(Arguments.argumentSet("minimum length", "a".repeat(3)),

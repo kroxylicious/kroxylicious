@@ -37,11 +37,11 @@ public class AzureKeyVaultKmsService implements KmsService<AzureKeyVaultConfig, 
         this.config = config;
         Clock clock = Clock.systemUTC();
         BearerTokenService delegateService;
-        if (config.entraIdentity() != null) {
-            delegateService = new OauthClientCredentialsTokenService(config.entraIdentity(), clock);
+        if (config.oauth2ClientCredentials() != null) {
+            delegateService = new OauthClientCredentialsTokenService(config.oauth2ClientCredentials(), clock);
         }
-        else if (config.managedIdentity() != null) {
-            delegateService = new ManagedIdentityAccessTokenService(config.managedIdentity(), clock);
+        else if (config.managedIdentityCredentials() != null) {
+            delegateService = new ManagedIdentityAccessTokenService(config.managedIdentityCredentials(), clock);
         }
         else {
             throw new IllegalStateException("No identity provider configured");

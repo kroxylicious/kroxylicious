@@ -23,8 +23,8 @@ import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 
-import io.kroxylicious.kms.provider.azure.config.auth.EntraIdentityConfig;
-import io.kroxylicious.kms.provider.azure.config.auth.ManagedIdentityConfig;
+import io.kroxylicious.kms.provider.azure.config.auth.ManagedIdentityCredentialsConfig;
+import io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,11 +39,11 @@ class ConfigurationSerializationTest {
         Path tempDir = Files.createTempDirectory(UUID.randomUUID().toString());
         return Stream.of(
                 argumentSet("empty", "{}", MismatchedInputException.class, "Missing required creator property 'keyVaultName'"),
-                argumentSet("entraIdentity oauthEndpoint not string",
+                argumentSet("oauth2ClientCredentials oauthEndpoint not string",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": [],
                                     "tenantId": "123",
                                     "clientId": {
@@ -57,11 +57,11 @@ class ConfigurationSerializationTest {
                                 """,
                         MismatchedInputException.class,
                         "Cannot deserialize value of type `java.net.URI` from Array value"),
-                argumentSet("entraIdentity oauthEndpoint not uri",
+                argumentSet("oauth2ClientCredentials oauthEndpoint not uri",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "bogus non uri",
                                     "tenantId": "123",
                                     "clientId": {
@@ -75,11 +75,11 @@ class ConfigurationSerializationTest {
                                 """,
                         InvalidFormatException.class,
                         "Cannot deserialize value of type `java.net.URI` from String \"bogus non uri\""),
-                argumentSet("entraIdentity scope not string",
+                argumentSet("oauth2ClientCredentials scope not string",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
                                     "clientId": {
@@ -94,11 +94,11 @@ class ConfigurationSerializationTest {
                                 """,
                         MismatchedInputException.class,
                         "Cannot deserialize value of type `java.net.URI` from Array value"),
-                argumentSet("entraIdentity scope not uri",
+                argumentSet("oauth2ClientCredentials scope not uri",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
                                     "clientId": {
@@ -113,11 +113,11 @@ class ConfigurationSerializationTest {
                                 """,
                         InvalidFormatException.class,
                         "Cannot deserialize value of type `java.net.URI` from String \"bogus not uri\""),
-                argumentSet("entraIdentity tenantId missing",
+                argumentSet("oauth2ClientCredentials tenantId missing",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://oauth",
                                     "clientId": {
                                       "password": "abc"
@@ -130,11 +130,11 @@ class ConfigurationSerializationTest {
                                 """,
                         MismatchedInputException.class,
                         "Missing required creator property 'tenantId'"),
-                argumentSet("entraIdentity clientId missing",
+                argumentSet("oauth2ClientCredentials clientId missing",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
                                     "clientSecret": {
@@ -145,11 +145,11 @@ class ConfigurationSerializationTest {
                                 """,
                         MismatchedInputException.class,
                         "Missing required creator property 'clientId'"),
-                argumentSet("entraIdentity clientSecret missing",
+                argumentSet("oauth2ClientCredentials clientSecret missing",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
                                     "clientId": {
@@ -160,11 +160,11 @@ class ConfigurationSerializationTest {
                                 """,
                         MismatchedInputException.class,
                         "Missing required creator property 'clientSecret'"),
-                argumentSet("entraIdentity clientSecret file doesn't exist",
+                argumentSet("oauth2ClientCredentials clientSecret file doesn't exist",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
                                     "clientId": {
@@ -178,11 +178,11 @@ class ConfigurationSerializationTest {
                                 """.formatted(NON_EXISTENT_PATH),
                         ValueInstantiationException.class,
                         "Exception reading " + NON_EXISTENT_PATH),
-                argumentSet("entraIdentity clientId file doesn't exist",
+                argumentSet("oauth2ClientCredentials clientId file doesn't exist",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
                                     "clientId": {
@@ -196,11 +196,11 @@ class ConfigurationSerializationTest {
                                 """.formatted(NON_EXISTENT_PATH),
                         ValueInstantiationException.class,
                         "Exception reading " + NON_EXISTENT_PATH),
-                argumentSet("entraIdentity clientId file not a file",
+                argumentSet("oauth2ClientCredentials clientId file not a file",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
                                     "clientId": {
@@ -218,7 +218,7 @@ class ConfigurationSerializationTest {
                         """
                                 {
                                   "keyVaultHost": "my.vault.com",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
                                     "clientId": {
@@ -237,7 +237,7 @@ class ConfigurationSerializationTest {
                                 {
                                   "keyVaultName": [],
                                   "keyVaultHost": "my.vault.com",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
                                     "clientId": {
@@ -256,7 +256,7 @@ class ConfigurationSerializationTest {
                                 {
                                   "keyVaultName": null,
                                   "keyVaultHost": "my.vault.com",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
                                     "clientId": {
@@ -274,7 +274,7 @@ class ConfigurationSerializationTest {
                         """
                                 {
                                   "keyVaultName": "kv-name",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
                                     "clientId": {
@@ -293,7 +293,7 @@ class ConfigurationSerializationTest {
                                 {
                                   "keyVaultName": "kvname",
                                   "keyVaultHost": [],
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
                                     "clientId": {
@@ -312,7 +312,7 @@ class ConfigurationSerializationTest {
                                 {
                                   "keyVaultName": "abc",
                                   "keyVaultHost": null,
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
                                     "clientId": {
@@ -326,19 +326,19 @@ class ConfigurationSerializationTest {
                                 """,
                         ValueInstantiationException.class,
                         "Cannot construct instance of `io.kroxylicious.kms.provider.azure.config.AzureKeyVaultConfig`"),
-                argumentSet("entraIdentity not object",
+                argumentSet("oauth2ClientCredentials not object",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
-                                  "entraIdentity": []
+                                  "oauth2ClientCredentials": []
                                 }
                                 """, MismatchedInputException.class,
-                        "Cannot deserialize value of type `io.kroxylicious.kms.provider.azure.config.auth.EntraIdentityConfig` from Array value "),
-                argumentSet("entraIdentity clientSecret file not a file",
+                        "Cannot deserialize value of type `io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig` from Array value "),
+                argumentSet("oauth2ClientCredentials clientSecret file not a file",
                         """
                                 {
                                   "keyVaultBaseUrl": "http://my.vault",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://oauth",
                                     "tenantId": "123",
                                     "clientId": {
@@ -352,24 +352,24 @@ class ConfigurationSerializationTest {
                                 """.formatted(tempDir),
                         ValueInstantiationException.class,
                         "Exception reading " + tempDir),
-                argumentSet("managedIdentity targetResource missing",
+                argumentSet("managedIdentityCredentials targetResource missing",
                         """
                                 {
                                   "keyVaultName": "my-key-vault",
                                   "keyVaultHost": "vault.azure.net",
-                                  "managedIdentity": {
+                                  "managedIdentityCredentials": {
                                     "identityServiceEndpoint": "http://localhost:8080"
                                   }
                                 }
                                 """,
                         MismatchedInputException.class,
                         "Missing required creator property 'targetResource'"),
-                argumentSet("managedIdentity identityServiceEndpoint not valid uri",
+                argumentSet("managedIdentityCredentials identityServiceEndpoint not valid uri",
                         """
                                 {
                                   "keyVaultName": "my-key-vault",
                                   "keyVaultHost": "vault.azure.net",
-                                  "managedIdentity": {
+                                  "managedIdentityCredentials": {
                                     "targetResource": "https://example.com/",
                                     "identityServiceEndpoint": "bogus not uri"
                                   }
@@ -392,7 +392,7 @@ class ConfigurationSerializationTest {
                                 {
                                   "keyVaultName": "my-key-vault",
                                   "keyVaultHost": "vault.azure.net",
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "tenantId": "123",
                                     "clientId": {
                                       "password": "abc"
@@ -403,19 +403,19 @@ class ConfigurationSerializationTest {
                                   }
                                 }
                                 """,
-                        new AzureKeyVaultConfig(new EntraIdentityConfig(null, "123", new InlinePassword("abc"), new InlinePassword("def"), null, null), null,
+                        new AzureKeyVaultConfig(new Oauth2ClientCredentialsConfig(null, "123", new InlinePassword("abc"), new InlinePassword("def"), null, null), null,
                                 "my-key-vault", "vault.azure.net", null, null, null)),
                 argumentSet("valid minimal json with managed identity authentication",
                         """
                                 {
                                   "keyVaultName": "my-key-vault",
                                   "keyVaultHost": "vault.azure.net",
-                                  "managedIdentity": {
+                                  "managedIdentityCredentials": {
                                     "targetResource": "https://example.com/"
                                   }
                                 }
                                 """,
-                        new AzureKeyVaultConfig(null, new ManagedIdentityConfig("https://example.com/", null), "my-key-vault", "vault.azure.net", null, null,
+                        new AzureKeyVaultConfig(null, new ManagedIdentityCredentialsConfig("https://example.com/", null), "my-key-vault", "vault.azure.net", null, null,
                                 null)),
                 argumentSet("valid comprehensive json with entra identity authentication",
                         """
@@ -424,7 +424,7 @@ class ConfigurationSerializationTest {
                                   "keyVaultHost": "vault.azure.net",
                                   "keyVaultScheme": "https",
                                   "keyVaultPort": 8080,
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://localhost:8080",
                                     "tenantId": "123",
                                     "clientId": {
@@ -437,8 +437,10 @@ class ConfigurationSerializationTest {
                                   }
                                 }
                                 """,
-                        new AzureKeyVaultConfig(new EntraIdentityConfig(URI.create("http://localhost:8080"), "123", new InlinePassword("abc"), new InlinePassword("def"),
-                                URI.create("http://scope/.default"), null), null, "my-key-vault", "vault.azure.net", "https", 8080, null)),
+                        new AzureKeyVaultConfig(
+                                new Oauth2ClientCredentialsConfig(URI.create("http://localhost:8080"), "123", new InlinePassword("abc"), new InlinePassword("def"),
+                                        URI.create("http://scope/.default"), null),
+                                null, "my-key-vault", "vault.azure.net", "https", 8080, null)),
                 argumentSet("valid comprehensive json with managed identity authentication",
                         """
                                 {
@@ -446,13 +448,13 @@ class ConfigurationSerializationTest {
                                   "keyVaultHost": "vault.azure.net",
                                   "keyVaultScheme": "https",
                                   "keyVaultPort": 8080,
-                                  "managedIdentity": {
+                                  "managedIdentityCredentials": {
                                     "targetResource": "https://example.com/",
                                     "identityServiceEndpoint": "http://localhost:8080"
                                   }
                                 }
                                 """,
-                        new AzureKeyVaultConfig(null, new ManagedIdentityConfig("https://example.com/", URI.create("http://localhost:8080")), "my-key-vault",
+                        new AzureKeyVaultConfig(null, new ManagedIdentityCredentialsConfig("https://example.com/", URI.create("http://localhost:8080")), "my-key-vault",
                                 "vault.azure.net", "https",
                                 8080,
                                 null)));
@@ -470,7 +472,7 @@ class ConfigurationSerializationTest {
                 argumentSet("minimum json fidelity with entra identity authentication",
                         """
                                 {
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                         "tenantId": "123",
                                         "clientId": {
                                           "password": "abc"
@@ -486,7 +488,7 @@ class ConfigurationSerializationTest {
                 argumentSet("minimum json fidelity with managed identity authentication",
                         """
                                 {
-                                  "managedIdentity": {
+                                  "managedIdentityCredentials": {
                                     "targetResource": "https://example.com/"
                                   },
                                   "keyVaultName": "my-key-vault",
@@ -496,7 +498,7 @@ class ConfigurationSerializationTest {
                 argumentSet("comprehensive json fidelity with entra identity authentication",
                         """
                                 {
-                                  "entraIdentity": {
+                                  "oauth2ClientCredentials": {
                                     "oauthEndpoint": "http://localhost:8080",
                                     "tenantId": "123",
                                     "clientId": {
@@ -516,7 +518,7 @@ class ConfigurationSerializationTest {
                 argumentSet("comprehensive json fidelity with managed identity authentication",
                         """
                                 {
-                                  "managedIdentity": {
+                                  "managedIdentityCredentials": {
                                     "targetResource": "https://example.com/",
                                     "identityServiceEndpoint": "http://localhost:8080"
                                   },

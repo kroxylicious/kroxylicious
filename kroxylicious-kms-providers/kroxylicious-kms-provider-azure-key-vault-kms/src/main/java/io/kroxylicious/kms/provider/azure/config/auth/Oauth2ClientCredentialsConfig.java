@@ -23,18 +23,18 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 @JsonPropertyOrder({ "oauthEndpoint", "tenantId", "clientId", "clientSecret", "scope", "tls" })
-public record EntraIdentityConfig(@JsonInclude(JsonInclude.Include.NON_NULL) @Nullable URI oauthEndpoint,
-                                  @JsonProperty(required = true) String tenantId,
-                                  @JsonProperty(required = true) PasswordProvider clientId,
-                                  @JsonProperty(required = true) PasswordProvider clientSecret,
-                                  @JsonInclude(JsonInclude.Include.NON_NULL) @Nullable URI scope,
-                                  @JsonInclude(JsonInclude.Include.NON_NULL) @JsonProperty(value = "tls") @Nullable Tls tls) {
+public record Oauth2ClientCredentialsConfig(@JsonInclude(JsonInclude.Include.NON_NULL) @Nullable URI oauthEndpoint,
+                                            @JsonProperty(required = true) String tenantId,
+                                            @JsonProperty(required = true) PasswordProvider clientId,
+                                            @JsonProperty(required = true) PasswordProvider clientSecret,
+                                            @JsonInclude(JsonInclude.Include.NON_NULL) @Nullable URI scope,
+                                            @JsonInclude(JsonInclude.Include.NON_NULL) @JsonProperty(value = "tls") @Nullable Tls tls) {
 
-    private static final Logger LOG = LoggerFactory.getLogger(EntraIdentityConfig.class);
+    private static final Logger LOG = LoggerFactory.getLogger(Oauth2ClientCredentialsConfig.class);
     public static final URI DEFAULT_SCOPE = URI.create("https://vault.azure.net/.default");
     public static final URI GLOBAL_ENTRA_ENDPOINT = URI.create("https://login.microsoftonline.com");
 
-    public EntraIdentityConfig {
+    public Oauth2ClientCredentialsConfig {
         Objects.requireNonNull(tenantId, "tenantId cannot be null");
         Objects.requireNonNull(clientId, "clientId cannot be null");
         Objects.requireNonNull(clientSecret, "clientSecret cannot be null");

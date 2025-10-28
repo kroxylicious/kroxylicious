@@ -27,7 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import io.kroxylicious.kms.provider.azure.MalformedResponseBodyException;
 import io.kroxylicious.kms.provider.azure.UnexpectedHttpStatusCodeException;
-import io.kroxylicious.kms.provider.azure.config.auth.EntraIdentityConfig;
+import io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig;
 import io.kroxylicious.proxy.tls.TlsHttpClientConfigurator;
 
 import static java.time.temporal.ChronoUnit.SECONDS;
@@ -54,20 +54,20 @@ import static java.time.temporal.ChronoUnit.SECONDS;
  */
 public class OauthClientCredentialsTokenService implements BearerTokenService {
 
-    private final EntraIdentityConfig entraIdentityConfig;
+    private final Oauth2ClientCredentialsConfig oauth2ClientCredentialsConfig;
     private final Clock clock;
 
     private final HttpClient httpClient;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    public OauthClientCredentialsTokenService(EntraIdentityConfig entraIdentityConfig, Clock clock) {
-        Objects.requireNonNull(entraIdentityConfig, "authConfiguration is null");
+    public OauthClientCredentialsTokenService(Oauth2ClientCredentialsConfig oauth2ClientCredentialsConfig, Clock clock) {
+        Objects.requireNonNull(oauth2ClientCredentialsConfig, "authConfiguration is null");
         Objects.requireNonNull(clock, "clock is null");
-        this.entraIdentityConfig = entraIdentityConfig;
+        this.oauth2ClientCredentialsConfig = oauth2ClientCredentialsConfig;
         this.clock = clock;
         HttpClient.Builder builder = HttpClient.newBuilder();
-        var tlsConfigurator = new TlsHttpClientConfigurator(entraIdentityConfig.tls());
+        var tlsConfigurator = new TlsHttpClientConfigurator(oauth2ClientCredentialsConfig.tls());
         tlsConfigurator.apply(builder);
         httpClient = builder
                 .connectTimeout(Duration.of(10, SECONDS))
@@ -95,16 +95,16 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
         Map<String, String> formData = new LinkedHashMap<>();
 
         formData.put("grant_type", "client_credentials");
-        formData.put("client_id", entraIdentityConfig.clientId().getProvidedPassword());
-        formData.put("client_secret", entraIdentityConfig.clientSecret().getProvidedPassword());
-        formData.put("scope", entraIdentityConfig.getAuthScope().toString());
+        formData.put("client_id", oauth2ClientCredentialsConfig.clientId().getProvidedPassword());
+        formData.put("client_secret", oauth2ClientCredentialsConfig.clientSecret().getProvidedPassword());
+        formData.put("scope", oauth2ClientCredentialsConfig.getAuthScope().toString());
 
         String formBody = formData.entrySet().stream()
                 .map(entry -> URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8) + "="
                         + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8))
                 .collect(Collectors.joining("&"));
 
-        String tokenUrl = entraIdentityConfig.getOauthEndpointOrDefault() + "/" + entraIdentityConfig.tenantId() + "/oauth2/v2.0/token";
+        String tokenUrl = oauth2ClientCredentialsConfig.getOauthEndpointOrDefault() + "/" + oauth2ClientCredentialsConfig.tenantId() + "/oauth2/v2.0/token";
 
         return HttpRequest.newBuilder()
                 .uri(URI.create(tokenUrl))
