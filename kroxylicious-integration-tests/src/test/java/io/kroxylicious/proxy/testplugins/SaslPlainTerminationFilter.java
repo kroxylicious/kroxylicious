@@ -86,11 +86,12 @@ public class SaslPlainTerminationFilter
 
     CompletionStage<RequestFilterResult> onSaslAuthenticateRequest(SaslAuthenticateRequestData request,
                                                                    FilterContext context) {
+        byte[] bytes = new byte[0];
         Errors error;
         String errorMessage;
 
         try {
-            doEvaluateResponse(context, request.authBytes());
+            bytes = doEvaluateResponse(context, request.authBytes());
             error = Errors.NONE;
             errorMessage = null;
         }
@@ -107,7 +108,8 @@ public class SaslPlainTerminationFilter
 
         SaslAuthenticateResponseData body = new SaslAuthenticateResponseData()
                 .setErrorCode(error.code())
-                .setErrorMessage(errorMessage);
+                .setErrorMessage(errorMessage)
+                .setAuthBytes(bytes);
 
         return context.requestFilterResultBuilder().shortCircuitResponse(body).completed();
     }
