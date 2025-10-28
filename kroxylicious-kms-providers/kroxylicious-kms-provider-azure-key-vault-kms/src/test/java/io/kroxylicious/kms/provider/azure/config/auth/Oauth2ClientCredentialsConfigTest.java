@@ -14,7 +14,7 @@ import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class EntraIdentityConfigTest {
+class Oauth2ClientCredentialsConfigTest {
 
     public static final String CLIENT_ID = "abc";
     public static final String CLIENT_SECRET = "def";

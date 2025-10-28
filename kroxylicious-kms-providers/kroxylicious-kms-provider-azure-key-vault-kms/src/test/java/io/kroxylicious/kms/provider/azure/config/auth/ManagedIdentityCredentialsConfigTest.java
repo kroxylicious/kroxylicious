@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class ManagedIdentityConfigTest {
+class ManagedIdentityCredentialsConfigTest {
 
     public static final String TARGET_RESOURCE = "https://example.com/";
 
