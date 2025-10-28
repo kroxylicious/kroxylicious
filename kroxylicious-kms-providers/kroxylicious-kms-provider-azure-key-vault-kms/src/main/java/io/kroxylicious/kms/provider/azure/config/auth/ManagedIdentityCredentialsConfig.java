@@ -42,7 +42,7 @@ public record ManagedIdentityCredentialsConfig(@JsonProperty(required = true) St
     public ManagedIdentityCredentialsConfig {
         Objects.requireNonNull(targetResource, "targetResource cannot be null");
         if (identityServiceEndpoint != null) {
-            if (!identityServiceEndpoint.toString().startsWith("http://")) {
+            if (!identityServiceEndpoint.getScheme().equalsIgnoreCase("http")) {
                 LOG.warn(
                         "identityServiceEndpoint {} does not begin with http://, production installations should not use HTTPS as Azure Instance Metadata Service (IMDS) endpoint is not TLS enabled",
                         identityServiceEndpoint);
