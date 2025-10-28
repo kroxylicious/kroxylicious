@@ -84,7 +84,7 @@ broad permissions.
       config:
         kms: AzureKeyVaultKmsService
         kmsConfig:
-          managedIdentity:
+          managedIdentityCredentials:
             targetResource: https://vault.azure.net
           keyVaultName: ${my-vault-name}
           keyVaultHost: vault.azure.net

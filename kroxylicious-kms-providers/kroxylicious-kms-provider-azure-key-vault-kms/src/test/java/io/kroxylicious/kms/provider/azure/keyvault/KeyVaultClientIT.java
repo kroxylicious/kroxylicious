@@ -37,7 +37,7 @@ import io.kroxylicious.kms.provider.azure.WrappingKey;
 import io.kroxylicious.kms.provider.azure.auth.BearerToken;
 import io.kroxylicious.kms.provider.azure.auth.BearerTokenService;
 import io.kroxylicious.kms.provider.azure.config.AzureKeyVaultConfig;
-import io.kroxylicious.kms.provider.azure.config.auth.EntraIdentityConfig;
+import io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.InsecureTls;
 import io.kroxylicious.proxy.config.tls.Tls;
@@ -74,7 +74,9 @@ class KeyVaultClientIT {
         try (LowkeyVaultContainer lowkeyVaultContainer = startVault()) {
             BearerToken token = new BearerToken("mytoken", Instant.MIN, Instant.MAX);
             when(bearerTokenService.getBearerToken()).thenReturn(CompletableFuture.completedFuture(token));
-            EntraIdentityConfig unused = new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+            Oauth2ClientCredentialsConfig unused = new Oauth2ClientCredentialsConfig(URI.create("https://login.microsoftonline.com"), "tenant", new InlinePassword("abc"),
+                    new InlinePassword("def"),
+                    URI.create("https://vault.azure.net/.default"), null);
             URI baseUri = URI.create(lowkeyVaultContainer.getDefaultVaultBaseUrl());
             KeyVaultClient keyVaultClient = new KeyVaultClient(bearerTokenService,
                     getAzureKeyVaultConfig(unused, baseUri));
@@ -96,7 +98,9 @@ class KeyVaultClientIT {
             // given
             BearerToken token = new BearerToken("mytoken", Instant.MIN, Instant.MAX);
             when(bearerTokenService.getBearerToken()).thenReturn(CompletableFuture.completedFuture(token));
-            EntraIdentityConfig unused = new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+            Oauth2ClientCredentialsConfig unused = new Oauth2ClientCredentialsConfig(URI.create("https://login.microsoftonline.com"), "tenant", new InlinePassword("abc"),
+                    new InlinePassword("def"),
+                    URI.create("https://vault.azure.net/.default"), null);
             URI baseUri = URI.create(lowkeyVaultContainer.getDefaultVaultBaseUrl());
             KeyVaultClient keyVaultClient = new KeyVaultClient(bearerTokenService,
                     getAzureKeyVaultConfig(unused, baseUri));
@@ -117,7 +121,7 @@ class KeyVaultClientIT {
         }
     }
 
-    private static AzureKeyVaultConfig getAzureKeyVaultConfig(EntraIdentityConfig unused, URI baseUri) {
+    private static AzureKeyVaultConfig getAzureKeyVaultConfig(Oauth2ClientCredentialsConfig unused, URI baseUri) {
         return new AzureKeyVaultConfig(unused, null, VAULT_NAME, baseUri.getHost(), null, baseUri.getPort(), INSECURE_TLS);
     }
 
@@ -127,7 +131,9 @@ class KeyVaultClientIT {
             // given
             BearerToken token = new BearerToken("mytoken", Instant.MIN, Instant.MAX);
             when(bearerTokenService.getBearerToken()).thenReturn(CompletableFuture.completedFuture(token));
-            EntraIdentityConfig unused = new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+            Oauth2ClientCredentialsConfig unused = new Oauth2ClientCredentialsConfig(URI.create("https://login.microsoftonline.com"), "tenant", new InlinePassword("abc"),
+                    new InlinePassword("def"),
+                    URI.create("https://vault.azure.net/.default"), null);
             URI baseUri = URI.create(lowkeyVaultContainer.getDefaultVaultBaseUrl());
             KeyVaultClient keyVaultClient = new KeyVaultClient(bearerTokenService,
                     getAzureKeyVaultConfig(unused, baseUri));

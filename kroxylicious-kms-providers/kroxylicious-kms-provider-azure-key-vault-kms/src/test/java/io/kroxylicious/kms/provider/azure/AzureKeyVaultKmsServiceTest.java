@@ -6,11 +6,13 @@
 
 package io.kroxylicious.kms.provider.azure;
 
+import java.net.URI;
+
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.provider.azure.config.AzureKeyVaultConfig;
-import io.kroxylicious.kms.provider.azure.config.auth.EntraIdentityConfig;
-import io.kroxylicious.kms.provider.azure.config.auth.ManagedIdentityConfig;
+import io.kroxylicious.kms.provider.azure.config.auth.ManagedIdentityCredentialsConfig;
+import io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig;
 import io.kroxylicious.kms.service.Kms;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
@@ -20,10 +22,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AzureKeyVaultKmsServiceTest {
 
     @Test
-    void wholeLifeCycleWithEntraIdentity() {
+    void wholeLifeCycleWithOauth2Client() {
         try (AzureKeyVaultKmsService service = new AzureKeyVaultKmsService()) {
-            EntraIdentityConfig entraIdentity = new EntraIdentityConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
-            service.initialize(new AzureKeyVaultConfig(entraIdentity, null, "default", "vault.azure.net", null, null, null));
+            Oauth2ClientCredentialsConfig oauth2ClientCredentials = new Oauth2ClientCredentialsConfig(URI.create("https://login.microsoftonline.com"), "tenant",
+                    new InlinePassword("abc"),
+                    new InlinePassword("def"), URI.create("https://vault.azure.net/.default"),
+                    null);
+            service.initialize(new AzureKeyVaultConfig(oauth2ClientCredentials, null, "default", "vault.azure.net", null, null, null));
             Kms<WrappingKey, AzureKeyVaultEdek> kms = service.buildKms();
             assertThat(kms).isNotNull();
         }
@@ -32,7 +37,7 @@ class AzureKeyVaultKmsServiceTest {
     @Test
     void wholeLifeCycleWithManagedIdentity() {
         try (AzureKeyVaultKmsService service = new AzureKeyVaultKmsService()) {
-            ManagedIdentityConfig managedIdentity = new ManagedIdentityConfig("http://example.com/", null);
+            ManagedIdentityCredentialsConfig managedIdentity = new ManagedIdentityCredentialsConfig("http://example.com/", null);
             service.initialize(new AzureKeyVaultConfig(null, managedIdentity, "default", "vault.azure.net", null, null, null));
             Kms<WrappingKey, AzureKeyVaultEdek> kms = service.buildKms();
             assertThat(kms).isNotNull();
