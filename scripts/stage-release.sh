@@ -134,7 +134,8 @@ git checkout -b "${TEMPORARY_RELEASE_BRANCH}" "${REPOSITORY}/${BRANCH_FROM}"
 
 if [[ "${SKIP_VALIDATION:-false}" != true ]]; then
     printf "Validating the build is ${GREEN}green${NC}"
-    mvn -q clean verify
+    # we install rather than verify because kroxylicious-filter-archetype needs the artefacts installed for its integration tests
+    mvn -q clean install
 fi
 
 echo "Versioning Kroxylicious as ${RELEASE_VERSION}"
