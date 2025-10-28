@@ -91,7 +91,7 @@ class OauthClientCredentialsTokenServiceTest {
         server.shutdown();
     }
 
-    @CsvSource(value = { "https://scope/.default", "null" }, nullValues = "null")
+    @CsvSource(value = { "https://scope/.default", "https://vault.azure.net/.default" }, nullValues = "null")
     @ParameterizedTest
     void getToken(@Nullable URI inputScope) {
         Instant fixedInstant = Instant.now();
@@ -158,7 +158,8 @@ class OauthClientCredentialsTokenServiceTest {
         Clock clock = Clock.fixed(fixedInstant, ZoneId.of("UTC"));
         server.stubFor(resp);
         try (OauthClientCredentialsTokenService service = new OauthClientCredentialsTokenService(
-                new Oauth2ClientCredentialsConfig(URI.create(server.baseUrl()), TENANT_ID, new InlinePassword(CLIENT_ID), new InlinePassword(CLIENT_SECRET), null, null),
+                new Oauth2ClientCredentialsConfig(URI.create(server.baseUrl()), TENANT_ID, new InlinePassword(CLIENT_ID), new InlinePassword(CLIENT_SECRET),
+                        URI.create("https://vault.azure.net/.default"), null),
                 clock)) {
             ThrowableAssertAlternative<?> causeAssert = assertThat(service.getBearerToken().toCompletableFuture()).failsWithin(
                     Duration.of(5, ChronoUnit.SECONDS))

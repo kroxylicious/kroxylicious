@@ -27,17 +27,17 @@ public record Oauth2ClientCredentialsConfig(@JsonInclude(JsonInclude.Include.NON
                                             @JsonProperty(required = true) String tenantId,
                                             @JsonProperty(required = true) PasswordProvider clientId,
                                             @JsonProperty(required = true) PasswordProvider clientSecret,
-                                            @JsonInclude(JsonInclude.Include.NON_NULL) @Nullable URI scope,
+                                            @JsonProperty(required = true) URI scope,
                                             @JsonInclude(JsonInclude.Include.NON_NULL) @JsonProperty(value = "tls") @Nullable Tls tls) {
 
     private static final Logger LOG = LoggerFactory.getLogger(Oauth2ClientCredentialsConfig.class);
-    public static final URI DEFAULT_SCOPE = URI.create("https://vault.azure.net/.default");
     public static final URI GLOBAL_ENTRA_ENDPOINT = URI.create("https://login.microsoftonline.com");
 
     public Oauth2ClientCredentialsConfig {
         Objects.requireNonNull(tenantId, "tenantId cannot be null");
         Objects.requireNonNull(clientId, "clientId cannot be null");
         Objects.requireNonNull(clientSecret, "clientSecret cannot be null");
+        Objects.requireNonNull(scope, "scope cannot be null");
         if (oauthEndpoint != null && !oauthEndpoint.toString().startsWith("https://")) {
             LOG.warn("oauthEndpoint {} does not begin with https://, production installations should use a secure endpoint", oauthEndpoint);
         }
@@ -49,10 +49,5 @@ public record Oauth2ClientCredentialsConfig(@JsonInclude(JsonInclude.Include.NON
     @JsonIgnore
     public URI getOauthEndpointOrDefault() {
         return oauthEndpoint == null ? GLOBAL_ENTRA_ENDPOINT : oauthEndpoint;
-    }
-
-    @JsonIgnore
-    public URI getAuthScope() {
-        return scope == null ? DEFAULT_SCOPE : scope;
     }
 }

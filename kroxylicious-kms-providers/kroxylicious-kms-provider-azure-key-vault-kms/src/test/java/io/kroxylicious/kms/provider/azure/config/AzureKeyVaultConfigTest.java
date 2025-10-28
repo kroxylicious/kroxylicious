@@ -6,6 +6,7 @@
 
 package io.kroxylicious.kms.provider.azure.config;
 
+import java.net.URI;
 import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
@@ -23,7 +24,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 class AzureKeyVaultConfigTest {
 
     private static final Oauth2ClientCredentialsConfig ENTRA_IDENTITY = new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("pazz"),
-            new InlinePassword("pazz"), null, null);
+            new InlinePassword("pazz"), URI.create("https://vault.azure.net/.default"), null);
 
     static Stream<Arguments> keyVaultNameValid() {
         return Stream.of(Arguments.argumentSet("minimum length", "a".repeat(3)),

@@ -193,7 +193,7 @@ class KeyVaultClientTest {
         // given
         KmsException exception = new KmsException("failed to get token");
         givenMockEntraBearerFuture(CompletableFuture.failedFuture(exception));
-        new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+        new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), URI.create("https://vault.azure.net/.default"), null);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient("http://localhost:8080")) {
             // when
             CompletionStage<GetKeyResponse> key = keyVaultClient.getKey(VAULT_NAME, KEY_NAME);
@@ -274,8 +274,7 @@ class KeyVaultClientTest {
     @Test
     void wrapFailsIfInputBytesEmpty() {
         // given
-
-        new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+        new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), URI.create("https://vault.azure.net/.default"), null);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient("http://localhost:8080")) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
@@ -290,7 +289,7 @@ class KeyVaultClientTest {
     @Test
     void unwrapFailsIfInputBytesEmpty() {
         // given
-        new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+        new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), URI.create("https://vault.azure.net/.default"), null);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient("http://localhost:8080")) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
@@ -307,7 +306,7 @@ class KeyVaultClientTest {
         // given
         KmsException failedToGetToken = new KmsException("failed to get token");
         givenMockEntraBearerFuture(CompletableFuture.failedFuture(failedToGetToken));
-        new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+        new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), URI.create("https://vault.azure.net/.default"), null);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient("http://localhost:8080")) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
@@ -324,7 +323,7 @@ class KeyVaultClientTest {
         // given
         KmsException failedToGetToken = new KmsException("failed to get token");
         givenMockEntraBearerFuture(CompletableFuture.failedFuture(failedToGetToken));
-        new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null, null);
+        new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), URI.create("https://vault.azure.net/.default"), null);
         try (KeyVaultClient keyVaultClient = getKeyVaultClient("http://localhost:8080")) {
             WrappingKey wrappingKey = new WrappingKey(KEY_NAME, KEY_VERSION, SupportedKeyType.RSA, "myvault");
             // when
@@ -488,7 +487,8 @@ class KeyVaultClientTest {
 
     @NonNull
     private KeyVaultClient getKeyVaultClient(String address) {
-        Oauth2ClientCredentialsConfig arbitraryEntraConfig = new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"), null,
+        Oauth2ClientCredentialsConfig arbitraryEntraConfig = new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"),
+                URI.create("https://vault.azure.net/.default"),
                 null);
         URI baseUri = URI.create(address);
         Integer port = baseUri.getPort() == -1 ? null : baseUri.getPort();

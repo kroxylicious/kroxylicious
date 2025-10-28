@@ -97,7 +97,7 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
         formData.put("grant_type", "client_credentials");
         formData.put("client_id", oauth2ClientCredentialsConfig.clientId().getProvidedPassword());
         formData.put("client_secret", oauth2ClientCredentialsConfig.clientSecret().getProvidedPassword());
-        formData.put("scope", oauth2ClientCredentialsConfig.getAuthScope().toString());
+        formData.put("scope", oauth2ClientCredentialsConfig.scope().toString());
 
         String formBody = formData.entrySet().stream()
                 .map(entry -> URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8) + "="

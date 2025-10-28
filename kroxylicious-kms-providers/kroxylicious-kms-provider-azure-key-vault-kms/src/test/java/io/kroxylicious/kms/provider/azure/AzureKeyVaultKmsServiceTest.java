@@ -6,6 +6,8 @@
 
 package io.kroxylicious.kms.provider.azure;
 
+import java.net.URI;
+
 import org.junit.jupiter.api.Test;
 
 import io.kroxylicious.kms.provider.azure.config.AzureKeyVaultConfig;
@@ -23,7 +25,8 @@ class AzureKeyVaultKmsServiceTest {
     void wholeLifeCycleWithOauth2Client() {
         try (AzureKeyVaultKmsService service = new AzureKeyVaultKmsService()) {
             Oauth2ClientCredentialsConfig oauth2ClientCredentials = new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"),
-                    new InlinePassword("def"), null, null);
+                    new InlinePassword("def"), URI.create("https://vault.azure.net/.default"),
+                    null);
             service.initialize(new AzureKeyVaultConfig(oauth2ClientCredentials, null, "default", "vault.azure.net", null, null, null));
             Kms<WrappingKey, AzureKeyVaultEdek> kms = service.buildKms();
             assertThat(kms).isNotNull();

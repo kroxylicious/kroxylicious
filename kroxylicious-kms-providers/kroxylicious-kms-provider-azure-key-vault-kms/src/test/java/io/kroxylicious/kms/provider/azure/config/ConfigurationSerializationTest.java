@@ -51,7 +51,8 @@ class ConfigurationSerializationTest {
                                     },
                                     "clientSecret": {
                                       "password": "def"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """,
@@ -69,7 +70,8 @@ class ConfigurationSerializationTest {
                                     },
                                     "clientSecret": {
                                       "password": "def"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """,
@@ -113,6 +115,24 @@ class ConfigurationSerializationTest {
                                 """,
                         InvalidFormatException.class,
                         "Cannot deserialize value of type `java.net.URI` from String \"bogus not uri\""),
+                argumentSet("oauth2ClientCredentials scope missing",
+                        """
+                                {
+                                  "keyVaultBaseUrl": "http://my.vault",
+                                  "oauth2ClientCredentials": {
+                                    "oauthEndpoint": "http://oauth",
+                                    "tenantId": "123",
+                                    "clientId": {
+                                      "password": "abc"
+                                    },
+                                    "clientSecret": {
+                                      "password": "def"
+                                    }
+                                  }
+                                }
+                                """,
+                        MismatchedInputException.class,
+                        "Missing required creator property 'scope'"),
                 argumentSet("oauth2ClientCredentials tenantId missing",
                         """
                                 {
@@ -124,7 +144,8 @@ class ConfigurationSerializationTest {
                                     },
                                     "clientSecret": {
                                       "password": "def"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """,
@@ -139,7 +160,8 @@ class ConfigurationSerializationTest {
                                     "tenantId": "123",
                                     "clientSecret": {
                                       "password": "def"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """,
@@ -154,7 +176,8 @@ class ConfigurationSerializationTest {
                                     "tenantId": "123",
                                     "clientId": {
                                       "password": "abc"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """,
@@ -172,7 +195,8 @@ class ConfigurationSerializationTest {
                                     },
                                     "clientSecret": {
                                       "passwordFile": "%s"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """.formatted(NON_EXISTENT_PATH),
@@ -190,7 +214,8 @@ class ConfigurationSerializationTest {
                                     },
                                     "clientSecret": {
                                       "password": "def"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """.formatted(NON_EXISTENT_PATH),
@@ -208,7 +233,8 @@ class ConfigurationSerializationTest {
                                     },
                                     "clientSecret": {
                                       "password": "def"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """.formatted(tempDir),
@@ -226,7 +252,8 @@ class ConfigurationSerializationTest {
                                     },
                                     "clientSecret": {
                                       "password": "def"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """,
@@ -245,7 +272,8 @@ class ConfigurationSerializationTest {
                                     },
                                     "clientSecret": {
                                       "password": "def"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """,
@@ -264,7 +292,8 @@ class ConfigurationSerializationTest {
                                     },
                                     "clientSecret": {
                                       "password": "def"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """,
@@ -282,7 +311,8 @@ class ConfigurationSerializationTest {
                                     },
                                     "clientSecret": {
                                       "password": "def"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """,
@@ -301,7 +331,8 @@ class ConfigurationSerializationTest {
                                     },
                                     "clientSecret": {
                                       "password": "def"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """,
@@ -320,7 +351,8 @@ class ConfigurationSerializationTest {
                                     },
                                     "clientSecret": {
                                       "password": "def"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """,
@@ -346,7 +378,8 @@ class ConfigurationSerializationTest {
                                     },
                                     "clientSecret": {
                                       "passwordFile": "%s"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """.formatted(tempDir),
@@ -399,11 +432,15 @@ class ConfigurationSerializationTest {
                                     },
                                     "clientSecret": {
                                       "password": "def"
-                                    }
+                                    },
+                                    "scope": "http://scope/.default"
                                   }
                                 }
                                 """,
-                        new AzureKeyVaultConfig(new Oauth2ClientCredentialsConfig(null, "123", new InlinePassword("abc"), new InlinePassword("def"), null, null), null,
+                        new AzureKeyVaultConfig(
+                                new Oauth2ClientCredentialsConfig(null, "123", new InlinePassword("abc"), new InlinePassword("def"), URI.create("http://scope/.default"),
+                                        null),
+                                null,
                                 "my-key-vault", "vault.azure.net", null, null, null)),
                 argumentSet("valid minimal json with managed identity authentication",
                         """
@@ -479,7 +516,8 @@ class ConfigurationSerializationTest {
                                         },
                                         "clientSecret": {
                                           "password": "def"
-                                        }
+                                        },
+                                        "scope": "http://scope/.default"
                                   },
                                   "keyVaultName": "my-key-vault",
                                   "keyVaultHost": "vault.azure.net"

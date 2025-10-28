@@ -19,13 +19,14 @@ class Oauth2ClientCredentialsConfigTest {
     public static final String CLIENT_ID = "abc";
     public static final String CLIENT_SECRET = "def";
     public static final String TENANT_ID = "tenant";
+    public static final URI SCOPE = URI.create("https://vault.azure.net/.default");
 
     @Test
     void minimumAuthConfiguration() {
         Oauth2ClientCredentialsConfig oauth2ClientCredentials = new Oauth2ClientCredentialsConfig(null, TENANT_ID, new InlinePassword(CLIENT_ID),
-                new InlinePassword(CLIENT_SECRET), null, null);
+                new InlinePassword(CLIENT_SECRET), SCOPE, null);
         assertThat(oauth2ClientCredentials.getOauthEndpointOrDefault()).isEqualTo(URI.create("https://login.microsoftonline.com"));
-        assertThat(oauth2ClientCredentials.getAuthScope()).isEqualTo(URI.create("https://vault.azure.net/.default"));
+        assertThat(oauth2ClientCredentials.scope()).isEqualTo(SCOPE);
         assertThat(oauth2ClientCredentials.clientId().getProvidedPassword()).isEqualTo(CLIENT_ID);
         assertThat(oauth2ClientCredentials.clientSecret().getProvidedPassword()).isEqualTo(CLIENT_SECRET);
         assertThat(oauth2ClientCredentials.tenantId()).isEqualTo(TENANT_ID);
@@ -35,7 +36,7 @@ class Oauth2ClientCredentialsConfigTest {
     void overrideOauthEndpoint() {
         Oauth2ClientCredentialsConfig oauth2ClientCredentials = new Oauth2ClientCredentialsConfig(URI.create("http://override.com"), TENANT_ID,
                 new InlinePassword(CLIENT_ID),
-                new InlinePassword(CLIENT_SECRET), null, null);
+                new InlinePassword(CLIENT_SECRET), SCOPE, null);
         assertThat(oauth2ClientCredentials.getOauthEndpointOrDefault()).isEqualTo(URI.create("http://override.com"));
     }
 
@@ -44,6 +45,6 @@ class Oauth2ClientCredentialsConfigTest {
         Oauth2ClientCredentialsConfig oauth2ClientCredentials = new Oauth2ClientCredentialsConfig(null, TENANT_ID, new InlinePassword(CLIENT_ID),
                 new InlinePassword(CLIENT_SECRET),
                 URI.create("http://override.com/.default"), null);
-        assertThat(oauth2ClientCredentials.getAuthScope()).isEqualTo(URI.create("http://override.com/.default"));
+        assertThat(oauth2ClientCredentials.scope()).isEqualTo(URI.create("http://override.com/.default"));
     }
 }
