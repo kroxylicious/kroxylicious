@@ -131,7 +131,8 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
                     oauthServer.getTrustStoreType());
             Tls entraTls = new Tls(null, entraTrust, null, null);
             return new AzureKeyVaultConfig(
-                    new Oauth2ClientCredentialsConfig(oauthServer.getBaseUri(), TENANT_ID, new InlinePassword("abc"), new InlinePassword("def"), null,
+                    new Oauth2ClientCredentialsConfig(oauthServer.getBaseUri(), TENANT_ID, new InlinePassword("abc"), new InlinePassword("def"),
+                            URI.create("https://vault.azure.net/.default"),
                             entraTls),
                     null, KEY_VAULT_NAME, defaultVaultBaseUrl.getHost(), null, defaultVaultBaseUrl.getPort(), vaultTls);
         }
