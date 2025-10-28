@@ -426,6 +426,7 @@ class ConfigurationSerializationTest {
                                   "keyVaultName": "my-key-vault",
                                   "keyVaultHost": "vault.azure.net",
                                   "oauth2ClientCredentials": {
+                                    "oauthEndpoint": "http://localhost:8080",
                                     "tenantId": "123",
                                     "clientId": {
                                       "password": "abc"
@@ -438,7 +439,8 @@ class ConfigurationSerializationTest {
                                 }
                                 """,
                         new AzureKeyVaultConfig(
-                                new Oauth2ClientCredentialsConfig(null, "123", new InlinePassword("abc"), new InlinePassword("def"), URI.create("http://scope/.default"),
+                                new Oauth2ClientCredentialsConfig(URI.create("http://localhost:8080"), "123", new InlinePassword("abc"), new InlinePassword("def"),
+                                        URI.create("http://scope/.default"),
                                         null),
                                 null,
                                 "my-key-vault", "vault.azure.net", null, null, null)),
@@ -510,6 +512,7 @@ class ConfigurationSerializationTest {
                         """
                                 {
                                   "oauth2ClientCredentials": {
+                                        "oauthEndpoint": "http://localhost:8080",
                                         "tenantId": "123",
                                         "clientId": {
                                           "password": "abc"

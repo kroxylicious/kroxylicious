@@ -24,7 +24,8 @@ class AzureKeyVaultKmsServiceTest {
     @Test
     void wholeLifeCycleWithOauth2Client() {
         try (AzureKeyVaultKmsService service = new AzureKeyVaultKmsService()) {
-            Oauth2ClientCredentialsConfig oauth2ClientCredentials = new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"),
+            Oauth2ClientCredentialsConfig oauth2ClientCredentials = new Oauth2ClientCredentialsConfig(URI.create("https://login.microsoftonline.com"), "tenant",
+                    new InlinePassword("abc"),
                     new InlinePassword("def"), URI.create("https://vault.azure.net/.default"),
                     null);
             service.initialize(new AzureKeyVaultConfig(oauth2ClientCredentials, null, "default", "vault.azure.net", null, null, null));

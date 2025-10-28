@@ -74,7 +74,8 @@ class KeyVaultClientIT {
         try (LowkeyVaultContainer lowkeyVaultContainer = startVault()) {
             BearerToken token = new BearerToken("mytoken", Instant.MIN, Instant.MAX);
             when(bearerTokenService.getBearerToken()).thenReturn(CompletableFuture.completedFuture(token));
-            Oauth2ClientCredentialsConfig unused = new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"),
+            Oauth2ClientCredentialsConfig unused = new Oauth2ClientCredentialsConfig(URI.create("https://login.microsoftonline.com"), "tenant", new InlinePassword("abc"),
+                    new InlinePassword("def"),
                     URI.create("https://vault.azure.net/.default"), null);
             URI baseUri = URI.create(lowkeyVaultContainer.getDefaultVaultBaseUrl());
             KeyVaultClient keyVaultClient = new KeyVaultClient(bearerTokenService,
@@ -97,7 +98,8 @@ class KeyVaultClientIT {
             // given
             BearerToken token = new BearerToken("mytoken", Instant.MIN, Instant.MAX);
             when(bearerTokenService.getBearerToken()).thenReturn(CompletableFuture.completedFuture(token));
-            Oauth2ClientCredentialsConfig unused = new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"),
+            Oauth2ClientCredentialsConfig unused = new Oauth2ClientCredentialsConfig(URI.create("https://login.microsoftonline.com"), "tenant", new InlinePassword("abc"),
+                    new InlinePassword("def"),
                     URI.create("https://vault.azure.net/.default"), null);
             URI baseUri = URI.create(lowkeyVaultContainer.getDefaultVaultBaseUrl());
             KeyVaultClient keyVaultClient = new KeyVaultClient(bearerTokenService,
@@ -129,7 +131,8 @@ class KeyVaultClientIT {
             // given
             BearerToken token = new BearerToken("mytoken", Instant.MIN, Instant.MAX);
             when(bearerTokenService.getBearerToken()).thenReturn(CompletableFuture.completedFuture(token));
-            Oauth2ClientCredentialsConfig unused = new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("abc"), new InlinePassword("def"),
+            Oauth2ClientCredentialsConfig unused = new Oauth2ClientCredentialsConfig(URI.create("https://login.microsoftonline.com"), "tenant", new InlinePassword("abc"),
+                    new InlinePassword("def"),
                     URI.create("https://vault.azure.net/.default"), null);
             URI baseUri = URI.create(lowkeyVaultContainer.getDefaultVaultBaseUrl());
             KeyVaultClient keyVaultClient = new KeyVaultClient(bearerTokenService,

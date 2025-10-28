@@ -104,7 +104,7 @@ public class OauthClientCredentialsTokenService implements BearerTokenService {
                         + URLEncoder.encode(entry.getValue(), StandardCharsets.UTF_8))
                 .collect(Collectors.joining("&"));
 
-        String tokenUrl = oauth2ClientCredentialsConfig.getOauthEndpointOrDefault() + "/" + oauth2ClientCredentialsConfig.tenantId() + "/oauth2/v2.0/token";
+        String tokenUrl = oauth2ClientCredentialsConfig.oauthEndpoint() + "/" + oauth2ClientCredentialsConfig.tenantId() + "/oauth2/v2.0/token";
 
         return HttpRequest.newBuilder()
                 .uri(URI.create(tokenUrl))

@@ -23,7 +23,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class AzureKeyVaultConfigTest {
 
-    private static final Oauth2ClientCredentialsConfig ENTRA_IDENTITY = new Oauth2ClientCredentialsConfig(null, "tenant", new InlinePassword("pazz"),
+    private static final Oauth2ClientCredentialsConfig ENTRA_IDENTITY = new Oauth2ClientCredentialsConfig(URI.create("https://login.microsoftonline.com"), "tenant",
+            new InlinePassword("pazz"),
             new InlinePassword("pazz"), URI.create("https://vault.azure.net/.default"), null);
 
     static Stream<Arguments> keyVaultNameValid() {
