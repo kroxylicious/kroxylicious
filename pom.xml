@@ -562,6 +562,9 @@
                                 </excludes>
                             </licenseSet>
                         </licenseSets>
+                        <mapping>
+                            <bicep>DOUBLESLASH_STYLE</bicep>
+                        </mapping>
                     </configuration>
                 </plugin>
                 <plugin>

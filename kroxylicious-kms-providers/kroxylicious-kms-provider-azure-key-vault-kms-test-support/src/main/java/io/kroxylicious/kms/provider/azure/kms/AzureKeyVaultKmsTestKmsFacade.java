@@ -133,7 +133,7 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
             return new AzureKeyVaultConfig(
                     new EntraIdentityConfig(oauthServer.getBaseUri(), TENANT_ID, new InlinePassword("abc"), new InlinePassword("def"), null,
                             entraTls),
-                    KEY_VAULT_NAME, defaultVaultBaseUrl.getHost(), null, defaultVaultBaseUrl.getPort(), vaultTls);
+                    null, KEY_VAULT_NAME, defaultVaultBaseUrl.getHost(), null, defaultVaultBaseUrl.getPort(), vaultTls);
         }
         catch (Exception e) {
             throw new TestKmsFacadeException(e);
