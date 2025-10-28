@@ -30,7 +30,6 @@ public record Oauth2ClientCredentialsConfig(@JsonProperty(required = true) URI o
                                             @JsonInclude(JsonInclude.Include.NON_NULL) @JsonProperty(value = "tls") @Nullable Tls tls) {
 
     private static final Logger LOG = LoggerFactory.getLogger(Oauth2ClientCredentialsConfig.class);
-    public static final URI GLOBAL_ENTRA_ENDPOINT = URI.create("https://login.microsoftonline.com");
 
     public Oauth2ClientCredentialsConfig {
         Objects.requireNonNull(oauthEndpoint, "oauthEndpoint cannot be null");
