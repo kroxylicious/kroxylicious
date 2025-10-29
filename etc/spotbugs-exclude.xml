@@ -20,6 +20,9 @@
     <Match>
         <Class name="~io\.kroxylicious\.kubernetes\.api\.common\..+(Builder|Fluent)(\$.*)?" />
     </Match>
+    <Match>
+        <Class name="~io\.kroxylicious\.proxy\.config\..+Fluent(\$.*)?" />
+    </Match>
     <!--
         Both of the sources below contain classes used for benchmarks.
         To accurately measure performance, it is useful to sometimes forcibly return null.
