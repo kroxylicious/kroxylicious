@@ -21,6 +21,7 @@
     <artifactId>kroxylicious-krpc-plugin</artifactId>
     <name>Code generation plugin</name>
     <packaging>maven-plugin</packaging>
+    <description>A maven-plugin to generate Java source code using Apache Kafka protocol RPC descriptors and code template files</description>
 
     <properties>
         <maven-plugin-api.version>3.9.11</maven-plugin-api.version>

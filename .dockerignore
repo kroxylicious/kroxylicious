@@ -7,6 +7,7 @@
 docs
 etc
 !etc/eclipse-formatter-config.xml
+!etc/enforcer-rules
 scripts
 Dockerfile
 .dockerignore
