@@ -9,7 +9,7 @@ io.kroxylicious.proxy.InvocationCountingFilterFactory
 io.kroxylicious.proxy.CreateTopicRequest
 io.kroxylicious.proxy.testplugins.SaslPlainTermination
 io.kroxylicious.proxy.testplugins.SaslPlainInitiation
-io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer
+io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyer
 io.kroxylicious.proxy.testplugins.ConstantSasl
 io.kroxylicious.proxy.testplugins.ProtocolCounter
 io.kroxylicious.proxy.testplugins.ShortCircuitErrorResponse

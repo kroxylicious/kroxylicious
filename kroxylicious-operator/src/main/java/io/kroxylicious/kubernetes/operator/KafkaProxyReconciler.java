@@ -32,6 +32,7 @@ import io.fabric8.kubernetes.api.model.VolumeMount;
 import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentStatus;
+import io.fabric8.kubernetes.client.ResourceNotFoundException;
 import io.javaoperatorsdk.operator.OperatorException;
 import io.javaoperatorsdk.operator.api.config.informer.InformerEventSourceConfiguration;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
@@ -198,7 +199,8 @@ public class KafkaProxyReconciler implements
                         List.of(),
                         false,
                         // micrometer
-                        Optional.empty()),
+                        Optional.empty(),
+                        null),
                 allVolumes,
                 allMounts);
     }
@@ -319,7 +321,14 @@ public class KafkaProxyReconciler implements
 
     private static ConfigurationFragment<TargetCluster> buildTargetCluster(KafkaService kafkaServiceRef) {
         return buildTargetClusterTls(kafkaServiceRef)
-                .map(tls -> new TargetCluster(kafkaServiceRef.getSpec().getBootstrapServers(), tls));
+                .map(tls -> {
+                    if (kafkaServiceRef.getStatus().getBootstrapServers() != null) {
+                        return new TargetCluster(kafkaServiceRef.getStatus().getBootstrapServers(), tls);
+                    }
+                    else {
+                        throw new ResourceNotFoundException("Bootstrap server address not found");
+                    }
+                });
     }
 
     private static ConfigurationFragment<Optional<Tls>> buildTargetClusterTls(KafkaService kafkaServiceRef) {

@@ -28,7 +28,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Integration test that tests Kroxylicious ability to utilise Linux io_uring.
  */
 @ExtendWith(KafkaClusterExtension.class)
-@EnabledIf(value = "io.netty.incubator.channel.uring.IOUring#isAvailable", disabledReason = "IOUring is not available")
+@EnabledIf(value = "io.netty.channel.uring.IoUring#isAvailable", disabledReason = "IOUring is not available")
 class IOUringIT extends BaseIT {
 
     private static final String HELLO_WORLD = "helloworld";
@@ -36,7 +36,7 @@ class IOUringIT extends BaseIT {
     @Test
     void proxyUsingIOUring(KafkaCluster cluster, Topic topic) throws Exception {
 
-        var proxy = proxy(cluster).withUseIoUring();
+        var proxy = proxy(cluster).withUseIoUring().withNewNetwork().withNewProxy().withWorkerThreadCount(2).endProxy().endNetwork();
 
         try (var tester = kroxyliciousTester(proxy);
                 var producer = tester.producer();

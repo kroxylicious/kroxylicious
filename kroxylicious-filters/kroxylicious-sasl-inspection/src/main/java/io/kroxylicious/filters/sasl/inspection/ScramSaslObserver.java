@@ -24,9 +24,6 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public class ScramSaslObserver implements SaslObserver {
 
-    private static final String ENCODED_COMMA = "=2C";
-    private static final String ENCODED_EQUALS_SIGN = "=3D";
-
     private final String mechanismName;
     private boolean gotServerFinal = false;
     private @Nullable String authorizationId = null;
@@ -48,7 +45,12 @@ public class ScramSaslObserver implements SaslObserver {
                 throw new SaslException("Invalid SCRAM client first message, username (n) absent");
             }
             var authzid = tokens.get(1).startsWith("a=") ? tokens.get(1).substring(2) : "";
-            authorizationId = username(authzid.isEmpty() ? username : authzid);
+            try {
+                authorizationId = SaslUtils.decodeSaslName(authzid.isEmpty() ? username : authzid);
+            }
+            catch (IllegalArgumentException e) {
+                throw new SaslException("error decoding sasl name", e);
+            }
             return true;
         }
         return false;
@@ -101,23 +103,6 @@ public class ScramSaslObserver implements SaslObserver {
                     tokens.size());
         }
         return tokens;
-    }
-
-    /**
-     * Decodes a saslName into a username using the rules described by
-     * <a href="https://datatracker.ietf.org/doc/html/rfc5802#section-5.1">RFC-5802</a>.
-
-     * @param saslName sasl name
-     * @return user name
-     */
-    private static String username(String saslName) throws SaslException {
-        // The RFC says: "If the server receives a username that contains '=' not followed by either '2C' or '3D', then the
-        // server MUST fail the authentication"
-        if (saslName.replace(ENCODED_COMMA, "").replace(ENCODED_EQUALS_SIGN, "").contains("=")) {
-            throw new SaslException("Sasl name: '" + saslName + "' contains unexpected encoded characters");
-        }
-
-        return saslName.replace(ENCODED_COMMA, ",").replace(ENCODED_EQUALS_SIGN, "=");
     }
 
 }

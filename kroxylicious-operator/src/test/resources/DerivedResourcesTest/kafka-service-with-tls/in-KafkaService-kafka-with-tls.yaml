@@ -26,4 +26,5 @@ spec:
       deny:
       - TLS1.2
 status:
+  bootstrapServers: my-cluster-kafka-bootstrap.kafka.svc.cluster.local:9092
   observedGeneration: 3

@@ -82,7 +82,8 @@ public class SaslInspection implements FilterFactory<Config, Void> {
     }
 
     @VisibleForTesting
-    public @NonNull Map<String, SaslObserverFactory> getObserverFactoryMap() {
+    @NonNull
+    Map<String, SaslObserverFactory> getObserverFactoryMap() {
         return observerFactoryMap;
     }
 

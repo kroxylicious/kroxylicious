@@ -35,7 +35,7 @@ import com.github.tomakehurst.wiremock.stubbing.ServeEvent;
 
 import io.kroxylicious.kms.provider.azure.MalformedResponseBodyException;
 import io.kroxylicious.kms.provider.azure.UnexpectedHttpStatusCodeException;
-import io.kroxylicious.kms.provider.azure.config.auth.EntraIdentityConfig;
+import io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -91,14 +91,14 @@ class OauthClientCredentialsTokenServiceTest {
         server.shutdown();
     }
 
-    @CsvSource(value = { "https://scope/.default", "null" }, nullValues = "null")
+    @CsvSource(value = { "https://scope/.default", "https://vault.azure.net/.default" }, nullValues = "null")
     @ParameterizedTest
     void getToken(@Nullable URI inputScope) {
         Instant fixedInstant = Instant.now();
         Clock clock = Clock.fixed(fixedInstant, ZoneId.of("UTC"));
         server.stubFor(tokenRespondsWithJson(KNOWN_GOOD_RESPONSE));
         try (OauthClientCredentialsTokenService service = new OauthClientCredentialsTokenService(
-                new EntraIdentityConfig(URI.create(server.baseUrl()), TENANT_ID, new InlinePassword(CLIENT_ID), new InlinePassword(CLIENT_SECRET), inputScope,
+                new Oauth2ClientCredentialsConfig(URI.create(server.baseUrl()), TENANT_ID, new InlinePassword(CLIENT_ID), new InlinePassword(CLIENT_SECRET), inputScope,
                         null),
                 clock)) {
             assertThat(service.getBearerToken().toCompletableFuture()).succeedsWithin(Duration.of(5, ChronoUnit.SECONDS))
@@ -158,7 +158,8 @@ class OauthClientCredentialsTokenServiceTest {
         Clock clock = Clock.fixed(fixedInstant, ZoneId.of("UTC"));
         server.stubFor(resp);
         try (OauthClientCredentialsTokenService service = new OauthClientCredentialsTokenService(
-                new EntraIdentityConfig(URI.create(server.baseUrl()), TENANT_ID, new InlinePassword(CLIENT_ID), new InlinePassword(CLIENT_SECRET), null, null),
+                new Oauth2ClientCredentialsConfig(URI.create(server.baseUrl()), TENANT_ID, new InlinePassword(CLIENT_ID), new InlinePassword(CLIENT_SECRET),
+                        URI.create("https://vault.azure.net/.default"), null),
                 clock)) {
             ThrowableAssertAlternative<?> causeAssert = assertThat(service.getBearerToken().toCompletableFuture()).failsWithin(
                     Duration.of(5, ChronoUnit.SECONDS))
