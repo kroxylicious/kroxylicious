@@ -75,8 +75,10 @@ The running of the tests can be controlled with the following Maven properties:
 | property           | description                                                                               |
 |--------------------|-------------------------------------------------------------------------------------------|
 | `-DskipUTs=true`   | skip unit tests                                                                           |
+| `-DskipKTs=true`   | skip container image tests                                                                |
 | `-DskipITs=true`   | skip integration tests                                                                    |
 | `-DskipSTs=true`   | skip system tests                                                                         |
+| `-DskipDTs=true`   | skip documentation tests                                                                  |
 | `-DskipTests=true` | skip all tests                                                                            |
 | `-Pdebug`          | enables logging so you can see what the Kafka clients, Proxy and in VM brokers are up to. |
 

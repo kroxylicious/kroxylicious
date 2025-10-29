@@ -182,7 +182,6 @@
             <properties>
                 <io.kroxylicious.proxy.image.name>quay.io/kroxylicious/proxy:${project.version}</io.kroxylicious.proxy.image.name>
                 <io.kroxylicious.proxy.image.archive>target/kroxylicious-proxy.img.tar.gz</io.kroxylicious.proxy.image.archive>
-                <skipDocker>false</skipDocker>
             </properties>
             <build>
                 <plugins>
@@ -218,7 +217,7 @@
                             </goals>
                             <phase>package</phase>
                             <configuration>
-                                <skip>${skipDocker}</skip>
+                                <skip>${skipContainerImageBuild}</skip>
                                 <images>
                                     <image>
                                         <name>${io.kroxylicious.proxy.image.name}</name>
