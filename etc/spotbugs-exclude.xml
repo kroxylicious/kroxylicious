@@ -20,4 +20,16 @@
     <Match>
         <Class name="~io\.kroxylicious\.kubernetes\.api\.common\..+(Builder|Fluent)(\$.*)?" />
     </Match>
+    <!--
+        Both of the sources below contain classes used for benchmarks.
+        To accurately measure performance, it is useful to sometimes forcibly return null.
+        -->
+    <Match>
+        <Source name="~.*io/kroxylicious/microbenchmarks/.*"/>
+        <Bug pattern="NP_NONNULL_RETURN_VIOLATION" />
+    </Match>
+    <Match>
+        <Source name="~.*io/kroxylicious/filters/.*"/>
+        <Bug pattern="NP_NONNULL_RETURN_VIOLATION" />
+    </Match>
 </FindBugsFilter>
