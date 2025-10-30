@@ -274,14 +274,6 @@
                     </excludePackageNames>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>com.github.spotbugs</groupId>
-                <artifactId>spotbugs-maven-plugin</artifactId>
-                <configuration>
-                    <!-- Skipped to avoid failures from fabric8 generated classes -->
-                    <skip>true</skip>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
 
