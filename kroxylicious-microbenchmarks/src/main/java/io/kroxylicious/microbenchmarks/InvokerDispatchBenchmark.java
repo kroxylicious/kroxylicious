@@ -201,6 +201,11 @@ public class InvokerDispatchBenchmark {
         }
 
         @Override
+        public void clientSaslAuthenticationSuccess(String mechanism, Subject subject) {
+
+        }
+
+        @Override
         public void clientSaslAuthenticationFailure(String mechanism, String authorizedId, Exception exception) {
 
         }
@@ -211,8 +216,8 @@ public class InvokerDispatchBenchmark {
         }
 
         @Override
-        public CompletionStage<Subject> authenticatedSubject() {
-            return null;
+        public Subject authenticatedSubject() {
+            return Subject.anonymous();
         }
 
         @Override
