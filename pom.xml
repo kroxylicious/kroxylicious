@@ -959,7 +959,8 @@
                         </goals>
                         <configuration>
                             <rules>
-                                <requireSonatypeCentralMetadata />
+                                <requireExplicitProjectName/>
+                                <requireExplicitProjectDescription/>
                             </rules>
                         </configuration>
                     </execution>

@@ -13,25 +13,17 @@ import org.apache.maven.project.MavenProject;
 import javax.inject.Inject;
 import javax.inject.Named;
 
-@Named("requireSonatypeCentralMetadata")
-public class RequireSonatypeCentralMetadata extends AbstractEnforcerRule {
+@Named("requireExplicitProjectDescription")
+public class RequireExplicitProjectDescription extends AbstractEnforcerRule {
 
     @Inject
     private MavenProject project;
 
     public void execute() throws EnforcerRuleException {
         Model originalModel = project.getOriginalModel();
-        if (originalModel.getName() == null) {
-            throw missingPropertyException("name");
-        }
         if (originalModel.getDescription() == null) {
-            throw missingPropertyException("description");
+            throw new EnforcerRuleException("Project description is not explicitly specified, please add a <description> element to the pom.xml.");
         }
-    }
-
-    private static EnforcerRuleException missingPropertyException(String property) {
-        return new EnforcerRuleException("Project " + property + " is not explicitly specified, please add a <"
-                + property + "> element to the pom.xml.");
     }
 
 }

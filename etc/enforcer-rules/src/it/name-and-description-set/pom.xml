@@ -23,6 +23,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
+                <version>@enforcer.api.version@</version>
                 <dependencies>
                     <dependency>
                         <groupId>io.kroxylicious</groupId>
@@ -38,7 +39,8 @@
                         </goals>
                         <configuration>
                             <rules>
-                                <requireSonatypeCentralMetadata/>
+                                <requireExplicitProjectName/>
+                                <requireExplicitProjectDescription/>
                             </rules>
                         </configuration>
                     </execution>

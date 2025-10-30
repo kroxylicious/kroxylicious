@@ -20,7 +20,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
-class RequireSonatypeCentralMetadataTest {
+class RequireExplicitProjectDescriptionTest {
 
     @Mock
     MavenProject mavenProject;
@@ -29,7 +29,7 @@ class RequireSonatypeCentralMetadataTest {
     Model originalModel;
 
     @InjectMocks
-    RequireSonatypeCentralMetadata requireSonatypeCentralMetadata = new RequireSonatypeCentralMetadata();
+    RequireExplicitProjectDescription requireExplicitProjectDescription = new RequireExplicitProjectDescription();
 
     @BeforeEach
     void setup() {
@@ -37,35 +37,22 @@ class RequireSonatypeCentralMetadataTest {
     }
 
     @Test
-    void projectNameNotSpecified() {
-        // given
-        when(originalModel.getName()).thenReturn(null);
-        // when
-        Assertions.assertThatThrownBy(() -> requireSonatypeCentralMetadata.execute())
-                // then
-                .isInstanceOf(EnforcerRuleException.class)
-                .hasMessage("Project name is not explicitly specified, please add a <name> element to the pom.xml.");
-    }
-
-    @Test
     void descriptionNotSpecified() {
         // given
-        when(originalModel.getName()).thenReturn("projectname");
         when(originalModel.getDescription()).thenReturn(null);
         // when
-        Assertions.assertThatThrownBy(() -> requireSonatypeCentralMetadata.execute())
+        Assertions.assertThatThrownBy(() -> requireExplicitProjectDescription.execute())
                 // then
                 .isInstanceOf(EnforcerRuleException.class).hasMessage(
                         "Project description is not explicitly specified, please add a <description> element to the pom.xml.");
     }
 
     @Test
-    void procectAndDescriptionSpecified() {
+    void descriptionSpecified() {
         // given
-        when(originalModel.getName()).thenReturn("projectname");
         when(originalModel.getDescription()).thenReturn("description");
         // when
-        Assertions.assertThatCode(() -> requireSonatypeCentralMetadata.execute())
+        Assertions.assertThatCode(() -> requireExplicitProjectDescription.execute())
                 // then
                 .doesNotThrowAnyException();
     }

@@ -1,0 +1,60 @@
+/*
+ * Copyright Kroxylicious Authors.
+ *
+ * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+ */
+
+package io.kroxylicious.enforcer;
+
+import org.apache.maven.enforcer.rule.api.EnforcerRuleException;
+import org.apache.maven.model.Model;
+import org.apache.maven.project.MavenProject;
+import org.assertj.core.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+
+import static org.mockito.Mockito.when;
+
+@ExtendWith(MockitoExtension.class)
+class RequireExplicitProjectNameTest {
+
+    @Mock
+    MavenProject mavenProject;
+
+    @Mock
+    Model originalModel;
+
+    @InjectMocks
+    RequireExplicitProjectName requireExplicitProjectName = new RequireExplicitProjectName();
+
+    @BeforeEach
+    void setup() {
+        when(mavenProject.getOriginalModel()).thenReturn(originalModel);
+    }
+
+    @Test
+    void nameNotSpecified() {
+        // given
+        when(originalModel.getName()).thenReturn(null);
+        // when
+        Assertions.assertThatThrownBy(() -> requireExplicitProjectName.execute())
+                // then
+                .isInstanceOf(EnforcerRuleException.class).hasMessage(
+                        "Project name is not explicitly specified, please add a <name> element to the pom.xml.");
+    }
+
+    @Test
+    void nameSpecified() {
+        // given
+        when(originalModel.getName()).thenReturn("name");
+        // when
+        Assertions.assertThatCode(() -> requireExplicitProjectName.execute())
+                // then
+                .doesNotThrowAnyException();
+    }
+
+}
