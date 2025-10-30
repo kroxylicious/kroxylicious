@@ -132,7 +132,8 @@ public record Configuration(
                 virtualCluster.targetCluster(),
                 virtualCluster.logNetwork(),
                 virtualCluster.logFrames(),
-                filterDefinitions);
+                filterDefinitions,
+                virtualCluster.subjectBuilder());
 
         addGateways(virtualCluster.gateways(), virtualClusterModel);
         virtualClusterModel.logVirtualClusterSummary();

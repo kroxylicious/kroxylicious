@@ -1293,8 +1293,8 @@ class FilterHandlerTest extends FilterHarness {
                           @Nullable X509Certificate proxyCertificate) {
 
         // when
-        var localCert = FilterHandler.localTlsCertificate(handler);
-        var peerCert = FilterHandler.getPeerTlsCertificate(handler);
+        var localCert = ClientSaslManager.localTlsCertificate(handler);
+        var peerCert = ClientSaslManager.peerTlsCertificate(handler);
 
         // then
         assertThat(localCert).isSameAs(proxyCertificate);
