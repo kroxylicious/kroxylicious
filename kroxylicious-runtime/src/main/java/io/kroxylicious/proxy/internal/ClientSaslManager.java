@@ -82,9 +82,9 @@ public class ClientSaslManager implements
 
     @VisibleForTesting
     ClientSaslManager(
-                              @Nullable X509Certificate proxyCertificate,
-                              @Nullable X509Certificate clientCertificate,
-                              Subject initialSubject) {
+                      @Nullable X509Certificate proxyCertificate,
+                      @Nullable X509Certificate clientCertificate,
+                      Subject initialSubject) {
         this.proxyCertificate = proxyCertificate;
         this.clientCertificate = clientCertificate;
         this.mechanismName = null;
