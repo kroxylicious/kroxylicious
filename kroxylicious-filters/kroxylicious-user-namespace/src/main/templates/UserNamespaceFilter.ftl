@@ -23,6 +23,9 @@
  */
 package ${outputPackage};
 
+import java.util.Set;
+import java.util.concurrent.CompletionStage;
+
 <#list messageSpecs as messageSpec>
 import org.apache.kafka.common.message.${messageSpec.name}Data;
 </#list>
@@ -80,6 +83,80 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
         return keys.contains(apiKey);
     }
 
+    public CompletionStage<RequestFilterResult> onRequest(ApiKeys apiKey,
+                                                          RequestHeaderData header,
+                                                          ApiMessage request,
+                                                          FilterContext context) {
+        var authzId = context.clientSaslContext().map(ClientSaslContext::authorizationId);
+        authzId.ifPresent(aid -> {
+
+            switch (apiKey) {
+                case FIND_COORDINATOR -> {
+                    FindCoordinatorRequestData findCoordinatorRequestData = (FindCoordinatorRequestData) request;
+                    if (findCoordinatorRequestData.keyType() == 0 /* CHECK ME */) {
+                        findCoordinatorRequestData.setCoordinatorKeys(findCoordinatorRequestData.coordinatorKeys().stream().map(k -> aid + "-" + k).toList());
+                    }
+                    System.out.println(findCoordinatorRequestData);
+                }
+                case OFFSET_COMMIT -> {
+                    OffsetCommitRequestData offsetCommitRequestData = (OffsetCommitRequestData) request;
+                    offsetCommitRequestData.setGroupId(aid + "-" + offsetCommitRequestData.groupId());
+                    System.out.println(offsetCommitRequestData);
+                }
+                case CONSUMER_GROUP_DESCRIBE -> {
+                    ConsumerGroupDescribeRequestData consumerGroupDescribeRequestData = (ConsumerGroupDescribeRequestData) request;
+                    consumerGroupDescribeRequestData.setGroupIds(consumerGroupDescribeRequestData.groupIds().stream().map(g -> aid + "-" + g).toList());
+                    System.out.println(consumerGroupDescribeRequestData);
+                }
+                case DESCRIBE_GROUPS -> {
+                    DescribeGroupsRequestData describeGroupsRequestData = (DescribeGroupsRequestData) request;
+                    describeGroupsRequestData.setGroups(describeGroupsRequestData.groups().stream().map(g -> aid + "-" + g).toList());
+                    System.out.println(request);
+                }
+            }
+        });
+        return context.forwardRequest(header, request);
+
+    }
+
+    public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
+                                                            ResponseHeaderData header,
+                                                            ApiMessage response,
+                                                            FilterContext context) {
+        var authzId = context.clientSaslContext().map(ClientSaslContext::authorizationId);
+        authzId.ifPresent(aid -> {
+            switch (apiKey) {
+                case FIND_COORDINATOR -> {
+                    FindCoordinatorResponseData findCoordinatorResponseData = (FindCoordinatorResponseData) response;
+                    findCoordinatorResponseData.coordinators().forEach(
+                            coordinator -> coordinator.setKey(coordinator.key().substring(aid.length() + 1)));
+                    System.out.println(findCoordinatorResponseData);
+                }
+                case OFFSET_COMMIT -> {
+                    OffsetCommitResponseData offsetCommitResponseData = (OffsetCommitResponseData) response;
+                    System.out.println(response);
+                }
+                case CONSUMER_GROUP_DESCRIBE -> {
+                    ConsumerGroupDescribeResponseData consumerGroupDescribeResponseData = (ConsumerGroupDescribeResponseData) response;
+                    consumerGroupDescribeResponseData.groups().forEach(group -> {
+                        group.setGroupId(group.groupId().substring(aid.length() + 1));
+                    });
+                    System.out.println(response);
+                }
+                case DESCRIBE_GROUPS -> {
+                    DescribeGroupsResponseData describeGroupsResponseData = (DescribeGroupsResponseData) response;
+                    describeGroupsResponseData.groups().forEach(g -> {
+                        g.setGroupId(g.groupId().substring(aid.length() + 1));
+                    });
+                    System.out.println(response);
+                }
+
+            }
+        });
+
+        return context.forwardResponse(header, response);
+    }
+
 
     /**
     * Decodes Kafka request Readable into an ApiMessage
@@ -89,6 +166,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
     * @return the ApiMessage
     * @throws IllegalArgumentException if an unhandled ApiKey is encountered
     */
+    /*
     static ApiMessage decodeRequest(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor) {
         return switch (apiKey) {
 <#list messageSpecs as messageSpec>
@@ -100,6 +178,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
             default -> throw new IllegalArgumentException("Unsupported RPC " + apiKey);
         };
     }
+    */
 
     /**
     * Decodes Kafka response Readable into an ApiMessage
@@ -109,6 +188,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
     * @return the ApiMessage
     * @throws IllegalArgumentException if an unhandled ApiKey is encountered
     */
+    /*
     static ApiMessage decodeResponse(ApiKeys apiKey, short apiVersion, ByteBufAccessor accessor) {
         return switch (apiKey) {
 <#list messageSpecs as messageSpec>
@@ -119,5 +199,6 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
             default -> throw new IllegalArgumentException("Unsupported RPC " + apiKey);
         };
     }
+    */
 
 }

@@ -11,10 +11,10 @@
     <parent>
         <artifactId>kroxylicious-filter-parent</artifactId>
         <groupId>io.kroxylicious</groupId>
-        <version>0.17.0-SNAPSHOT</version>
+        <version>0.18.0-SNAPSHOT</version>
     </parent>
     <artifactId>kroxylicious-user-namespace</artifactId>
-    <version>0.17.0-SNAPSHOT</version>
+    <version>0.18.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>User namespace filters</name>
