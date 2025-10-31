@@ -10,41 +10,18 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.net.URI;
 import java.security.KeyStore;
-import java.time.Duration;
 import java.util.Set;
 
-import org.apache.http.conn.ssl.DefaultHostnameVerifier;
-import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
-import org.apache.http.ssl.SSLContextBuilder;
 import org.testcontainers.DockerClientFactory;
 import org.testcontainers.images.PullPolicy;
 import org.testcontainers.utility.DockerImageName;
 
-import com.azure.core.credential.BasicAuthenticationCredential;
-import com.azure.core.exception.ResourceNotFoundException;
-import com.azure.core.http.HttpClient;
-import com.azure.core.util.polling.SyncPoller;
-import com.azure.security.keyvault.keys.KeyClient;
-import com.azure.security.keyvault.keys.KeyClientBuilder;
-import com.azure.security.keyvault.keys.models.CreateKeyOptions;
-import com.azure.security.keyvault.keys.models.DeletedKey;
-import com.azure.security.keyvault.keys.models.KeyOperation;
-import com.azure.security.keyvault.keys.models.KeyType;
-import com.azure.security.keyvault.keys.models.KeyVaultKey;
-import com.github.nagyesta.lowkeyvault.http.ApacheHttpClient;
-import com.github.nagyesta.lowkeyvault.http.AuthorityOverrideFunction;
-import com.github.nagyesta.lowkeyvault.http.management.LowkeyVaultException;
 import com.github.nagyesta.lowkeyvault.testcontainers.LowkeyVaultContainer;
 
-import io.kroxylicious.kms.provider.azure.AzureKeyVaultEdek;
-import io.kroxylicious.kms.provider.azure.AzureKeyVaultKmsService;
-import io.kroxylicious.kms.provider.azure.WrappingKey;
 import io.kroxylicious.kms.provider.azure.config.AzureKeyVaultConfig;
 import io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig;
 import io.kroxylicious.kms.service.TestKekManager;
-import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeException;
-import io.kroxylicious.kms.service.UnknownAliasException;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustStore;
@@ -54,7 +31,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 import static com.github.nagyesta.lowkeyvault.testcontainers.LowkeyVaultContainerBuilder.lowkeyVault;
 
 @SuppressWarnings("java:S112")
-public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaultConfig, WrappingKey, AzureKeyVaultEdek> {
+public class AzureKeyVaultKmsTestKmsFacade extends AbstractAzureKeyVaultKmsTestKmsFacade {
 
     public static final String TENANT_ID = "identity";
     public static final String KEY_VAULT_NAME = "default";
@@ -104,10 +81,10 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
         return lowkeyVaultContainer;
     }
 
-    @Override
-    public final void start() {
-        startKms();
-    }
+    // @Override
+    // public final void start() {
+    // startKms();
+    // }
 
     @SuppressWarnings("java:S5443") // this is test code, writing keys to public temp dir is intentional
     @Override
@@ -141,98 +118,98 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
         }
     }
 
-    @Override
-    public final Class<AzureKeyVaultKmsService> getKmsServiceClass() {
-        return AzureKeyVaultKmsService.class;
-    }
+    // @Override
+    // public final Class<AzureKeyVaultKmsService> getKmsServiceClass() {
+    // return AzureKeyVaultKmsService.class;
+    // }
 
-    @Override
-    public final void stop() {
-        stopKms();
-    }
+    // @Override
+    // public final void stop() {
+    // stopKms();
+    // }
 
     @Override
     public final TestKekManager getTestKekManager() {
         if (kms == null) {
             throw new IllegalStateException("kms is not initialized");
         }
-        return new AzureKmsTestKekManager(kms);
+        return new AzureKmsTestKekManager(kms.getEndpointAuthority(), kms.getDefaultVaultAuthority(), kms.getVaultBaseUrl(KEY_VAULT_NAME));
     }
 
-    private static class AzureKmsTestKekManager implements TestKekManager {
-        KeyClient keyClient;
-
-        private AzureKmsTestKekManager(LowkeyVaultContainer kms) {
-            keyClient = new KeyClientBuilder().credential(new BasicAuthenticationCredential("abc", "def"))
-                    .httpClient(createHttpClient(kms.getEndpointAuthority(), kms.getDefaultVaultAuthority())).vaultUrl(kms.getVaultBaseUrl(KEY_VAULT_NAME))
-                    .disableChallengeResourceVerification().buildClient();
-        }
-
-        @Override
-        public void generateKek(String alias) {
-            String normalizedAlias = normalize(alias);
-            // createKey succeeds idempotently, not sure if azure or lowkey behaviour
-            try {
-                read(alias);
-                throw new IllegalStateException("key '" + normalizedAlias + "' already exists");
-            }
-            catch (UnknownAliasException e) {
-                keyClient.createKey(
-                        new CreateKeyOptions(normalizedAlias, KeyType.RSA).setKeyOperations(KeyOperation.ENCRYPT, KeyOperation.DECRYPT, KeyOperation.WRAP_KEY,
-                                KeyOperation.UNWRAP_KEY));
-            }
-        }
-
-        @Override
-        public KeyVaultKey read(String alias) {
-            String normalizedAlias = normalize(alias);
-            try {
-                return keyClient.getKey(normalizedAlias);
-            }
-            catch (ResourceNotFoundException e) {
-                throw new UnknownAliasException(normalizedAlias);
-            }
-        }
-
-        @Override
-        public void deleteKek(String alias) {
-            String normalizedAlias = normalize(alias);
-            try {
-                SyncPoller<DeletedKey, Void> poller = keyClient.beginDeleteKey(normalizedAlias);
-                poller.waitForCompletion(Duration.ofSeconds(10));
-            }
-            catch (ResourceNotFoundException e) {
-                throw new UnknownAliasException(normalizedAlias);
-            }
-        }
-
-        @Override
-        public void rotateKek(String alias) {
-            String normalizedAlias = normalize(alias);
-            try {
-                keyClient.rotateKey(normalizedAlias);
-            }
-            catch (ResourceNotFoundException e) {
-                throw new UnknownAliasException(normalizedAlias);
-            }
-        }
-
-        // the existing tests expect topic names containing _ can be used as KEK
-        private static String normalize(String alias) {
-            return alias.replace("_", "-");
-        }
-
-        private static HttpClient createHttpClient(String clientAuthority, String containerAuthority) {
-            try {
-                SSLContextBuilder builder = new SSLContextBuilder();
-                builder.loadTrustMaterial(null, new TrustSelfSignedStrategy());
-                return new ApacheHttpClient(new AuthorityOverrideFunction(clientAuthority, containerAuthority), new TrustSelfSignedStrategy(),
-                        new DefaultHostnameVerifier());
-            }
-            catch (Exception e) {
-                throw new LowkeyVaultException("Failed to create HTTP client.", e);
-            }
-        }
-    }
+    // private static class AzureKmsTestKekManager implements TestKekManager {
+    // KeyClient keyClient;
+    //
+    // private AzureKmsTestKekManager(LowkeyVaultContainer kms) {
+    // keyClient = new KeyClientBuilder().credential(new BasicAuthenticationCredential("abc", "def"))
+    // .httpClient(createHttpClient(kms.getEndpointAuthority(), kms.getDefaultVaultAuthority())).vaultUrl(kms.getVaultBaseUrl(KEY_VAULT_NAME))
+    // .disableChallengeResourceVerification().buildClient();
+    // }
+    //
+    // @Override
+    // public void generateKek(String alias) {
+    // String normalizedAlias = normalize(alias);
+    // // createKey succeeds idempotently, not sure if azure or lowkey behaviour
+    // try {
+    // read(alias);
+    // throw new IllegalStateException("key '" + normalizedAlias + "' already exists");
+    // }
+    // catch (UnknownAliasException e) {
+    // keyClient.createKey(
+    // new CreateKeyOptions(normalizedAlias, KeyType.RSA).setKeyOperations(KeyOperation.ENCRYPT, KeyOperation.DECRYPT, KeyOperation.WRAP_KEY,
+    // KeyOperation.UNWRAP_KEY));
+    // }
+    // }
+    //
+    // @Override
+    // public KeyVaultKey read(String alias) {
+    // String normalizedAlias = normalize(alias);
+    // try {
+    // return keyClient.getKey(normalizedAlias);
+    // }
+    // catch (ResourceNotFoundException e) {
+    // throw new UnknownAliasException(normalizedAlias);
+    // }
+    // }
+    //
+    // @Override
+    // public void deleteKek(String alias) {
+    // String normalizedAlias = normalize(alias);
+    // try {
+    // SyncPoller<DeletedKey, Void> poller = keyClient.beginDeleteKey(normalizedAlias);
+    // poller.waitForCompletion(Duration.ofSeconds(10));
+    // }
+    // catch (ResourceNotFoundException e) {
+    // throw new UnknownAliasException(normalizedAlias);
+    // }
+    // }
+    //
+    // @Override
+    // public void rotateKek(String alias) {
+    // String normalizedAlias = normalize(alias);
+    // try {
+    // keyClient.rotateKey(normalizedAlias);
+    // }
+    // catch (ResourceNotFoundException e) {
+    // throw new UnknownAliasException(normalizedAlias);
+    // }
+    // }
+    //
+    // // the existing tests expect topic names containing _ can be used as KEK
+    // private static String normalize(String alias) {
+    // return alias.replace("_", "-");
+    // }
+    //
+    // private static HttpClient createHttpClient(String clientAuthority, String containerAuthority) {
+    // try {
+    // SSLContextBuilder builder = new SSLContextBuilder();
+    // builder.loadTrustMaterial(null, new TrustSelfSignedStrategy());
+    // return new ApacheHttpClient(new AuthorityOverrideFunction(clientAuthority, containerAuthority), new TrustSelfSignedStrategy(),
+    // new DefaultHostnameVerifier());
+    // }
+    // catch (Exception e) {
+    // throw new LowkeyVaultException("Failed to create HTTP client.", e);
+    // }
+    // }
+    // }
 
 }

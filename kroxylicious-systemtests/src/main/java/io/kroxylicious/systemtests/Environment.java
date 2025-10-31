@@ -47,7 +47,7 @@ public class Environment {
     private static final String CLUSTER_DUMP_DIR_ENV = "CLUSTER_DUMP_DIR";
     private static final String AWS_ACCESS_KEY_ID_ENV = "AWS_ACCESS_KEY_ID";
     private static final String AWS_SECRET_ACCESS_KEY_ENV = "AWS_SECRET_ACCESS_KEY";
-    private static final String AWS_USE_CLOUD_ENV = "AWS_USE_CLOUD";
+    private static final String KMS_USE_CLOUD_ENV = "KMS_USE_CLOUD";
     private static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID_ENV = "AWS_KROXYLICIOUS_ACCESS_KEY_ID";
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_ENV = "AWS_KROXYLICIOUS_SECRET_ACCESS_KEY";
     private static final String AWS_REGION_ENV = "AWS_REGION";
@@ -100,7 +100,7 @@ public class Environment {
     private static final String CLUSTER_DUMP_DIR_DEFAULT = System.getProperty("user.dir") + "/target/logs/";
     public static final String AWS_ACCESS_KEY_ID_DEFAULT = "test";
     private static final String AWS_SECRET_ACCESS_KEY_DEFAULT = "test";
-    private static final String AWS_USE_CLOUD_DEFAULT = "false";
+    private static final String KMS_USE_CLOUD_DEFAULT = "false";
     public static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID_DEFAULT = AWS_ACCESS_KEY_ID_DEFAULT;
     private static final String AWS_KROXYLICIOUS_SECRET_ACCESS_KEY_DEFAULT = AWS_SECRET_ACCESS_KEY_DEFAULT;
     public static final String AWS_REGION_DEFAULT = "us-east-2";
@@ -146,7 +146,7 @@ public class Environment {
 
     public static final String AWS_SECRET_ACCESS_KEY = ENVIRONMENT_VARIABLES.getOrDefault(AWS_SECRET_ACCESS_KEY_ENV, AWS_SECRET_ACCESS_KEY_DEFAULT);
 
-    public static final String AWS_USE_CLOUD = ENVIRONMENT_VARIABLES.getOrDefault(AWS_USE_CLOUD_ENV, AWS_USE_CLOUD_DEFAULT);
+    public static final String KMS_USE_CLOUD = ENVIRONMENT_VARIABLES.getOrDefault(KMS_USE_CLOUD_ENV, KMS_USE_CLOUD_DEFAULT);
 
     public static final String AWS_KROXYLICIOUS_ACCESS_KEY_ID = ENVIRONMENT_VARIABLES.getOrDefault(AWS_KROXYLICIOUS_ACCESS_KEY_ID_ENV,
             AWS_KROXYLICIOUS_ACCESS_KEY_ID_DEFAULT);

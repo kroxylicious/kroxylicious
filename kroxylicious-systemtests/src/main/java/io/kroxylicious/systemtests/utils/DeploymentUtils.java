@@ -66,7 +66,7 @@ public class DeploymentUtils {
      * Is namespace created boolean.
      *
      * @param namespace the namespace
-     * @return the boolean
+     * @return  the boolean
      */
     public static boolean isNamespaceCreated(String namespace) {
         return kubeClient().getNamespace(namespace) != null;
@@ -112,7 +112,7 @@ public class DeploymentUtils {
      * Check load balancer is working.
      *
      * @param namespace the namespace
-     * @return the boolean
+     * @return  the boolean
      */
     public static boolean checkLoadBalancerIsWorking(String namespace) {
         Service service = new ServiceBuilder()
@@ -252,10 +252,30 @@ public class DeploymentUtils {
 
         if (Environment.TEST_CLIENTS_PULL_SECRET != null && !Environment.TEST_CLIENTS_PULL_SECRET.isEmpty()) {
             LOGGER.atInfo().setMessage("Creating '{}' secret").addArgument(Environment.TEST_CLIENTS_PULL_SECRET).log();
-            Secret testClientSecret = kubeClient().getClient().secrets().withName(Environment.TEST_CLIENTS_PULL_SECRET).get();
-            testClientSecret.getMetadata().setResourceVersion("");
-            kubeClient().getClient().secrets().inNamespace(namespace).resource(testClientSecret).create();
+            copySecretInNamespace(namespace, Environment.TEST_CLIENTS_PULL_SECRET);
+            // Secret testClientSecret = kubeClient().getClient().secrets().withName(Environment.TEST_CLIENTS_PULL_SECRET).get();
+            // testClientSecret.getMetadata().setResourceVersion("");
+            // kubeClient().getClient().secrets().inNamespace(namespace).resource(testClientSecret).create();
         }
+    }
+
+    /**
+     * Copy secret in namespace.
+     *
+     * @param namespace the namespace
+     * @param secretName the secret name
+     */
+    public static void copySecretInNamespace(String namespace, String secretName) {
+        Secret clientSecret = kubeClient().getClient().secrets().withName(secretName).get();
+        if (clientSecret != null) {
+            clientSecret.getMetadata().setResourceVersion("");
+            kubeClient().getClient().secrets().inNamespace(namespace).resource(clientSecret).create();
+        }
+    }
+
+    public static String getSecretValue(String namespace, String secretName, String secretKey) {
+        Secret clientSecret = kubeClient().getClient().secrets().inNamespace(namespace).withName(secretName).get();
+        return clientSecret.getData().get(secretKey);
     }
 
     /**
@@ -307,23 +327,62 @@ public class DeploymentUtils {
     }
 
     /**
-     * Gets node port service address.
+     * Gets node ip.
      *
-     * @param namespace the namespace
-     * @param serviceName the service name
-     * @return the node port service address
+     * @return  the node ip
      */
-    public static String getNodePortServiceAddress(String namespace, String serviceName) {
+    public static String getNodeIP() {
         var nodes = kubeClient().getClient().nodes().list().getItems();
         var nodeAddresses = nodes.stream().findFirst()
                 .map(Node::getStatus)
                 .map(NodeStatus::getAddresses)
                 .stream().findFirst()
                 .orElseThrow(() -> new KubeClusterException("Unable to get IP of the first node from " + nodes));
-        var nodeIP = nodeAddresses.stream().map(NodeAddress::getAddress).findFirst()
+        return nodeAddresses.stream().map(NodeAddress::getAddress).findFirst()
                 .orElseThrow(() -> new KubeClusterException("Unable to get address of the first node address from " + nodeAddresses));
+    }
+
+    /**
+     * Gets node port service address.
+     *
+     * @param namespace the namespace
+     * @param serviceName the service name
+     * @return  the node port service address
+     */
+    public static String getNodePortServiceAddress(String namespace, String serviceName) {
+        // var nodes = kubeClient().getClient().nodes().list().getItems();
+        // var nodeAddresses = nodes.stream().findFirst()
+        // .map(Node::getStatus)
+        // .map(NodeStatus::getAddresses)
+        // .stream().findFirst()
+        // .orElseThrow(() -> new KubeClusterException("Unable to get IP of the first node from " + nodes));
+        var nodeIP = getNodeIP();
         var spec = kubeClient().getService(namespace, serviceName).getSpec();
         int port = spec.getPorts().stream().map(ServicePort::getNodePort).findFirst()
+                .orElseThrow(() -> new KubeClusterException("Unable to get the service port of " + serviceName));
+        String address = nodeIP + ":" + port;
+        LOGGER.debug("Deduced nodeport address for service: {} as: {}", serviceName, address);
+        return address;
+    }
+
+    /**
+     * Gets node port service address.
+     *
+     * @param namespace the namespace
+     * @param serviceName the service name
+     * @param targetPort the target port
+     * @return  the node port service address
+     */
+    public static String getNodePortServiceAddress(String namespace, String serviceName, int targetPort) {
+        // var nodes = kubeClient().getClient().nodes().list().getItems();
+        // var nodeAddresses = nodes.stream().findFirst()
+        // .map(Node::getStatus)
+        // .map(NodeStatus::getAddresses)
+        // .stream().findFirst()
+        // .orElseThrow(() -> new KubeClusterException("Unable to get IP of the first node from " + nodes));
+        var nodeIP = getNodeIP();
+        var spec = kubeClient().getService(namespace, serviceName).getSpec();
+        int port = spec.getPorts().stream().filter(p -> p.getTargetPort().getIntVal().equals(targetPort)).map(ServicePort::getNodePort).findFirst()
                 .orElseThrow(() -> new KubeClusterException("Unable to get the service port of " + serviceName));
         String address = nodeIP + ":" + port;
         LOGGER.debug("Deduced nodeport address for service: {} as: {}", serviceName, address);
@@ -335,7 +394,7 @@ public class DeploymentUtils {
      *
      * @param deploymentNamespace the deployment namespace
      * @param serviceName the service name
-     * @return the openshift route service address
+     * @return  the openshift route service address
      */
     public static String getOpenshiftRouteServiceAddress(String deploymentNamespace, String serviceName) {
         OpenShiftClient openshiftClient = kubeClient().getClient().adapt(OpenShiftClient.class);

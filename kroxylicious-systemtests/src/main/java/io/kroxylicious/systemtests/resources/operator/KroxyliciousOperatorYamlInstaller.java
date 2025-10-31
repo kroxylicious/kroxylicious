@@ -31,9 +31,12 @@ import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.LabelSelectorBuilder;
 import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
+import io.fabric8.kubernetes.api.model.SecretVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
+import io.fabric8.kubernetes.api.model.VolumeBuilder;
+import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -44,11 +47,16 @@ import io.skodjob.testframe.utils.ImageUtils;
 import io.skodjob.testframe.utils.PodUtils;
 import io.skodjob.testframe.utils.TestFrameUtils;
 
+import io.kroxylicious.kms.service.TestKmsFacadeException;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
+import io.kroxylicious.systemtests.resources.manager.ResourceManager;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemplates;
+import io.kroxylicious.systemtests.utils.CertificateGenerator;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
+import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -86,6 +94,19 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
         this.replicas = 1;
         this.extensionContext = KubeResourceManager.get().getTestContext();
         this.kroxyliciousOperatorName = Constants.KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME;
+    }
+
+    private KeytoolCertificateGenerator entraCerts(String domain) {
+        try {
+            CertificateGenerator entraCertGen = new CertificateGenerator();
+            entraCertGen.generateSelfSignedCertificateEntry("webmaster@example.com",
+                    domain, "Engineering", "kroxylicious.io", null, null, "NZ");
+            entraCertGen.generateTrustStore(entraCertGen.getCertFilePath(), "website");
+            return entraCertGen;
+        }
+        catch (Exception e) {
+            throw new TestKmsFacadeException(e);
+        }
     }
 
     @NonNull
@@ -140,7 +161,20 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
     public void prepareEnvForOperator(String clientNamespace) {
         applyCrds();
         applyClusterOperatorInstallFiles(clientNamespace);
+        installCertificates();
         applyDeploymentFile();
+    }
+
+    private void installCertificates() {
+        KeytoolCertificateGenerator certs = entraCerts(DeploymentUtils.getNodeIP());
+        String defaultNamespace = KubeClusterResource.getInstance().defaultNamespace();
+        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+                KroxyliciousSecretTemplates.createCertificateSecret(Constants.KEYSTORE_SECRET_NAME, defaultNamespace, Constants.KEYSTORE_FILE_NAME,
+                        certs.getKeyStoreLocation(),
+                        certs.getPassword()));
+        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+                KroxyliciousSecretTemplates.createCertificateSecret(Constants.TRUSTSTORE_SECRET_NAME, defaultNamespace, Constants.TRUSTSTORE_FILE_NAME,
+                        certs.getTrustStoreLocation(), certs.getPassword()));
     }
 
     private void applyDeploymentFile() {
@@ -193,6 +227,44 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
                     .endTemplate()
                 .endSpec()
                 .build();
+
+        DeploymentUtils.copySecretInNamespace(namespaceInstallTo, Constants.KEYSTORE_SECRET_NAME);
+        DeploymentUtils.copySecretInNamespace(namespaceInstallTo, Constants.TRUSTSTORE_SECRET_NAME);
+
+        if (kubeClient().getClient().secrets().withName(Constants.KEYSTORE_SECRET_NAME).get() != null) {
+            operatorDeployment = new DeploymentBuilder(operatorDeployment)
+                    .editSpec()
+                    .editTemplate()
+                    .editSpec()
+                    .addToVolumes(new VolumeBuilder()
+                            .withName(Constants.KEYSTORE_SECRET_NAME)
+                            .withSecret(new SecretVolumeSourceBuilder()
+                                    .withSecretName(Constants.KEYSTORE_SECRET_NAME)
+                                    .build())
+                            .build())
+                    .addToVolumes(new VolumeBuilder()
+                            .withName(Constants.TRUSTSTORE_SECRET_NAME)
+                            .withSecret(new SecretVolumeSourceBuilder()
+                                    .withSecretName(Constants.TRUSTSTORE_SECRET_NAME)
+                                    .build())
+                            .build())
+                    .editFirstContainer()
+                    .addToVolumeMounts(new VolumeMountBuilder()
+                            .withName(Constants.KEYSTORE_SECRET_NAME)
+                            .withMountPath(Constants.KEYSTORE_TEMP_DIR)
+                            .withReadOnly(true)
+                            .build())
+                    .addToVolumeMounts(new VolumeMountBuilder()
+                            .withName(Constants.TRUSTSTORE_SECRET_NAME)
+                            .withMountPath(Constants.TRUSTSTORE_TEMP_DIR)
+                            .withReadOnly(true)
+                            .build())
+                    .endContainer()
+                    .endSpec()
+                    .endTemplate()
+                    .endSpec()
+                    .build();
+        }
 
         Service debugService = new ServiceBuilder()
                 .editOrNewMetadata()

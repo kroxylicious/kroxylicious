@@ -45,7 +45,7 @@ public class LocalStack implements AwsKmsClient {
 
     @Override
     public boolean isAvailable() {
-        return !Environment.AWS_USE_CLOUD.equalsIgnoreCase("true");
+        return !Environment.KMS_USE_CLOUD.equalsIgnoreCase("true");
     }
 
     private boolean isDeployed() {
