@@ -32,8 +32,7 @@ class MessageSpecParserTest {
                     assertThat(ms.name()).isEqualTo("SampleRequest");
                     assertThat(ms.listeners()).containsExactlyInAnyOrder(RequestListenerType.BROKER, RequestListenerType.CONTROLLER);
                     assertThat(ms.validVersions()).isEqualTo(Versions.parse("0-1", null));
-                    assertThat(ms.apiKey()).
-                            isPresent()
+                    assertThat(ms.apiKey()).isPresent()
                             .get(InstanceOfAssertFactories.type(Short.class))
                             .isEqualTo((short) 1);
                     assertThat(ms.fields())
@@ -81,7 +80,7 @@ class MessageSpecParserTest {
                     assertThat(ms.entityFields())
                             .satisfies(node -> {
                                 assertThat(node.hasAtLeastOneEntityField()).isTrue();
-                                assertThat(node.orderedVersions()).containsExactly((short)  0, (short) 1);
+                                assertThat(node.orderedVersions()).containsExactly((short) 0, (short) 1);
                                 assertThat(node.entities())
                                         .singleElement()
                                         .satisfies(field -> {
@@ -106,7 +105,7 @@ class MessageSpecParserTest {
                     assertThat(ms.entityFields())
                             .satisfies(node -> {
                                 assertThat(node.hasAtLeastOneEntityField()).isTrue();
-                                assertThat(node.orderedVersions()).containsExactly((short)  0, (short) 1);
+                                assertThat(node.orderedVersions()).containsExactly((short) 0, (short) 1);
                                 assertThat(node.entities())
                                         .singleElement()
                                         .satisfies(field -> {
@@ -116,6 +115,7 @@ class MessageSpecParserTest {
                             });
                 });
     }
+
     @Test
     void parseSpecWithSeveralTopLevelEntityFieldsWithDistinctVersionRanges() throws Exception {
         var resource = classPathResourceToPath("io/kroxylicious/krpccondegen/model/RequestWithSeveralTopLevelEntityFieldsWithDistinctVersionRanges.json");
@@ -126,11 +126,10 @@ class MessageSpecParserTest {
                     assertThat(ms.entityFields())
                             .satisfies(node -> {
                                 assertThat(node.hasAtLeastOneEntityField()).isTrue();
-                                assertThat(node.orderedVersions()).containsExactly((short)  0, (short) 1, (short) 3, (short) 4);
+                                assertThat(node.orderedVersions()).containsExactly((short) 0, (short) 1, (short) 3, (short) 4);
                             });
                 });
     }
-
 
     private Path classPathResourceToPath(String resource) {
         var url = getClass().getClassLoader().getResource(resource);
