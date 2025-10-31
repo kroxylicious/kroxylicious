@@ -91,7 +91,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
         };
     }
 
-    public static boolean inVersion(short apiVersions, Set<Short> versions) {
+    private static boolean inVersion(short apiVersions, Set<Short> versions) {
         return versions.contains(apiVersions);
     }
 
@@ -139,14 +139,18 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                 dataVar="${messageSpec.name?uncap_first}Data"/>
                 var ${dataVar} = (${dataClass}) request;
               <#list entityFields.entities as entity>
+
                <#assign getter="${entity.name?uncap_first}"
-                        setter="set${entity.name}"/>
+                        setter="set${entity.name}"
+               />
                // ${messageSpec.name} ${entity.name} ${entity.type} ${entity.type.isArray?string('true', 'false')}
+                if (inVersion(header.requestApiVersion(), Set.of(<#list messageSpec.validVersions.intersect(entity.versions) as version> (short) ${version}<#sep>, </#list>))) {
                <#if entity.type == 'string'>
-                ${dataVar}.${setter}(map(aid, ${dataVar}.${getter}()));
+                    ${dataVar}.${setter}(map(aid, ${dataVar}.${getter}()));
                <#elseif entity.type == '[]string'>
-                ${dataVar}.${setter}(${dataVar}.${getter}().stream().map(orig -> map(aid, orig)).toList());
+                    ${dataVar}.${setter}(${dataVar}.${getter}().stream().map(orig -> map(aid, orig)).toList());
                </#if>
+                }
               </#list>
 <#--
                 <@dumpFoo childFoo />
