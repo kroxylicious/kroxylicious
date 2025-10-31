@@ -10,8 +10,9 @@ import java.util.Set;
 
 /**
  * <p>Represents an actor in the system.
- * Subjects are composed of a non-empty set of identifiers represented as {@link Principal} instances.
- * {@link Subject#anonymous()} can be used as the subject when nothing else is known about an actor.
+ * Subjects are composed of a possibly-empty set of identifiers represented as {@link Principal} instances.
+ * An anonymous actor is represented by a Subject with an empty set of principals.
+ * As a convenience, {@link Subject#anonymous()} returns such a subject.
  * </p>
  *
  * <p>The principals chosen depend on the calling code but in general might comprise the following:</p>
