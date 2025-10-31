@@ -623,7 +623,7 @@ public class KafkaProxyFrontendHandler
                                       ChannelPipeline pipeline,
                                       Channel inboundChannel) {
         int num = 0;
-        var clientSaslManager = new ClientSaslManager();
+        var clientSaslManager = ClientSaslManager.create(inboundChannel);
         for (var protocolFilter : filters) {
             // TODO configurable timeout
             // Handler name must be unique, but filters are allowed to appear multiple times
@@ -636,7 +636,6 @@ public class KafkaProxyFrontendHandler
                             sniHostname,
                             virtualClusterModel,
                             inboundChannel,
-                            clientSaslManager,
                             proxyChannelStateMachine));
         }
     }

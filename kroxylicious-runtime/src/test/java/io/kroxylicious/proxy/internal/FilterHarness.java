@@ -30,6 +30,7 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 
+import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
@@ -86,8 +87,11 @@ public abstract class FilterHarness {
         var inboundChannel = new EmbeddedChannel();
         var channelProcessors = Stream.<ChannelHandler> of(new InternalRequestTracker(), new CorrelationIdIssuer());
 
-        clientSaslManager = new ClientSaslManager();
         ProxyChannelStateMachine channelStateMachine = new ProxyChannelStateMachine(testVirtualCluster.getClusterName(), null);
+
+        clientSaslManager = ClientSaslManager
+                .create(inboundChannel)
+                .bindManager(inboundChannel, Subject.anonymous());
         var filterHandlers = Arrays.stream(filters)
                 .collect(Collector.of(ArrayDeque<Filter>::new, ArrayDeque::addFirst, (d1, d2) -> {
                     d2.addAll(d1);
@@ -95,7 +99,8 @@ public abstract class FilterHarness {
                 })) // reverses order
                 .stream()
                 .map(f -> new FilterHandler(getOnlyElement(FilterAndInvoker.build(f.getClass().getSimpleName(), f)), timeoutMs, null, testVirtualCluster, inboundChannel,
-                        clientSaslManager, channelStateMachine))
+                        channelStateMachine))
+
                 .map(ChannelHandler.class::cast);
         var handlers = Stream.concat(channelProcessors, filterHandlers);
 

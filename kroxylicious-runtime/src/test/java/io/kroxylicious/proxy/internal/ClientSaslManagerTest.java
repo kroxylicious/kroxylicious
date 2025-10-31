@@ -6,16 +6,19 @@
 
 package io.kroxylicious.proxy.internal;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import org.junit.jupiter.api.Test;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.User;
 
 class ClientSaslManagerTest {
 
     @Test
     void initialState() {
         // Given
-        ClientSaslManager impl = new ClientSaslManager();
+        ClientSaslManager impl = new ClientSaslManager(null, null, Subject.anonymous());
         // Then
         assertThat(impl.clientSaslContext()).isEmpty();
     }
@@ -23,9 +26,9 @@ class ClientSaslManagerTest {
     @Test
     void transitionInitialToAuthorized() {
         // Given
-        ClientSaslManager impl = new ClientSaslManager();
+        ClientSaslManager impl = new ClientSaslManager(null, null, Subject.anonymous());
         // When
-        impl.clientSaslAuthenticationSuccess("FOO", "bob");
+        impl.clientSaslAuthenticationSuccess("FOO", "bob", new Subject(new User("bob")));
         // Then
         assertThat(impl.clientSaslContext()).hasValueSatisfying(csc -> {
             assertThat(csc.mechanismName()).isEqualTo("FOO");
@@ -36,7 +39,7 @@ class ClientSaslManagerTest {
     @Test
     void transitionInitialToFailed() {
         // Given
-        ClientSaslManager impl = new ClientSaslManager();
+        ClientSaslManager impl = new ClientSaslManager(null, null, Subject.anonymous());
         // When
         impl.clientSaslAuthenticationFailure();
         // Then
@@ -46,10 +49,10 @@ class ClientSaslManagerTest {
     @Test
     void transitionAuthorizedToAuthorized() {
         // Given
-        ClientSaslManager impl = new ClientSaslManager();
-        impl.clientSaslAuthenticationSuccess("FOO", "bob");
+        ClientSaslManager impl = new ClientSaslManager(null, null, Subject.anonymous());
+        impl.clientSaslAuthenticationSuccess("FOO", "bob", new Subject(new User("bob")));
         // When
-        impl.clientSaslAuthenticationSuccess("BAR", "sue");
+        impl.clientSaslAuthenticationSuccess("BAR", "sue", new Subject(new User("sue")));
         // Then
         assertThat(impl.clientSaslContext()).hasValueSatisfying(csc -> {
             assertThat(csc.mechanismName()).isEqualTo("BAR");
@@ -60,8 +63,8 @@ class ClientSaslManagerTest {
     @Test
     void transitionAuthorizedToFailed() {
         // Given
-        ClientSaslManager impl = new ClientSaslManager();
-        impl.clientSaslAuthenticationSuccess("FOO", "bob");
+        ClientSaslManager impl = new ClientSaslManager(null, null, Subject.anonymous());
+        impl.clientSaslAuthenticationSuccess("FOO", "bob", new Subject(new User("bob")));
         // When
         impl.clientSaslAuthenticationFailure();
         // Then
@@ -71,11 +74,11 @@ class ClientSaslManagerTest {
     @Test
     void transitionFailedToAuthorized() {
         // Given
-        ClientSaslManager impl = new ClientSaslManager();
+        ClientSaslManager impl = new ClientSaslManager(null, null, Subject.anonymous());
         impl.clientSaslAuthenticationFailure();
 
         // When
-        impl.clientSaslAuthenticationSuccess("FOO", "bob");
+        impl.clientSaslAuthenticationSuccess("FOO", "bob", new Subject(new User("bob")));
         // Then
         assertThat(impl.clientSaslContext()).hasValueSatisfying(csc -> {
             assertThat(csc.mechanismName()).isEqualTo("FOO");
