@@ -113,6 +113,18 @@
 
             <dependency>
                 <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-authorizer</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-authorizer-acl</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-kms</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -162,6 +174,12 @@
             <dependency>
                 <groupId>io.kroxylicious</groupId>
                 <artifactId>kroxylicious-sasl-inspection</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>io.kroxylicious</groupId>
+                <artifactId>kroxylicious-authorization</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

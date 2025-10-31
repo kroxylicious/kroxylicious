@@ -8,4 +8,5 @@ package io.kroxylicious.proxy.testplugins;
 
 import java.util.Map;
 
-public record SaslPlainTerminationConfig(Map<String, String> userNameToPassword) {}
+public record SaslPlainTerminationConfig(
+                                         Map<String, String> userNameToPassword) {}

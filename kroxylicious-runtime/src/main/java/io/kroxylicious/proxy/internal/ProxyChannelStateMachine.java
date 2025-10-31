@@ -483,6 +483,8 @@ public class ProxyChannelStateMachine {
                                 KafkaProxyFrontendHandler frontendHandler) {
         setState(clientActive);
         frontendHandler.inClientActive();
+        // TODO why doesn't the initializer set autoread to false so we don't have to set it here?
+
         clientToProxyConnectionCounter.increment();
         clientToProxyConnectionToken.acquire();
     }
