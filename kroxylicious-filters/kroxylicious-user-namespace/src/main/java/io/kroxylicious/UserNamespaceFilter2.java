@@ -44,11 +44,11 @@ import static org.apache.kafka.common.protocol.ApiKeys.OFFSET_COMMIT;
  */
 class UserNamespaceFilter2 implements RequestFilter, ResponseFilter {
 
-    private final UserNamespace.SampleFilterConfig config;
+    private final UserNamespace.Config config;
 
     private final Set<ApiKeys> keys = Set.of(FIND_COORDINATOR, OFFSET_COMMIT, CONSUMER_GROUP_DESCRIBE, DESCRIBE_GROUPS);
 
-    UserNamespaceFilter2(UserNamespace.SampleFilterConfig config) {
+    UserNamespaceFilter2(UserNamespace.Config config) {
         this.config = config;
     }
 

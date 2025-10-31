@@ -84,7 +84,7 @@ class UserNamespaceFilterIT {
                 UserNamespace.class.getName(),
                 UserNamespace.class.getName());
 
-//        userNamespaceFilter.withConfig("enabledMechanisms", "PLAIN");
+        userNamespaceFilter.withConfig("resourceTypes", List.of("GROUP_ID"));
         var userNamespace = userNamespaceFilter.build();
 
 
