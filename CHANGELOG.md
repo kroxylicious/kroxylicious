@@ -6,6 +6,9 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
+
+* [#1318](https://github.com/kroxylicious/kroxylicious/issues/1318): Add FilterContext#topicNames to enable filters to retrieve names for topic ids
+
 ## 0.17.0
 
 * [#2830](https://github.com/kroxylicious/kroxylicious/pull/2830): Refactor authentication configuration class names and optional fields in Azure KMS provider for Record Encryption

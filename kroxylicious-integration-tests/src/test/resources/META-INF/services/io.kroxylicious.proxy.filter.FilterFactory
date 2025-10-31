@@ -5,6 +5,8 @@ io.kroxylicious.proxy.filter.RejectingCreateTopicFilterFactory
 io.kroxylicious.proxy.filter.DecodeAll
 io.kroxylicious.proxy.filter.GenericRequestSpecificResponseFilterFactory
 io.kroxylicious.proxy.filter.GenericResponseSpecificRequestFilterFactory
+io.kroxylicious.proxy.testplugins.TopicIdToNameResponseStamper
+io.kroxylicious.proxy.testplugins.TopicNameMetadataPrefixer
 io.kroxylicious.proxy.InvocationCountingFilterFactory
 io.kroxylicious.proxy.CreateTopicRequest
 io.kroxylicious.proxy.testplugins.SaslPlainTermination
