@@ -7,7 +7,7 @@ import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
 
 /**
- * A {@link FilterFactory} for {@link UserNamespaceFilter}.
+ * A {@link FilterFactory} for {@link UserNamespaceFilter2}.
  */
 @Plugin(configType = UserNamespace.SampleFilterConfig.class)
 public class UserNamespace implements FilterFactory<UserNamespace.SampleFilterConfig, UserNamespace.SampleFilterConfig> {

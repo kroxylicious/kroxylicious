@@ -42,13 +42,13 @@ import static org.apache.kafka.common.protocol.ApiKeys.OFFSET_COMMIT;
  * could be further modified to apply different transformations to different topics, or when sent by
  * particular producers.
  */
-class UserNamespaceFilter implements RequestFilter, ResponseFilter {
+class UserNamespaceFilter2 implements RequestFilter, ResponseFilter {
 
     private final UserNamespace.SampleFilterConfig config;
 
     private final Set<ApiKeys> keys = Set.of(FIND_COORDINATOR, OFFSET_COMMIT, CONSUMER_GROUP_DESCRIBE, DESCRIBE_GROUPS);
 
-    UserNamespaceFilter(UserNamespace.SampleFilterConfig config) {
+    UserNamespaceFilter2(UserNamespace.SampleFilterConfig config) {
         this.config = config;
     }
 
@@ -91,8 +91,6 @@ class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                     System.out.println(request);
                 }
             }
-            ;
-
         });
         return context.forwardRequest(header, request);
     }
@@ -128,8 +126,6 @@ class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                 }
 
             }
-            ;
-
         });
 
         return context.forwardResponse(header, response);
