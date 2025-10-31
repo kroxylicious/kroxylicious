@@ -16,6 +16,7 @@
     </parent>
     <artifactId>kroxylicious-filter-archetype</artifactId>
     <name>Filter Archetype</name>
+    <description>A Maven Archetype to generate an independent Custom Filter project, demonstrating how to structure a Filter and integration test it against Apache Kafka</description>
     <packaging>maven-archetype</packaging>
     <dependencies>
         <dependency>

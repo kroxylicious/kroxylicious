@@ -973,6 +973,22 @@
                             </rules>
                         </configuration>
                     </execution>
+                    <execution>
+                        <id>project-metadata</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireProperty>
+                                    <!-- note Maven defaults project.name from project.artifactId if it is not specified -->
+                                    <property>project.name</property>
+                                    <regex>^((?!${project.artifactId}).)*$</regex>
+                                    <regexMessage>Module must define a explict project.name property</regexMessage>
+                                </requireProperty>
+                            </rules>
+                        </configuration>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
