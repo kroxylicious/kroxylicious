@@ -91,6 +91,31 @@ class MessageSpecParserTest {
                             });
                 });
     }
+
+    @Test
+    void parseSpecWithTopLevelEntityFieldArray() throws Exception {
+        var resource = classPathResourceToPath("io/kroxylicious/krpccondegen/model/RequestWithEntityFieldArray.json");
+        var messageSpec = messageSpecParser.getMessageSpec(resource);
+        assertThat(messageSpec)
+                .isNotNull()
+                .satisfies(ms -> {
+                    assertThat(ms.name()).isEqualTo("SampleRequest");
+                    assertThat(ms.fields())
+                            .hasSize(1);
+
+                    assertThat(ms.entityFields())
+                            .satisfies(node -> {
+                                assertThat(node.hasAtLeastOneEntityField()).isTrue();
+                                assertThat(node.orderedVersions()).containsExactly((short)  0, (short) 1);
+                                assertThat(node.entities())
+                                        .singleElement()
+                                        .satisfies(field -> {
+                                            assertThat(field.name()).isEqualTo("Groups");
+                                        });
+                                assertThat(node.containers()).isEmpty();
+                            });
+                });
+    }
     @Test
     void parseSpecWithSeveralTopLevelEntityFieldsWithDistinctVersionRanges() throws Exception {
         var resource = classPathResourceToPath("io/kroxylicious/krpccondegen/model/RequestWithSeveralTopLevelEntityFieldsWithDistinctVersionRanges.json");

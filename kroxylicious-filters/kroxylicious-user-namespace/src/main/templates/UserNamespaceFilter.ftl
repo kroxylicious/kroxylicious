@@ -75,11 +75,15 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 
     @Override
     public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
+        // Find coordinator uses identifies entities using a key type
+        if (apiKey == FIND_COORDINATOR) {
+            return true;
+        }
         return switch (apiKey) {
 <#list messageSpecs as messageSpec>
     <#if messageSpec.type?lower_case == 'request'>
         <#if messageSpec.entityFields.hasAtLeastOneEntityField  >
-          case ${retrieveApiKey(messageSpec)} -> inVersion(apiVersion, Set.of());
+          case ${retrieveApiKey(messageSpec)} -> inVersion(apiVersion, Set.of(<#list messageSpec.entityFields.orderedVersions as version> (short) ${version}<#sep>, </#list>));
         </#if>
     </#if>
 </#list>
@@ -103,6 +107,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
         var authzId = context.clientSaslContext().map(ClientSaslContext::authorizationId);
         authzId.ifPresent(aid -> {
 
+            // Exceptions
             switch (apiKey) {
                 case FIND_COORDINATOR -> {
                     FindCoordinatorRequestData findCoordinatorRequestData = (FindCoordinatorRequestData) request;
@@ -111,25 +116,64 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                     }
                     System.out.println(findCoordinatorRequestData);
                 }
-                case OFFSET_COMMIT -> {
-                    OffsetCommitRequestData offsetCommitRequestData = (OffsetCommitRequestData) request;
-                    offsetCommitRequestData.setGroupId(aid + "-" + offsetCommitRequestData.groupId());
-                    System.out.println(offsetCommitRequestData);
-                }
-                case CONSUMER_GROUP_DESCRIBE -> {
-                    ConsumerGroupDescribeRequestData consumerGroupDescribeRequestData = (ConsumerGroupDescribeRequestData) request;
-                    consumerGroupDescribeRequestData.setGroupIds(consumerGroupDescribeRequestData.groupIds().stream().map(g -> aid + "-" + g).toList());
-                    System.out.println(consumerGroupDescribeRequestData);
-                }
-                case DESCRIBE_GROUPS -> {
-                    DescribeGroupsRequestData describeGroupsRequestData = (DescribeGroupsRequestData) request;
-                    describeGroupsRequestData.setGroups(describeGroupsRequestData.groups().stream().map(g -> aid + "-" + g).toList());
-                    System.out.println(request);
-                }
+<#--                case OFFSET_COMMIT -> {-->
+<#--                    OffsetCommitRequestData offsetCommitRequestData = (OffsetCommitRequestData) request;-->
+<#--                    offsetCommitRequestData.setGroupId(aid + "-" + offsetCommitRequestData.groupId());-->
+<#--                    System.out.println(offsetCommitRequestData);-->
+<#--                }-->
+<#--                case CONSUMER_GROUP_DESCRIBE -> {-->
+<#--                    ConsumerGroupDescribeRequestData consumerGroupDescribeRequestData = (ConsumerGroupDescribeRequestData) request;-->
+<#--                    consumerGroupDescribeRequestData.setGroupIds(consumerGroupDescribeRequestData.groupIds().stream().map(g -> aid + "-" + g).toList());-->
+<#--                    System.out.println(consumerGroupDescribeRequestData);-->
+<#--                }-->
+<#--                case DESCRIBE_GROUPS -> {-->
+<#--                    DescribeGroupsRequestData describeGroupsRequestData = (DescribeGroupsRequestData) request;-->
+<#--                    describeGroupsRequestData.setGroups(describeGroupsRequestData.groups().stream().map(g -> aid + "-" + g).toList());-->
+<#--                    System.out.println(request);-->
+<#--                }-->
             }
+
+            <#macro dumpFoo messageSpec entityFields>
+                <#-- entity fields of this node -->
+              <#assign dataClass="${messageSpec.name}Data"
+                dataVar="${messageSpec.name?uncap_first}Data"/>
+                var ${dataVar} = (${dataClass}) request;
+              <#list entityFields.entities as entity>
+               <#assign getter="${entity.name?uncap_first}"
+                        setter="set${entity.name}"/>
+               // ${messageSpec.name} ${entity.name} ${entity.type} ${entity.type.isArray?string('true', 'false')}
+               <#if entity.type == 'string'>
+                ${dataVar}.${setter}(map(aid, ${dataVar}.${getter}()));
+               <#elseif entity.type == '[]string'>
+                ${dataVar}.${setter}(${dataVar}.${getter}().stream().map(orig -> map(aid, orig)).toList());
+               </#if>
+              </#list>
+<#--
+                <@dumpFoo childFoo />
+-->
+            </#macro>
+
+
+            switch (apiKey) {
+<#list messageSpecs as messageSpec>
+    <#if messageSpec.type?lower_case == 'request'>
+        <#if messageSpec.entityFields.hasAtLeastOneEntityField  >
+        case ${retrieveApiKey(messageSpec)} -> {
+          <@dumpFoo messageSpec messageSpec.entityFields />
+        }
+        </#if>
+    </#if>
+</#list>
+            };
+
+
         });
         return context.forwardRequest(header, request);
 
+    }
+
+    private static String map(String authId, String originalName) {
+        return authId + "-" + originalName;
     }
 
     public CompletionStage<ResponseFilterResult> onResponse(ApiKeys apiKey,
