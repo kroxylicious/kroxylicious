@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -147,4 +148,18 @@ public final class MessageSpec {
             default -> struct.name();
         };
     }
+
+    public Node entityFields() {
+        List<FieldSpec> collect = fields().stream().filter(f -> f.entityType() != EntityType.UNKNOWN).toList();
+        var versions = collect.stream().map(FieldSpec::versions)
+                .map(fsv -> validVersions().intersect(fsv))
+                .flatMapToInt(v -> IntStream.rangeClosed(v.lowest(), v.highest()))
+                .sorted()
+                .boxed()
+                .map(Integer::shortValue)
+                .toList();
+
+        return new Node(collect, List.of(), versions);
+    }
+
 }
