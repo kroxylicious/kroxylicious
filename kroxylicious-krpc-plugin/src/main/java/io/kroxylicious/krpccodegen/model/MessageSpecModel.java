@@ -50,6 +50,8 @@ class MessageSpecModel implements TemplateHashModel, AdapterTemplateModel {
                 return wrapper.wrap(spec.listeners());
             case "dataClassName":
                 return wrapper.wrap(spec.dataClassName());
+            case "entityFields":
+                return wrapper.wrap(spec.entityFields());
 
         }
         throw new TemplateModelException(spec.getClass().getSimpleName() + " doesn't have property " + key);

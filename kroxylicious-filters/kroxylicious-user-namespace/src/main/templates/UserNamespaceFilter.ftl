@@ -75,7 +75,20 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 
     @Override
     public boolean shouldHandleRequest(ApiKeys apiKey, short apiVersion) {
-        return keys.contains(apiKey);
+        return switch (apiKey) {
+<#list messageSpecs as messageSpec>
+    <#if messageSpec.type?lower_case == 'request'>
+        <#if messageSpec.entityFields.hasAtLeastOneEntityField  >
+          case ${retrieveApiKey(messageSpec)} -> inVersion(apiVersion, Set.of());
+        </#if>
+    </#if>
+</#list>
+            default -> false;
+        };
+    }
+
+    public static boolean inVersion(short apiVersions, Set<Short> versions) {
+        return versions.contains(apiVersions);
     }
 
     @Override
