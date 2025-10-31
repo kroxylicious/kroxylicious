@@ -1,63 +1,38 @@
 package io.kroxylicious;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import java.util.Objects;
+import java.util.Set;
 
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
 import io.kroxylicious.proxy.plugin.Plugin;
+import io.kroxylicious.proxy.plugin.Plugins;
 
 /**
  * A {@link FilterFactory} for {@link UserNamespaceFilter2}.
  */
-@Plugin(configType = UserNamespace.SampleFilterConfig.class)
-public class UserNamespace implements FilterFactory<UserNamespace.SampleFilterConfig, UserNamespace.SampleFilterConfig> {
+@Plugin(configType = UserNamespace.Config.class)
+public class UserNamespace implements FilterFactory<UserNamespace.Config, UserNamespace.Config> {
 
     @Override
-    public SampleFilterConfig initialize(FilterFactoryContext context, SampleFilterConfig config) {
-        // return Plugins.requireConfig(this, config);
-        return config;
+    public Config initialize(FilterFactoryContext context, Config config) {
+        return Plugins.requireConfig(this, config);
     }
 
     @Override
-    public UserNamespaceFilter createFilter(FilterFactoryContext context, SampleFilterConfig configuration) {
+    public UserNamespaceFilter createFilter(FilterFactoryContext context, Config configuration) {
         return new UserNamespaceFilter(configuration);
     }
 
-    /**
-     * The Jackson configuration object for both the sample filters.<br />
-     * Both filters perform the same transformation process (though on different types of messages and at
-     * different points), only replacing one configured String value with another single configured String value,
-     * meaning they can share a single configuration class.<br />
-     * <br />
-     * This configuration class accepts two String arguments: the value to be replaced, and the value it will be
-     * replaced with.
-     */
-    public static class SampleFilterConfig {
+    public enum ResourceType {
+        GROUP_ID,
+        TRANSACTIONAL_ID
+    }
 
-        private final String findValue;
-        private final String replacementValue;
+    public record Config(Set<ResourceType> resourceTypes) {
 
-        /**
-         * @param findValue the value to be replaced
-         * @param replacementValue the replacement value
-         */
-        public SampleFilterConfig(@JsonProperty(required = true) String findValue, @JsonProperty(required = false) String replacementValue) {
-            this.findValue = findValue;
-            this.replacementValue = replacementValue == null ? "" : replacementValue;
-        }
-
-        /**
-         * Returns the configured value to be replaced
-         */
-        public String getFindValue() {
-            return findValue;
-        }
-
-        /**
-         * Returns the configured replacement value
-         */
-        public String getReplacementValue() {
-            return replacementValue;
+        public Config {
+            Objects.requireNonNull(resourceTypes);
         }
     }
 }

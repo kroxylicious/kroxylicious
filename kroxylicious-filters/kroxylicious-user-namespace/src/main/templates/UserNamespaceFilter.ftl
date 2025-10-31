@@ -65,11 +65,11 @@ import org.apache.kafka.common.protocol.ApiMessage;
 */
 public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 
-    private final UserNamespace.SampleFilterConfig config;
+    private final UserNamespace.Config config;
 
     private final Set<ApiKeys> keys = Set.of(FIND_COORDINATOR, OFFSET_COMMIT, CONSUMER_GROUP_DESCRIBE, DESCRIBE_GROUPS);
 
-    UserNamespaceFilter(UserNamespace.SampleFilterConfig config) {
+    UserNamespaceFilter(UserNamespace.Config config) {
         this.config = config;
     }
 
@@ -111,7 +111,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
             switch (apiKey) {
                 case FIND_COORDINATOR -> {
                     FindCoordinatorRequestData findCoordinatorRequestData = (FindCoordinatorRequestData) request;
-                    if (findCoordinatorRequestData.keyType() == 0 /* CHECK ME */) {
+                    if (config.resourceTypes().contains(UserNamespace.ResourceType.GROUP_ID) &&  findCoordinatorRequestData.keyType() == 0 /* CHECK ME */) {
                         findCoordinatorRequestData.setCoordinatorKeys(findCoordinatorRequestData.coordinatorKeys().stream().map(k -> aid + "-" + k).toList());
                     }
                     System.out.println(findCoordinatorRequestData);
@@ -143,8 +143,8 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                <#assign getter="${entity.name?uncap_first}"
                         setter="set${entity.name}"
                />
-               // ${messageSpec.name} ${entity.name} ${entity.type} ${entity.type.isArray?string('true', 'false')}
-                if (inVersion(header.requestApiVersion(), Set.of(<#list messageSpec.validVersions.intersect(entity.versions) as version> (short) ${version}<#sep>, </#list>))) {
+               // ${messageSpec.name} ${entity.name} ${entity.type} ${entity.entityType} ${entity.type.isArray?string('true', 'false')}
+                if (shouldMap("${entity.entityType}") && inVersion(header.requestApiVersion(), Set.of(<#list messageSpec.validVersions.intersect(entity.versions) as version> (short) ${version}<#sep>, </#list>))) {
                <#if entity.type == 'string'>
                     ${dataVar}.${setter}(map(aid, ${dataVar}.${getter}()));
                <#elseif entity.type == '[]string'>
@@ -174,6 +174,15 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
         });
         return context.forwardRequest(header, request);
 
+    }
+
+    private boolean shouldMap(String entityType) {
+        try {
+            return config.resourceTypes().contains(UserNamespace.ResourceType.valueOf(entityType));
+        }
+        catch (IllegalArgumentException e) {
+            return false;
+        }
     }
 
     private static String map(String authId, String originalName) {
