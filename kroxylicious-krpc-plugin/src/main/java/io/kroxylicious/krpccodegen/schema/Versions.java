@@ -7,7 +7,6 @@ package io.kroxylicious.krpccodegen.schema;
 
 import java.util.Collection;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
@@ -198,6 +197,6 @@ public final class Versions {
     }
 
     public Collection<Integer> range() {
-        return IntStream.rangeClosed(lowest(), highest()).boxed().collect(Collectors.toList());
+        return IntStream.rangeClosed(lowest(), highest()).boxed().toList();
     }
 }
