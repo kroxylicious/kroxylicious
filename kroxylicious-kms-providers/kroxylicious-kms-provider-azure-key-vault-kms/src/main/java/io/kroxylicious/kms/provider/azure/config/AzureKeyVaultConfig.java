@@ -47,7 +47,6 @@ public record AzureKeyVaultConfig(@JsonInclude(NON_NULL) @Nullable @JsonProperty
 
     private static final Logger LOG = LoggerFactory.getLogger(AzureKeyVaultConfig.class);
     private static final Pattern VAULT_NAME_PATTERN = Pattern.compile("^[a-zA-Z0-9\\-]{3,24}$");
-    // private static final Pattern IP_PATTERN = Pattern.compile("^(((?!25?[6-9])[12]\\d|[1-9])?\\d\\.?\\b){4}$");
 
     public AzureKeyVaultConfig {
         Objects.requireNonNull(keyVaultName);
@@ -100,9 +99,6 @@ public record AzureKeyVaultConfig(@JsonInclude(NON_NULL) @Nullable @JsonProperty
 
     public String keyVaultUrl(String vaultName) {
         String host = (vaultName + ".") + keyVaultHost;
-        // if (!IP_PATTERN.matcher(keyVaultHost).matches()) {
-        // host = keyVaultHost;
-        // }
         String portSpec = keyVaultPort() == null ? "" : ":" + keyVaultPort();
         return kvScheme() + "://" + host + portSpec;
     }

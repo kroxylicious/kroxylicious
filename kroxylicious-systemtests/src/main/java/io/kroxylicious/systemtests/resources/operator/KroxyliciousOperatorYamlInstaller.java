@@ -98,10 +98,10 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
 
     private KeytoolCertificateGenerator entraCerts(String domain) {
         try {
-            CertificateGenerator entraCertGen = new CertificateGenerator();
-            entraCertGen.generateSelfSignedCertificateEntry("webmaster@example.com",
-                    domain, "Engineering", "kroxylicious.io", null, null, "NZ");
-            entraCertGen.generateTrustStore(entraCertGen.getCertFilePath(), "website");
+            KeytoolCertificateGenerator entraCertGen = new CertificateGenerator();
+            entraCertGen.generateSelfSignedCertificateEntry("webmaster@example.com", domain,
+                    "Engineering", "kroxylicious.io", null, null, "NZ");
+             entraCertGen.generateTrustStore(entraCertGen.getCertFilePath(), "website");
             return entraCertGen;
         }
         catch (Exception e) {
@@ -166,7 +166,8 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
     }
 
     private void installCertificates() {
-        KeytoolCertificateGenerator certs = entraCerts(DeploymentUtils.getNodeIP());
+        KeytoolCertificateGenerator certs = entraCerts(DeploymentUtils.getNodeIP()); //,
+                //LowkeyVault.LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME + "." + LowkeyVault.LOWKEY_VAULT_DEFAULT_NAMESPACE + ".svc.cluster.local");
         String defaultNamespace = KubeClusterResource.getInstance().defaultNamespace();
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
                 KroxyliciousSecretTemplates.createCertificateSecret(Constants.KEYSTORE_SECRET_NAME, defaultNamespace, Constants.KEYSTORE_FILE_NAME,

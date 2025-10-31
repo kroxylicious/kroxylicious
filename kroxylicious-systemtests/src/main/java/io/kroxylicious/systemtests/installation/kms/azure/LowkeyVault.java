@@ -25,13 +25,12 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
  */
 public class LowkeyVault implements AzureKmsClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(LowkeyVault.class);
-    public static final String LOWKEY_VAULT_DEPLOYMENT_NAME = "my-key-vault";
-    public static final String LOWKEY_VAULT_NODE_PORT_SERVICE_NAME = "lowkey-vault-" + Constants.NODE_PORT_TYPE.toLowerCase();
+    private static final String LOWKEY_VAULT_DEPLOYMENT_NAME = "my-key-vault";
+    private static final String LOWKEY_VAULT_NODE_PORT_SERVICE_NAME = "lowkey-vault-" + Constants.NODE_PORT_TYPE.toLowerCase();
     public static final String LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME = "lowkey-vault-" + Constants.CLUSTER_IP_TYPE.toLowerCase();
-    private static final String LOWKEY_VAULT_DEFAULT_NAMESPACE = "lowkey-vault";
+    public static final String LOWKEY_VAULT_DEFAULT_NAMESPACE = "lowkey-vault";
     private static final String LOWKEY_VAULT_IMAGE = Constants.DOCKER_REGISTRY_GCR_MIRROR + "/nagyesta/lowkey-vault:5.0.0";
     private final String deploymentNamespace;
-    // private final HttpClient httpClient = HttpClient.newHttpClient();
 
     /**
      * Instantiates a new Lowkey Vault.
@@ -85,52 +84,15 @@ public class LowkeyVault implements AzureKmsClient {
         return URI.create("https://" + this.getEndpointAuthority());
     }
 
-    // public String getDefaultVaultAuthority() {
-    // return DeploymentUtils.getNodePortServiceAddress(deploymentNamespace, LOWKEY_VAULT_NODE_PORT_SERVICE_NAME, 8443);
-    // }
-
-    // public KeyStore getDefaultKeyStore() {
-    // HttpRequest request = HttpRequest.newBuilder().uri(URI.create(this.getTokenEndpointBaseUrl() + "/metadata/default-cert/lowkey-vault.p12")).GET().build();
-    //
-    // try {
-    // byte[] keyStoreBytes = this.httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray()).body();
-    // KeyStore keyStore = KeyStore.getInstance("PKCS12");
-    // keyStore.load(new ByteArrayInputStream(keyStoreBytes), this.getDefaultKeyStorePassword().toCharArray());
-    // return keyStore;
-    // }
-    // catch (InterruptedException e) {
-    // Thread.currentThread().interrupt();
-    // throw new IllegalStateException("Failed to get default key store", e);
-    // }
-    // catch (Exception e) {
-    // throw new IllegalStateException("Failed to get default key store", e);
-    // }
-    // }
-    //
-    // public String getDefaultKeyStorePassword() {
-    // HttpRequest request = HttpRequest.newBuilder().uri(URI.create(this.getTokenEndpointBaseUrl() + "/metadata/default-cert/password")).GET().build();
-    //
-    // try {
-    // return this.httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)).body();
-    // }
-    // catch (InterruptedException e) {
-    // Thread.currentThread().interrupt();
-    // throw new IllegalStateException("Failed to get default key store password", e);
-    // }
-    // catch (Exception e) {
-    // throw new IllegalStateException("Failed to get default key store password", e);
-    // }
-    // }
-
-    // public String getTokenEndpointBaseUrl() {
-    // return "http://" + DeploymentUtils.getNodePortServiceAddress(deploymentNamespace, LOWKEY_VAULT_DEPLOYMENT_NAME, 8080);
-    // }
-
     public String getEndpointAuthority() {
         return DeploymentUtils.getNodePortServiceAddress(deploymentNamespace, LOWKEY_VAULT_NODE_PORT_SERVICE_NAME, 8443);
     }
 
     public String getDefaultNamespace() {
         return LOWKEY_VAULT_DEFAULT_NAMESPACE;
+    }
+
+    public String getLowkeyVaultClusterIpServiceName() {
+        return LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME;
     }
 }

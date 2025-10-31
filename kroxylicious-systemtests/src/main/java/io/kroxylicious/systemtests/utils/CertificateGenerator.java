@@ -39,7 +39,7 @@ public class CertificateGenerator extends KeytoolCertificateGenerator {
         if (matcher.find()) {
             sanPrefix = "IP:";
         }
-        return List.of("-ext", "SAN=" + sanPrefix + domain + ",dns:*.svc.cluster.local");
+        return List.of("-ext", "SAN=" + sanPrefix + domain + ",dns:*.svc.cluster.local,dns:lowkey-vault-clusterip.lowkey-vault.svc.cluster.local");
     }
 
     private boolean isWildcardDomain(String domain) {

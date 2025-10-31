@@ -62,7 +62,6 @@ public class KubeLowKeyVaultKmsTestKmsFacade extends AbstractAzureKeyVaultKmsTes
         if (!isAvailable()) {
             throw new IllegalStateException("kms is not initialized");
         }
-        // URI defaultVaultBaseUrl = lowKeyVault.getDefaultVaultBaseUrl();
         try {
             String password = DeploymentUtils.getSecretValue(lowKeyVault.getDefaultNamespace(), Constants.KEYSTORE_SECRET_NAME, "password");
             String keyVaultHost = lowKeyVault.getDefaultNamespace() + ".svc.cluster.local";
@@ -74,12 +73,9 @@ public class KubeLowKeyVaultKmsTestKmsFacade extends AbstractAzureKeyVaultKmsTes
                     new InlinePassword(password), "JKS");
             Tls entraTls = new Tls(null, entraTrust, null, null);
             return new AzureKeyVaultConfig(
-                    new Oauth2ClientCredentialsConfig(mockOauthServer.getBaseUri(), "tenant2", new InlinePassword("abc"), new InlinePassword("def"),
-                            URI.create(
-                                    "https://vault.azure.net/.default")/* URI.create("https://" + LowkeyVault.LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME + "." + keyVaultHost + ":443") */,
-                            entraTls),
-                    null, LowkeyVault.LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME, keyVaultHost /* defaultVaultBaseUrl.getHost() */, null,
-                    443/* defaultVaultBaseUrl.getPort() */, vaultTls);
+                    new Oauth2ClientCredentialsConfig(mockOauthServer.getBaseUri(), mockOauthServer.getTenantId(), new InlinePassword("abc"), new InlinePassword("def"),
+                            URI.create("https://vault.azure.net/.default"), entraTls),
+                    null, lowKeyVault.getLowkeyVaultClusterIpServiceName(), keyVaultHost, null, 443, vaultTls);
         }
         catch (Exception e) {
             throw new TestKmsFacadeException(e);

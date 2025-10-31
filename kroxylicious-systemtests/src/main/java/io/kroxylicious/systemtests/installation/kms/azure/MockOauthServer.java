@@ -27,6 +27,7 @@ public class MockOauthServer {
     private static final String MOCK_OAUTH_SERVER_DEFAULT_NAMESPACE = "lowkey-vault";
     private static final String MOCK_OAUTH_SERVER_IMAGE = "ghcr.io/navikt/mock-oauth2-server:3.0.0";
     private final String deploymentNamespace;
+    private static final String TENANT_ID = "tenant2";
 
     /**
      * Instantiates a new Mock Oauth Server.
@@ -74,8 +75,21 @@ public class MockOauthServer {
         NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(deploymentNamespace, testSuiteName);
     }
 
+    /**
+     * Gets base uri.
+     *
+     * @return  the base uri
+     */
     public URI getBaseUri() {
-        // return URI.create("http://" + DeploymentUtils.getNodePortServiceAddress(deploymentNamespace, MOCK_OAUTH_SERVER_NODE_PORT_SERVICE_NAME));
         return URI.create("http://" + MOCK_OAUTH_SERVER_CLUSTER_IP_SERVICE_NAME + ".lowkey-vault.svc.cluster.local:80");
+    }
+
+    /**
+     * Gets tenant id.
+     *
+     * @return  the tenant id
+     */
+    public String getTenantId() {
+        return TENANT_ID;
     }
 }
