@@ -6,9 +6,11 @@
 package io.kroxylicious.krpccodegen.schema;
 
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -147,4 +149,20 @@ public final class MessageSpec {
             default -> struct.name();
         };
     }
+
+    public Node entityFields() {
+        List<FieldSpec> collect = fields().stream()
+                .filter(f -> EnumSet.of(EntityType.TOPIC_NAME, EntityType.GROUP_ID, EntityType.TRANSACTIONAL_ID).contains(f.entityType())).toList();
+        var versions = collect.stream().map(FieldSpec::versions)
+                .map(fsv -> validVersions().intersect(fsv))
+                .flatMapToInt(v -> IntStream.rangeClosed(v.lowest(), v.highest()))
+                .distinct()
+                .sorted()
+                .boxed()
+                .map(Integer::shortValue)
+                .toList();
+
+        return new Node(collect, List.of(), versions);
+    }
+
 }
