@@ -15,6 +15,9 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
  * <p>Builds a {@link Subject} based on information available at the transport layer,
  * before any requests have been received from the client.</p>
  *
+ * <p>A {@code TransportSubjectBuilder} instance is constructed by a {@link TransportSubjectBuilderService},
+ * which in turn is specified on a virtual cluster.</p>
+ *
  * <p>See {@link SaslSubjectBuilder} for a similar interface use for building a {@code Subject} based on SASL authentication.</p>
  */
 public interface TransportSubjectBuilder {

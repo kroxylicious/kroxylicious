@@ -13,8 +13,20 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
 /**
  * <p>Builds a {@link Subject} based on information available from a successful SASL authentication.</p>
  *
- * <p>See {@link TransportSubjectBuilder} for a similar interface use for building a
- * {@code Subject} based on transport-layer information.</p>
+ * A {@code SaslSubjectBuilder} instance is constructed by a {@link SaslSubjectBuilderService}.</p>
+ *
+ * <p>{@link TransportSubjectBuilder} is a similar interface use for building a
+ * {@code Subject} based on transport-layer information.
+ * However, note that a {@code SaslSubjectBuilder} is not specified directly
+ * on a virtual cluster as a {@code TransportSubjectBuilder} is.
+ * Instead, a SASL-authenticating {@link io.kroxylicious.proxy.filter.Filter Filter}
+ * <em>may</em> use a {@code SaslSubjectBuilder} in order to construct the
+ * {@link Subject} with which it calls
+ * {@link io.kroxylicious.proxy.filter.FilterContext#clientSaslAuthenticationSuccess(String, Subject)
+ * FilterContext.clientSaslAuthenticationSuccess(String, Subject)}.
+ * As such, {@code SaslSubjectBuilder} is an opt-in way of decoupling the building of Subjects
+ * from the mechanism of SASL authentication.
+ * SASL-authenticating filters are not obliged to use this abstraction.</p>
  */
 public interface SaslSubjectBuilder {
 
