@@ -45,13 +45,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @ExtendWith(NettyLeakDetectorExtension.class)
 public class ApiVersionsIT {
 
-    public static final short OLDEST_REPORTED_PRODUCE_VERSION = (short) 0;
-
     @Test
     void shouldOfferTheMinimumHighestSupportedVersionWhenBrokerIsAheadOfKroxylicious() {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.simpleTestClient()) {
-            givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), (short) (ApiKeys.METADATA.latestVersion() + 1));
+            givenMockRespondsWithApiVersionsForMetadataRequest(tester, ApiKeys.METADATA.oldestVersion(), (short) (ApiKeys.METADATA.latestVersion() + 1));
             Response response = whenGetApiVersionsFromKroxylicious(client);
             assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion(),
                     Errors.NONE.code());
@@ -65,7 +63,7 @@ public class ApiVersionsIT {
         try (var tester = mockKafkaKroxyliciousTester(bootstrap -> KroxyliciousConfigUtils.proxy(bootstrap)
                 .withDevelopment(Map.of("apiKeyIdMaxVersionOverride", Map.of(ApiKeys.METADATA.name(), overriddenVersion))), testOnlyConfigEnabled);
                 var client = tester.simpleTestClient()) {
-            givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion(true));
+            givenMockRespondsWithApiVersionsForMetadataRequest(tester, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion(true));
             Response response = whenGetApiVersionsFromKroxylicious(client);
             assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), overriddenVersion, Errors.NONE.code());
         }
@@ -76,7 +74,7 @@ public class ApiVersionsIT {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.simpleTestClient()) {
             short expectedApiVersion = (short) (ApiKeys.METADATA.latestVersion() - 1);
-            givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), expectedApiVersion);
+            givenMockRespondsWithApiVersionsForMetadataRequest(tester, ApiKeys.METADATA.oldestVersion(), expectedApiVersion);
             Response response = whenGetApiVersionsFromKroxylicious(client);
             assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(),
                     expectedApiVersion, Errors.NONE.code());
@@ -93,8 +91,8 @@ public class ApiVersionsIT {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.simpleTestClient()) {
             short brokerMaxVersion = (short) (ApiKeys.API_VERSIONS.latestVersion() - 1);
-            givenMockRespondsWithDowngradedV0ApiVersionsResponse(tester, ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.oldestVersion(), brokerMaxVersion);
-            Response response = whenGetApiVersionsFromKroxylicious(client, (short) 3, OLDEST_REPORTED_PRODUCE_VERSION);
+            givenMockRespondsWithDowngradedV0ApiVersionsResponse(tester, ApiKeys.API_VERSIONS.oldestVersion(), brokerMaxVersion);
+            Response response = whenGetApiVersionsFromKroxylicious(client, (short) 0);
 
             assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.API_VERSIONS, ApiKeys.API_VERSIONS.oldestVersion(),
                     brokerMaxVersion, Errors.UNSUPPORTED_VERSION.code());
@@ -106,7 +104,7 @@ public class ApiVersionsIT {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.simpleTestClient()) {
             short brokerOldestVersion = (short) (ApiKeys.METADATA.oldestVersion() + 1);
-            givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, brokerOldestVersion, ApiKeys.METADATA.latestVersion());
+            givenMockRespondsWithApiVersionsForMetadataRequest(tester, brokerOldestVersion, ApiKeys.METADATA.latestVersion());
             Response response = whenGetApiVersionsFromKroxylicious(client);
             assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, brokerOldestVersion, ApiKeys.METADATA.latestVersion(), Errors.NONE.code());
         }
@@ -117,7 +115,7 @@ public class ApiVersionsIT {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.simpleTestClient()) {
             short brokerOldestVersion = (short) (ApiKeys.METADATA.oldestVersion() - 1);
-            givenMockRespondsWithApiVersionsForApiKey(tester, ApiKeys.METADATA, brokerOldestVersion, ApiKeys.METADATA.latestVersion());
+            givenMockRespondsWithApiVersionsForMetadataRequest(tester, brokerOldestVersion, ApiKeys.METADATA.latestVersion());
             Response response = whenGetApiVersionsFromKroxylicious(client);
             assertKroxyliciousResponseOffersApiVersionsForApiKey(response, ApiKeys.METADATA, ApiKeys.METADATA.oldestVersion(), ApiKeys.METADATA.latestVersion(),
                     Errors.NONE.code());
@@ -177,11 +175,11 @@ public class ApiVersionsIT {
         try (var tester = mockKafkaKroxyliciousTester(KroxyliciousConfigUtils::proxy);
                 var client = tester.simpleTestClient()) {
             ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
-                ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
-                version.setApiKey(ApiKeys.PRODUCE.id)
-                        .setMinVersion(OLDEST_REPORTED_PRODUCE_VERSION)
-                        .setMaxVersion(ApiKeys.PRODUCE.latestVersion());
-                mockResponse.apiKeys().add(version);
+            ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
+            version.setApiKey(ApiKeys.PRODUCE.id)
+                    .setMinVersion(ApiKeys.PRODUCE_API_VERSIONS_RESPONSE_MIN_VERSION)
+                    .setMaxVersion(ApiKeys.PRODUCE.latestVersion());
+            mockResponse.apiKeys().add(version);
             tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
 
             // When
@@ -191,43 +189,41 @@ public class ApiVersionsIT {
             ResponsePayload payload = response.payload();
             assertThat(payload.message())
                     .asInstanceOf(InstanceOfAssertFactories.type(ApiVersionsResponseData.class))
-                    .satisfies(apiVersionsResponseData -> {
-                        assertThat(apiVersionsResponseData.apiKeys())
-                                .singleElement()
-                                .satisfies(apiKeys -> {
-                                    assertThat(apiKeys)
-                                            .satisfies(apiVersion -> {
-                                                assertThat(apiVersion.apiKey()).isEqualTo(ApiKeys.PRODUCE.id);
-                                                assertThat(apiVersion.minVersion()).isEqualTo(OLDEST_REPORTED_PRODUCE_VERSION);
-                                            });
-                                });
-                    });
+                    .satisfies(apiVersionsResponseData ->
+                            assertThat(apiVersionsResponseData.apiKeys())
+                                    .singleElement()
+                                    .satisfies(apiKeys ->
+                                            assertThat(apiKeys)
+                                                    .satisfies(apiVersion -> {
+                                                        assertThat(apiVersion.apiKey()).isEqualTo(ApiKeys.PRODUCE.id);
+                                                        assertThat(apiVersion.minVersion()).isEqualTo(ApiKeys.PRODUCE_API_VERSIONS_RESPONSE_MIN_VERSION);
+                                                    })));
         }
     }
 
-    private static void givenMockRespondsWithApiVersionsForApiKey(MockServerKroxyliciousTester tester, ApiKeys keys, short minVersion, short maxVersion) {
+    private static void givenMockRespondsWithApiVersionsForMetadataRequest(MockServerKroxyliciousTester tester, short minVersion, short maxVersion) {
         ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
         ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
-        version.setApiKey(keys.id).setMinVersion(minVersion).setMaxVersion(maxVersion);
+        version.setApiKey(ApiKeys.METADATA.id).setMinVersion(minVersion).setMaxVersion(maxVersion);
         mockResponse.apiKeys().add(version);
         tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, (short) 3, mockResponse));
     }
 
-    private static void givenMockRespondsWithDowngradedV0ApiVersionsResponse(MockServerKroxyliciousTester tester, ApiKeys keys, short minVersion, short maxVersion) {
+    private static void givenMockRespondsWithDowngradedV0ApiVersionsResponse(MockServerKroxyliciousTester tester, short minVersion, short maxVersion) {
         ApiVersionsResponseData mockResponse = new ApiVersionsResponseData();
         ApiVersionsResponseData.ApiVersion version = new ApiVersionsResponseData.ApiVersion();
-        version.setApiKey(keys.id).setMinVersion(minVersion).setMaxVersion(maxVersion);
+        version.setApiKey(ApiKeys.API_VERSIONS.id).setMinVersion(minVersion).setMaxVersion(maxVersion);
         mockResponse.apiKeys().add(version);
         mockResponse.setErrorCode(Errors.UNSUPPORTED_VERSION.code());
-        tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, OLDEST_REPORTED_PRODUCE_VERSION, mockResponse));
+        tester.addMockResponseForApiKey(new ResponsePayload(ApiKeys.API_VERSIONS, ApiKeys.PRODUCE_API_VERSIONS_RESPONSE_MIN_VERSION, mockResponse));
     }
 
     private static Response whenGetApiVersionsFromKroxylicious(KafkaClient client) {
-        return whenGetApiVersionsFromKroxylicious(client, (short) 3, (short) 3);
+        return whenGetApiVersionsFromKroxylicious(client, (short) 3);
     }
 
-    private static Response whenGetApiVersionsFromKroxylicious(KafkaClient client, short requestApiVersion, short responseApiVersion) {
-        return client.getSync(new Request(ApiKeys.API_VERSIONS, requestApiVersion, "client", new ApiVersionsRequestData(), responseApiVersion));
+    private static Response whenGetApiVersionsFromKroxylicious(KafkaClient client, short responseApiVersion) {
+        return client.getSync(new Request(ApiKeys.API_VERSIONS, (short) 3, "client", new ApiVersionsRequestData(), responseApiVersion));
     }
 
     private static void assertKroxyliciousResponseOffersApiVersionsForApiKey(Response response, ApiKeys apiKeys, short minVersion, short maxVersion, short expected) {
