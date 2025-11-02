@@ -9,7 +9,7 @@ import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
 /**
- * A {@link FilterFactory} for {@link UserNamespaceFilter2}.
+ * A {@link FilterFactory} for {@link UserNamespaceFilter}.
  */
 @Plugin(configType = UserNamespace.Config.class)
 public class UserNamespace implements FilterFactory<UserNamespace.Config, UserNamespace.Config> {
