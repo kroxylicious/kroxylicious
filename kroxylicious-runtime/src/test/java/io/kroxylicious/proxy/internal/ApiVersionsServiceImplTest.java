@@ -44,14 +44,14 @@ class ApiVersionsServiceImplTest {
     @Test
     void shouldMarkProduceRequestV0AsSupported() {
         // Given
-        ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
-        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.PRODUCE.id, (short) 0, ApiKeys.PRODUCE.latestVersion());
+        short oldestProduceRequest = ApiKeys.PRODUCE.messageType.lowestDeprecatedVersion();
+        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.PRODUCE.id, oldestProduceRequest, ApiKeys.PRODUCE.latestVersion());
 
         // When
         apiVersionsService.updateVersions("channel", upstreamApiVersions);
 
         // Then
-        assertThatApiVersionsContainsExactly(upstreamApiVersions, ApiKeys.PRODUCE, (short) 0, ApiKeys.PRODUCE.latestVersion());
+        assertThatApiVersionsContainsExactly(upstreamApiVersions, ApiKeys.PRODUCE, oldestProduceRequest, ApiKeys.PRODUCE.latestVersion());
     }
 
     @Test
