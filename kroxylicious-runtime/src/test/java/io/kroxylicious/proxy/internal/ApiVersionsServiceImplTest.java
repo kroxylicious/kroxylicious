@@ -36,6 +36,19 @@ class ApiVersionsServiceImplTest {
     }
 
     @Test
+    void shouldMarkProduceRequestV0AsSupported() {
+        // Given
+        ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
+        ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.PRODUCE.id, (short) 0, ApiKeys.PRODUCE.latestVersion());
+
+        // When
+        apiVersionsService.updateVersions("channel", upstreamApiVersions);
+
+        // Then
+        assertThatApiVersionsContainsExactly(upstreamApiVersions, ApiKeys.PRODUCE, (short) 0, ApiKeys.PRODUCE.latestVersion());
+    }
+
+    @Test
     void testIntersection_UpstreamMinVersionGreaterThanApiKeys() {
         ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl();
         ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.METADATA.id, (short) (ApiKeys.METADATA.oldestVersion() + 1),
