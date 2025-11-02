@@ -116,13 +116,11 @@ class ApiVersionsServiceImplTest {
     }
 
     private static void assertThatApiVersionsContainsExactly(ApiVersionsResponseData upstreamApiVersions, ApiKeys apiKeys, short minVersion, short maxVersion) {
-        assertThat(upstreamApiVersions.apiKeys()).satisfies(apiVersions -> {
-            assertThat(apiVersions).hasSize(1).first().satisfies(apiVersion -> {
-                assertThat(apiVersion.apiKey()).isEqualTo(apiKeys.id);
-                assertThat(apiVersion.minVersion()).isEqualTo(minVersion);
-                assertThat(apiVersion.maxVersion()).isEqualTo(maxVersion);
-            });
-        });
+        assertThat(upstreamApiVersions.apiKeys()).satisfies(apiVersions -> assertThat(apiVersions).hasSize(1).first().satisfies(apiVersion -> {
+            assertThat(apiVersion.apiKey()).isEqualTo(apiKeys.id);
+            assertThat(apiVersion.minVersion()).isEqualTo(minVersion);
+            assertThat(apiVersion.maxVersion()).isEqualTo(maxVersion);
+        }));
     }
 
     private static ApiVersionsResponseData createApiVersionsWith(short api, short minVersion, short maxVersion) {

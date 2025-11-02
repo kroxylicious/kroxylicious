@@ -89,7 +89,7 @@ public class ApiVersionsServiceImpl {
      * @param sessionId The sessionId.
      * @param key The key data from an upstream API_VERSIONS response.
      * @param apiKey The proxy's API key for this API.
-     * @param apiKeysShortFunction
+     * @param apiKeysShortFunction function to determine the maximum supported version for a particular API Key
      */
     private static void intersectApiVersion(String sessionId, ApiVersion key, ApiKeys apiKey, Function<ApiKeys, Short> apiKeysShortFunction) {
         short mutualMin = (short) Math.max(
