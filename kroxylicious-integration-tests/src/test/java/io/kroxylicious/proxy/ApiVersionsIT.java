@@ -189,15 +189,13 @@ public class ApiVersionsIT {
             ResponsePayload payload = response.payload();
             assertThat(payload.message())
                     .asInstanceOf(InstanceOfAssertFactories.type(ApiVersionsResponseData.class))
-                    .satisfies(apiVersionsResponseData ->
-                            assertThat(apiVersionsResponseData.apiKeys())
-                                    .singleElement()
-                                    .satisfies(apiKeys ->
-                                            assertThat(apiKeys)
-                                                    .satisfies(apiVersion -> {
-                                                        assertThat(apiVersion.apiKey()).isEqualTo(ApiKeys.PRODUCE.id);
-                                                        assertThat(apiVersion.minVersion()).isEqualTo(ApiKeys.PRODUCE_API_VERSIONS_RESPONSE_MIN_VERSION);
-                                                    })));
+                    .satisfies(apiVersionsResponseData -> assertThat(apiVersionsResponseData.apiKeys())
+                            .singleElement()
+                            .satisfies(apiKeys -> assertThat(apiKeys)
+                                    .satisfies(apiVersion -> {
+                                        assertThat(apiVersion.apiKey()).isEqualTo(ApiKeys.PRODUCE.id);
+                                        assertThat(apiVersion.minVersion()).isEqualTo(ApiKeys.PRODUCE_API_VERSIONS_RESPONSE_MIN_VERSION);
+                                    })));
         }
     }
 
