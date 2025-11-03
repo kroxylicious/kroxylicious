@@ -77,6 +77,6 @@ networks:
 
 configs:
   proxy-config:
-    file: ./compose-proxy-config.yaml
+    file: compose-proxy-config.yaml
 
 
