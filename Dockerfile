@@ -66,3 +66,7 @@ COPY --from=builder /opt/kroxylicious/kroxylicious-app/target/kroxylicious-app-$
 USER ${CONTAINER_USER_UID}
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/kroxylicious/bin/kroxylicious-start.sh" ]
+
+LABEL url="https://kroxylicious.io/"
+LABEL vendor="The Kroxylicious Project"
+LABEL maintainer="Kroxylicious Maintainers"
