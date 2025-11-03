@@ -47,14 +47,9 @@ import io.skodjob.testframe.utils.ImageUtils;
 import io.skodjob.testframe.utils.PodUtils;
 import io.skodjob.testframe.utils.TestFrameUtils;
 
-import io.kroxylicious.kms.service.TestKmsFacadeException;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
-import io.kroxylicious.systemtests.installation.kms.azure.LowkeyVault;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
-import io.kroxylicious.systemtests.resources.manager.ResourceManager;
-import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemplates;
-import io.kroxylicious.systemtests.utils.CertificateGeneratorNetty;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
@@ -94,18 +89,6 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
         this.replicas = 1;
         this.extensionContext = KubeResourceManager.get().getTestContext();
         this.kroxyliciousOperatorName = Constants.KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME;
-    }
-
-    private CertificateGeneratorNetty entraCerts(String ipAddress, String domain) {
-        try {
-            CertificateGeneratorNetty entraCertGen = new CertificateGeneratorNetty(domain, ipAddress);
-            entraCertGen.generateSelfSignedCertificateEntry("webmaster@example.com",
-                    "Engineering", "kroxylicious.io", null, null, "NZ");
-            return entraCertGen;
-        }
-        catch (Exception e) {
-            throw new TestKmsFacadeException(e);
-        }
     }
 
     @NonNull
@@ -160,21 +143,7 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
     public void prepareEnvForOperator(String clientNamespace) {
         applyCrds();
         applyClusterOperatorInstallFiles(clientNamespace);
-        installCertificates();
         applyDeploymentFile();
-    }
-
-    private void installCertificates() {
-        CertificateGeneratorNetty certs = entraCerts(DeploymentUtils.getNodeIP(),
-                LowkeyVault.LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME + "." + LowkeyVault.LOWKEY_VAULT_DEFAULT_NAMESPACE + ".svc.cluster.local");
-        String defaultNamespace = KubeClusterResource.getInstance().defaultNamespace();
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(
-                KroxyliciousSecretTemplates.createCertificateSecret(Constants.KEYSTORE_SECRET_NAME, defaultNamespace, Constants.KEYSTORE_FILE_NAME,
-                        certs.getKeyStoreLocation(),
-                        certs.getPassword()));
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(
-                KroxyliciousSecretTemplates.createCertificateSecret(Constants.TRUSTSTORE_SECRET_NAME, defaultNamespace, Constants.TRUSTSTORE_FILE_NAME,
-                        certs.getTrustStoreLocation(), certs.getPassword()));
     }
 
     private void applyDeploymentFile() {

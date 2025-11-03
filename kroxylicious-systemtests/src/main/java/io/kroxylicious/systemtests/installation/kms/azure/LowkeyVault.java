@@ -11,10 +11,14 @@ import java.net.URI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.kms.service.TestKmsFacadeException;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kms.azure.LowkeyVaultTemplates;
+import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemplates;
+import io.kroxylicious.systemtests.utils.CertificateGeneratorNetty;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
 
@@ -27,8 +31,8 @@ public class LowkeyVault implements AzureKmsClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(LowkeyVault.class);
     private static final String LOWKEY_VAULT_DEPLOYMENT_NAME = "my-key-vault";
     private static final String LOWKEY_VAULT_NODE_PORT_SERVICE_NAME = "lowkey-vault-" + Constants.NODE_PORT_TYPE.toLowerCase();
-    public static final String LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME = "lowkey-vault-" + Constants.CLUSTER_IP_TYPE.toLowerCase();
-    public static final String LOWKEY_VAULT_DEFAULT_NAMESPACE = "lowkey-vault";
+    private static final String LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME = "lowkey-vault-" + Constants.CLUSTER_IP_TYPE.toLowerCase();
+    private static final String LOWKEY_VAULT_DEFAULT_NAMESPACE = "lowkey-vault";
     private static final String LOWKEY_VAULT_IMAGE = Constants.DOCKER_REGISTRY_GCR_MIRROR + "/nagyesta/lowkey-vault:5.0.0";
     private final String deploymentNamespace;
 
@@ -56,6 +60,7 @@ public class LowkeyVault implements AzureKmsClient {
             return;
         }
 
+        installCertificates();
         LOGGER.info("Deploy LowKey Vault in {} namespace", deploymentNamespace);
         NamespaceUtils.createNamespaceAndPrepare(deploymentNamespace);
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
@@ -95,5 +100,30 @@ public class LowkeyVault implements AzureKmsClient {
 
     public String getLowkeyVaultClusterIpServiceName() {
         return LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME;
+    }
+
+    private void installCertificates() {
+        CertificateGeneratorNetty certs = entraCerts(DeploymentUtils.getNodeIP(),
+                LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME + "." + LOWKEY_VAULT_DEFAULT_NAMESPACE + ".svc.cluster.local");
+        String defaultNamespace = KubeClusterResource.getInstance().defaultNamespace();
+        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+                KroxyliciousSecretTemplates.createCertificateSecret(Constants.KEYSTORE_SECRET_NAME, defaultNamespace, Constants.KEYSTORE_FILE_NAME,
+                        certs.getKeyStoreLocation(),
+                        certs.getPassword()));
+        ResourceManager.getInstance().createResourceFromBuilderWithWait(
+                KroxyliciousSecretTemplates.createCertificateSecret(Constants.TRUSTSTORE_SECRET_NAME, defaultNamespace, Constants.TRUSTSTORE_FILE_NAME,
+                        certs.getTrustStoreLocation(), certs.getPassword()));
+    }
+
+    private CertificateGeneratorNetty entraCerts(String ipAddress, String domain) {
+        try {
+            CertificateGeneratorNetty entraCertGen = new CertificateGeneratorNetty(domain, ipAddress);
+            entraCertGen.generateSelfSignedCertificateEntry("webmaster@example.com",
+                    "Engineering", "kroxylicious.io", null, null, "NZ");
+            return entraCertGen;
+        }
+        catch (Exception e) {
+            throw new TestKmsFacadeException(e);
+        }
     }
 }
