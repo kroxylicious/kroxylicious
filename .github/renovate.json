@@ -11,7 +11,8 @@
   ],
   "enabledManagers": [
     "custom.regex",
-    "dockerfile"
+    "dockerfile",
+    "docker-compose"
   ],
   "customManagers": [
     {
@@ -163,5 +164,8 @@
       "depNameTemplate": "strimzi/strimzi-kafka-operator",
       "datasourceTemplate": "github-releases"
     }
+  ],
+  "managerFilePatterns": [
+    "/(^|/)(?:docker-)?compose[^/]*\\.ya?ml$/"
   ]
 }
