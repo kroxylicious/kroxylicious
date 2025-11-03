@@ -271,6 +271,14 @@ public class DeploymentUtils {
         }
     }
 
+    /**
+     * Gets secret value.
+     *
+     * @param namespace the namespace
+     * @param secretName the secret name
+     * @param secretKey the secret key
+     * @return  the secret value
+     */
     public static String getSecretValue(String namespace, String secretName, String secretKey) {
         Secret clientSecret = kubeClient().getClient().secrets().inNamespace(namespace).withName(secretName).get();
         return clientSecret.getData().get(secretKey);
