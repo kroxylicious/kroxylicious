@@ -1,0 +1,76 @@
+services:
+  kafka-1:
+    image: 'docker.io/apache/kafka:4.0.1'
+    container_name: kafka-1
+    environment:
+      - KAFKA_ENABLE_KRAFT=yes
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9094,2@kafka-2:9094,3@kafka-3:9094
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9094
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_KRAFT_CLUSTER_ID=r4zt_wrqTRuT7W2NJsB_GA
+      - KAFKA_NODE_ID=1
+    networks:
+      - kroxylicious_network
+    ports:
+      - "9692:9092"
+
+  kafka-2:
+    image: 'docker.io/apache/kafka:4.0.1'
+    container_name: kafka-2
+    environment:
+      - KAFKA_ENABLE_KRAFT=yes
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9094,2@kafka-2:9094,3@kafka-3:9094
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9094
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_KRAFT_CLUSTER_ID=r4zt_wrqTRuT7W2NJsB_GA
+      - KAFKA_NODE_ID=2
+    networks:
+      - kroxylicious_network
+    ports:
+      - "9792:9092"
+
+  kafka-3:
+    image: 'docker.io/apache/kafka:4.0.1'
+    container_name: kafka-3
+    environment:
+      - KAFKA_ENABLE_KRAFT=yes
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=1@kafka-1:9094,2@kafka-2:9094,3@kafka-3:9094
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9094
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_KRAFT_CLUSTER_ID=r4zt_wrqTRuT7W2NJsB_GA
+      - KAFKA_NODE_ID=3
+    networks:
+      - kroxylicious_network
+    ports:
+      - "9892:9092"
+
+  kroxylicious:
+    image: 'quay.io/kroxylicious/proxy:0.18.0-SNAPSHOT'
+    container_name: kroxylicious
+    command: --config /opt/kroxylicious/config/proxy-config.yaml
+    networks:
+      - kroxylicious_network
+    ports:
+      - "9292-9296:9292-9296"
+    configs:
+      - source: proxy-config
+        target: /opt/kroxylicious/config/proxy-config.yaml
+
+networks:
+  kroxylicious_network:
+    driver: bridge
+
+configs:
+  proxy-config:
+    file: ./compose-proxy-config.yaml
+
+
