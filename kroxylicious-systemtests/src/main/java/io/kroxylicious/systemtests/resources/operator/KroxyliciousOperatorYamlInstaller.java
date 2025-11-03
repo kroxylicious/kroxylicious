@@ -98,15 +98,9 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
 
     private CertificateGeneratorNetty entraCerts(String ipAddress, String domain) {
         try {
-//            KeytoolCertificateGenerator entraCertGen = new CertificateGenerator();
-//            entraCertGen.generateSelfSignedCertificateEntry("webmaster@example.com", domain,
-//                    "Engineering", "kroxylicious.io", null, null, "NZ");
-//             entraCertGen.generateTrustStore(entraCertGen.getCertFilePath(), "website");
-//            return entraCertGen;
             CertificateGeneratorNetty entraCertGen = new CertificateGeneratorNetty(domain, ipAddress);
             entraCertGen.generateSelfSignedCertificateEntry("webmaster@example.com",
                     "Engineering", "kroxylicious.io", null, null, "NZ");
-//            entraCertGen.generateTrustStore(entraCertGen.getCertFilePath(), "website");
             return entraCertGen;
         }
         catch (Exception e) {
