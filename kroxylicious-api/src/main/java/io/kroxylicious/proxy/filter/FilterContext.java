@@ -5,17 +5,21 @@
  */
 package io.kroxylicious.proxy.filter;
 
+import java.util.Collection;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import javax.annotation.Nullable;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
+import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
+import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 /**
@@ -113,6 +117,20 @@ public interface FilterContext {
      */
     <M extends ApiMessage> CompletionStage<M> sendRequest(RequestHeaderData header,
                                                           ApiMessage request);
+
+    /**
+     * Attempts to map all the given {@code topicIds} to the current corresponding topic names.
+     * @param topicIds topic ids to map to names
+     * @return a CompletionStage that will be completed with a complete mapping, with every requested topic id mapped to either an
+     * {@link TopicNameMappingException} or a name. All failure modes should complete the stage with a TopicNameMapping, with the
+     * TopicNameMapping used to convey the reason for failure, rather than failing the Stage.
+     * <h4>Chained Computation stages</h4>
+     * <p>Default and asynchronous default computation stages chained to the returned
+     * {@link java.util.concurrent.CompletionStage} are guaranteed to be executed by the thread
+     * associated with the connection. See {@link io.kroxylicious.proxy.filter} for more details.
+     * </p>
+     */
+    CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds);
 
     /**
      * Generates a completed filter results containing the given header and response.  When
