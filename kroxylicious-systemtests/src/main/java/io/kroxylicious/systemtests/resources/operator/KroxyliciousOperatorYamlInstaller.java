@@ -50,13 +50,13 @@ import io.skodjob.testframe.utils.TestFrameUtils;
 import io.kroxylicious.kms.service.TestKmsFacadeException;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.installation.kms.azure.LowkeyVault;
 import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemplates;
-import io.kroxylicious.systemtests.utils.CertificateGenerator;
+import io.kroxylicious.systemtests.utils.CertificateGeneratorNetty;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.NamespaceUtils;
-import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
 
@@ -96,12 +96,17 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
         this.kroxyliciousOperatorName = Constants.KROXYLICIOUS_OPERATOR_DEPLOYMENT_NAME;
     }
 
-    private KeytoolCertificateGenerator entraCerts(String domain) {
+    private CertificateGeneratorNetty entraCerts(String ipAddress, String domain) {
         try {
-            KeytoolCertificateGenerator entraCertGen = new CertificateGenerator();
-            entraCertGen.generateSelfSignedCertificateEntry("webmaster@example.com", domain,
+//            KeytoolCertificateGenerator entraCertGen = new CertificateGenerator();
+//            entraCertGen.generateSelfSignedCertificateEntry("webmaster@example.com", domain,
+//                    "Engineering", "kroxylicious.io", null, null, "NZ");
+//             entraCertGen.generateTrustStore(entraCertGen.getCertFilePath(), "website");
+//            return entraCertGen;
+            CertificateGeneratorNetty entraCertGen = new CertificateGeneratorNetty(domain, ipAddress);
+            entraCertGen.generateSelfSignedCertificateEntry("webmaster@example.com",
                     "Engineering", "kroxylicious.io", null, null, "NZ");
-             entraCertGen.generateTrustStore(entraCertGen.getCertFilePath(), "website");
+//            entraCertGen.generateTrustStore(entraCertGen.getCertFilePath(), "website");
             return entraCertGen;
         }
         catch (Exception e) {
@@ -166,8 +171,8 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
     }
 
     private void installCertificates() {
-        KeytoolCertificateGenerator certs = entraCerts(DeploymentUtils.getNodeIP()); //,
-                //LowkeyVault.LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME + "." + LowkeyVault.LOWKEY_VAULT_DEFAULT_NAMESPACE + ".svc.cluster.local");
+        CertificateGeneratorNetty certs = entraCerts(DeploymentUtils.getNodeIP(),
+                LowkeyVault.LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME + "." + LowkeyVault.LOWKEY_VAULT_DEFAULT_NAMESPACE + ".svc.cluster.local");
         String defaultNamespace = KubeClusterResource.getInstance().defaultNamespace();
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
                 KroxyliciousSecretTemplates.createCertificateSecret(Constants.KEYSTORE_SECRET_NAME, defaultNamespace, Constants.KEYSTORE_FILE_NAME,

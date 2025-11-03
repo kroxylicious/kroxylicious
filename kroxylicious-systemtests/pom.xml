@@ -253,6 +253,10 @@
             <artifactId>jackson-dataformat-yaml</artifactId>
             <scope>compile</scope>
         </dependency>
+        <dependency>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-pkitesting</artifactId>
+        </dependency>
     </dependencies>
 
     <build>

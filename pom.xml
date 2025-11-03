@@ -470,6 +470,11 @@
                 <version>${junit-pioneer.version}</version>
                 <scope>test</scope>
             </dependency>
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-pkitesting</artifactId>
+                <version>${netty.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
