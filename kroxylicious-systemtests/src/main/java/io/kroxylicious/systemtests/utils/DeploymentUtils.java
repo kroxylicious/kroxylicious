@@ -42,6 +42,7 @@ import io.skodjob.testframe.utils.TestFrameUtils;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
+import io.kroxylicious.systemtests.k8s.KubeClusterResource;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 import io.kroxylicious.systemtests.templates.kroxylicious.KroxyliciousSecretTemplates;
 
@@ -263,7 +264,7 @@ public class DeploymentUtils {
      * @param secretName the secret name
      */
     public static void copySecretInNamespace(String namespace, String secretName) {
-        Secret clientSecret = kubeClient().getClient().secrets().inNamespace("default").withName(secretName).get();
+        Secret clientSecret = kubeClient().getClient().secrets().inNamespace(KubeClusterResource.getInstance().defaultNamespace()).withName(secretName).get();
         if (clientSecret != null) {
             clientSecret.getMetadata().setResourceVersion("");
             kubeClient().getClient().secrets().inNamespace(namespace).resource(clientSecret).create();
