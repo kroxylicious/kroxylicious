@@ -89,7 +89,7 @@ class ApiVersionsServiceImplTest {
     @Test
     void intersectionConsidersMaxVersionOverride() {
         short overrideMaxVersion = (short) (ApiKeys.METADATA.latestVersion(true) - 1);
-        ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(Map.of(ApiKeys.METADATA, overrideMaxVersion));
+        apiVersionsService = new ApiVersionsServiceImpl(Map.of(ApiKeys.METADATA, overrideMaxVersion));
         ApiVersionsResponseData upstreamApiVersions = createApiVersionsWith(ApiKeys.METADATA.id, ApiKeys.METADATA.oldestVersion(),
                 (short) (ApiKeys.METADATA.latestVersion() + 1));
         apiVersionsService.updateVersions("channel", upstreamApiVersions);
@@ -104,7 +104,7 @@ class ApiVersionsServiceImplTest {
     @Test
     void latestVersionConsidersMaxVersionOverride() {
         short overrideMaxVersion = (short) (ApiKeys.API_VERSIONS.latestVersion(true) - 1);
-        ApiVersionsServiceImpl apiVersionsService = new ApiVersionsServiceImpl(Map.of(ApiKeys.API_VERSIONS, overrideMaxVersion));
+        apiVersionsService = new ApiVersionsServiceImpl(Map.of(ApiKeys.API_VERSIONS, overrideMaxVersion));
         assertThat(apiVersionsService.latestVersion(ApiKeys.API_VERSIONS)).isEqualTo(overrideMaxVersion);
     }
 
