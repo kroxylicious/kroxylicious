@@ -43,7 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * a new ApiKey that this version of Kroxylicious is unaware of).
  */
 @ExtendWith(NettyLeakDetectorExtension.class)
-public class ApiVersionsIT {
+class ApiVersionsIT {
 
     @Test
     void shouldOfferTheMinimumHighestSupportedVersionWhenBrokerIsAheadOfKroxylicious() {
