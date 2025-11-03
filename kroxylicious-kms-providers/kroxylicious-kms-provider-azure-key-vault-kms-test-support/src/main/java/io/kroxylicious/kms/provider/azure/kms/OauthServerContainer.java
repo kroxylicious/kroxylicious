@@ -19,7 +19,7 @@ import io.kroxylicious.testing.kafka.common.KeytoolCertificateGenerator;
 
 class OauthServerContainer extends GenericContainer<OauthServerContainer> {
 
-    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:3.0.0");
+    private static final DockerImageName DOCKER_IMAGE_NAME = DockerImageName.parse("ghcr.io/navikt/mock-oauth2-server:3.0.1");
     private static final String LOCALHOST = "localhost";
     private static final String CERT_FILE_MOUNT_PATH = "/etc/custom-certs";
     private final KeytoolCertificateGenerator certs;
