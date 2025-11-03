@@ -253,9 +253,6 @@ public class DeploymentUtils {
         if (Environment.TEST_CLIENTS_PULL_SECRET != null && !Environment.TEST_CLIENTS_PULL_SECRET.isEmpty()) {
             LOGGER.atInfo().setMessage("Creating '{}' secret").addArgument(Environment.TEST_CLIENTS_PULL_SECRET).log();
             copySecretInNamespace(namespace, Environment.TEST_CLIENTS_PULL_SECRET);
-            // Secret testClientSecret = kubeClient().getClient().secrets().withName(Environment.TEST_CLIENTS_PULL_SECRET).get();
-            // testClientSecret.getMetadata().setResourceVersion("");
-            // kubeClient().getClient().secrets().inNamespace(namespace).resource(testClientSecret).create();
         }
     }
 
@@ -350,12 +347,6 @@ public class DeploymentUtils {
      * @return  the node port service address
      */
     public static String getNodePortServiceAddress(String namespace, String serviceName) {
-        // var nodes = kubeClient().getClient().nodes().list().getItems();
-        // var nodeAddresses = nodes.stream().findFirst()
-        // .map(Node::getStatus)
-        // .map(NodeStatus::getAddresses)
-        // .stream().findFirst()
-        // .orElseThrow(() -> new KubeClusterException("Unable to get IP of the first node from " + nodes));
         var nodeIP = getNodeIP();
         var spec = kubeClient().getService(namespace, serviceName).getSpec();
         int port = spec.getPorts().stream().map(ServicePort::getNodePort).findFirst()
@@ -374,12 +365,6 @@ public class DeploymentUtils {
      * @return  the node port service address
      */
     public static String getNodePortServiceAddress(String namespace, String serviceName, int targetPort) {
-        // var nodes = kubeClient().getClient().nodes().list().getItems();
-        // var nodeAddresses = nodes.stream().findFirst()
-        // .map(Node::getStatus)
-        // .map(NodeStatus::getAddresses)
-        // .stream().findFirst()
-        // .orElseThrow(() -> new KubeClusterException("Unable to get IP of the first node from " + nodes));
         var nodeIP = getNodeIP();
         var spec = kubeClient().getService(namespace, serviceName).getSpec();
         int port = spec.getPorts().stream().filter(p -> p.getTargetPort().getIntVal().equals(targetPort)).map(ServicePort::getNodePort).findFirst()
