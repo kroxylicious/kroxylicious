@@ -616,6 +616,15 @@ add breakpoints and step through execution. Note if we find ourselves doing this
 our unit test coverage and logging to make the diagnosis and avoidance of such issues much easier in less accessible
 environments.
 
+### Performance Tests
+
+We have a set if low level micro benchmarks using JMH see their [readme](kroxylicious-microbenchmarks/README.md) for details on how to execute.
+
+We also have a set of higher level benchmarks using a compose file to compare the performance of various Kroxylicious configurations and filters with a raw Kafka cluster.
+To run the tests execute [perf-tests.sh](performance-tests/perf-tests.sh). The script uses variable to control behaviour, such as image versions. Of particular interest is the `TEST` variable to control which set of tests (by glob) are executed. To run `02-no-filters` test use something like `TEST=02.* ./performance-tests/perf-tests.sh`.
+
+Note while we make every effort to support both `Podman` and `Docker` on an equal footing `perf-tests.sh` requires the use of **Docker compose** as we need support for `--wait` which is not currently available in podman. 
+
 # Deprecation Policy
 
 We want to let users know about upcoming changes to APIs and give them sufficient time to adapt. The following policy
