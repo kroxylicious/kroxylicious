@@ -263,7 +263,7 @@ public class DeploymentUtils {
      * @param secretName the secret name
      */
     public static void copySecretInNamespace(String namespace, String secretName) {
-        Secret clientSecret = kubeClient().getClient().secrets().withName(secretName).get();
+        Secret clientSecret = kubeClient().getClient().secrets().inNamespace("default").withName(secretName).get();
         if (clientSecret != null) {
             clientSecret.getMetadata().setResourceVersion("");
             kubeClient().getClient().secrets().inNamespace(namespace).resource(clientSecret).create();
