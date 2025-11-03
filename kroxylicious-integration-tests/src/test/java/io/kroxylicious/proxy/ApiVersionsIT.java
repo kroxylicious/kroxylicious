@@ -166,7 +166,7 @@ class ApiVersionsIT {
         }
     }
 
-    // Kafka 4 removed support for ProduceRequest v0-v2 however there is an issue with libRDKafka versions <= XXX that meant this broke compression support
+    // Kafka 4 removed support for ProduceRequest v0-v2 however there is an issue with libRDKafka versions <= v2.11.0 that meant this broke compression support
     // https://issues.apache.org/jira/browse/KAFKA-18659 marks v0-v2 as supported versions however the broker will reject all uses of these old requests.
     // The proxy needs to replicate this special case handling so we can proxy older libRDKafka based clients (just about anything that isn't Java)
     @Test
