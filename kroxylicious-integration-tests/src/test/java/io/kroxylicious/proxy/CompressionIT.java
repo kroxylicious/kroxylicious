@@ -19,7 +19,6 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.Metric;
 import org.apache.kafka.common.MetricName;
 import org.apache.kafka.common.record.CompressionType;
-import org.assertj.core.api.AbstractDoubleAssert;
 import org.assertj.core.api.InstanceOfAssertFactories;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -29,6 +28,8 @@ import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -63,20 +64,26 @@ public class CompressionIT extends BaseIT {
                         assertThat(metadata).isNotNull();
                         assertThat(metadata.hasOffset()).isTrue();
                     });
-            // Then
 
+            // Then
             Map<MetricName, ? extends Metric> producerMetrics = proxyProducer.metrics();
-            producerMetrics.forEach((key, metric) -> {
-                if (key.name().equals("compression-rate-avg")) {
-                    AbstractDoubleAssert<?> doubleAssert = assertThat(metric.metricValue()).asInstanceOf(InstanceOfAssertFactories.DOUBLE);
-                    if (compressionType == CompressionType.NONE) {
-                        doubleAssert.isEqualTo(1.0);
-                    }
-                    else {
-                        doubleAssert.isStrictlyBetween(0.0, 1.0);
-                    }
+            assertThat(producerMetrics).hasEntrySatisfying(buildMetricName(compressionType), metric -> {
+                var doubleAssert = assertThat(metric.metricValue()).asInstanceOf(InstanceOfAssertFactories.DOUBLE);
+                if (compressionType == CompressionType.NONE) {
+                    doubleAssert.isEqualTo(1.0);
+                }
+                else {
+                    doubleAssert.isStrictlyBetween(0.0, 1.0);
                 }
             });
         }
     }
+
+    @NonNull
+    private static MetricName buildMetricName(CompressionType compressionType) {
+        return new MetricName("compression-rate-avg", "producer-metrics",
+                "The average compression rate of record batches, defined as the average ratio of the compressed batch size over the uncompressed size.",
+                Map.of("client-id", compressionType.name() + "-producer"));
+    }
 }
+
