@@ -86,4 +86,3 @@ public class CompressionIT extends BaseIT {
                 Map.of("client-id", compressionType.name() + "-producer"));
     }
 }
-
