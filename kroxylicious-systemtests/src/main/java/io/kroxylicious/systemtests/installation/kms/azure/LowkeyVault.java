@@ -84,6 +84,7 @@ public class LowkeyVault implements AzureKmsClient {
         return URI.create("https://" + this.getEndpointAuthority());
     }
 
+    @Override
     public String getEndpointAuthority() {
         return DeploymentUtils.getNodePortServiceAddress(deploymentNamespace, LOWKEY_VAULT_NODE_PORT_SERVICE_NAME, 8443);
     }
