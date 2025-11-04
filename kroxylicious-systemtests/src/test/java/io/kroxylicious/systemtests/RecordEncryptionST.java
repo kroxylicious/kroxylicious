@@ -165,7 +165,7 @@ class RecordEncryptionST extends AbstractST {
     @TestTemplate
     void ensureClusterHasEncryptedMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
         // Skip AWS test execution because the ciphertext blob metadata to read the version of the KEK is not available anywhere
-        assumeThat(testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().contains("vault")).isTrue();
+        assumeThat(isVaultKms(testKmsFacade)).isTrue();
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);
         int numberOfMessages = 1;
@@ -217,10 +217,9 @@ class RecordEncryptionST extends AbstractST {
         assertThat(consumerRecords)
                 .withFailMessage("expected messages not received! Consumer records is empty")
                 .isNotEmpty();
-
         assertThat(testKekManager.getClass().getSimpleName().toLowerCase())
                 .withFailMessage("Another KMS different from Vault is not currently supported!")
-                .contains("vault");
+                .startsWith("vault");
 
         assertThat(consumerRecords.stream())
                 .withFailMessage(expectedValue + " is not contained in the ciphertext blob!")
@@ -233,7 +232,7 @@ class RecordEncryptionST extends AbstractST {
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);
         int numberOfMessages = 1;
-        boolean isVaultKms = testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().contains("vault");
+        boolean isVaultKms = isVaultKms(testKmsFacade);
         Long resolvedAliasExpireAfterWriteSeconds = isVaultKms ? null : 5L;
         Long resolvedDekExpireAfterWriteSeconds = isVaultKms ? 5L : null;
         ExperimentalKmsConfig experimentalKmsConfig = new ExperimentalKmsConfig(resolvedAliasExpireAfterWriteSeconds, null, null, resolvedDekExpireAfterWriteSeconds);
@@ -279,5 +278,9 @@ class RecordEncryptionST extends AbstractST {
         assertThat(resultRotatedKek).withFailMessage("expected messages have not been received!")
                 .extracting(ConsumerRecord::getPayload)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+    }
+
+    private boolean isVaultKms(TestKmsFacade<?, ?, ?> testKmsFacade) {
+        return testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().startsWith("vault");
     }
 }

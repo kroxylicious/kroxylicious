@@ -11,6 +11,8 @@ import java.net.URI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.fabric8.kubernetes.api.model.Secret;
+
 import io.kroxylicious.kms.service.TestKmsFacadeException;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
@@ -80,6 +82,7 @@ public class LowkeyVault implements AzureKmsClient {
     @Override
     public void delete() {
         LOGGER.info("Deleting Lowkey Vault in {} namespace", deploymentNamespace);
+        deleteCertificates();
         String testSuiteName = ResourceManager.getTestContext().getRequiredTestClass().getName();
         NamespaceUtils.deleteNamespaceWithWaitAndRemoveFromSet(deploymentNamespace, testSuiteName);
     }
@@ -113,6 +116,15 @@ public class LowkeyVault implements AzureKmsClient {
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
                 KroxyliciousSecretTemplates.createCertificateSecret(Constants.TRUSTSTORE_SECRET_NAME, defaultNamespace, Constants.TRUSTSTORE_FILE_NAME,
                         certs.getTrustStoreLocation(), certs.getPassword()));
+    }
+
+    private void deleteCertificates() {
+        String defaultNamespace = KubeClusterResource.getInstance().defaultNamespace();
+        Secret keystore = kubeClient().getClient().secrets().inNamespace(defaultNamespace).withName(Constants.KEYSTORE_SECRET_NAME).get();
+        Secret truststore = kubeClient().getClient().secrets().inNamespace(defaultNamespace).withName(Constants.TRUSTSTORE_SECRET_NAME).get();
+
+        kubeClient().getClient().secrets().inNamespace(defaultNamespace).resource(keystore).withGracePeriod(0).delete();
+        kubeClient().getClient().secrets().inNamespace(defaultNamespace).resource(truststore).withGracePeriod(0).delete();
     }
 
     private CertificateGeneratorNetty entraCerts(String ipAddress, String domain) {
