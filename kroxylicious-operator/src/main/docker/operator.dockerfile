@@ -57,3 +57,7 @@ COPY target/kroxylicious-operator-${KROXYLICIOUS_VERSION}-app/kroxylicious-opera
 USER ${CONTAINER_USER_UID}
 
 ENTRYPOINT ["/usr/bin/tini", "--", "/opt/kroxylicious-operator/bin/operator-start.sh" ]
+
+LABEL url="https://kroxylicious.io/"
+LABEL vendor="The Kroxylicious Project"
+LABEL maintainer="Kroxylicious Maintainers"

@@ -616,6 +616,10 @@ add breakpoints and step through execution. Note if we find ourselves doing this
 our unit test coverage and logging to make the diagnosis and avoidance of such issues much easier in less accessible
 environments.
 
+## Manual testing
+
+To help simplify local testing we also have a simple composefile in `compose/kafa-compose.yaml`. See the [compose/README.md](./compose/README.md) for details about how to use the proxy deployed.
+
 # Deprecation Policy
 
 We want to let users know about upcoming changes to APIs and give them sufficient time to adapt. The following policy
