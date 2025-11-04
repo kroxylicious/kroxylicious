@@ -98,6 +98,14 @@ public class OperatorMain {
         addHttpGetHandler(HTTP_PATH_LIVEZ, this::livezStatusCode);
         operator.start();
         var versionInfo = VersionInfo.VERSION_INFO;
+        LOGGER.atInfo()
+                .setMessage("Platform: Java {}({}) running on {} {}/{}")
+                .addArgument(Runtime::version)
+                .addArgument(() -> System.getProperty("java.vendor"))
+                .addArgument(() -> System.getProperty("os.name"))
+                .addArgument(() -> System.getProperty("os.version"))
+                .addArgument(() -> System.getProperty("os.arch"))
+                .log();
         LOGGER.atInfo().setMessage("Operator started (version: {}, commit id: {})")
                 .addArgument(versionInfo::version)
                 .addArgument(versionInfo::commitId)
