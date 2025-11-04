@@ -8,6 +8,7 @@ Format `<github issue/pr number>: <short description>`.
 ## SNAPSHOT
 
 * [#1318](https://github.com/kroxylicious/kroxylicious/issues/1318): Add FilterContext#topicNames to enable filters to retrieve names for topic ids
+* [#2844](https://github.com/kroxylicious/kroxylicious/issues/2844): Match the behaviour of Kafka 4.0 when negotiating API versions for Produce Requests to allow older builds of librdkafka to enable compression. 
 
 ## 0.17.0
 
