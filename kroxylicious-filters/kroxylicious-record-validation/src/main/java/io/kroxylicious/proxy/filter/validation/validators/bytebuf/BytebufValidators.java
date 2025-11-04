@@ -59,6 +59,19 @@ public class BytebufValidators {
     }
 
     /**
+     * get validator that validates if a non-null/non-empty buffer contains a valid JWS (JSON Web Signature)
+     *
+     * <p>
+     * See {@link JwsBytebufValidator#JwsBytebufValidator(String, String, String[]) JwsBytebufValidator} for parameter details.
+     * </p>
+     *
+     * @return validator
+     */
+    public static BytebufValidator jwsValidator(String jwks, String algorithmConstraintType, String[] algorithms) {
+        return new JwsBytebufValidator(jwks, algorithmConstraintType, algorithms);
+    }
+
+    /**
      * A chain of {@link BytebufValidators}.  Validators are executed in the order
      *  * they are defined.  Validation stops after the first validation failure.
      * @param elements list of validators
