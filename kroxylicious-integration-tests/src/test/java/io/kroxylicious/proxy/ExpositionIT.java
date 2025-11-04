@@ -48,7 +48,6 @@ import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.net.IntegrationTestInetAddressResolverProvider;
 import io.kroxylicious.net.PassthroughProxy;
-import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedRange;
 import io.kroxylicious.proxy.config.SniHostIdentifiesNodeIdentificationStrategy;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
@@ -113,7 +112,7 @@ class ExpositionIT extends BaseIT {
                 .withNewTargetCluster()
                 .withBootstrapServers(cluster.getBootstrapServers())
                 .endTargetCluster();
-        var builder = new ConfigurationBuilder()
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(virtualClusterBuilder.build());
 
         try (var tester = kroxyliciousTester(builder);
@@ -133,7 +132,7 @@ class ExpositionIT extends BaseIT {
     void exposesTwoClusterOverPlainWithSeparatePorts(KafkaCluster cluster) {
         List<String> clusterProxyAddresses = List.of("localhost:9192", "localhost:9294");
 
-        var builder = new ConfigurationBuilder();
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder();
 
         for (int i = 0; i < clusterProxyAddresses.size(); i++) {
             var bootstrap = HostPort.parse(clusterProxyAddresses.get(i));
@@ -160,7 +159,7 @@ class ExpositionIT extends BaseIT {
 
     @Test
     void exposesSingleClusterWithMultiplePortPerBrokerGateways(KafkaCluster cluster) throws Exception {
-        var builder = new ConfigurationBuilder();
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder();
 
         VirtualClusterBuilder virtualClusterBuilder = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "cluster");
         virtualClusterBuilder.addToGateways(portPerBrokerGateway("localhost:9192", "gateway1"),
@@ -223,7 +222,7 @@ class ExpositionIT extends BaseIT {
             var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
             var virtualClusterBrokerAddressPattern = "broker-$(nodeId)" + virtualClusterCommonNamePattern;
 
-            var builder = new ConfigurationBuilder();
+            var builder = KroxyliciousConfigUtils.baseConfigurationBuilder();
 
             var keystoreTrustStorePair = buildKeystoreTrustStorePair("*" + virtualClusterCommonNamePattern);
 
@@ -265,7 +264,7 @@ class ExpositionIT extends BaseIT {
         var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
         var virtualClusterBrokerAddressPattern = "broker-$(nodeId)" + virtualClusterCommonNamePattern;
 
-        var builder = new ConfigurationBuilder();
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder();
 
         int numberOfVirtualClusters = 2;
         for (int i = 0; i < numberOfVirtualClusters; i++) {
@@ -311,7 +310,7 @@ class ExpositionIT extends BaseIT {
         VirtualClusterGatewayBuilder sniBuilder = defaultSniHostIdentifiesNodeGatewayBuilder(virtualClusterBootstrapPattern + ":9192",
                 virtualClusterBrokerAddressPattern);
 
-        var builder = new ConfigurationBuilder();
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder();
 
         int numberOfVirtualClusters = 2;
         for (int i = 0; i < numberOfVirtualClusters; i++) {
@@ -361,7 +360,7 @@ class ExpositionIT extends BaseIT {
         var virtualClusterBootstrapPattern = "bootstrap" + virtualClusterCommonNamePattern;
         var virtualClusterBrokerAddressPattern = "broker-$(nodeId)" + virtualClusterCommonNamePattern;
 
-        var builder = new ConfigurationBuilder();
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder();
 
         int numberOfGateways = 2;
         VirtualClusterBuilder virtualClusterBuilder = KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "cluster");
@@ -407,7 +406,7 @@ class ExpositionIT extends BaseIT {
 
     @Test
     void exposesClusterOfTwoBrokersWithRangeAwarePortPerNode(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
-        var builder = new ConfigurationBuilder()
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "demo")
                         .addToGateways(defaultGatewayBuilder()
                                 .withNewPortIdentifiesNode()
@@ -436,7 +435,7 @@ class ExpositionIT extends BaseIT {
     void exposesClusterOfTwoBrokersWithGapInNodeIds(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
         cluster.addBroker();
         cluster.removeBroker(1);
-        var builder = new ConfigurationBuilder()
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "demo")
                         .addToGateways(defaultGatewayBuilder()
                                 .withNewPortIdentifiesNode()
@@ -464,7 +463,7 @@ class ExpositionIT extends BaseIT {
     @Test
     void exposesClusterOfTwoBrokers(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
         HostPort proxyAddress = PROXY_ADDRESS;
-        var builder = new ConfigurationBuilder()
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "demo")
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(proxyAddress).build())
                         .build());
@@ -589,7 +588,7 @@ class ExpositionIT extends BaseIT {
                 .withBootstrapServers(cluster.getBootstrapServers())
                 .endTargetCluster();
 
-        var builder = new ConfigurationBuilder()
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(virtualClusterBuilder.build());
 
         // First, learn the broker endpoints.
@@ -631,7 +630,7 @@ class ExpositionIT extends BaseIT {
                 .withNewTargetCluster()
                 .withBootstrapServers(cluster.getBootstrapServers())
                 .endTargetCluster();
-        var builder = new ConfigurationBuilder()
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(virtualClusterBuilder.build());
 
         final HostPort discoveryBrokerAddressToProbe;
@@ -685,7 +684,7 @@ class ExpositionIT extends BaseIT {
 
     @Test
     void targetClusterDynamicallyAddsBroker(@BrokerCluster KafkaCluster cluster) throws Exception {
-        var builder = new ConfigurationBuilder()
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "demo")
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .build())
@@ -718,7 +717,7 @@ class ExpositionIT extends BaseIT {
         cluster.removeBroker(1);
         await().atMost(Duration.ofSeconds(5)).until(() -> admin.describeCluster().nodes().get(),
                 n -> n.stream().map(Node::id).collect(Collectors.toSet()).equals(Set.of(0, 2)));
-        var builder = new ConfigurationBuilder()
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "demo")
                         .addToGateways(defaultGatewayBuilder()
                                 .withNewPortIdentifiesNode()
@@ -736,7 +735,7 @@ class ExpositionIT extends BaseIT {
 
     @Test
     void targetClusterDynamicallyRemovesBroker(@BrokerCluster(numBrokers = 2) KafkaCluster cluster) throws Exception {
-        var builder = new ConfigurationBuilder()
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
                 .addToVirtualClusters(KroxyliciousConfigUtils.baseVirtualClusterBuilder(cluster, "demo")
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .build())

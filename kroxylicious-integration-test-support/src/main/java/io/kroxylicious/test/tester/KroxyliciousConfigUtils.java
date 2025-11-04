@@ -47,7 +47,7 @@ public class KroxyliciousConfigUtils {
      * @return builder
      */
     public static ConfigurationBuilder proxy(String clusterBootstrapServers, String... virtualClusterNames) {
-        final ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
+        final ConfigurationBuilder configurationBuilder = baseConfigurationBuilder();
         for (int i = 0; i < virtualClusterNames.length; i++) {
             String virtualClusterName = virtualClusterNames[i];
             var vcb = new VirtualClusterBuilder()
@@ -130,5 +130,14 @@ public class KroxyliciousConfigUtils {
                 .withBootstrapServers(cluster.getBootstrapServers())
                 .endTargetCluster()
                 .withName(clusterName);
+    }
+
+    public static ConfigurationBuilder baseConfigurationBuilder() {
+        ConfigurationBuilder configurationBuilder = new ConfigurationBuilder();
+        configurationBuilder.withNewNetwork()
+                .withNewManagement().withShutdownQuietPeriodSeconds(0).endManagement()
+                .withNewProxy().withShutdownQuietPeriodSeconds(0).endProxy()
+                .endNetwork();
+        return configurationBuilder;
     }
 }
