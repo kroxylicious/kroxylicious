@@ -15,7 +15,7 @@ Note the container is not automatically restarted when the image or the config f
 podman compose --file compose/kafka-compose.yaml up kroxylicious
 ```
 
-## Accessing the Kroxylicious
+## Accessing the proxy
 
 The compose file makes kroxylicious available inside its own network via DNS as `kroxylicious:9192` it also makes it available from the host by exposing ports `9292-9196` with the associated config in the proxy configuration file. Which can be used to connect from the host via `localhost`
 
