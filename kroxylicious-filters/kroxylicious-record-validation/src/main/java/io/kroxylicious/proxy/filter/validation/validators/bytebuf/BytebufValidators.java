@@ -10,7 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
-import org.jose4j.lang.JoseException;
+import org.jose4j.jwa.AlgorithmConstraints;
+import org.jose4j.jwk.JsonWebKeySet;
 
 /**
  * Static factory methods for creating/getting {@link BytebufValidator} instances
@@ -62,15 +63,10 @@ public class BytebufValidators {
 
     /**
      * get validator that validates if a non-null/non-empty buffer contains a valid JWS (JSON Web Signature)
-     *
-     * <p>
-     * See {@link JwsBytebufValidator#JwsBytebufValidator(String, String, String[]) JwsBytebufValidator} for parameter details.
-     * </p>
-     *
      * @return validator
      */
-    public static BytebufValidator jwsValidator(String jwks, String algorithmConstraintType, String[] algorithms) throws JoseException {
-        return new JwsBytebufValidator(jwks, algorithmConstraintType, algorithms);
+    public static BytebufValidator jwsValidator(JsonWebKeySet jsonWebKeySet, AlgorithmConstraints algorithmConstraints) {
+        return new JwsBytebufValidator(jsonWebKeySet, algorithmConstraints);
     }
 
     /**
