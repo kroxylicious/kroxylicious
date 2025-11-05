@@ -160,6 +160,18 @@ class JwsBytebufValidatorTest {
     }
 
     @Test
+    void emptyStringJwksCausesValidatorConstructorToThrow() {
+        assertThatThrownBy(() -> BytebufValidators.jwsValidator(Arrays.toString(EMPTY), PERMIT.toString(), ES256))
+                .isInstanceOf(JoseException.class);
+    }
+
+    @Test
+    void invalidJsonJwksCausesValidatorConstructorToThrow() {
+        assertThatThrownBy(() -> BytebufValidators.jwsValidator(INVALID_JSON, PERMIT.toString(), ES256))
+                .isInstanceOf(JoseException.class);
+    }
+
+    @Test
     void nonJwsValueFailsJwsValidation() {
         Record record = record(EMPTY, NON_JWS_VALUE);
         BytebufValidator validator = assertDoesNotThrow(() -> BytebufValidators.jwsValidator(ECDSA_JWKS.toJson(), PERMIT.toString(), ES256));
