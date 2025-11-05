@@ -48,6 +48,8 @@ public class KafkaSteps {
         List<String> args = List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
                 "--topic-rep-factor=" + replicas);
 
+        // TODO: Test if compression type can be set at topic level
+
         Job adminClientJob = TestClientsJobTemplates.defaultAdminClientJob(name, args).build();
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
         String podName = KafkaUtils.getPodNameByLabel(deployNamespace, "app", name, Duration.ofSeconds(30));

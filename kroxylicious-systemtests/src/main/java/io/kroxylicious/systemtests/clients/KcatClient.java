@@ -58,7 +58,7 @@ public class KcatClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages) {
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, String compressionType, int numOfMessages) {
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
 
         StringBuilder msg = new StringBuilder();
@@ -79,7 +79,7 @@ public class KcatClient implements KafkaClient {
                 "--image=" + Constants.KCAT_CLIENT_IMAGE,
                 "--override-type=strategic",
                 "--overrides=" + jsonOverrides,
-                "--", "-b", bootstrap, "-l", "-t", topicName, "-P"));
+                "--", "-b", bootstrap, "-l", "-t", topicName, "-P", "-z", compressionType));
         recordKey.ifPresent(ignored -> executableCommand.add("-K :"));
 
         KafkaUtils.produceMessagesWithCmd(deployNamespace, executableCommand, String.valueOf(msg), name, KafkaClientType.KCAT.name().toLowerCase());

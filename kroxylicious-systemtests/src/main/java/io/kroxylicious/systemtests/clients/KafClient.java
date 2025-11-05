@@ -59,7 +59,7 @@ public class KafClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages) {
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, String compressionType, int numOfMessages) {
         LOGGER.atInfo().setMessage("Producing messages in '{}' topic using kaf").addArgument(topicName).log();
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-kaf-" + TestUtils.getRandomPodNameSuffix();

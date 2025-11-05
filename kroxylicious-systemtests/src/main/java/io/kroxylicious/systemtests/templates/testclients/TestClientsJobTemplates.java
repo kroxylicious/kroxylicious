@@ -11,6 +11,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.kafka.common.record.CompressionType;
+
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
@@ -38,6 +40,7 @@ public class TestClientsJobTemplates {
     private static final String PRODUCER_ACKS_VAR = "PRODUCER_ACKS";
     private static final String DELAY_MS_VAR = "DELAY_MS";
     private static final String OUTPUT_FORMAT_VAR = "OUTPUT_FORMAT";
+    private static final String ADDITIONAL_CONFIG_VAR = "ADDITIONAL_CONFIG";
 
     private TestClientsJobTemplates() {
     }
@@ -110,11 +113,11 @@ public class TestClientsJobTemplates {
      * @return the job builder
      */
     public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message,
-                                                          @Nullable String messageKey) {
+                                                          @Nullable String messageKey, String compressionType) {
         return newJobForContainer(jobName,
                 "test-client-producer",
                 Environment.TEST_CLIENTS_IMAGE,
-                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey));
+                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey, compressionType));
     }
 
     private static JobBuilder newJobForContainer(String jobName, String containerName, String image, List<EnvVar> envVars) {
@@ -219,7 +222,8 @@ public class TestClientsJobTemplates {
                 .build();
     }
 
-    private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message, @Nullable String messageKey) {
+    private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message,
+                                                           @Nullable String messageKey, String compressionType) {
         List<EnvVar> envVars = new ArrayList<>(List.of(
                 envVar(BOOTSTRAP_VAR, bootstrap),
                 envVar(DELAY_MS_VAR, "200"),
@@ -232,6 +236,11 @@ public class TestClientsJobTemplates {
         if (messageKey != null) {
             envVars.add(envVar(MESSAGE_KEY_VAR, messageKey));
         }
+        List<String> additionalConfig = new ArrayList<>();
+        if (!compressionType.equals(CompressionType.NONE.name)) {
+            additionalConfig.add("compression.type=" + compressionType);
+        }
+        envVars.add(envVar(ADDITIONAL_CONFIG_VAR, String.join(",", additionalConfig)));
         return envVars;
     }
 

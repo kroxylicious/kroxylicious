@@ -9,6 +9,8 @@ package io.kroxylicious.systemtests.steps;
 import java.time.Duration;
 import java.util.List;
 
+import org.apache.kafka.common.record.CompressionType;
+
 import io.kroxylicious.systemtests.clients.KafkaClients;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 
@@ -18,6 +20,20 @@ import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 public class KroxyliciousSteps {
 
     private KroxyliciousSteps() {
+    }
+
+    /**
+     * Produce messages.
+     *
+     * @param namespace the namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param message the message
+     * @param compressionType the compression type
+     * @param numberOfMessages the number of messages
+     */
+    public static void produceMessages(String namespace, String topicName, String bootstrap, String message, CompressionType compressionType, int numberOfMessages) {
+        KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, compressionType, numberOfMessages);
     }
 
     /**
