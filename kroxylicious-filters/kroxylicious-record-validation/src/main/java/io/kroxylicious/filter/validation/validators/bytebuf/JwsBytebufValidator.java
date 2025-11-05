@@ -17,7 +17,6 @@ import org.jose4j.jwa.AlgorithmConstraints;
 import org.jose4j.jwk.JsonWebKey;
 import org.jose4j.jwk.JsonWebKeySet;
 import org.jose4j.jwk.VerificationJwkSelector;
-import org.jose4j.jws.AlgorithmIdentifiers;
 import org.jose4j.jws.JsonWebSignature;
 import org.jose4j.lang.JoseException;
 import org.jose4j.lang.UnresolvableKeyException;
@@ -45,20 +44,11 @@ public class JwsBytebufValidator implements BytebufValidator {
     /**
      * Constructor for {@link JwsBytebufValidator}.
      *
-     * @param jwks Result of {@link JsonWebKeySet#toJson()}.
-     * @param algorithmConstraintType Result of {@link AlgorithmConstraints.ConstraintType#toString()}.
-     * @param algorithms Array of {@link AlgorithmIdentifiers}.
-     * @throws JoseException If the {@code jwks} cannot be parsed.
-     * @throws IllegalArgumentException If the {@code algorithmConstraintType} cannot be parsed using {@link AlgorithmConstraints.ConstraintType#valueOf}
-     *
      * @see <a href="https://bitbucket.org/b_c/jose4j/wiki/JWS%20Examples">jose4j JWS examples</a>
      */
-    public JwsBytebufValidator(String jwks, String algorithmConstraintType, String[] algorithms) throws JoseException {
-        AlgorithmConstraints.ConstraintType constraintType = AlgorithmConstraints.ConstraintType.valueOf(algorithmConstraintType);
-        AlgorithmConstraints algorithmConstraints = new AlgorithmConstraints(constraintType, algorithms);
+    public JwsBytebufValidator(JsonWebKeySet jsonWebKeySet, AlgorithmConstraints algorithmConstraints) {
+        this.jsonWebKeySet = jsonWebKeySet;
         jws.setAlgorithmConstraints(algorithmConstraints);
-
-        jsonWebKeySet = new JsonWebKeySet(jwks);
     }
 
     @Override

@@ -8,10 +8,10 @@ package io.kroxylicious.proxy.filter.validation.validators.bytebuf;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.record.Record;
+import org.jose4j.jwa.AlgorithmConstraints;
 import org.jose4j.jwk.JsonWebKeySet;
 import org.jose4j.jwk.PublicJsonWebKey;
 import org.jose4j.jws.AlgorithmIdentifiers;
@@ -23,15 +23,12 @@ import io.kroxylicious.proxy.filter.validation.validators.Result;
 
 import static io.kroxylicious.test.record.RecordTestUtils.record;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.jose4j.jwa.AlgorithmConstraints.ConstraintType.BLOCK;
-import static org.jose4j.jwa.AlgorithmConstraints.ConstraintType.PERMIT;
-import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 
 class JwsBytebufValidatorTest {
     // Recommended algorithms from https://datatracker.ietf.org/doc/html/rfc7518#section-3.1
-    private static final String[] ES256 = new String[]{ AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256 };
-    private static final String[] RS256 = new String[]{ AlgorithmIdentifiers.RSA_USING_SHA256 };
+    private static final AlgorithmConstraints PERMIT_ES256 = new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.PERMIT,
+            AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256);
+    private static final AlgorithmConstraints PERMIT_RS256 = new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.PERMIT, AlgorithmIdentifiers.RSA_USING_SHA256);
 
     private static final JsonWebKeySet ECDSA_JWKS;
     private static final JsonWebKeySet MISSING_ECDSA_JWKS;
@@ -101,12 +98,10 @@ class JwsBytebufValidatorTest {
     private static final byte[] NON_JWS_VALUE = "This is a non JWS value".getBytes(StandardCharsets.UTF_8);
     private static final byte[] EMPTY = new byte[0];
 
-    private static final String INVALID_JSON = "{ \"invalid\": &";
-
     @Test
     void keySignedWithEcdsaJwkPassesJwsValidation() {
         Record record = record(VALID_JWS_USING_ECDSA_JWK, EMPTY);
-        BytebufValidator validator = assertDoesNotThrow(() -> BytebufValidators.jwsValidator(ECDSA_JWKS.toJson(), PERMIT.toString(), ES256));
+        BytebufValidator validator = BytebufValidators.jwsValidator(ECDSA_JWKS, PERMIT_ES256);
         CompletionStage<Result> future = validator.validate(record.key(), record, true);
 
         assertThat(future)
@@ -117,7 +112,7 @@ class JwsBytebufValidatorTest {
     @Test
     void valueSignedWithEcdsaJwkPassesJwsValidation() {
         Record record = record(EMPTY, VALID_JWS_USING_ECDSA_JWK);
-        BytebufValidator validator = assertDoesNotThrow(() -> BytebufValidators.jwsValidator(ECDSA_JWKS.toJson(), PERMIT.toString(), ES256));
+        BytebufValidator validator = BytebufValidators.jwsValidator(ECDSA_JWKS, PERMIT_ES256);
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -128,7 +123,7 @@ class JwsBytebufValidatorTest {
     @Test
     void valueSignedWithRsaJwkPassesJwsValidation() {
         Record record = record(EMPTY, VALID_JWS_USING_RSA_JWK);
-        BytebufValidator validator = assertDoesNotThrow(() -> BytebufValidators.jwsValidator(RSA_JWKS.toJson(), PERMIT.toString(), RS256));
+        BytebufValidator validator = BytebufValidators.jwsValidator(RSA_JWKS, PERMIT_RS256);
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -140,8 +135,7 @@ class JwsBytebufValidatorTest {
     void valuesSignedWithEcdsaJwkAndValueSignedWithRsaJwkBothPassJwsValidationWithNoConstraints() {
         Record ecdsaRecord = record(EMPTY, VALID_JWS_USING_ECDSA_JWK);
 
-        // This is equivalent to AlgorithmConstraints.NO_CONSTRAINTS
-        BytebufValidator ecdsaValidator = assertDoesNotThrow(() -> BytebufValidators.jwsValidator(ECDSA_JWKS.toJson(), BLOCK.toString(), new String[]{}));
+        BytebufValidator ecdsaValidator = BytebufValidators.jwsValidator(ECDSA_JWKS, AlgorithmConstraints.NO_CONSTRAINTS);
         CompletionStage<Result> ecdsaFuture = ecdsaValidator.validate(ecdsaRecord.value(), ecdsaRecord, false);
 
         assertThat(ecdsaFuture)
@@ -150,8 +144,7 @@ class JwsBytebufValidatorTest {
 
         Record rsaRecord = record(EMPTY, VALID_JWS_USING_RSA_JWK);
 
-        // This is equivalent to AlgorithmConstraints.NO_CONSTRAINTS
-        BytebufValidator rsaValidator = assertDoesNotThrow(() -> BytebufValidators.jwsValidator(RSA_JWKS.toJson(), BLOCK.toString(), new String[]{}));
+        BytebufValidator rsaValidator = BytebufValidators.jwsValidator(RSA_JWKS, AlgorithmConstraints.NO_CONSTRAINTS);
         CompletionStage<Result> rsaFuture = rsaValidator.validate(rsaRecord.value(), rsaRecord, false);
 
         assertThat(rsaFuture)
@@ -160,28 +153,9 @@ class JwsBytebufValidatorTest {
     }
 
     @Test
-    void emptyStringJwksCausesValidatorConstructorToThrow() {
-        assertThatThrownBy(() -> BytebufValidators.jwsValidator(Arrays.toString(EMPTY), PERMIT.toString(), ES256))
-                .isInstanceOf(JoseException.class);
-    }
-
-    @Test
-    void invalidJsonJwksCausesValidatorConstructorToThrow() {
-        assertThatThrownBy(() -> BytebufValidators.jwsValidator(INVALID_JSON, PERMIT.toString(), ES256))
-                .isInstanceOf(JoseException.class);
-    }
-
-    @SuppressWarnings("squid:S5778") // We know that toJson() and toString() will certainly pass. Otherwise, all the other tests would laos fail.
-    @Test
-    void invalidAlgorithmConstraintTypeCausesValidatorConstructorToThrow() {
-        assertThatThrownBy(() -> BytebufValidators.jwsValidator(ECDSA_JWKS.toJson(), Arrays.toString(EMPTY), ES256))
-                .isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
     void nonJwsValueFailsJwsValidation() {
         Record record = record(EMPTY, NON_JWS_VALUE);
-        BytebufValidator validator = assertDoesNotThrow(() -> BytebufValidators.jwsValidator(ECDSA_JWKS.toJson(), PERMIT.toString(), ES256));
+        BytebufValidator validator = BytebufValidators.jwsValidator(ECDSA_JWKS, PERMIT_ES256);
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -192,7 +166,7 @@ class JwsBytebufValidatorTest {
     @Test
     void valueSignedWithMissingEcdsaJwkFailsJwsValidation() {
         Record record = record(EMPTY, VALID_JWS_USING_MISSING_ECDSA_JWK);
-        BytebufValidator validator = assertDoesNotThrow(() -> BytebufValidators.jwsValidator(ECDSA_JWKS.toJson(), PERMIT.toString(), ES256));
+        BytebufValidator validator = BytebufValidators.jwsValidator(ECDSA_JWKS, PERMIT_ES256);
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -203,7 +177,7 @@ class JwsBytebufValidatorTest {
     @Test
     void valueSignedWithRsaJwkFailsJwsValidationDueToEcdsaConstraints() {
         Record record = record(EMPTY, VALID_JWS_USING_RSA_JWK);
-        BytebufValidator validator = assertDoesNotThrow(() -> BytebufValidators.jwsValidator(RSA_JWKS.toJson(), PERMIT.toString(), ES256));
+        BytebufValidator validator = BytebufValidators.jwsValidator(RSA_JWKS, PERMIT_ES256);
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
 
         assertThat(future)
