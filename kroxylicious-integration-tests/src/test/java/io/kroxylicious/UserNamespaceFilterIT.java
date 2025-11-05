@@ -27,7 +27,6 @@ import org.apache.kafka.common.errors.GroupIdNotFoundException;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.apache.kafka.common.security.plain.PlainLoginModule;
 import org.assertj.core.api.InstanceOfAssertFactories;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -50,6 +49,8 @@ import static org.awaitility.Awaitility.await;
  */
 @ExtendWith(KafkaClusterExtension.class)
 class UserNamespaceFilterIT {
+
+    public static final String CONSUMER_GROUP_NAME = "mygroup";
 
     private enum ConsumerStyle {
         ASSIGN
@@ -89,13 +90,12 @@ class UserNamespaceFilterIT {
      * @param topic topic
      */
     @Test
-    @Disabled
     void consumerGroupOffsetMaintainGroupIsolation(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"),
             @SaslMechanism.Principal(user = "bob", password = "pwd") }) KafkaCluster cluster, Topic topic) {
 
         var configBuilder = buildConfig(cluster);
-        var aliceConfig = buildClientConfig("alice", "pwd", Map.of(ConsumerConfig.GROUP_ID_CONFIG, "mygroup", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
-        var bobConfig = buildClientConfig("bob", "pwd", Map.of(ConsumerConfig.GROUP_ID_CONFIG, "mygroup", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
+        var aliceConfig = buildClientConfig("alice", "pwd", Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME, ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
+        var bobConfig = buildClientConfig("bob", "pwd", Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME, ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
 
         try (var tester = kroxyliciousTester(configBuilder);
                 var producer = tester.producer(aliceConfig)) {
@@ -113,7 +113,7 @@ class UserNamespaceFilterIT {
 
                 var first = aliceRecs.records(topic.name()).iterator().next();
                 // commit the first record
-                aliceConsumer.commitSync(Map.of(new TopicPartition(topic.name(), first.partition()), new OffsetAndMetadata(first.offset() + 1)));
+                aliceConsumer.commitSync(Map.of(new TopicPartition(topic.name(), first.partition()), new OffsetAndMetadata(first.offset())));
                 aliceConsumer.close(CloseOptions.groupMembershipOperation(CloseOptions.GroupMembershipOperation.REMAIN_IN_GROUP));
             }
 
@@ -131,7 +131,6 @@ class UserNamespaceFilterIT {
                 var aliceRecs = aliceConsumer.poll(Duration.ofSeconds(5));
 
                 assertThat(aliceRecs)
-                        .hasSize(1)
                         .singleElement()
                         .extracting(ConsumerRecord::key)
                         .isEqualTo("k2");
