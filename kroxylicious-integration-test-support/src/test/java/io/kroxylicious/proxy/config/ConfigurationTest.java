@@ -438,6 +438,23 @@ class ConfigurationTest {
                                       portIdentifiesNode:
                                         bootstrapAddress: cluster1:9192
                                 """),
+                argumentSet("Proxy worker shutdown quiet period seconds",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewProxy().withShutdownQuietPeriodSeconds(5).endProxy()
+                                .endNetwork()
+                                .build(),
+                        """
+                                network:
+                                    proxy:
+                                        shutdownQuietPeriodSeconds: 5
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
+                                """),
                 argumentSet("Proxy worker thread count",
                         new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewProxy().withWorkerThreadCount(5).endProxy().endNetwork()
                                 .build(),
@@ -454,7 +471,24 @@ class ConfigurationTest {
                                       portIdentifiesNode:
                                         bootstrapAddress: example.com:1234
                                 """),
-                argumentSet("Manaegment worker thread count",
+                argumentSet("Management worker shutdown quiet period seconds",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewManagement().withShutdownQuietPeriodSeconds(5)
+                                .endManagement()
+                                .endNetwork().build(),
+                        """
+                                network:
+                                    management:
+                                        shutdownQuietPeriodSeconds: 5
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
+                                """),
+                argumentSet("Management worker thread count",
                         new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewManagement().withWorkerThreadCount(2).endManagement()
                                 .endNetwork().build(),
                         """
