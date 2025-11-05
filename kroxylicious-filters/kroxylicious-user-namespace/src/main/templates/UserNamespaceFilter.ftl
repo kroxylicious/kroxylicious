@@ -27,21 +27,22 @@ import java.util.Set;
 import java.util.concurrent.CompletionStage;
 
 <#list messageSpecs as messageSpec>
+<#if messageSpec.type?lower_case == 'request' && messageSpec.entityFields.hasAtLeastOneEntityField>
 import org.apache.kafka.common.message.${messageSpec.name}Data;
+</#if>
 </#list>
 
-import org.apache.kafka.common.message.ConsumerGroupDescribeRequestData;
 import org.apache.kafka.common.message.ConsumerGroupDescribeResponseData;
-import org.apache.kafka.common.message.DescribeGroupsRequestData;
 import org.apache.kafka.common.message.DescribeGroupsResponseData;
 import org.apache.kafka.common.message.FindCoordinatorRequestData;
 import org.apache.kafka.common.message.FindCoordinatorResponseData;
-import org.apache.kafka.common.message.OffsetCommitRequestData;
 import org.apache.kafka.common.message.OffsetCommitResponseData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -56,9 +57,6 @@ import static org.apache.kafka.common.protocol.ApiKeys.FIND_COORDINATOR;
 import static org.apache.kafka.common.protocol.ApiKeys.OFFSET_COMMIT;
 
 
-import org.apache.kafka.common.protocol.ApiKeys;
-import org.apache.kafka.common.protocol.ApiMessage;
-
 /**
 * Decodes Kafka Readable into an ApiMessage
 * <p>Note: this class is automatically generated from a template</p>
@@ -67,7 +65,17 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 
     private final UserNamespace.Config config;
 
-    private final Set<ApiKeys> keys = Set.of(FIND_COORDINATOR, OFFSET_COMMIT, CONSUMER_GROUP_DESCRIBE, DESCRIBE_GROUPS);
+    private static final Set<ApiKeys> keys = Set.of(FIND_COORDINATOR, OFFSET_COMMIT, CONSUMER_GROUP_DESCRIBE, DESCRIBE_GROUPS);
+    private static final Logger LOGGER = LoggerFactory.getLogger(UserNamespaceFilter.class);
+
+    <#list messageSpecs as messageSpec>
+        <#if messageSpec.type?lower_case == 'request' && messageSpec.entityFields.hasAtLeastOneEntityField>
+            <#assign specName>
+            <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${word?c_upper_case}<#sep>_</#list>
+            </#assign>
+    private static final Set<Short> ${specName?trim}_VERSIONS = Set.of(<#list messageSpec.entityFields.orderedVersions as version>(short) ${version}<#sep>, </#list>);
+        </#if>
+    </#list>
 
     UserNamespaceFilter(UserNamespace.Config config) {
         this.config = config;
@@ -81,10 +89,11 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
         }
         return switch (apiKey) {
 <#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'request'>
-        <#if messageSpec.entityFields.hasAtLeastOneEntityField  >
-          case ${retrieveApiKey(messageSpec)} -> inVersion(apiVersion, Set.of(<#list messageSpec.entityFields.orderedVersions as version> (short) ${version}<#sep>, </#list>));
-        </#if>
+    <#if messageSpec.type?c_lower_case == 'request' && messageSpec.entityFields.hasAtLeastOneEntityField>
+        <#assign specName>
+            <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${word?c_upper_case}<#sep>_</#list>
+        </#assign>
+            case ${retrieveApiKey(messageSpec)} -> inVersion(apiVersion, ${specName?trim}_VERSIONS);
     </#if>
 </#list>
             default -> false;
@@ -114,7 +123,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                     if (config.resourceTypes().contains(UserNamespace.ResourceType.GROUP_ID) &&  findCoordinatorRequestData.keyType() == 0 /* CHECK ME */) {
                         findCoordinatorRequestData.setCoordinatorKeys(findCoordinatorRequestData.coordinatorKeys().stream().map(k -> aid + "-" + k).toList());
                     }
-                    System.out.println(findCoordinatorRequestData);
+                    LOGGER.atDebug().addArgument(findCoordinatorRequestData).log("find coordinator request: {}");
                 }
 <#--                case OFFSET_COMMIT -> {-->
 <#--                    OffsetCommitRequestData offsetCommitRequestData = (OffsetCommitRequestData) request;-->
@@ -160,15 +169,13 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 
             switch (apiKey) {
 <#list messageSpecs as messageSpec>
-    <#if messageSpec.type?lower_case == 'request'>
-        <#if messageSpec.entityFields.hasAtLeastOneEntityField  >
-        case ${retrieveApiKey(messageSpec)} -> {
-          <@dumpFoo messageSpec messageSpec.entityFields />
-        }
-        </#if>
+    <#if messageSpec.type?lower_case == 'request' && messageSpec.entityFields.hasAtLeastOneEntityField>
+                case ${retrieveApiKey(messageSpec)} -> {
+                  <@dumpFoo messageSpec messageSpec.entityFields />
+                }
     </#if>
 </#list>
-            };
+            }
 
 
         });
@@ -200,25 +207,25 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                     FindCoordinatorResponseData findCoordinatorResponseData = (FindCoordinatorResponseData) response;
                     findCoordinatorResponseData.coordinators().forEach(
                             coordinator -> coordinator.setKey(coordinator.key().substring(aid.length() + 1)));
-                    System.out.println(findCoordinatorResponseData);
+                    LOGGER.atDebug().addArgument(findCoordinatorResponseData).log("find coordinator response: {}");
                 }
                 case OFFSET_COMMIT -> {
                     OffsetCommitResponseData offsetCommitResponseData = (OffsetCommitResponseData) response;
-                    System.out.println(response);
+                    LOGGER.atDebug().addArgument(response).log("offset commit response: {}");
                 }
                 case CONSUMER_GROUP_DESCRIBE -> {
                     ConsumerGroupDescribeResponseData consumerGroupDescribeResponseData = (ConsumerGroupDescribeResponseData) response;
                     consumerGroupDescribeResponseData.groups().forEach(group -> {
                         group.setGroupId(group.groupId().substring(aid.length() + 1));
                     });
-                    System.out.println(response);
+                    LOGGER.atDebug().addArgument(response).log("consumer group describe response: {}");
                 }
                 case DESCRIBE_GROUPS -> {
                     DescribeGroupsResponseData describeGroupsResponseData = (DescribeGroupsResponseData) response;
                     describeGroupsResponseData.groups().forEach(g -> {
                         g.setGroupId(g.groupId().substring(aid.length() + 1));
                     });
-                    System.out.println(response);
+                    LOGGER.atDebug().addArgument(response).log("describe group response: {}");
                 }
 
             }

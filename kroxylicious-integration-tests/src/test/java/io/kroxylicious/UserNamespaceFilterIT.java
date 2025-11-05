@@ -19,8 +19,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRebalanceListener;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
-import org.apache.kafka.clients.consumer.OffsetResetStrategy;
-import org.apache.kafka.clients.consumer.internals.AutoOffsetResetStrategy;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.GroupState;
 import org.apache.kafka.common.TopicPartition;
@@ -53,7 +51,6 @@ import static org.awaitility.Awaitility.await;
 @ExtendWith(KafkaClusterExtension.class)
 class UserNamespaceFilterIT {
 
-
     private enum ConsumerStyle {
         ASSIGN
     }
@@ -67,7 +64,8 @@ class UserNamespaceFilterIT {
      * @param topic topic
      */
     @Test
-    void describeGroupMaintainsGroupIsolation(@SaslMechanism(principals = { @SaslMechanism.Principal( user = "alice", password = "pwd") , @SaslMechanism.Principal( user = "bob", password = "pwd") }) KafkaCluster cluster, Topic topic) {
+    void describeGroupMaintainsGroupIsolation(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"),
+            @SaslMechanism.Principal(user = "bob", password = "pwd") }) KafkaCluster cluster, Topic topic) {
 
         var configBuilder = buildConfig(cluster);
 
@@ -92,7 +90,8 @@ class UserNamespaceFilterIT {
      */
     @Test
     @Disabled
-    void consumerGroupOffsetMaintainGroupIsolation(@SaslMechanism(principals = { @SaslMechanism.Principal( user = "alice", password = "pwd") , @SaslMechanism.Principal( user = "bob", password = "pwd") }) KafkaCluster cluster, Topic topic) {
+    void consumerGroupOffsetMaintainGroupIsolation(@SaslMechanism(principals = { @SaslMechanism.Principal(user = "alice", password = "pwd"),
+            @SaslMechanism.Principal(user = "bob", password = "pwd") }) KafkaCluster cluster, Topic topic) {
 
         var configBuilder = buildConfig(cluster);
         var aliceConfig = buildClientConfig("alice", "pwd", Map.of(ConsumerConfig.GROUP_ID_CONFIG, "mygroup", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
@@ -141,7 +140,6 @@ class UserNamespaceFilterIT {
         }
     }
 
-
     private static ConfigurationBuilder buildConfig(KafkaCluster cluster) {
         var configBuilder = KroxyliciousConfigUtils.proxy(cluster);
 
@@ -158,7 +156,6 @@ class UserNamespaceFilterIT {
 
         userNamespaceFilter.withConfig("resourceTypes", List.of("GROUP_ID"));
         var userNamespace = userNamespaceFilter.build();
-
 
         configBuilder.addToFilterDefinitions(saslInspection, userNamespace)
                 .addToDefaultFilters(saslInspection.name(), userNamespace.name());
@@ -191,17 +188,16 @@ class UserNamespaceFilterIT {
         config.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name);
         config.put(SaslConfigs.SASL_JAAS_CONFIG,
                 String.format("""
-                        %s required username="%s" password="%s";""",
+                                %s required username="%s" password="%s";""",
                         PlainLoginModule.class.getName(), username, password));
         config.put(SaslConfigs.SASL_MECHANISM, "PLAIN");
         return config;
     }
 
-
     private void runConsumerInOrderToCreateGroup(KroxyliciousTester tester, String groupId, Topic topic, ConsumerStyle consumerStyle,
                                                  Map<String, Object> clientConfig) {
-       var consumerConfig = new HashMap<>(clientConfig);
-       consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        var consumerConfig = new HashMap<>(clientConfig);
+        consumerConfig.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         try (var consumer = tester.consumer(consumerConfig)) {
 
             if (consumerStyle == ConsumerStyle.ASSIGN) {
@@ -219,28 +215,28 @@ class UserNamespaceFilterIT {
     }
 
     private static class PartitionAssignmentAwaitingRebalanceListener<K, V> implements ConsumerRebalanceListener {
-            private final AtomicBoolean assigned = new AtomicBoolean();
-            private final Consumer<K, V> consumer;
+        private final AtomicBoolean assigned = new AtomicBoolean();
+        private final Consumer<K, V> consumer;
 
-            PartitionAssignmentAwaitingRebalanceListener(Consumer<K, V> consumer) {
-                this.consumer = consumer;
-            }
-
-            @Override
-            public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
-            }
-
-            @Override
-            public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
-                assigned.set(true);
-            }
-
-            public void awaitAssignment(Duration timeout) {
-                await().atMost(timeout).until(() -> {
-                    consumer.poll(Duration.ofMillis(50));
-                    return assigned.get();
-                });
-            }
+        PartitionAssignmentAwaitingRebalanceListener(Consumer<K, V> consumer) {
+            this.consumer = consumer;
         }
 
+        @Override
+        public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
+        }
+
+        @Override
+        public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
+            assigned.set(true);
+        }
+
+        public void awaitAssignment(Duration timeout) {
+            await().atMost(timeout).until(() -> {
+                consumer.poll(Duration.ofMillis(50));
+                return assigned.get();
+            });
+        }
     }
+
+}
