@@ -171,6 +171,13 @@ class JwsBytebufValidatorTest {
                 .isInstanceOf(JoseException.class);
     }
 
+    @SuppressWarnings("squid:S5778") // We know that toJson() and toString() will certainly pass. Otherwise, all the other tests would laos fail.
+    @Test
+    void invalidAlgorithmConstraintTypeCausesValidatorConstructorToThrow() {
+        assertThatThrownBy(() -> BytebufValidators.jwsValidator(ECDSA_JWKS.toJson(), Arrays.toString(EMPTY), ES256))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     @Test
     void nonJwsValueFailsJwsValidation() {
         Record record = record(EMPTY, NON_JWS_VALUE);
