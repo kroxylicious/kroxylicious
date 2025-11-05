@@ -25,13 +25,14 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
-import io.kroxylicious.proxy.filter.validation.validators.bytebuf.JwsBytebufValidatorTest;
+import io.kroxylicious.proxy.filter.validation.validators.bytebuf.JwsSignatureBytebufValidatorTest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ValidationConfigTest {
-    private static final JsonWebKeySet ECDSA_JWKS = JwsBytebufValidatorTest.ECDSA_JWKS;
-    private static final JsonWebKeySet RSA_AND_ECDSA_JWKS = JwsBytebufValidatorTest.RSA_AND_ECDSA_JWKS;
+
+    private static final JsonWebKeySet ECDSA_JWKS = JwsSignatureBytebufValidatorTest.ECDSA_JWKS;
+    private static final JsonWebKeySet RSA_AND_ECDSA_JWKS = JwsSignatureBytebufValidatorTest.RSA_AND_ECDSA_JWKS;
 
     private static ValidationConfig expectedApicurioConfig() throws MalformedURLException {
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
@@ -117,7 +118,7 @@ class ValidationConfigTest {
     }
 
     @Test
-    void testDecodeDefaultValuesJwsValidation() throws JsonProcessingException {
+    void testDecodeDefaultValuesJwsSignatureValidation() throws JsonProcessingException {
         ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
         ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue("""
                 defaultRule:
@@ -127,7 +128,7 @@ class ValidationConfigTest {
                   - one
                   valueRule:
                     syntacticallyCorrectJson: {}
-                    jwsValidationConfig:
+                    jwsSignatureValidationConfig:
                         jsonWebKeySet: >
                             {
                               "keys": [
@@ -148,7 +149,7 @@ class ValidationConfigTest {
                 """);
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, new JwsValidationConfig(ECDSA_JWKS, null, null), true, false));
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, new JwsSignatureValidationConfig(ECDSA_JWKS, null, null), true, false));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, true, false), null);
         ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo),
                 new RecordValidationRule(null, new BytebufValidation(null, null, null, true, false)));
@@ -156,7 +157,7 @@ class ValidationConfigTest {
     }
 
     @Test
-    void testDecodeNonDefaultValuesJwsValidation() throws JsonProcessingException {
+    void testDecodeNonDefaultValuesJwsSignatureValidation() throws JsonProcessingException {
         ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
         ValidationConfig deserialised = yamlMapper.readerFor(ValidationConfig.class).readValue(
                 """
@@ -170,7 +171,7 @@ class ValidationConfigTest {
                           valueRule:
                             syntacticallyCorrectJson:
                                 validateObjectKeysUnique: true
-                            jwsValidationConfig:
+                            jwsSignatureValidationConfig:
                                 jsonWebKeySet: >
                                     {
                                       "keys": [
@@ -208,7 +209,7 @@ class ValidationConfigTest {
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
                 new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), null,
-                        new JwsValidationConfig(RSA_AND_ECDSA_JWKS, AlgorithmConstraints.ConstraintType.PERMIT,
+                        new JwsSignatureValidationConfig(RSA_AND_ECDSA_JWKS, AlgorithmConstraints.ConstraintType.PERMIT,
                                 new String[]{ AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256 }),
                         false,
                         true));
