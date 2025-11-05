@@ -40,7 +40,7 @@ public class JwsSignatureValidationConfig {
     private final AlgorithmConstraints algorithmConstraints;
 
     static {
-        @SuppressWarnings("java:S2440")
+        @SuppressWarnings("java:S2440") // Needed for reflection
         Object algorithmIdentifiers = new AlgorithmIdentifiers();
         Field[] declaredFields = algorithmIdentifiers.getClass().getDeclaredFields();
         algorithmIdentifiersClassValues = Arrays.stream(declaredFields).map(field -> {
