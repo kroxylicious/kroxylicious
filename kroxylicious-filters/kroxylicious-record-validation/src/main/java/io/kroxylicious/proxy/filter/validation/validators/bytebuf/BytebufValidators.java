@@ -65,8 +65,8 @@ public class BytebufValidators {
      * get validator that validates if a non-null/non-empty buffer contains a valid JWS (JSON Web Signature)
      * @return validator
      */
-    public static BytebufValidator jwsValidator(JsonWebKeySet jsonWebKeySet, AlgorithmConstraints algorithmConstraints) {
-        return new JwsBytebufValidator(jsonWebKeySet, algorithmConstraints);
+    public static BytebufValidator jwsSignatureValidator(JsonWebKeySet jsonWebKeySet, AlgorithmConstraints algorithmConstraints) {
+        return new JwsSignatureBytebufValidator(jsonWebKeySet, algorithmConstraints);
     }
 
     /**

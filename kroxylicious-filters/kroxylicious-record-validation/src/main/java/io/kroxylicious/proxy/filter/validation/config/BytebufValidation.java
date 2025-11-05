@@ -20,7 +20,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public class BytebufValidation {
     private final @Nullable SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig;
     private final @Nullable SchemaValidationConfig schemaValidationConfig;
-    private final @Nullable JwsValidationConfig jwsValidationConfig;
+    private final @Nullable JwsSignatureValidationConfig jwsSignatureValidationConfig;
     private final boolean allowNulls;
     private final boolean allowEmpty;
 
@@ -34,12 +34,12 @@ public class BytebufValidation {
     @JsonCreator
     public BytebufValidation(@JsonProperty("syntacticallyCorrectJson") @Nullable SyntacticallyCorrectJsonConfig syntacticallyCorrectJsonConfig,
                              @JsonProperty("schemaValidationConfig") @Nullable SchemaValidationConfig schemaValidationConfig,
-                             @JsonProperty("jwsValidationConfig") @Nullable JwsValidationConfig jwsValidationConfig,
+                             @JsonProperty("jwsSignatureValidationConfig") @Nullable JwsSignatureValidationConfig jwsSignatureValidationConfig,
                              @JsonProperty(value = "allowNulls", defaultValue = "true") @Nullable Boolean allowNulls,
                              @JsonProperty(value = "allowEmpty", defaultValue = "false") @Nullable Boolean allowEmpty) {
         this.syntacticallyCorrectJsonConfig = syntacticallyCorrectJsonConfig;
         this.schemaValidationConfig = schemaValidationConfig;
-        this.jwsValidationConfig = jwsValidationConfig;
+        this.jwsSignatureValidationConfig = jwsSignatureValidationConfig;
         this.allowNulls = allowNulls == null || allowNulls;
         this.allowEmpty = allowEmpty != null && allowEmpty;
     }
@@ -64,8 +64,8 @@ public class BytebufValidation {
      * Get jws validation json config
      * @return optional containing jws validation config if non-null, empty otherwise
      */
-    public Optional<JwsValidationConfig> getJwsValidationConfig() {
-        return Optional.ofNullable(jwsValidationConfig);
+    public Optional<JwsSignatureValidationConfig> getJwsSignatureValidationConfig() {
+        return Optional.ofNullable(jwsSignatureValidationConfig);
     }
 
     /**
@@ -95,12 +95,12 @@ public class BytebufValidation {
         BytebufValidation that = (BytebufValidation) o;
         return allowNulls == that.allowNulls && allowEmpty == that.allowEmpty && Objects.equals(syntacticallyCorrectJsonConfig,
                 that.syntacticallyCorrectJsonConfig) && Objects.equals(schemaValidationConfig, that.schemaValidationConfig)
-                && Objects.equals(jwsValidationConfig, that.jwsValidationConfig);
+                && Objects.equals(jwsSignatureValidationConfig, that.jwsSignatureValidationConfig);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(syntacticallyCorrectJsonConfig, schemaValidationConfig, jwsValidationConfig, allowNulls, allowEmpty);
+        return Objects.hash(syntacticallyCorrectJsonConfig, schemaValidationConfig, jwsSignatureValidationConfig, allowNulls, allowEmpty);
     }
 
     @Override
@@ -108,7 +108,7 @@ public class BytebufValidation {
         return "BytebufValidation{" +
                 "syntacticallyCorrectJsonConfig=" + syntacticallyCorrectJsonConfig +
                 ", schemaValidationConfig=" + schemaValidationConfig +
-                ", jwsValidationConfig=" + jwsValidationConfig +
+                ", jwsSignatureValidationConfig=" + jwsSignatureValidationConfig +
                 ", allowNulls=" + allowNulls +
                 ", allowEmpty=" + allowEmpty +
                 '}';
