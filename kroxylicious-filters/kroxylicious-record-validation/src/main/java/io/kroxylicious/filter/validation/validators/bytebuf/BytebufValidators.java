@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import org.jose4j.lang.JoseException;
+
 /**
  * Static factory methods for creating/getting {@link BytebufValidator} instances
  */
@@ -67,7 +69,7 @@ public class BytebufValidators {
      *
      * @return validator
      */
-    public static BytebufValidator jwsValidator(String jwks, String algorithmConstraintType, String[] algorithms) {
+    public static BytebufValidator jwsValidator(String jwks, String algorithmConstraintType, String[] algorithms) throws JoseException {
         return new JwsBytebufValidator(jwks, algorithmConstraintType, algorithms);
     }
 
