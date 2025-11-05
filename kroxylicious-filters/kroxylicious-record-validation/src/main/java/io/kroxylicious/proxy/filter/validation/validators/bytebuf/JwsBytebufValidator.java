@@ -37,8 +37,10 @@ import io.kroxylicious.proxy.filter.validation.validators.Result;
 public class JwsBytebufValidator implements BytebufValidator {
     private static final String DEFAULT_ERROR_MESSAGE = "Buffer could not be successfully verified using JWS signature";
 
-    private final String jwks;
-    private final AlgorithmConstraints algorithmConstraints;
+    private static final VerificationJwkSelector jwkSelector = new VerificationJwkSelector();
+
+    private final JsonWebSignature jws = new JsonWebSignature();
+    private final JsonWebKeySet jsonWebKeySet;
 
     /**
      * Constructor for {@link JwsBytebufValidator}.
@@ -46,12 +48,17 @@ public class JwsBytebufValidator implements BytebufValidator {
      * @param jwks Result of {@link JsonWebKeySet#toJson()}.
      * @param algorithmConstraintType Result of {@link AlgorithmConstraints.ConstraintType#toString()}.
      * @param algorithms Array of {@link AlgorithmIdentifiers}.
+     * @throws JoseException If the {@code jwks} cannot be parsed.
+     * @throws IllegalArgumentException If the {@code algorithmConstraintType} cannot be parsed using {@link AlgorithmConstraints.ConstraintType#valueOf}
      *
      * @see <a href="https://bitbucket.org/b_c/jose4j/wiki/JWS%20Examples">jose4j JWS examples</a>
      */
-    public JwsBytebufValidator(String jwks, String algorithmConstraintType, String[] algorithms) {
-        this.jwks = jwks;
-        this.algorithmConstraints = new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.valueOf(algorithmConstraintType), algorithms);
+    public JwsBytebufValidator(String jwks, String algorithmConstraintType, String[] algorithms) throws JoseException {
+        AlgorithmConstraints.ConstraintType constraintType = AlgorithmConstraints.ConstraintType.valueOf(algorithmConstraintType);
+        AlgorithmConstraints algorithmConstraints = new AlgorithmConstraints(constraintType, algorithms);
+        jws.setAlgorithmConstraints(algorithmConstraints);
+
+        jsonWebKeySet = new JsonWebKeySet(jwks);
     }
 
     @Override
@@ -80,16 +87,10 @@ public class JwsBytebufValidator implements BytebufValidator {
     }
 
     private boolean verifySignature(String bufferString) throws JoseException {
-        JsonWebSignature jws = new JsonWebSignature();
-        jws.setAlgorithmConstraints(algorithmConstraints);
-
         jws.setCompactSerialization(bufferString);
 
-        JsonWebKeySet jsonWebKeySet = new JsonWebKeySet(jwks);
-
-        VerificationJwkSelector jwkSelector = new VerificationJwkSelector();
+        // We can only select the key after setCompactSerialization() has set the JWS's "alg" header
         JsonWebKey jwk = jwkSelector.select(jws, jsonWebKeySet.getJsonWebKeys());
-
         if (jwk == null) {
             throw new UnresolvableKeyException("Could not select valid JWK that matches the algorithm constraints");
         }
