@@ -33,7 +33,7 @@ import io.kroxylicious.proxy.filter.validation.validators.Result;
  * @see <a href="https://datatracker.ietf.org/doc/html/rfc7517">RFC 7517 (JWK)</a>
  * @see <a href="https://datatracker.ietf.org/doc/html/rfc7518">RFC 7518 (JWA)</a>
  */
-public class JwsBytebufValidator implements BytebufValidator {
+public class JwsSignatureBytebufValidator implements BytebufValidator {
     private static final String DEFAULT_ERROR_MESSAGE = "Buffer could not be successfully verified using JWS signature";
 
     private static final VerificationJwkSelector jwkSelector = new VerificationJwkSelector();
@@ -42,11 +42,11 @@ public class JwsBytebufValidator implements BytebufValidator {
     private final JsonWebKeySet jsonWebKeySet;
 
     /**
-     * Constructor for {@link JwsBytebufValidator}.
+     * Constructor for {@link JwsSignatureBytebufValidator}.
      *
      * @see <a href="https://bitbucket.org/b_c/jose4j/wiki/JWS%20Examples">jose4j JWS examples</a>
      */
-    public JwsBytebufValidator(JsonWebKeySet jsonWebKeySet, AlgorithmConstraints algorithmConstraints) {
+    public JwsSignatureBytebufValidator(JsonWebKeySet jsonWebKeySet, AlgorithmConstraints algorithmConstraints) {
         this.jsonWebKeySet = jsonWebKeySet;
         jws.setAlgorithmConstraints(algorithmConstraints);
     }

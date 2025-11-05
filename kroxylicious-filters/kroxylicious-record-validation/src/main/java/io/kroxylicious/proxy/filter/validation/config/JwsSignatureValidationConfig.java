@@ -33,7 +33,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  * Configuration for validating a component ByteBuffer of a {@link org.apache.kafka.common.record.Record} contains a valid {@link org.jose4j.jws.JsonWebSignature}.
  */
 @SuppressWarnings("java:S112") // Needed in static block
-public class JwsValidationConfig {
+public class JwsSignatureValidationConfig {
     private static final List<String> algorithmIdentifiersClassValues;
 
     private final JsonWebKeySet jsonWebKeySet;
@@ -54,15 +54,15 @@ public class JwsValidationConfig {
     }
 
     /**
-     * Construct JwsValidationConfig
+     * Construct JwsSignatureValidationConfig
      * @param nullableAlgorithms Array of {@link AlgorithmIdentifiers}.
      */
     @JsonCreator
-    public JwsValidationConfig(@JsonProperty(value = "jsonWebKeySet", required = true) @JsonDeserialize(using = JsonWebKeySetDeserializer.class) JsonWebKeySet jsonWebKeySet,
-                               @JsonProperty(value = "algorithmConstraintType", defaultValue = "BLOCK") @Nullable AlgorithmConstraints.ConstraintType nullableAlgorithmConstraintType, // Attribute
-                                                                                                                                                                                       // value must be
-                                                                                                                                                                                       // constant
-                               @JsonProperty(value = "algorithms", defaultValue = "[]") @Nullable String[] nullableAlgorithms) {
+    public JwsSignatureValidationConfig(@JsonProperty(value = "jsonWebKeySet", required = true) @JsonDeserialize(using = JsonWebKeySetDeserializer.class) JsonWebKeySet jsonWebKeySet,
+                                        @JsonProperty(value = "algorithmConstraintType", defaultValue = "BLOCK") @Nullable AlgorithmConstraints.ConstraintType nullableAlgorithmConstraintType, // Attribute
+                                        // value must be
+                                        // constant
+                                        @JsonProperty(value = "algorithms", defaultValue = "[]") @Nullable String[] nullableAlgorithms) {
         this.jsonWebKeySet = jsonWebKeySet;
 
         AlgorithmConstraints.ConstraintType algorithmConstraintType = nullableAlgorithmConstraintType != null ? nullableAlgorithmConstraintType
@@ -95,7 +95,7 @@ public class JwsValidationConfig {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        JwsValidationConfig that = (JwsValidationConfig) o;
+        JwsSignatureValidationConfig that = (JwsSignatureValidationConfig) o;
 
         // Check all constraints match
         for (String algorithIdentifier : algorithmIdentifiersClassValues) {
@@ -132,7 +132,7 @@ public class JwsValidationConfig {
     @Override
     public String toString() {
         // Probably best to keep this primitive in order to not leak sensitive information
-        return "JwsValidationConfig{" +
+        return "JwsSignatureValidationConfig{" +
                 "jsonWebKeySet=" + jsonWebKeySet +
                 ", algorithmConstraintType='" + algorithmConstraints + '\'' +
                 '}';
