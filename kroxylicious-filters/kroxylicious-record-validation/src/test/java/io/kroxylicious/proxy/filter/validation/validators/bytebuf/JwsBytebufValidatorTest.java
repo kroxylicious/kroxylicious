@@ -24,15 +24,18 @@ import io.kroxylicious.proxy.filter.validation.validators.Result;
 import static io.kroxylicious.test.record.RecordTestUtils.record;
 import static org.assertj.core.api.Assertions.assertThat;
 
-class JwsBytebufValidatorTest {
+public class JwsBytebufValidatorTest {
     // Recommended algorithms from https://datatracker.ietf.org/doc/html/rfc7518#section-3.1
     private static final AlgorithmConstraints PERMIT_ES256 = new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.PERMIT,
             AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256);
     private static final AlgorithmConstraints PERMIT_RS256 = new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.PERMIT, AlgorithmIdentifiers.RSA_USING_SHA256);
+    private static final AlgorithmConstraints PERMIT_ES256_AND_RS256 = new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.PERMIT,
+            AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256);
 
-    private static final JsonWebKeySet ECDSA_JWKS;
+    public static final JsonWebKeySet ECDSA_JWKS;
     private static final JsonWebKeySet MISSING_ECDSA_JWKS;
     private static final JsonWebKeySet RSA_JWKS;
+    public static final JsonWebKeySet RSA_AND_ECDSA_JWKS;
 
     static {
         try {
@@ -85,6 +88,8 @@ class JwsBytebufValidatorTest {
                     "}");
 
             RSA_JWKS = new JsonWebKeySet(rsaJwk);
+
+            RSA_AND_ECDSA_JWKS = new JsonWebKeySet(rsaJwk, ecdsaJwk);
         }
         catch (JoseException e) {
             throw new RuntimeException(e);
@@ -146,6 +151,36 @@ class JwsBytebufValidatorTest {
 
         BytebufValidator rsaValidator = BytebufValidators.jwsValidator(RSA_JWKS, AlgorithmConstraints.NO_CONSTRAINTS);
         CompletionStage<Result> rsaFuture = rsaValidator.validate(rsaRecord.value(), rsaRecord, false);
+
+        assertThat(rsaFuture)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(true, Result::valid);
+    }
+
+    @Test
+    void valueSignedWithEcdsaJwkPassesJwsValidationWithConstraintsAndMultiKeyJwks() {
+        Record ecdsaRecord = record(EMPTY, VALID_JWS_USING_ECDSA_JWK);
+
+        BytebufValidator ecdsaAndRsaValidator = BytebufValidators.jwsValidator(RSA_AND_ECDSA_JWKS, PERMIT_ES256);
+        CompletionStage<Result> ecdsaFuture = ecdsaAndRsaValidator.validate(ecdsaRecord.value(), ecdsaRecord, false);
+
+        assertThat(ecdsaFuture)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(true, Result::valid);
+    }
+
+    @Test
+    void valuesSignedWithEcdsaJwkAndValueSignedWithRsaJwkBothPassJwsValidationWithConstraintsAndMultiKeyJwks() {
+        Record ecdsaRecord = record(EMPTY, VALID_JWS_USING_ECDSA_JWK);
+        Record rsaRecord = record(EMPTY, VALID_JWS_USING_RSA_JWK);
+
+        BytebufValidator ecdsaAndRsaValidator = BytebufValidators.jwsValidator(RSA_AND_ECDSA_JWKS, PERMIT_ES256_AND_RS256);
+        CompletionStage<Result> ecdsaFuture = ecdsaAndRsaValidator.validate(ecdsaRecord.value(), ecdsaRecord, false);
+        CompletionStage<Result> rsaFuture = ecdsaAndRsaValidator.validate(rsaRecord.value(), rsaRecord, false);
+
+        assertThat(ecdsaFuture)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(true, Result::valid);
 
         assertThat(rsaFuture)
                 .succeedsWithin(Duration.ofSeconds(1))
