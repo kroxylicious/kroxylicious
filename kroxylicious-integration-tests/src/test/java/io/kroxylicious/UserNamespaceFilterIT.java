@@ -94,7 +94,8 @@ class UserNamespaceFilterIT {
             @SaslMechanism.Principal(user = "bob", password = "pwd") }) KafkaCluster cluster, Topic topic) {
 
         var configBuilder = buildConfig(cluster);
-        var aliceConfig = buildClientConfig("alice", "pwd", Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME, ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
+        var aliceConfig = buildClientConfig("alice", "pwd",
+                Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME, ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
         var bobConfig = buildClientConfig("bob", "pwd", Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME, ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
 
         try (var tester = kroxyliciousTester(configBuilder);
@@ -187,7 +188,7 @@ class UserNamespaceFilterIT {
         config.put(CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SASL_PLAINTEXT.name);
         config.put(SaslConfigs.SASL_JAAS_CONFIG,
                 String.format("""
-                                %s required username="%s" password="%s";""",
+                        %s required username="%s" password="%s";""",
                         PlainLoginModule.class.getName(), username, password));
         config.put(SaslConfigs.SASL_MECHANISM, "PLAIN");
         return config;
