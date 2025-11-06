@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious;
+package io.kroxylicious.filter.usernamespace;
 
 import java.util.Objects;
 import java.util.Set;

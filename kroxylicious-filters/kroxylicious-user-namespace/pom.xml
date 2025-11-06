@@ -107,7 +107,7 @@
                             <templateNames>UserNamespaceFilter.ftl</templateNames>
                             <!--suppress UnresolvedMavenProperty -->
                             <outputFilePattern>${templateName}.java</outputFilePattern>
-                            <outputPackage>io.kroxylicious</outputPackage>
+                            <outputPackage>io.kroxylicious.filter.usernamespace</outputPackage>
                             <outputDirectory>${project.build.directory}/generated-sources/krpc</outputDirectory>
                         </configuration>
 

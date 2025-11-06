@@ -3,7 +3,7 @@
  *
  * Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
  */
-package io.kroxylicious;
+package io.kroxylicious.filter.usernamespace;
 
 import java.time.Duration;
 import java.util.Collection;
@@ -132,9 +132,9 @@ class UserNamespaceFilterIT {
                         .hasSize(2);
             }
 
-            try (var aliceConsumer = tester.consumer(aliceConfig)) {
-                aliceConsumer.subscribe(List.of(topic.name()));
-                var aliceRecs = aliceConsumer.poll(Duration.ofSeconds(5));
+            try (var aliceRound2Consumer = tester.consumer(aliceConfig)) {
+                aliceRound2Consumer.subscribe(List.of(topic.name()));
+                var aliceRecs = aliceRound2Consumer.poll(Duration.ofSeconds(5));
 
                 assertThat(aliceRecs)
                         .singleElement()
