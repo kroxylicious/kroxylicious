@@ -76,6 +76,16 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
         return CompletableFuture.completedStage(new Result(false, DEFAULT_ERROR_MESSAGE));
     }
 
+    /**
+     * Validates the JWS Signature using the provided {@link JsonWebKeySet} and {@link AlgorithmConstraints}.
+     *
+     * @param bufferString The {@link ByteBuffer} decoded to a UTF-8 String e.g. using {@link StandardCharsets#UTF_8}'s {@link java.nio.charset.Charset#decode(ByteBuffer)} method.
+     * @return True if the signature was validated successfully, otherwise False.
+     * @throws JoseException If a {@link JsonWebKey} that matches the {@link AlgorithmConstraints} cannot be found in the {@link JsonWebKeySet}, the {@link JsonWebSignature} cannot be deserialized, etc.
+     *
+     * @see <a href="https://datatracker.ietf.org/doc/html/rfc7515#section-7.1">RFC 7515 Section 7.1 (JWS)</a>
+     * @see <a href="https://datatracker.ietf.org/doc/html/rfc7515#appendix-A">RFC 7515 Appendix A (JWS)</a>
+     */
     private boolean verifySignature(String bufferString) throws JoseException {
         jws.setCompactSerialization(bufferString);
 
