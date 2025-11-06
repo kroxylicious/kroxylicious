@@ -59,9 +59,7 @@ public class JwsSignatureValidationConfig {
      */
     @JsonCreator
     public JwsSignatureValidationConfig(@JsonProperty(value = "jsonWebKeySet", required = true) @JsonDeserialize(using = JsonWebKeySetDeserializer.class) JsonWebKeySet jsonWebKeySet,
-                                        @JsonProperty(value = "algorithmConstraintType", defaultValue = "BLOCK") @Nullable AlgorithmConstraints.ConstraintType nullableAlgorithmConstraintType, // Attribute
-                                        // value must be
-                                        // constant
+                                        @JsonProperty(value = "algorithmConstraintType", defaultValue = "BLOCK") @Nullable AlgorithmConstraints.ConstraintType nullableAlgorithmConstraintType,
                                         @JsonProperty(value = "algorithms", defaultValue = "[]") @Nullable String[] nullableAlgorithms) {
         this.jsonWebKeySet = jsonWebKeySet;
 
