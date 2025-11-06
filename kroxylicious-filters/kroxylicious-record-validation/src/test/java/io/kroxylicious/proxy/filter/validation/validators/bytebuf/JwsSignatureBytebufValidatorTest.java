@@ -32,6 +32,8 @@ public class JwsSignatureBytebufValidatorTest {
     private static final AlgorithmConstraints PERMIT_ES256_AND_RS256 = new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.PERMIT,
             AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256);
 
+    // Note: These include both public and private keys for simpler JWS generation and verification in the tests.
+    // In production, only public keys should be passed to the validator.
     public static final JsonWebKeySet ECDSA_JWKS;
     private static final JsonWebKeySet MISSING_ECDSA_JWKS;
     private static final JsonWebKeySet RSA_JWKS;
