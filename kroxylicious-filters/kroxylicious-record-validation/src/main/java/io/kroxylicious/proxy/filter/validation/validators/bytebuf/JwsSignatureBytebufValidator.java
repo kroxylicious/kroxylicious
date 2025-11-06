@@ -30,6 +30,7 @@ import io.kroxylicious.proxy.filter.validation.validators.Result;
  * </p>
  *
  * @see <a href="https://datatracker.ietf.org/doc/html/rfc7515">RFC 7515 (JWS)</a>
+ * @see <a href="https://datatracker.ietf.org/doc/html/rfc7797">RFC 7797 (JWS Unencoded Payload Option)</a>
  * @see <a href="https://datatracker.ietf.org/doc/html/rfc7517">RFC 7517 (JWK)</a>
  * @see <a href="https://datatracker.ietf.org/doc/html/rfc7518">RFC 7518 (JWA)</a>
  */
