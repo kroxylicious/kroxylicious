@@ -24,7 +24,7 @@ import org.jose4j.lang.UnresolvableKeyException;
 import io.kroxylicious.proxy.filter.validation.validators.Result;
 
 /**
- * Checks if the {@link ByteBuffer} contains a valid {@link JsonWebSignature}.
+ * Checks if the {@link ByteBuffer} contains a valid {@link JsonWebSignature} Signature.
  * <p>
  * The JWS Signature is validated using the provided {@link JsonWebKeySet} and {@link AlgorithmConstraints}.
  * </p>
