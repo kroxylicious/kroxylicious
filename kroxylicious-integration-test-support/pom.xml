@@ -16,7 +16,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.17.0</version>
+        <version>0.17.1</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>kroxylicious-integration-test-support</artifactId>
