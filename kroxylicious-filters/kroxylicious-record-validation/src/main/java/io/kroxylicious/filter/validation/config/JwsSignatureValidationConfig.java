@@ -30,7 +30,7 @@ import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
- * Configuration for validating a component ByteBuffer of a {@link org.apache.kafka.common.record.Record} contains a valid {@link org.jose4j.jws.JsonWebSignature}.
+ * Configuration for validating a {@link org.apache.kafka.common.record.Record} contains a valid {@link org.jose4j.jws.JsonWebSignature} Signature.
  */
 @SuppressWarnings("java:S112") // Needed in static block
 public class JwsSignatureValidationConfig {
@@ -38,6 +38,7 @@ public class JwsSignatureValidationConfig {
 
     private final JsonWebKeySet jsonWebKeySet;
     private final AlgorithmConstraints algorithmConstraints;
+    private final String jwsHeaderName;
 
     static {
         @SuppressWarnings("java:S2440") // Needed for reflection
@@ -60,12 +61,14 @@ public class JwsSignatureValidationConfig {
     @JsonCreator
     public JwsSignatureValidationConfig(@JsonProperty(value = "jsonWebKeySet", required = true) @JsonDeserialize(using = JsonWebKeySetDeserializer.class) JsonWebKeySet jsonWebKeySet,
                                         @JsonProperty(value = "algorithmConstraintType", defaultValue = "BLOCK") @Nullable AlgorithmConstraints.ConstraintType nullableAlgorithmConstraintType,
-                                        @JsonProperty(value = "algorithms", defaultValue = "[]") @Nullable String[] nullableAlgorithms) {
+                                        @JsonProperty(value = "algorithms", defaultValue = "[]") @Nullable String[] nullableAlgorithms,
+                                        @JsonProperty(value = "jwsHeaderName", defaultValue = "jws") @Nullable String nullableJwsHeaderName) {
         this.jsonWebKeySet = jsonWebKeySet;
 
         AlgorithmConstraints.ConstraintType algorithmConstraintType = nullableAlgorithmConstraintType != null ? nullableAlgorithmConstraintType
                 : AlgorithmConstraints.ConstraintType.BLOCK;
         String[] algorithms = nullableAlgorithms != null ? nullableAlgorithms : new String[]{};
+        this.jwsHeaderName = nullableJwsHeaderName != null ? nullableJwsHeaderName : "jws";
         this.algorithmConstraints = new AlgorithmConstraints(algorithmConstraintType, algorithms);
     }
 
@@ -75,6 +78,10 @@ public class JwsSignatureValidationConfig {
 
     public AlgorithmConstraints getAlgorithmConstraints() {
         return algorithmConstraints;
+    }
+
+    public String getJwsHeaderName() {
+        return jwsHeaderName;
     }
 
     /**
@@ -119,12 +126,12 @@ public class JwsSignatureValidationConfig {
             }
         }
 
-        return jsonWebKeySet.toJson().equals(that.jsonWebKeySet.toJson());
+        return jsonWebKeySet.toJson().equals(that.jsonWebKeySet.toJson()) && jwsHeaderName.equals(that.jwsHeaderName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(jsonWebKeySet, algorithmConstraints);
+        return Objects.hash(jsonWebKeySet, algorithmConstraints, jwsHeaderName);
     }
 
     @Override
@@ -133,6 +140,7 @@ public class JwsSignatureValidationConfig {
         return "JwsSignatureValidationConfig{" +
                 "jsonWebKeySet=" + jsonWebKeySet +
                 ", algorithmConstraintType='" + algorithmConstraints + '\'' +
+                ", jwsHeaderName='" + jwsHeaderName + '\'' +
                 '}';
     }
 

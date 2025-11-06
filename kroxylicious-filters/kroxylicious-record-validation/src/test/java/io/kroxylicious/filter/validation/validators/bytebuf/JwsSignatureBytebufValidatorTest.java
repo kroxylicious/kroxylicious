@@ -10,6 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.concurrent.CompletionStage;
 
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.record.Record;
 import org.jose4j.jwa.AlgorithmConstraints;
 import org.jose4j.jwk.JsonWebKeySet;
@@ -25,6 +26,8 @@ import static io.kroxylicious.test.record.RecordTestUtils.record;
 import static org.assertj.core.api.Assertions.assertThat;
 
 public class JwsSignatureBytebufValidatorTest {
+    private static final String JWS_HEADER_NAME = "jws";
+
     // Recommended algorithms from https://datatracker.ietf.org/doc/html/rfc7518#section-3.1
     private static final AlgorithmConstraints PERMIT_ES256 = new AlgorithmConstraints(AlgorithmConstraints.ConstraintType.PERMIT,
             AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256);
@@ -102,13 +105,13 @@ public class JwsSignatureBytebufValidatorTest {
     private static final byte[] VALID_JWS_USING_MISSING_ECDSA_JWK = generateJws(MISSING_ECDSA_JWKS, "Message signed with missing JWK").getBytes(StandardCharsets.UTF_8);
     private static final byte[] VALID_JWS_USING_RSA_JWK = generateJws(RSA_JWKS, "Message signed with RSA JWK").getBytes(StandardCharsets.UTF_8);
 
-    private static final byte[] NON_JWS_VALUE = "This is a non JWS value".getBytes(StandardCharsets.UTF_8);
+    private static final byte[] INVALID_JWS = "This is a non JWS value".getBytes(StandardCharsets.UTF_8);
     private static final byte[] EMPTY = new byte[0];
 
     @Test
-    void keySignedWithEcdsaJwkPassesJwsSignatureValidation() {
-        Record record = record(VALID_JWS_USING_ECDSA_JWK, EMPTY);
-        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_JWKS, PERMIT_ES256);
+    void jwsSignedWithEcdsaJwkPassesValidation() {
+        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK));
+        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_JWKS, PERMIT_ES256, JWS_HEADER_NAME);
         CompletionStage<Result> future = validator.validate(record.key(), record, true);
 
         assertThat(future)
@@ -117,9 +120,9 @@ public class JwsSignatureBytebufValidatorTest {
     }
 
     @Test
-    void valueSignedWithEcdsaJwkPassesJwsSignatureValidation() {
-        Record record = record(EMPTY, VALID_JWS_USING_ECDSA_JWK);
-        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_JWKS, PERMIT_ES256);
+    void jwsSignedWithRsaJwkPassesValidation() {
+        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_RSA_JWK));
+        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(RSA_JWKS, PERMIT_RS256, JWS_HEADER_NAME);
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -128,30 +131,19 @@ public class JwsSignatureBytebufValidatorTest {
     }
 
     @Test
-    void valueSignedWithRsaJwkPassesJwsSignatureValidation() {
-        Record record = record(EMPTY, VALID_JWS_USING_RSA_JWK);
-        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(RSA_JWKS, PERMIT_RS256);
-        CompletionStage<Result> future = validator.validate(record.value(), record, false);
+    void jwsSignedWithEcdsaJwkAndJwsSignedWithRsaJwkBothPassValidationWithNoConstraints() {
+        Record ecdsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK));
 
-        assertThat(future)
-                .succeedsWithin(Duration.ofSeconds(1))
-                .returns(true, Result::valid);
-    }
-
-    @Test
-    void valuesSignedWithEcdsaJwkAndValueSignedWithRsaJwkBothPassJwsSignatureValidationWithNoConstraints() {
-        Record ecdsaRecord = record(EMPTY, VALID_JWS_USING_ECDSA_JWK);
-
-        BytebufValidator ecdsaValidator = BytebufValidators.jwsSignatureValidator(ECDSA_JWKS, AlgorithmConstraints.NO_CONSTRAINTS);
+        BytebufValidator ecdsaValidator = BytebufValidators.jwsSignatureValidator(ECDSA_JWKS, AlgorithmConstraints.NO_CONSTRAINTS, JWS_HEADER_NAME);
         CompletionStage<Result> ecdsaFuture = ecdsaValidator.validate(ecdsaRecord.value(), ecdsaRecord, false);
 
         assertThat(ecdsaFuture)
                 .succeedsWithin(Duration.ofSeconds(1))
                 .returns(true, Result::valid);
 
-        Record rsaRecord = record(EMPTY, VALID_JWS_USING_RSA_JWK);
+        Record rsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_RSA_JWK));
 
-        BytebufValidator rsaValidator = BytebufValidators.jwsSignatureValidator(RSA_JWKS, AlgorithmConstraints.NO_CONSTRAINTS);
+        BytebufValidator rsaValidator = BytebufValidators.jwsSignatureValidator(RSA_JWKS, AlgorithmConstraints.NO_CONSTRAINTS, JWS_HEADER_NAME);
         CompletionStage<Result> rsaFuture = rsaValidator.validate(rsaRecord.value(), rsaRecord, false);
 
         assertThat(rsaFuture)
@@ -160,10 +152,10 @@ public class JwsSignatureBytebufValidatorTest {
     }
 
     @Test
-    void valueSignedWithEcdsaJwkPassesJwsSignatureValidationWithConstraintsAndMultiKeyJwks() {
-        Record ecdsaRecord = record(EMPTY, VALID_JWS_USING_ECDSA_JWK);
+    void jwsSignedWithEcdsaJwkPassesValidationWithConstraintsAndMultiKeyJwks() {
+        Record ecdsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK));
 
-        BytebufValidator ecdsaAndRsaValidator = BytebufValidators.jwsSignatureValidator(RSA_AND_ECDSA_JWKS, PERMIT_ES256);
+        BytebufValidator ecdsaAndRsaValidator = BytebufValidators.jwsSignatureValidator(RSA_AND_ECDSA_JWKS, PERMIT_ES256, JWS_HEADER_NAME);
         CompletionStage<Result> ecdsaFuture = ecdsaAndRsaValidator.validate(ecdsaRecord.value(), ecdsaRecord, false);
 
         assertThat(ecdsaFuture)
@@ -172,11 +164,11 @@ public class JwsSignatureBytebufValidatorTest {
     }
 
     @Test
-    void valuesSignedWithEcdsaJwkAndValueSignedWithRsaJwkBothPassJwsSignatureValidationWithConstraintsAndMultiKeyJwks() {
-        Record ecdsaRecord = record(EMPTY, VALID_JWS_USING_ECDSA_JWK);
-        Record rsaRecord = record(EMPTY, VALID_JWS_USING_RSA_JWK);
+    void jwsSignedWithEcdsaJwkAndJwsSignedWithRsaJwkBothPassValidationWithConstraintsAndMultiKeyJwks() {
+        Record ecdsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK));
+        Record rsaRecord = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_RSA_JWK));
 
-        BytebufValidator ecdsaAndRsaValidator = BytebufValidators.jwsSignatureValidator(RSA_AND_ECDSA_JWKS, PERMIT_ES256_AND_RS256);
+        BytebufValidator ecdsaAndRsaValidator = BytebufValidators.jwsSignatureValidator(RSA_AND_ECDSA_JWKS, PERMIT_ES256_AND_RS256, JWS_HEADER_NAME);
         CompletionStage<Result> ecdsaFuture = ecdsaAndRsaValidator.validate(ecdsaRecord.value(), ecdsaRecord, false);
         CompletionStage<Result> rsaFuture = ecdsaAndRsaValidator.validate(rsaRecord.value(), rsaRecord, false);
 
@@ -190,9 +182,9 @@ public class JwsSignatureBytebufValidatorTest {
     }
 
     @Test
-    void nonJwsSignatureValueFailsJwsSignatureValidation() {
-        Record record = record(EMPTY, NON_JWS_VALUE);
-        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_JWKS, PERMIT_ES256);
+    void invalidJwsFailsValidation() {
+        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, INVALID_JWS));
+        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_JWKS, PERMIT_ES256, JWS_HEADER_NAME);
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -201,9 +193,9 @@ public class JwsSignatureBytebufValidatorTest {
     }
 
     @Test
-    void valueSignedWithMissingEcdsaJwkFailsJwsSignatureValidation() {
-        Record record = record(EMPTY, VALID_JWS_USING_MISSING_ECDSA_JWK);
-        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_JWKS, PERMIT_ES256);
+    void missingJwsHeaderFailsValidation() {
+        Record record = record(EMPTY);
+        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_JWKS, PERMIT_ES256, JWS_HEADER_NAME);
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
 
         assertThat(future)
@@ -212,9 +204,20 @@ public class JwsSignatureBytebufValidatorTest {
     }
 
     @Test
-    void valueSignedWithRsaJwkFailsJwsSignatureValidationDueToEcdsaConstraints() {
-        Record record = record(EMPTY, VALID_JWS_USING_RSA_JWK);
-        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(RSA_JWKS, PERMIT_ES256);
+    void jwsSignedWithMissingEcdsaJwkFailsValidation() {
+        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_MISSING_ECDSA_JWK));
+        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_JWKS, PERMIT_ES256, JWS_HEADER_NAME);
+        CompletionStage<Result> future = validator.validate(record.value(), record, false);
+
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(false, Result::valid);
+    }
+
+    @Test
+    void jwsSignedWithRsaJwkFailsValidationDueToEcdsaConstraints() {
+        Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_RSA_JWK));
+        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(RSA_JWKS, PERMIT_ES256, JWS_HEADER_NAME);
         CompletionStage<Result> future = validator.validate(record.value(), record, false);
 
         assertThat(future)
