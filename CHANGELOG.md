@@ -5,6 +5,7 @@ For changes that effect a public API, the [deprecation policy](./DEV_GUIDE.md#de
 
 Format `<github issue/pr number>: <short description>`.
 
+## SNAPSHOT
 ## 0.17.1
 
 * [#2844](https://github.com/kroxylicious/kroxylicious/issues/2844): Match the behaviour of Kafka 4.0 when negotiating API versions for Produce Requests to allow older builds of librdkafka to enable compression. 
