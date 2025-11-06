@@ -100,7 +100,9 @@ class UserNamespaceFilterIT {
 
         var configBuilder = buildConfig(cluster);
         var aliceConfig = buildClientConfig("alice", "pwd",
-                Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME, ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
+                Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME,
+                        ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest",
+                        ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false));
         var bobConfig = buildClientConfig("bob", "pwd", Map.of(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP_NAME, ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
 
         try (var tester = kroxyliciousTester(configBuilder);
