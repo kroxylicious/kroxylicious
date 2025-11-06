@@ -191,7 +191,7 @@ public final class KafkaClient implements AutoCloseable {
         if (channelCompletableFuture != null) {
             channelCompletableFuture.thenApply(Channel::close);
         }
-        bossGroup.shutdownGracefully();
+        bossGroup.shutdownGracefully(0, 5, TimeUnit.SECONDS);
     }
 
     private static Channel checkChannelOpen(Channel c) {
