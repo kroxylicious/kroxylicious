@@ -438,7 +438,7 @@ the container engine. Default value: `$HOME/.docker/config.json`
 * `AWS_SECRET_ACCESS_KEY`: secret access key of the aws account with admin permissions to be used for KMS management. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
 * `AWS_KROXYLICIOUS_ACCESS_KEY_ID`: key id of the aws account to be used for Kroxylicious config Map to encrypt/decrypt the messages. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
 * `AWS_KROXYLICIOUS_SECRET_ACCESS_KEY`: secret access key of the aws account to be used for Kroxylicious config Map to encrypt/decrypt the messages. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
-* `CURL_IMAGE`: curl image to be used in the corresponding arch for metrics tests. Default value: `mirror.gcr.io/curlimages/curl:8.16.0`
+* `CURL_IMAGE`: curl image to be used in the corresponding arch for metrics tests. Default value: `mirror.gcr.io/curlimages/curl:8.17.0`
 
 ### Launch system tests
 First of all, the code must be compiled and the distribution artifacts created:
@@ -615,6 +615,10 @@ Running `minikube tunnel` will make that available to the IDE, thus allowing dev
 add breakpoints and step through execution. Note if we find ourselves doing this regularly we should look at improving
 our unit test coverage and logging to make the diagnosis and avoidance of such issues much easier in less accessible
 environments.
+
+## Manual testing
+
+To help simplify local testing we also have a simple composefile in `compose/kafa-compose.yaml`. See the [compose/README.md](./compose/README.md) for details about how to use the proxy deployed.
 
 # Deprecation Policy
 

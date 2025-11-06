@@ -36,7 +36,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 
 @ExtendWith(KafkaClusterExtension.class)
-public class CompressionIT extends BaseIT {
+class CompressionIT extends BaseIT {
 
     @ParameterizedTest
     @EnumSource(CompressionType.class)

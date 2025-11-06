@@ -1,0 +1,33 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+management:
+  endpoints:
+    prometheus: {}
+virtualClusters:
+  - name: demo
+    targetCluster:
+      bootstrapServers: kafka-1:9092
+    gateways:
+      - name: compose
+        portIdentifiesNode:
+          bootstrapAddress: kroxylicious:9192
+          nodeIdRanges:
+            - name: "default"
+              start: 0
+              end: 3
+      - name: host
+        portIdentifiesNode:
+          bootstrapAddress: localhost:9292
+          nodeIdRanges:
+            - name: "default"
+              start: 0
+              end: 3
+    logNetwork: false
+    logFrames: false
+filterDefinitions:
+defaultFilters:

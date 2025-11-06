@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -75,8 +76,10 @@ public final class KafkaProxy implements AutoCloseable {
     @VisibleForTesting
     record EventGroupConfig(String name, EventLoopGroup bossGroup, EventLoopGroup workerGroup, Class<? extends ServerChannel> clazz) {
 
-        public List<Future<?>> shutdownGracefully() {
-            return List.of(bossGroup.shutdownGracefully(), workerGroup.shutdownGracefully());
+        @SuppressWarnings("java:S1452") // wildcard generics expected, shutdownGracefully returns wildcard
+        public List<Future<?>> shutdownGracefully(int shutdownQuietPeriodSeconds) {
+            return List.of(bossGroup.shutdownGracefully(shutdownQuietPeriodSeconds, 15, TimeUnit.SECONDS),
+                    workerGroup.shutdownGracefully(shutdownQuietPeriodSeconds, 15, TimeUnit.SECONDS));
         }
 
         public static EventGroupConfig build(String name, Configuration configuration, Function<NetworkDefinition, NettySettings> settingsSupplier, boolean useIoUring) {
@@ -302,10 +305,12 @@ public final class KafkaProxy implements AutoCloseable {
                 bindingOperationProcessor.close();
                 var closeFutures = new ArrayList<Future<?>>();
                 if (proxyEventGroup != null) {
-                    closeFutures.addAll(proxyEventGroup.shutdownGracefully());
+                    Integer shutdownQuietPeriodSeconds = getShutdownQuietPeriodSeconds(NetworkDefinition::proxy);
+                    closeFutures.addAll(proxyEventGroup.shutdownGracefully(shutdownQuietPeriodSeconds));
                 }
                 if (managementEventGroup != null) {
-                    closeFutures.addAll(managementEventGroup.shutdownGracefully());
+                    Integer shutdownQuietPeriodSeconds = getShutdownQuietPeriodSeconds(NetworkDefinition::management);
+                    closeFutures.addAll(managementEventGroup.shutdownGracefully(shutdownQuietPeriodSeconds));
                 }
                 closeFutures.forEach(Future::syncUninterruptibly);
                 if (filterChainFactory != null) {
@@ -334,6 +339,11 @@ public final class KafkaProxy implements AutoCloseable {
             LOGGER.info("Shut down completed.");
 
         }
+    }
+
+    private Integer getShutdownQuietPeriodSeconds(Function<NetworkDefinition, NettySettings> nettySettingsFunction) {
+        return Optional.ofNullable(config.network()).flatMap(networkDefinition -> Optional.ofNullable(nettySettingsFunction.apply(networkDefinition)))
+                .flatMap(NettySettings::shutdownQuietPeriodSeconds).orElse(2);
     }
 
     @Override
