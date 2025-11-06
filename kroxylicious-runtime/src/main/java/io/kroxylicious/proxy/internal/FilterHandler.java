@@ -618,7 +618,7 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds) {
-            return new TopicNameRetriever(this).topicNames(topicIds);
+            return new TopicNameRetriever(this, Objects.requireNonNull(ctx).executor()).topicNames(topicIds);
         }
 
     }

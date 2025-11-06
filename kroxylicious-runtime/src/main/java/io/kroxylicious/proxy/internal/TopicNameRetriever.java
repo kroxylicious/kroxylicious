@@ -11,8 +11,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.MetadataRequestData;
@@ -36,13 +38,18 @@ final class TopicNameRetriever {
     // Version 12 was the first version that uses topic ids.
     private static final short METADATA_API_VER_WITH_TOPIC_ID_SUPPORT = (short) 12;
     private final FilterContext filterContext;
+    private final Executor filterDispatchExecutor;
 
-    TopicNameRetriever(FilterContext filterContext) {
+    TopicNameRetriever(FilterContext filterContext, Executor filterDispatchExecutor) {
         this.filterContext = filterContext;
+        this.filterDispatchExecutor = filterDispatchExecutor;
     }
 
     CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds) {
         Objects.requireNonNull(topicIds);
+        if (topicIds.isEmpty()) {
+            return CompletableFuture.supplyAsync(() -> MapTopicNameMapping.EMPTY, filterDispatchExecutor).minimalCompletionStage();
+        }
         CompletionStage<ApiMessage> apiMessageCompletionStage = requestTopicMetadata(topicIds);
         return apiMessageCompletionStage
                 .thenApply(message -> extractTopicNames(topicIds, message))
@@ -115,6 +122,8 @@ final class TopicNameRetriever {
      * @param failures failed topic name mappings, non-null
      */
     private record MapTopicNameMapping(Map<Uuid, String> topicNames, Map<Uuid, TopicNameMappingException> failures) implements TopicNameMapping {
+
+        private static final TopicNameMapping EMPTY = new MapTopicNameMapping(Map.of(), Map.of());
 
         private MapTopicNameMapping {
             Objects.requireNonNull(topicNames);
