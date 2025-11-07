@@ -125,6 +125,7 @@ jobs:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
             echo "PR_BRANCH=$(gh pr view ${{ inputs.release-pr-issue-number}} --json headRefName | jq -r .headRefName)" >> $GITHUB_ENV
+            echo "PR_BASE_BRANCH=$(gh pr view ${{ inputs.release-pr-issue-number}} --json baseRefName | jq -r .baseRefName)" >> $GITHUB_ENV
 
       - name: 'Branch name matches naming conventions'
         env:
@@ -151,19 +152,19 @@ jobs:
           echo "PR_REF=$(git rev-list -n 1 origin/${PR_BRANCH})" >> $GITHUB_ENV
 
           # Get main's current head
-          echo "MAIN_HEAD=$(git rev-list -n 1 main)" >> $GITHUB_ENV
+          echo "PR_BASE_HEAD=$(git rev-list -n 1 ${PR_BASE_BRANCH} )" >> $GITHUB_ENV
 
           # Get PR's view of where main ought to be.  This is two commits behind PR's head.
-          echo "PR_MAIN_REF=$(git rev-list -n 1 origin/${PR_BRANCH}^^)" >> $GITHUB_ENV
+          echo "PR_BASE_REF=$(git rev-list -n 1 origin/${PR_BRANCH}^^)" >> $GITHUB_ENV
 
       - name: 'Check for PR/main divergence'
         if: ${{ inputs.command == 'promote-release' }}
         env:
           GH_TOKEN: ${{ secrets.KROXYLICIOUS_RELEASE_TOKEN }}
         run: |
-          if [[ "${MAIN_HEAD}" != "${PR_MAIN_REF}" ]];
+          if [[ "${PR_BASE_HEAD}" != "${PR_BASE_REF}" ]];
           then
-            gh pr comment --body "Release PR (expects main ${PR_MAIN_REF}) has diverged from main (${MAIN_HEAD}). You must drop this release and restage the release." ${{ inputs.release-pr-issue-number }}
+            gh pr comment --body "Release PR (expects ${PR_BASE_BRANCH} to be at ${PR_BASE_REF}) but has found (${PR_BASE_HEAD}). You must drop this release and restage the release." ${{ inputs.release-pr-issue-number }} as there have been commits to ${PR_BASE_BRANCH} since the release was staged.
             exit 1
           fi
 
