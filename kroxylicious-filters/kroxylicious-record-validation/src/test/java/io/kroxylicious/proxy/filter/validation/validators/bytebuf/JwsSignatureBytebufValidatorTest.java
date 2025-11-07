@@ -102,11 +102,13 @@ public class JwsSignatureBytebufValidatorTest {
     }
 
     private static final byte[] VALID_JWS_USING_ECDSA_JWK = generateJws(ECDSA_JWKS, "Message signed with JWK", false).getBytes(StandardCharsets.UTF_8);
-    private static final byte[] VALID_JWS_USING_MISSING_ECDSA_JWK = generateJws(MISSING_ECDSA_JWKS, "Message signed with missing JWK", false).getBytes(StandardCharsets.UTF_8);
+    private static final byte[] VALID_JWS_USING_MISSING_ECDSA_JWK = generateJws(MISSING_ECDSA_JWKS, "Message signed with missing JWK", false)
+            .getBytes(StandardCharsets.UTF_8);
     private static final byte[] VALID_JWS_USING_RSA_JWK = generateJws(RSA_JWKS, "Message signed with RSA JWK", false).getBytes(StandardCharsets.UTF_8);
 
     private static final String VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD = "Message signed with JWK that will be content detached";
-    private static final byte[] VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED = generateJws(ECDSA_JWKS, VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD, true).getBytes(StandardCharsets.UTF_8);
+    private static final byte[] VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED = generateJws(ECDSA_JWKS, VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD, true)
+            .getBytes(StandardCharsets.UTF_8);
 
     private static final byte[] INVALID_JWS = "This is a non JWS value".getBytes(StandardCharsets.UTF_8);
     private static final byte[] EMPTY = new byte[0];
