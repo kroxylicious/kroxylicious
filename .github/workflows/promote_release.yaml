@@ -152,7 +152,7 @@ jobs:
           echo "PR_REF=$(git rev-list -n 1 origin/${PR_BRANCH})" >> $GITHUB_ENV
 
           # Get main's current head
-          echo "PR_BASE_HEAD=$(git rev-list -n 1 ${PR_BASE_BRANCH} )" >> $GITHUB_ENV
+          echo "PR_BASE_HEAD=$(git rev-list -n 1 origin/${PR_BASE_BRANCH} )" >> $GITHUB_ENV
 
           # Get PR's view of where main ought to be.  This is two commits behind PR's head.
           echo "PR_BASE_REF=$(git rev-list -n 1 origin/${PR_BRANCH}^^)" >> $GITHUB_ENV
@@ -164,7 +164,7 @@ jobs:
         run: |
           if [[ "${PR_BASE_HEAD}" != "${PR_BASE_REF}" ]];
           then
-            gh pr comment --body "Release PR (expects ${PR_BASE_BRANCH} to be at ${PR_BASE_REF}) but has found (${PR_BASE_HEAD}). You must drop this release and restage the release." ${{ inputs.release-pr-issue-number }} as there have been commits to ${PR_BASE_BRANCH} since the release was staged.
+            gh pr comment --body "Release PR (expects ${PR_BASE_BRANCH} to be at ${PR_BASE_REF}) but has found (${PR_BASE_HEAD}). You must drop this release and restage the release. ${{ inputs.release-pr-issue-number }} as there have been commits to ${PR_BASE_BRANCH} since the release was staged."
             exit 1
           fi
 
