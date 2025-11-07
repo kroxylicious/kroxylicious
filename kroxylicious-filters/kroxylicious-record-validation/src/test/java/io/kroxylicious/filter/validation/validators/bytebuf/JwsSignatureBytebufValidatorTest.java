@@ -8,6 +8,7 @@ package io.kroxylicious.proxy.filter.validation.validators.bytebuf;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.Base64;
 import java.util.concurrent.CompletionStage;
 
 import org.apache.kafka.common.header.internals.RecordHeader;
@@ -17,6 +18,7 @@ import org.jose4j.jwk.JsonWebKeySet;
 import org.jose4j.jwk.PublicJsonWebKey;
 import org.jose4j.jws.AlgorithmIdentifiers;
 import org.jose4j.jws.JsonWebSignature;
+import org.jose4j.jwx.HeaderParameterNames;
 import org.jose4j.lang.JoseException;
 import org.junit.jupiter.api.Test;
 
@@ -101,13 +103,19 @@ public class JwsSignatureBytebufValidatorTest {
         }
     }
 
-    private static final byte[] VALID_JWS_USING_ECDSA_JWK = generateJws(ECDSA_JWKS, "Message signed with JWK", false).getBytes(StandardCharsets.UTF_8);
-    private static final byte[] VALID_JWS_USING_MISSING_ECDSA_JWK = generateJws(MISSING_ECDSA_JWKS, "Message signed with missing JWK", false)
+    private static final byte[] VALID_JWS_USING_ECDSA_JWK = generateJws(ECDSA_JWKS, "Message signed with JWK", false, false).getBytes(StandardCharsets.UTF_8);
+    private static final byte[] VALID_JWS_USING_MISSING_ECDSA_JWK = generateJws(MISSING_ECDSA_JWKS, "Message signed with missing JWK", false, false)
             .getBytes(StandardCharsets.UTF_8);
-    private static final byte[] VALID_JWS_USING_RSA_JWK = generateJws(RSA_JWKS, "Message signed with RSA JWK", false).getBytes(StandardCharsets.UTF_8);
+    private static final byte[] VALID_JWS_USING_RSA_JWK = generateJws(RSA_JWKS, "Message signed with RSA JWK", false, false).getBytes(StandardCharsets.UTF_8);
 
     private static final String VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD = "Message signed with JWK that will be content detached";
-    private static final byte[] VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED = generateJws(ECDSA_JWKS, VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD, true)
+    private static final byte[] VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED = generateJws(ECDSA_JWKS, VALID_JWS_USING_ECDSA_JWK_AND_CONTENT_DETACHED_PAYLOAD, true,
+            false)
+            .getBytes(StandardCharsets.UTF_8);
+
+    private static final String VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD = "Message signed with JWK that will be content detached and unencoded";
+    private static final byte[] VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED = generateJws(ECDSA_JWKS,
+            VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD, true, true)
             .getBytes(StandardCharsets.UTF_8);
 
     private static final byte[] INVALID_JWS = "This is a non JWS value".getBytes(StandardCharsets.UTF_8);
@@ -198,6 +206,18 @@ public class JwsSignatureBytebufValidatorTest {
     }
 
     @Test
+    void jwsSignedWithEcdsaJwkAndUsingUnencodedContentDetachedPassesValidation() {
+        Record record = record(VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD,
+                new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED));
+        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_JWKS, PERMIT_ES256, JWS_HEADER_NAME, true);
+        CompletionStage<Result> future = validator.validate(record.value(), record, false);
+
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(true, Result::valid);
+    }
+
+    @Test
     void invalidJwsFailsValidation() {
         Record record = record(EMPTY, new RecordHeader(JWS_HEADER_NAME, INVALID_JWS));
         BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_JWKS, PERMIT_ES256, JWS_HEADER_NAME, false);
@@ -252,7 +272,20 @@ public class JwsSignatureBytebufValidatorTest {
                 .returns(false, Result::valid);
     }
 
-    private static String generateJws(JsonWebKeySet jwks, String payload, boolean isContentDetached) {
+    @Test
+    void jwsSignedWithEcdsaJwkAndUsingUnencodedContentDetachedFailsValidationWhenPayloadIsEncoded() {
+        String base64EncodedPayload = Base64.getEncoder()
+                .encodeToString(VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD.getBytes(StandardCharsets.UTF_8));
+        Record record = record(base64EncodedPayload, new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED));
+        BytebufValidator validator = BytebufValidators.jwsSignatureValidator(ECDSA_JWKS, PERMIT_ES256, JWS_HEADER_NAME, true);
+        CompletionStage<Result> future = validator.validate(record.value(), record, false);
+
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(false, Result::valid);
+    }
+
+    private static String generateJws(JsonWebKeySet jwks, String payload, boolean isContentDetached, boolean useUnencodedPayload) {
         try {
             PublicJsonWebKey jwk = (PublicJsonWebKey) jwks.getJsonWebKeys().get(0);
 
@@ -261,6 +294,11 @@ public class JwsSignatureBytebufValidatorTest {
             jws.setAlgorithmHeaderValue(jwk.getAlgorithm());
             jws.setKey(jwk.getPrivateKey());
             jws.setPayload(payload);
+
+            if (useUnencodedPayload) {
+                jws.setHeader(HeaderParameterNames.BASE64URL_ENCODE_PAYLOAD, false);
+                jws.setCriticalHeaderNames(HeaderParameterNames.BASE64URL_ENCODE_PAYLOAD);
+            }
 
             return isContentDetached ? jws.getDetachedContentCompactSerialization() : jws.getCompactSerialization();
         }
