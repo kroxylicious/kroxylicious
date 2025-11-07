@@ -24,6 +24,8 @@ import org.jose4j.lang.UnresolvableKeyException;
 
 import io.kroxylicious.proxy.filter.validation.validators.Result;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
  * Checks if the {@link Record} headers contains a valid {@link JsonWebSignature} Signature.
  * <p>
@@ -43,16 +45,18 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
 
     private final JsonWebSignature jws = new JsonWebSignature();
     private final JsonWebKeySet jsonWebKeySet;
+    private final boolean isContentDetached;
 
     /**
      * Constructor for {@link JwsSignatureBytebufValidator}.
      *
      * @see <a href="https://bitbucket.org/b_c/jose4j/wiki/JWS%20Examples">jose4j JWS examples</a>
      */
-    public JwsSignatureBytebufValidator(JsonWebKeySet jsonWebKeySet, AlgorithmConstraints algorithmConstraints, String jwsHeaderName) {
+    public JwsSignatureBytebufValidator(JsonWebKeySet jsonWebKeySet, AlgorithmConstraints algorithmConstraints, String jwsHeaderName, boolean isContentDetached) {
         this.jsonWebKeySet = jsonWebKeySet;
         jws.setAlgorithmConstraints(algorithmConstraints);
         this.jwsHeaderName = jwsHeaderName;
+        this.isContentDetached = isContentDetached;
     }
 
     @Override
@@ -68,7 +72,12 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
             byte[] jwsHeaderValue = new RecordHeaders(record.headers()).lastHeader(jwsHeaderName).value();
             String jwsHeaderValueString = new String(jwsHeaderValue, StandardCharsets.UTF_8);
 
-            if (verifySignature(jwsHeaderValueString)) {
+            String payload = null;
+            if (isContentDetached) {
+                payload = new String(StandardCharsets.UTF_8.decode(buffer).array());
+            }
+
+            if (verifySignature(jwsHeaderValueString, payload)) {
                 return Result.VALID_RESULT_STAGE;
             }
         }
@@ -84,11 +93,17 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
      * Validates a JWS Signature using the provided {@link JsonWebKeySet} and {@link AlgorithmConstraints}.
      *
      * @param jwsCompactSerialization Result of {@link JsonWebSignature#getCompactSerialization()}
+     * @param payload The payload of the {@link JsonWebSignature} (only pass this if using {@link JsonWebSignature#getDetachedContentCompactSerialization()})
      * @return True if the signature was validated successfully, otherwise False.
      * @throws JoseException If a {@link JsonWebKey} that matches the {@link AlgorithmConstraints} cannot be found in the {@link JsonWebKeySet}, the {@link JsonWebSignature} cannot be deserialized, etc.
      */
-    private boolean verifySignature(String jwsCompactSerialization) throws JoseException {
+    private boolean verifySignature(String jwsCompactSerialization, @Nullable String payload) throws JoseException {
         this.jws.setCompactSerialization(jwsCompactSerialization);
+
+        // Cannot use a function overload because order of execution matters for jose4j jws set functions.
+        if (payload != null) {
+            this.jws.setPayload(payload);
+        }
 
         // We can only select the key after setCompactSerialization() has set the JWS's "alg" header
         JsonWebKey jwk = jwkSelector.select(this.jws, jsonWebKeySet.getJsonWebKeys());
