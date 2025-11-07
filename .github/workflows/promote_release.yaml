@@ -164,7 +164,7 @@ jobs:
         run: |
           if [[ "${PR_BASE_HEAD}" != "${PR_BASE_REF}" ]];
           then
-            gh pr comment --body "Release PR (expects ${PR_BASE_BRANCH} to be at ${PR_BASE_REF}) but has found (${PR_BASE_HEAD}). You must drop this release and restage the release." ${{ inputs.release-pr-issue-number }} as there have been commits to ${PR_BASE_BRANCH} since the release was staged.
+            gh pr comment --body "Release PR (expects ${PR_BASE_BRANCH} to be at ${PR_BASE_REF}) but has found (${PR_BASE_HEAD}). You must drop this release and restage the release. ${{ inputs.release-pr-issue-number }} as there have been commits to ${PR_BASE_BRANCH} since the release was staged."
             exit 1
           fi
 
