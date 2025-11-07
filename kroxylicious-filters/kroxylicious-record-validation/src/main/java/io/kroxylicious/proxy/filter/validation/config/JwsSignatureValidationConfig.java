@@ -39,6 +39,7 @@ public class JwsSignatureValidationConfig {
     private final JsonWebKeySet jsonWebKeySet;
     private final AlgorithmConstraints algorithmConstraints;
     private final String jwsHeaderName;
+    private final boolean isContentDetached;
 
     static {
         @SuppressWarnings("java:S2440") // Needed for reflection
@@ -62,14 +63,16 @@ public class JwsSignatureValidationConfig {
     public JwsSignatureValidationConfig(@JsonProperty(value = "jsonWebKeySet", required = true) @JsonDeserialize(using = JsonWebKeySetDeserializer.class) JsonWebKeySet jsonWebKeySet,
                                         @JsonProperty(value = "algorithmConstraintType", defaultValue = "BLOCK") @Nullable AlgorithmConstraints.ConstraintType nullableAlgorithmConstraintType,
                                         @JsonProperty(value = "algorithms", defaultValue = "[]") @Nullable String[] nullableAlgorithms,
-                                        @JsonProperty(value = "jwsHeaderName", defaultValue = "jws") @Nullable String nullableJwsHeaderName) {
+                                        @JsonProperty(value = "jwsHeaderName", defaultValue = "jws") @Nullable String nullableJwsHeaderName,
+                                        @JsonProperty(value = "isContentDetached", defaultValue = "false") boolean nullableIsContentDetached) {
         this.jsonWebKeySet = jsonWebKeySet;
 
         AlgorithmConstraints.ConstraintType algorithmConstraintType = nullableAlgorithmConstraintType != null ? nullableAlgorithmConstraintType
                 : AlgorithmConstraints.ConstraintType.BLOCK;
         String[] algorithms = nullableAlgorithms != null ? nullableAlgorithms : new String[]{};
-        this.jwsHeaderName = nullableJwsHeaderName != null ? nullableJwsHeaderName : "jws";
         this.algorithmConstraints = new AlgorithmConstraints(algorithmConstraintType, algorithms);
+        this.jwsHeaderName = nullableJwsHeaderName != null ? nullableJwsHeaderName : "jws";
+        this.isContentDetached = nullableIsContentDetached;
     }
 
     public JsonWebKeySet getJsonWebKeySet() {
@@ -82,6 +85,10 @@ public class JwsSignatureValidationConfig {
 
     public String getJwsHeaderName() {
         return jwsHeaderName;
+    }
+
+    public boolean getIsContentDetached() {
+        return isContentDetached;
     }
 
     /**
@@ -126,12 +133,12 @@ public class JwsSignatureValidationConfig {
             }
         }
 
-        return jsonWebKeySet.toJson().equals(that.jsonWebKeySet.toJson()) && jwsHeaderName.equals(that.jwsHeaderName);
+        return jsonWebKeySet.toJson().equals(that.jsonWebKeySet.toJson()) && jwsHeaderName.equals(that.jwsHeaderName) && isContentDetached == that.isContentDetached;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(jsonWebKeySet, algorithmConstraints, jwsHeaderName);
+        return Objects.hash(jsonWebKeySet, algorithmConstraints, jwsHeaderName, isContentDetached);
     }
 
     @Override
@@ -141,6 +148,7 @@ public class JwsSignatureValidationConfig {
                 "jsonWebKeySet=" + jsonWebKeySet +
                 ", algorithmConstraintType='" + algorithmConstraints + '\'' +
                 ", jwsHeaderName='" + jwsHeaderName + '\'' +
+                ", isContentDetached='" + isContentDetached + '\'' +
                 '}';
     }
 
