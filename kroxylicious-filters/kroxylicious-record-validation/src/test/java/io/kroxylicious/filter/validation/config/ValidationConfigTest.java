@@ -149,7 +149,7 @@ class ValidationConfigTest {
                 """);
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, new JwsSignatureValidationConfig(ECDSA_JWKS, null, null, null), true, false));
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, new JwsSignatureValidationConfig(ECDSA_JWKS, null, null, null, false), true, false));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, true, false), null);
         ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo),
                 new RecordValidationRule(null, new BytebufValidation(null, null, null, true, false)));
@@ -199,6 +199,7 @@ class ValidationConfigTest {
                                     - ES256
                                     - RS256
                                 jwsHeaderName: x-jws
+                                isContentDetached: true
                             allowNulls: false
                             allowEmpty: true
                         - topicNames:
@@ -211,7 +212,7 @@ class ValidationConfigTest {
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
                 new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), null,
                         new JwsSignatureValidationConfig(RSA_AND_ECDSA_JWKS, AlgorithmConstraints.ConstraintType.PERMIT,
-                                new String[]{ AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256 }, "x-jws"),
+                                new String[]{ AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256 }, "x-jws", true),
                         false,
                         true));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, false, true), null);
