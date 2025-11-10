@@ -127,7 +127,8 @@ public class JwsSignatureBytebufValidatorTest {
     }
 
     private static final String VALID_JWS_USING_ECDSA_JWK_PAYLOAD = "Message signed with JWK";
-    private static final byte[] VALID_JWS_USING_ECDSA_JWK = generateJws(ECDSA_SIGN_JWKS, VALID_JWS_USING_ECDSA_JWK_PAYLOAD, false, false).getBytes(StandardCharsets.UTF_8);
+    private static final byte[] VALID_JWS_USING_ECDSA_JWK = generateJws(ECDSA_SIGN_JWKS, VALID_JWS_USING_ECDSA_JWK_PAYLOAD, false, false)
+            .getBytes(StandardCharsets.UTF_8);
 
     private static final String VALID_JWS_USING_MISSING_ECDSA_JWK_PAYLOAD = "Message signed with missing JWK";
     private static final byte[] VALID_JWS_USING_MISSING_ECDSA_JWK = generateJws(MISSING_ECDSA_SIGN_JWKS, VALID_JWS_USING_MISSING_ECDSA_JWK_PAYLOAD, false, false)
