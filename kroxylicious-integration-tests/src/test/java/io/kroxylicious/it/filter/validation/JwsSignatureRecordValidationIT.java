@@ -7,12 +7,12 @@
 package io.kroxylicious.proxy.filter.validation;
 
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.InvalidRecordException;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.jose4j.jwk.JsonWebKeySet;
@@ -36,6 +36,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 @ExtendWith(KafkaClusterExtension.class)
 public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
+    // Copied from JwsSignatureBytebufValidator
+    private static final String DEFAULT_ERROR_MESSAGE = "JWS Signature could not be successfully verified";
+
     // Copied from JwsSignatureBytebufValidatorTest
     private static final String JWS_HEADER_NAME = "jws";
 
@@ -128,7 +131,8 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
     }
 
     private static final String VALID_JWS_USING_ECDSA_JWK_PAYLOAD = "Message signed with JWK";
-    private static final byte[] VALID_JWS_USING_ECDSA_JWK = generateJws(ECDSA_SIGN_JWKS, VALID_JWS_USING_ECDSA_JWK_PAYLOAD, false, false).getBytes(StandardCharsets.UTF_8);
+    private static final byte[] VALID_JWS_USING_ECDSA_JWK = generateJws(ECDSA_SIGN_JWKS, VALID_JWS_USING_ECDSA_JWK_PAYLOAD, false, false)
+            .getBytes(StandardCharsets.UTF_8);
 
     private static final String VALID_JWS_USING_MISSING_ECDSA_JWK_PAYLOAD = "Message signed with missing JWK";
     private static final byte[] VALID_JWS_USING_MISSING_ECDSA_JWK = generateJws(MISSING_ECDSA_SIGN_JWKS, VALID_JWS_USING_MISSING_ECDSA_JWK_PAYLOAD, false, false)
@@ -149,11 +153,12 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
             .getBytes(StandardCharsets.UTF_8);
 
     private static final byte[] INVALID_JWS = "This is a non JWS value".getBytes(StandardCharsets.UTF_8);
+    private static final String RANDOM_STRING = "random string";
     private static final String EMPTY_STRING = "";
 
     @Test
     void validJwsProduceAccepted(KafkaCluster cluster, Topic topic) {
-        ConfigurationBuilder config = createFilterDef(cluster, topic);
+        ConfigurationBuilder config = createFilterDef(cluster, topic, false);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer()) {
@@ -170,6 +175,65 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
             assertThat(records)
                     .singleElement()
                     .satisfies(record -> isJwsHeaderMatching(record, VALID_JWS_USING_ECDSA_JWK));
+        }
+    }
+
+    @Test
+    void validDetachedContentJwsProduceAccepted(KafkaCluster cluster, Topic topic) {
+        ConfigurationBuilder config = createFilterDef(cluster, topic, true);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer()) {
+            var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
+                    EMPTY_STRING, VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD,
+                    List.of(new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED))));
+            assertThatFutureSucceeds(result);
+
+            var records = consumeAll(tester, topic);
+            assertThat(records)
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .isEqualTo(VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED_PAYLOAD);
+
+            assertThat(records)
+                    .singleElement()
+                    .satisfies(record -> isJwsHeaderMatching(record, VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED));
+        }
+    }
+
+    @Test
+    void invalidJwsProduceRejected(KafkaCluster cluster, Topic topic) {
+        ConfigurationBuilder config = createFilterDef(cluster, topic, false);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer()) {
+            var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
+                    EMPTY_STRING, RANDOM_STRING, List.of(new RecordHeader(JWS_HEADER_NAME, INVALID_JWS))));
+            assertThatFutureFails(result, InvalidRecordException.class, DEFAULT_ERROR_MESSAGE + ": A JWS Compact Serialization must have exactly 3 parts");
+        }
+    }
+
+    @Test
+    void missingJwkProduceRejected(KafkaCluster cluster, Topic topic) {
+        ConfigurationBuilder config = createFilterDef(cluster, topic, false);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer()) {
+            var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
+                    EMPTY_STRING, RANDOM_STRING, List.of(new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_MISSING_ECDSA_JWK))));
+            assertThatFutureFails(result, InvalidRecordException.class, DEFAULT_ERROR_MESSAGE + ": Could not select valid JWK that matches the algorithm constraints");
+        }
+    }
+
+    @Test
+    void invalidDetachedContentJwsProduceRejected(KafkaCluster cluster, Topic topic) {
+        ConfigurationBuilder config = createFilterDef(cluster, topic, true);
+
+        try (var tester = kroxyliciousTester(config);
+                var producer = tester.producer()) {
+            var result = producer.send(new ProducerRecord<>(topic.name(), null, null,
+                    EMPTY_STRING, RANDOM_STRING, List.of(new RecordHeader(JWS_HEADER_NAME, VALID_JWS_USING_ECDSA_JWK_AND_UNENCODED_CONTENT_DETACHED))));
+            assertThatFutureFails(result, InvalidRecordException.class, DEFAULT_ERROR_MESSAGE + ": JWS Signature was invalid");
         }
     }
 
@@ -200,11 +264,13 @@ public class JwsSignatureRecordValidationIT extends RecordValidationBaseIT {
         }
     }
 
-    private static ConfigurationBuilder createFilterDef(KafkaCluster cluster, Topic... topics) {
+    private static ConfigurationBuilder createFilterDef(KafkaCluster cluster, Topic topic, boolean contentDetached) {
         String className = RecordValidation.class.getName();
         NamedFilterDefinition namedFilterDefinition = new NamedFilterDefinitionBuilder(className, className).withConfig("rules",
-                        List.of(Map.of("topicNames", Arrays.stream(topics).map(Topic::name).toList(), "valueRule",
-                                Map.of("jwsSignatureValidationConfig", Map.of("jsonWebKeySet", ECDSA_VERIFY_JWKS.toJson(), "algorithmConstraintType", "PERMIT", "algorithms", List.of("ES256"), "jwsHeaderName", JWS_HEADER_NAME)))))
+                List.of(Map.of("topicNames", List.of(topic.name()), "valueRule",
+                        Map.of("jwsSignatureValidationConfig",
+                                Map.of("jsonWebKeySet", ECDSA_VERIFY_JWKS.toJson(), "algorithmConstraintType", "PERMIT", "algorithms", List.of("ES256"), "jwsHeaderName",
+                                        JWS_HEADER_NAME, "isContentDetached", contentDetached)))))
                 .build();
 
         return proxy(cluster)
