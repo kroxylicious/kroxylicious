@@ -77,16 +77,17 @@ public class JwsSignatureBytebufValidator implements BytebufValidator {
                 payload = new String(StandardCharsets.UTF_8.decode(buffer).array());
             }
 
-            if (verifySignature(jwsHeaderValueString, payload)) {
-                return Result.VALID_RESULT_STAGE;
+            if (!verifySignature(jwsHeaderValueString, payload)) {
+                String message = DEFAULT_ERROR_MESSAGE + ": JWS Signature was invalid";
+                return CompletableFuture.completedStage(new Result(false, message));
             }
+
+            return Result.VALID_RESULT_STAGE;
         }
         catch (JoseException e) {
             String message = DEFAULT_ERROR_MESSAGE + (e.getMessage() != null ? ": " + e.getMessage() : "");
             return CompletableFuture.completedStage(new Result(false, message));
         }
-
-        return CompletableFuture.completedStage(new Result(false, DEFAULT_ERROR_MESSAGE));
     }
 
     /**
