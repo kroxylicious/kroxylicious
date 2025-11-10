@@ -113,7 +113,7 @@ public class LowkeyVault implements AzureKmsClient {
         return LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME;
     }
 
-    private void installCertificates() throws Exception {
+    private void installCertificates() {
         Path keystorePath;
         String password;
         try {
@@ -121,7 +121,7 @@ public class LowkeyVault implements AzureKmsClient {
             String domain = LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME + "." + LOWKEY_VAULT_DEFAULT_NAMESPACE + ".svc.cluster.local";
             String ipAddress = DeploymentUtils.getNodeIP();
             CertificateBuilder certificateBuilder = entraCertGen.newCertificateBuilder(entraCertGen.buildDistinguishedName("test@kroxylicious.io", domain, "Engineering",
-                            "Kroxylicious.io", null, null, "US"))
+                    "Kroxylicious.io", null, null, "US"))
                     .addSanIpAddress(ipAddress)
                     .addSanDnsName(domain);
             X509Bundle bundle = entraCertGen.createSelfSignedCertificate(certificateBuilder);
