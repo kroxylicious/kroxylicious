@@ -65,7 +65,7 @@ public class PythonTestClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, String compressionType, int numOfMessages) {
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages) {
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
 
         StringBuilder msg = new StringBuilder();
@@ -85,7 +85,7 @@ public class PythonTestClient implements KafkaClient {
                 "--image=" + Constants.PYTHON_CLIENT_IMAGE,
                 "--override-type=strategic",
                 "--overrides=" + jsonOverrides,
-                "--", PYTHON_COMMAND, PRODUCER_PATH, "-b", bootstrap, "-t", topicName, "-X", "compression.type=" + compressionType));
+                "--", PYTHON_COMMAND, PRODUCER_PATH, "-b", bootstrap, "-t", topicName));
         recordKey.ifPresent(key -> {
             executableCommand.add("-k");
             executableCommand.add(key);

@@ -41,7 +41,7 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
                 .map(TestKubeKmsFacadeInvocationContextProvider.TemplateInvocationContext::new);
     }
 
-    private record TemplateInvocationContext(TestKmsFacade<?, ?, ?> kmsFacade) implements TestTemplateInvocationContext {
+    public record TemplateInvocationContext(TestKmsFacade<?, ?, ?> kmsFacade) implements TestTemplateInvocationContext {
 
         @Override
         public String getDisplayName(int invocationIndex) {

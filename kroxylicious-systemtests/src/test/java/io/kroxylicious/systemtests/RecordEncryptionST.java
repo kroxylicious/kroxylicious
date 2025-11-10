@@ -10,6 +10,7 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.kafka.common.record.CompressionType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
@@ -25,6 +26,7 @@ import io.strimzi.api.kafka.model.kafka.KafkaBuilder;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
+import io.kroxylicious.systemtests.extensions.CompressionTypeInvocationContextProvider;
 import io.kroxylicious.systemtests.extensions.TestKubeKmsFacadeInvocationContextProvider;
 import io.kroxylicious.systemtests.installation.kroxylicious.Kroxylicious;
 import io.kroxylicious.systemtests.installation.kroxylicious.KroxyliciousOperator;
@@ -40,7 +42,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assumptions.assumeThat;
 import static org.junit.jupiter.api.Assertions.assertAll;
 
-@ExtendWith(TestKubeKmsFacadeInvocationContextProvider.class)
 class RecordEncryptionST extends AbstractST {
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordEncryptionST.class);
@@ -102,6 +103,7 @@ class RecordEncryptionST extends AbstractST {
     }
 
     @TestTemplate
+    @ExtendWith(TestKubeKmsFacadeInvocationContextProvider.class)
     void ensureClusterHasEncryptedMessage(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);
@@ -133,8 +135,48 @@ class RecordEncryptionST extends AbstractST {
                         .allMatch(r -> !r.getPayload().contains(MESSAGE)));
     }
 
+    // @TestTemplate
+    // void produceAndConsumeMessages(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    // testKekManager = testKmsFacade.getTestKekManager();
+    // testKekManager.generateKek("KEK_" + topicName);
+    // int numberOfMessages = 1;
+    //
+    // // start Kroxylicious
+    // LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
+    // Kroxylicious kroxylicious = new Kroxylicious(namespace);
+    // kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, testKmsFacade);
+    // bootstrap = kroxylicious.getBootstrap(clusterName);
+    //
+    // LOGGER.info("And a kafka Topic named {}", topicName);
+    // KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
+    //
+    // LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
+    // KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
+    //
+    // LOGGER.info("Then the messages are consumed");
+    // List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
+    // LOGGER.info("Received: {}", result);
+    //
+    // assertThat(result).withFailMessage("expected messages have not been received!")
+    // .extracting(ConsumerRecord::getPayload)
+    // .hasSize(numberOfMessages)
+    // .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+    // }
+
+    /**
+     * Produce and consume compressed message.
+     *
+     * @param namespace the namespace
+     * @param testKmsFacade the test kms facade
+     * @param compressionType the compression type
+     */
     @TestTemplate
-    void produceAndConsumeMessage(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+    @ExtendWith(CompressionTypeInvocationContextProvider.class)
+    void produceAndConsumeCompressedMessages(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade, CompressionType compressionType) {
+        produceAndConsumeMessage(namespace, compressionType, testKmsFacade);
+    }
+
+    private void produceAndConsumeMessage(String namespace, CompressionType compressionType, TestKmsFacade<?, ?, ?> testKmsFacade) {
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);
         int numberOfMessages = 1;
@@ -146,7 +188,7 @@ class RecordEncryptionST extends AbstractST {
         bootstrap = kroxylicious.getBootstrap(clusterName);
 
         LOGGER.info("And a kafka Topic named {}", topicName);
-        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1, compressionType);
 
         LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
         KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
@@ -163,6 +205,7 @@ class RecordEncryptionST extends AbstractST {
 
     @SuppressWarnings("java:S2925")
     @TestTemplate
+    @ExtendWith(TestKubeKmsFacadeInvocationContextProvider.class)
     void ensureClusterHasEncryptedMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
         // Skip AWS test execution because the ciphertext blob metadata to read the version of the KEK is not available anywhere
         assumeThat(testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().contains("vault")).isTrue();
@@ -229,6 +272,7 @@ class RecordEncryptionST extends AbstractST {
 
     @SuppressWarnings("java:S2925")
     @TestTemplate
+    @ExtendWith(TestKubeKmsFacadeInvocationContextProvider.class)
     void produceAndConsumeMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
         testKekManager = testKmsFacade.getTestKekManager();
         testKekManager.generateKek("KEK_" + topicName);

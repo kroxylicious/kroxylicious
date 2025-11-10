@@ -50,16 +50,16 @@ class KroxyliciousST extends AbstractST {
      *
      * @param namespace the namespace
      */
-//    @Test
-//    void produceAndConsumeMessages(String namespace) {
-//        // start Kroxylicious
-//        LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-//        kroxylicious = new Kroxylicious(namespace);
-//        kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
-//        String bootstrap = kroxylicious.getBootstrap(clusterName);
-//
-//        produceAndConsumeMessage(namespace, bootstrap);
-//    }
+    // @Test
+    // void produceAndConsumeMessages(String namespace) {
+    // // start Kroxylicious
+    // LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
+    // kroxylicious = new Kroxylicious(namespace);
+    // kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
+    // String bootstrap = kroxylicious.getBootstrap(clusterName);
+    //
+    // produceAndConsumeMessage(namespace, bootstrap);
+    // }
 
     /**
      * Produce and consume message.
@@ -130,10 +130,10 @@ class KroxyliciousST extends AbstractST {
         int numberOfMessages = 1;
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
-        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1, compressionType);
 
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, compressionType, numberOfMessages);
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
         List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));

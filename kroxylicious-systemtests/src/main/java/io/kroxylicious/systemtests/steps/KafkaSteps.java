@@ -7,8 +7,11 @@
 package io.kroxylicious.systemtests.steps;
 
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.kafka.common.config.TopicConfig;
+import org.apache.kafka.common.record.CompressionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,12 +46,29 @@ public class KafkaSteps {
      * @param replicas the replicas
      */
     public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas) {
+        createTopic(deployNamespace, topicName, bootstrap, partitions, replicas, CompressionType.NONE);
+    }
+
+    /**
+     * Create topic.
+     *
+     * @param deployNamespace the deploy namespace
+     * @param topicName the topic name
+     * @param bootstrap the bootstrap
+     * @param partitions the partitions
+     * @param replicas the replicas
+     * @param compressionType the compression type
+     */
+    public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas, CompressionType compressionType) {
         LOGGER.atDebug().setMessage("Creating '{}' topic").addArgument(topicName).log();
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
-        List<String> args = List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
-                "--topic-rep-factor=" + replicas);
+        List<String> args = new ArrayList<>(
+                List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
+                        "--topic-rep-factor=" + replicas));
 
-        // TODO: Test if compression type can be set at topic level
+        if (!compressionType.equals(CompressionType.NONE)) {
+            args.add("--topic-config=" + TopicConfig.COMPRESSION_TYPE_CONFIG + "=" + compressionType);
+        }
 
         Job adminClientJob = TestClientsJobTemplates.defaultAdminClientJob(name, args).build();
         kubeClient().getClient().batch().v1().jobs().inNamespace(deployNamespace).resource(adminClientJob).create();
