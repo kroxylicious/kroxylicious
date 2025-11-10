@@ -8,8 +8,11 @@ package io.kroxylicious.krpccodegen.schema;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -103,6 +106,11 @@ public final class MessageSpec {
     @JsonProperty("fields")
     public List<FieldSpec> fields() {
         return struct.fields();
+    }
+
+    // @VisibleForTesting
+    public Map<String, FieldSpec> fieldsByName() {
+        return struct.fields().stream().collect(Collectors.toMap(FieldSpec::name, Function.identity()));
     }
 
     @JsonProperty("apiKey")

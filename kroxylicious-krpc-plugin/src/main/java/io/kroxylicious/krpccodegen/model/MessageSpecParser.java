@@ -7,10 +7,13 @@
 package io.kroxylicious.krpccodegen.model;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Path;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.core.JsonParser;
+import com.fasterxml.jackson.core.json.JsonReadFeature;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -41,6 +44,11 @@ public class MessageSpecParser {
      */
     public MessageSpec getMessageSpec(Path messageSpec) throws IOException {
         return JSON_SERDE.readValue(messageSpec.toFile(), MessageSpec.class);
+    }
+
+    // @VisibleForTesting
+    MessageSpec getMessageSpec(InputStream messageSpecStream) throws IOException {
+        return JSON_SERDE.readValue(JsonFactory.builder().enable(JsonReadFeature.ALLOW_JAVA_COMMENTS).build().createParser(messageSpecStream), MessageSpec.class);
     }
 
 }
