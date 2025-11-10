@@ -252,6 +252,11 @@
             <groupId>io.netty</groupId>
             <artifactId>netty-pkitesting</artifactId>
         </dependency>
+        <dependency>
+            <groupId>io.kroxylicious.testing</groupId>
+            <artifactId>testing-impl</artifactId>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 
     <build>

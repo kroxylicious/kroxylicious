@@ -50,7 +50,7 @@
         <jackson.version>2.20.0</jackson.version>
         <junit.version>5.14.0</junit.version>
         <kafka.version>4.1.0</kafka.version>
-        <kroxy.extension.version>0.12.0</kroxy.extension.version>
+        <kroxy.extension.version>0.13.0</kroxy.extension.version>
         <log4j.version>2.25.2</log4j.version>
         <caffeine.version>3.2.3</caffeine.version>
         <picocli.version>4.7.7</picocli.version>
