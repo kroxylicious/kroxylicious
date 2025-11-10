@@ -31,8 +31,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ValidationConfigTest {
 
-    private static final JsonWebKeySet ECDSA_JWKS = JwsSignatureBytebufValidatorTest.ECDSA_JWKS;
-    private static final JsonWebKeySet RSA_AND_ECDSA_JWKS = JwsSignatureBytebufValidatorTest.RSA_AND_ECDSA_JWKS;
+    private static final JsonWebKeySet ECDSA_VERIFY_JWKS = JwsSignatureBytebufValidatorTest.ECDSA_VERIFY_JWKS;
+    private static final JsonWebKeySet RSA_AND_ECDSA_VERIFY_JWKS = JwsSignatureBytebufValidatorTest.RSA_AND_ECDSA_VERIFY_JWKS;
 
     private static ValidationConfig expectedApicurioConfig() throws MalformedURLException {
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
@@ -130,26 +130,14 @@ class ValidationConfigTest {
                     syntacticallyCorrectJson: {}
                     jwsSignatureValidationConfig:
                         jsonWebKeySet: >
-                            {
-                              "keys": [
-                                {
-                                  "kty": "EC",
-                                  "kid": "Trusted ECDSA JWK",
-                                  "use": "sig",
-                                  "alg": "ES256",
-                                  "x": "qqeGjWmYZU5M5bBrRw1zqZcbPunoFVxsfaa9JdA0R5I",
-                                  "y": "wnoj0YjheNP80XYh1SEvz1-wnKByEoHvb6KrDcjMuWc",
-                                  "crv": "P-256"
-                                }
-                              ]
-                            }
+                            %s
                 - topicNames:
                   - two
                   keyRule: {}
-                """);
+                """.formatted(ECDSA_VERIFY_JWKS.toJson()));
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
-                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, new JwsSignatureValidationConfig(ECDSA_JWKS, null, null, null, false), true,
+                new BytebufValidation(new SyntacticallyCorrectJsonConfig(false), null, new JwsSignatureValidationConfig(ECDSA_VERIFY_JWKS, null, null, null, false), true,
                         false));
         TopicMatchingRecordValidationRule ruleTwo = new TopicMatchingRecordValidationRule(Set.of("two"), new BytebufValidation(null, null, null, true, false), null);
         ValidationConfig expected = new ValidationConfig(List.of(ruleOne, ruleTwo),
@@ -174,27 +162,7 @@ class ValidationConfigTest {
                                 validateObjectKeysUnique: true
                             jwsSignatureValidationConfig:
                                 jsonWebKeySet: >
-                                    {
-                                      "keys": [
-                                          {
-                                            "kty": "RSA",
-                                            "kid": "Trusted RSA JWK",
-                                            "use": "sig",
-                                            "alg": "RS256",
-                                            "n": "lx-5h_lkVJGc8-NxgKGkfxobBlM7DDCjqAloEieCf8c9KbPJ12V0Bm8arOX-lm0wRSLxmWzQ3NTM6S9pDbSc7fQt77THlMD1zEDMwIAJxfoMt3U_VrMHVdiOvO6YpU3jWBp7BfQNYHJjCSiaxIHqDPuDCh2GTflkU32Nfim7W3iLBuH4_K8ADYHz3QdeX29vzl49PDbUiiJEsjnEconsfuYjrFaN3uGn41mGzjedc7oxlcID8fDxq5bvZvOFBAIqdrxs5qPYw1QlVupB3LT0AMU1qKWOB_vkM1n54eDIxP9Xd__WnvX4wagYqA1OZ9LPBenhBX7_Rbnrap2QNQ58-Q",
-                                            "e": "AQAB"
-                                          },
-                                          {
-                                            "kty": "EC",
-                                            "kid": "Trusted ECDSA JWK",
-                                            "use": "sig",
-                                            "alg": "ES256",
-                                            "x": "qqeGjWmYZU5M5bBrRw1zqZcbPunoFVxsfaa9JdA0R5I",
-                                            "y": "wnoj0YjheNP80XYh1SEvz1-wnKByEoHvb6KrDcjMuWc",
-                                            "crv": "P-256"
-                                          }
-                                      ]
-                                    }
+                                    %s
                                 algorithmConstraintType: PERMIT
                                 algorithms:
                                     - ES256
@@ -208,11 +176,11 @@ class ValidationConfigTest {
                           keyRule:
                             allowNulls: false
                             allowEmpty: true
-                        """);
+                        """.formatted(RSA_AND_ECDSA_VERIFY_JWKS.toJson()));
 
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
                 new BytebufValidation(new SyntacticallyCorrectJsonConfig(true), null,
-                        new JwsSignatureValidationConfig(RSA_AND_ECDSA_JWKS, AlgorithmConstraints.ConstraintType.PERMIT,
+                        new JwsSignatureValidationConfig(RSA_AND_ECDSA_VERIFY_JWKS, AlgorithmConstraints.ConstraintType.PERMIT,
                                 new String[]{ AlgorithmIdentifiers.ECDSA_USING_P256_CURVE_AND_SHA256, AlgorithmIdentifiers.RSA_USING_SHA256 }, "x-jws", true),
                         false,
                         true));
