@@ -261,4 +261,23 @@ public final class FieldSpec {
         return baseType + "Collection";
     }
 
+    @Override
+    public String toString() {
+        return "FieldSpec{" +
+                "name='" + name + '\'' +
+                ", versions=" + versions +
+                ", fields=" + fields +
+                ", type=" + type +
+                ", mapKey=" + mapKey +
+                ", nullableVersions=" + nullableVersions +
+                ", fieldDefault='" + fieldDefault + '\'' +
+                ", ignorable=" + ignorable +
+                ", entityType=" + entityType +
+                ", about='" + about + '\'' +
+                ", taggedVersions=" + taggedVersions +
+                ", flexibleVersions=" + flexibleVersions +
+                ", tag=" + tag +
+                ", zeroCopy=" + zeroCopy +
+                '}';
+    }
 }

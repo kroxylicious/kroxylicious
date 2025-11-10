@@ -165,4 +165,16 @@ public final class MessageSpec {
         return new Node(collect, List.of(), versions);
     }
 
+    @Override
+    public String toString() {
+        return "MessageSpec{" +
+                "struct=" + struct +
+                ", apiKey=" + apiKey +
+                ", type=" + type +
+                ", commonStructs=" + commonStructs +
+                ", flexibleVersions=" + flexibleVersions +
+                ", listeners=" + listeners +
+                ", latestVersionUnstable=" + latestVersionUnstable +
+                '}';
+    }
 }
