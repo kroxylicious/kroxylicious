@@ -32,7 +32,14 @@ import io.kroxylicious.systemtests.templates.ContainerTemplates;
 public class LowkeyVaultTemplates {
     private static final String LOWKEY_VAULT_NAMES_VAR = "LOWKEY_VAULT_NAMES";
     private static final String LOWKEY_VAULT_ALIASES_VAR = "LOWKEY_VAULT_ALIASES";
+    public static final String LOWKEY_VAULT_NODE_PORT_SERVICE_NAME = "lowkey-vault-" + Constants.NODE_PORT_TYPE.toLowerCase();
+    public static final String LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME = "lowkey-vault-" + Constants.CLUSTER_IP_TYPE.toLowerCase();
+    private static final String LOWKEY_VAULT_DEPLOYMENT_NAME = "my-key-vault";
     private static final int CLUSTER_IP_PORT = 443;
+
+    private LowkeyVaultTemplates() {
+
+    }
 
     private static List<ContainerPort> getLowKeyVaultContainerPorts() {
         List<ContainerPort> containerPorts = new ArrayList<>();
@@ -102,14 +109,13 @@ public class LowkeyVaultTemplates {
                 .build();
     }
 
-    private static List<EnvVar> lowkeyVaultEnvVars(String serviceName, String namespace, String nodePortEndpoint, String vaultName, String certFilePath,
-                                                   String password) {
-        String fqdnEndpoint = serviceName + "-" + Constants.CLUSTER_IP_TYPE.toLowerCase() + "." + namespace + ".svc.cluster.local:" + CLUSTER_IP_PORT;
+    private static List<EnvVar> lowkeyVaultEnvVars(String namespace, String nodePortEndpoint, String certFilePath, String password) {
+        String fqdnEndpoint = LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME + "." + namespace + ".svc.cluster.local:" + CLUSTER_IP_PORT;
         return new ArrayList<>(List.of(
                 envVar("server.ssl.key-store-type", "JKS"),
                 envVar("server.ssl.key-store", certFilePath),
                 envVar("server.ssl.key-store-password", password),
-                envVar(LOWKEY_VAULT_NAMES_VAR, vaultName),
+                envVar(LOWKEY_VAULT_NAMES_VAR, LOWKEY_VAULT_DEPLOYMENT_NAME),
                 envVar(LOWKEY_VAULT_ALIASES_VAR, "localhost=" + nodePortEndpoint + ",localhost=" + fqdnEndpoint)));
     }
 
@@ -181,20 +187,19 @@ public class LowkeyVaultTemplates {
     /**
      * Default lowkey vault deployment builder.
      *
-     * @param deploymentName the deployment name
      * @param image the image
      * @param namespace the namespace
      * @param endpoint the endpoint
      * @return  the deployment builder
      */
-    public static DeploymentBuilder defaultLowkeyVaultDeployment(String deploymentName, String image, String namespace, String endpoint, String password) {
-        Map<String, String> labelSelector = Map.of("app", deploymentName);
+    public static DeploymentBuilder defaultLowkeyVaultDeployment(String image, String namespace, String endpoint, String password) {
+        Map<String, String> labelSelector = Map.of("app", LOWKEY_VAULT_DEPLOYMENT_NAME);
         // @formatter:off
         return new DeploymentBuilder()
                 .withKind(Constants.DEPLOYMENT)
                 .withNewMetadata()
                     .withNamespace(namespace)
-                    .withName(deploymentName)
+                    .withName(LOWKEY_VAULT_DEPLOYMENT_NAME)
                     .withLabels(labelSelector)
                 .endMetadata()
                 .withNewSpec()
@@ -206,8 +211,8 @@ public class LowkeyVaultTemplates {
                             .withLabels(labelSelector)
                         .endMetadata()
                         .withNewSpec()
-                            .withContainers(ContainerTemplates.baseImageBuilder(deploymentName, image)
-                                    .withEnv(lowkeyVaultEnvVars("lowkey-vault", namespace, endpoint, deploymentName, Constants.KEYSTORE_TEMP_DIR + Constants.KEYSTORE_FILE_NAME, password))
+                            .withContainers(ContainerTemplates.baseImageBuilder(LOWKEY_VAULT_DEPLOYMENT_NAME, image)
+                                    .withEnv(lowkeyVaultEnvVars(namespace, endpoint, Constants.KEYSTORE_TEMP_DIR + Constants.KEYSTORE_FILE_NAME, password))
                                     .withPorts(getLowKeyVaultContainerPorts())
                                     .withVolumeMounts(new VolumeMountBuilder()
                                             .withName("cert")
@@ -230,23 +235,21 @@ public class LowkeyVaultTemplates {
     /**
      * Default lowkey vault service builder.
      *
-     * @param serviceName the service name
      * @param namespace the namespace
      * @return  the service builder
      */
-    public static ServiceBuilder defaultLowkeyVaultNodePortService(String serviceName, String namespace, String selector) {
-        return baseService(serviceName, namespace, selector, getLowkeyVaultNodePortPorts(), Constants.NODE_PORT_TYPE);
+    public static ServiceBuilder defaultLowkeyVaultNodePortService(String namespace) {
+        return baseService(LOWKEY_VAULT_NODE_PORT_SERVICE_NAME, namespace, LOWKEY_VAULT_DEPLOYMENT_NAME, getLowkeyVaultNodePortPorts(), Constants.NODE_PORT_TYPE);
     }
 
     /**
      * Default lowkey vault cluster ip service builder.
      *
-     * @param serviceName the service name
      * @param namespace the namespace
      * @return  the service builder
      */
-    public static ServiceBuilder defaultLowkeyVaultClusterIPService(String serviceName, String namespace, String selector) {
-        return baseService(serviceName, namespace, selector, getLowkeyVaultClusterIPPorts(), Constants.CLUSTER_IP_TYPE);
+    public static ServiceBuilder defaultLowkeyVaultClusterIPService(String namespace) {
+        return baseService(LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME, namespace, LOWKEY_VAULT_DEPLOYMENT_NAME, getLowkeyVaultClusterIPPorts(), Constants.CLUSTER_IP_TYPE);
     }
 
     public static ServiceBuilder defaultMockOauthServerClusterIPService(String serviceName, String namespace, String selector) {

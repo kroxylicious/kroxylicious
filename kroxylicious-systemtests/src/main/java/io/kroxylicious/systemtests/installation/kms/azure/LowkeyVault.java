@@ -34,9 +34,6 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
  */
 public class LowkeyVault implements AzureKmsClient {
     private static final Logger LOGGER = LoggerFactory.getLogger(LowkeyVault.class);
-    private static final String LOWKEY_VAULT_DEPLOYMENT_NAME = "my-key-vault";
-    private static final String LOWKEY_VAULT_NODE_PORT_SERVICE_NAME = "lowkey-vault-" + Constants.NODE_PORT_TYPE.toLowerCase();
-    private static final String LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME = "lowkey-vault-" + Constants.CLUSTER_IP_TYPE.toLowerCase();
     private static final String LOWKEY_VAULT_DEFAULT_NAMESPACE = "lowkey-vault";
     private static final String LOWKEY_VAULT_IMAGE = Constants.DOCKER_REGISTRY_GCR_MIRROR + "/nagyesta/lowkey-vault:5.0.14";
     private final String deploymentNamespace;
@@ -55,7 +52,7 @@ public class LowkeyVault implements AzureKmsClient {
     }
 
     private boolean isDeployed() {
-        return kubeClient().getService(deploymentNamespace, LOWKEY_VAULT_NODE_PORT_SERVICE_NAME) != null;
+        return kubeClient().getService(deploymentNamespace, LowkeyVaultTemplates.LOWKEY_VAULT_NODE_PORT_SERVICE_NAME) != null;
     }
 
     @Override
@@ -73,17 +70,15 @@ public class LowkeyVault implements AzureKmsClient {
         }
         LOGGER.info("Deploy LowKey Vault in {} namespace", deploymentNamespace);
         NamespaceUtils.createNamespaceAndPrepare(deploymentNamespace);
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(
-                LowkeyVaultTemplates.defaultLowkeyVaultNodePortService(LOWKEY_VAULT_NODE_PORT_SERVICE_NAME, deploymentNamespace, LOWKEY_VAULT_DEPLOYMENT_NAME));
-        ResourceManager.getInstance().createResourceFromBuilderWithWait(
-                LowkeyVaultTemplates.defaultLowkeyVaultClusterIPService(LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME, deploymentNamespace, LOWKEY_VAULT_DEPLOYMENT_NAME));
+        ResourceManager.getInstance().createResourceFromBuilderWithWait(LowkeyVaultTemplates.defaultLowkeyVaultNodePortService(deploymentNamespace));
+        ResourceManager.getInstance().createResourceFromBuilderWithWait(LowkeyVaultTemplates.defaultLowkeyVaultClusterIPService(deploymentNamespace));
 
         DeploymentUtils.copySecretInToNamespace(deploymentNamespace, Constants.KEYSTORE_SECRET_NAME);
 
         String password = DeploymentUtils.getSecretValue(deploymentNamespace, Constants.KEYSTORE_SECRET_NAME, "password");
 
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
-                LowkeyVaultTemplates.defaultLowkeyVaultDeployment(LOWKEY_VAULT_DEPLOYMENT_NAME, LOWKEY_VAULT_IMAGE, deploymentNamespace, getEndpointAuthority(),
+                LowkeyVaultTemplates.defaultLowkeyVaultDeployment(LOWKEY_VAULT_IMAGE, deploymentNamespace, getEndpointAuthority(),
                         password));
     }
 
@@ -102,7 +97,7 @@ public class LowkeyVault implements AzureKmsClient {
 
     @Override
     public String getEndpointAuthority() {
-        return DeploymentUtils.getNodePortServiceAddress(deploymentNamespace, LOWKEY_VAULT_NODE_PORT_SERVICE_NAME, 8443);
+        return DeploymentUtils.getNodePortServiceAddress(deploymentNamespace, LowkeyVaultTemplates.LOWKEY_VAULT_NODE_PORT_SERVICE_NAME, 8443);
     }
 
     public String getDefaultNamespace() {
@@ -110,7 +105,7 @@ public class LowkeyVault implements AzureKmsClient {
     }
 
     public String getLowkeyVaultClusterIpServiceName() {
-        return LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME;
+        return LowkeyVaultTemplates.LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME;
     }
 
     private void installCertificates() {
@@ -118,7 +113,7 @@ public class LowkeyVault implements AzureKmsClient {
         String password;
         try {
             KeystoreManager entraCertGen = new KeystoreManager();
-            String domain = LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME + "." + LOWKEY_VAULT_DEFAULT_NAMESPACE + ".svc.cluster.local";
+            String domain = LowkeyVaultTemplates.LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME + "." + LOWKEY_VAULT_DEFAULT_NAMESPACE + ".svc.cluster.local";
             String ipAddress = DeploymentUtils.getNodeIP();
             CertificateBuilder certificateBuilder = entraCertGen.newCertificateBuilder(entraCertGen.buildDistinguishedName("test@kroxylicious.io", domain, "Engineering",
                     "Kroxylicious.io", null, null, "US"))
