@@ -38,7 +38,6 @@ public class TestClientsJobTemplates {
     private static final String PRODUCER_ACKS_VAR = "PRODUCER_ACKS";
     private static final String DELAY_MS_VAR = "DELAY_MS";
     private static final String OUTPUT_FORMAT_VAR = "OUTPUT_FORMAT";
-    private static final String ADDITIONAL_CONFIG_VAR = "ADDITIONAL_CONFIG";
 
     private TestClientsJobTemplates() {
     }
