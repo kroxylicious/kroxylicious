@@ -49,22 +49,6 @@ class KroxyliciousST extends AbstractST {
      * Produce and consume message.
      *
      * @param namespace the namespace
-     */
-    // @Test
-    // void produceAndConsumeMessages(String namespace) {
-    // // start Kroxylicious
-    // LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
-    // kroxylicious = new Kroxylicious(namespace);
-    // kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
-    // String bootstrap = kroxylicious.getBootstrap(clusterName);
-    //
-    // produceAndConsumeMessage(namespace, bootstrap);
-    // }
-
-    /**
-     * Produce and consume message.
-     *
-     * @param namespace the namespace
      * @param compressionType the compression type
      */
     @ParameterizedTest
