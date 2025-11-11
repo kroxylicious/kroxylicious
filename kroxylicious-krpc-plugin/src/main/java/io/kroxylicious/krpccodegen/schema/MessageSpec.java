@@ -19,6 +19,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public final class MessageSpec {
+    private static final EnumSet<EntityType> SUPPORTED_ENTITY_TYPES = EnumSet.of(EntityType.TOPIC_NAME, EntityType.GROUP_ID, EntityType.TRANSACTIONAL_ID);
     private final StructSpec struct;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -150,18 +151,20 @@ public final class MessageSpec {
     public String dataClassName() {
         return switch (type) {
             case HEADER, REQUEST, RESPONSE ->
-                    // We append the Data suffix to request/response/header classes to avoid
-                    // collisions with existing objects. This can go away once the protocols
-                    // have all been converted and we begin using the generated types directly.
+                // We append the Data suffix to request/response/header classes to avoid
+                // collisions with existing objects. This can go away once the protocols
+                // have all been converted and we begin using the generated types directly.
                     struct.name() + "Data";
             default -> struct.name();
         };
     }
 
     public Node entityFields() {
-        List<FieldSpec> collect = fields().stream()
-                .filter(f -> EnumSet.of(EntityType.TOPIC_NAME, EntityType.GROUP_ID, EntityType.TRANSACTIONAL_ID).contains(f.entityType())).toList();
-        var versions = collect.stream().map(FieldSpec::versions)
+        List<FieldSpec> entityFields = fields().stream()
+                .filter(f -> SUPPORTED_ENTITY_TYPES.contains(f.entityType()))
+                .toList();
+        var versions = entityFields.stream()
+                .map(FieldSpec::versions)
                 .map(fsv -> validVersions().intersect(fsv))
                 .flatMapToInt(v -> IntStream.rangeClosed(v.lowest(), v.highest()))
                 .distinct()
@@ -170,7 +173,7 @@ public final class MessageSpec {
                 .map(Integer::shortValue)
                 .toList();
 
-        return new Node(collect, List.of(), versions);
+        return new Node(entityFields, List.of(), versions);
     }
 
     @Override
