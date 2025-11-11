@@ -239,6 +239,7 @@ class OauthBearerValidationFilterTest {
         // then
         verify(builder).shortCircuitResponse(assertArg(actualResponse -> {
             assertThat(actualResponse).isInstanceOf(SaslAuthenticateResponseData.class);
+            assertThat(((SaslAuthenticateResponseData) actualResponse).authBytes()).isEmpty();
             assertThat(((SaslAuthenticateResponseData) actualResponse).errorCode()).isEqualTo(SASL_AUTHENTICATION_FAILED.code());
         }));
         verify(context).clientSaslAuthenticationFailure(eq(OAUTHBEARER_MECHANISM), isNull(), eq(authenticationFailed));
@@ -268,6 +269,7 @@ class OauthBearerValidationFilterTest {
         // then
         verify(builder).shortCircuitResponse(assertArg(actualResponse -> {
             assertThat(actualResponse).isInstanceOf(SaslAuthenticateResponseData.class);
+            assertThat(((SaslAuthenticateResponseData) actualResponse).authBytes()).isEmpty();
             assertThat(((SaslAuthenticateResponseData) actualResponse).errorCode()).isEqualTo(SASL_AUTHENTICATION_FAILED.code());
         }));
         verify(context).clientSaslAuthenticationFailure(eq(OAUTHBEARER_MECHANISM), isNull(), any(SaslAuthenticationException.class));
@@ -287,6 +289,7 @@ class OauthBearerValidationFilterTest {
         // then
         verify(builder).shortCircuitResponse(assertArg(actualResponse -> {
             assertThat(actualResponse).isInstanceOf(SaslAuthenticateResponseData.class);
+            assertThat(((SaslAuthenticateResponseData) actualResponse).authBytes()).isEmpty();
             assertThat(((SaslAuthenticateResponseData) actualResponse).errorCode()).isEqualTo(ILLEGAL_SASL_STATE.code());
         }));
         verifyNoInteractions(executor, rateLimiter, strategy);
@@ -343,6 +346,7 @@ class OauthBearerValidationFilterTest {
         // then
         verify(builder).shortCircuitResponse(assertArg(actualResponse -> {
             assertThat(actualResponse).isInstanceOf(SaslAuthenticateResponseData.class);
+            assertThat(((SaslAuthenticateResponseData) actualResponse).authBytes()).isEmpty();
             assertEquals(UNKNOWN_SERVER_ERROR.code(), ((SaslAuthenticateResponseData) actualResponse).errorCode());
         }));
         verify(context).clientSaslAuthenticationFailure(OAUTHBEARER_MECHANISM, null, saslException);

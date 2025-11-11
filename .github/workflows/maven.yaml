@@ -47,7 +47,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392
+        uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130
       - name: 'Set up Java'
         uses: actions/setup-java@v5
         with:
@@ -97,4 +97,4 @@ jobs:
           KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT: ${{ vars.KROXYLICIOUS_KMS_FORTANIX_API_ENDPOINT }}
           KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_ADMIN_API_KEY }}
           KROXYLICIOUS_KMS_FORTANIX_API_KEY: ${{ secrets.KROXYLICIOUS_KMS_FORTANIX_API_KEY }}
-        run: mvn -B verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} org.sonarsource.scanner.maven:sonar-maven-plugin:5.2.0.4988:sonar -Dsonar.projectKey=kroxylicious_kroxylicious  -pl ''!:kroxylicious-operator''
+        run: mvn -B verify -Pci -Djapicmp.skip=${REFERENCE_RELEASE_UNPUBLISHED} org.sonarsource.scanner.maven:sonar-maven-plugin:5.3.0.6276:sonar -Dsonar.projectKey=kroxylicious_kroxylicious  -pl ''!:kroxylicious-operator''
