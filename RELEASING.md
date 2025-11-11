@@ -88,7 +88,7 @@ The local changes made to `T`'s POM can be reverted.
 
 ### Making the release public
 
-1. Comment on the PR `@kroxylcious-robot promote-release`.
+1. Comment on the PR `@kroxylicious-robot promote-release`.
 1. Let [Kroxylicious Team Developers](https://kroxylicious.slack.com/archives/C04V1K6EAKZ) know the release is finished.
 1. [Publish](https://github.com/kroxylicious/kroxylicious.github.io/blob/main/docs/README.md) the documentation for the release
 1. Merge the blog post PR
@@ -98,7 +98,7 @@ If anything goes wrong, follow the steps in [Failed Releases](#failed-releases)
 
 ### Failed Releases
 
-If the release fails verification, comment on the PR `@kroxylcious-robot drop-release`.
+If the release fails verification, comment on the PR `@kroxylicious-robot drop-release`.
 This will drop the snapshot repository, delete the release notes and close PR.
 
 ### Remove your private key/passphrase
