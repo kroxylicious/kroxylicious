@@ -92,6 +92,7 @@
         <azure.core.version>1.57.0</azure.core.version>
         <apache.httpclient.version>4.5.14</apache.httpclient.version>
         <apache.httpcore.version>4.4.16</apache.httpcore.version>
+        <snappy.version>1.1.10.8</snappy.version>
     </properties>
 
     <name>Parent POM</name>
@@ -239,6 +240,11 @@
                 <groupId>com.lmax</groupId>
                 <artifactId>disruptor</artifactId>
                 <version>${disruptor.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.xerial.snappy</groupId>
+                <artifactId>snappy-java</artifactId>
+                <version>${snappy.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.freemarker</groupId>
