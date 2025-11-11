@@ -17,7 +17,6 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import org.jose4j.jwa.AlgorithmConstraints;
-import org.jose4j.jwk.JsonWebKeySet;
 import org.jose4j.jws.AlgorithmIdentifiers;
 import org.junit.jupiter.api.Test;
 
@@ -25,14 +24,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 
-import io.kroxylicious.proxy.filter.validation.validators.bytebuf.JwsSignatureBytebufValidatorTest;
-
+import static io.kroxylicious.test.jws.JwsTestUtils.ECDSA_VERIFY_JWKS;
+import static io.kroxylicious.test.jws.JwsTestUtils.RSA_AND_ECDSA_VERIFY_JWKS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ValidationConfigTest {
-
-    private static final JsonWebKeySet ECDSA_VERIFY_JWKS = JwsSignatureBytebufValidatorTest.ECDSA_VERIFY_JWKS;
-    private static final JsonWebKeySet RSA_AND_ECDSA_VERIFY_JWKS = JwsSignatureBytebufValidatorTest.RSA_AND_ECDSA_VERIFY_JWKS;
 
     private static ValidationConfig expectedApicurioConfig() throws MalformedURLException {
         TopicMatchingRecordValidationRule ruleOne = new TopicMatchingRecordValidationRule(Set.of("one"), null,
