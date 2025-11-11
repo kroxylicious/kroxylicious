@@ -197,8 +197,8 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
                 .endSpec()
                 .build();
 
-        DeploymentUtils.copySecretInNamespace(namespaceInstallTo, Constants.KEYSTORE_SECRET_NAME);
-        DeploymentUtils.copySecretInNamespace(namespaceInstallTo, Constants.TRUSTSTORE_SECRET_NAME);
+        DeploymentUtils.copySecretInToNamespace(namespaceInstallTo, Constants.KEYSTORE_SECRET_NAME);
+        DeploymentUtils.copySecretInToNamespace(namespaceInstallTo, Constants.TRUSTSTORE_SECRET_NAME);
 
         if (kubeClient().getClient().secrets().inNamespace(namespaceInstallTo).withName(Constants.KEYSTORE_SECRET_NAME).get() != null) {
             operatorDeployment = new DeploymentBuilder(operatorDeployment)

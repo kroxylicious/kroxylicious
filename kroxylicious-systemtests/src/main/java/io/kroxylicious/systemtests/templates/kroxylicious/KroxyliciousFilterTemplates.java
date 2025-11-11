@@ -81,8 +81,8 @@ public final class KroxyliciousFilterTemplates {
      */
     public static KafkaProtocolFilterBuilder kroxyliciousRecordEncryptionFilter(String namespaceName, TestKmsFacade<?, ?, ?> testKmsFacade,
                                                                                 ExperimentalKmsConfig experimentalKmsConfig) {
-        DeploymentUtils.copySecretInNamespace(namespaceName, Constants.KEYSTORE_SECRET_NAME);
-        DeploymentUtils.copySecretInNamespace(namespaceName, Constants.TRUSTSTORE_SECRET_NAME);
+        DeploymentUtils.copySecretInToNamespace(namespaceName, Constants.KEYSTORE_SECRET_NAME);
+        DeploymentUtils.copySecretInToNamespace(namespaceName, Constants.TRUSTSTORE_SECRET_NAME);
         return baseFilterDeployment(namespaceName, Constants.KROXYLICIOUS_ENCRYPTION_FILTER_NAME)
                 .withNewSpec()
                 .withType(RecordEncryption.class.getTypeName())

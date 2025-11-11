@@ -253,17 +253,17 @@ public class DeploymentUtils {
 
         if (Environment.TEST_CLIENTS_PULL_SECRET != null && !Environment.TEST_CLIENTS_PULL_SECRET.isEmpty()) {
             LOGGER.atInfo().setMessage("Creating '{}' secret").addArgument(Environment.TEST_CLIENTS_PULL_SECRET).log();
-            copySecretInNamespace(namespace, Environment.TEST_CLIENTS_PULL_SECRET);
+            copySecretInToNamespace(namespace, Environment.TEST_CLIENTS_PULL_SECRET);
         }
     }
 
     /**
-     * Copy secret in namespace.
+     * Copy secret in To namespace.
      *
      * @param namespace the namespace
      * @param secretName the secret name
      */
-    public static void copySecretInNamespace(String namespace, String secretName) {
+    public static void copySecretInToNamespace(String namespace, String secretName) {
         Secret clientSecret = kubeClient().getClient().secrets().inNamespace(KubeClusterResource.getInstance().defaultNamespace()).withName(secretName).get();
         if (clientSecret != null) {
             clientSecret.getMetadata().setResourceVersion("");

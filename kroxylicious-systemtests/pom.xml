@@ -246,7 +246,6 @@
         <dependency>
             <groupId>com.fasterxml.jackson.dataformat</groupId>
             <artifactId>jackson-dataformat-yaml</artifactId>
-            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
@@ -255,7 +254,6 @@
         <dependency>
             <groupId>io.kroxylicious.testing</groupId>
             <artifactId>testing-impl</artifactId>
-            <scope>compile</scope>
         </dependency>
     </dependencies>
 

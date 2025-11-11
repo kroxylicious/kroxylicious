@@ -78,7 +78,7 @@ public class LowkeyVault implements AzureKmsClient {
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
                 LowkeyVaultTemplates.defaultLowkeyVaultClusterIPService(LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME, deploymentNamespace, LOWKEY_VAULT_DEPLOYMENT_NAME));
 
-        DeploymentUtils.copySecretInNamespace(deploymentNamespace, Constants.KEYSTORE_SECRET_NAME);
+        DeploymentUtils.copySecretInToNamespace(deploymentNamespace, Constants.KEYSTORE_SECRET_NAME);
 
         String password = DeploymentUtils.getSecretValue(deploymentNamespace, Constants.KEYSTORE_SECRET_NAME, "password");
 
