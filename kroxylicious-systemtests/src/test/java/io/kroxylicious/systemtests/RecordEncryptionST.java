@@ -135,34 +135,6 @@ class RecordEncryptionST extends AbstractST {
                         .allMatch(r -> !r.getPayload().contains(MESSAGE)));
     }
 
-    // @TestTemplate
-    // void produceAndConsumeMessages(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
-    // testKekManager = testKmsFacade.getTestKekManager();
-    // testKekManager.generateKek("KEK_" + topicName);
-    // int numberOfMessages = 1;
-    //
-    // // start Kroxylicious
-    // LOGGER.info("Given Kroxylicious in {} namespace with {} replicas", namespace, 1);
-    // Kroxylicious kroxylicious = new Kroxylicious(namespace);
-    // kroxylicious.deployPortPerBrokerPlainWithRecordEncryptionFilter(clusterName, testKmsFacade);
-    // bootstrap = kroxylicious.getBootstrap(clusterName);
-    //
-    // LOGGER.info("And a kafka Topic named {}", topicName);
-    // KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
-    //
-    // LOGGER.info("When {} messages '{}' are sent to the topic '{}'", numberOfMessages, MESSAGE, topicName);
-    // KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
-    //
-    // LOGGER.info("Then the messages are consumed");
-    // List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));
-    // LOGGER.info("Received: {}", result);
-    //
-    // assertThat(result).withFailMessage("expected messages have not been received!")
-    // .extracting(ConsumerRecord::getPayload)
-    // .hasSize(numberOfMessages)
-    // .allSatisfy(v -> assertThat(v).contains(MESSAGE));
-    // }
-
     /**
      * Produce and consume compressed message.
      *

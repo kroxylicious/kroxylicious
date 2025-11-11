@@ -83,8 +83,7 @@ public class CompressionTypeInvocationContextProvider implements TestTemplateInv
                         public CompressionType resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
                             return compressionType;
                         }
-                    }
-            );
+                    });
             return extensions;
         }
     }
