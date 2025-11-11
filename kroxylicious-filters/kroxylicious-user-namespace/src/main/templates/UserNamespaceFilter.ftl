@@ -143,27 +143,38 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 <#--                    System.out.println(request);-->
 <#--                }-->
             }
-
-            <#macro dumpFoo messageSpec entityFields>
+            <#macro applyNamespacePrefix messageSpec entityFields>
                 <#assign specName>
                     <#assign words=messageSpec.name?split("(?=[A-Z])", "r")><#list words as word>${word?c_upper_case}<#sep>_</#list>
                 </#assign>
-                <#-- entity fields of this node -->
-              <#assign dataClass="${messageSpec.name}Data" dataVar="${messageSpec.name?uncap_first}Data"/>
+            <#-- entity fields of this node -->
+                <#assign dataClass="${messageSpec.name}Data" dataVar="${messageSpec.name?uncap_first}Data"/>
                     var ${dataVar} = (${dataClass}) request;
-              <#list entityFields.entities as entity>
+                <#assign hashAsString = "">
+                <#list entityFields as key, value>
+                    <#assign append = "=" + key + ", ">
+                    <#assign hashAsString = hashAsString + append>
+                </#list>
+
+                // ${specName?trim} has fields ${hashAsString}
+                <#list entityFields.entities as entity>
                     LOGGER.atDebug()
                             .addArgument(context.sessionId())
                             .addArgument(aid)
                             .addArgument(${dataVar})
                             .log("{} for {}: received ${specName?trim}: {}");
-               <#assign getter="${entity.name?uncap_first}" setter="set${entity.name}" />
+                    <#assign getter="${entity.name?uncap_first}" setter="set${entity.name}" />
                    // ${messageSpec.name} ${entity.name} ${entity.type} ${entity.entityType} ${entity.type.isArray?string('true', 'false')}
-                    if (shouldMap("${entity.entityType}") && inVersion(header.requestApiVersion(), ${specName?trim}_VERSIONS)) {
+                   if (shouldMap("${entity.entityType}") && inVersion(header.requestApiVersion(),
+                                ${specName?trim}_VERSIONS)) {
                    <#if entity.type == 'string'>
                         ${dataVar}.${setter}(map(aid, ${dataVar}.${getter}()));
                    <#elseif entity.type == '[]string'>
                         ${dataVar}.${setter}(${dataVar}.${getter}().stream().map(orig -> map(aid, orig)).toList());
+                   <#elseif entity.type.isArray>
+                        // Recurse
+                        // ${messageSpec.name} ${entity.name} ${entity.type} ${entity.entityType} ${entity.type.isArray?string('true', 'false')}
+                       <@applyNamespacePrefix entity.type entity.entityFields />
                    </#if>
                         LOGGER.atDebug()
                                 .addArgument(context.sessionId())
@@ -171,10 +182,11 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
                                 .addArgument(${dataVar})
                                 .log("{} for {}: result ${specName?trim}: {}");
                     }
-              </#list>
-<#--
+                </#list>
+
+            <#--
                 <@dumpFoo childFoo />
--->
+            -->
             </#macro>
 
 
@@ -182,7 +194,7 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
 <#list messageSpecs as messageSpec>
     <#if messageSpec.type?lower_case == 'request' && messageSpec.entityFields.hasAtLeastOneEntityField>
                 case ${retrieveApiKey(messageSpec)} -> {
-                  <@dumpFoo messageSpec messageSpec.entityFields />
+                  <@applyNamespacePrefix messageSpec messageSpec.entityFields />
                 }
     </#if>
 </#list>
@@ -214,66 +226,82 @@ public class UserNamespaceFilter implements RequestFilter, ResponseFilter {
         var authzId = context.clientSaslContext().map(ClientSaslContext::authorizationId);
         authzId.ifPresent(aid -> {
             switch (apiKey) {
-                case FIND_COORDINATOR -> {
-                    FindCoordinatorResponseData findCoordinatorResponseData = (FindCoordinatorResponseData) response;
-                    findCoordinatorResponseData.coordinators().forEach(
-                            coordinator -> coordinator.setKey(coordinator.key().substring(aid.length() + 1)));
-                    LOGGER.atDebug()
-                            .addArgument(context.sessionId())
-                            .addArgument(authzId.get())
-                            .addArgument(findCoordinatorResponseData)
-                            .log("{} for {}: find coordinator response: {}");
+<#list messageSpecs as messageSpec>
+    <#assign hashAsString = "">
+    <#list messageSpec.entityFields as key, value>
+        <#assign append = key + "=" + value + ", ">
+        <#assign hashAsString = hashAsString + append>
+    </#list>
+    // processing ${messageSpec.name} ${messageSpec.type} with fields ${hashAsString}
+    <#if messageSpec.type?lower_case == 'response' && messageSpec.entityFields.hasAtLeastOneEntityField>
+                case ${retrieveApiKey(messageSpec)} -> {
+                  <@applyNamespacePrefix messageSpec messageSpec.entityFields />
                 }
-                case OFFSET_COMMIT -> {
-                    OffsetCommitResponseData offsetCommitResponseData = (OffsetCommitResponseData) response;
-                    LOGGER.atDebug()
-                            .addArgument(context.sessionId())
-                            .addArgument(authzId.get())
-                            .addArgument(response)
-                            .log("{} for {}: offset commit response: {}");
-                }
-                case CONSUMER_GROUP_DESCRIBE -> {
-                    ConsumerGroupDescribeResponseData consumerGroupDescribeResponseData = (ConsumerGroupDescribeResponseData) response;
-                    consumerGroupDescribeResponseData.groups().forEach(group -> {
-                        group.setGroupId(group.groupId().substring(aid.length() + 1));
-                    });
-                    LOGGER.atDebug()
-                            .addArgument(context.sessionId())
-                            .addArgument(authzId.get())
-                            .addArgument(response).log("{} for {}: consumer group describe response: {}");
-                }
-                case DESCRIBE_GROUPS -> {
-                    DescribeGroupsResponseData describeGroupsResponseData = (DescribeGroupsResponseData) response;
-                    describeGroupsResponseData.groups().forEach(g -> g.setGroupId(g.groupId().substring(aid.length() + 1)));
-                    LOGGER.atDebug()
-                            .addArgument(context.sessionId())
-                            .addArgument(authzId.get())
-                            .addArgument(response).log("{} for {}: describe group response: {}");
-                }
-                case JOIN_GROUP -> {
-                    JoinGroupResponseData joinGroupResponseData = (JoinGroupResponseData) response;
-                    LOGGER.atDebug()
-                            .addArgument(context.sessionId())
-                            .addArgument(authzId.get())
-                            .addArgument(response).log("{} for {}: join group response got: {}");
-                    joinGroupResponseData.members().forEach(member -> {
-                        if (!member.memberId().isBlank()) {
-                            LOGGER.atDebug()
-                                    .addArgument(member.memberId())
-                                    .addArgument(member.memberId().substring(aid.length() + 1))
-                                    .log("replacing {} with {}");
-                        }
-                        else {
-                            LOGGER.atDebug().log("blank member ID");
-                        }
-                    });
-                    LOGGER.atDebug()
-                            .addArgument(context.sessionId())
-                            .addArgument(authzId.get())
-                            .addArgument(joinGroupResponseData).log("{} for {}: join group response forwarded: {}");
-                }
-
+    </#if>
+</#list>
             }
+
+        <#--            switch (apiKey) {-->
+<#--                case FIND_COORDINATOR -> {-->
+<#--                    FindCoordinatorResponseData findCoordinatorResponseData = (FindCoordinatorResponseData) response;-->
+<#--                    findCoordinatorResponseData.coordinators().forEach(-->
+<#--                            coordinator -> coordinator.setKey(coordinator.key().substring(aid.length() + 1)));-->
+<#--                    LOGGER.atDebug()-->
+<#--                            .addArgument(context.sessionId())-->
+<#--                            .addArgument(authzId.get())-->
+<#--                            .addArgument(findCoordinatorResponseData)-->
+<#--                            .log("{} for {}: find coordinator response: {}");-->
+<#--                }-->
+<#--                case OFFSET_COMMIT -> {-->
+<#--                    OffsetCommitResponseData offsetCommitResponseData = (OffsetCommitResponseData) response;-->
+<#--                    LOGGER.atDebug()-->
+<#--                            .addArgument(context.sessionId())-->
+<#--                            .addArgument(authzId.get())-->
+<#--                            .addArgument(response)-->
+<#--                            .log("{} for {}: offset commit response: {}");-->
+<#--                }-->
+<#--                case CONSUMER_GROUP_DESCRIBE -> {-->
+<#--                    ConsumerGroupDescribeResponseData consumerGroupDescribeResponseData = (ConsumerGroupDescribeResponseData) response;-->
+<#--                    consumerGroupDescribeResponseData.groups().forEach(group -> {-->
+<#--                        group.setGroupId(group.groupId().substring(aid.length() + 1));-->
+<#--                    });-->
+<#--                    LOGGER.atDebug()-->
+<#--                            .addArgument(context.sessionId())-->
+<#--                            .addArgument(authzId.get())-->
+<#--                            .addArgument(response).log("{} for {}: consumer group describe response: {}");-->
+<#--                }-->
+<#--                case DESCRIBE_GROUPS -> {-->
+<#--                    DescribeGroupsResponseData describeGroupsResponseData = (DescribeGroupsResponseData) response;-->
+<#--                    describeGroupsResponseData.groups().forEach(g -> g.setGroupId(g.groupId().substring(aid.length() + 1)));-->
+<#--                    LOGGER.atDebug()-->
+<#--                            .addArgument(context.sessionId())-->
+<#--                            .addArgument(authzId.get())-->
+<#--                            .addArgument(response).log("{} for {}: describe group response: {}");-->
+<#--                }-->
+<#--                case JOIN_GROUP -> {-->
+<#--                    JoinGroupResponseData joinGroupResponseData = (JoinGroupResponseData) response;-->
+<#--                    LOGGER.atDebug()-->
+<#--                            .addArgument(context.sessionId())-->
+<#--                            .addArgument(authzId.get())-->
+<#--                            .addArgument(response).log("{} for {}: join group response got: {}");-->
+<#--                    joinGroupResponseData.members().forEach(member -> {-->
+<#--                        if (!member.memberId().isBlank()) {-->
+<#--                            LOGGER.atDebug()-->
+<#--                                    .addArgument(member.memberId())-->
+<#--                                    .addArgument(member.memberId().substring(aid.length() + 1))-->
+<#--                                    .log("replacing {} with {}");-->
+<#--                        }-->
+<#--                        else {-->
+<#--                            LOGGER.atDebug().log("blank member ID");-->
+<#--                        }-->
+<#--                    });-->
+<#--                    LOGGER.atDebug()-->
+<#--                            .addArgument(context.sessionId())-->
+<#--                            .addArgument(authzId.get())-->
+<#--                            .addArgument(joinGroupResponseData).log("{} for {}: join group response forwarded: {}");-->
+<#--                }-->
+
+<#--            }-->
         });
 
         return context.forwardResponse(header, response);
