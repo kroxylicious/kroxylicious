@@ -26,7 +26,6 @@ import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilterBuilder;
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.resources.kms.ExperimentalKmsConfig;
-import io.kroxylicious.systemtests.resources.kms.azure.KubeLowKeyVaultKmsTestKmsFacade;
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 /**
@@ -96,16 +95,11 @@ public final class KroxyliciousFilterTemplates {
                 .convertValue(testKmsFacade.getKmsServiceConfig(), new TypeReference<>() {
                 });
 
-        String kekTemplate = "KEK_$(topicName)";
-        if (testKmsFacade instanceof KubeLowKeyVaultKmsTestKmsFacade) {
-            kekTemplate = "KEK-$(topicName)";
-        }
-
         var map = new HashMap<>(Map.of(
                 "kms", testKmsFacade.getKmsServiceClass().getSimpleName(),
                 "kmsConfig", kmsConfigMap,
                 "selector", "TemplateKekSelector",
-                "selectorConfig", Map.of("template", kekTemplate)));
+                "selectorConfig", Map.of("template", "KEK-$(topicName)")));
 
         if (experimentalKmsConfig != null) {
             Map<String, Object> experimentalKmsConfigMap = OBJECT_MAPPER
