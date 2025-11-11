@@ -14,6 +14,8 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
 
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.record.CompressionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +67,7 @@ public class PythonTestClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, int numOfMessages) {
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, CompressionType compressionType, int numOfMessages) {
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
 
         StringBuilder msg = new StringBuilder();
@@ -85,7 +87,7 @@ public class PythonTestClient implements KafkaClient {
                 "--image=" + Constants.PYTHON_CLIENT_IMAGE,
                 "--override-type=strategic",
                 "--overrides=" + jsonOverrides,
-                "--", PYTHON_COMMAND, PRODUCER_PATH, "-b", bootstrap, "-t", topicName));
+                "--", PYTHON_COMMAND, PRODUCER_PATH, "-b", bootstrap, "-t", topicName, "-X", ProducerConfig.COMPRESSION_TYPE_CONFIG + "=" + compressionType.name));
         recordKey.ifPresent(key -> {
             executableCommand.add("-k");
             executableCommand.add(key);
