@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Objects;
 
 import org.jose4j.jwa.AlgorithmConstraints;
+import org.jose4j.jwk.JsonWebKey;
 import org.jose4j.jwk.JsonWebKeySet;
 import org.jose4j.jws.AlgorithmIdentifiers;
 import org.jose4j.lang.InvalidAlgorithmException;
@@ -133,7 +134,12 @@ public class JwsSignatureValidationConfig {
             }
         }
 
-        return jsonWebKeySet.toJson().equals(that.jsonWebKeySet.toJson()) && jwsHeaderName.equals(that.jwsHeaderName) && isContentDetached == that.isContentDetached;
+        List<JsonWebKey> keyList = jsonWebKeySet.getJsonWebKeys();
+        boolean hasSameAmountOfKeys = keyList.size() == that.jsonWebKeySet.getJsonWebKeys().size();
+        boolean allKeysFound = keyList.stream()
+                .allMatch(key -> that.jsonWebKeySet.findJsonWebKey(key.getKeyId(), key.getKeyType(), key.getUse(), key.getAlgorithm()) != null);
+
+        return hasSameAmountOfKeys && allKeysFound && jwsHeaderName.equals(that.jwsHeaderName) && isContentDetached == that.isContentDetached;
     }
 
     @Override
