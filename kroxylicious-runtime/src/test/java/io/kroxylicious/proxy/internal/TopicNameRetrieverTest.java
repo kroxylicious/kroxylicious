@@ -16,6 +16,7 @@ import org.apache.kafka.common.message.ApiVersionsResponseData;
 import org.apache.kafka.common.message.MetadataResponseData;
 import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.protocol.Errors;
+import org.awaitility.core.InternalExecutorServiceFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,6 +34,8 @@ import static java.util.concurrent.CompletableFuture.failedFuture;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.entry;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -49,7 +52,7 @@ class TopicNameRetrieverTest {
 
     @BeforeEach
     void setUp() {
-        retriever = new TopicNameRetriever(filterContext);
+        retriever = new TopicNameRetriever(filterContext, InternalExecutorServiceFactory.sameThreadExecutorService());
     }
 
     @Test
@@ -66,6 +69,20 @@ class TopicNameRetrieverTest {
                     assertThat(topicNamesMapping.anyFailures()).isFalse();
                     assertThat(topicNamesMapping.topicNames()).containsExactly(entry(UUID, TOPIC_NAME));
                 });
+    }
+
+    @Test
+    void retrieveEmptyTopicNamesMapping() {
+        // when
+        CompletionStage<TopicNameMapping> topicNames = getTopicNamesMapping(Set.of());
+        // then
+        assertThat(topicNames.toCompletableFuture()).succeedsWithin(Duration.ZERO)
+                .satisfies(topicNamesMapping -> {
+                    assertThat(topicNamesMapping.anyFailures()).isFalse();
+                    assertThat(topicNamesMapping.topicNames()).isEmpty();
+                    assertThat(topicNamesMapping.failures()).isEmpty();
+                });
+        verify(filterContext, never()).sendRequest(any(), any());
     }
 
     @Test
