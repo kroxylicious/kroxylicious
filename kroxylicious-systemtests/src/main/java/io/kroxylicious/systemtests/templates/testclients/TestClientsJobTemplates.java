@@ -238,7 +238,7 @@ public class TestClientsJobTemplates {
             envVars.add(envVar(MESSAGE_KEY_VAR, messageKey));
         }
         List<String> additionalConfig = new ArrayList<>();
-        if (!compressionType.equals(CompressionType.NONE)) {
+        if (!CompressionType.NONE.equals(compressionTypex)) {
             additionalConfig.add(ProducerConfig.COMPRESSION_TYPE_CONFIG + "=" + compressionType.name);
         }
         envVars.add(envVar(ADDITIONAL_CONFIG_VAR, String.join("\n", additionalConfig)));
