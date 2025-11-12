@@ -16,9 +16,12 @@ import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.kafka.common.record.Record;
 
 import io.apicurio.registry.resolver.strategy.ArtifactReference;
-import io.apicurio.registry.serde.AbstractKafkaSerDe;
-import io.apicurio.registry.serde.DefaultIdHandler;
+import io.apicurio.registry.rest.client.v2.models.Error;
+import io.apicurio.registry.serde.BaseSerde;
 import io.apicurio.registry.serde.IdHandler;
+import io.apicurio.registry.serde.Legacy8ByteIdHandler;
+import io.apicurio.registry.serde.config.IdOption;
+import io.apicurio.registry.serde.config.SerdeConfig;
 import io.apicurio.registry.serde.headers.DefaultHeadersHandler;
 import io.apicurio.registry.serde.headers.HeadersHandler;
 import io.apicurio.schema.validation.json.JsonValidationResult;
@@ -59,7 +62,12 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
                     : CompletableFuture.completedFuture(new Result(false, jsonValidationResult.toString()));
         }
         catch (RuntimeException ex) {
-            return CompletableFuture.completedStage(new Result(false, ex.getMessage()));
+            if (ex.getCause() instanceof Error error) {
+                return CompletableFuture.completedStage(new Result(false, error.getMessageEscaped()));
+            }
+            else {
+                return CompletableFuture.completedStage(new Result(false, ex.getMessage()));
+            }
         }
     }
 
@@ -76,7 +84,7 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
 
         var idHandler = isKey ? keyIdHandler : valueIdHandler;
         var minBytes = 1 + idHandler.idSize();
-        if (buffer.remaining() > minBytes && buffer.get(buffer.position()) == AbstractKafkaSerDe.MAGIC_BYTE) {
+        if (buffer.remaining() > minBytes && buffer.get(buffer.position()) == BaseSerde.MAGIC_BYTE) {
             buffer.get(); // ignore magic
             return Optional.of(idHandler.readId(buffer).getGlobalId());
         }
@@ -89,9 +97,9 @@ public class JsonSchemaBytebufValidator implements BytebufValidator {
         return handler;
     }
 
-    private static DefaultIdHandler buildIdHandler(boolean isKey) {
-        var handler = new DefaultIdHandler();
-        handler.configure(Map.of(), isKey);
+    private static IdHandler buildIdHandler(boolean isKey) {
+        var handler = new Legacy8ByteIdHandler();
+        handler.configure(Map.of(SerdeConfig.USE_ID, IdOption.globalId.name()), isKey);
         return handler;
     }
 }
