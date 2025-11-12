@@ -16,6 +16,7 @@ import javax.security.auth.login.AppConfigurationEntry;
 
 import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.apache.kafka.common.security.plain.PlainAuthenticateCallback;
+import org.apache.kafka.common.security.plain.internals.PlainSaslServerProvider;
 import org.apache.kafka.common.utils.Utils;
 
 import io.kroxylicious.proxy.filter.Filter;
@@ -30,6 +31,10 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @Plugin(configType = SaslPlainTerminationConfig.class)
 public class SaslPlainTermination
         implements FilterFactory<SaslPlainTerminationConfig, SaslPlainTermination.PasswordVerifier> {
+
+    static {
+        PlainSaslServerProvider.initialize();
+    }
 
     interface PasswordVerifier extends AuthenticateCallbackHandler {
     }

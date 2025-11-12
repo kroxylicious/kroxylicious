@@ -29,6 +29,7 @@
         <module>kroxylicious-simple-transform</module>
         <module>kroxylicious-oauthbearer-validation</module>
         <module>kroxylicious-sasl-inspection</module>
+        <module>kroxylicious-authorization</module>
     </modules>
 
     <build>
@@ -50,6 +51,7 @@
                                     </excludes>
                                     <includes combine.children="append">
                                         <include>io.kroxylicious:kroxylicious-annotations</include>
+                                        <include>io.kroxylicious:kroxylicious-authorizer-api</include>
                                         <include>io.kroxylicious:kroxylicious-api</include>
                                         <include>io.kroxylicious:kroxylicious-filter-toolkit</include>
                                         <include>io.kroxylicious:kroxylicious-filter-test-support</include>

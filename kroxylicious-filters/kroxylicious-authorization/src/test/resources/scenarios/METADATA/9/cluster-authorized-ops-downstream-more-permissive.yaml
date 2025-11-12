@@ -1,0 +1,120 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "METADATA"
+  apiVersion: 9
+  scenario: "cluster authorized ops - upstream more permissive"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "METADATA"
+      expectedRequestVersion: 9
+      expectedRequestHeader:
+        requestApiKey: 3
+        requestApiVersion: 9
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        topics:
+          - name: "my-topic"
+        allowAutoTopicCreation: false
+        includeClusterAuthorizedOperations: true
+        includeTopicAuthorizedOperations: false
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 746
+        brokers:
+          - nodeId: 179
+            host: "random-string-71"
+            port: 176
+            rack: "random-string-836"
+        clusterId: "cluster-id"
+        controllerId: 892
+        # DESCRIBE bit set
+        clusterAuthorizedOperations: 4
+        topics:
+          - errorCode: 820
+            name: "my-topic"
+            topicId: "u0gwV8JNSUqcw-cK7k6TJA"
+            isInternal: false
+            partitions:
+              - errorCode: 922
+                partitionIndex: 1006
+                leaderId: 773
+                leaderEpoch: 652
+                replicaNodes:
+                  - 387
+                isrNodes:
+                  - 647
+                offlineReplicas:
+                  - 421
+            topicAuthorizedOperations: 769
+        errorCode: 1003
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "CREATE"
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+      # DESCRIBE + CREATE allowed
+      - subject: "alice"
+        resourceName: ""
+        resourceClass: "CLUSTER"
+        resourceType: "DESCRIBE"
+      - subject: "alice"
+        resourceName: ""
+        resourceClass: "CLUSTER"
+        resourceType: "CREATE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 3
+    requestApiVersion: 9
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    topics:
+      - name: "my-topic"
+    allowAutoTopicCreation: false
+    includeClusterAuthorizedOperations: true
+    includeTopicAuthorizedOperations: false
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 746
+    brokers:
+      - nodeId: 179
+        host: "random-string-71"
+        port: 176
+        rack: "random-string-836"
+    clusterId: "cluster-id"
+    controllerId: 892
+    topics:
+      - errorCode: 820
+        name: "my-topic"
+        isInternal: false
+        partitions:
+          - errorCode: 922
+            partitionIndex: 1006
+            leaderId: 773
+            leaderEpoch: 652
+            replicaNodes:
+              - 387
+            isrNodes:
+              - 647
+            offlineReplicas:
+              - 421
+        topicAuthorizedOperations: 769
+    # DESCRIBE only
+    clusterAuthorizedOperations: 4

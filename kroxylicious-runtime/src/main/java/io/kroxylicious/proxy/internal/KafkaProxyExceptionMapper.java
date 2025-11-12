@@ -74,6 +74,7 @@ import org.apache.kafka.common.message.InitializeShareGroupStateRequestData;
 import org.apache.kafka.common.message.JoinGroupRequestData;
 import org.apache.kafka.common.message.LeaveGroupRequestData;
 import org.apache.kafka.common.message.ListConfigResourcesRequestData;
+import org.apache.kafka.common.message.ListConfigResourcesResponseData;
 import org.apache.kafka.common.message.ListGroupsRequestData;
 import org.apache.kafka.common.message.ListOffsetsRequestData;
 import org.apache.kafka.common.message.ListPartitionReassignmentsRequestData;
@@ -108,6 +109,7 @@ import org.apache.kafka.common.message.WriteShareGroupStateRequestData;
 import org.apache.kafka.common.message.WriteTxnMarkersRequestData;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.apache.kafka.common.protocol.ApiMessage;
+import org.apache.kafka.common.protocol.Errors;
 import org.apache.kafka.common.requests.AbstractRequest;
 import org.apache.kafka.common.requests.AbstractResponse;
 import org.apache.kafka.common.requests.AddOffsetsToTxnRequest;
@@ -168,6 +170,7 @@ import org.apache.kafka.common.requests.InitializeShareGroupStateRequest;
 import org.apache.kafka.common.requests.JoinGroupRequest;
 import org.apache.kafka.common.requests.LeaveGroupRequest;
 import org.apache.kafka.common.requests.ListConfigResourcesRequest;
+import org.apache.kafka.common.requests.ListConfigResourcesResponse;
 import org.apache.kafka.common.requests.ListGroupsRequest;
 import org.apache.kafka.common.requests.ListOffsetsRequest;
 import org.apache.kafka.common.requests.ListPartitionReassignmentsRequest;
@@ -225,6 +228,11 @@ public class KafkaProxyExceptionMapper {
 
     public static AbstractResponse errorResponseForMessage(RequestHeaderData requestHeaders, ApiMessage message, ApiException apiException) {
         final short apiKey = message.apiKey();
+        if (apiKey == ApiKeys.LIST_CONFIG_RESOURCES.id && requestHeaders.requestApiVersion() == 0) {
+            return new ListConfigResourcesResponse(new ListConfigResourcesResponseData()
+                    .setErrorCode(Errors.forException(apiException).code())
+                    .setConfigResources(List.of(new ListConfigResourcesResponseData.ConfigResource().setResourceType((byte) 16))));
+        }
         return errorResponse(ApiKeys.forId(apiKey), message, requestHeaders.requestApiVersion()).getErrorResponse(apiException);
     }
 
@@ -233,6 +241,11 @@ public class KafkaProxyExceptionMapper {
         ApiMessage reqBody = frame.body();
         short apiVersion = frame.apiVersion();
         final ApiKeys apiKey = frame.apiKey();
+        if (frame.apiKey() == ApiKeys.LIST_CONFIG_RESOURCES && frame.apiVersion() == 0) {
+            return new ListConfigResourcesResponse(new ListConfigResourcesResponseData()
+                    .setErrorCode(Errors.forException(error).code())
+                    .setConfigResources(List.of(new ListConfigResourcesResponseData.ConfigResource().setResourceType((byte) 16))));
+        }
         final AbstractRequest req = errorResponse(apiKey, reqBody, apiVersion);
         return req.getErrorResponse(error);
     }
