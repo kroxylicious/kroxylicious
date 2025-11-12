@@ -66,7 +66,7 @@ public class KafkaSteps {
                 List.of(TOPIC_COMMAND, "create", BOOTSTRAP_ARG + bootstrap, "--topic=" + topicName, "--topic-partitions=" + partitions,
                         "--topic-rep-factor=" + replicas));
 
-        if (!compressionType.equals(CompressionType.NONE)) {
+        if (!CompressionType.NONE.equals(compressionType)) {
             args.add("--topic-config=" + TopicConfig.COMPRESSION_TYPE_CONFIG + "=" + compressionType);
         }
 
