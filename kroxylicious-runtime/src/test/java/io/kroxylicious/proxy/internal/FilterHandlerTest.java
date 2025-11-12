@@ -5,8 +5,6 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,10 +18,6 @@ import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
-
-import javax.net.ssl.SSLEngine;
-import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.net.ssl.SSLSession;
 
 import org.apache.kafka.common.errors.SaslAuthenticationException;
 import org.apache.kafka.common.message.ApiMessageType;
@@ -47,11 +41,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.Mockito;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.ssl.SslHandler;
 
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
@@ -70,18 +62,14 @@ import io.kroxylicious.proxy.internal.KafkaAuthnHandler.SaslMechanism;
 import io.kroxylicious.proxy.internal.filter.RequestFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.fail;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 class FilterHandlerTest extends FilterHarness {
 
@@ -1231,76 +1219,6 @@ class FilterHandlerTest extends FilterHarness {
         return future;
     }
 
-    static List<Arguments> clientTlsContext() throws SSLPeerUnverifiedException {
-
-        X509Certificate proxyCertificate = mock(X509Certificate.class);
-        X509Certificate proxyIssuer = mock(X509Certificate.class);
-        X509Certificate clientCertificate = mock(X509Certificate.class);
-        X509Certificate clientIssuer = mock(X509Certificate.class);
-        return List.of(
-                Arguments.argumentSet("mTLS self-signed",
-                        getSslHandler(List.of(proxyCertificate), false, List.of(clientCertificate)),
-                        clientCertificate, proxyCertificate),
-                Arguments.argumentSet("mTLS chains",
-                        getSslHandler(List.of(proxyCertificate, proxyIssuer), false, List.of(clientCertificate, clientIssuer)),
-                        clientCertificate, proxyCertificate),
-                Arguments.argumentSet("null client cert",
-                        getSslHandler(List.of(proxyCertificate), false, null),
-                        null, proxyCertificate),
-                Arguments.argumentSet("empty client cert",
-                        getSslHandler(List.of(proxyCertificate), false, List.of()),
-                        null, proxyCertificate),
-                Arguments.argumentSet("peer unverified",
-                        getSslHandler(List.of(proxyCertificate), true, null),
-                        null, proxyCertificate),
-                Arguments.argumentSet("No TLS",
-                        null, null, null),
-                Arguments.argumentSet("No TLS (empty local certs)",
-                        getSslHandler(List.of(), true, null),
-                        null, null),
-                Arguments.argumentSet("No TLS (empty local certs)",
-                        getSslHandler(null, true, null),
-                        null, null));
-
-    }
-
-    private static SslHandler getSslHandler(@Nullable List<X509Certificate> proxyCertificates,
-                                            boolean peerUnverified,
-                                            @Nullable List<X509Certificate> clientCertificates)
-            throws SSLPeerUnverifiedException {
-        var session = mock(SSLSession.class);
-        when(session.getLocalCertificates()).thenReturn(proxyCertificates != null ? proxyCertificates.toArray(new Certificate[0]) : null);
-        if (peerUnverified) {
-            if (clientCertificates != null) {
-                throw new IllegalStateException();
-            }
-            when(session.getPeerCertificates()).thenThrow(new SSLPeerUnverifiedException(""));
-        }
-        else {
-            when(session.getPeerCertificates()).thenReturn(clientCertificates != null ? clientCertificates.toArray(new Certificate[0]) : null);
-        }
-        var engine = mock(SSLEngine.class);
-        Mockito.when(engine.getSession()).thenReturn(session);
-        var handler = mock(SslHandler.class);
-        Mockito.when(handler.engine()).thenReturn(engine);
-        return handler;
-    }
-
-    @ParameterizedTest
-    @MethodSource
-    void clientTlsContext(@Nullable SslHandler handler,
-                          @Nullable X509Certificate clientCertificate,
-                          @Nullable X509Certificate proxyCertificate) {
-
-        // when
-        var localCert = FilterHandler.localTlsCertificate(handler);
-        var peerCert = FilterHandler.getPeerTlsCertificate(handler);
-
-        // then
-        assertThat(localCert).isSameAs(proxyCertificate);
-        assertThat(peerCert).isSameAs(clientCertificate);
-    }
-
     @Test
     void shouldUpdateClientSaslContextOnSaslAuthSuccess() {
         // Given
@@ -1317,7 +1235,7 @@ class FilterHandlerTest extends FilterHarness {
         DecodedResponseFrame<?> propagated = channel.readInbound();
         assertThat(propagated.body()).isEqualTo(responseData);
 
-        assertThat(clientSaslManager.clientSaslContext())
+        assertThat(clientSubjectManager.clientSaslContext())
                 .isNotEmpty()
                 .hasValueSatisfying(saslContext -> {
                     assertThat(saslContext.authorizationId()).isEqualTo(AUTHORIZATION_ID);
@@ -1341,7 +1259,7 @@ class FilterHandlerTest extends FilterHarness {
         DecodedResponseFrame<?> propagated = channel.readInbound();
         assertThat(propagated.body()).isEqualTo(responseData);
 
-        assertThat(clientSaslManager.clientSaslContext())
+        assertThat(clientSubjectManager.clientSaslContext())
                 .isEmpty();
     }
 }
