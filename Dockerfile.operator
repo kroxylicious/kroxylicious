@@ -41,7 +41,7 @@ COPY . .
 
 RUN mvn -q -B clean package -Pdist -Dquick -DskipContainerImageBuild=true -DskipDocs=true -Dmaven.test.skip
 
-FROM registry.access.redhat.com/ubi9/ubi-minimal:9.6-1760515502
+FROM registry.access.redhat.com/ubi9/ubi-minimal:9.7-1762180032
 
 ARG JAVA_VERSION=17
 ARG KROXYLICIOUS_VERSION
