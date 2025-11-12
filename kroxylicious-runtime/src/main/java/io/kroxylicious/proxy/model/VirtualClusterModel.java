@@ -28,8 +28,12 @@ import org.slf4j.LoggerFactory;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilderService;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
+import io.kroxylicious.proxy.config.PluginFactoryRegistry;
+import io.kroxylicious.proxy.config.SubjectBuilderConfig;
 import io.kroxylicious.proxy.config.TargetCluster;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.NettyKeyProvider;
@@ -40,7 +44,9 @@ import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TrustOptions;
 import io.kroxylicious.proxy.config.tls.TrustProvider;
 import io.kroxylicious.proxy.internal.net.EndpointGateway;
+import io.kroxylicious.proxy.internal.subject.DefaultTransportSubjectBuilderService;
 import io.kroxylicious.proxy.internal.util.StableKroxyliciousLinkGenerator;
+import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 import io.kroxylicious.proxy.service.HostPort;
 import io.kroxylicious.proxy.service.NodeIdentificationStrategy;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
@@ -66,17 +72,28 @@ public class VirtualClusterModel {
     private final List<NamedFilterDefinition> filters;
 
     private final Optional<SslContext> upstreamSslContext;
+    private final @Nullable SubjectBuilderConfig subjectBuilderConfig;
 
     public VirtualClusterModel(String clusterName,
                                TargetCluster targetCluster,
                                boolean logNetwork,
                                boolean logFrames,
                                List<NamedFilterDefinition> filters) {
+        this(clusterName, targetCluster, logNetwork, logFrames, filters, null);
+    }
+
+    public VirtualClusterModel(String clusterName,
+                               TargetCluster targetCluster,
+                               boolean logNetwork,
+                               boolean logFrames,
+                               List<NamedFilterDefinition> filters,
+                               @Nullable SubjectBuilderConfig subjectBuilderConfig) {
         this.clusterName = Objects.requireNonNull(clusterName);
         this.targetCluster = Objects.requireNonNull(targetCluster);
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.filters = filters;
+        this.subjectBuilderConfig = subjectBuilderConfig;
 
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
@@ -256,6 +273,28 @@ public class VirtualClusterModel {
 
     public Map<String, EndpointGateway> gateways() {
         return Collections.unmodifiableMap(gateways);
+    }
+
+    public TransportSubjectBuilder subjectBuilder(PluginFactoryRegistry pfr) {
+        var pf = pfr.pluginFactory(TransportSubjectBuilderService.class);
+        String type;
+        Object config;
+        if (this.subjectBuilderConfig == null) {
+            type = DefaultTransportSubjectBuilderService.class.getName();
+            config = new DefaultTransportSubjectBuilderService.Config(List.of());
+        }
+        else {
+            type = this.subjectBuilderConfig.type();
+            config = this.subjectBuilderConfig.config();
+        }
+        Class<?> configType = pf.configType(type);
+        if (config != null && !configType.isInstance(config)) {
+            throw new PluginConfigurationException("SubjectBuilder " + type + " accepts config of type " +
+                    configType.getName() + " but provided with config of type " + config.getClass().getName());
+        }
+        TransportSubjectBuilderService subjectBuilderService = pf.pluginInstance(type);
+        subjectBuilderService.initialize(config);
+        return subjectBuilderService.build();
     }
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")

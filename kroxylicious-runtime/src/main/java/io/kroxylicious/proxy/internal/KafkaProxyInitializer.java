@@ -227,8 +227,9 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 endpointReconciler,
                 new ApiVersionsIntersectFilter(apiVersionsService),
                 new ApiVersionsDowngradeFilter(apiVersionsService));
+
         ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId());
-        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, binding, proxyChannelStateMachine);
+        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, virtualCluster.subjectBuilder(pfr), binding, proxyChannelStateMachine);
 
         pipeline.addLast("netHandler", frontendHandler);
         addLoggingErrorHandler(pipeline);
