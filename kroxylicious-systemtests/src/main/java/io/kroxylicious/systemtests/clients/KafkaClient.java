@@ -67,7 +67,8 @@ public interface KafkaClient {
      * @param numOfMessages the num of messages
      * @throws KubeClusterException the kube cluster exception
      */
-    default void produceMessages(String topicName, String bootstrap, String message, @NonNull CompressionType compressionType, int numOfMessages) throws KubeClusterException {
+    default void produceMessages(String topicName, String bootstrap, String message, @NonNull CompressionType compressionType, int numOfMessages)
+            throws KubeClusterException {
         produceMessages(topicName, bootstrap, message, null, compressionType, numOfMessages);
     }
 
