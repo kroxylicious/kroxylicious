@@ -9,7 +9,7 @@ package io.kroxylicious.proxy.filter.validation;
 import java.util.ArrayList;
 import java.util.Map;
 
-import io.apicurio.registry.resolver.SchemaResolverConfig;
+import io.apicurio.registry.resolver.config.SchemaResolverConfig;
 
 import io.kroxylicious.proxy.filter.validation.config.BytebufValidation;
 import io.kroxylicious.proxy.filter.validation.config.RecordValidationRule;

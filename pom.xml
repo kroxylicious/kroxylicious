@@ -67,9 +67,8 @@
         <zjsonpatch.version>0.4.16</zjsonpatch.version>
         <moby-names-generator.version>20.10.1-r0</moby-names-generator.version>
         <jacoco-maven-plugin.version>0.8.14</jacoco-maven-plugin.version>
-        <apicurio-schema-validation.version>0.0.7</apicurio-schema-validation.version>
-        <apicurio-registry.version>2.6.13.Final</apicurio-registry.version>
-        <apicurio-common.version>0.1.18.Final</apicurio-common.version>
+        <apicurio-schema-validation.version>0.1.1</apicurio-schema-validation.version>
+        <apicurio-registry.version>3.1.2</apicurio-registry.version>
         <jose4j.version>0.9.6</jose4j.version>
 
         <!-- Test dependencies -->
@@ -257,7 +256,7 @@
             </dependency>
             <dependency>
                 <groupId>io.apicurio</groupId>
-                <artifactId>apicurio-registry-client</artifactId>
+                <artifactId>apicurio-registry-java-sdk-v2</artifactId>
                 <version>${apicurio-registry.version}</version>
             </dependency>
             <dependency>
@@ -267,8 +266,18 @@
             </dependency>
             <dependency>
                 <groupId>io.apicurio</groupId>
-                <artifactId>apicurio-common-rest-client-common</artifactId>
-                <version>${apicurio-common.version}</version>
+                <artifactId>apicurio-registry-schema-validation-jsonschema</artifactId>
+                <version>${apicurio-schema-validation.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-jsonschema-serde-kafka</artifactId>
+                <version>${apicurio-registry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-serde-common</artifactId>
+                <version>${apicurio-registry.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.apicurio</groupId>
@@ -277,17 +286,17 @@
             </dependency>
             <dependency>
                 <groupId>io.apicurio</groupId>
-                <artifactId>apicurio-registry-schema-validation-jsonschema</artifactId>
-                <version>${apicurio-schema-validation.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.apicurio</groupId>
-                <artifactId>apicurio-registry-serdes-jsonschema-serde</artifactId>
+                <artifactId>apicurio-registry-v2-java-sdk</artifactId>
                 <version>${apicurio-registry.version}</version>
             </dependency>
             <dependency>
                 <groupId>io.apicurio</groupId>
-                <artifactId>apicurio-registry-serde-common</artifactId>
+                <artifactId>apicurio-registry-serde-kafka-common</artifactId>
+                <version>${apicurio-registry.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.apicurio</groupId>
+                <artifactId>apicurio-registry-java-sdk-common</artifactId>
                 <version>${apicurio-registry.version}</version>
             </dependency>
             <dependency>
