@@ -63,14 +63,45 @@ services:
     image: 'quay.io/kroxylicious/proxy:0.18.0-SNAPSHOT'
     container_name: kroxylicious
     command: --config /opt/kroxylicious/config/proxy-config.yaml
+#    entrypoint: ls
+#    command:
+#      - "/opt/kroxylicious/trusted-certs"
+    environment:
+      JAVA_ENABLE_DEBUG: true
+      JAVA_DEBUG_SUSPEND: true
     networks:
       - kroxylicious_network
     ports:
       - "9292-9296:9292-9296"
+      - "5005:5005"
+    tmpfs:
+      - /opt/kroxylicious/libs/native:rw,size=50M
+    volumes:
+      - lowkey-config:/opt/kroxylicious/trusted-certs/:ro
     configs:
       - source: proxy-config
         target: /opt/kroxylicious/config/proxy-config.yaml
 
+  lowkey-vault:
+    container_name: lowkey-vault
+    image: nagyesta/lowkey-vault:5.0.14
+    networks:
+      kroxylicious_network:
+        aliases:
+          - default.lowkey-vault
+    ports:
+      - "8080:8080"
+      - "8443:8443"
+    environment:
+      LOWKEY_ARGS: >
+        --server.port=8443
+        --server.ssl.key-store-type=JKS 
+        --server.ssl.key-store=/config/cert.jks 
+        --server.ssl.key-store-password=password 
+        --server.ssl.key-alia=lowkey-vault
+        --LOWKEY_DEBUG_REQUEST_LOG=true
+    volumes:
+      - lowkey-config:/config/:ro
 networks:
   kroxylicious_network:
     driver: bridge
@@ -78,5 +109,13 @@ networks:
 configs:
   proxy-config:
     file: compose-proxy-config.yaml
+volumes:
+  lowkey-config:
+    driver: local
+    driver_opts:
+      type: "none"
+      o: "bind"
+      # set the ./config directory as volume root
+      device: "$PWD/compose/lowkey-config"
 
 
