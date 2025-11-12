@@ -47,7 +47,8 @@ public class KroxyliciousSteps {
      * @param compressionType the compression type
      * @param numberOfMessages the number of messages
      */
-    public static void produceMessages(String namespace, String topicName, String bootstrap, String message, @NonNull CompressionType compressionType, int numberOfMessages) {
+    public static void produceMessages(String namespace, String topicName, String bootstrap, String message, @NonNull CompressionType compressionType,
+                                       int numberOfMessages) {
         KafkaClients.getKafkaClient().inNamespace(namespace).produceMessages(topicName, bootstrap, message, compressionType, numberOfMessages);
     }
 
