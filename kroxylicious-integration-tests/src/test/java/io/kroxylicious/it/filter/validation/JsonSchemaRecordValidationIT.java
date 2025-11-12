@@ -10,7 +10,6 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
 
@@ -41,10 +40,15 @@ import com.github.dockerjava.api.model.HostConfig;
 import com.github.dockerjava.api.model.PortBinding;
 import com.github.dockerjava.api.model.Ports;
 
-import io.apicurio.registry.rest.client.RegistryClientFactory;
-import io.apicurio.registry.serde.SerdeConfig;
+import io.apicurio.registry.client.RegistryClientOptions;
+import io.apicurio.registry.client.RegistryV2ClientFactory;
+import io.apicurio.registry.rest.client.v2.models.ArtifactContent;
+import io.apicurio.registry.rest.client.v2.models.ArtifactMetaData;
+import io.apicurio.registry.serde.Legacy8ByteIdHandler;
+import io.apicurio.registry.serde.config.IdOption;
+import io.apicurio.registry.serde.config.KafkaSerdeConfig;
+import io.apicurio.registry.serde.config.SerdeConfig;
 import io.apicurio.registry.serde.jsonschema.JsonSchemaSerde;
-import io.apicurio.rest.client.util.IoUtil;
 
 import io.kroxylicious.filter.validation.RecordValidation;
 import io.kroxylicious.proxy.config.ConfigurationBuilder;
@@ -97,14 +101,15 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
             {"firstName":"json1","lastName":"json2","age":-3}""";
     private static final String APICURIO_REGISTRY_HOST = "http://localhost";
     private static final Integer APICURIO_REGISTRY_PORT = 8081;
-    private static final String APICURIO_REGISTRY_URL = APICURIO_REGISTRY_HOST + ":" + APICURIO_REGISTRY_PORT;
-    private static final String FIRST_ARTIFACT_ID = UUID.randomUUID().toString();
-    private static final String SECOND_ARTIFACT_ID = UUID.randomUUID().toString();
+    private static final String APICURIO_REGISTRY_API = "/apis/registry/v2";
+    private static final String APICURIO_REGISTRY_URL = APICURIO_REGISTRY_HOST + ":" + APICURIO_REGISTRY_PORT + APICURIO_REGISTRY_API;
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
-    static final PersonBean PERSON_BEAN = new PersonBean("john", "smith", 23);
-    static long firstGlobalId;
-    static long secondGlobalId;
+    public static final PersonBean PERSON_BEAN = new PersonBean("john", "smith", 23);
 
+    public static String FIRST_ARTIFACT_ID;
+
+    public static long firstGlobalId;
+    public static long secondGlobalId;
     private static GenericContainer registryContainer;
 
     @BeforeAll
@@ -125,11 +130,19 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         registryContainer.start();
         registryContainer.waitingFor(Wait.forLogMessage(".*Installed features:*", 1));
 
+        RegistryClientOptions.create(APICURIO_REGISTRY_URL);
+
         // Preparation: In this test class, a schema already registered in Apicurio Registry with globalId one is expected, so we register it upfront.
-        try (var client = RegistryClientFactory.create(APICURIO_REGISTRY_URL)) {
-            firstGlobalId = client.createArtifact(null, FIRST_ARTIFACT_ID, IoUtil.toStream(JSON_SCHEMA_TOPIC_1)).getGlobalId();
-            secondGlobalId = client.createArtifact(null, SECOND_ARTIFACT_ID, IoUtil.toStream(JSON_SCHEMA_TOPIC_1)).getGlobalId();
-        }
+        var client = RegistryV2ClientFactory.create(RegistryClientOptions.create(APICURIO_REGISTRY_URL));
+
+        ArtifactContent artifactContent = new ArtifactContent();
+        artifactContent.setContent(JSON_SCHEMA_TOPIC_1);
+
+        ArtifactMetaData firstArtifact = client.groups().byGroupId("default").artifacts().post(artifactContent);
+        ArtifactMetaData secondArtifact = client.groups().byGroupId("default").artifacts().post(artifactContent);
+        FIRST_ARTIFACT_ID = firstArtifact.getId();
+        firstGlobalId = firstArtifact.getGlobalId();
+        secondGlobalId = secondArtifact.getGlobalId();
     }
 
     @Test
@@ -188,7 +201,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
 
         var keySerde = new Serdes.StringSerde();
         var producerValueSerde = createJsonSchemaProducerSerde(schemaIdInHeader, false);
-        var consumerValueSerde = createJsonSchemaConsumerSerde(false);
+        var consumerValueSerde = createJsonSchemaConsumerSerde(schemaIdInHeader, false);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(keySerde, producerValueSerde, Map.of());
@@ -211,7 +224,7 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
 
         boolean isKey = true;
         var producerKeySerde = createJsonSchemaProducerSerde(schemaIdInHeader, isKey);
-        var consumerKeySerde = createJsonSchemaConsumerSerde(isKey);
+        var consumerKeySerde = createJsonSchemaConsumerSerde(schemaIdInHeader, isKey);
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer(producerKeySerde, new Serdes.StringSerde(), Map.of());
@@ -265,9 +278,18 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
                 .containsExactly(expected);
     }
 
-    private static @NonNull JsonSchemaSerde<Object> createJsonSchemaConsumerSerde(boolean isKey) {
+    /** Helper methods to create Serdes with JsonSchemaSerde configured to use globalId strategy.
+     * These methods are configured to create v3 serdes so that they mimic the behaviour of clients using Apicurio Registry v2.
+     * Legacy8ByteIdHandler is used to read and write the 8-byte schema ids in headers, as done by Apicurio Registry v2 serdes.
+     * GlobalId strategy is used to mimic the behaviour of clients using Apicurio Registry v2, which use globalId strategy by default.
+     **/
+    private static @NonNull JsonSchemaSerde<Object> createJsonSchemaConsumerSerde(boolean schemaIdInHeader, boolean isKey) {
         var consumerKeySerde = new JsonSchemaSerde<>();
         consumerKeySerde.configure(Map.of(
+                SerdeConfig.EXPLICIT_ARTIFACT_ID, FIRST_ARTIFACT_ID,
+                SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
+                SerdeConfig.USE_ID, IdOption.globalId.name(), KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader,
+                SerdeConfig.ID_HANDLER, Legacy8ByteIdHandler.class.getName(),
                 SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL), isKey);
         return consumerKeySerde;
     }
@@ -277,7 +299,10 @@ class JsonSchemaRecordValidationIT extends RecordValidationBaseIT {
         producerKeySerde.configure(Map.of(
                 SerdeConfig.REGISTRY_URL, APICURIO_REGISTRY_URL,
                 SerdeConfig.EXPLICIT_ARTIFACT_ID, FIRST_ARTIFACT_ID,
-                SerdeConfig.ENABLE_HEADERS, schemaIdInHeader), isKey);
+                SerdeConfig.EXPLICIT_ARTIFACT_VERSION, "1",
+                SerdeConfig.USE_ID, IdOption.globalId.name(),
+                SerdeConfig.ID_HANDLER, Legacy8ByteIdHandler.class.getName(),
+                KafkaSerdeConfig.ENABLE_HEADERS, schemaIdInHeader), isKey);
         return producerKeySerde;
     }
 
