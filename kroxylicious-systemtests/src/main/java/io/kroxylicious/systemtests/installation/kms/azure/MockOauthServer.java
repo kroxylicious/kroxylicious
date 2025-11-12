@@ -11,7 +11,6 @@ import java.net.URI;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.resources.manager.ResourceManager;
 import io.kroxylicious.systemtests.templates.kms.azure.LowkeyVaultTemplates;
@@ -21,9 +20,6 @@ import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 
 public class MockOauthServer {
     private static final Logger LOGGER = LoggerFactory.getLogger(MockOauthServer.class);
-    public static final String MOCK_OAUTH_SERVER_SERVICE_NAME = "mock-oauth2-server";
-    public static final String MOCK_OAUTH_SERVER_NODE_PORT_SERVICE_NAME = "mock-oauth2-server-" + Constants.NODE_PORT_TYPE.toLowerCase();
-    public static final String MOCK_OAUTH_SERVER_CLUSTER_IP_SERVICE_NAME = "mock-oauth2-server-" + Constants.CLUSTER_IP_TYPE.toLowerCase();
     private static final String MOCK_OAUTH_SERVER_DEFAULT_NAMESPACE = "lowkey-vault";
     private static final String MOCK_OAUTH_SERVER_IMAGE = "ghcr.io/navikt/mock-oauth2-server:3.0.1";
     private final String deploymentNamespace;
@@ -42,7 +38,7 @@ public class MockOauthServer {
     }
 
     private boolean isDeployed() {
-        return kubeClient().getService(deploymentNamespace, MOCK_OAUTH_SERVER_NODE_PORT_SERVICE_NAME) != null;
+        return kubeClient().getService(deploymentNamespace, LowkeyVaultTemplates.MOCK_OAUTH_SERVER_NODE_PORT_SERVICE_NAME) != null;
     }
 
     /**
@@ -58,12 +54,11 @@ public class MockOauthServer {
 
         NamespaceUtils.createNamespaceAndPrepare(deploymentNamespace);
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
-                LowkeyVaultTemplates.defaultMockOauthServerService(MOCK_OAUTH_SERVER_NODE_PORT_SERVICE_NAME, deploymentNamespace, MOCK_OAUTH_SERVER_SERVICE_NAME));
+                LowkeyVaultTemplates.defaultMockOauthServerService(deploymentNamespace));
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
-                LowkeyVaultTemplates.defaultMockOauthServerClusterIPService(MOCK_OAUTH_SERVER_CLUSTER_IP_SERVICE_NAME, deploymentNamespace,
-                        MOCK_OAUTH_SERVER_SERVICE_NAME));
+                LowkeyVaultTemplates.defaultMockOauthServerClusterIPService(deploymentNamespace));
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
-                LowkeyVaultTemplates.defaultMockOauthServerDeployment(MOCK_OAUTH_SERVER_SERVICE_NAME, MOCK_OAUTH_SERVER_IMAGE, deploymentNamespace));
+                LowkeyVaultTemplates.defaultMockOauthServerDeployment(MOCK_OAUTH_SERVER_IMAGE, deploymentNamespace));
     }
 
     /**
@@ -81,7 +76,8 @@ public class MockOauthServer {
      * @return  the base uri
      */
     public URI getBaseUri() {
-        return URI.create("http://" + MOCK_OAUTH_SERVER_CLUSTER_IP_SERVICE_NAME + ".lowkey-vault.svc.cluster.local:80");
+        return URI.create("https://" + LowkeyVaultTemplates.MOCK_OAUTH_SERVER_CLUSTER_IP_SERVICE_NAME
+                + "." + MOCK_OAUTH_SERVER_DEFAULT_NAMESPACE + ".svc.cluster.local:80");
     }
 
     /**

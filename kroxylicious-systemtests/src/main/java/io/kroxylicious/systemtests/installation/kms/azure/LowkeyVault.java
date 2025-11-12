@@ -75,11 +75,8 @@ public class LowkeyVault implements AzureKmsClient {
 
         DeploymentUtils.copySecretInToNamespace(deploymentNamespace, Constants.KEYSTORE_SECRET_NAME);
 
-        String password = DeploymentUtils.getSecretValue(deploymentNamespace, Constants.KEYSTORE_SECRET_NAME, "password");
-
         ResourceManager.getInstance().createResourceFromBuilderWithWait(
-                LowkeyVaultTemplates.defaultLowkeyVaultDeployment(LOWKEY_VAULT_IMAGE, deploymentNamespace, getEndpointAuthority(),
-                        password));
+                LowkeyVaultTemplates.defaultLowkeyVaultDeployment(LOWKEY_VAULT_IMAGE, deploymentNamespace, getEndpointAuthority()));
     }
 
     @Override
@@ -114,11 +111,13 @@ public class LowkeyVault implements AzureKmsClient {
         try {
             KeystoreManager entraCertGen = new KeystoreManager();
             String domain = LowkeyVaultTemplates.LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME + "." + LOWKEY_VAULT_DEFAULT_NAMESPACE + ".svc.cluster.local";
+            String mockOauthDomain = LowkeyVaultTemplates.MOCK_OAUTH_SERVER_CLUSTER_IP_SERVICE_NAME + "." + LOWKEY_VAULT_DEFAULT_NAMESPACE + ".svc.cluster.local";
             String ipAddress = DeploymentUtils.getNodeIP();
             CertificateBuilder certificateBuilder = entraCertGen.newCertificateBuilder(entraCertGen.buildDistinguishedName("test@kroxylicious.io", domain, "Engineering",
                     "Kroxylicious.io", null, null, "US"))
                     .addSanIpAddress(ipAddress)
-                    .addSanDnsName(domain);
+                    .addSanDnsName(domain)
+                    .addSanDnsName(mockOauthDomain);
             X509Bundle bundle = entraCertGen.createSelfSignedCertificate(certificateBuilder);
             keystorePath = entraCertGen.generateCertificateFile(bundle);
             password = entraCertGen.getPassword(keystorePath);

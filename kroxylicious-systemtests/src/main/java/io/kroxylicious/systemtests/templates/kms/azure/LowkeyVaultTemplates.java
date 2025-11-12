@@ -25,6 +25,7 @@ import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
 
 import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.templates.ContainerTemplates;
+import io.kroxylicious.systemtests.utils.DeploymentUtils;
 
 /**
  * The type Lowkey vault templates.
@@ -34,7 +35,10 @@ public class LowkeyVaultTemplates {
     private static final String LOWKEY_VAULT_ALIASES_VAR = "LOWKEY_VAULT_ALIASES";
     public static final String LOWKEY_VAULT_NODE_PORT_SERVICE_NAME = "lowkey-vault-" + Constants.NODE_PORT_TYPE.toLowerCase();
     public static final String LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME = "lowkey-vault-" + Constants.CLUSTER_IP_TYPE.toLowerCase();
+    public static final String MOCK_OAUTH_SERVER_NODE_PORT_SERVICE_NAME = "mock-oauth2-server-" + Constants.NODE_PORT_TYPE.toLowerCase();
+    public static final String MOCK_OAUTH_SERVER_CLUSTER_IP_SERVICE_NAME = "mock-oauth2-server-" + Constants.CLUSTER_IP_TYPE.toLowerCase();
     private static final String LOWKEY_VAULT_DEPLOYMENT_NAME = "my-key-vault";
+    public static final String MOCK_OAUTH_SERVER_SERVICE_NAME = "mock-oauth2-server";
     private static final int CLUSTER_IP_PORT = 443;
 
     private LowkeyVaultTemplates() {
@@ -122,19 +126,20 @@ public class LowkeyVaultTemplates {
     /**
      * Default mock oauth server deployment builder.
      *
-     * @param deploymentName the deployment name
      * @param image the image
      * @param namespace the namespace
      * @return  the deployment builder
      */
-    public static DeploymentBuilder defaultMockOauthServerDeployment(String deploymentName, String image, String namespace) {
-        Map<String, String> labelSelector = Map.of("app", deploymentName);
+    public static DeploymentBuilder defaultMockOauthServerDeployment(String image, String namespace) {
+        Map<String, String> labelSelector = Map.of("app", MOCK_OAUTH_SERVER_SERVICE_NAME);
+        String certPassword = DeploymentUtils.getSecretValue(namespace, Constants.KEYSTORE_SECRET_NAME, "password");
+
         // @formatter:off
         return new DeploymentBuilder()
                 .withKind(Constants.DEPLOYMENT)
                 .withNewMetadata()
                     .withNamespace(namespace)
-                    .withName(deploymentName)
+                    .withName(MOCK_OAUTH_SERVER_SERVICE_NAME)
                     .withLabels(labelSelector)
                 .endMetadata()
                 .withNewSpec()
@@ -146,8 +151,20 @@ public class LowkeyVaultTemplates {
                             .withLabels(labelSelector)
                         .endMetadata()
                         .withNewSpec()
-                            .withContainers(ContainerTemplates.baseImageBuilder(deploymentName, image)
+                            .withContainers(ContainerTemplates.baseImageBuilder(MOCK_OAUTH_SERVER_SERVICE_NAME, image)
                                     .withPorts(getOauthServerContainerPorts())
+                                    .withEnv(mockOauth2ServerEnvVars(certPassword))
+                                    .withVolumeMounts(new VolumeMountBuilder()
+                                            .withName("cert")
+                                            .withMountPath(Constants.KEYSTORE_TEMP_DIR)
+                                            .withReadOnly(true)
+                                            .build())
+                                    .build())
+                            .withVolumes(new VolumeBuilder()
+                                    .withSecret(new SecretVolumeSourceBuilder()
+                                            .withSecretName(Constants.KEYSTORE_SECRET_NAME)
+                                            .build())
+                                    .withName("cert")
                                     .build())
                         .endSpec()
                     .endTemplate()
@@ -155,21 +172,30 @@ public class LowkeyVaultTemplates {
         // @formatter:on
     }
 
+    private static List<EnvVar> mockOauth2ServerEnvVars(String certPassword) {
+        String certFilePath = Constants.KEYSTORE_TEMP_DIR + Constants.KEYSTORE_FILE_NAME;
+        String keystoreTpe = "JKS";
+        String config = """
+                {
+                    "httpServer" : {
+                        "type" : "NettyWrapper",
+                        "ssl" : {
+                            "keyPassword" : "%s",
+                            "keystoreFile" : "%s",
+                            "keystoreType" : "%s",
+                            "keystorePassword" : "%s"
+                        }
+                    }
+                }
+                """.formatted(certPassword, certFilePath, keystoreTpe, certPassword);
+
+        return List.of(envVar("JSON_CONFIG", config));
+    }
+
     private static List<ContainerPort> getOauthServerContainerPorts() {
         List<ContainerPort> containerPorts = new ArrayList<>();
         containerPorts.add(getContainerPort(8080));
         return containerPorts;
-    }
-
-    /**
-     * Default mock oauth server service builder.
-     *
-     * @param serviceName the service name
-     * @param namespace the namespace
-     * @return  the service builder
-     */
-    public static ServiceBuilder defaultMockOauthServerService(String serviceName, String namespace, String selector) {
-        return baseService(serviceName, namespace, selector, getOauthServerPorts(), "NodePort");
     }
 
     private static List<ServicePort> getOauthServerPorts() {
@@ -192,8 +218,10 @@ public class LowkeyVaultTemplates {
      * @param endpoint the endpoint
      * @return  the deployment builder
      */
-    public static DeploymentBuilder defaultLowkeyVaultDeployment(String image, String namespace, String endpoint, String password) {
+    public static DeploymentBuilder defaultLowkeyVaultDeployment(String image, String namespace, String endpoint) {
         Map<String, String> labelSelector = Map.of("app", LOWKEY_VAULT_DEPLOYMENT_NAME);
+        String password = DeploymentUtils.getSecretValue(namespace, Constants.KEYSTORE_SECRET_NAME, "password");
+
         // @formatter:off
         return new DeploymentBuilder()
                 .withKind(Constants.DEPLOYMENT)
@@ -252,7 +280,24 @@ public class LowkeyVaultTemplates {
         return baseService(LOWKEY_VAULT_CLUSTER_IP_SERVICE_NAME, namespace, LOWKEY_VAULT_DEPLOYMENT_NAME, getLowkeyVaultClusterIPPorts(), Constants.CLUSTER_IP_TYPE);
     }
 
-    public static ServiceBuilder defaultMockOauthServerClusterIPService(String serviceName, String namespace, String selector) {
-        return baseService(serviceName, namespace, selector, getOauthServerClusterIPPorts(), Constants.CLUSTER_IP_TYPE);
+    /**
+     * Default mock oauth server service builder.
+     *
+     * @param namespace the namespace
+     * @return  the service builder
+     */
+    public static ServiceBuilder defaultMockOauthServerService(String namespace) {
+        return baseService(MOCK_OAUTH_SERVER_NODE_PORT_SERVICE_NAME, namespace, MOCK_OAUTH_SERVER_SERVICE_NAME, getOauthServerPorts(), Constants.NODE_PORT_TYPE);
+    }
+
+    /**
+     * Default mock oauth server cluster ip service builder.
+     *
+     * @param namespace the namespace
+     * @return  the service builder
+     */
+    public static ServiceBuilder defaultMockOauthServerClusterIPService(String namespace) {
+        return baseService(MOCK_OAUTH_SERVER_CLUSTER_IP_SERVICE_NAME, namespace, MOCK_OAUTH_SERVER_SERVICE_NAME, getOauthServerClusterIPPorts(),
+                Constants.CLUSTER_IP_TYPE);
     }
 }
