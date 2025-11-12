@@ -9,6 +9,7 @@ package io.kroxylicious.filters.sasl.inspection;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 
 import javax.security.sasl.SaslException;
@@ -24,6 +25,9 @@ import org.apache.kafka.common.protocol.Errors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.authentication.ClientSaslContext;
+import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
+import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -32,7 +36,9 @@ import io.kroxylicious.proxy.filter.SaslAuthenticateResponseFilter;
 import io.kroxylicious.proxy.filter.SaslHandshakeRequestFilter;
 import io.kroxylicious.proxy.filter.SaslHandshakeResponseFilter;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
+import io.kroxylicious.proxy.tls.ClientTlsContext;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -57,12 +63,18 @@ class SaslInspectionFilter
     static final String PROBE_UPSTREAM = PROBING_SASL_OBSERVER.mechanismName();
 
     private final Map<String, SaslObserverFactory> observerFactoryMap;
+    private final SaslSubjectBuilder subjectBuilder;
 
     private State currentState = State.start();
 
-    SaslInspectionFilter(Map<String, SaslObserverFactory> mechanismFactories) {
-        Objects.requireNonNull(mechanismFactories, "mechanismFactories");
-        this.observerFactoryMap = mechanismFactories;
+    SaslInspectionFilter(Map<String, SaslObserverFactory> mechanismFactories,
+                         SaslSubjectBuilder subjectBuilder) {
+        this.observerFactoryMap = Objects.requireNonNull(mechanismFactories, "mechanismFactories");
+        this.subjectBuilder = Objects.requireNonNull(subjectBuilder, "subjectBuilder");
+    }
+
+    SaslInspectionFilter(Map<String, SaslObserverFactory> observerFactoryMap) {
+        this(observerFactoryMap, SaslInspection.DEFAULT_SUBJECT_BUILDER);
     }
 
     @Override
@@ -253,7 +265,6 @@ class SaslInspectionFilter
                 // Ordinarily, we never expect to be here. The sasl negotiation ought to be yielded a authorizationId before
                 // the negotiation is finished.
                 return closeConnectionWithResponse(header, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()), context);
-
             }
 
             var expiredCredential = state.saslObserver().zeroLengthSessionImpliesAuthnFailure() && response.sessionLifetimeMs() == 0;
@@ -267,17 +278,64 @@ class SaslInspectionFilter
                 context.clientSaslAuthenticationFailure(state.saslObserver().mechanismName(), authorizationIdFromClient, new SaslException("expired credential"));
             }
             else {
-                LOGGER.atInfo()
-                        .setMessage("Server accepts SASL credentials for client on channel {}, announcing that client has authorizationId {}")
-                        .addArgument(context::channelDescriptor)
-                        .addArgument(authorizationIdFromClient)
-                        .log();
-                context.clientSaslAuthenticationSuccess(saslObserver.mechanismName(), authorizationIdFromClient);
-
+                return buildSubjectAndAnnounce(header, response, context, state, saslObserver, authorizationIdFromClient);
             }
         }
         currentState = state.nextState(saslObserver.isFinished());
         return context.forwardResponse(header, response);
+    }
+
+    @NonNull
+    private CompletionStage<ResponseFilterResult> buildSubjectAndAnnounce(ResponseHeaderData header,
+                                                                          SaslAuthenticateResponseData response,
+                                                                          FilterContext context,
+                                                                          State.AwaitingAuthenticateResponse state,
+                                                                          SaslObserver saslObserver,
+                                                                          String authorizationIdFromClient) {
+        CompletionStage<Subject> subjectCompletionStage = subjectBuilder.buildSaslSubject(new SaslSubjectBuilder.Context() {
+            @Override
+            public Optional<ClientTlsContext> clientTlsContext() {
+                return context.clientTlsContext();
+            }
+
+            @Override
+            public ClientSaslContext clientSaslContext() {
+                return new ClientSaslContext() {
+                    @Override
+                    public String mechanismName() {
+                        return saslObserver.mechanismName();
+                    }
+
+                    @Override
+                    public String authorizationId() {
+                        return authorizationIdFromClient;
+                    }
+                };
+            }
+        });
+
+        return subjectCompletionStage.thenCompose(subject -> {
+            LOGGER.atInfo()
+                    .setMessage("Server accepts SASL credentials for client on channel {}, announcing that client has authorizationId {}")
+                    .addArgument(context::channelDescriptor)
+                    .addArgument(authorizationIdFromClient)
+                    .log();
+            context.clientSaslAuthenticationSuccess(saslObserver.mechanismName(),
+                    subject);
+            currentState = state.nextState(saslObserver.isFinished());
+            return context.forwardResponse(header, response);
+        }).exceptionallyCompose(throwable -> {
+            Exception e;
+            if (throwable instanceof SaslException exception) {
+                e = exception;
+            }
+            else {
+                e = new RuntimeException(throwable);
+            }
+            context.clientSaslAuthenticationFailure(saslObserver.mechanismName(),
+                    authorizationIdFromClient, e);
+            return closeConnectionWithResponse(header, response.setErrorCode(Errors.ILLEGAL_SASL_STATE.code()), context);
+        });
     }
 
     private CompletionStage<ResponseFilterResult> processFailedAuthentication(ResponseHeaderData header,

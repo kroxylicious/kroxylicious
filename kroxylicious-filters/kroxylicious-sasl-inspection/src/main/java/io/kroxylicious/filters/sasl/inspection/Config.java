@@ -8,12 +8,22 @@ package io.kroxylicious.filters.sasl.inspection;
 
 import java.util.Set;
 
+import edu.umd.cs.findbugs.annotations.Nullable;
+
 /**
- * Config for the Sasl Initiation Filter.
+ * Configuration for the Sasl Initiation Filter.
  *
  * @param enabledMechanisms set of SASL mechanisms to enable. Refer to the mechanism by its
  * IANA registered name.  If enabledMechanisms is null, the system will automatically enable
  * the mechanism from all {@link SaslObserverFactory}s with
  * {@link SaslObserverFactory#transmitsCredentialInCleartext()} values of false.
+ * @param subjectBuilder The name of a plugin class implementing {@link io.kroxylicious.proxy.authentication.SaslSubjectBuilderService}
+ * @param subjectBuilderConfig The configuration for the SaslSubjectBuilderService.
  */
-public record Config(Set<String> enabledMechanisms) {}
+public record Config(@Nullable Set<String> enabledMechanisms,
+                     @Nullable String subjectBuilder,
+                     @Nullable Object subjectBuilderConfig) {
+    public Config(@Nullable Set<String> enabledMechanisms) {
+        this(enabledMechanisms, null, null);
+    }
+}
