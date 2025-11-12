@@ -30,6 +30,7 @@ import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
@@ -59,7 +60,7 @@ public class StrimziTestClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, CompressionType compressionType, int numOfMessages) {
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, @NonNull CompressionType compressionType, int numOfMessages) {
         LOGGER.atInfo().log("Producing messages using Strimzi Test Client");
         String name = Constants.KAFKA_PRODUCER_CLIENT_LABEL + "-" + TestUtils.getRandomPodNameSuffix();
         Job testClientJob = TestClientsJobTemplates.defaultTestClientProducerJob(name, bootstrap, topicName, numOfMessages, message, messageKey, compressionType).build();

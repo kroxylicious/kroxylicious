@@ -24,6 +24,7 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.templates.ContainerTemplates;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -110,11 +111,12 @@ public class TestClientsJobTemplates {
      * @param topicName the topic name
      * @param numOfMessages the num of messages
      * @param message the message
-     * @param messageKey
-     * @return the job builder
+     * @param messageKey the message key
+     * @param compressionType the compression type
+     * @return  the job builder
      */
     public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message,
-                                                          @Nullable String messageKey, CompressionType compressionType) {
+                                                          @Nullable String messageKey, @NonNull CompressionType compressionType) {
         return newJobForContainer(jobName,
                 "test-client-producer",
                 Environment.TEST_CLIENTS_IMAGE,
@@ -224,7 +226,7 @@ public class TestClientsJobTemplates {
     }
 
     private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message,
-                                                           @Nullable String messageKey, CompressionType compressionType) {
+                                                           @Nullable String messageKey, @NonNull CompressionType compressionType) {
         List<EnvVar> envVars = new ArrayList<>(List.of(
                 envVar(BOOTSTRAP_VAR, bootstrap),
                 envVar(DELAY_MS_VAR, "200"),

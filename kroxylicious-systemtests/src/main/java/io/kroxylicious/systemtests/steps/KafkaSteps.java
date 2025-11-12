@@ -22,6 +22,8 @@ import io.kroxylicious.systemtests.templates.testclients.TestClientsJobTemplates
 import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.kubeClient;
 import static org.hamcrest.MatcherAssert.assertThat;
 
@@ -59,7 +61,7 @@ public class KafkaSteps {
      * @param replicas the replicas
      * @param compressionType the compression type
      */
-    public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas, CompressionType compressionType) {
+    public static void createTopic(String deployNamespace, String topicName, String bootstrap, int partitions, int replicas, @NonNull CompressionType compressionType) {
         LOGGER.atDebug().setMessage("Creating '{}' topic").addArgument(topicName).log();
         String name = Constants.KAFKA_ADMIN_CLIENT_LABEL + "-create";
         List<String> args = new ArrayList<>(

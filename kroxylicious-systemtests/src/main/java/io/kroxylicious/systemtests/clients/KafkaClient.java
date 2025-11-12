@@ -14,6 +14,7 @@ import org.apache.kafka.common.record.CompressionType;
 import io.kroxylicious.systemtests.clients.records.ConsumerRecord;
 import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -66,7 +67,7 @@ public interface KafkaClient {
      * @param numOfMessages the num of messages
      * @throws KubeClusterException the kube cluster exception
      */
-    default void produceMessages(String topicName, String bootstrap, String message, CompressionType compressionType, int numOfMessages) throws KubeClusterException {
+    default void produceMessages(String topicName, String bootstrap, String message, @NonNull CompressionType compressionType, int numOfMessages) throws KubeClusterException {
         produceMessages(topicName, bootstrap, message, null, compressionType, numOfMessages);
     }
 
@@ -81,7 +82,7 @@ public interface KafkaClient {
      * @param numOfMessages the num of messages
      * @throws KubeClusterException the kube cluster exception
      */
-    void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, CompressionType compressionType, int numOfMessages)
+    void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, @NonNull CompressionType compressionType, int numOfMessages)
             throws KubeClusterException;
 
     /**

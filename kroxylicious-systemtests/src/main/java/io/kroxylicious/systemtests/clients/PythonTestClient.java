@@ -33,6 +33,7 @@ import io.kroxylicious.systemtests.utils.DeploymentUtils;
 import io.kroxylicious.systemtests.utils.KafkaUtils;
 import io.kroxylicious.systemtests.utils.TestUtils;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static io.kroxylicious.systemtests.k8s.KubeClusterResource.cmdKubeClient;
@@ -67,7 +68,7 @@ public class PythonTestClient implements KafkaClient {
     }
 
     @Override
-    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, CompressionType compressionType, int numOfMessages) {
+    public void produceMessages(String topicName, String bootstrap, String message, @Nullable String messageKey, @NonNull CompressionType compressionType, int numOfMessages) {
         final Optional<String> recordKey = Optional.ofNullable(messageKey);
 
         StringBuilder msg = new StringBuilder();
