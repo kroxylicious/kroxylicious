@@ -41,6 +41,7 @@ public class TestKubeKmsFacadeInvocationContextProvider implements TestTemplateI
                 .map(TestKubeKmsFacadeInvocationContextProvider.TemplateInvocationContext::new);
     }
 
+    @SuppressWarnings("java:S1872")
     public record TemplateInvocationContext(TestKmsFacade<?, ?, ?> kmsFacade) implements TestTemplateInvocationContext {
 
         @Override
