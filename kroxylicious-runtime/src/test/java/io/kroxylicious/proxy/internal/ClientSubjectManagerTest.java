@@ -9,6 +9,7 @@ package io.kroxylicious.proxy.internal;
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
@@ -107,7 +108,7 @@ class ClientSubjectManagerTest {
     void transitionInitialToAuthorized() {
         // Given
         ClientSubjectManager impl = new ClientSubjectManager();
-        impl.subjectFromTransport(null);
+        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()));
         // When
         impl.clientSaslAuthenticationSuccess("FOO", new Subject(new User("bob")));
         // Then
@@ -121,7 +122,7 @@ class ClientSubjectManagerTest {
     void transitionInitialToFailed() {
         // Given
         ClientSubjectManager impl = new ClientSubjectManager();
-        impl.subjectFromTransport(null);
+        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()));
         // When
         impl.clientSaslAuthenticationFailure();
         // Then
@@ -132,7 +133,7 @@ class ClientSubjectManagerTest {
     void transitionAuthorizedToAuthorized() {
         // Given
         ClientSubjectManager impl = new ClientSubjectManager();
-        impl.subjectFromTransport(null);
+        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()));
         impl.clientSaslAuthenticationSuccess("FOO", new Subject(new User("bob")));
         // When
         impl.clientSaslAuthenticationSuccess("BAR", new Subject(new User("sue")));
@@ -147,7 +148,7 @@ class ClientSubjectManagerTest {
     void transitionAuthorizedToFailed() {
         // Given
         ClientSubjectManager impl = new ClientSubjectManager();
-        impl.subjectFromTransport(null);
+        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()));
         impl.clientSaslAuthenticationSuccess("FOO", new Subject(new User("bob")));
         // When
         impl.clientSaslAuthenticationFailure();
@@ -159,7 +160,7 @@ class ClientSubjectManagerTest {
     void transitionFailedToAuthorized() {
         // Given
         ClientSubjectManager impl = new ClientSubjectManager();
-        impl.subjectFromTransport(null);
+        impl.subjectFromTransport(null, context -> CompletableFuture.completedStage(Subject.anonymous()));
         impl.clientSaslAuthenticationFailure();
 
         // When

@@ -16,6 +16,7 @@ import javax.net.ssl.SSLSession;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
@@ -24,7 +25,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 public class ClientSubjectManager implements
         ClientSaslContext,
-        ClientTlsContext {
+        ClientTlsContext,
+        TransportSubjectBuilder.Context {
 
     @VisibleForTesting
     static @Nullable X509Certificate peerTlsCertificate(@Nullable SSLSession session) {
@@ -77,9 +79,18 @@ public class ClientSubjectManager implements
         this.subject = Subject.anonymous();
     }
 
-    public void subjectFromTransport(@Nullable SSLSession session) {
+    public void subjectFromTransport(@Nullable SSLSession session, TransportSubjectBuilder transportSubjectBuilder) {
         this.clientCertificate = peerTlsCertificate(session);
         this.proxyCertificate = localTlsCertificate(session);
+        transportSubjectBuilder.buildTransportSubject(this).whenComplete((newSubject, error) -> {
+            if (error == null) {
+                this.subject = newSubject;
+            }
+            else {
+                this.subject = Subject.anonymous();
+            }
+            this.mechanismName = null;
+        });
     }
 
     void clientSaslAuthenticationSuccess(
