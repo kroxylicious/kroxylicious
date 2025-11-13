@@ -305,7 +305,7 @@
             </properties>
         </profile>
         <profile>
-            <id>dist</id>
+            <id>systemtest</id>
 
             <dependencies>
                 <!-- project dependencies - test -->

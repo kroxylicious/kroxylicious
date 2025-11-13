@@ -1333,6 +1333,21 @@
             </properties>
         </profile>
         <profile>
+            <id>systemtest</id>
+            <properties>
+                <skipTests>true</skipTests>
+                <skipDocs>true</skipDocs>
+                <skipDTs>true</skipDTs>
+                <skipContainerImageBuild>true</skipContainerImageBuild>
+                <skipKTs>true</skipKTs>
+                <checkstyle.skip>true</checkstyle.skip>
+                <spotbugs.skip>true</spotbugs.skip>
+                <maven.javadoc.skip>true</maven.javadoc.skip>
+                <archetype.test.skip>true</archetype.test.skip>
+                <skipSTs>false</skipSTs>
+            </properties>
+        </profile>
+        <profile>
             <id>dist</id>
             <properties>
                 <skipDocs>false</skipDocs>
