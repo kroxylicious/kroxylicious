@@ -4,7 +4,7 @@
 //
 // assembly-configuring-record-encryption-filter
 
-[id='con-aws-kms-plugin-configuration-{context}']
+[id='con-azure-key-vault-plugin-configuration-{context}']
 = Azure Key Vault plugin configuration
 
 [role="_abstract"]
