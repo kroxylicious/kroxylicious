@@ -6,11 +6,13 @@
 
 package io.kroxylicious.microbenchmarks;
 
+import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.FetchRequestData;
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -45,6 +47,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
 import io.kroxylicious.proxy.filter.SpecificFilterInvoker;
+import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 // try hard to make shouldHandleXYZ to observe different receivers concrete types, saving unrolling to bias a specific call-site to a specific concrete type
@@ -163,7 +166,12 @@ public class InvokerDispatchBenchmark {
     private static class StubFilterContext implements FilterContext {
         @Override
         public String channelDescriptor() {
-            return null;
+            return "";
+        }
+
+        @Override
+        public String sessionId() {
+            return "";
         }
 
         @Override
@@ -203,6 +211,11 @@ public class InvokerDispatchBenchmark {
 
         @Override
         public <M extends ApiMessage> CompletionStage<M> sendRequest(RequestHeaderData header, ApiMessage request) {
+            return null;
+        }
+
+        @Override
+        public CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds) {
             return null;
         }
 

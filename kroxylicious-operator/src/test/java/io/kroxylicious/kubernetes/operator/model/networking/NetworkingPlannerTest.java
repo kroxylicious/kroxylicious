@@ -12,6 +12,7 @@ import java.util.Set;
 import org.assertj.core.api.ListAssert;
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.kubernetes.api.common.Protocol;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxy;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngress;
@@ -20,7 +21,6 @@ import io.kroxylicious.kubernetes.api.v1alpha1.KafkaService;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaServiceBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
-import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancer;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.LoadBalancerBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.kafkaservicespec.NodeIdRangesBuilder;
@@ -63,7 +63,7 @@ class NetworkingPlannerTest {
             .endMetadata()
             .withNewSpec()
                 .withNewClusterIP()
-                    .withProtocol(ClusterIP.Protocol.TCP)
+                    .withProtocol(Protocol.TCP)
                 .endClusterIP()
             .endSpec()
             .build();
@@ -77,7 +77,7 @@ class NetworkingPlannerTest {
             .endMetadata()
             .withNewSpec()
                 .withNewClusterIP()
-                    .withProtocol(ClusterIP.Protocol.TLS)
+                    .withProtocol(Protocol.TLS)
                 .endClusterIP()
             .endSpec()
             .build();
@@ -91,7 +91,7 @@ class NetworkingPlannerTest {
             .endMetadata()
             .withNewSpec()
                 .withNewClusterIP()
-                    .withProtocol(ClusterIP.Protocol.TLS)
+                    .withProtocol(Protocol.TLS)
                 .endClusterIP()
             .endSpec()
             .build();
@@ -105,7 +105,7 @@ class NetworkingPlannerTest {
             .endMetadata()
             .withNewSpec()
                 .withNewClusterIP()
-                    .withProtocol(ClusterIP.Protocol.TCP)
+                    .withProtocol(Protocol.TCP)
                 .endClusterIP()
             .endSpec()
             .build();

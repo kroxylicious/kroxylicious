@@ -4,6 +4,7 @@
 # Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
 #
 
+io.kroxylicious.filters.sasl.inspection.OauthBearerSaslObserverFactory
 io.kroxylicious.filters.sasl.inspection.PlainSaslObserverFactory
 io.kroxylicious.filters.sasl.inspection.ScramSha256SaslObserverFactory
 io.kroxylicious.filters.sasl.inspection.ScramSha512SaslObserverFactory

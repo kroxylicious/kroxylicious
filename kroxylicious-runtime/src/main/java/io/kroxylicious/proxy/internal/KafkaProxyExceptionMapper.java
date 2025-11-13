@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.internal;
 
+import java.util.List;
+
 import org.apache.kafka.common.ElectionType;
 import org.apache.kafka.common.IsolationLevel;
 import org.apache.kafka.common.TopicPartition;
@@ -290,9 +292,8 @@ public class KafkaProxyExceptionMapper {
                         .build(apiVersion);
                 break;
             case LEAVE_GROUP:
-                LeaveGroupRequestData data = (LeaveGroupRequestData) reqBody;
-                req = new LeaveGroupRequest.Builder(data.groupId(), data.members())
-                        .build(apiVersion);
+                LeaveGroupRequest.Builder builder = toLeaveGroupBuilder((LeaveGroupRequestData) reqBody);
+                req = builder.build(apiVersion);
                 break;
             case SYNC_GROUP:
                 req = new SyncGroupRequest((SyncGroupRequestData) reqBody, apiVersion);
@@ -573,5 +574,17 @@ public class KafkaProxyExceptionMapper {
                 throw new IllegalStateException("Unable to generate error for APIKey: " + apiKey);
         }
         return req;
+    }
+
+    private static LeaveGroupRequest.Builder toLeaveGroupBuilder(LeaveGroupRequestData reqBody) {
+        LeaveGroupRequest.Builder builder;
+        if (!reqBody.members().isEmpty()) {
+            builder = new LeaveGroupRequest.Builder(reqBody.groupId(), reqBody.members());
+        }
+        else {
+            // This should never happen with a legitimate client but as a edge service we should handle malicious ones too
+            builder = new LeaveGroupRequest.Builder(reqBody.groupId(), List.of(new LeaveGroupRequestData.MemberIdentity()));
+        }
+        return builder;
     }
 }

@@ -75,8 +75,10 @@ The running of the tests can be controlled with the following Maven properties:
 | property           | description                                                                               |
 |--------------------|-------------------------------------------------------------------------------------------|
 | `-DskipUTs=true`   | skip unit tests                                                                           |
+| `-DskipKTs=true`   | skip container image tests                                                                |
 | `-DskipITs=true`   | skip integration tests                                                                    |
 | `-DskipSTs=true`   | skip system tests                                                                         |
+| `-DskipDTs=true`   | skip documentation tests                                                                  |
 | `-DskipTests=true` | skip all tests                                                                            |
 | `-Pdebug`          | enables logging so you can see what the Kafka clients, Proxy and in VM brokers are up to. |
 
@@ -380,6 +382,29 @@ You'll see an API response.  If the service_timeout change is effective, the soc
 will continue for 3 minutes.  If `socat` terminates after about 10 seconds, the workaround
 has been applied ineffectively.
 
+## Running integration tests with IO_Uring
+
+THe integration test suite enables IO_Uring un-conditionally which may trigger issues with memory limits. Certain platforms e.g. Fedora default to running with `RLIMIT_MEMLOCK` set.
+
+If you see test failures such as 
+```shell
+[ERROR] Errors:
+[ERROR]   MockServerTest.testClientCanSendAndReceiveRPCToMock:47 » IllegalState failed to create a child event loop
+```
+or 
+```shell
+java.lang.IllegalStateException: failed to create a child event loop
+...
+Caused by: java.lang.RuntimeException: failed to allocate memory for io_uring ring; try raising memlock limit (see getrlimit(RLIMIT_MEMLOCK, ...) or ulimit -l): Cannot allocate memory
+```
+
+Raise the `RLIMIT_MEMLOCK` (see https://lwn.net/Articles/876288/ for a discussion on the merits or otherwise of the default) by adding entries to `/etc/security/limits.conf` (see https://access.redhat.com/solutions/61334 for details on the file) the updates will take effect in the next login shell.
+example config entry:
+```text
+* hard memlock unlimited
+* soft memlock unlimited
+```
+
 ## Running system tests locally
 
 ### Prerequisites
@@ -413,7 +438,7 @@ the container engine. Default value: `$HOME/.docker/config.json`
 * `AWS_SECRET_ACCESS_KEY`: secret access key of the aws account with admin permissions to be used for KMS management. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
 * `AWS_KROXYLICIOUS_ACCESS_KEY_ID`: key id of the aws account to be used for Kroxylicious config Map to encrypt/decrypt the messages. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
 * `AWS_KROXYLICIOUS_SECRET_ACCESS_KEY`: secret access key of the aws account to be used for Kroxylicious config Map to encrypt/decrypt the messages. Mandatory when `AWS_USE_CLOUD` is `true`. Default value: `test`
-* `CURL_IMAGE`: curl image to be used in the corresponding arch for metrics tests. Default value: `mirror.gcr.io/curlimages/curl:8.16.0`
+* `CURL_IMAGE`: curl image to be used in the corresponding arch for metrics tests. Default value: `mirror.gcr.io/curlimages/curl:8.17.0`
 
 ### Launch system tests
 First of all, the code must be compiled and the distribution artifacts created:
@@ -590,6 +615,10 @@ Running `minikube tunnel` will make that available to the IDE, thus allowing dev
 add breakpoints and step through execution. Note if we find ourselves doing this regularly we should look at improving
 our unit test coverage and logging to make the diagnosis and avoidance of such issues much easier in less accessible
 environments.
+
+## Manual testing
+
+To help simplify local testing we also have a simple composefile in `compose/kafa-compose.yaml`. See the [compose/README.md](./compose/README.md) for details about how to use the proxy deployed.
 
 # Deprecation Policy
 

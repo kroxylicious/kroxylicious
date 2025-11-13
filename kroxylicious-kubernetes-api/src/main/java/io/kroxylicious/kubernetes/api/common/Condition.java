@@ -38,6 +38,7 @@ public class Condition implements io.fabric8.kubernetes.api.builder.Editable<Con
     public static final String REASON_REFS_NOT_FOUND = "ReferencedResourcesNotFound";
     public static final String REASON_TRANSITIVE_REFS_NOT_FOUND = "TransitivelyReferencedResourcesNotFound";
     public static final String REASON_INVALID_REFERENCED_RESOURCE = "InvalidReferencedResource";
+    public static final String REASON_REFERENCED_RESOURCE_NOT_RECONCILED = "ReferencedResourceNotReconciled";
     public static final String REASON_INVALID = "Invalid";
 
     @Override

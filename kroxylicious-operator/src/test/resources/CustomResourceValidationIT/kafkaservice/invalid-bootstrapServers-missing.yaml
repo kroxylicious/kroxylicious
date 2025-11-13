@@ -13,4 +13,4 @@ resource:
     namespace: proxy-ns
   spec: {}
 expectFailureMessageToContain: |
-  spec.bootstrapServers: Required value
+  <nil>: Invalid value: ""

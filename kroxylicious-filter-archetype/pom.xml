@@ -11,11 +11,67 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.17.0-SNAPSHOT</version>
+        <version>0.18.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
     <artifactId>kroxylicious-filter-archetype</artifactId>
+    <name>Filter Archetype</name>
+    <description>A Maven Archetype to generate an independent Custom Filter project, demonstrating how to structure a Filter and integration test it against Apache Kafka</description>
     <packaging>maven-archetype</packaging>
+    <dependencies>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-bom</artifactId>
+            <version>${project.version}</version>
+            <scope>import</scope>
+            <type>pom</type>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-runtime</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-integration-test-support</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious.testing</groupId>
+            <artifactId>testing-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious.testing</groupId>
+            <artifactId>testing-impl</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.kafka</groupId>
+            <artifactId>kafka-clients</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.assertj</groupId>
+            <artifactId>assertj-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
     <build>
         <extensions>
             <extension>
@@ -45,11 +101,80 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-deps</id>
+                        <phase>pre-integration-test</phase>
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+                        <configuration>
+                            <outputDirectory>${project.build.directory}/local-repo</outputDirectory>
+                            <copyPom>true</copyPom>
+                            <addParentPoms>true</addParentPoms>
+                            <useRepositoryLayout>true</useRepositoryLayout>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-archetype-plugin</artifactId>
                 <configuration>
+                    <localRepositoryPath>${project.build.directory}/local-repo</localRepositoryPath>
                     <skip>${skipITs}</skip>
                 </configuration>
             </plugin>
         </plugins>
     </build>
+    <profiles>
+        <profile>
+            <id>qa</id>
+            <activation>
+                <property>
+                    <name>!quick</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>analyze</id>
+                                <configuration>
+                                    <ignoredUnusedDeclaredDependencies>
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-bom
+                                        </ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>
+                                            io.kroxylicious:kroxylicious-integration-test-support
+                                        </ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-api
+                                        </ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious:kroxylicious-runtime
+                                        </ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious.testing:testing-api
+                                        </ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>io.kroxylicious.testing:testing-impl
+                                        </ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>org.junit.jupiter:junit-jupiter-api
+                                        </ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>org.assertj:assertj-core
+                                        </ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>org.apache.kafka:kafka-clients
+                                        </ignoredUnusedDeclaredDependency>
+                                        <ignoredUnusedDeclaredDependency>
+                                            com.fasterxml.jackson.core:jackson-annotations
+                                        </ignoredUnusedDeclaredDependency>
+                                    </ignoredUnusedDeclaredDependencies>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>

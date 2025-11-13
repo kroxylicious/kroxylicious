@@ -105,7 +105,8 @@ class OperatorAssertionsTest {
                         List.of())),
                 List.of(),
                 false,
-                Optional.empty());
+                Optional.empty(),
+                null);
 
         // When
         Assert<?, ?> actualAssertion = OperatorAssertions.assertThat(configurations);

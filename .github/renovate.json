@@ -11,7 +11,8 @@
   ],
   "enabledManagers": [
     "custom.regex",
-    "dockerfile"
+    "dockerfile",
+    "docker-compose"
   ],
   "customManagers": [
     {
@@ -68,7 +69,7 @@
     {
       "customType": "regex",
       "fileMatch": [
-        "kroxylicious-integration-tests/src/test/java/io/kroxylicious/proxy/filter/oauthbearer/OauthBearerValidationIT.java",
+        "kroxylicious-integration-tests/src/test/java/io/kroxylicious/proxy/filter/oauthbearer/BaseOauthBearerIT.java",
         "kroxylicious-kms-providers/kroxylicious-kms-provider-azure-key-vault-kms-test-support/src/main/java/io/kroxylicious/kms/provider/azure/kms/OauthServerContainer.java"
       ],
       "matchStrings": [
@@ -163,5 +164,8 @@
       "depNameTemplate": "strimzi/strimzi-kafka-operator",
       "datasourceTemplate": "github-releases"
     }
+  ],
+  "managerFilePatterns": [
+    "/(^|/)(?:docker-)?compose[^/]*\\.ya?ml$/"
   ]
 }

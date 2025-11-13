@@ -97,7 +97,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
 
     @Override
     public void initChannel(Channel ch) {
-
         LOGGER.trace("Connection from {} to my address {}", ch.remoteAddress(), ch.localAddress());
 
         if (tls) {
@@ -109,7 +108,6 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
         addLoggingErrorHandler(ch.pipeline());
     }
 
-    @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
     private void initPlainChannel(Channel ch) {
         ch.pipeline().addLast("plainResolver", new ChannelInboundHandlerAdapter() {
             @Override
@@ -138,7 +136,7 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
     }
 
     // deep inheritance tree of SniHandler not something we can fix
-    @SuppressWarnings({ "OptionalUsedAsFieldOrParameterType", "java:S110" })
+    @SuppressWarnings({ "java:S110" })
     private void initTlsChannel(Channel ch) {
         LOGGER.debug("Adding SSL/SNI handler");
         ch.pipeline().addLast("sniResolver", new SniHandler((sniHostname, promise) -> {
@@ -238,6 +236,8 @@ public class KafkaProxyInitializer extends ChannelInitializer<Channel> {
                 endpointReconciler,
                 new ApiVersionsIntersectFilter(apiVersionsService),
                 new ApiVersionsDowngradeFilter(apiVersionsService));
+        ProxyChannelStateMachine proxyChannelStateMachine = new ProxyChannelStateMachine(virtualCluster.getClusterName(), binding.nodeId());
+        var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, binding, proxyChannelStateMachine);
         var frontendHandler = new KafkaProxyFrontendHandler(netFilter, dp, binding, virtualCluster.getClusterName(),
                 connectionTracker, connectionDrainManager, inFlightTracker);
 

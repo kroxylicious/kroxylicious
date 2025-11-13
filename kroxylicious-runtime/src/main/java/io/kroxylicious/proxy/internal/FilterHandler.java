@@ -7,6 +7,7 @@ package io.kroxylicious.proxy.internal;
 
 import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -16,6 +17,7 @@ import java.util.concurrent.TimeUnit;
 import javax.net.ssl.SSLPeerUnverifiedException;
 import javax.net.ssl.SSLSession;
 
+import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ProduceRequestData;
 import org.apache.kafka.common.message.RequestHeaderData;
 import org.apache.kafka.common.message.ResponseHeaderData;
@@ -42,6 +44,7 @@ import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResultBuilder;
+import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.frame.DecodedFrame;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
 import io.kroxylicious.proxy.frame.DecodedResponseFrame;
@@ -71,6 +74,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
     private final ClientSaslManager clientSaslManager;
+    private final ProxyChannelStateMachine proxyChannelStateMachine;
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private @Nullable ChannelHandlerContext ctx;
@@ -81,13 +85,15 @@ public class FilterHandler extends ChannelDuplexHandler {
                          @Nullable String sniHostname,
                          VirtualClusterModel virtualClusterModel,
                          Channel inboundChannel,
-                         ClientSaslManager clientSaslManager) {
+                         ClientSaslManager clientSaslManager,
+                         ProxyChannelStateMachine proxyChannelStateMachine) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
         this.virtualClusterModel = virtualClusterModel;
         this.inboundChannel = inboundChannel;
         this.clientSaslManager = clientSaslManager;
+        this.proxyChannelStateMachine = proxyChannelStateMachine;
     }
 
     @Override
@@ -227,6 +233,7 @@ public class FilterHandler extends ChannelDuplexHandler {
     }
 
     private CompletableFuture<ResponseFilterResult> dispatchDecodedResponseFrame(DecodedResponseFrame<?> decodedFrame, InternalFilterContext filterContext) {
+
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("{}: Dispatching upstream {} response to filter '{}': {}",
                     channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
@@ -263,7 +270,6 @@ public class FilterHandler extends ChannelDuplexHandler {
             LOGGER.debug("{}: Dispatching downstream {} request to filter '{}': {}",
                     channelDescriptor(), decodedFrame.apiKey(), filterDescriptor(), decodedFrame);
         }
-
         var stage = filterAndInvoker.invoker().onRequest(decodedFrame.apiKey(), decodedFrame.apiVersion(), decodedFrame.header(),
                 decodedFrame.body(), filterContext);
         return stage instanceof InternalCompletionStage ? ((InternalCompletionStage<RequestFilterResult>) stage).getUnderlyingCompletableFuture()
@@ -330,7 +336,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         if (LOGGER.isWarnEnabled()) {
             var direction = decodedFrame.header() instanceof RequestHeaderData ? "request" : "response";
             LOGGER.atWarn().setMessage("{}: Filter '{}' for {} {} ended exceptionally - closing connection. Cause message {}")
-                    .addArgument(channelDescriptor())
+                    .addArgument(proxyChannelStateMachine.sessionId())
                     .addArgument(direction)
                     .addArgument(filterDescriptor())
                     .addArgument(decodedFrame.apiKey())
@@ -479,6 +485,11 @@ public class FilterHandler extends ChannelDuplexHandler {
         }
 
         @Override
+        public String sessionId() {
+            return proxyChannelStateMachine.sessionId();
+        }
+
+        @Override
         public ByteBufferOutputStream createByteBufferOutputStream(int initialCapacity) {
             final ByteBuf buffer = ctx.alloc().ioBuffer(initialCapacity);
             decodedFrame.add(buffer);
@@ -506,7 +517,7 @@ public class FilterHandler extends ChannelDuplexHandler {
         public void clientSaslAuthenticationSuccess(String mechanism,
                                                     String authorizedId) {
             LOGGER.atInfo().setMessage("{}: Filter '{}' announces client has passed SASL authentication using mechanism '{}' and authorizationId '{}'.")
-                    .addArgument(channelDescriptor())
+                    .addArgument(sessionId())
                     .addArgument(filterDescriptor())
                     .addArgument(mechanism)
                     .addArgument(authorizedId)
@@ -523,7 +534,7 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .setMessage("{}: Filter '{}' announces client has failed SASL authentication using mechanism '{}' and authorizationId '{}'. Cause message {}."
                             + (LOGGER.isDebugEnabled() ? "" : " Increase log level to DEBUG for stacktrace."))
                     .setCause(LOGGER.isDebugEnabled() ? exception : null)
-                    .addArgument(channelDescriptor())
+                    .addArgument(sessionId())
                     .addArgument(filterDescriptor())
                     .addArgument(mechanism)
                     .addArgument(authorizedId)
@@ -603,6 +614,11 @@ public class FilterHandler extends ChannelDuplexHandler {
             }
 
             return filterPromise.minimalCompletionStage();
+        }
+
+        @Override
+        public CompletionStage<TopicNameMapping> topicNames(Collection<Uuid> topicIds) {
+            return new TopicNameRetriever(this).topicNames(topicIds);
         }
 
     }

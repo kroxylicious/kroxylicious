@@ -8,8 +8,8 @@ package io.kroxylicious.systemtests.templates.kroxylicious;
 
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProxyIngressBuilder;
 
-import static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP.Protocol.TCP;
-import static io.kroxylicious.kubernetes.api.v1alpha1.kafkaproxyingressspec.ClusterIP.Protocol.TLS;
+import static io.kroxylicious.kubernetes.api.common.Protocol.TCP;
+import static io.kroxylicious.kubernetes.api.common.Protocol.TLS;
 
 public class KroxyliciousKafkaProxyIngressTemplates {
 

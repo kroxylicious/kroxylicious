@@ -117,6 +117,7 @@ class ConfigurationTest {
                 .hasMessageContaining("Missing required creator property 'advertisedBrokerAddressPattern'");
     }
 
+    @SuppressWarnings("deprecation")
     static Stream<Arguments> fluentApiConfigYamlFidelity() {
         NamedFilterDefinition filter = new NamedFilterDefinitionBuilder("filter-1", ExampleFilterFactory.class.getSimpleName())
                 .withConfig("examplePlugin", "ExamplePluginInstance",
@@ -436,6 +437,72 @@ class ConfigurationTest {
                                     - name: default
                                       portIdentifiesNode:
                                         bootstrapAddress: cluster1:9192
+                                """),
+                argumentSet("Proxy worker shutdown quiet period seconds",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewProxy().withShutdownQuietPeriodSeconds(5).endProxy()
+                                .endNetwork()
+                                .build(),
+                        """
+                                network:
+                                    proxy:
+                                        shutdownQuietPeriodSeconds: 5
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
+                                """),
+                argumentSet("Proxy worker thread count",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewProxy().withWorkerThreadCount(5).endProxy().endNetwork()
+                                .build(),
+                        """
+                                network:
+                                    proxy:
+                                        workerThreadCount: 5
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
+                                """),
+                argumentSet("Management worker shutdown quiet period seconds",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewManagement().withShutdownQuietPeriodSeconds(5)
+                                .endManagement()
+                                .endNetwork().build(),
+                        """
+                                network:
+                                    management:
+                                        shutdownQuietPeriodSeconds: 5
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
+                                """),
+                argumentSet("Management worker thread count",
+                        new ConfigurationBuilder().addToVirtualClusters(VIRTUAL_CLUSTER).withNewNetwork().withNewManagement().withWorkerThreadCount(2).endManagement()
+                                .endNetwork().build(),
+                        """
+                                network:
+                                    management:
+                                        workerThreadCount: 2
+                                virtualClusters:
+                                  - name: demo
+                                    targetCluster:
+                                      bootstrapServers: kafka.example:1234
+                                    gateways:
+                                    - name: default
+                                      portIdentifiesNode:
+                                        bootstrapAddress: example.com:1234
                                 """)
 
         );
@@ -458,13 +525,15 @@ class ConfigurationTest {
                 new NamedFilterDefinition("foo", "", ""));
         Optional<Map<String, Object>> development = Optional.empty();
         var virtualCluster = List.of(VIRTUAL_CLUSTER);
+        NetworkDefinition network = null;
         assertThatThrownBy(() -> new Configuration(null,
                 filterDefinitions,
                 null,
                 virtualCluster,
                 null,
                 false,
-                development))
+                development,
+                network))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' contains multiple items with the same names: [foo]");
     }
@@ -480,7 +549,8 @@ class ConfigurationTest {
                 virtualCluster,
                 null,
                 false,
-                development))
+                development,
+                null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'defaultFilters' references filters not defined in 'filterDefinitions': [missing]");
     }
@@ -494,11 +564,13 @@ class ConfigurationTest {
         List<VirtualCluster> virtualClusters = List
                 .of(new VirtualCluster("vc1", targetCluster, defaultGateway, false, false, List.of("missing")));
         assertThatThrownBy(() -> new Configuration(
-                null, filterDefinitions,
+                null,
+                filterDefinitions,
                 null,
                 virtualClusters,
                 null, false,
-                development))
+                development,
+                null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'virtualClusters.vc1.filters' references filters not defined in 'filterDefinitions': [missing]");
     }
@@ -517,11 +589,14 @@ class ConfigurationTest {
         List<VirtualClusterGateway> defaultGateway = List.of(VIRTUAL_CLUSTER_GATEWAY);
         TargetCluster targetCluster = new TargetCluster("unused:9082", Optional.empty());
         List<VirtualCluster> virtualClusters = List.of(new VirtualCluster("vc1", targetCluster, defaultGateway, false, false, List.of("used2")));
-        assertThatThrownBy(() -> new Configuration(null, filterDefinitions,
+        assertThatThrownBy(() -> new Configuration(null,
+                filterDefinitions,
                 defaultFilters,
                 virtualClusters,
-                null, false,
-                development))
+                null,
+                false,
+                development,
+                null))
                 .isInstanceOf(IllegalConfigurationException.class)
                 .hasMessage("'filterDefinitions' defines filters which are not used in 'defaultFilters' or in any virtual cluster's 'filters': [unused]");
     }
@@ -551,11 +626,14 @@ class ConfigurationTest {
                 null); // filters not defined => should default to the top level
 
         Configuration configuration = new Configuration(
-                null, filterDefinitions,
+                null,
+                filterDefinitions,
                 List.of("bar"),
                 List.of(direct, defaulted),
-                null, false,
-                Optional.empty());
+                null,
+                false,
+                Optional.empty(),
+                null);
 
         // When
         var model = configuration.virtualClusterModel(new ServiceBasedPluginFactoryRegistry());

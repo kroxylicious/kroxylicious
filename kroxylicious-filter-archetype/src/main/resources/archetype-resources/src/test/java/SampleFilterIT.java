@@ -9,206 +9,96 @@ import java.util.concurrent.TimeUnit;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.Serdes;
-import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayNameGeneration;
+import org.junit.jupiter.api.DisplayNameGenerator;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
-import io.kroxylicious.test.tester.KroxyliciousTester;
+import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
+import io.kroxylicious.test.tester.KroxyliciousTesters;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.common.BrokerCluster;
 import io.kroxylicious.testing.kafka.junit5ext.KafkaClusterExtension;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
-import static io.kroxylicious.test.tester.KroxyliciousConfigUtils.proxy;
-import static io.kroxylicious.test.tester.KroxyliciousTesters.kroxyliciousTester;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.assertj.core.api.Assertions.assertThat;
 
+/**
+ * This is a simple end-to-end test that demonstrates how Kroxylicious intercepts and modifies Apache Kafka
+ * messages in-transit.
+ *
+ * <p>It validates the core message filtering functionality by performing the following steps:</p>
+ * <ol>
+ *     <li>Starts an in-VM Apache Kafka cluster. (Injected by {@link KafkaClusterExtension})</li>
+ *     <li>Starts the Kroxylicious proxy, configured with the filters and the Apache Kafka
+ *      cluster as the upstream target</li>
+ *     <li>Sends and receives a message using the standard Apache Kafka clients connected through the proxy</li>
+ *     <li>Asserts that the messages received by the consumer is different from the one originally sent,
+ *      proving that the filter successfully mutated the message.</li>
+ * </ol>
+ */
 @ExtendWith(KafkaClusterExtension.class)
 class SampleFilterIT {
 
-    // Configure filters here
-    private static final String FIND_CONFIG_FIELD = "findValue";
-    private static final String REPLACE_CONFIG_FIELD = "replacementValue";
-    private static final TestFilter SAMPLE_PRODUCE_REQUEST_FILTER = new TestFilter(SampleProduceRequest.class.getName(),
-            Map.of(FIND_CONFIG_FIELD, "foo", REPLACE_CONFIG_FIELD, "bar"));
-    private static final TestFilter SAMPLE_FETCH_RESPONSE_FILTER = new TestFilter(SampleFetchResponse.class.getName(),
-            Map.of(FIND_CONFIG_FIELD, "bar", REPLACE_CONFIG_FIELD, "baz"));
+    private static final Map<String, Object> CONSUMER_CONFIGURATION =
+            Map.of(ConsumerConfig.GROUP_ID_CONFIG, "group-id-0",
+                    ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
 
-    // Configure test input/expected values here
-    private static final String NO_TRANSFORM_VALUE = "sample";
-    private static final String PRE_TRANSFORM_VALUE = "foo bar baz";
-    private static final String FETCH_TRANSFORM_VALUE = "foo baz baz";
-    private static final String PRODUCE_TRANSFORM_VALUE = "bar bar baz";
+    private static final Duration TIMEOUT = Duration.ofSeconds(10);
 
-    // Configure Cluster/Producer/Consumer values here
-    private static final Integer TIMEOUT_SECONDS = 10;
+    private static final Map<String, Object> FILTER_CONFIGURATION =
+            Map.of("findValue", "foo", "replacementValue", "bar");
 
-    @BrokerCluster
-    KafkaCluster cluster;
-
-    Topic topic; // Injected by KafkaClusterExtension
-
-    FilterIntegrationTest test;
-
-    @AfterEach
-    public void afterEach() {
-        test.close();
-    }
-
-    /**
-     * Test that the SampleProduceRequestFilter will transform when given data containing its findValue.
-     */
     @Test
-    void sampleProduceRequestFilterWillTransform() {
-        test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER);
-        test.produceMessage(PRE_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .assertConsumerRecordEquals(PRODUCE_TRANSFORM_VALUE);
-    }
-
-    /**
-     * Test that the SampleProduceRequestFilter won't transform when given data that does not contain its findValue.
-     */
-    @Test
-    void sampleProduceRequestFilterWontTransform() {
-        test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER);
-        test.produceMessage(NO_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .assertConsumerRecordEquals(NO_TRANSFORM_VALUE);
-    }
-
-    /**
-     * Test that the SampleProduceRequestFilter won't drop a second message produced to a topic.
-     */
-    @Test
-    void sampleProduceRequestFilterWontDropSecondMessage() {
-        test = new FilterIntegrationTest(SAMPLE_PRODUCE_REQUEST_FILTER);
-        test.produceMessage(NO_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .produceMessage(PRE_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .assertConsumerRecordEquals(PRODUCE_TRANSFORM_VALUE);
-    }
-
-    /**
-     * Test that the SampleFetchResponseFilter will transform when given data containing its findValue.
-     */
-    @Test
-    void sampleFetchResponseFilterWillTransform() {
-        test = new FilterIntegrationTest(SAMPLE_FETCH_RESPONSE_FILTER);
-        test.produceMessage(PRE_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .assertConsumerRecordEquals(FETCH_TRANSFORM_VALUE);
-    }
-
-    /**
-     * Test that the SampleFetchResponseFilter won't transform when given data that does not contain its findValue.
-     */
-    @Test
-    void sampleFetchResponseFilterWontTransform() {
-        test = new FilterIntegrationTest(SAMPLE_FETCH_RESPONSE_FILTER);
-        test.produceMessage(NO_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .assertConsumerRecordEquals(NO_TRANSFORM_VALUE);
-    }
-
-    /**
-     * Test that the SampleFetchResponseFilter won't drop a second message produced to a topic.
-     */
-    @Test
-    void sampleFetchResponseFilterWontDropSecondMessage() {
-        test = new FilterIntegrationTest(SAMPLE_FETCH_RESPONSE_FILTER);
-        test.produceMessage(NO_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .produceMessage(PRE_TRANSFORM_VALUE)
-                .consumeSingleRecord()
-                .assertConsumerRecordEquals(FETCH_TRANSFORM_VALUE);
-    }
-
-    /**
-     * Reusable class for running filter integration tests.
-     */
-    private class FilterIntegrationTest {
-        private final KroxyliciousTester tester;
-        private final Producer<String, String> producer;
-        private final Consumer<String, byte[]> consumer;
-        private ConsumerRecord<String, byte[]> record;
-
-        /**
-         * Creates a test object.
-         * @param filters the filters to be used in the test
-         */
-        FilterIntegrationTest(TestFilter... filters) {
-            ConfigurationBuilder builder = proxy(cluster);
-            for (TestFilter filter : filters) {
-                NamedFilterDefinitionBuilder filterDefinitionBuilder = new NamedFilterDefinitionBuilder(filter.name(), filter.name());
-                builder.addToFilterDefinitions(filterDefinitionBuilder.withConfig(filter.config()).build());
-                builder.addToDefaultFilters(filterDefinitionBuilder.name());
-            }
-            tester = kroxyliciousTester(builder);
-            producer = tester.producer();
-            consumer = tester.consumer(Serdes.String(), Serdes.ByteArray(),
-                    Map.of(ConsumerConfig.GROUP_ID_CONFIG, "group-id-0", ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest"));
+    void produceRequestFilter_shouldFindAndReplaceConfiguredWordInProducedMessages(
+            @BrokerCluster final KafkaCluster kafkaCluster, final Topic topic) {
+        // configure the filters with the proxy
+        final var filterDefinition = new NamedFilterDefinitionBuilder("find-and-replace-produce-filter",
+                SampleProduceRequest.class.getName()).withConfig(FILTER_CONFIGURATION).build();
+        final var proxyConfiguration = KroxyliciousConfigUtils.proxy(kafkaCluster);
+        proxyConfiguration.addToFilterDefinitions(filterDefinition);
+        proxyConfiguration.addToDefaultFilters(filterDefinition.name());
+        // create proxy instance and a producer and a consumer connected to it
+        try (final var tester = KroxyliciousTesters.kroxyliciousTester(proxyConfiguration);
+                final var producer = tester.producer();
+                final var consumer = tester.consumer(Serdes.String(), Serdes.ByteArray(), CONSUMER_CONFIGURATION)) {
+            final ProducerRecord<String, String> producerRecord =
+                    new ProducerRecord<>(topic.name(), "This is foo!");
+            assertThat(producer.send(producerRecord)).succeedsWithin(TIMEOUT);
+            consumer.subscribe(List.of(topic.name()));
+            assertThat(consumer.poll(TIMEOUT).records(topic.name()))
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .extracting(String::new)
+                    .isEqualTo("This is bar!");
         }
-
-        /**
-         * Produces the given value as a message to the test Kroxylicious instance.
-         * @param value the value to be produced
-         * @return the SingleFilterIntegrationTest object (itself)
-         */
-        FilterIntegrationTest produceMessage(String value) {
-            try {
-                this.producer.send(new ProducerRecord<>(topic.name(), value)).get(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            }
-            catch (Exception e) {
-                throw new RuntimeException(e);
-            }
-            return this;
-        }
-
-        /**
-         * Consume a single record from the test's topic.
-         * @return the SingleFilterIntegrationTest object (itself)
-         */
-        FilterIntegrationTest consumeSingleRecord() {
-            this.consumer.subscribe(List.of(topic.name()));
-            ConsumerRecords<String, byte[]> poll = this.consumer.poll(Duration.ofSeconds(TIMEOUT_SECONDS));
-            if (poll.count() == 0) {
-                fail(String.format("No records could be consumed from topic: %s.", topic.name()));
-            }
-            this.record = poll.records(topic.name()).iterator().next();
-            return this;
-        }
-
-        /**
-         * Assert that the string value of the Consumer Record last consumed from this test's topic equals the given value.
-         * @param value the value to match
-         */
-        void assertConsumerRecordEquals(String value) {
-            if (this.record == null) {
-                fail("Could not assertConsumerRecordEquals - this test has no record");
-            }
-            String recordValue = new String(this.record.value(), StandardCharsets.UTF_8);
-            assertEquals(value, recordValue);
-        }
-
-        /**
-         * Closes this test's KroxyliciousTester. Should be called after each test is concluded.
-         */
-        void close() {
-            this.tester.close();
-            this.producer.close();
-            this.consumer.close();
-        }
-
     }
 
-    private record TestFilter(String name, Map<String, Object> config) {}
+    @Test
+    void fetchResponseFilter_shouldFindAndReplaceConfiguredWordInConsumedMessages(
+            @BrokerCluster final KafkaCluster kafkaCluster, final Topic topic) {
+        // configure the filters with the proxy
+        final var filterDefinition = new NamedFilterDefinitionBuilder("find-and-replace-consume-filter",
+                SampleFetchResponse.class.getName()).withConfig(FILTER_CONFIGURATION).build();
+        final var proxyConfiguration = KroxyliciousConfigUtils.proxy(kafkaCluster);
+        proxyConfiguration.addToFilterDefinitions(filterDefinition);
+        proxyConfiguration.addToDefaultFilters(filterDefinition.name());
+        // create proxy instance and a producer and a consumer connected to it
+        try (final var tester = KroxyliciousTesters.kroxyliciousTester(proxyConfiguration);
+                final var producer = tester.producer();
+                final var consumer = tester.consumer(Serdes.String(), Serdes.ByteArray(), CONSUMER_CONFIGURATION)) {
+            final ProducerRecord<String, String> producerRecord =
+                    new ProducerRecord<>(topic.name(), "This is foo!");
+            assertThat(producer.send(producerRecord)).succeedsWithin(TIMEOUT);
+            consumer.subscribe(List.of(topic.name()));
+            assertThat(consumer.poll(TIMEOUT).records(topic.name()))
+                    .singleElement()
+                    .extracting(ConsumerRecord::value)
+                    .extracting(String::new)
+                    .isEqualTo("This is bar!");
+        }
+    }
 }

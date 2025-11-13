@@ -36,9 +36,9 @@ import static io.kroxylicious.kubernetes.operator.checksum.MetadataChecksumGener
 import static org.awaitility.Awaitility.await;
 
 @EnabledIf(value = "io.kroxylicious.kubernetes.operator.OperatorTestUtils#isKubeClientAvailable", disabledReason = "no viable kube client available")
-class KafkaServiceReconcilerIT {
+class KafkaServiceBootstrapReconcilerIT {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceReconcilerIT.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(KafkaServiceBootstrapReconcilerIT.class);
     public static final String FOO_BOOTSTRAP_9090 = "foo.bootstrap:9090";
     private static final String BAR_BOOTSTRAP_9090 = "bar.bootstrap:9090";
     public static final String SERVICE_A = "service-a";
@@ -102,7 +102,7 @@ class KafkaServiceReconcilerIT {
         final KafkaService kafkaService = testActor.create(resource);
 
         // Then
-        assertResolvedRefsFalse(kafkaService, Condition.REASON_REFS_NOT_FOUND, "spec.tls.certificateRef: referenced resource not found");
+        assertResolvedRefsFalse(kafkaService, Condition.REASON_REFS_NOT_FOUND, "spec.tls.certificateRef: referenced secret not found");
 
         // And When
         testActor.create(tlsCertificateSecret(SECRET_X));
@@ -123,7 +123,7 @@ class KafkaServiceReconcilerIT {
         testActor.delete(tlsCertSecret);
 
         // Then
-        assertResolvedRefsFalse(resource, Condition.REASON_REFS_NOT_FOUND, "spec.tls.certificateRef: referenced resource not found");
+        assertResolvedRefsFalse(resource, Condition.REASON_REFS_NOT_FOUND, "spec.tls.certificateRef: referenced secret not found");
     }
 
     @Test
@@ -135,7 +135,7 @@ class KafkaServiceReconcilerIT {
         final KafkaService kafkaService = testActor.create(resource);
 
         // Then
-        assertResolvedRefsFalse(kafkaService, Condition.REASON_REFS_NOT_FOUND, "spec.tls.trustAnchorRef: referenced resource not found");
+        assertResolvedRefsFalse(kafkaService, Condition.REASON_REFS_NOT_FOUND, "spec.tls.trustAnchorRef: referenced configmap not found");
 
         // And When
         testActor.create(trustAnchorConfigMap(CONFIG_MAP_T));
@@ -185,7 +185,7 @@ class KafkaServiceReconcilerIT {
         testActor.delete(trustedCaCerts);
 
         // Then
-        assertResolvedRefsFalse(resource, Condition.REASON_REFS_NOT_FOUND, "spec.tls.trustAnchorRef: referenced resource not found");
+        assertResolvedRefsFalse(resource, Condition.REASON_REFS_NOT_FOUND, "spec.tls.trustAnchorRef: referenced configmap not found");
     }
 
     private ConfigMap trustAnchorConfigMap(String name) {
@@ -255,7 +255,7 @@ class KafkaServiceReconcilerIT {
         AWAIT.untilAsserted(() -> {
             final KafkaService kafkaService = testActor.get(KafkaService.class, ResourcesUtil.name(cr));
             Assertions.assertThat(kafkaService).isNotNull();
-            Assertions.assertThat(kafkaService.getSpec().getBootstrapServers()).isEqualTo(expectedBootstrap);
+            Assertions.assertThat(kafkaService.getStatus().getBootstrapServers()).isEqualTo(expectedBootstrap);
             assertThat(kafkaService.getStatus())
                     .isNotNull()
                     .conditionList()

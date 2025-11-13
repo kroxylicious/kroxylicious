@@ -14,4 +14,4 @@ resource:
   spec:
     bootstrapServers: null
 expectFailureMessageToContain: |
-  spec.bootstrapServers: Required value
+  <nil>: Invalid value: ""

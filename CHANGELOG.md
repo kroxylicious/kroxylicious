@@ -7,10 +7,27 @@ Format `<github issue/pr number>: <short description>`.
 
 ## SNAPSHOT
 
+* [#1318](https://github.com/kroxylicious/kroxylicious/issues/1318): Add FilterContext#topicNames to enable filters to retrieve names for topic ids
+* [#2821](https://github.com/kroxylicious/kroxylicious/pull/2821): Fix OauthBearerValidationFilter unnecessarily copying the authentication bytes from an incoming request to a failed response 
+
+## 0.17.1
+
+* [#2844](https://github.com/kroxylicious/kroxylicious/issues/2844): Match the behaviour of Kafka 4.0 when negotiating API versions for Produce Requests to allow older builds of librdkafka to enable compression.
+
+## 0.17.0
+
+* [#2830](https://github.com/kroxylicious/kroxylicious/pull/2830): Refactor authentication configuration class names and optional fields in Azure KMS provider for Record Encryption
+* [#2784](https://github.com/kroxylicious/kroxylicious/issues/2784): Add support for Managed Identity authentication to Azure KMS provider for Record Encryption
+* [#2754](https://github.com/kroxylicious/kroxylicious/issues/2754): Add support for OAUTHBEARER tokens into SaslInspectionFilter
 * [#2580](https://github.com/kroxylicious/kroxylicious/issues/2580): Add an Azure Key Vault KMS implementation for Record Encryption
 * [#2759](https://github.com/kroxylicious/kroxylicious/pull/2759): Remove kroxylicious-sample and document how to use io.kroxylicious:kroxylicious-filter-archetype
-* [#2671](https://github.com/kroxylicious/kroxylicious/pull/2671): SASL inspection filter supoporting PLAIN, SCRAM-SHA-256 and SCRAM-SHA-512.
+* [#2671](https://github.com/kroxylicious/kroxylicious/pull/2671): SASL inspection filter supporting PLAIN, SCRAM-SHA-256 and SCRAM-SHA-512.
 * [#2681](https://github.com/kroxylicious/kroxylicious/pull/2681): Create a maven archetype for filter development io.kroxylicious:kroxylicious-filter-archetype
+* [#2778](https://github.com/kroxylicious/kroxylicious/pull/2778): The proxy now allocates a sessionId to connect client and server channels for logging purposes. Allowing users to track activity between downstream and upstream channels.
+* [#143](https://github.com/kroxylicious/kroxylicious/issues/143): Add support for Netty metrics
+* [#2809](https://github.com/kroxylicious/kroxylicious/pull/2809): Add optional configuration parameter to control the number of worker threads used by Netty.
+* [#1467](https://github.com/kroxylicious/kroxylicious/pull/1467): Migrate to Netty 4.2
+* [#2693](https://github.com/kroxylicious/kroxylicious/pull/2693): Kroxylicious operator can now discover plain bootstrap address from Strimzi Kafka custom resource 
 
 ## 0.16.0
 

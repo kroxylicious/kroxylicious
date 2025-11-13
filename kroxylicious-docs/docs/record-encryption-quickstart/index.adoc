@@ -1,6 +1,6 @@
 :experimental:
 :vault-chart-version: 0.31.0
-:localstack-chart-version: 0.6.26
+:localstack-chart-version: 0.6.27
 // A Renovate rule will update the strimzi-version but not kafka-version. Update the kafka-version to the point
 // at the latest kafka version supported by that strimzi.
 :strimzi-version: 0.48.0

@@ -1,0 +1,11 @@
+:_mod-docs-content-type: REFERENCE
+
+= Glossary
+
+[role="_abstract"]
+Glossary of terms used in the SASL Inspection guide.
+
+JWE:: JSON Web Encryption is an IETF https://datatracker.ietf.org/doc/html/rfc7516[standard] for exchanging encrypted data using JSON.
+JWT:: JSON Web Token is an IETF https://datatracker.ietf.org/doc/html/rfc8259[standard] for securely transmitting information between parties as a JSON object.
+JWS:: JSON Web Signature is an IETF-proposed https://datatracker.ietf.org/doc/html/rfc7515[standard] for signing arbitrary data.
+SASL:: Simple Authentication and Security Layer, a framework for handling authentication.

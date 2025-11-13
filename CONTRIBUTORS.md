@@ -13,3 +13,4 @@
 - Robert Young(https://github.com/robobario)
 - Grace Grimwood(https://github.com/gracegrimwood)
 - Paul Mellor(https://github.com/PaulRMellor)
+- Piotr Płaczek(https://github.com/piotrpdev)

@@ -23,6 +23,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.fabric8.kubernetes.api.model.APIGroup;
 import io.fabric8.kubernetes.api.model.ConfigMap;
 import io.fabric8.kubernetes.api.model.ConfigMapBuilder;
 import io.fabric8.kubernetes.api.model.GenericKubernetesResourceBuilder;
@@ -37,6 +38,7 @@ import io.fabric8.kubernetes.client.dsl.Resource;
 import io.javaoperatorsdk.operator.api.reconciler.Context;
 import io.javaoperatorsdk.operator.api.reconciler.EventSourceContext;
 import io.javaoperatorsdk.operator.processing.event.ResourceID;
+import io.strimzi.api.kafka.model.kafka.Kafka;
 
 import io.kroxylicious.kubernetes.api.common.AnyLocalRef;
 import io.kroxylicious.kubernetes.api.common.AnyLocalRefBuilder;
@@ -46,6 +48,8 @@ import io.kroxylicious.kubernetes.api.common.FilterRefBuilder;
 import io.kroxylicious.kubernetes.api.common.IngressRefBuilder;
 import io.kroxylicious.kubernetes.api.common.KafkaServiceRefBuilder;
 import io.kroxylicious.kubernetes.api.common.ProxyRefBuilder;
+import io.kroxylicious.kubernetes.api.common.StrimziKafkaRef;
+import io.kroxylicious.kubernetes.api.common.StrimziKafkaRefBuilder;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRef;
 import io.kroxylicious.kubernetes.api.common.TrustAnchorRefBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.KafkaProtocolFilter;
@@ -60,6 +64,7 @@ import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaCluster;
 import io.kroxylicious.kubernetes.api.v1alpha1.VirtualKafkaClusterBuilder;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.Ingresses;
 import io.kroxylicious.kubernetes.api.v1alpha1.virtualkafkaclusterspec.IngressesBuilder;
+import io.kroxylicious.kubernetes.operator.assertj.KafkaServiceStatusAssert;
 import io.kroxylicious.kubernetes.operator.assertj.VirtualKafkaClusterStatusAssert;
 
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -79,6 +84,8 @@ class ResourcesUtilTest {
     public static final String RESOURCE_NAME = "name";
     public static final Clock TEST_CLOCK = Clock.fixed(Instant.EPOCH, ZoneId.of("Z"));
     protected static final ConfigMap EMPTY_CONFIG_NMAP = new ConfigMapBuilder().withData(Map.of()).build();
+    protected static final Kafka EMPTY_KAFKA = new Kafka();
+    public static final String KAFKA_GROUP_NAME = "kafka.strimzi.io";
 
     @Test
     void rfc1035DnsLabel() {
@@ -444,6 +451,18 @@ class ResourcesUtilTest {
     }
 
     @Test
+    void slugResourceWithNamespaceEmptyGroup() {
+        Secret secret = new SecretBuilder().withNewMetadata().withNamespace("my-ns").withName("secreto").endMetadata().build();
+        assertThat(ResourcesUtil.namespacedSlug(secret)).isEqualTo("secret/secreto in namespace 'my-ns'");
+    }
+
+    @Test
+    void slugResourceWithNamespaceNonEmptyGroup() {
+        KafkaProxy secret = new KafkaProxyBuilder().withNewMetadata().withNamespace("my-ns").withName("secreto").endMetadata().build();
+        assertThat(ResourcesUtil.namespacedSlug(secret)).isEqualTo("kafkaproxy.kroxylicious.io/secreto in namespace 'my-ns'");
+    }
+
+    @Test
     void toLocalRef() {
         assertThat(ResourcesUtil.toLocalRef(new KafkaProxyBuilder().withNewMetadata().withName("foo").endMetadata().build()))
                 .isEqualTo(new ProxyRefBuilder().withName("foo").build());
@@ -789,6 +808,38 @@ class ResourcesUtilTest {
     }
 
     @ParameterizedTest
+    @MethodSource("invalidStrimziKafkaRefs")
+    void shouldReturnResolvedRefsFalseStatusCondition(StrimziKafkaRef strimziKafkaRef,
+                                                      @Nullable Kafka kafka,
+                                                      String expectedCondition,
+                                                      ThrowingConsumer<String> stringThrowingConsumer) {
+        // Given
+        KafkaService service = new KafkaServiceBuilder().withNewSpec().withStrimziKafkaRef(strimziKafkaRef).endSpec().build();
+        @SuppressWarnings("unchecked")
+        Context<KafkaService> reconcilerContext = mock(Context.class);
+        KubernetesClient client = mock();
+        when(reconcilerContext.getClient()).thenReturn(client);
+        when(reconcilerContext.getClient().getApiGroup(KAFKA_GROUP_NAME)).thenReturn(new APIGroup());
+        when(reconcilerContext.getSecondaryResource(Kafka.class, KafkaServiceReconciler.STRIMZI_KAFKA_EVENT_SOURCE_NAME))
+                .thenReturn(Optional.ofNullable(kafka));
+
+        // When
+        ResourceCheckResult<KafkaService> actual = ResourcesUtil.checkStrimziKafkaRef(service, reconcilerContext,
+                KafkaServiceReconciler.STRIMZI_KAFKA_EVENT_SOURCE_NAME, strimziKafkaRef,
+                "spec.strimziKafkaRef", new KafkaServiceStatusFactory(TEST_CLOCK));
+
+        // Then
+        assertThat(actual)
+                .isNotNull()
+                .satisfies(kafkaServiceResourceCheckResult -> assertThat(kafkaServiceResourceCheckResult.resource())
+                        .isNotNull()
+                        .satisfies(actualKafkaService -> KafkaServiceStatusAssert.assertThat(actualKafkaService.getStatus())
+                                .singleCondition()
+                                .isResolvedRefsFalse(expectedCondition, stringThrowingConsumer)));
+
+    }
+
+    @ParameterizedTest
     @CsvSource({ "key.pem", "key.p12", "key.jks" })
     void shouldAcceptSupportedKeyfileExtensions(String key) {
         // Given
@@ -827,17 +878,17 @@ class ResourcesUtilTest {
                         new TrustAnchorRefBuilder().withKey("key.pem").withNewRef().withName("configmap").endRef().build(),
                         null,
                         Condition.REASON_REFS_NOT_FOUND,
-                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced resource not found")),
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced configmap not found")),
                 argumentSet("Empty target config map.",
                         new TrustAnchorRefBuilder().withKey("key.pem").withNewRef().withName("configmap").endRef().build(),
                         null,
                         Condition.REASON_REFS_NOT_FOUND,
-                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced resource not found")),
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced configmap not found")),
                 argumentSet("ConfigMap not found",
                         new TrustAnchorRefBuilder().withNewRef().withName("unknown_config_map").endRef().build(),
                         null,
                         Condition.REASON_REFS_NOT_FOUND,
-                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced resource not found")),
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced configmap not found")),
                 argumentSet("null key",
                         new TrustAnchorRefBuilder().withKey(null).withNewRef().withName("configmap").endRef().build(),
                         EMPTY_CONFIG_NMAP,
@@ -858,5 +909,29 @@ class ResourcesUtilTest {
                         EMPTY_CONFIG_NMAP,
                         Condition.REASON_INVALID_REFERENCED_RESOURCE,
                         (ThrowingConsumer<String>) message -> assertThat(message).contains("referenced resource does not contain key")));
+    }
+
+    static Stream<Arguments> invalidStrimziKafkaRefs() {
+        return Stream.of(
+                argumentSet("Invalid reference to Strimzi Kafka cluster invalid kind.",
+                        new StrimziKafkaRefBuilder().withListenerName("plain").withNewRef().withKind("custom").withName("my-cluster").endRef().build(),
+                        null,
+                        Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("supports referents: kafka")),
+                argumentSet("Invalid reference to Strimzi Kafka cluster invalid group.",
+                        new StrimziKafkaRefBuilder().withListenerName("plain").withNewRef().withKind("Kafka").withGroup("custom.kafka.io").endRef().build(),
+                        null,
+                        Condition.REASON_REF_GROUP_KIND_NOT_SUPPORTED,
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("supports referents: kafka")),
+                argumentSet("Empty target cluster.",
+                        new StrimziKafkaRefBuilder().withListenerName("plain").withNewRef().withName("my-cluster").endRef().build(),
+                        null,
+                        Condition.REASON_REFS_NOT_FOUND,
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced Kafka resource not found")),
+                argumentSet("Kafka cluster not found",
+                        new StrimziKafkaRefBuilder().withNewRef().withName("unknown_cluster").endRef().build(),
+                        null,
+                        Condition.REASON_REFS_NOT_FOUND,
+                        (ThrowingConsumer<String>) message -> assertThat(message).endsWith("referenced Kafka resource not found")));
     }
 }

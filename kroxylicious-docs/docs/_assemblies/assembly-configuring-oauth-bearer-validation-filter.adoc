@@ -5,7 +5,7 @@
 // index.adoc
 
 [id='assembly-configuring-oauth-bearer-validation-filter-{context}']
-= Configuring the Oauth Bearer valudation filter
+= Configuring the Oauth Bearer Validation filter
 
 [role="_abstract"]
 This procedure describes how to set up the Oauth Bearer Validation filter by configuring it in Kroxylicious.

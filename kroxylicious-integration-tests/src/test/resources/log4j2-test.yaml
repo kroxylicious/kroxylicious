@@ -1,0 +1,47 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+Configuration:
+  status: WARN
+  name: Integration Tests
+  Appenders:
+    Console:
+        name: Console
+        type: Console
+        target: SYSTEM_OUT
+        PatternLayout:
+            pattern: '%d{yyyy-MM-dd HH:mm:ss} %-5p <%t> %c{1.} - %m%n'
+  Loggers:
+    Root:
+      additivity: false
+      AppenderRef:
+        - ref: Console
+          level: WARN
+    Logger:
+      - name: org.apache.kafka.common.utils.AppInfoParser
+        additivity: false
+        level: ERROR
+        AppenderRef:
+          - ref: Console
+      -  name: kafka.server.BrokerMetadataCheckpoint
+         additivity: false
+         level: ERROR
+         AppenderRef:
+           - ref: Console
+
+      -  name: io.kroxylicious.proxy.testcluster
+         additivity: false
+         level: INFO
+         AppenderRef:
+           - ref: Console
+
+      -  name: org.apache.zookeeper
+         additivity: false
+         level: ERROR
+         AppenderRef:
+           - ref: Console
+

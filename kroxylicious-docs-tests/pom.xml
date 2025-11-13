@@ -15,7 +15,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.17.0-SNAPSHOT</version>
+        <version>0.18.0-SNAPSHOT</version>
     </parent>
 
     <artifactId>kroxylicious-docs-tests</artifactId>
@@ -23,9 +23,8 @@
     <description>Automated tests for programmatic content included in the project's documentation.</description>
 
     <properties>
-        <skipDTs>false</skipDTs>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <asciidoctorj.version>3.0.0</asciidoctorj.version>
+        <asciidoctorj.version>3.0.1</asciidoctorj.version>
         <snakeyaml.version>2.5</snakeyaml.version>
     </properties>
 

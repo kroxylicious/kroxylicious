@@ -40,7 +40,7 @@ import io.kroxylicious.kms.provider.azure.AzureKeyVaultEdek;
 import io.kroxylicious.kms.provider.azure.AzureKeyVaultKmsService;
 import io.kroxylicious.kms.provider.azure.WrappingKey;
 import io.kroxylicious.kms.provider.azure.config.AzureKeyVaultConfig;
-import io.kroxylicious.kms.provider.azure.config.auth.EntraIdentityConfig;
+import io.kroxylicious.kms.provider.azure.config.auth.Oauth2ClientCredentialsConfig;
 import io.kroxylicious.kms.service.TestKekManager;
 import io.kroxylicious.kms.service.TestKmsFacade;
 import io.kroxylicious.kms.service.TestKmsFacadeException;
@@ -93,7 +93,7 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
     }
 
     public static LowkeyVaultContainer startKeyVault() {
-        String image = "nagyesta/lowkey-vault:4.0.67";
+        String image = "nagyesta/lowkey-vault:5.0.14";
         final DockerImageName imageName = DockerImageName.parse("mirror.gcr.io/" + image)
                 .asCompatibleSubstituteFor(DockerImageName.parse(image));
         final LowkeyVaultContainer lowkeyVaultContainer = lowkeyVault(imageName)
@@ -131,9 +131,10 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
                     oauthServer.getTrustStoreType());
             Tls entraTls = new Tls(null, entraTrust, null, null);
             return new AzureKeyVaultConfig(
-                    new EntraIdentityConfig(oauthServer.getBaseUri(), TENANT_ID, new InlinePassword("abc"), new InlinePassword("def"), null,
+                    new Oauth2ClientCredentialsConfig(oauthServer.getBaseUri(), TENANT_ID, new InlinePassword("abc"), new InlinePassword("def"),
+                            URI.create("https://vault.azure.net/.default"),
                             entraTls),
-                    KEY_VAULT_NAME, defaultVaultBaseUrl.getHost(), null, defaultVaultBaseUrl.getPort(), vaultTls);
+                    null, KEY_VAULT_NAME, defaultVaultBaseUrl.getHost(), null, defaultVaultBaseUrl.getPort(), vaultTls);
         }
         catch (Exception e) {
             throw new TestKmsFacadeException(e);
@@ -170,7 +171,7 @@ public class AzureKeyVaultKmsTestKmsFacade implements TestKmsFacade<AzureKeyVaul
         @Override
         public void generateKek(String alias) {
             String normalizedAlias = normalize(alias);
-            // createKey succeeds imdempotently, not sure if azure or lowkey behaviour
+            // createKey succeeds idempotently, not sure if azure or lowkey behaviour
             try {
                 read(alias);
                 throw new IllegalStateException("key '" + normalizedAlias + "' already exists");

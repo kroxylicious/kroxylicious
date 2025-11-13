@@ -34,12 +34,14 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.DefaultChannelId;
 import io.netty.handler.codec.DecoderException;
 import io.netty.handler.codec.haproxy.HAProxyCommand;
 import io.netty.handler.codec.haproxy.HAProxyMessage;
@@ -72,6 +74,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
@@ -88,6 +91,7 @@ class ProxyChannelStateMachineTest {
     private final RuntimeException failure = new RuntimeException("There's Klingons on the starboard bow");
     private ProxyChannelStateMachine proxyChannelStateMachine;
     private KafkaProxyBackendHandler backendHandler;
+    @Mock(strictness = Mock.Strictness.LENIENT)
     private KafkaProxyFrontendHandler frontendHandler;
     private SimpleMeterRegistry simpleMeterRegistry;
 
@@ -95,9 +99,9 @@ class ProxyChannelStateMachineTest {
     void setUp() {
         proxyChannelStateMachine = new ProxyChannelStateMachine(CLUSTER_NAME, null);
         backendHandler = mock(KafkaProxyBackendHandler.class);
-        frontendHandler = mock(KafkaProxyFrontendHandler.class);
         simpleMeterRegistry = new SimpleMeterRegistry();
         Metrics.globalRegistry.add(simpleMeterRegistry);
+        when(frontendHandler.channelId()).thenReturn(DefaultChannelId.newInstance());
     }
 
     @AfterEach

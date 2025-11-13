@@ -14,7 +14,7 @@
     <parent>
         <groupId>io.kroxylicious</groupId>
         <artifactId>kroxylicious-parent</artifactId>
-        <version>0.17.0-SNAPSHOT</version>
+        <version>0.18.0-SNAPSHOT</version>
         <relativePath>../pom.xml</relativePath>
     </parent>
 
@@ -95,7 +95,7 @@
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
-            <artifactId>netty-codec</artifactId>
+            <artifactId>netty-codec-base</artifactId>
         </dependency>
         <dependency>
             <groupId>io.netty</groupId>
@@ -120,7 +120,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport-native-epoll</artifactId>
-            <classifier>${netty.epoll.classifier}</classifier>
+            <classifier>${netty.epoll.architecture}</classifier>
             <scope>runtime</scope>
         </dependency>
         <dependency>
@@ -130,7 +130,7 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-transport-native-kqueue</artifactId>
-            <classifier>${netty.kqueue.classifier}</classifier>
+            <classifier>${netty.kqueue.architecture}</classifier>
             <scope>runtime</scope>
         </dependency>
         <dependency>
@@ -138,13 +138,13 @@
             <artifactId>netty-transport-native-unix-common</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.netty.incubator</groupId>
-            <artifactId>netty-incubator-transport-classes-io_uring</artifactId>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport-classes-io_uring</artifactId>
         </dependency>
         <dependency>
-            <groupId>io.netty.incubator</groupId>
-            <artifactId>netty-incubator-transport-native-io_uring</artifactId>
-            <classifier>${netty.io_uring.classifier}</classifier>
+            <groupId>io.netty</groupId>
+            <artifactId>netty-transport-native-io_uring</artifactId>
+            <classifier>${netty.io_uring.architecture}</classifier>
             <scope>runtime</scope>
         </dependency>
         <dependency>
@@ -155,9 +155,7 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
         </dependency>
-
         <!-- third party dependencies - test -->
-
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
@@ -186,6 +184,11 @@
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-params</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit-pioneer</groupId>
+            <artifactId>junit-pioneer</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -236,6 +239,30 @@
                         @{jacoco.argline} -javaagent:${org.mockito:mockito-core:jar} -Xshare:off
                     </argLine>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>run-isolated-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <forkCount>1</forkCount>
+                            <reuseForks>false</reuseForks>
+                            <groups>requiresIsolatedJvm</groups>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>default-test</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>test</goal>
+                        </goals>
+                        <configuration>
+                            <excludedGroups>requiresIsolatedJvm</excludedGroups>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -278,9 +305,9 @@
                         </goals>
                         <phase>process-sources</phase>
                         <configuration>
-                        <directories>
-                            <directory>${project.build.directory}/generated-sources/krpc</directory>
-                        </directories>
+                            <directories>
+                                <directory>${project.build.directory}/generated-sources/krpc</directory>
+                            </directories>
                         </configuration>
                     </execution>
                 </executions>
@@ -296,7 +323,8 @@
                         </goals>
                         <phase>process-sources</phase>
                         <configuration>
-                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
+                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message
+                            </messageSpecDirectory>
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>BodyDecoder.ftl</templateNames>
@@ -313,7 +341,8 @@
                         </goals>
                         <phase>generate-sources</phase>
                         <configuration>
-                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
+                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message
+                            </messageSpecDirectory>
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>FilterInvoker.ftl</templateNames>
@@ -330,7 +359,8 @@
                         </goals>
                         <phase>process-sources</phase>
                         <configuration>
-                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message</messageSpecDirectory>
+                            <messageSpecDirectory>${project.build.directory}/message-specs/common/message
+                            </messageSpecDirectory>
                             <messageSpecFilter>*{Request,Response}.json</messageSpecFilter>
                             <templateDirectory>${project.basedir}/src/main/templates</templateDirectory>
                             <templateNames>SpecificFilterArrayInvoker.ftl</templateNames>

@@ -48,9 +48,11 @@ jobs:
           gh issue comment  ${{ github.event.issue.number }} --body "${{ github.actor }} is not entitled to use <code>&commat;kroxylicious-robot</code>. The user must be a member of release-engineers)"
           exit -1
 
-      - name: 'Extract command'
+      - name: 'Extract command from comment'
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          COMMAND=$(echo "${{ github.event.comment.body }}" | awk '/^@kroxylicious-robot/ {print $2}')
+          COMMAND=$(echo "${COMMENT_BODY}" | awk '/^@kroxylicious-robot/ {print $2}')
           echo "COMMAND=${COMMAND}" >> $GITHUB_ENV
           case "${COMMAND}" in
             promote-release | drop-release)

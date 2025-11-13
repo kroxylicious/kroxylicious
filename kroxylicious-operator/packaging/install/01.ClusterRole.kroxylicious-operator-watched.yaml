@@ -29,6 +29,15 @@ rules:
       - watch
       - patch
       - update
+  - # The operator should be able to access the Strimzi Kafka CR's for retrieving bootstrap address
+    apiGroups:
+      - "kafka.strimzi.io"
+    resources:
+      - kafkas
+    verbs:
+      - get
+      - list
+      - watch
   - # The operator needs to update the status on its own CRs
     apiGroups:
       - "kroxylicious.io"

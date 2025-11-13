@@ -24,15 +24,15 @@ import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.assertj.core.api.InstanceOfAssertFactory;
 import org.junit.jupiter.api.Test;
 
-import io.kroxylicious.proxy.config.ConfigurationBuilder;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.Tls;
 import io.kroxylicious.proxy.config.tls.TlsBuilder;
 import io.kroxylicious.proxy.config.tls.TlsClientAuth;
+import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyer;
 import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyerFilter;
-import io.kroxylicious.proxy.testplugins.ClientTlsAwareLawyer;
 import io.kroxylicious.test.assertj.KafkaAssertions;
+import io.kroxylicious.test.tester.KroxyliciousConfigUtils;
 import io.kroxylicious.testing.kafka.api.KafkaCluster;
 import io.kroxylicious.testing.kafka.junit5ext.Topic;
 
@@ -135,8 +135,8 @@ public class PluginTlsApiIT extends AbstractTlsIT {
 
         // @formatter:off
         String demoCluster = "demo";
-        var builder = new ConfigurationBuilder()
-                .addNewFilterDefinition("clientConnection", ClientTlsAwareLawyer.class.getName(), null)
+        var builder = KroxyliciousConfigUtils.baseConfigurationBuilder()
+                .addNewFilterDefinition("clientConnection", ClientAuthAwareLawyer.class.getName(), null)
                 .addToVirtualClusters(new VirtualClusterBuilder()
                         .withName(demoCluster)
                         .addToFilters("clientConnection")
@@ -176,4 +176,5 @@ public class PluginTlsApiIT extends AbstractTlsIT {
                     .hasValueEqualTo(expectedProxyPrincipalName);
         }
     }
+
 }

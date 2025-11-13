@@ -45,8 +45,34 @@ spec:
               type: object
             spec:
               type: object
-              required: [ "bootstrapServers" ]
+              oneOf:
+                - required: [ "strimziKafkaRef" ]
+                - required: [ "bootstrapServers" ]
               properties:
+                strimziKafkaRef:
+                  description: Reference to a Strimzi Kafka resource that declares the Kafka Cluster to be proxied.
+                  type: object
+                  properties:
+                    kind:
+                      description: The API kind of the resource
+                      type: string
+                      default: Kafka
+                    group:
+                      description: The API group of the resource
+                      type: string
+                      default: "kafka.strimzi.io"
+                    name:
+                      description: Name of the cluster
+                      type: string
+                    namespace:
+                      description: Namespace of the Kafka cluster(same as KafkaService namespace)
+                      type: string
+                    listenerName:
+                      description: listener name of the cluster
+                      type: string
+                  required:
+                    - name
+                    - listenerName
                 bootstrapServers:
                   description: Bootstrap servers of the Kafka cluster.
                   type: string
@@ -179,6 +205,10 @@ spec:
                   description: |
                     The metadata.generation that was observed during the last reconciliation by the operator.
                   type: integer
+                bootstrapServers:
+                  description: |
+                    The bootstrap address of the target cluster.
+                  type: string
                 conditions:
                   type: array
                   items:
