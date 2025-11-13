@@ -10,6 +10,7 @@
 [role="_abstract"]
 To prepare {microsoft-learn}/azure/key-vault/general/overview[Azure Key Vault] for use with the Record Encryption filter, use the following setup:
 
+* Setup Azure resources
 * Establish a naming convention for keys
 * Create Azure Key Vault keys
 
