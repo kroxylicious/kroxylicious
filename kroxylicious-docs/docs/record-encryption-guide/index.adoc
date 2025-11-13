@@ -25,6 +25,7 @@ Kroxylicious supports the following KMS providers:
 
 * HashiCorp Vault (On-premise, HashiCorp Cloud Platform Vault and Enterprise are supported. Free tier HCP Vault Secrets is not).
 * AWS Key Management Service.
+* Azure Key Vault
 ifdef::include-fortanix-dsm-kms[]
 * Fortanix DSM
 endif::[]

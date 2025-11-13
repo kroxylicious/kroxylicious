@@ -28,6 +28,7 @@ endif::OpenShiftOnly[]
 +
 * <<con-vault-plugin-configuration-{context},HashiCorp Vault plugin configuration>>
 * <<con-aws-kms-plugin-configuration-{context},AWS KMS plugin configuration>>
+* <<con-azure-key-vault-plugin-configuration-{context},Azure Key Vault KMS plugin configuration>>
 ifdef::include-fortanix-dsm-kms[]
 * <<con-fortanix-dsm-plugin-configuration-{context},Fortanix DSM plugin configuration>>
 endif::[]
@@ -48,6 +49,8 @@ endif::[]
 include::../_modules/record-encryption/hashicorp-vault/con-vault-plugin-configuration.adoc[leveloffset=+1]
 
 include::../_modules/record-encryption/aws-kms/con-aws-kms-plugin-configuration.adoc[leveloffset=+1]
+
+include::../_modules/record-encryption/azure-key-vault/con-azure-key-vault-plugin-configuration.adoc[leveloffset=+1]
 
 ifdef::include-fortanix-dsm-kms[]
 include::../_modules/record-encryption/fortanix-dsm/con-fortanix-dsm-plugin-configuration.adoc[leveloffset=+1]
