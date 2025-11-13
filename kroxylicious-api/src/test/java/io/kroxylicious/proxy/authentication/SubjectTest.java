@@ -55,7 +55,8 @@ class SubjectTest {
         Subject subject = new Subject(user1, unique);
         Assertions.assertThatThrownBy(() -> subject.uniquePrincipalOfType(FakeMultiplePrincipal.class))
                 .isExactlyInstanceOf(IllegalArgumentException.class)
-                .hasMessage("class io.kroxylicious.proxy.authentication.FakeMultiplePrincipal is not annotated with interface io.kroxylicious.proxy.authentication.Unique");
+                .hasMessage(
+                        "class io.kroxylicious.proxy.authentication.FakeMultiplePrincipal is not annotated with interface io.kroxylicious.proxy.authentication.Unique");
 
     }
 
