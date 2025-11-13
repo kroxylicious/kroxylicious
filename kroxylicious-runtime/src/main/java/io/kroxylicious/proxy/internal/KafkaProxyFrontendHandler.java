@@ -108,18 +108,6 @@ public class KafkaProxyFrontendHandler
         }
     }
 
-    KafkaProxyFrontendHandler(
-                              NetFilter netFilter,
-                              SaslDecodePredicate dp,
-                              EndpointBinding endpointBinding,
-                              String clusterName,
-                              ConnectionTracker connectionTracker,
-                              ConnectionDrainManager connectionDrainManager,
-                              InFlightMessageTracker inFlightTracker) {
-        this(netFilter, dp, endpointBinding, new ProxyChannelStateMachine(clusterName, endpointBinding.nodeId(), connectionTracker, inFlightTracker),
-                connectionDrainManager);
-    }
-
     @VisibleForTesting
     KafkaProxyFrontendHandler(
                               NetFilter netFilter,

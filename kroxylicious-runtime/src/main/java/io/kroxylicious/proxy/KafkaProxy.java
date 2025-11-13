@@ -236,13 +236,9 @@ public final class KafkaProxy implements AutoCloseable {
             this.filterChainFactory = new FilterChainFactory(pfr, config.filterDefinitions());
 
             var tlsServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of(), apiVersionsService));
-            var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
-                    new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, Map.of(), apiVersionsService));
-            var tlsServerBootstrap = buildServerBootstrap(serverEventGroup,
                     new KafkaProxyInitializer(filterChainFactory, pfr, true, endpointRegistry, endpointRegistry, false, Map.of(),
                             apiVersionsService, connectionTracker, connectionDrainManager, inFlightTracker));
-            var plainServerBootstrap = buildServerBootstrap(serverEventGroup,
+            var plainServerBootstrap = buildServerBootstrap(proxyEventGroup,
                     new KafkaProxyInitializer(filterChainFactory, pfr, false, endpointRegistry, endpointRegistry, false, Map.of(),
                             apiVersionsService, connectionTracker, connectionDrainManager, inFlightTracker));
 
