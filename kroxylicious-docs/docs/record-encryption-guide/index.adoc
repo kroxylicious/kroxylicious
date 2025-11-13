@@ -24,7 +24,8 @@ The filter integrates with a Key Management Service (KMS), which is responsible 
 Kroxylicious supports the following KMS providers:
 
 * HashiCorp Vault
-* AWS Key Management Service.
+* AWS Key Management Service
+* Azure Key Vault
 ifdef::include-fortanix-dsm-kms[]
 * Fortanix DSM
 endif::[]

@@ -13,6 +13,8 @@ It describes how to prepare the KMS for use with the filter.
 include::assembly-hashicorp-vault.adoc[leveloffset=+1]
 //setting up AWS KMS
 include::assembly-aws-kms.adoc[leveloffset=+1]
+//setting up Azure Key Vault KMS
+include::assembly-azure-key-vault.adoc[leveloffset=+1]
 ifdef::include-fortanix-dsm-kms[]
 include::assembly-fortanix-dsm.adoc[leveloffset=+1]
 endif::[]
