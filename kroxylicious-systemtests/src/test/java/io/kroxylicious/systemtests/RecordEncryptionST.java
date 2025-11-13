@@ -45,6 +45,7 @@ class RecordEncryptionST extends AbstractST {
     protected static final String BROKER_NODE_NAME = "kafka";
     private static final Logger LOGGER = LoggerFactory.getLogger(RecordEncryptionST.class);
     private static final String MESSAGE = "Hello-world";
+    private static final String KEK_PREFIX = "KEK-";
     private final String clusterName = "my-cluster";
     private String bootstrap;
     private TestKekManager testKekManager;
@@ -87,7 +88,7 @@ class RecordEncryptionST extends AbstractST {
         try {
             if (testKekManager != null) {
                 LOGGER.atInfo().log("Deleting KEK...");
-                testKekManager.deleteKek("KEK_" + topicName);
+                testKekManager.deleteKek(KEK_PREFIX + topicName);
             }
         }
         catch (KubeClusterException e) {
@@ -104,7 +105,7 @@ class RecordEncryptionST extends AbstractST {
     @TestTemplate
     void ensureClusterHasEncryptedMessage(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
         testKekManager = testKmsFacade.getTestKekManager();
-        testKekManager.generateKek("KEK_" + topicName);
+        testKekManager.generateKek(KEK_PREFIX + topicName);
         int numberOfMessages = 1;
 
         // start Kroxylicious
@@ -136,7 +137,7 @@ class RecordEncryptionST extends AbstractST {
     @TestTemplate
     void produceAndConsumeMessage(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
         testKekManager = testKmsFacade.getTestKekManager();
-        testKekManager.generateKek("KEK_" + topicName);
+        testKekManager.generateKek(KEK_PREFIX + topicName);
         int numberOfMessages = 1;
 
         // start Kroxylicious
@@ -165,9 +166,10 @@ class RecordEncryptionST extends AbstractST {
     @TestTemplate
     void ensureClusterHasEncryptedMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
         // Skip AWS test execution because the ciphertext blob metadata to read the version of the KEK is not available anywhere
-        assumeThat(testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().contains("vault")).isTrue();
+        assumeThat(isVaultKms(testKmsFacade)).isTrue();
+        String kekAlias = KEK_PREFIX + topicName;
         testKekManager = testKmsFacade.getTestKekManager();
-        testKekManager.generateKek("KEK_" + topicName);
+        testKekManager.generateKek(kekAlias);
         int numberOfMessages = 1;
         ExperimentalKmsConfig experimentalKmsConfig = new ExperimentalKmsConfig(null, null, null, 5L);
 
@@ -191,7 +193,7 @@ class RecordEncryptionST extends AbstractST {
         assertKekVersionWithinParcel(resultEncrypted, ":v1:", testKekManager);
 
         LOGGER.info("When KEK is rotated");
-        testKekManager.rotateKek("KEK_" + topicName);
+        testKekManager.rotateKek(kekAlias);
 
         try {
             Thread.sleep(5000);
@@ -217,10 +219,9 @@ class RecordEncryptionST extends AbstractST {
         assertThat(consumerRecords)
                 .withFailMessage("expected messages not received! Consumer records is empty")
                 .isNotEmpty();
-
         assertThat(testKekManager.getClass().getSimpleName().toLowerCase())
                 .withFailMessage("Another KMS different from Vault is not currently supported!")
-                .contains("vault");
+                .startsWith("vault");
 
         assertThat(consumerRecords.stream())
                 .withFailMessage(expectedValue + " is not contained in the ciphertext blob!")
@@ -230,10 +231,11 @@ class RecordEncryptionST extends AbstractST {
     @SuppressWarnings("java:S2925")
     @TestTemplate
     void produceAndConsumeMessageWithRotatedKEK(String namespace, TestKmsFacade<?, ?, ?> testKmsFacade) {
+        String kekAlias = KEK_PREFIX + topicName;
         testKekManager = testKmsFacade.getTestKekManager();
-        testKekManager.generateKek("KEK_" + topicName);
+        testKekManager.generateKek(kekAlias);
         int numberOfMessages = 1;
-        boolean isVaultKms = testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().contains("vault");
+        boolean isVaultKms = isVaultKms(testKmsFacade);
         Long resolvedAliasExpireAfterWriteSeconds = isVaultKms ? null : 5L;
         Long resolvedDekExpireAfterWriteSeconds = isVaultKms ? 5L : null;
         ExperimentalKmsConfig experimentalKmsConfig = new ExperimentalKmsConfig(resolvedAliasExpireAfterWriteSeconds, null, null, resolvedDekExpireAfterWriteSeconds);
@@ -260,7 +262,7 @@ class RecordEncryptionST extends AbstractST {
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
 
         LOGGER.info("When KEK is rotated");
-        testKekManager.rotateKek("KEK_" + topicName);
+        testKekManager.rotateKek(kekAlias);
 
         try {
             Thread.sleep(5000);
@@ -279,5 +281,9 @@ class RecordEncryptionST extends AbstractST {
         assertThat(resultRotatedKek).withFailMessage("expected messages have not been received!")
                 .extracting(ConsumerRecord::getPayload)
                 .allSatisfy(v -> assertThat(v).contains(MESSAGE));
+    }
+
+    private boolean isVaultKms(TestKmsFacade<?, ?, ?> testKmsFacade) {
+        return testKmsFacade.getKmsServiceClass().getSimpleName().toLowerCase().startsWith("vault");
     }
 }
