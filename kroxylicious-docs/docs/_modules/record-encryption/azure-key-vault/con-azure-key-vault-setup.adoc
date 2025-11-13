@@ -5,7 +5,7 @@
 // assembly-azure-key-vault.adoc
 
 [id='con-azure-key-vault-setup-{context}']
-= Set up Azure resources
+= Setup Azure resources
 
 [role="_abstract"]
 To begin, you will need an Azure subscription that includes Azure Key Vault and an Azure user with sufficient permissions to create and manage users, resource groups, roles, and resources.
