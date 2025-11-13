@@ -31,9 +31,12 @@ import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.IntOrString;
 import io.fabric8.kubernetes.api.model.LabelSelectorBuilder;
 import io.fabric8.kubernetes.api.model.LocalObjectReferenceBuilder;
+import io.fabric8.kubernetes.api.model.SecretVolumeSourceBuilder;
 import io.fabric8.kubernetes.api.model.Service;
 import io.fabric8.kubernetes.api.model.ServiceBuilder;
 import io.fabric8.kubernetes.api.model.ServicePortBuilder;
+import io.fabric8.kubernetes.api.model.VolumeBuilder;
+import io.fabric8.kubernetes.api.model.VolumeMountBuilder;
 import io.fabric8.kubernetes.api.model.apiextensions.v1.CustomResourceDefinition;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import io.fabric8.kubernetes.api.model.apps.DeploymentBuilder;
@@ -193,6 +196,44 @@ public class KroxyliciousOperatorYamlInstaller implements InstallationMethod {
                     .endTemplate()
                 .endSpec()
                 .build();
+
+        DeploymentUtils.copySecretInToNamespace(namespaceInstallTo, Constants.KEYSTORE_SECRET_NAME);
+        DeploymentUtils.copySecretInToNamespace(namespaceInstallTo, Constants.TRUSTSTORE_SECRET_NAME);
+
+        if (kubeClient().getClient().secrets().inNamespace(namespaceInstallTo).withName(Constants.KEYSTORE_SECRET_NAME).get() != null) {
+            operatorDeployment = new DeploymentBuilder(operatorDeployment)
+                    .editSpec()
+                    .editTemplate()
+                    .editSpec()
+                    .addToVolumes(new VolumeBuilder()
+                            .withName(Constants.KEYSTORE_SECRET_NAME)
+                            .withSecret(new SecretVolumeSourceBuilder()
+                                    .withSecretName(Constants.KEYSTORE_SECRET_NAME)
+                                    .build())
+                            .build())
+                    .addToVolumes(new VolumeBuilder()
+                            .withName(Constants.TRUSTSTORE_SECRET_NAME)
+                            .withSecret(new SecretVolumeSourceBuilder()
+                                    .withSecretName(Constants.TRUSTSTORE_SECRET_NAME)
+                                    .build())
+                            .build())
+                    .editFirstContainer()
+                    .addToVolumeMounts(new VolumeMountBuilder()
+                            .withName(Constants.KEYSTORE_SECRET_NAME)
+                            .withMountPath(Constants.KEYSTORE_TEMP_DIR)
+                            .withReadOnly(true)
+                            .build())
+                    .addToVolumeMounts(new VolumeMountBuilder()
+                            .withName(Constants.TRUSTSTORE_SECRET_NAME)
+                            .withMountPath(Constants.TRUSTSTORE_TEMP_DIR)
+                            .withReadOnly(true)
+                            .build())
+                    .endContainer()
+                    .endSpec()
+                    .endTemplate()
+                    .endSpec()
+                    .build();
+        }
 
         Service debugService = new ServiceBuilder()
                 .editOrNewMetadata()
