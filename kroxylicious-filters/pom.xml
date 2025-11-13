@@ -1,5 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
+<?xml version="1.0" encoding="UTF-8"?><!--
 
     Copyright Kroxylicious Authors.
 
@@ -29,6 +28,7 @@
         <module>kroxylicious-simple-transform</module>
         <module>kroxylicious-oauthbearer-validation</module>
         <module>kroxylicious-sasl-inspection</module>
+        <module>kroxylicious-user-namespace</module>
     </modules>
 
     <build>

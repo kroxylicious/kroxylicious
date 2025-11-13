@@ -8,9 +8,12 @@ package io.kroxylicious.krpccodegen.schema;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -249,6 +252,11 @@ public final class FieldSpec {
         return zeroCopy;
     }
 
+    // @VisibleForTesting
+    public Map<String, FieldSpec> fieldsByName() {
+        return fields().stream().collect(Collectors.toMap(FieldSpec::name, Function.identity()));
+    }
+
     private void validateNullDefault() {
         if (!(nullableVersions().contains(versions))) {
             throw new RuntimeException("null cannot be the default for field " +
@@ -261,4 +269,23 @@ public final class FieldSpec {
         return baseType + "Collection";
     }
 
+    @Override
+    public String toString() {
+        return "FieldSpec{" +
+                "name='" + name + '\'' +
+                ", versions=" + versions +
+                ", fields=" + fields +
+                ", type=" + type +
+                ", mapKey=" + mapKey +
+                ", nullableVersions=" + nullableVersions +
+                ", fieldDefault='" + fieldDefault + '\'' +
+                ", ignorable=" + ignorable +
+                ", entityType=" + entityType +
+                ", about='" + about + '\'' +
+                ", taggedVersions=" + taggedVersions +
+                ", flexibleVersions=" + flexibleVersions +
+                ", tag=" + tag +
+                ", zeroCopy=" + zeroCopy +
+                '}';
+    }
 }

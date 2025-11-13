@@ -39,6 +39,12 @@ Configuration:
          AppenderRef:
            - ref: Console
 
+      -  name: io.kroxylicious.filter.usernamespace
+         additivity: false
+         level: DEBUG
+         AppenderRef:
+           - ref: Console
+
       -  name: org.apache.zookeeper
          additivity: false
          level: ERROR

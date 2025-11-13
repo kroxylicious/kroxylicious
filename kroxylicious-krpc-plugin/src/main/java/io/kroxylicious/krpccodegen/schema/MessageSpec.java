@@ -6,14 +6,20 @@
 package io.kroxylicious.krpccodegen.schema;
 
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public final class MessageSpec {
+    private static final EnumSet<EntityType> SUPPORTED_ENTITY_TYPES = EnumSet.of(EntityType.TOPIC_NAME, EntityType.GROUP_ID, EntityType.TRANSACTIONAL_ID);
     private final StructSpec struct;
 
     @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
@@ -103,6 +109,11 @@ public final class MessageSpec {
         return struct.fields();
     }
 
+    // @VisibleForTesting
+    public Map<String, FieldSpec> fieldsByName() {
+        return struct.fields().stream().collect(Collectors.toMap(FieldSpec::name, Function.identity()));
+    }
+
     @JsonProperty("apiKey")
     public Optional<Short> apiKey() {
         return apiKey;
@@ -140,11 +151,41 @@ public final class MessageSpec {
     public String dataClassName() {
         return switch (type) {
             case HEADER, REQUEST, RESPONSE ->
-                    // We append the Data suffix to request/response/header classes to avoid
-                    // collisions with existing objects. This can go away once the protocols
-                    // have all been converted and we begin using the generated types directly.
+                // We append the Data suffix to request/response/header classes to avoid
+                // collisions with existing objects. This can go away once the protocols
+                // have all been converted and we begin using the generated types directly.
                     struct.name() + "Data";
             default -> struct.name();
         };
+    }
+
+    public Node entityFields() {
+        List<FieldSpec> entityFields = fields().stream()
+                .filter(f -> SUPPORTED_ENTITY_TYPES.contains(f.entityType()))
+                .toList();
+        var versions = entityFields.stream()
+                .map(FieldSpec::versions)
+                .map(fsv -> validVersions().intersect(fsv))
+                .flatMapToInt(v -> IntStream.rangeClosed(v.lowest(), v.highest()))
+                .distinct()
+                .sorted()
+                .boxed()
+                .map(Integer::shortValue)
+                .toList();
+
+        return new Node(entityFields, List.of(), versions);
+    }
+
+    @Override
+    public String toString() {
+        return "MessageSpec{" +
+                "struct=" + struct +
+                ", apiKey=" + apiKey +
+                ", type=" + type +
+                ", commonStructs=" + commonStructs +
+                ", flexibleVersions=" + flexibleVersions +
+                ", listeners=" + listeners +
+                ", latestVersionUnstable=" + latestVersionUnstable +
+                '}';
     }
 }

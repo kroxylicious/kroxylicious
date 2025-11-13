@@ -7,7 +7,6 @@ package io.kroxylicious.krpccodegen.schema;
 
 import java.util.Collection;
 import java.util.Objects;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 /**
@@ -33,7 +32,7 @@ public final class Versions {
             return defaultVersions;
         }
         String trimmedInput = input.trim();
-        if (trimmedInput.length() == 0) {
+        if (trimmedInput.isEmpty()) {
             return defaultVersions;
         }
         if (trimmedInput.equals(NONE_STRING)) {
@@ -198,6 +197,6 @@ public final class Versions {
     }
 
     public Collection<Integer> range() {
-        return IntStream.rangeClosed(lowest(), highest()).boxed().collect(Collectors.toList());
+        return IntStream.rangeClosed(lowest(), highest()).boxed().toList();
     }
 }
