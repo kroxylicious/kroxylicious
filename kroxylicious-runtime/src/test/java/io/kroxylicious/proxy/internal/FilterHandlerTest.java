@@ -45,6 +45,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.ApiVersionsRequestFilter;
 import io.kroxylicious.proxy.filter.ApiVersionsResponseFilter;
 import io.kroxylicious.proxy.filter.FetchRequestFilter;
@@ -1219,12 +1221,37 @@ class FilterHandlerTest extends FilterHarness {
         return future;
     }
 
+    @SuppressWarnings("deprecation") // We're testing that the deprecated method still works
     @Test
-    void shouldUpdateClientSaslContextOnSaslAuthSuccess() {
+    void shouldUpdateClientSaslContextOnSaslAuthSuccessWithAuthzId() {
         // Given
         SaslAuthenticateResponseData responseData = new SaslAuthenticateResponseData().setSessionLifetimeMs(10_000);
         buildChannel((SaslAuthenticateRequestFilter) (apiVersion, header, request, context) -> {
             context.clientSaslAuthenticationSuccess(SaslMechanism.SCRAM_SHA_512.name(), AUTHORIZATION_ID);
+            return context.requestFilterResultBuilder().shortCircuitResponse(responseData).completed();
+        });
+
+        // When
+        writeRequest(new SaslAuthenticateRequestData().setAuthBytes("Let me IN!".getBytes(UTF_8)));
+
+        // Then
+        DecodedResponseFrame<?> propagated = channel.readInbound();
+        assertThat(propagated.body()).isEqualTo(responseData);
+
+        assertThat(clientSubjectManager.clientSaslContext())
+                .isNotEmpty()
+                .hasValueSatisfying(saslContext -> {
+                    assertThat(saslContext.authorizationId()).isEqualTo(AUTHORIZATION_ID);
+                    assertThat(saslContext.mechanismName()).isEqualTo(SaslMechanism.SCRAM_SHA_512.name());
+                });
+    }
+
+    @Test
+    void shouldUpdateClientSaslContextOnSaslAuthSuccessWithSubject() {
+        // Given
+        SaslAuthenticateResponseData responseData = new SaslAuthenticateResponseData().setSessionLifetimeMs(10_000);
+        buildChannel((SaslAuthenticateRequestFilter) (apiVersion, header, request, context) -> {
+            context.clientSaslAuthenticationSuccess(SaslMechanism.SCRAM_SHA_512.name(), new Subject(new User(AUTHORIZATION_ID)));
             return context.requestFilterResultBuilder().shortCircuitResponse(responseData).completed();
         });
 

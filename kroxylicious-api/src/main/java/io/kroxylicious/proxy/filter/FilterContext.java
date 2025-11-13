@@ -192,7 +192,7 @@ public interface FilterContext {
      * When this method is used the result of {@link #authenticatedSubject()} will be a non-empty Optional
      * with a {@link Subject} having a single {@link User} principal with the given {@code authorizedId}
      */
-    @Deprecated(since = "0.17")
+    @Deprecated(since = "0.18")
     void clientSaslAuthenticationSuccess(String mechanism,
                                          String authorizedId);
 
