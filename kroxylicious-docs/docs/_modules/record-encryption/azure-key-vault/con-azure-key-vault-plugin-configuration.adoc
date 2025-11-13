@@ -1,0 +1,21 @@
+:_mod-docs-content-type: CONCEPT
+
+// file included in the following:
+//
+// assembly-configuring-record-encryption-filter
+
+[id='con-aws-kms-plugin-configuration-{context}']
+= Azure Key Vault plugin configuration
+
+[role="_abstract"]
+For Azure Key Vault the configuration for authenticating with Microsoft Identity Platform looks like this:
+
+include::snip-azure-key-vault-service-config-microsoft-identity-platform-oauth2.adoc[leveloffset=+1]
+
+Alternatively, the configuration for authenticating with Managed Identities for Azure resources looks like this:
+
+include::snip-azure-key-vault-service-config-microsoft-entra-managed-identity.adoc[leveloffset=+1]
+
+include::../../../_snippets/snip-tls-client-keystore.adoc[]
+
+include::../../../_snippets/snip-tls-client-truststore.adoc[]
