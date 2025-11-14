@@ -12,6 +12,10 @@ import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLSession;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -36,6 +40,7 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
@@ -107,6 +112,22 @@ public class KafkaProxyFrontendHandler
         }
     }
 
+    private @Nullable ClientSubjectManager clientSubjectManager;
+
+    /**
+     * @return the SSL session, or null if a session does not (currently) exist.
+     */
+    @Nullable
+    SSLSession sslSession() {
+        // The SslHandler is added to the pipeline by the SniHandler (replacing it) after the ClientHello.
+        // It is added using the fully-qualified class name.
+        SslHandler sslHandler = (SslHandler) this.clientCtx().pipeline().get(SslHandler.class.getName());
+        return Optional.ofNullable(sslHandler)
+                .map(SslHandler::engine)
+                .map(SSLEngine::getSession)
+                .orElse(null);
+    }
+
     KafkaProxyFrontendHandler(
                               NetFilter netFilter,
                               SaslDecodePredicate dp,
@@ -159,6 +180,11 @@ public class KafkaProxyFrontendHandler
             }
             else {
                 throw new IllegalStateException("SNI failed", sniCompletionEvent.cause());
+            }
+        }
+        if (event instanceof SslHandshakeCompletionEvent sslHandshakeCompletionEvent) {
+            if (sslHandshakeCompletionEvent.isSuccess()) {
+                this.clientSubjectManager.subjectFromTransport(sslSession());
             }
         }
         else if (event instanceof AuthenticationEvent authenticationEvent) {
@@ -248,6 +274,7 @@ public class KafkaProxyFrontendHandler
         clientChannel.config().setAutoRead(false);
         // TODO why doesn't the initializer set autoread to false so we don't have to set it here?
         clientChannel.read();
+        this.clientSubjectManager = new ClientSubjectManager();
     }
 
     /**
@@ -622,8 +649,9 @@ public class KafkaProxyFrontendHandler
                                       List<FilterAndInvoker> filters,
                                       ChannelPipeline pipeline,
                                       Channel inboundChannel) {
+
         int num = 0;
-        var clientSaslManager = new ClientSaslManager();
+
         for (var protocolFilter : filters) {
             // TODO configurable timeout
             // Handler name must be unique, but filters are allowed to appear multiple times
@@ -636,8 +664,8 @@ public class KafkaProxyFrontendHandler
                             sniHostname,
                             virtualClusterModel,
                             inboundChannel,
-                            clientSaslManager,
-                            proxyChannelStateMachine));
+                            proxyChannelStateMachine,
+                            clientSubjectManager));
         }
     }
 
