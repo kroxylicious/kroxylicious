@@ -1,0 +1,57 @@
+:_mod-docs-content-type: PROCEDURE
+
+// file included in the following:
+//
+// con-azure-key-vault-setup.adoc
+
+[id='proc-azure-key-vault-setup-microsoft-entra-managed-identity-{context}']
+= Authenticating with Managed Identities for Azure resources
+
+[role="_abstract"]
+This procedure describes how to use a System-assigned Managed Identity (on the Azure resource where Kroxylicious is deployed) to allow the Record Encryption filter to authenticate to Azure Key Vault. The process uses the Azure CLI to enable the identity on the hosting resource and grant it the required Azure Role-Based Access Control (RBAC) role.
+
+NOTE: A Managed Identity is a kind of Service Principal that is automatically managed by Azure, and doesn't require credentials to use. Once created, the process for assigning RBAC roles is largely the same.
+
+.Prerequisites
+
+* Access to the Azure CLI
+* A user with sufficient permissions to manage the hosting resource and assign RBAC roles.
+* The Azure resource (VM, Azure Kubernetes Service, etc.) intended to host Kroxylicious must already exist.
+
+.Procedure
+
+. Enable the system-assigned managed identity on the hosting resource:
++
+[source,shell]
+----
+HOST_RESOURCE_NAME="kroxylicious-host" # <1>
+HOST_RESOURCE_GROUP="my-resource-group"
+az <RESOURCE_TYPE> identity assign --name ${HOST_RESOURCE_NAME} --resource-group ${HOST_RESOURCE_GROUP} #<2>
+----
+<1> The name of the Azure resource hosting Kroxylicious.
+<2> The command used here depends on the hosting resource type. Replace `<RESOURCE_TYPE>` with the appropriate subcommand for your resource type (e.g., `vm`, `containerapp`, `aks`, etc.)
+
+. Assign the built-in Azure Key Vault RBAC role to the managed identity:
++
+[source,shell]
+----
+HOST_RESOURCE_NAME="kroxylicious-host"
+KEY_VAULT_NAME="kroxylicious-key-vault"
+RESOURCE_GROUP="my-resource-group" # <1>
+SCOPE_ID=$(az keyvault show --name ${KEY_VAULT_NAME} --resource-group ${RESOURCE_GROUP} --query "id" --output tsv)
+az role assignment create --assignee ${HOST_RESOURCE_NAME} --role "Key Vault Crypto Service Encryption User" --scope ${SCOPE_ID}
+----
+<1> This value should be the name of the resource group in which your key vault is deployed, which may not necessarily be the same resource group as the Kroxylicious host resource.
++
+These commands assign the built-in Key Vault Crypto Service Encryption User role to the Managed Identity, using the target Key Vault as the scope. Replace `HOST_RESOURCE_NAME`, `KEY_VAULT_NAME`, and `RESOURCE_GROUP` with your actual values.
++
+NOTE: If you aren't using the built-in RBAC roles, you will need to manually assign the following privileges to the managed identity: `Microsoft.KeyVault/vaults/keys/read`, `Microsoft.KeyVault/vaults/keys/wrap/action`, and `Microsoft.KeyVault/vaults/keys/unwrap/action`. If using Managed HSM, the identity also requires `Microsoft.KeyVault/managedhsms/rng/action`.
+
+. Verification: Confirm the role has been successfully assigned.
++
+[source,shell]
+----
+az role assignment list --assignee "kroxylicious-host" --query '[].{Role:roleDefinitionName, Scope:scope}' --output tsv
+----
++
+The output should list the role as Key Vault Crypto Service Encryption User and the scope as the full resource ID of your Key Vault.
