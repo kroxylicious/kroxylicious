@@ -11,11 +11,15 @@ import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.fabric8.kubernetes.api.model.SecretBuilder;
+
+import io.kroxylicious.systemtests.Constants;
+import io.kroxylicious.systemtests.k8s.exception.KubeClusterException;
 
 /**
  * The type Kroxylicious secret templates.
@@ -55,5 +59,33 @@ public class KroxyliciousSecretTemplates {
             }
         }
         return null;
+    }
+
+    /**
+     * Create certificate secret builder.
+     *
+     * @param secretName the secret name
+     * @param namespace the namespace
+     * @param certificateName the certificate name
+     * @param certificatePath the certificate path
+     * @return  the secret builder
+     */
+    public static SecretBuilder createCertificateSecret(String secretName, String namespace, String certificateName, String certificatePath, String password) {
+        String encoded;
+        try {
+            encoded = Base64.getEncoder().encodeToString(Files.readAllBytes(Path.of(certificatePath)));
+        }
+        catch (IOException e) {
+            throw new KubeClusterException(e);
+        }
+        // @formatter:off
+        return new SecretBuilder()
+                .withKind(Constants.SECRET)
+                .withNewMetadata()
+                    .withName(secretName)
+                    .withNamespace(namespace)
+                .endMetadata()
+                .withData(Map.of(certificateName, encoded, "password", password));
+        // @formatter:on
     }
 }

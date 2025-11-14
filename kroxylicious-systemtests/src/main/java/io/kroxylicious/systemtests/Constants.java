@@ -49,11 +49,6 @@ public final class Constants {
     public static final String KAFKA_API_VERSION_V1BETA2 = "kafka.strimzi.io/v1beta2";
 
     /**
-     * Load balancer type name.
-     */
-    public static final String LOAD_BALANCER_TYPE = "LoadBalancer";
-
-    /**
      * Listener names for Kafka cluster
      */
     public static final String PLAIN_LISTENER_NAME = "plain";
@@ -111,12 +106,18 @@ public final class Constants {
     public static final String KROXYLICIOUS_KAFKA_PROXY_INGRESS_KIND = "KafkaProxyIngress";
     public static final String KROXYLICIOUS_KAFKA_SERVICE_KIND = "KafkaService";
     public static final String KROXYLICIOUS_VIRTUAL_KAFKA_CLUSTER_KIND = "VirtualKafkaCluster";
+    /**
+     * Service type names.
+     */
+    public static final String LOAD_BALANCER_TYPE = "LoadBalancer";
+    public static final String NODE_PORT_TYPE = "NodePort";
+    public static final String CLUSTER_IP_TYPE = "ClusterIP";
 
     /**
      * Test clients image url
      */
     public static final String KCAT_CLIENT_IMAGE = "quay.io/kroxylicious/kcat:1.7.1";
-    public static final String PYTHON_CLIENT_IMAGE = "quay.io/kroxylicious/python-kafka-test-client:0.1.1-2.11.1";
+    public static final String PYTHON_CLIENT_IMAGE = "quay.io/kroxylicious/python-kafka-test-client:0.1.1-2.12.1";
     public static final String KAF_CLIENT_IMAGE = "quay.io/kroxylicious/kaf:v0.2.13";
 
     /**
@@ -134,7 +135,7 @@ public final class Constants {
     /**
      * Restart policies
      */
-    public static final String RESTART_POLICY_ONFAILURE = "OnFailure";
+    public static final String RESTART_POLICY_ON_FAILURE = "OnFailure";
     public static final String RESTART_POLICY_NEVER = "Never";
 
     /**
@@ -160,4 +161,15 @@ public final class Constants {
      */
     public static final String ARCHITECTURE_X86 = "x86_64";
     public static final String ARCHITECTURE_AMD64 = "amd64";
+
+    /**
+     * Certificates names
+     */
+    public static final String KEYSTORE_SECRET_NAME = "keystore";
+    public static final String TRUSTSTORE_SECRET_NAME = "truststore";
+    public static final String KEYSTORE_FILE_NAME = KEYSTORE_SECRET_NAME + ".jks";
+    public static final String TRUSTSTORE_FILE_NAME = TRUSTSTORE_SECRET_NAME + ".jks";
+    public static final String CREDENTIALS_TEMP_DIR = "/opt/kroxylicious/secure/secret/";
+    public static final String KEYSTORE_TEMP_DIR = CREDENTIALS_TEMP_DIR + KEYSTORE_SECRET_NAME + "/";
+    public static final String TRUSTSTORE_TEMP_DIR = CREDENTIALS_TEMP_DIR + TRUSTSTORE_SECRET_NAME + "/";
 }
