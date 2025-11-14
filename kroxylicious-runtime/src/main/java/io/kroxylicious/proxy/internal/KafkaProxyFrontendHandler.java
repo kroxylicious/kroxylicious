@@ -12,6 +12,10 @@ import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLSession;
 
 import org.apache.kafka.common.message.ApiVersionsRequestData;
 import org.apache.kafka.common.message.ApiVersionsResponseData;
@@ -36,7 +40,9 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SniCompletionEvent;
 import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 
+import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.NetFilter;
 import io.kroxylicious.proxy.frame.DecodedRequestFrame;
@@ -81,6 +87,7 @@ public class KafkaProxyFrontendHandler
     private final NetFilter netFilter;
     private final SaslDecodePredicate dp;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
+    private final TransportSubjectBuilder subjectBuilder;
 
     private @Nullable ChannelHandlerContext clientCtx;
     @VisibleForTesting
@@ -107,13 +114,31 @@ public class KafkaProxyFrontendHandler
         }
     }
 
+    private @Nullable ClientSubjectManager clientSubjectManager;
+
+    /**
+     * @return the SSL session, or null if a session does not (currently) exist.
+     */
+    @Nullable
+    SSLSession sslSession() {
+        // The SslHandler is added to the pipeline by the SniHandler (replacing it) after the ClientHello.
+        // It is added using the fully-qualified class name.
+        SslHandler sslHandler = (SslHandler) this.clientCtx().pipeline().get(SslHandler.class.getName());
+        return Optional.ofNullable(sslHandler)
+                .map(SslHandler::engine)
+                .map(SSLEngine::getSession)
+                .orElse(null);
+    }
+
     KafkaProxyFrontendHandler(
                               NetFilter netFilter,
                               SaslDecodePredicate dp,
+                              TransportSubjectBuilder subjectBuilder,
                               EndpointBinding endpointBinding,
                               ProxyChannelStateMachine proxyChannelStateMachine) {
         this.netFilter = netFilter;
         this.dp = dp;
+        this.subjectBuilder = Objects.requireNonNull(subjectBuilder);
         this.endpointBinding = endpointBinding;
         this.virtualClusterModel = endpointBinding.endpointGateway().virtualCluster();
         this.proxyChannelStateMachine = proxyChannelStateMachine;
@@ -161,6 +186,10 @@ public class KafkaProxyFrontendHandler
                 throw new IllegalStateException("SNI failed", sniCompletionEvent.cause());
             }
         }
+        else if (event instanceof SslHandshakeCompletionEvent handshakeCompletionEvent
+                && handshakeCompletionEvent.isSuccess()) {
+            this.clientSubjectManager.subjectFromTransport(sslSession(), subjectBuilder);
+        }
         else if (event instanceof AuthenticationEvent authenticationEvent) {
             this.authentication = authenticationEvent;
         }
@@ -176,7 +205,7 @@ public class KafkaProxyFrontendHandler
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         this.clientCtx = ctx;
         this.proxyChannelStateMachine.onClientActive(this);
-        super.channelActive(this.clientCtx);
+
     }
 
     /**
@@ -244,10 +273,13 @@ public class KafkaProxyFrontendHandler
     void inClientActive() {
         Channel clientChannel = clientCtx().channel();
         LOGGER.trace("{}: channelActive", clientChannel.id());
-        // Initially the channel is not auto reading, so read the first batch of requests
+        // Initially the channel is not auto reading
         clientChannel.config().setAutoRead(false);
-        // TODO why doesn't the initializer set autoread to false so we don't have to set it here?
         clientChannel.read();
+        this.clientSubjectManager = new ClientSubjectManager();
+        if (!this.endpointBinding.endpointGateway().isUseTls()) {
+            this.clientSubjectManager.subjectFromTransport(null, this.subjectBuilder);
+        }
     }
 
     /**
@@ -622,8 +654,9 @@ public class KafkaProxyFrontendHandler
                                       List<FilterAndInvoker> filters,
                                       ChannelPipeline pipeline,
                                       Channel inboundChannel) {
+
         int num = 0;
-        var clientSaslManager = new ClientSaslManager();
+
         for (var protocolFilter : filters) {
             // TODO configurable timeout
             // Handler name must be unique, but filters are allowed to appear multiple times
@@ -636,8 +669,8 @@ public class KafkaProxyFrontendHandler
                             sniHostname,
                             virtualClusterModel,
                             inboundChannel,
-                            clientSaslManager,
-                            proxyChannelStateMachine));
+                            proxyChannelStateMachine,
+                            clientSubjectManager));
         }
     }
 

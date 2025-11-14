@@ -26,6 +26,8 @@ import org.apache.kafka.common.security.auth.AuthenticateCallbackHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -136,7 +138,7 @@ public class SaslPlainTerminationFilter
             try {
                 String authorizationId = saslServer.getAuthorizationID();
                 LOGGER.debug("{}: Authentication successful, authorizationId={}", context.channelDescriptor(), authorizationId);
-                context.clientSaslAuthenticationSuccess(saslServer.getMechanismName(), authorizationId);
+                context.clientSaslAuthenticationSuccess(saslServer.getMechanismName(), new Subject(new User(authorizationId)));
             }
             finally {
                 saslServer.dispose();

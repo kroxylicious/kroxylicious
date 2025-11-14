@@ -1,0 +1,69 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "LIST_OFFSETS"
+  apiVersion: 1
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "LIST_OFFSETS"
+      expectedRequestVersion: 1
+      expectedRequestHeader:
+        requestApiKey: 2
+        requestApiVersion: 1
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        replicaId: 440
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 1002
+                timestamp: 410
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 22
+                errorCode: 947
+                timestamp: 202
+                offset: 863
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 2
+    requestApiVersion: 1
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    replicaId: 440
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 1002
+            timestamp: 410
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 22
+            errorCode: 947
+            timestamp: 202
+            offset: 863

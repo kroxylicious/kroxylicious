@@ -5,17 +5,13 @@
  */
 package io.kroxylicious.proxy.internal;
 
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.TimeUnit;
-
-import javax.net.ssl.SSLPeerUnverifiedException;
-import javax.net.ssl.SSLSession;
 
 import org.apache.kafka.common.Uuid;
 import org.apache.kafka.common.message.ProduceRequestData;
@@ -33,9 +29,10 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
-import io.netty.handler.ssl.SslHandler;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterAndInvoker;
 import io.kroxylicious.proxy.filter.FilterContext;
@@ -56,7 +53,6 @@ import io.kroxylicious.proxy.internal.filter.ResponseFilterResultBuilderImpl;
 import io.kroxylicious.proxy.internal.util.Assertions;
 import io.kroxylicious.proxy.internal.util.ByteBufOutputStream;
 import io.kroxylicious.proxy.model.VirtualClusterModel;
-import io.kroxylicious.proxy.tag.VisibleForTesting;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -73,8 +69,8 @@ public class FilterHandler extends ChannelDuplexHandler {
     private final VirtualClusterModel virtualClusterModel;
     private final Channel inboundChannel;
     private final FilterAndInvoker filterAndInvoker;
-    private final ClientSaslManager clientSaslManager;
     private final ProxyChannelStateMachine proxyChannelStateMachine;
+    private final ClientSubjectManager clientSubjectManager;
     private CompletableFuture<Void> writeFuture = CompletableFuture.completedFuture(null);
     private CompletableFuture<Void> readFuture = CompletableFuture.completedFuture(null);
     private @Nullable ChannelHandlerContext ctx;
@@ -85,15 +81,15 @@ public class FilterHandler extends ChannelDuplexHandler {
                          @Nullable String sniHostname,
                          VirtualClusterModel virtualClusterModel,
                          Channel inboundChannel,
-                         ClientSaslManager clientSaslManager,
-                         ProxyChannelStateMachine proxyChannelStateMachine) {
+                         ProxyChannelStateMachine proxyChannelStateMachine,
+                         ClientSubjectManager clientSubjectManager) {
         this.filterAndInvoker = Objects.requireNonNull(filterAndInvoker);
         this.timeoutMs = Assertions.requireStrictlyPositive(timeoutMs, "timeout");
         this.sniHostname = sniHostname;
         this.virtualClusterModel = virtualClusterModel;
         this.inboundChannel = inboundChannel;
-        this.clientSaslManager = clientSaslManager;
         this.proxyChannelStateMachine = proxyChannelStateMachine;
+        this.clientSubjectManager = clientSubjectManager;
     }
 
     @Override
@@ -475,6 +471,11 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         private final DecodedFrame<?, ?> decodedFrame;
 
+        @Override
+        public Subject authenticatedSubject() {
+            return clientSubjectManager.authenticatedSubject();
+        }
+
         InternalFilterContext(DecodedFrame<?, ?> decodedFrame) {
             this.decodedFrame = decodedFrame;
         }
@@ -508,22 +509,26 @@ public class FilterHandler extends ChannelDuplexHandler {
 
         @Override
         public Optional<ClientTlsContext> clientTlsContext() {
-            return Optional.ofNullable(inboundChannel.pipeline().get(SslHandler.class))
-                    .map(clientFacingSslHandler -> new ClientTlsContextImpl(
-                            Objects.requireNonNull(localTlsCertificate(clientFacingSslHandler)), getPeerTlsCertificate(clientFacingSslHandler)));
+            return clientSubjectManager.clientTlsContext();
         }
 
         @Override
         public void clientSaslAuthenticationSuccess(String mechanism,
                                                     String authorizedId) {
-            LOGGER.atInfo().setMessage("{}: Filter '{}' announces client has passed SASL authentication using mechanism '{}' and authorizationId '{}'.")
-                    .addArgument(sessionId())
+            clientSaslAuthenticationSuccess(mechanism, new Subject(Set.of(new User(authorizedId))));
+        }
+
+        @Override
+        public void clientSaslAuthenticationSuccess(String mechanism,
+                                                    Subject subject) {
+            LOGGER.atInfo().setMessage("{}: Filter '{}' announces client has passed SASL authentication using mechanism '{}' and subject '{}'.")
+                    .addArgument(channelDescriptor())
                     .addArgument(filterDescriptor())
                     .addArgument(mechanism)
-                    .addArgument(authorizedId)
+                    .addArgument(subject)
                     .log();
             // dispatch principal injection
-            clientSaslManager.clientSaslAuthenticationSuccess(mechanism, authorizedId);
+            clientSubjectManager.clientSaslAuthenticationSuccess(mechanism, subject);
         }
 
         @Override
@@ -540,13 +545,12 @@ public class FilterHandler extends ChannelDuplexHandler {
                     .addArgument(authorizedId)
                     .addArgument(exception.toString())
                     .log();
-            clientSaslManager.clientSaslAuthenticationFailure();
-
+            clientSubjectManager.clientSaslAuthenticationFailure();
         }
 
         @Override
         public Optional<ClientSaslContext> clientSaslContext() {
-            return FilterHandler.this.clientSaslManager.clientSaslContext();
+            return clientSubjectManager.clientSaslContext();
         }
 
         @Override
@@ -621,47 +625,6 @@ public class FilterHandler extends ChannelDuplexHandler {
             return new TopicNameRetriever(this).topicNames(topicIds);
         }
 
-    }
-
-    @VisibleForTesting
-    static @Nullable X509Certificate getPeerTlsCertificate(@Nullable SslHandler sslHandler) {
-        if (sslHandler != null) {
-            SSLSession session = sslHandler.engine().getSession();
-
-            Certificate[] peerCertificates;
-            try {
-                peerCertificates = session.getPeerCertificates();
-            }
-            catch (SSLPeerUnverifiedException e) {
-                peerCertificates = null;
-            }
-            if (peerCertificates != null && peerCertificates.length > 0) {
-                return Objects.requireNonNull((X509Certificate) peerCertificates[0]);
-            }
-            else {
-                return null;
-            }
-        }
-        else {
-            return null;
-        }
-    }
-
-    @VisibleForTesting
-    static @Nullable X509Certificate localTlsCertificate(@Nullable SslHandler sslHandler) {
-        if (sslHandler != null) {
-            SSLSession session = sslHandler.engine().getSession();
-            Certificate[] localCertificates = session.getLocalCertificates();
-            if (localCertificates != null && localCertificates.length > 0) {
-                return Objects.requireNonNull((X509Certificate) localCertificates[0]);
-            }
-            else {
-                return null;
-            }
-        }
-        else {
-            return null;
-        }
     }
 
 }

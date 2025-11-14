@@ -1,0 +1,79 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "ADD_PARTITIONS_TO_TXN"
+  apiVersion: 5
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "ADD_PARTITIONS_TO_TXN"
+      expectedRequestVersion: 5
+      expectedRequestHeader:
+        requestApiKey: 24
+        requestApiVersion: 5
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactions:
+          - transactionalId: "random-string-937"
+            producerId: 975
+            producerEpoch: 401
+            verifyOnly: true
+            topics:
+              - name: "random-string-166"
+                partitions:
+                  - 263
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 714
+        errorCode: 715
+        resultsByTransaction:
+          - transactionalId: "random-string-155"
+            topicResults:
+              - name: "random-string-743"
+                resultsByPartition:
+                  - partitionIndex: 620
+                    partitionErrorCode: 932
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "DESCRIBE"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 24
+    requestApiVersion: 5
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactions:
+      - transactionalId: "random-string-937"
+        producerId: 975
+        producerEpoch: 401
+        verifyOnly: true
+        topics:
+          - name: "random-string-166"
+            partitions:
+              - 263
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 714
+    errorCode: 715
+    resultsByTransaction:
+      - transactionalId: "random-string-155"
+        topicResults:
+          - name: "random-string-743"
+            resultsByPartition:
+              - partitionIndex: 620
+                partitionErrorCode: 932

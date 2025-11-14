@@ -36,6 +36,8 @@ import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.RequestFilterResultBuilder;
@@ -484,7 +486,7 @@ class SaslInspectionFilterTest {
         doAuthenticateSuccessfully(observerFactory, initialResponse, challengeResponses);
 
         // Then
-        verify(context).clientSaslAuthenticationSuccess(observerFactory.mechanismName(), expectedAuthorizedId);
+        verify(context).clientSaslAuthenticationSuccess(observerFactory.mechanismName(), new Subject(new User(expectedAuthorizedId)));
         verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
 
     }
@@ -499,7 +501,7 @@ class SaslInspectionFilterTest {
                         List.of(new ChallengeResponse(new byte[0], null)),
                         (Consumer<FilterContext>) context -> {
                             verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
-                            verify(context, times(2)).clientSaslAuthenticationSuccess("PLAIN", "tim");
+                            verify(context, times(2)).clientSaslAuthenticationSuccess("PLAIN", new Subject(new User("tim")));
                         }),
                 Arguments.argumentSet("reauth changes of authzid",
                         new PlainSaslObserverFactory(),
@@ -509,8 +511,8 @@ class SaslInspectionFilterTest {
                         List.of(new ChallengeResponse(new byte[0], null)),
                         (Consumer<FilterContext>) context -> {
                             verify(context, never()).clientSaslAuthenticationFailure(anyString(), anyString(), nullable(Exception.class));
-                            verify(context).clientSaslAuthenticationSuccess("PLAIN", "tim");
-                            verify(context).clientSaslAuthenticationSuccess("PLAIN", "timmy");
+                            verify(context).clientSaslAuthenticationSuccess("PLAIN", new Subject(new User("tim")));
+                            verify(context).clientSaslAuthenticationSuccess("PLAIN", new Subject(new User("timmy")));
                         }));
     }
 

@@ -1,0 +1,75 @@
+#
+# Copyright Kroxylicious Authors.
+#
+# Licensed under the Apache Software License version 2.0, available at http://www.apache.org/licenses/LICENSE-2.0
+#
+
+---
+metadata:
+  apiKeys: "TXN_OFFSET_COMMIT"
+  apiVersion: 0
+  scenario: "baseline"
+given:
+  mockedUpstreamResponses:
+    - expectedRequestKey: "TXN_OFFSET_COMMIT"
+      expectedRequestVersion: 0
+      expectedRequestHeader:
+        requestApiKey: 28
+        requestApiVersion: 0
+        correlationId: 1
+        clientId: "clientId"
+      expectedRequest:
+        transactionalId: "random-string-4"
+        groupId: "random-string-895"
+        producerId: 525
+        producerEpoch: 828
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 815
+                committedOffset: 978
+                committedMetadata: "random-string-946"
+      upstreamResponseHeader:
+        correlationId: 1
+      upstreamResponse:
+        throttleTimeMs: 385
+        topics:
+          - name: "my-topic"
+            partitions:
+              - partitionIndex: 464
+                errorCode: 558
+  authorizerRules:
+    allowed:
+      - subject: "alice"
+        resourceName: "my-topic"
+        resourceClass: "TOPIC"
+        resourceType: "READ"
+  topicNames: null
+when:
+  subject: "alice"
+  requestHeader:
+    requestApiKey: 28
+    requestApiVersion: 0
+    correlationId: 1
+    clientId: "clientId"
+  request:
+    transactionalId: "random-string-4"
+    groupId: "random-string-895"
+    producerId: 525
+    producerEpoch: 828
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 815
+            committedOffset: 978
+            committedMetadata: "random-string-946"
+then:
+  expectedResponseHeader:
+    correlationId: 1
+  expectedResponse:
+    throttleTimeMs: 385
+    topics:
+      - name: "my-topic"
+        partitions:
+          - partitionIndex: 464
+            errorCode: 558
