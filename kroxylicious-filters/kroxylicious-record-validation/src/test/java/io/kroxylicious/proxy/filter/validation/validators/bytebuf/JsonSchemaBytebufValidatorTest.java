@@ -21,8 +21,8 @@ import org.junit.jupiter.api.Test;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.client.WireMock;
 
-import io.apicurio.registry.serde.AbstractKafkaSerDe;
-import io.apicurio.registry.serde.SerdeHeaders;
+import io.apicurio.registry.serde.BaseSerde;
+import io.apicurio.registry.serde.headers.KafkaSerdeHeaders;
 
 import io.kroxylicious.proxy.filter.validation.validators.Result;
 
@@ -78,6 +78,12 @@ public class JsonSchemaBytebufValidatorTest {
         registryServer.start();
 
         registryServer.stubFor(
+                get(urlEqualTo("/apis/registry/v2/ids/globalIds/1"))
+                        .willReturn(WireMock.aResponse()
+                                .withHeader("Content-Type", "application/json")
+                                .withBody(JSON_SCHEMA)));
+
+        registryServer.stubFor(
                 get(urlEqualTo("/apis/registry/v2/ids/globalIds/1?dereference=false"))
                         .willReturn(WireMock.aResponse()
                                 .withHeader("Content-Type", "application/json")
@@ -89,7 +95,7 @@ public class JsonSchemaBytebufValidatorTest {
                                 .withHeader("Content-Type", "application/json")
                                 .withBody("[]")));
 
-        apicurioConfig = Map.of("apicurio.registry.url", registryServer.baseUrl());
+        apicurioConfig = Map.of("apicurio.registry.url", registryServer.baseUrl() + "/apis/registry/v2");
     }
 
     @AfterAll
@@ -131,7 +137,7 @@ public class JsonSchemaBytebufValidatorTest {
 
     @Test
     void valueWithCorrectSchemaIdInHeaderPassesValidation() {
-        Header[] headers = new Header[]{ new RecordHeader(SerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(GLOBAL_ID)) };
+        Header[] headers = new Header[]{ new RecordHeader(KafkaSerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(GLOBAL_ID)) };
         Record record = record(RECORD_KEY, VALID_JSON, headers);
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
@@ -153,7 +159,7 @@ public class JsonSchemaBytebufValidatorTest {
 
     @Test
     void valueWithWrongSchemaIdInHeaderRejected() {
-        Header[] headers = new Header[]{ new RecordHeader(SerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(GLOBAL_ID + 1)) };
+        Header[] headers = new Header[]{ new RecordHeader(KafkaSerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(GLOBAL_ID + 1)) };
         Record record = record(RECORD_KEY, VALID_JSON, headers);
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.value(), record, false);
@@ -175,7 +181,7 @@ public class JsonSchemaBytebufValidatorTest {
 
     @Test
     void keyWithCorrectSchemaIdInHeaderPassesValidation() {
-        Header[] headers = new Header[]{ new RecordHeader(SerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(GLOBAL_ID)) };
+        Header[] headers = new Header[]{ new RecordHeader(KafkaSerdeHeaders.HEADER_VALUE_GLOBAL_ID, toByteArray(GLOBAL_ID)) };
         Record record = record(VALID_JSON, null, headers);
         BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
         var future = validator.validate(record.key(), record, true);
@@ -195,6 +201,60 @@ public class JsonSchemaBytebufValidatorTest {
                 .isEqualTo(new Result(false, "Unexpected schema id in record (2), expecting 1"));
     }
 
+    @Test
+    void schemaNotFoundReturnsError() {
+        // Configure validator with a global ID that doesn't exist in the mock registry
+        long nonExistentGlobalId = 999L;
+        registryServer.stubFor(
+                get(urlEqualTo("/apis/registry/v2/ids/globalIds/999"))
+                        .willReturn(WireMock.aResponse()
+                                .withStatus(404)
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("{\"message\":\"No artifact with ID '999' was found.\",\"error_code\":404}")));
+
+        registryServer.stubFor(
+                get(urlEqualTo("/apis/registry/v2/ids/globalIds/999?dereference=false"))
+                        .willReturn(WireMock.aResponse()
+                                .withStatus(404)
+                                .withHeader("Content-Type", "application/json")
+                                .withBody("{\"message\":\"No artifact with ID '999' was found.\",\"error_code\":404}")));
+
+        Record record = record(RECORD_KEY, VALID_JSON);
+        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, nonExistentGlobalId);
+        var future = validator.validate(record.value(), record, false);
+
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(false, Result::valid);
+    }
+
+    @Test
+    void bufferTooSmallForSchemaIdHandledGracefully() {
+        // Create a buffer that's too small to contain a schema ID (less than 1 + 8 bytes)
+        byte[] tinyBuffer = new byte[]{ BaseSerde.MAGIC_BYTE, 0x01 }; // Only 2 bytes
+        Record record = record(RECORD_KEY, tinyBuffer);
+        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
+        var future = validator.validate(record.value(), record, false);
+
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(false, Result::valid);
+    }
+
+    @Test
+    void bufferWithoutMagicByteHandledGracefully() {
+        // Create a buffer without the magic byte prefix
+        byte[] bufferWithoutMagic = new byte[20]; // Large enough but no magic byte
+        bufferWithoutMagic[0] = 0x00; // Not the magic byte
+        Record record = record(RECORD_KEY, bufferWithoutMagic);
+        BytebufValidator validator = BytebufValidators.jsonSchemaValidator(apicurioConfig, GLOBAL_ID);
+        var future = validator.validate(record.value(), record, false);
+
+        assertThat(future)
+                .succeedsWithin(Duration.ofSeconds(1))
+                .returns(false, Result::valid);
+    }
+
     private byte[] toByteArray(long globalId) {
         var buf = ByteBuffer.allocate(Long.BYTES);
         buf.putLong(globalId);
@@ -203,7 +263,7 @@ public class JsonSchemaBytebufValidatorTest {
 
     private byte[] asSchemaIdPrefixBuf(long globalId, byte[] content) {
         ByteBuffer buf = ByteBuffer.allocate(1 /* magic */ + Long.BYTES /* global id */ + content.length);
-        buf.put(AbstractKafkaSerDe.MAGIC_BYTE);
+        buf.put(BaseSerde.MAGIC_BYTE);
         buf.putLong(globalId);
         buf.put(content);
 
