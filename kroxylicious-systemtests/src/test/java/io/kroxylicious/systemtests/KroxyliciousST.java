@@ -9,9 +9,12 @@ package io.kroxylicious.systemtests;
 import java.time.Duration;
 import java.util.List;
 
+import org.apache.kafka.common.record.CompressionType;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,16 +49,18 @@ class KroxyliciousST extends AbstractST {
      * Produce and consume message.
      *
      * @param namespace the namespace
+     * @param compressionType the compression type
      */
-    @Test
-    void produceAndConsumeMessages(String namespace) {
+    @ParameterizedTest
+    @EnumSource(CompressionType.class)
+    void produceAndConsumeCompressedMessages(CompressionType compressionType, String namespace) {
         // start Kroxylicious
         LOGGER.atInfo().setMessage("Given Kroxylicious in {} namespace with {} replicas").addArgument(namespace).addArgument(1).log();
         kroxylicious = new Kroxylicious(namespace);
         kroxylicious.deployPortIdentifiesNodeWithNoFilters(clusterName);
         String bootstrap = kroxylicious.getBootstrap(clusterName);
 
-        produceAndConsumeMessage(namespace, bootstrap);
+        produceAndConsumeMessage(namespace, bootstrap, compressionType);
     }
 
     /**
@@ -94,21 +99,25 @@ class KroxyliciousST extends AbstractST {
         bootstrap = kroxylicious2.getBootstrap(clusterName);
         assertThat(bootstrap).withFailMessage("bootstrap " + bootstrap + " does not contain the corresponding namespace " + newNamespace)
                 .contains(newNamespace);
-        produceAndConsumeMessage(newNamespace, bootstrap, randomTopicName());
+        produceAndConsumeMessage(newNamespace, bootstrap, randomTopicName(), CompressionType.NONE);
     }
 
     private void produceAndConsumeMessage(String namespace, String bootstrap) {
-        produceAndConsumeMessage(namespace, bootstrap, topicName);
+        produceAndConsumeMessage(namespace, bootstrap, topicName, CompressionType.NONE);
     }
 
-    private void produceAndConsumeMessage(String namespace, String bootstrap, String topicName) {
+    private void produceAndConsumeMessage(String namespace, String bootstrap, CompressionType compressionType) {
+        produceAndConsumeMessage(namespace, bootstrap, topicName, compressionType);
+    }
+
+    private void produceAndConsumeMessage(String namespace, String bootstrap, String topicName, CompressionType compressionType) {
         int numberOfMessages = 1;
 
         LOGGER.atInfo().setMessage("And a kafka Topic named {}").addArgument(topicName).log();
-        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1);
+        KafkaSteps.createTopic(namespace, topicName, bootstrap, 1, 1, compressionType);
 
         LOGGER.atInfo().setMessage("When {} messages '{}' are sent to the topic '{}'").addArgument(numberOfMessages).addArgument(MESSAGE).addArgument(topicName).log();
-        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, numberOfMessages);
+        KroxyliciousSteps.produceMessages(namespace, topicName, bootstrap, MESSAGE, compressionType, numberOfMessages);
 
         LOGGER.atInfo().setMessage("Then the messages are consumed").log();
         List<ConsumerRecord> result = KroxyliciousSteps.consumeMessages(namespace, topicName, bootstrap, numberOfMessages, Duration.ofMinutes(2));

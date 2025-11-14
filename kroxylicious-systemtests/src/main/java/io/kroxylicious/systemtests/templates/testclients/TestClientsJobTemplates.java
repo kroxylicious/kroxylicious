@@ -11,6 +11,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.common.record.CompressionType;
+
 import io.fabric8.kubernetes.api.model.EnvVar;
 import io.fabric8.kubernetes.api.model.EnvVarBuilder;
 import io.fabric8.kubernetes.api.model.LocalObjectReference;
@@ -21,6 +24,7 @@ import io.kroxylicious.systemtests.Constants;
 import io.kroxylicious.systemtests.Environment;
 import io.kroxylicious.systemtests.templates.ContainerTemplates;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 /**
@@ -38,6 +42,7 @@ public class TestClientsJobTemplates {
     private static final String PRODUCER_ACKS_VAR = "PRODUCER_ACKS";
     private static final String DELAY_MS_VAR = "DELAY_MS";
     private static final String OUTPUT_FORMAT_VAR = "OUTPUT_FORMAT";
+    private static final String ADDITIONAL_CONFIG_VAR = "ADDITIONAL_CONFIG";
 
     private TestClientsJobTemplates() {
     }
@@ -106,15 +111,16 @@ public class TestClientsJobTemplates {
      * @param topicName the topic name
      * @param numOfMessages the num of messages
      * @param message the message
-     * @param messageKey
-     * @return the job builder
+     * @param messageKey the message key
+     * @param compressionType the compression type
+     * @return  the job builder
      */
     public static JobBuilder defaultTestClientProducerJob(String jobName, String bootstrap, String topicName, int numOfMessages, String message,
-                                                          @Nullable String messageKey) {
+                                                          @Nullable String messageKey, @NonNull CompressionType compressionType) {
         return newJobForContainer(jobName,
                 "test-client-producer",
                 Environment.TEST_CLIENTS_IMAGE,
-                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey));
+                testClientsProducerEnvVars(bootstrap, topicName, numOfMessages, message, messageKey, compressionType));
     }
 
     private static JobBuilder newJobForContainer(String jobName, String containerName, String image, List<EnvVar> envVars) {
@@ -219,7 +225,8 @@ public class TestClientsJobTemplates {
                 .build();
     }
 
-    private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message, @Nullable String messageKey) {
+    private static List<EnvVar> testClientsProducerEnvVars(String bootstrap, String topicName, int numOfMessages, String message,
+                                                           @Nullable String messageKey, @NonNull CompressionType compressionType) {
         List<EnvVar> envVars = new ArrayList<>(List.of(
                 envVar(BOOTSTRAP_VAR, bootstrap),
                 envVar(DELAY_MS_VAR, "200"),
@@ -232,6 +239,11 @@ public class TestClientsJobTemplates {
         if (messageKey != null) {
             envVars.add(envVar(MESSAGE_KEY_VAR, messageKey));
         }
+        List<String> additionalConfig = new ArrayList<>();
+        if (!CompressionType.NONE.equals(compressionType)) {
+            additionalConfig.add(ProducerConfig.COMPRESSION_TYPE_CONFIG + "=" + compressionType.name);
+        }
+        envVars.add(envVar(ADDITIONAL_CONFIG_VAR, String.join("\n", additionalConfig)));
         return envVars;
     }
 
