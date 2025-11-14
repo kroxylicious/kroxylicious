@@ -78,6 +78,48 @@ allowEmpty: true                                                 # <3>
 <2> if `true`, the validator allows keys and or values to be `null`. The default is `false`.
 <3> if `true`, the validator allows keys and or values to be empty. The default is `false`.
 
+.Example JWS Signature Validation Rule Definition
+
+The JWS Signature Validation rule validates that the configured Kafka record header contains a valid https://datatracker.ietf.org/doc/html/rfc7515[JSON Web Signature (JWS)] Signature.
+
+[source,yaml]
+----
+jwsSignatureValidationConfig:
+    jsonWebKeySet: |                                              # <1>
+      {
+        "keys": [
+          {
+            "kty": "RSA",
+            "kid": "RSA JWK",
+            "key_ops": [ "verify" ],
+            "alg": "RS256",
+            "n": "lx-5h_lkVJGc8-NxgKGkfxobBlM7DDCjqAloEieCf8c9KbPJ12V0Bm8arOX-lm0wRSLxmWzQ3NTM6S9pDbSc7fQt77THlMD1zEDMwIAJxfoMt3U_VrMHVdiOvO6YpU3jWBp7BfQNYHJjCSiaxIHqDPuDCh2GTflkU32Nfim7W3iLBuH4_K8ADYHz3QdeX29vzl49PDbUiiJEsjnEconsfuYjrFaN3uGn41mGzjedc7oxlcID8fDxq5bvZvOFBAIqdrxs5qPYw1QlVupB3LT0AMU1qKWOB_vkM1n54eDIxP9Xd__WnvX4wagYqA1OZ9LPBenhBX7_Rbnrap2QNQ58-Q",
+            "e": "AQAB"
+          },
+          {
+            "kty": "EC",
+            "kid": "ECDSA JWK",
+            "key_ops": [ "verify" ],
+            "alg": "ES256",
+            "x": "qqeGjWmYZU5M5bBrRw1zqZcbPunoFVxsfaa9JdA0R5I",
+            "y": "wnoj0YjheNP80XYh1SEvz1-wnKByEoHvb6KrDcjMuWc",
+            "crv": "P-256"
+          }
+        ]
+      }
+    algorithmConstraintType: PERMIT                               # <2>
+    algorithms:                                                   # <3>
+      - ES256
+      - RS256
+    jwsHeaderName: x-jws                                          # <4>
+    isContentDetached: true                                       # <5>
+----
+<1> Set of https://datatracker.ietf.org/doc/html/rfc7517[JSON Web Keys (JWK)] to use for verifying JWS Signatures.
+<2> `BLOCK` only / `PERMIT` only the specified algorithms. The default is `BLOCK`.
+<3> https://datatracker.ietf.org/doc/html/rfc7518#section-3.1[JSON Web Algorithms (JWA)] to `BLOCK` / `PERMIT`. The default is `[]`.
+<4> Name of the Kafka record header containing the JWS. The default is `jws`.
+<5> if `true`, the validator decodes the buffer into a UTF-8 string and uses that as the JWS Payload (see https://datatracker.ietf.org/doc/html/rfc7515#appendix-F[RFC 7515 Appendix F (Detached Content)]). The default is `false`.
+
 ifdef::include-platform-bare-metal[]
 include::../_modules/record-validation/con-example-proxy-config.adoc[leveloffset=+1]
 endif::[]
