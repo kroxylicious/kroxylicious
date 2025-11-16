@@ -28,7 +28,7 @@ class SubjectTest {
     }
 
     @Test
-    void uniquenessIsEnforced() { // but not eventually
+    void uniquenessIsEnforced() {
         Assertions.assertThatThrownBy(() -> new Subject(user1, user2))
                 .hasMessage("2 principals of class io.kroxylicious.proxy.authentication.User were found, "
                         + "but class io.kroxylicious.proxy.authentication.User is annotated with interface "
@@ -41,7 +41,7 @@ class SubjectTest {
     }
 
     @Test
-    void canExtractUniquePrincipals() { // but not eventually
+    void canExtractUniquePrincipals() {
         Subject subject = new Subject(user1, unique);
         Assertions.assertThat(subject.uniquePrincipalOfType(User.class)).hasValue(user1);
         Assertions.assertThat(subject.uniquePrincipalOfType(FakeUniquePrincipal.class)).hasValue(unique);
@@ -51,7 +51,7 @@ class SubjectTest {
     }
 
     @Test
-    void throwIaeWhenUsingNonUniqueClassWithUniqueExractor() { // but not eventually
+    void throwIaeWhenUsingNonUniqueClassWithUniqueExractor() {
         Subject subject = new Subject(user1, unique);
         Assertions.assertThatThrownBy(() -> subject.uniquePrincipalOfType(FakeMultiplePrincipal.class))
                 .isExactlyInstanceOf(IllegalArgumentException.class)
@@ -61,7 +61,7 @@ class SubjectTest {
     }
 
     @Test
-    void canExtractPrincipals() { // but not eventually
+    void canExtractPrincipals() {
         Subject subject = new Subject(user1, unique, foo, bar);
         Assertions.assertThat(subject.allPrincipalsOfType(User.class)).isEqualTo(Set.of(user1));
         Assertions.assertThat(subject.allPrincipalsOfType(FakeUniquePrincipal.class)).isEqualTo(Set.of(unique));

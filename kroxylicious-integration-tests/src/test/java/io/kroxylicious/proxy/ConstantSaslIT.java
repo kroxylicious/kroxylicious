@@ -101,8 +101,8 @@ class ConstantSaslIT {
 
     @Test
     void shouldHavePresentClientSaslContextWhenAuthWithAuthzIdSuccessful(
-                                                              KafkaCluster cluster,
-                                                              Topic topic) {
+                                                                         KafkaCluster cluster,
+                                                                         Topic topic) {
         String mechanism = "FOO";
         String authorizedId = "bob";
         Map<String, Object> filterConfig = Map.of("api", ApiKeys.PRODUCE,
@@ -113,8 +113,8 @@ class ConstantSaslIT {
 
     @Test
     void shouldHavePresentClientSaslContextWhenAuthWithSubjectSuccessful(
-            KafkaCluster cluster,
-            Topic topic) {
+                                                                         KafkaCluster cluster,
+                                                                         Topic topic) {
         String mechanism = "FOO";
         var principalType = User.class.getName();
         String principalName = "Bob";

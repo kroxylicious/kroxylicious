@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.testplugins;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 
@@ -45,7 +44,7 @@ public class ConstantSaslFilter implements RequestFilter {
                 if (config.principalType() == null) {
                     context.clientSaslAuthenticationSuccess(Objects.requireNonNull(config.mechanism()), Objects.requireNonNull(config.authorizedId()));
                 }
-                else  {
+                else {
                     try {
                         var principal = Class.forName(config.principalType())
                                 .asSubclass(Principal.class)
