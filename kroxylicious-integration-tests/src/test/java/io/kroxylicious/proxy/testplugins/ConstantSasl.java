@@ -10,6 +10,8 @@ import java.util.Objects;
 
 import org.apache.kafka.common.protocol.ApiKeys;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
@@ -34,12 +36,16 @@ public class ConstantSasl implements FilterFactory<Config, Config> {
                          ApiKeys api,
                          @Nullable String mechanism,
                          @Nullable String authorizedId,
+                         @Nullable String principalType,
+                         @Nullable String principalName,
                          @Nullable String exceptionClassName,
                          @Nullable String exceptionMessage) {
         public Config {
             if (exceptionClassName == null) {
                 Objects.requireNonNull(mechanism);
-                Objects.requireNonNull(authorizedId);
+                if (authorizedId == null && principalType == null) {
+                    throw new IllegalStateException();
+                }
             }
         }
 
