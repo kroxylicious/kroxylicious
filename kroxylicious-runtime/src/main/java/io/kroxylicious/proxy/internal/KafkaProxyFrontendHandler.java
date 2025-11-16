@@ -102,7 +102,8 @@ public class KafkaProxyFrontendHandler
     // once the outbound channel is active
     private boolean pendingReadComplete = true;
 
-    private boolean isClientBlocked = true;
+    private @Nullable ClientSubjectManager clientSubjectManager;
+    private int progressionLatch = -1;
 
     static {
         var objectMapper = new ObjectMapper();
@@ -113,8 +114,6 @@ public class KafkaProxyFrontendHandler
             throw new UncheckedIOException(e);
         }
     }
-
-    private @Nullable ClientSubjectManager clientSubjectManager;
 
     /**
      * @return the SSL session, or null if a session does not (currently) exist.
@@ -159,7 +158,7 @@ public class KafkaProxyFrontendHandler
                 + ", authentication=" + authentication
                 + ", sniHostname='" + sniHostname + '\''
                 + ", pendingReadComplete=" + pendingReadComplete
-                + ", isClientBlocked=" + isClientBlocked
+                + ", blocked=" + progressionLatch
                 + '}';
     }
 
@@ -188,7 +187,7 @@ public class KafkaProxyFrontendHandler
         }
         else if (event instanceof SslHandshakeCompletionEvent handshakeCompletionEvent
                 && handshakeCompletionEvent.isSuccess()) {
-            this.clientSubjectManager.subjectFromTransport(sslSession(), subjectBuilder);
+            this.clientSubjectManager.subjectFromTransport(sslSession(), subjectBuilder, this::onTransportSubjectBuilt);
         }
         else if (event instanceof AuthenticationEvent authenticationEvent) {
             this.authentication = authenticationEvent;
@@ -277,8 +276,23 @@ public class KafkaProxyFrontendHandler
         clientChannel.config().setAutoRead(false);
         clientChannel.read();
         this.clientSubjectManager = new ClientSubjectManager();
+        this.progressionLatch = 2;
         if (!this.endpointBinding.endpointGateway().isUseTls()) {
-            this.clientSubjectManager.subjectFromTransport(null, this.subjectBuilder);
+            this.clientSubjectManager.subjectFromTransport(null, this.subjectBuilder, this::onTransportSubjectBuilt);
+        }
+    }
+
+    private void onTransportSubjectBuilt() {
+        maybeUnblock();
+    }
+
+    private void onReadyToForwardMore() {
+        maybeUnblock();
+    }
+
+    private void maybeUnblock() {
+        if (--this.progressionLatch == 0) {
+            unblockClient();
         }
     }
 
@@ -583,10 +597,8 @@ public class KafkaProxyFrontendHandler
             channelReadComplete(Objects.requireNonNull(this.clientCtx));
         }
 
-        if (isClientBlocked) {
-            // once buffered message has been forwarded we enable auto-read to start accepting further messages
-            unblockClient();
-        }
+        // once buffered message has been forwarded we enable auto-read to start accepting further messages
+        onReadyToForwardMore();
     }
 
     /**
@@ -675,7 +687,6 @@ public class KafkaProxyFrontendHandler
     }
 
     private void unblockClient() {
-        isClientBlocked = false;
         var inboundChannel = clientCtx().channel();
         inboundChannel.config().setAutoRead(true);
         proxyChannelStateMachine.onClientWritable();
