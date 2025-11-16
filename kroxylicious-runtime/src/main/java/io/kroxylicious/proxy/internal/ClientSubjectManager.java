@@ -79,7 +79,9 @@ public class ClientSubjectManager implements
         this.subject = Subject.anonymous();
     }
 
-    public void subjectFromTransport(@Nullable SSLSession session, TransportSubjectBuilder transportSubjectBuilder) {
+    public void subjectFromTransport(@Nullable SSLSession session,
+                                     TransportSubjectBuilder transportSubjectBuilder,
+                                     Runnable whenDoneCallback) {
         this.clientCertificate = peerTlsCertificate(session);
         this.proxyCertificate = localTlsCertificate(session);
         transportSubjectBuilder.buildTransportSubject(this).whenComplete((newSubject, error) -> {
@@ -90,6 +92,7 @@ public class ClientSubjectManager implements
                 this.subject = Subject.anonymous();
             }
             this.mechanismName = null;
+            whenDoneCallback.run();
         });
     }
 

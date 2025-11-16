@@ -22,8 +22,12 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.SslConfigs;
 import org.apache.kafka.common.security.auth.SecurityProtocol;
 import org.assertj.core.api.InstanceOfAssertFactory;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.config.SubjectBuilderConfig;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.Tls;
@@ -45,27 +49,46 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 public class PluginTlsApiIT extends AbstractTlsIT {
 
-    @Test
-    void clientTlsContextPlainTcp(KafkaCluster cluster,
+    static List<Arguments> subjectBuilderServiceConfigs() {
+        return List.of(
+                Arguments.of(new Object[]{ null }),
+                Arguments.of(new MyTransportSubjectBuilderService.Config(0, true)),
+                Arguments.of(new MyTransportSubjectBuilderService.Config(100, true)),
+                Arguments.of(new MyTransportSubjectBuilderService.Config(0, false)),
+                Arguments.of(new MyTransportSubjectBuilderService.Config(100, false))
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("subjectBuilderServiceConfigs")
+    void clientTlsContextPlainTcp(
+            MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
+            KafkaCluster cluster,
                                   Topic topic) {
         assertClientTlsContext(
                 buildGatewayTls(TlsClientAuth.NONE, null),
+                subjectBuilderServiceConfig,
                 Map.of(
                         CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.PLAINTEXT.name),
                 cluster,
                 topic,
                 false,
+                Subject.anonymous().toString(),
                 null,
                 null);
     }
 
-    @Test
-    void clientTlsContextMutualTls(KafkaCluster cluster,
+    @ParameterizedTest
+    @MethodSource("subjectBuilderServiceConfigs")
+    void clientTlsContextMutualTls(
+            MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
+            KafkaCluster cluster,
                                    Topic topic) {
         var proxyKeystorePassword = downstreamCertificateGenerator.getPassword();
 
         assertClientTlsContext(
                 buildGatewayTls(TlsClientAuth.REQUIRED, proxyKeystorePassword),
+                subjectBuilderServiceConfig,
                 Map.of(
                         CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                         SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
@@ -75,17 +98,22 @@ public class PluginTlsApiIT extends AbstractTlsIT {
                 cluster,
                 topic,
                 true,
+                "Subject[principals=[User[name=CN=client, OU=Dev, O=kroxylicious.io, L=null, ST=null, C=US, emailAddress=clientTest@kroxylicious.io]]]",
                 "CN=client, OU=Dev, O=kroxylicious.io, L=null, ST=null, C=US, emailAddress=clientTest@kroxylicious.io",
                 "CN=localhost, OU=KI, O=kroxylicious.io, L=null, ST=null, C=US, emailAddress=test@kroxylicious.io");
     }
 
-    @Test
-    void clientTlsContextUnilateralTls(KafkaCluster cluster,
+    @ParameterizedTest
+    @MethodSource("subjectBuilderServiceConfigs")
+    void clientTlsContextUnilateralTls(
+            MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
+            KafkaCluster cluster,
                                        Topic topic) {
         var proxyKeystorePassword = downstreamCertificateGenerator.getPassword();
 
         assertClientTlsContext(
                 buildGatewayTls(TlsClientAuth.REQUESTED, proxyKeystorePassword),
+                subjectBuilderServiceConfig,
                 Map.of(
                         CommonClientConfigs.SECURITY_PROTOCOL_CONFIG, SecurityProtocol.SSL.name,
                         SslConfigs.SSL_TRUSTSTORE_LOCATION_CONFIG, clientTrustStore.toAbsolutePath().toString(),
@@ -93,6 +121,7 @@ public class PluginTlsApiIT extends AbstractTlsIT {
                 cluster,
                 topic,
                 true,
+                Subject.anonymous().toString(),
                 null,
                 "CN=localhost, OU=KI, O=kroxylicious.io, L=null, ST=null, C=US, emailAddress=test@kroxylicious.io");
     }
@@ -125,10 +154,12 @@ public class PluginTlsApiIT extends AbstractTlsIT {
     }
 
     private void assertClientTlsContext(Optional<Tls> gatewayTls,
+                                        MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
                                         Map<String, Object> clientConfigs,
                                         KafkaCluster cluster,
                                         Topic topic,
                                         boolean expectHeaderKeyClientTlsPresent,
+                                        String expectedAuthenticatedSubject,
                                         @Nullable String expectedClientPrincipalName,
                                         @Nullable String expectedProxyPrincipalName) {
         var bootstrapServers = cluster.getBootstrapServers();
@@ -146,6 +177,8 @@ public class PluginTlsApiIT extends AbstractTlsIT {
                         .addToGateways(defaultPortIdentifiesNodeGatewayBuilder(PROXY_ADDRESS)
                                 .withTls(gatewayTls)
                                 .build())
+                        .withSubjectBuilder(subjectBuilderServiceConfig != null ?
+                                new SubjectBuilderConfig(MyTransportSubjectBuilderService.class.getName(), subjectBuilderServiceConfig) : null)
                         .build());
         // @formatter:on
 
@@ -170,6 +203,9 @@ public class PluginTlsApiIT extends AbstractTlsIT {
                     .headers();
             recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_TLS_IS_PRESENT).value()
                     .containsExactly(expectHeaderKeyClientTlsPresent ? (byte) 1 : (byte) 0);
+            recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_AUTHENTICATED_SUBJECT)
+                    .hasValueEqualTo(subjectBuilderServiceConfig != null && subjectBuilderServiceConfig.completeSuccessfully() ?
+                            expectedAuthenticatedSubject : Subject.anonymous().toString());
             recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_TLS_CLIENT_X500PRINCIPAL_NAME)
                     .hasValueEqualTo(expectedClientPrincipalName);
             recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_TLS_PROXY_X500PRINCIPAL_NAME)
@@ -178,3 +214,5 @@ public class PluginTlsApiIT extends AbstractTlsIT {
     }
 
 }
+
+
