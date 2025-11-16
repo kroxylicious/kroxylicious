@@ -59,6 +59,8 @@ RUN microdnf -y update \
     && microdnf clean all
 
 ENV JAVA_HOME=/usr/lib/jvm/jre-17
+ENV TARGETOS=${TARGETOS}
+ENV TARGETARCH=${TARGETARCH}
 
 COPY --from=builder /opt/tini/bin/tini /usr/bin/tini
 COPY --from=builder /opt/kroxylicious/kroxylicious-app/target/kroxylicious-app-${KROXYLICIOUS_VERSION}-bin/kroxylicious-app-${KROXYLICIOUS_VERSION}/ /opt/kroxylicious/

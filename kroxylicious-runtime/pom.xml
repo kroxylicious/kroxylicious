@@ -30,6 +30,10 @@
     <description>The proxy code which provides the runtime environment in which filters execute</description>
 
     <dependencies>
+        <dependency>
+            <groupId>org.xerial.snappy</groupId>
+            <artifactId>snappy-java</artifactId>
+        </dependency>
         <!-- project dependencies - runtime and compile -->
         <dependency>
             <groupId>io.kroxylicious</groupId>

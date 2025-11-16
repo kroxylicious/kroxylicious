@@ -65,7 +65,8 @@ services:
     command: --config /opt/kroxylicious/config/proxy-config.yaml
 #    entrypoint: ls
 #    command:
-#      - "/opt/kroxylicious/trusted-certs"
+#      - "-la"
+#      - "/opt/kroxylicious/libs/native/snappy/org/xerial/snappy/native/Linux/aarch64"
     environment:
       JAVA_ENABLE_DEBUG: true
       JAVA_DEBUG_SUSPEND: true

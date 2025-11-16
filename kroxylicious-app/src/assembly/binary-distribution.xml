@@ -45,6 +45,13 @@
         <include>log4j2.yaml</include>
       </includes>
     </fileSet>
+      <fileSet>
+          <directory>${project.build.directory}/libs/native/</directory>
+          <outputDirectory>libs/native/</outputDirectory>
+          <excludes>
+              <exclude>**/*.class</exclude>
+          </excludes>
+      </fileSet>
   </fileSets>
   <dependencySets>
     <dependencySet>

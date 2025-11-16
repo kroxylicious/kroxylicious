@@ -192,6 +192,45 @@
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-dependency-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>unpack-snappy-native-libs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>snappy-java</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/libs/native/snappy</outputDirectory>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>unpack-zstd-native-libs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>zstd-jni</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/libs/native/zstd-jni</outputDirectory>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>unpack-lz4-native-libs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>lz4-java</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/libs/native/lz4-java</outputDirectory>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-assembly-plugin</artifactId>
                         <configuration>
                             <descriptors>

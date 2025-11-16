@@ -5,6 +5,7 @@
  */
 package io.kroxylicious.proxy;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ import java.util.stream.Stream;
 import org.apache.kafka.common.protocol.ApiKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.xerial.snappy.Snappy;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBufAllocator;
@@ -144,6 +146,12 @@ public final class KafkaProxy implements AutoCloseable {
         this.virtualClusterModels = config.virtualClusterModel(pfr);
         this.managementConfiguration = config.management();
         this.micrometerConfig = config.getMicrometer();
+        try {
+            byte[] compressed = Snappy.compress("wibble");
+        }
+        catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @VisibleForTesting
