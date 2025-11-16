@@ -238,18 +238,24 @@ public interface FilterContext {
     /**
      * <p>Returns the client subject.</p>
      *
-     * <p>This method will initially return an anonymous {@code Subject}.
-     * A subject can be supplied by a filter (presumably as a result of
-     * performing some kind of SASL authentication) via {@link #clientSaslAuthenticationSuccess(String, Subject)},
-     * after which point that new subject will be returned by this method.
-     * Because of the possibility of <em>reauthentication</em> it is also possible for the
-     * subject to change even after then initial SASL reauthentication.</p>
+     * <p>Depending on configuration, the subject can be based on network-level or Kafka protocol-level information (or both):</p>
+     * <ul>
+     *   <li>This will return an
+     *   anonymous {@code Subject} (one with an empty {@code principals} set) when
+     *   no authentication is configured, or the transport layer cannot provide authentication (e.g. TCP or non-mutual TLS transports).</li>
+     *   <li>When client mutual TLS authentication is configured this will
+     *   initially return a non-anonymous {@code Subject} based on the TLS certificate presented by the client.</li>
+     *   <li>At any point, if a filter invokes {@link #clientSaslAuthenticationSuccess(String, Subject)} then that subject
+     *   will override the existing subject.</li>
+     *   <li>Because of the possibility of <em>reauthentication</em> it is also possible for the
+     *   subject to change even after then initial SASL reauthentication.</li>
+     * </ul>
      *
      * <p>Because the subject can change, callers are advised to be careful to avoid
      * caching subjects, or decisions derived from them.</p>
      *
      * <p>Which principals are present in the returned subject, and what their {@code name}s look like,
-     * depends on the configuration
+     * depends on the configuration of network
      * and/or {@link #clientSaslAuthenticationSuccess(String, Subject)}-calling filters.
      * In general, filters should be configurable with respect to the principal type when interrogating the returned
      * subject.</p>
