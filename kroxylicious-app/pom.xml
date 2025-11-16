@@ -203,6 +203,33 @@
                                 <configuration>
                                     <includeArtifactIds>snappy-java</includeArtifactIds>
                                     <outputDirectory>${project.build.directory}/libs/native/snappy</outputDirectory>
+                                    <!-- when built into the container paths are cases sensitive and the container build variables for arch and platform  are lower case-->
+                                    <fileMappers>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>AIX</pattern>
+                                            <replacement>aix</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>FreeBSD</pattern>
+                                            <replacement>freebsd</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>Linux</pattern>
+                                            <replacement>linux</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>Mac</pattern>
+                                            <replacement>darwin</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>SunOS</pattern>
+                                            <replacement>sunos</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                        <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                            <pattern>Windows</pattern>
+                                            <replacement>windows</replacement>
+                                        </org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
+                                    </fileMappers>
                                 </configuration>
                             </execution>
                             <execution>

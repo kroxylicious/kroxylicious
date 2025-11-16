@@ -40,7 +40,7 @@ native_library_path() {
   if [ -r "${native_lib}" ]; then
     echo "${native_lib}"
   else
-    native_lib="${NATIVE_LIB_BASE_DIR}${lib_path}/${TARGETOS}/${arch}"
+    echo native_lib="wibble"
   fi
 }
 
