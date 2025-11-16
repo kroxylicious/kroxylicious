@@ -40,6 +40,7 @@ public class ClientAuthAwareLawyerFilter
 
     public static final String HEADER_KEY_CLIENT_SASL_CONTEXT_PRESENT = headerName(ClientAuthAwareLawyerFilter.class, "#clientSaslContext.isPresent");
     public static final String HEADER_KEY_CLIENT_SASL_AUTHORIZATION_ID = headerName(ClientAuthAwareLawyerFilter.class, "#clientSaslContext.authorizationId");
+    public static final String HEADER_KEY_AUTHENTICATED_SUBJECT = headerName(ClientAuthAwareLawyerFilter.class, "#authenticatedSubject");
     public static final String HEADER_KEY_CLIENT_SASL_MECH_NAME = headerName(ClientAuthAwareLawyerFilter.class, "#clientSaslContext.mechanismName");
 
     public static final byte[] TRUE = { 1 };
@@ -47,6 +48,8 @@ public class ClientAuthAwareLawyerFilter
     private static final Map<String, Function<FilterContext, byte[]>> HEADERS = Map.of(
             HEADER_KEY_CLIENT_TLS_IS_PRESENT,
             context -> context.clientTlsContext().isPresent() ? TRUE : FALSE,
+            HEADER_KEY_AUTHENTICATED_SUBJECT,
+            context -> context.authenticatedSubject().toString().getBytes(StandardCharsets.UTF_8),
             HEADER_KEY_CLIENT_TLS_PROXY_X500PRINCIPAL_NAME,
             context -> context.clientTlsContext()
                     .map(ClientTlsContext::proxyServerCertificate)
