@@ -39,8 +39,6 @@ native_library_path() {
   native_lib="${NATIVE_LIB_BASE_DIR}${lib_path}/${TARGETOS}/${arch}"
   if [ -r "${native_lib}" ]; then
     echo "${native_lib}"
-  else
-    echo native_lib="wibble"
   fi
 }
 
@@ -52,15 +50,6 @@ LZ4_NATIVE_LIB=$(native_library_path lz4-java/net/jpountz/util)
 SNAPPY_NATIVE_LIB=$(native_library_path snappy/org/xerial/snappy/native)
 ZSTD_NATIVE_LIB=$(native_library_path zstd-jni)
 NATIVE_LIB_PATH="${LZ4_NATIVE_LIB}:${SNAPPY_NATIVE_LIB}:${ZSTD_NATIVE_LIB}"
-
-echo "lz4 dir: ${LZ4_NATIVE_LIB}"
-ls -l "${LZ4_NATIVE_LIB}"
-
-echo "snappy dir: ${SNAPPY_NATIVE_LIB}"
-ls -l "${SNAPPY_NATIVE_LIB}"
-
-echo "zstd dir: ${ZSTD_NATIVE_LIB}"
-ls -l "${ZSTD_NATIVE_LIB}"
 
 echo "setting java.library.path=${NATIVE_LIB_PATH}"
 NATIVE_LIB_OPTIONS="-Djava.library.path=${NATIVE_LIB_PATH} -Dorg.xerial.snappy.disable.bundled.libs=true"
