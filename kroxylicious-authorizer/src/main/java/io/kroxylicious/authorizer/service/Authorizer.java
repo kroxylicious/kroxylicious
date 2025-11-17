@@ -29,7 +29,8 @@ public interface Authorizer {
      * between {@link AuthorizeResult#allowed()} and {@link AuthorizeResult#denied()}.
      * @param subject The subject.
      * @param actions The actions.
-     * @return The outcome.
+     * @return The outcome. The returned stage should fail with an {@link AuthorizerException} if the authorizer was not able to
+     * make a decision.
      */
     CompletionStage<AuthorizeResult> authorize(Subject subject, List<Action> actions);
 
