@@ -11,7 +11,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * An Operation is an {@code enum} of the possible operations on a resource of a particular type.
+ * A ResourceType is an {@code enum} of the possible operations on a resource of a particular type.
  * We use a one-enum-per-resource-type pattern so that the {@link Class} of an operation identifies the resource type.
  * @param <S>
  */
