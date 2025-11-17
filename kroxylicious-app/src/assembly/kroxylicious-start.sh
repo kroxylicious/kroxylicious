@@ -32,16 +32,27 @@ classpath() {
 native_library_path() {
   NATIVE_LIB_BASE_DIR="/opt/kroxylicious/libs/native/"
   local lib_path="${1}"
-  local arch="${TARGETARCH}"
-  case ${TARGETARCH} in
-    arm64) arch=aarch64
-  esac
-  native_lib="${NATIVE_LIB_BASE_DIR}${lib_path}/${TARGETOS}/${arch}"
+  arch="${TARGETARCH:-$(uname -m)}"
+  native_lib="${NATIVE_LIB_BASE_DIR}${lib_path}/${TARGETOS:-linux}"
   if [ -r "${native_lib}" ]; then
-    echo "${native_lib}"
+    if [ -r "${native_lib}/${arch}" ]; then
+      echo "${native_lib}/${arch}"
+      return
+    else
+      # not everyone thinks `uname -m` is the right convention
+      case ${arch} in
+        arm64) arch=aarch64 ;;
+        x86_64) arch=amd64 ;;
+      esac
+      if [ -r "${native_lib}/${arch}" ]; then
+          echo "${native_lib}/${arch}"
+          return
+      fi
+    fi
   elif [ -r "${NATIVE_LIB_BASE_DIR}${lib_path}/" ]; then
     # The native dependency isn't broken down by OS and arch but still has something loadable. (Looking at you Netty)
     echo "${NATIVE_LIB_BASE_DIR}${lib_path}/"
+    return
   fi
 }
 
