@@ -6,7 +6,6 @@
 
 package io.kroxylicious.proxy.internal.subject;
 
-import java.security.cert.CertificateParsingException;
 import java.security.cert.X509Certificate;
 import java.util.List;
 import java.util.Optional;
