@@ -23,6 +23,7 @@ public interface AuthorizerService<C> {
      * before {@link #build()} is called.
      *
      * @param config Service configuration
+     * @throws AuthorizerException If the service could not be initialized
      */
     void initialize(@UnknownNullness C config);
 
@@ -32,6 +33,7 @@ public interface AuthorizerService<C> {
      *
      * @return the authorizer
      * @throws IllegalStateException if the service has not been initialised or the service is closed.
+     * @throws AuthorizerException If the authorizer could not be built
      */
     @NonNull
     Authorizer build() throws IllegalStateException;

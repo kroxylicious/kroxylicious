@@ -7,7 +7,7 @@
 package io.kroxylicious.authorizer.service;
 
 /**
- * An exception to be thrown by an {@link Authorizer} if it's not able to make a decision.
+ * An exception to be thrown if an {@link Authorizer} cannot be built, or is not able to make a decision.
  */
 public class AuthorizerException extends RuntimeException {
     public AuthorizerException(String message) {
