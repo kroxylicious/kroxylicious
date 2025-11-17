@@ -101,7 +101,7 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
                 .toList();
     }
 
-    private static PrincipalFactory buildPrincipalFactory(String principalFactory) {
+    private static PrincipalFactory<?> buildPrincipalFactory(String principalFactory) {
         return ServiceLoader.load(PrincipalFactory.class).stream()
                 .filter(provider -> provider.type().getName().equals(principalFactory))
                 .findFirst()
@@ -129,21 +129,24 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
         if (numElses > 1 || (firstElseIndex != -1 && firstElseIndex < maps.size() - 1)) {
             throw new IllegalArgumentException("An `else` mapping may only occur as the last element of `map`.");
         }
-        return maps.stream().map(map -> {
-            if (map.replaceMatch() != null) {
-                return new ReplaceMatchMappingRule(map.replaceMatch());
-            }
-            else if (ELSE_IDENTITY.equals(map.else_())) {
-                return new IdentityMappingRule();
-            }
-            else if (ELSE_ANONYMOUS.equals(map.else_())) {
-                return (MappingRule) s -> Optional.empty();
-            }
-            else {
-                throw new IllegalArgumentException("Unknown `else` map '%s', supported values are: '%s', '%s'."
-                        .formatted(map.else_(), ELSE_IDENTITY, ELSE_ANONYMOUS));
-            }
-        }).toList();
+        return maps.stream().map(DefaultSaslSubjectBuilderService::buildMappingRule).toList();
+    }
+
+    @NonNull
+    private static MappingRule buildMappingRule(Map map) {
+        if (map.replaceMatch() != null) {
+            return new ReplaceMatchMappingRule(map.replaceMatch());
+        }
+        else if (ELSE_IDENTITY.equals(map.else_())) {
+            return new IdentityMappingRule();
+        }
+        else if (ELSE_ANONYMOUS.equals(map.else_())) {
+            return s -> Optional.empty();
+        }
+        else {
+            throw new IllegalArgumentException("Unknown `else` map '%s', supported values are: '%s', '%s'."
+                    .formatted(map.else_(), ELSE_IDENTITY, ELSE_ANONYMOUS));
+        }
     }
 
     @NonNull
@@ -164,6 +167,7 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
 
     @Override
     public void close() {
+        // We have no closeable resources
     }
 
 }

@@ -17,9 +17,6 @@ import io.kroxylicious.proxy.authentication.User;
 
 public class SaslSubjectBuilderImpl implements SaslSubjectBuilder {
 
-    public SaslSubjectBuilderImpl() {
-    }
-
     @Override
     public CompletionStage<Subject> buildSaslSubject(Context context) {
         ClientSaslContext clientSaslContext = context.clientSaslContext();

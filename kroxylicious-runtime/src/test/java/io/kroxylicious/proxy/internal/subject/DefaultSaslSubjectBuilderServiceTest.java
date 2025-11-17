@@ -30,7 +30,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-public class DefaultSaslSubjectBuilderServiceTest {
+class DefaultSaslSubjectBuilderServiceTest {
 
     private static YAMLMapper mapper = new YAMLMapper();
 
@@ -277,7 +277,7 @@ public class DefaultSaslSubjectBuilderServiceTest {
     @ParameterizedTest
     @MethodSource
     void rulesShouldWorkWithSasl(String authzId, String rule, Subject expectedName)
-            throws CertificateParsingException, JsonProcessingException {
+            throws JsonProcessingException {
         DefaultSaslSubjectBuilderService.Config builderConfig = mapper.readValue(rule, DefaultSaslSubjectBuilderService.Config.class);
         sasl(builderConfig,
                 authzId,
@@ -308,7 +308,5 @@ public class DefaultSaslSubjectBuilderServiceTest {
                 "",
                 new Subject());
     }
-
-    // TODO the other SAN types don't result in names
 
 }

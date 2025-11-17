@@ -45,28 +45,26 @@ public final class ReplaceMatchMappingRule implements MappingRule {
                     + "(Hint: The rule format is not the same as Kafka's).").formatted(mappingRule.length() - 1, mappingRule, separator));
         }
         String patternStr = mappingRule.substring(1, endPattern);
-        Pattern pattern;
+        Pattern rulePattern;
         try {
-            pattern = Pattern.compile(patternStr);
+            rulePattern = Pattern.compile(patternStr);
         }
         catch (PatternSyntaxException e) {
             throw new IllegalArgumentException(("Invalid mapping rule at index %s: The pattern part of the rule, '%s', is not a valid "
                     + "regular expression in RE2 format: %s.").formatted((e.getIndex() == -1 ? 0 : e.getIndex()) + 1, patternStr, e.getDescription()));
         }
-        String replacement = mappingRule.substring(endPattern + 1, endReplacement);
+        String ruleReplacement = mappingRule.substring(endPattern + 1, endReplacement);
         String flagsStr = mappingRule.substring(endReplacement + 1);
-        UnaryOperator<String> flags = switch (flagsStr) {
+        UnaryOperator<String> ruleFlags = switch (flagsStr) {
             case "L" -> s -> s.toLowerCase(Locale.ROOT);
             case "U" -> s -> s.toUpperCase(Locale.ROOT);
             case "" -> UnaryOperator.identity();
-            default -> {
-                throw new IllegalArgumentException(("Invalid mapping rule at index %s: The given flags, '%s', are not valid. "
-                        + "The flags may be empty or 'L' or 'U'.").formatted(endReplacement + 1, flagsStr));
-            }
+            default -> throw new IllegalArgumentException(("Invalid mapping rule at index %s: The given flags, '%s', are not valid. "
+                    + "The flags may be empty or 'L' or 'U'.").formatted(endReplacement + 1, flagsStr));
         };
-        this.pattern = pattern;
-        this.replacement = replacement;
-        this.flags = flags;
+        this.pattern = rulePattern;
+        this.replacement = ruleReplacement;
+        this.flags = ruleFlags;
 
     }
 
