@@ -22,8 +22,7 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
 @Plugin(configType = MyTransportSubjectBuilderService.Config.class)
 public class MyTransportSubjectBuilderService implements TransportSubjectBuilderService<MyTransportSubjectBuilderService.Config> {
 
-    public record Config(int delayMs, boolean completeSuccessfully) {
-    }
+    public record Config(int delayMs, boolean completeSuccessfully) {}
 
     static class MyTransportSubjectBuilder implements TransportSubjectBuilder {
 
