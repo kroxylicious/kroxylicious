@@ -8,7 +8,9 @@ package io.kroxylicious.authorizer.provider.acl;
 
 import java.util.List;
 
-public class InvalidRulesFileException extends RuntimeException {
+import io.kroxylicious.authorizer.service.AuthorizerException;
+
+public class InvalidRulesFileException extends AuthorizerException {
     private final List<String> errorMessages;
 
     public InvalidRulesFileException(String message, List<String> errorMessages) {
