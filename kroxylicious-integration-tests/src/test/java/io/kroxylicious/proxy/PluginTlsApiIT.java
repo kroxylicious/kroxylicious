@@ -55,15 +55,14 @@ public class PluginTlsApiIT extends AbstractTlsIT {
                 Arguments.of(new MyTransportSubjectBuilderService.Config(0, true)),
                 Arguments.of(new MyTransportSubjectBuilderService.Config(100, true)),
                 Arguments.of(new MyTransportSubjectBuilderService.Config(0, false)),
-                Arguments.of(new MyTransportSubjectBuilderService.Config(100, false))
-        );
+                Arguments.of(new MyTransportSubjectBuilderService.Config(100, false)));
     }
 
     @ParameterizedTest
     @MethodSource("subjectBuilderServiceConfigs")
     void clientTlsContextPlainTcp(
-            MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
-            KafkaCluster cluster,
+                                  MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
+                                  KafkaCluster cluster,
                                   Topic topic) {
         assertClientTlsContext(
                 buildGatewayTls(TlsClientAuth.NONE, null),
@@ -81,8 +80,8 @@ public class PluginTlsApiIT extends AbstractTlsIT {
     @ParameterizedTest
     @MethodSource("subjectBuilderServiceConfigs")
     void clientTlsContextMutualTls(
-            MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
-            KafkaCluster cluster,
+                                   MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
+                                   KafkaCluster cluster,
                                    Topic topic) {
         var proxyKeystorePassword = downstreamCertificateGenerator.getPassword();
 
@@ -106,8 +105,8 @@ public class PluginTlsApiIT extends AbstractTlsIT {
     @ParameterizedTest
     @MethodSource("subjectBuilderServiceConfigs")
     void clientTlsContextUnilateralTls(
-            MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
-            KafkaCluster cluster,
+                                       MyTransportSubjectBuilderService.Config subjectBuilderServiceConfig,
+                                       KafkaCluster cluster,
                                        Topic topic) {
         var proxyKeystorePassword = downstreamCertificateGenerator.getPassword();
 
@@ -204,8 +203,8 @@ public class PluginTlsApiIT extends AbstractTlsIT {
             recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_TLS_IS_PRESENT).value()
                     .containsExactly(expectHeaderKeyClientTlsPresent ? (byte) 1 : (byte) 0);
             recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_AUTHENTICATED_SUBJECT)
-                    .hasValueEqualTo(subjectBuilderServiceConfig != null && subjectBuilderServiceConfig.completeSuccessfully() ?
-                            expectedAuthenticatedSubject : Subject.anonymous().toString());
+                    .hasValueEqualTo(subjectBuilderServiceConfig != null && subjectBuilderServiceConfig.completeSuccessfully() ? expectedAuthenticatedSubject
+                            : Subject.anonymous().toString());
             recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_TLS_CLIENT_X500PRINCIPAL_NAME)
                     .hasValueEqualTo(expectedClientPrincipalName);
             recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_TLS_PROXY_X500PRINCIPAL_NAME)
@@ -214,5 +213,3 @@ public class PluginTlsApiIT extends AbstractTlsIT {
     }
 
 }
-
-
