@@ -18,6 +18,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.apache.kafka.common.utils.ByteBufferOutputStream;
 
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMapping;
 import io.kroxylicious.proxy.filter.metadata.TopicNameMappingException;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
@@ -172,19 +174,42 @@ public interface FilterContext {
     Optional<ClientTlsContext> clientTlsContext();
 
     /**
+     *
      * Allows a filter (typically one which implements {@link SaslAuthenticateRequestFilter})
      * to announce a successful authentication outcome with the Kafka client to other plugins.
-     * After calling this method the result of {@link #clientSaslContext()} will
-     * be non-empty for this and other filters.
+     * After calling this method the results of {@link #clientSaslContext()}
+     * and {@link #authenticatedSubject()} will both be non-empty for this and other filters.
+     *
+     * In order to support reauthentication, calls to this method and
+     * {@link #clientSaslAuthenticationFailure(String, String, Exception)}
+     * may be arbitrarily interleaved during the lifetime of a given filter instance.
+     *
+     * @param mechanism The SASL mechanism used
+     * @param authorizedId The authorizedId
+     *
+     * @deprecated Callers should use {@link #clientSaslAuthenticationSuccess(String, Subject)}
+     * to announce authentication outcomes instead of this method.
+     * When this method is used the result of {@link #authenticatedSubject()} will be a non-empty Optional
+     * with a {@link Subject} having a single {@link User} principal with the given {@code authorizedId}
+     */
+    @Deprecated(since = "0.18")
+    void clientSaslAuthenticationSuccess(String mechanism,
+                                         String authorizedId);
+
+    /**
+     * Allows a filter (typically one which implements {@link SaslAuthenticateRequestFilter})
+     * to announce a successful authentication outcome with the Kafka client to other plugins.
+     * After calling this method the results of {@link #clientSaslContext()}
+     * and {@link #authenticatedSubject()} will both be non-empty for this and other filters.
      *
      * In order to support reauthentication, calls to this method and
      * {@link #clientSaslAuthenticationFailure(String, String, Exception)}
      * may be arbitrarily interleaved during the lifetime of a given filter instance.
      * @param mechanism The SASL mechanism used
-     * @param authorizedId The authorizedId
+     * @param subject The subject
      */
     void clientSaslAuthenticationSuccess(String mechanism,
-                                         String authorizedId);
+                                         Subject subject);
 
     /**
      * Allows a filter (typically one which implements {@link SaslAuthenticateRequestFilter})
@@ -209,4 +234,29 @@ public interface FilterContext {
      * has not successfully authenticated using SASL.
      */
     Optional<ClientSaslContext> clientSaslContext();
+
+    /**
+     * <p>Returns the client subject.</p>
+     *
+     * <p>This method will initially return an anonymous {@code Subject}.
+     * A subject can be supplied by a filter (presumably as a result of
+     * performing some kind of SASL authentication) via {@link #clientSaslAuthenticationSuccess(String, Subject)},
+     * after which point that new subject will be returned by this method.
+     * Because of the possibility of <em>reauthentication</em> it is also possible for the
+     * subject to change even after then initial SASL reauthentication.</p>
+     *
+     * <p>Because the subject can change, callers are advised to be careful to avoid
+     * caching subjects, or decisions derived from them.</p>
+     *
+     * <p>Which principals are present in the returned subject, and what their {@code name}s look like,
+     * depends on the configuration
+     * and/or {@link #clientSaslAuthenticationSuccess(String, Subject)}-calling filters.
+     * In general, filters should be configurable with respect to the principal type when interrogating the returned
+     * subject.</p>
+     *
+     * @return The client subject
+     * @see #clientSaslAuthenticationSuccess(String, Subject)
+     */
+    Subject authenticatedSubject();
+
 }

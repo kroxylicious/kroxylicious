@@ -23,6 +23,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 import io.github.nettyplus.leakdetector.junit.NettyLeakDetectorExtension;
 
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.NamedFilterDefinitionBuilder;
 import io.kroxylicious.proxy.testplugins.ClientAuthAwareLawyer;
@@ -46,10 +48,11 @@ class ConstantSaslIT {
     private static void doAThing(KafkaCluster cluster,
                                  Topic topic,
                                  Map<String, Object> filterConfig,
+                                 Subject expectedSubject,
                                  boolean expectedClientSaslPresent,
                                  @Nullable String expectedAuthorizedId,
                                  @Nullable String expectedMechanism) {
-        NamedFilterDefinition saslInspection = new NamedFilterDefinitionBuilder(
+        NamedFilterDefinition constantSasl = new NamedFilterDefinitionBuilder(
                 ConstantSasl.class.getName(),
                 ConstantSasl.class.getName())
                 .withConfig(filterConfig)
@@ -59,8 +62,8 @@ class ConstantSaslIT {
                 ClientAuthAwareLawyer.class.getName())
                 .build();
         var config = proxy(cluster)
-                .addToFilterDefinitions(saslInspection, lawyer)
-                .addToDefaultFilters(saslInspection.name(), lawyer.name());
+                .addToFilterDefinitions(constantSasl, lawyer)
+                .addToDefaultFilters(constantSasl.name(), lawyer.name());
 
         try (var tester = kroxyliciousTester(config);
                 var producer = tester.producer();
@@ -90,20 +93,36 @@ class ConstantSaslIT {
                     .hasValueEqualTo(expectedAuthorizedId);
             recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_CLIENT_SASL_MECH_NAME)
                     .hasValueEqualTo(expectedMechanism);
+            recordHeaders.singleHeaderWithKey(ClientAuthAwareLawyerFilter.HEADER_KEY_AUTHENTICATED_SUBJECT)
+                    .hasValueEqualTo(expectedSubject.toString());
 
         }
     }
 
     @Test
-    void shouldHavePresentClientSaslContextWhenAuthSuccessful(
-                                                              KafkaCluster cluster,
-                                                              Topic topic) {
+    void shouldHavePresentClientSaslContextWhenAuthWithAuthzIdSuccessful(
+                                                                         KafkaCluster cluster,
+                                                                         Topic topic) {
         String mechanism = "FOO";
         String authorizedId = "bob";
         Map<String, Object> filterConfig = Map.of("api", ApiKeys.PRODUCE,
                 "mechanism", mechanism,
                 "authorizedId", authorizedId);
-        doAThing(cluster, topic, filterConfig, true, authorizedId, mechanism);
+        doAThing(cluster, topic, filterConfig, new Subject(new User(authorizedId)), true, authorizedId, mechanism);
+    }
+
+    @Test
+    void shouldHavePresentClientSaslContextWhenAuthWithSubjectSuccessful(
+                                                                         KafkaCluster cluster,
+                                                                         Topic topic) {
+        String mechanism = "FOO";
+        var principalType = User.class.getName();
+        String principalName = "Bob";
+        Map<String, Object> filterConfig = Map.of("api", ApiKeys.PRODUCE,
+                "mechanism", mechanism,
+                "principalType", principalType,
+                "principalName", principalName);
+        doAThing(cluster, topic, filterConfig, new Subject(new User(principalName)), true, principalName, mechanism);
     }
 
     @Test
@@ -116,6 +135,6 @@ class ConstantSaslIT {
                 "mechanism", mechanism,
                 "authorizedId", authorizedId,
                 "exceptionClassName", LoginException.class.getName());
-        doAThing(cluster, topic, filterConfig, false, null, null);
+        doAThing(cluster, topic, filterConfig, Subject.anonymous(), false, null, null);
     }
 }

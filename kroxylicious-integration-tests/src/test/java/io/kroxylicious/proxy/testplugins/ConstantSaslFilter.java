@@ -15,6 +15,8 @@ import org.apache.kafka.common.protocol.ApiMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.kroxylicious.proxy.authentication.Principal;
+import io.kroxylicious.proxy.authentication.Subject;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilter;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -39,7 +41,21 @@ public class ConstantSaslFilter implements RequestFilter {
         }
         if (!finished && apiKey == config.api()) {
             if (config.exceptionClassName() == null) {
-                context.clientSaslAuthenticationSuccess(Objects.requireNonNull(config.mechanism()), Objects.requireNonNull(config.authorizedId()));
+                if (config.principalType() == null) {
+                    context.clientSaslAuthenticationSuccess(Objects.requireNonNull(config.mechanism()), Objects.requireNonNull(config.authorizedId()));
+                }
+                else {
+                    try {
+                        var principal = Class.forName(config.principalType())
+                                .asSubclass(Principal.class)
+                                .getDeclaredConstructor(String.class)
+                                .newInstance(config.principalName());
+                        context.clientSaslAuthenticationSuccess(Objects.requireNonNull(config.mechanism()), new Subject(principal));
+                    }
+                    catch (ReflectiveOperationException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
             }
             else {
                 context.clientSaslAuthenticationFailure(
