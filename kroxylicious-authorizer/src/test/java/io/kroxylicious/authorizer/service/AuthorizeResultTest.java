@@ -67,9 +67,7 @@ class AuthorizeResultTest {
         Assertions.assertThat(result.partition(List.of(new Widget("foo"), new Widget("bar"), new Widget("baz")),
                 TestResource.SQUIDGE,
                 Widget::name)).isEqualTo(Map.of(Decision.ALLOW, List.of(new Widget("foo")),
-                Decision.DENY, List.of(new Widget("bar"), new Widget("baz"))));
+                        Decision.DENY, List.of(new Widget("bar"), new Widget("baz"))));
     }
-
-
 
 }
