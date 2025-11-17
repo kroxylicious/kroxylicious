@@ -5,6 +5,7 @@
 #
 
 ---
+useIoUring: true
 management:
   endpoints:
     prometheus: {}

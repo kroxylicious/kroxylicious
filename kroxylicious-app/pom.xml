@@ -190,6 +190,22 @@
                         <artifactId>maven-dependency-plugin</artifactId>
                         <executions>
                             <execution>
+                                <id>unpack-netty-native-libs</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>unpack-dependencies</goal>
+                                </goals>
+                                <configuration>
+                                    <includeArtifactIds>netty-transport-native-epoll,netty-transport-native-unix-common,netty-transport-native-io_uring,netty-transport-native-kqueue</includeArtifactIds>
+                                    <outputDirectory>${project.build.directory}/libs/native/netty</outputDirectory>
+                                    <!-- derived form snappy's resource-config.json -->
+                                    <includes>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</includes>
+                                    <fileMappers>
+                                        <org.codehaus.plexus.components.io.filemappers.FlattenFileMapper/>
+                                    </fileMappers>
+                                </configuration>
+                            </execution>
+                            <execution>
                                 <id>unpack-snappy-native-libs</id>
                                 <phase>prepare-package</phase>
                                 <goals>
@@ -198,6 +214,8 @@
                                 <configuration>
                                     <includeArtifactIds>snappy-java</includeArtifactIds>
                                     <outputDirectory>${project.build.directory}/libs/native/snappy</outputDirectory>
+                                    <!-- derived form snappy's resource-config.json -->
+                                    <includes>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</includes>
                                     <!-- when built into the container paths are cases sensitive and the container build variables for arch and platform  are lower case-->
                                     <fileMappers>
                                         <org.codehaus.plexus.components.io.filemappers.RegExpFileMapper>
@@ -236,6 +254,8 @@
                                 <configuration>
                                     <includeArtifactIds>zstd-jni</includeArtifactIds>
                                     <outputDirectory>${project.build.directory}/libs/native/zstd-jni</outputDirectory>
+                                    <!-- derived form snappy's resource-config.json -->
+                                    <includes>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</includes>
                                 </configuration>
                             </execution>
                             <execution>
@@ -247,6 +267,8 @@
                                 <configuration>
                                     <includeArtifactIds>lz4-java</includeArtifactIds>
                                     <outputDirectory>${project.build.directory}/libs/native/lz4-java</outputDirectory>
+                                    <!-- derived form snappy's resource-config.json -->
+                                    <includes>**/*.dylib,**/*.jnilib,**/*.so,**/*.a</includes>
                                 </configuration>
                             </execution>
                         </executions>

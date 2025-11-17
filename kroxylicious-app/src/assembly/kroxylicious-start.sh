@@ -39,6 +39,9 @@ native_library_path() {
   native_lib="${NATIVE_LIB_BASE_DIR}${lib_path}/${TARGETOS}/${arch}"
   if [ -r "${native_lib}" ]; then
     echo "${native_lib}"
+  elif [ -r "${NATIVE_LIB_BASE_DIR}${lib_path}/" ]; then
+    # The native dependency isn't broken down by OS and arch but still has something loadable. (Looking at you Netty)
+    echo "${NATIVE_LIB_BASE_DIR}${lib_path}/"
   fi
 }
 
@@ -46,10 +49,13 @@ if [ "${KROXYLICIOUS_LOGGING_OPTIONS+set}" != set ]; then
   KROXYLICIOUS_LOGGING_OPTIONS="-Dlog4j2.configurationFile=$(script_dir)/../config/log4j2.yaml -Dlog4j2.contextSelector=org.apache.logging.log4j.core.async.AsyncLoggerContextSelector"
 fi
 
+NETTY_NATIVE_LIB=$(native_library_path netty)
 LZ4_NATIVE_LIB=$(native_library_path lz4-java/net/jpountz/util)
 SNAPPY_NATIVE_LIB=$(native_library_path snappy/org/xerial/snappy/native)
 ZSTD_NATIVE_LIB=$(native_library_path zstd-jni)
-NATIVE_LIB_PATH="${LZ4_NATIVE_LIB}:${SNAPPY_NATIVE_LIB}:${ZSTD_NATIVE_LIB}"
+NATIVE_LIB_PATH="${NETTY_NATIVE_LIB}:${LZ4_NATIVE_LIB}:${SNAPPY_NATIVE_LIB}:${ZSTD_NATIVE_LIB}"
+
+ls -l "${NETTY_NATIVE_LIB}"
 
 echo "setting java.library.path=${NATIVE_LIB_PATH}"
 NATIVE_LIB_OPTIONS="-Djava.library.path=${NATIVE_LIB_PATH} -Dorg.xerial.snappy.disable.bundled.libs=true"

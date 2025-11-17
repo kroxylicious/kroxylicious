@@ -1035,9 +1035,9 @@
                 </os>
             </activation>
             <properties>
-                <netty.epoll.classifier>linux-aarch_64</netty.epoll.classifier>
-                <netty.io_uring.classifier>linux-aarch_64</netty.io_uring.classifier>
-                <netty.kqueue.classifier>osx-aarch_64</netty.kqueue.classifier>
+                <netty.epoll.architecture>linux-aarch_64</netty.epoll.architecture>
+                <netty.io_uring.architecture>linux-aarch_64</netty.io_uring.architecture>
+                <netty.kqueue.architecture>osx-aarch_64</netty.kqueue.architecture>
             </properties>
         </profile>
         <profile>

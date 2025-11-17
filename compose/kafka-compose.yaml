@@ -65,7 +65,7 @@ services:
     command: --config /opt/kroxylicious/config/proxy-config.yaml
     environment:
       JAVA_ENABLE_DEBUG: true
-      JAVA_DEBUG_SUSPEND: false
+      JAVA_DEBUG_SUSPEND: true
     networks:
       - kroxylicious_network
     ports:
