@@ -26,22 +26,27 @@ NOTE: A Managed Identity is a kind of Service Principal that is automatically ma
 ----
 HOST_RESOURCE_NAME="kroxylicious-host" # <1>
 HOST_RESOURCE_GROUP="my-resource-group"
-az <RESOURCE_TYPE> identity assign --name ${HOST_RESOURCE_NAME} --resource-group ${HOST_RESOURCE_GROUP} #<2>
+az <RESOURCE_TYPE> identity assign \ #<2>
+  --name ${HOST_RESOURCE_NAME} \
+  --resource-group ${HOST_RESOURCE_GROUP} \
+  --query "principalId" --output tsv #<3>
 ----
 <1> The name of the Azure resource hosting Kroxylicious.
 <2> The command used here depends on the hosting resource type. Replace `<RESOURCE_TYPE>` with the appropriate subcommand for your resource type (e.g., `vm`, `containerapp`, `aks`, etc.)
+<3> Outputs the object identifier (Principal ID) of the managed identity being created. You will need this identifier for the next step.
 
 . Assign the built-in Azure Key Vault RBAC role to the managed identity:
 +
 [source,shell]
 ----
-HOST_RESOURCE_NAME="kroxylicious-host"
+PRINCIPAL_ID="00000000-0000-0000-0000-000000000000" # <1>
 KEY_VAULT_NAME="kroxylicious-key-vault"
-RESOURCE_GROUP="my-resource-group" # <1>
+RESOURCE_GROUP="my-resource-group" # <2>
 SCOPE_ID=$(az keyvault show --name ${KEY_VAULT_NAME} --resource-group ${RESOURCE_GROUP} --query "id" --output tsv)
-az role assignment create --assignee ${HOST_RESOURCE_NAME} --role "Key Vault Crypto Service Encryption User" --scope ${SCOPE_ID}
+az role assignment create --assignee ${PRINCIPAL_ID} --role "Key Vault Crypto Service Encryption User" --scope ${SCOPE_ID}
 ----
-<1> This value should be the name of the resource group in which your key vault is deployed, which may not necessarily be the same resource group as the Kroxylicious host resource.
+<1> This is the object identifier (Principal ID) we output in the previous step.
+<2> This value should be the name of the resource group in which your key vault is deployed, which may not necessarily be the same resource group as the Kroxylicious host resource.
 +
 These commands assign the built-in Key Vault Crypto Service Encryption User role to the Managed Identity, using the target Key Vault as the scope. Replace `HOST_RESOURCE_NAME`, `KEY_VAULT_NAME`, and `RESOURCE_GROUP` with your actual values.
 +
