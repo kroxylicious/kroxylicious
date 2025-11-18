@@ -16,14 +16,16 @@
     </parent>
     <artifactId>kroxylicious-filter-archetype</artifactId>
     <name>Filter Archetype</name>
-    <description>A Maven Archetype to generate an independent Custom Filter project, demonstrating how to structure a Filter and integration test it against Apache Kafka</description>
+    <description>A Maven Archetype to generate an independent Custom Filter project, demonstrating how to structure a
+        Filter and integration test it against Apache Kafka
+    </description>
     <packaging>maven-archetype</packaging>
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-bom</artifactId>
             <version>${project.version}</version>
-            <scope>import</scope>
+            <scope>test</scope>
             <type>pom</type>
         </dependency>
         <dependency>
