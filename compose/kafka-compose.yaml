@@ -65,16 +65,12 @@ services:
     command: --config /opt/kroxylicious/config/proxy-config.yaml
     environment:
       JAVA_ENABLE_DEBUG: true
-      JAVA_DEBUG_SUSPEND: true
+      JAVA_DEBUG_SUSPEND: false
     networks:
       - kroxylicious_network
     ports:
       - "9292-9296:9292-9296"
       - "5005:5005"
-    tmpfs:
-      - /opt/kroxylicious/libs/native:rw,size=50M
-    volumes:
-      - lowkey-config:/opt/kroxylicious/trusted-certs/:ro
     configs:
       - source: proxy-config
         target: /opt/kroxylicious/config/proxy-config.yaml
@@ -99,6 +95,7 @@ services:
         --LOWKEY_DEBUG_REQUEST_LOG=true
     volumes:
       - lowkey-config:/config/:ro
+
 networks:
   kroxylicious_network:
     driver: bridge
