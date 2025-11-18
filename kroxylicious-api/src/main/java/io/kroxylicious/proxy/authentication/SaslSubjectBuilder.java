@@ -34,9 +34,18 @@ public interface SaslSubjectBuilder {
      */
     CompletionStage<Subject> buildSaslSubject(SaslSubjectBuilder.Context context);
 
+    /**
+     * The context that's passed to {@link #buildSaslSubject(Context)}.
+     */
     interface Context {
+        /**
+         * @return The TLS context for the client connection, or empty if the client connection is not TLS.
+         */
         Optional<ClientTlsContext> clientTlsContext();
 
+        /**
+         * @return The SASL context for the client connection.
+         */
         ClientSaslContext clientSaslContext();
     }
 }
