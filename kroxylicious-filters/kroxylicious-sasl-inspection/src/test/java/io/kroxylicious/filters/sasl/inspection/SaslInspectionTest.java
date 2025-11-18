@@ -63,7 +63,7 @@ class SaslInspectionTest {
         when(insecure.mechanismName()).thenReturn("INSECURE_MECH");
         when(insecure.transmitsCredentialInCleartext()).thenReturn(true);
 
-        factory.initialize(filterFactoryContext, new Config(Set.of("INSECURE_MECH")));
+        factory.initialize(filterFactoryContext, new Config(Set.of("INSECURE_MECH"), null, null));
 
         // When
         var map = factory.getObserverFactoryMap();
@@ -99,7 +99,7 @@ class SaslInspectionTest {
         when(secure.mechanismName()).thenReturn("SECURE_MECH");
         when(insecure.mechanismName()).thenReturn("INSECURE_MECH");
 
-        var config = new Config(Set.of("SECURE_MECH", "UNKNOWN"));
+        var config = new Config(Set.of("SECURE_MECH", "UNKNOWN"), null, null);
 
         // When/Then
         assertThatThrownBy(() -> factory.initialize(filterFactoryContext, config))
