@@ -6,6 +6,8 @@
 
 package io.kroxylicious.proxy.internal.subject;
 
+import io.kroxylicious.proxy.authentication.PrincipalFactory;
+
 public class UnitFactory implements PrincipalFactory<Unit> {
     @Override
     public Unit newPrincipal(String name) {
