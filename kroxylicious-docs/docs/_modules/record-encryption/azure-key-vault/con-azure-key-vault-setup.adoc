@@ -60,7 +60,8 @@ SUBSCRIPTION_ID=$(az account show --query id --output tsv) # <1>
 PORTAL_URL="$(az cloud show --query endpoints.portal --output tsv)/$(az account show --query tenantId --output tsv)" # <2>
 
 USER_NAME="kroxylicious-user"
-USER_PRINCIPAL_NAME="${USER_NAME}@example.com"
+DEFAULT_DOMAIN=$(az rest --method get --url https://graph.microsoft.com/v1.0/domains --query "value[?isDefault].id" -o tsv)
+USER_PRINCIPAL_NAME="${USER_NAME}@${DEFAULT_DOMAIN}"
 INITIAL_PASSWORD=$(tr -dc 'A-Za-z0-9!?%=' < /dev/urandom | head -c 16)
 
 # Create user
