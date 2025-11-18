@@ -11,9 +11,13 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 /**
- * A ResourceType is an {@code enum} of the possible operations on a resource of a particular type.
- * We use a one-enum-per-resource-type pattern so that the {@link Class} of an operation identifies the resource type.
- * @param <S>
+ * A {@code ResourceType} is an {@code enum} of the possible operations on a resource of a particular type.
+ * We use a one-enum-per-resource-type pattern so that the {@link Class} an implementation also
+ * serves to identify the resource type.
+ * For this reason, implementations of this interface should be named for the type of resource
+ * (for example {@code Topic}, or {@code ConsumerGroup}) rather than the operations
+ * enumerated (so not {@code TopicOperations} or {@code ConsumerGroupOperations}).
+ * @param <S> The self type.
  */
 public interface ResourceType<S extends Enum<S> & ResourceType<S>> {
 
