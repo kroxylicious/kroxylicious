@@ -6,9 +6,7 @@
 
 package io.kroxylicious.authorizer.service;
 
-import java.util.List;
 import java.util.Set;
-import java.util.stream.Stream;
 
 /**
  * A {@code ResourceType} is an {@code enum} of the possible operations on a resource of a particular type.
@@ -20,10 +18,6 @@ import java.util.stream.Stream;
  * @param <S> The self type.
  */
 public interface ResourceType<S extends Enum<S> & ResourceType<S>> {
-
-    default List<Action> actionsOf(Stream<String> names) {
-        return names.map(topicName -> new Action(this, topicName)).toList();
-    }
 
     default Set<S> implies() {
         // TODO This is actually really tricky to model in a way that works for different Authorizer implementations
