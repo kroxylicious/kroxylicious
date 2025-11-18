@@ -18,7 +18,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
-    <artifactId>kroxylicious-authorizer</artifactId>
+    <artifactId>kroxylicious-authorizer-api</artifactId>
     <name>Authorizer Plugin API</name>
 
     <dependencies>
