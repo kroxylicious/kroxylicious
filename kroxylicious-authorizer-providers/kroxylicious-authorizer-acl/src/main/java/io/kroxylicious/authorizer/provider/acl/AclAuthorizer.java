@@ -25,6 +25,7 @@ import io.kroxylicious.authorizer.service.Decision;
 import io.kroxylicious.authorizer.service.ResourceType;
 import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.tag.VisibleForTesting;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
@@ -290,44 +291,6 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
-    /**
-     * grant(READ, WRITE) on org.example.MyResource with name=R to UserPrincipals (bob, sue)
-     */
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    <O extends Enum<O> & ResourceType<O>> void grant(Set<O> operations,
-                                                     String resourceName,
-                                                     Set<Principal> principals) {
-        for (var p : principals) {
-            internalAllow(p.getClass(),
-                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, p.name(),
-                    (Class) operations.iterator().next().getClass(),
-                    Pred.EQ, resourceName,
-                    operations);
-        }
-    }
-
-    <O extends Enum<O> & ResourceType<O>> void grantToAllPrincipalsOfType(Set<O> operations,
-                                                                          String resourceName,
-                                                                          Class<? extends Principal> principalType) {
-
-        internalAllow(principalType,
-                TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY, null,
-                (Class) operations.iterator().next().getClass(),
-                Pred.EQ, resourceName,
-                operations);
-
-    }
-
-    private <O extends Enum<O> & ResourceType<O>> void internalAllow(Class<? extends Principal> principalType,
-                                                                     TypeNameMap.Predicate principalPredicate,
-                                                                     @Nullable String principalName,
-                                                                     Class<O> opType,
-                                                                     Pred resourceNamePredicate,
-                                                                     @Nullable String resourceName,
-                                                                     Set<O> operations) {
-        internalAllowOrDeny(allowPerPrincipal, principalType, principalPredicate, principalName, opType, resourceNamePredicate, resourceName, operations);
-    }
-
     private <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(boolean allow,
                                                                            Class<? extends Principal> principalType,
                                                                            TypeNameMap.Predicate principalPredicate,
@@ -342,16 +305,16 @@ public class AclAuthorizer implements Authorizer {
     }
 
     @SuppressWarnings("rawtypes")
-    private static <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(
-                                                                                  TypeNameMap<Principal, PrincipalGrants> allowPerPrincipal,
-                                                                                  Class<? extends Principal> principalType,
-                                                                                  TypeNameMap.Predicate principalPredicate,
-                                                                                  @Nullable String principalName,
-                                                                                  Class<O> opType,
-                                                                                  Pred resourceNamePredicate,
-                                                                                  @Nullable String resourceName,
-                                                                                  Set<O> operations) {
-        // TODO fix the prefix stuff so we don't bother adding redundant prefixes
+    @VisibleForTesting
+    <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(
+                                                                   TypeNameMap<Principal, PrincipalGrants> allowPerPrincipal,
+                                                                   Class<? extends Principal> principalType,
+                                                                   TypeNameMap.Predicate principalPredicate,
+                                                                   @Nullable String principalName,
+                                                                   Class<O> opType,
+                                                                   Pred resourceNamePredicate,
+                                                                   @Nullable String resourceName,
+                                                                   Set<O> operations) {
         var es = EnumSet.copyOf(operations);
         for (var op : es) {
             es.addAll(op.implies());
@@ -485,7 +448,6 @@ public class AclAuthorizer implements Authorizer {
                     allowedActions.add(action);
                 }
             }
-            // TODO log it
         }
         return CompletableFuture.completedStage(new AuthorizeResult(subject, allowedActions, deniedActions));
     }

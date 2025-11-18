@@ -13,7 +13,7 @@ import java.util.function.UnaryOperator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public class TypeNameMap<T, V> {
+class TypeNameMap<T, V> {
 
     public enum Predicate {
         TYPE_EQUAL_NAME_ANY,

@@ -442,18 +442,19 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         @Override
         public void enterResource(AclRulesParser.ResourceContext ctx) {
             var cls = lookupClass(ctx.IDENT(), ResourceType.class, "ResourceType");
-            if (cls != null) {
-                if (this.operationsBuilder != null) {
-                    var enumCls = cls.asSubclass(Enum.class);
-                    if (allOps) {
-                        this.resourceBuilder = this.operationsBuilder.allOperations((Class) enumCls);
-                    }
-                    else {
-                        var list = (List) opNames.stream().map(name -> Enum.valueOf(enumCls, name)).toList();
-                        this.resourceBuilder = this.operationsBuilder.operations(EnumSet.copyOf(list));
-                    }
+            if (cls != null && this.operationsBuilder != null) {
+                var enumCls = cls.asSubclass(Enum.class);
+                if (allOps) {
+                    this.resourceBuilder = this.operationsBuilder.allOperations((Class) enumCls);
+                }
+                else {
+                    List<? extends Enum> list = Objects.requireNonNull(opNames).stream()
+                            .map(name -> Enum.valueOf(enumCls, name))
+                            .toList();
+                    this.resourceBuilder = this.operationsBuilder.operations(EnumSet.copyOf(list));
                 }
             }
+
             this.operationsBuilder = null;
             this.opNames = null;
             this.allOps = false;

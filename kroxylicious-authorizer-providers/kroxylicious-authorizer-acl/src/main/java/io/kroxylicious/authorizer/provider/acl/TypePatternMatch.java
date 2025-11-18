@@ -16,7 +16,7 @@ import io.kroxylicious.authorizer.service.ResourceType;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public class TypePatternMatch {
+class TypePatternMatch {
 
     record Key(
                Class<?> c,
