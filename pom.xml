@@ -78,7 +78,7 @@
         <kubernetes-client.version>7.4.0</kubernetes-client.version>
         <maven.core.version>3.9.11</maven.core.version>
         <awaitility.version>4.3.0</awaitility.version>
-        <testcontainers.version>1.21.3</testcontainers.version>
+        <testcontainers.version>2.0.2</testcontainers.version>
         <azure.security.keyvault.keys.version>4.10.1</azure.security.keyvault.keys.version>
         <lowkey.version>5.0.0</lowkey.version>
         <bouncycastle.version>1.82</bouncycastle.version>
