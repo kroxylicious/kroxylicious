@@ -18,6 +18,7 @@
         <relativePath>../pom.xml</relativePath>
     </parent>
 
+    <name>Authorizer provider implementations</name>
     <artifactId>kroxylicious-authorizer-providers</artifactId>
     <packaging>pom</packaging>
 
