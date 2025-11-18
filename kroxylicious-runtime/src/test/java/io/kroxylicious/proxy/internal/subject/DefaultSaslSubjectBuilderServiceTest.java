@@ -84,7 +84,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                         """
                                 addPrincipals:
                                   - from: thisIsNotKnown
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Unknown `from` 'thisIsNotKnown', supported values are: "
                                 + "'saslAuthorizedId'."),
@@ -95,7 +95,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                                   - from: saslAuthorizedId
                                     map:
                                       - thisIsNotKnown: ""
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Exactly one of `replaceMatch` and `else` are required."),
                 Arguments.argumentSet(
@@ -106,7 +106,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                                     map:
                                       - replaceMatch: /.*/foo/
                                       - else: thisIsNotKnown
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "`else` can only take the value 'identity' or 'anonymous'."),
                 Arguments.argumentSet(
@@ -118,7 +118,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                                       - replaceMatch: /.*/foo/
                                       - else: identity
                                       - else: identity
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "An `else` mapping may only occur at most once, as the last element of `map`."),
                 Arguments.argumentSet(
@@ -129,7 +129,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                                     map:
                                       - else: identity
                                       - replaceMatch: /.*/foo/
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "An `else` mapping may only occur as the last element of `map`."),
                 Arguments.argumentSet(
@@ -140,7 +140,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                                     map:
                                       - else: identity
                                         replaceMatch: /.*/foo/
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "`replaceMatch` and `else` are mutually exclusive."),
                 Arguments.argumentSet(
@@ -158,7 +158,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                                   - from: saslAuthorizedId
                                     map:
                                       - replaceMatch: ""
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule: rule is empty, but it should have the format `cPATTERNcREPLACEMENTcFLAGS`, "
                                 + "where `c` is a separator character of your choosing."),
@@ -169,7 +169,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                                   - from: saslAuthorizedId
                                     map:
                                       - replaceMatch: /
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule at index 0: '/' should have the format `cPATTERNcREPLACEMENTcFLAGS`, "
                                 + "where `c` is a separator character of your choosing. "
@@ -182,7 +182,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                                   - from: saslAuthorizedId
                                     map:
                                       - replaceMatch: /foo
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule at index 3: '/foo' should have the format `cPATTERNcREPLACEMENTcFLAGS`, "
                                 + "where `c` is a separator character of your choosing. "
@@ -195,7 +195,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                                   - from: saslAuthorizedId
                                     map:
                                       - replaceMatch: /foo/
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule at index 4: '/foo/' should have the format `cPATTERNcREPLACEMENTcFLAGS`, "
                                 + "where `c` is a separator character of your choosing. "
@@ -208,7 +208,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                                   - from: saslAuthorizedId
                                     map:
                                       - replaceMatch: /foo/bar
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule at index 7: '/foo/bar' should have the format `cPATTERNcREPLACEMENTcFLAGS`, "
                                 + "where `c` is a separator character of your choosing. "
@@ -221,7 +221,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                                   - from: saslAuthorizedId
                                     map:
                                       - replaceMatch: /foo/bar/badflags
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule at index 9: The given flags, 'badflags', are not valid. The flags may be empty or 'L' or 'U'."),
                 Arguments.argumentSet(
@@ -231,7 +231,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                                   - from: saslAuthorizedId
                                     map:
                                       - replaceMatch: /foo/bar/LU
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule at index 9: The given flags, 'LU', are not valid. The flags may be empty or 'L' or 'U'."),
                 Arguments.argumentSet(
@@ -241,7 +241,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                                   - from: saslAuthorizedId
                                     map:
                                       - replaceMatch: /.***/bar/L
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule at index 1: The pattern part of the rule, '.***', is not a valid regular expression in RE2 format: "
                                 + "invalid nested repetition operator."));
@@ -268,7 +268,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                                   - from: saslAuthorizedId
                                     map:
                                       - replaceMatch: /(.*?)-sasl-(.*?)/$1-$2/
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("my-name"))));
     }
@@ -294,7 +294,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                       - replaceMatch: /foo-(.*?)/$1/
                       - replaceMatch: /(.+)/$1/U
                       - else: anonymous
-                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                 """, DefaultSaslSubjectBuilderService.Config.class);
 
         sasl(builderConfig,

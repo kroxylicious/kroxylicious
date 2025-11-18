@@ -15,6 +15,7 @@ import java.util.stream.Stream;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import io.kroxylicious.proxy.authentication.PrincipalFactory;
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilderService;
 import io.kroxylicious.proxy.plugin.Plugin;
