@@ -322,7 +322,7 @@ class SaslInspectionFilter
             return context.forwardResponse(header, response);
         }).exceptionallyCompose(throwable -> {
             Exception e;
-            if (throwable instanceof SaslException exception) {
+            if (throwable instanceof Exception exception) {
                 e = exception;
             }
             else {

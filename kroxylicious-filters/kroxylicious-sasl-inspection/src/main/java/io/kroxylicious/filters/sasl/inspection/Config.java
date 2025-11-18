@@ -22,5 +22,4 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 public record Config(@Nullable Set<String> enabledMechanisms,
                      @Nullable String subjectBuilder,
-                     @Nullable Object subjectBuilderConfig) {
-}
+                     @Nullable Object subjectBuilderConfig) {}
