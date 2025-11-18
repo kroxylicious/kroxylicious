@@ -73,10 +73,6 @@ class SaslInspectionFilter
         this.subjectBuilder = Objects.requireNonNull(subjectBuilder, "subjectBuilder");
     }
 
-    SaslInspectionFilter(Map<String, SaslObserverFactory> observerFactoryMap) {
-        this(observerFactoryMap, SaslInspection.DEFAULT_SUBJECT_BUILDER);
-    }
-
     @Override
     public CompletionStage<RequestFilterResult> onSaslHandshakeRequest(short apiVersion,
                                                                        RequestHeaderData header,
