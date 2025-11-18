@@ -29,7 +29,7 @@
         </dependency>
         <dependency>
             <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-authorizer</artifactId>
+            <artifactId>kroxylicious-authorizer-api</artifactId>
         </dependency>
         <dependency>
             <groupId>com.google.re2j</groupId>
