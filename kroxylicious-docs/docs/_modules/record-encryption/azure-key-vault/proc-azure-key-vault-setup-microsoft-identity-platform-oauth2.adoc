@@ -24,20 +24,23 @@ NOTE: This identity is used solely for application-to-application (machine-to-ma
 +
 [source,shell]
 ----
-az ad sp create-for-rbac --name "kroxylicious" --query '[appId, password, tenant]' --output tsv
+az ad sp create-for-rbac --name "kroxylicious" --query '[appId, password, tenant, principalId]' --output tsv
 ----
 +
-This command creates the Service Principal and outputs the Client ID, Client Secret, and Tenant ID, in that order. This example uses `kroxylicious` as the username, but you can substitute a different name if necessary.
+This command creates the Service Principal and outputs the Client ID, Client Secret, Tenant ID, and Principal ID, in that order. You will need the Principal ID for the next step. This example uses `kroxylicious` as the username, but you can substitute a different name if necessary.
 
 . Assign the built-in Azure Key Vault RBAC role to the service principal:
 +
 [source,shell]
 ----
+PRINCIPAL_ID="00000000-0000-0000-0000-000000000000" # <1>
 KEY_VAULT_NAME="kroxylicious-key-vault"
-RESOURCE_GROUP="my-resource-group"
+RESOURCE_GROUP="my-resource-group" # <2>
 SCOPE_ID=$(az keyvault show --name ${KEY_VAULT_NAME} --resource-group ${RESOURCE_GROUP} --query "id" --output tsv)
-az role assignment create --assignee "kroxylicious" --role "Key Vault Crypto Service Encryption User" --scope ${SCOPE_ID}
+az role assignment create --assignee ${PRINCIPAL_ID} --role "Key Vault Crypto Service Encryption User" --scope ${SCOPE_ID}
 ----
+<1> This is the object identifier (Principal ID) we output in the previous step.
+<2> This value should be the name of the resource group in which your key vault is deployed.
 +
 These commands assign the built-in Key Vault Crypto Service Encryption User role to the Service Principal, using the target Key Vault as the scope. Replace `KEY_VAULT_NAME` and `RESOURCE_GROUP` with your actual values.
 +
