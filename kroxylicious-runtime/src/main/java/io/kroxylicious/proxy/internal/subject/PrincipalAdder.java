@@ -21,7 +21,8 @@ public record PrincipalAdder(
         return extractor.apply(context)
                 .flatMap(extractedName -> rules.stream().map(rule -> rule.apply(extractedName))
                         .filter(Optional::isPresent)
-                        .findFirst().stream())
+                        .findFirst()
+                        .stream())
                 .flatMap(Optional::stream)
                 .map(factory::newPrincipal);
     }

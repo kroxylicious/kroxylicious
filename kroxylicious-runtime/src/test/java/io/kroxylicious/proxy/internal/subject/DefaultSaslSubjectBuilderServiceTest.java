@@ -120,7 +120,7 @@ class DefaultSaslSubjectBuilderServiceTest {
                                       - else: identity
                                     principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
                                 """,
-                        "An `else` mapping may only occur as the last element of `map`."),
+                        "An `else` mapping may only occur at most once, as the last element of `map`."),
                 Arguments.argumentSet(
                         "else not the last mapping",
                         """

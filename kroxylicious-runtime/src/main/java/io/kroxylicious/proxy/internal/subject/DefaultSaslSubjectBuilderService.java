@@ -126,7 +126,10 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
                 }
             }
         }
-        if (numElses > 1 || (firstElseIndex != -1 && firstElseIndex < maps.size() - 1)) {
+        if (numElses > 1) {
+            throw new IllegalArgumentException("An `else` mapping may only occur at most once, as the last element of `map`.");
+        }
+        else if (firstElseIndex != -1 && firstElseIndex < maps.size() - 1) {
             throw new IllegalArgumentException("An `else` mapping may only occur as the last element of `map`.");
         }
         return maps.stream().map(DefaultSaslSubjectBuilderService::buildMappingRule).toList();
