@@ -156,7 +156,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
 
     private static class BuildingListener extends AclRulesBaseListener implements ErrorCollector {
 
-        private final AclAuthorizer.Builder builder;
+        private final AclAuthorizer.Builder authorizerBuilder;
         private final int maxErrorsToReport;
         private final List<String> errorMessages;
         private int numErrors;
@@ -168,8 +168,8 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         private @Nullable AclAuthorizer.OperationsBuilder operationsBuilder;
         private @Nullable AclAuthorizer.ResourceBuilder<? extends Enum> resourceBuilder;
 
-        BuildingListener(AclAuthorizer.Builder builder, int maxErrorsToReport) {
-            this.builder = builder;
+        BuildingListener(AclAuthorizer.Builder authorizerBuilder, int maxErrorsToReport) {
+            this.authorizerBuilder = authorizerBuilder;
             this.maxErrorsToReport = maxErrorsToReport;
             this.errorMessages = new ArrayList<>(maxErrorsToReport);
         }
@@ -284,12 +284,12 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
 
         @Override
         public void enterAllowRule(AclRulesParser.AllowRuleContext ctx) {
-            this.subjectBuilder = this.builder.allow();
+            this.subjectBuilder = this.authorizerBuilder.allow();
         }
 
         @Override
         public void enterDenyRule(AclRulesParser.DenyRuleContext ctx) {
-            this.subjectBuilder = this.builder.deny();
+            this.subjectBuilder = this.authorizerBuilder.deny();
         }
 
         @Override
