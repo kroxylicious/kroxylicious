@@ -74,6 +74,9 @@ public class AclAuthorizer implements Authorizer {
 
     }
 
+    PrincipalGrants allowAnonymous;
+    PrincipalGrants denyAnonymous;
+
     TypeNameMap<Principal, PrincipalGrants> denyPerPrincipal = new TypeNameMap<>();
 
     TypeNameMap<Principal, PrincipalGrants> allowPerPrincipal = new TypeNameMap<>();
@@ -127,6 +130,10 @@ public class AclAuthorizer implements Authorizer {
             this.allow = allow;
         }
 
+        public OperationsBuilder anonymous() {
+            return new OperationsBuilder(builder, allow, null, null, null);
+        }
+
         public PrincipalSelectorBuilder subjectsHavingPrincipal(Class<? extends Principal> userPrincipalClass) {
             return new PrincipalSelectorBuilder(builder, allow,
                     userPrincipalClass);
@@ -144,30 +151,42 @@ public class AclAuthorizer implements Authorizer {
 
         public ResourceBuilder(Builder builder,
                                boolean allow,
-                               Class<? extends Principal> principalClass,
-                               TypeNameMap.Predicate principalPred,
-                               Set<String> principalNames,
+                               @Nullable Class<? extends Principal> principalClass,
+                               @Nullable TypeNameMap.Predicate principalPred,
+                               @Nullable Set<String> principalNames,
                                Class<O> operationsClass,
                                Set<O> operations) {
             this.builder = Objects.requireNonNull(builder);
             this.allow = allow;
-            this.principalClass = Objects.requireNonNull(principalClass);
-            this.principalPred = Objects.requireNonNull(principalPred);
-            this.principalNames = Objects.requireNonNull(principalNames);
+            this.principalClass = principalClass;
+            this.principalPred = principalPred;
+            this.principalNames = principalNames;
             this.operationsClass = Objects.requireNonNull(operationsClass);
             this.operations = Objects.requireNonNull(operations);
         }
 
         public Builder onResourceWithNameEqualTo(String resourceName) {
-            for (var principalName : principalNames) {
+            if (principalNames == null) {
                 builder.aclAuthorizer.internalAllowOrDeny(allow,
-                        principalClass,
-                        principalPred,
-                        principalName,
+                        null,
+                        null,
+                        null,
                         operationsClass,
                         Pred.EQ,
                         resourceName,
                         operations);
+            }
+            else {
+                for (var principalName : principalNames) {
+                    builder.aclAuthorizer.internalAllowOrDeny(allow,
+                            principalClass,
+                            principalPred,
+                            principalName,
+                            operationsClass,
+                            Pred.EQ,
+                            resourceName,
+                            operations);
+                }
             }
             return builder;
         }
@@ -241,13 +260,13 @@ public class AclAuthorizer implements Authorizer {
 
         private OperationsBuilder(Builder builder,
                                   boolean allow,
-                                  Class<? extends Principal> principalClass,
-                                  TypeNameMap.Predicate principalPred,
-                                  Set<String> principalNames) {
+                                  @Nullable Class<? extends Principal> principalClass,
+                                  @Nullable TypeNameMap.Predicate principalPred,
+                                  @Nullable Set<String> principalNames) {
             this.builder = builder;
             this.allow = allow;
-            this.principalPred = Objects.requireNonNull(principalPred);
-            this.principalClass = Objects.requireNonNull(principalClass);
+            this.principalPred = principalPred;
+            this.principalClass = principalClass;
             this.principalNames = principalNames;
         }
 
@@ -292,8 +311,8 @@ public class AclAuthorizer implements Authorizer {
     }
 
     private <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(boolean allow,
-                                                                           Class<? extends Principal> principalType,
-                                                                           TypeNameMap.Predicate principalPredicate,
+                                                                           @Nullable Class<? extends Principal> principalType,
+                                                                           @Nullable TypeNameMap.Predicate principalPredicate,
                                                                            @Nullable String principalName,
                                                                            Class<O> opType,
                                                                            Pred resourceNamePredicate,
@@ -308,8 +327,8 @@ public class AclAuthorizer implements Authorizer {
     @VisibleForTesting
     <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(
                                                                    TypeNameMap<Principal, PrincipalGrants> allowPerPrincipal,
-                                                                   Class<? extends Principal> principalType,
-                                                                   TypeNameMap.Predicate principalPredicate,
+                                                                   @Nullable Class<? extends Principal> principalType,
+                                                                   @Nullable TypeNameMap.Predicate principalPredicate,
                                                                    @Nullable String principalName,
                                                                    Class<O> opType,
                                                                    Pred resourceNamePredicate,
@@ -319,20 +338,27 @@ public class AclAuthorizer implements Authorizer {
         for (var op : es) {
             es.addAll(op.implies());
         }
-        PrincipalGrants compute = allowPerPrincipal.compute(principalType, principalName, principalPredicate,
-                g -> {
-                    if (g == null) {
-                        return new PrincipalGrants(resourceNamePredicate == Pred.MATCH ? null : new TypeNameMap<>(),
-                                resourceNamePredicate == Pred.MATCH ? new TypePatternMatch() : null);
-                    }
-                    else if (g.patternMatch() == null && resourceNamePredicate == Pred.MATCH) {
-                        return new PrincipalGrants(g.nameMatches(), new TypePatternMatch());
-                    }
-                    else if (g.nameMatches() == null && resourceNamePredicate != Pred.MATCH) {
-                        return new PrincipalGrants(new TypeNameMap<>(), g.patternMatch());
-                    }
-                    return g;
-                });
+        PrincipalGrants compute;
+        if (principalType == null) {
+            allowAnonymous = compute = new PrincipalGrants(resourceNamePredicate == Pred.MATCH ? null : new TypeNameMap<>(),
+                    resourceNamePredicate == Pred.MATCH ? new TypePatternMatch() : null);
+        }
+        else {
+            compute = allowPerPrincipal.compute(principalType, principalName, principalPredicate,
+                    g -> {
+                        if (g == null) {
+                            return new PrincipalGrants(resourceNamePredicate == Pred.MATCH ? null : new TypeNameMap<>(),
+                                    resourceNamePredicate == Pred.MATCH ? new TypePatternMatch() : null);
+                        }
+                        else if (g.patternMatch() == null && resourceNamePredicate == Pred.MATCH) {
+                            return new PrincipalGrants(g.nameMatches(), new TypePatternMatch());
+                        }
+                        else if (g.nameMatches() == null && resourceNamePredicate != Pred.MATCH) {
+                            return new PrincipalGrants(new TypeNameMap<>(), g.patternMatch());
+                        }
+                        return g;
+                    });
+        }
 
         if (resourceNamePredicate == Pred.MATCH) {
             Objects.requireNonNull(compute.patternMatch()).compute(opType, Pattern.compile(Objects.requireNonNull(resourceName)), es);
@@ -434,21 +460,31 @@ public class AclAuthorizer implements Authorizer {
         List<Action> allowedActions = new ArrayList<>();
         List<Action> deniedActions = new ArrayList<>();
         for (var action : actions) {
-            @Nullable
-            Decision decision = authorizeInternal(this.denyPerPrincipal, subject, action, Decision.DENY, null);
-            if (decision == Decision.DENY) {
-                deniedActions.add(action);
+            if (subject.principals().isEmpty()) {
+                if (allowAnonymous != null) {
+                    var decision = getDecision(action, allowAnonymous, Decision.ALLOW);
+                    if (decision == Decision.ALLOW) {
+                        allowedActions.add(action);
+                    }
+                }
             }
             else {
-                decision = authorizeInternal(this.allowPerPrincipal, subject, action, Decision.ALLOW, Decision.DENY);
+                @Nullable
+                Decision decision = authorizeInternal(this.denyPerPrincipal, subject, action, Decision.DENY, null);
                 if (decision == Decision.DENY) {
                     deniedActions.add(action);
                 }
-                else if (decision == Decision.ALLOW) {
-                    allowedActions.add(action);
-                }
                 else {
-                    throw new IllegalStateException();
+                    decision = authorizeInternal(this.allowPerPrincipal, subject, action, Decision.ALLOW, Decision.DENY);
+                    if (decision == Decision.DENY) {
+                        deniedActions.add(action);
+                    }
+                    else if (decision == Decision.ALLOW) {
+                        allowedActions.add(action);
+                    }
+                    else {
+                        throw new IllegalStateException();
+                    }
                 }
             }
         }

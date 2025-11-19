@@ -275,6 +275,55 @@ class AclAuthorizerTest {
         }
     }
 
+    @Test
+    void builderOneOperationAndResourceNameEqualAndAnonymousSubject() {
+        // Given
+        EnumSet<FakeTopicResource> shouldBeAllowed = EnumSet.of(FakeTopicResource.CREATE);
+        EnumSet<FakeTopicResource> shouldBeDenied = EnumSet.complementOf(shouldBeAllowed);
+        var authz = AclAuthorizer.builder()
+                .allow()
+                .anonymous()
+                .operations(shouldBeAllowed)
+                .onResourceWithNameEqualTo("my-topic")
+                .build();
+
+        Subject alice = new Subject(Set.of(new User("alice")));
+        Subject bob = new Subject(Set.of(new User("bob")));
+
+        // Then
+        for (var op : shouldBeAllowed) {
+            AuthorizeResult authorize = getAuthorization(authz, Subject.anonymous(), List.of(new Action(op, "my-topic")));
+            assertThat(authorize.allowed()).isEqualTo(List.of(new Action(op, "my-topic")));
+            assertThat(authorize.denied()).isEmpty();
+
+            authorize = getAuthorization(authz, bob, List.of(new Action(op, "my-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "my-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+        }
+
+        for (var op : shouldBeDenied) {
+            AuthorizeResult authorize = getAuthorization(authz, Subject.anonymous(), List.of(new Action(op, "my-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "my-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+
+            authorize = getAuthorization(authz, bob, List.of(new Action(op, "my-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "my-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+        }
+
+        for (var op : FakeTopicResource.values()) {
+            AuthorizeResult authorize = getAuthorization(authz, bob, List.of(new Action(op, "your-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "your-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+        }
+
+        for (var op : FakeTopicResource.values()) {
+            AuthorizeResult authorize = getAuthorization(authz, alice, List.of(new Action(op, "my-topic")));
+            assertThat(authorize.denied()).isEqualTo(List.of(new Action(op, "my-topic")));
+            assertThat(authorize.allowed()).isEmpty();
+        }
+    }
+
     private static AuthorizeResult getAuthorization(AclAuthorizer authz, Subject alice, List<Action> op) {
         CompletionStage<AuthorizeResult> authorizationStage = authz.authorize(alice,
                 op);

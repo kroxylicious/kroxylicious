@@ -38,8 +38,19 @@ class AclAuthorizerServiceTest {
                              Principal principal,
                              ResourceType<?> resourceType,
                              String resourceName) {
-        CompletionStage<AuthorizeResult> authorize = authz.authorize(
+        return decision(authz,
                 new Subject(principal instanceof User ? Set.of(principal) : Set.of(new User("Mallory"), principal)),
+                resourceType,
+                resourceName);
+    }
+
+    static Decision decision(AclAuthorizer authz,
+                             Subject subject,
+
+                             ResourceType<?> resourceType,
+                             String resourceName) {
+        CompletionStage<AuthorizeResult> authorize = authz.authorize(
+                subject,
                 List.of(new Action(resourceType, resourceName)));
         assertThat(authorize).isCompleted();
         return authorize.toCompletableFuture().join()
@@ -369,6 +380,33 @@ class AclAuthorizerServiceTest {
         for (String allowedPrincipal : Set.of("Alice", "Bob", "Eve", "Alic")) {
             assertThat(decision(authz, new User(allowedPrincipal), FakeTopicResource.READ, "foo"))
                     .isEqualTo(Decision.ALLOW);
+            assertThat(decision(authz, new User(allowedPrincipal), FakeTopicResource.READ, "bar"))
+                    .as("Mismatching resource name")
+                    .isEqualTo(Decision.DENY);
+            assertThat(decision(authz, new User(allowedPrincipal), FakeClusterResource.CONNECT, "foo"))
+                    .as("Mismatching resource type")
+                    .isEqualTo(Decision.DENY);
+            // assertThat(decision(authz, new RolePrincipal(allowedPrincipal), FakeTopicResource.READ, "foo"))
+            // .as("Mismatching principal type")
+            // .isEqualTo(Decision.DENY);
+        }
+    }
+
+    @Test
+    void testAnonymousAnyResourceEq() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
+
+                allow anonymous to READ Topic with name = "foo";
+
+                otherwise deny;"""));
+        assertThat(decision(authz, Subject.anonymous(), FakeTopicResource.READ, "foo"))
+                .isEqualTo(Decision.ALLOW);
+        for (String allowedPrincipal : Set.of("Alice", "Bob", "Eve", "Alic")) {
+            assertThat(decision(authz, new User(allowedPrincipal), FakeTopicResource.READ, "foo"))
+                    .isEqualTo(Decision.DENY);
             assertThat(decision(authz, new User(allowedPrincipal), FakeTopicResource.READ, "bar"))
                     .as("Mismatching resource name")
                     .isEqualTo(Decision.DENY);
