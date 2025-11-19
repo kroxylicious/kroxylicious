@@ -16,16 +16,16 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * @param apicurioGlobalId globalId
  * @param apicurioRegistryUrl apicurio registry url
  */
-public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioGlobalId) {
+public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioContentId) {
     /**
      * Construct SchemaValidationConfig
-     * @param apicurioGlobalId apicurio registry version global identifier to be used for schema validation
+     * @param apicurioContentId apicurio registry version global identifier to be used for schema validation
      * @param apicurioRegistryUrl Apicurio Registry instance url
      */
     @JsonCreator
     public SchemaValidationConfig(@JsonProperty(value = "apicurioRegistryUrl", required = true) URL apicurioRegistryUrl,
-                                  @JsonProperty(value = "apicurioGlobalId", required = true) long apicurioGlobalId) {
-        this.apicurioGlobalId = apicurioGlobalId;
+                                  @JsonProperty(value = "apicurioContentId", required = true) long apicurioContentId) {
+        this.apicurioContentId = apicurioContentId;
         this.apicurioRegistryUrl = apicurioRegistryUrl;
     }
 
