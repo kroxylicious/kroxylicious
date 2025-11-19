@@ -101,9 +101,13 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         parser.addErrorListener(parseErrorListener);
         var tree = parser.rule_();
         parseErrorListener.maybeThrow();
-        var builder = AclAuthorizer.builder();
 
+        var builder = AclAuthorizer.builder();
         ParseTreeWalker walker = new ParseTreeWalker();
+        CheckingListener checkingListener = new CheckingListener(builder, maxErrorsToReports);
+        walker.walk(checkingListener, tree);
+        checkingListener.maybeThrow();
+        builder = AclAuthorizer.builder();
         BuildingListener buildingListener = new BuildingListener(builder, maxErrorsToReports);
         walker.walk(buildingListener, tree);
         buildingListener.maybeThrow();
@@ -151,6 +155,193 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
 
         public void maybeThrow() {
             maybeThrow("Found %d syntax errors");
+        }
+    }
+
+
+    private static class CheckingListener extends AclRulesBaseListener implements ErrorCollector {
+
+        private final int maxErrorsToReport;
+        private final List<String> errorMessages;
+        private int numErrors;
+        Map<String, String> localToQualified = new HashMap<>();
+        private boolean inResource;
+
+        CheckingListener(AclAuthorizer.Builder authorizerBuilder, int maxErrorsToReport) {
+            this.maxErrorsToReport = maxErrorsToReport;
+            this.errorMessages = new ArrayList<>(maxErrorsToReport);
+        }
+
+        @Override
+        public List<String> errorMessages() {
+            return errorMessages;
+        }
+
+        @Override
+        public int numErrors() {
+            return numErrors;
+        }
+
+        @Override
+        public int maxErrorsToReport() {
+            return maxErrorsToReport;
+        }
+
+        void reportError(Token token, String error) {
+            numErrors++;
+            if (errorMessages.size() < maxErrorsToReport) {
+                errorMessages.add("%d:%d: %s".formatted(token.getLine(), token.getCharPositionInLine(), error));
+            }
+        }
+
+        /**
+         * Removes double quote or forward slash delimiters from literals.
+         * @param string The node to remove the delimiters from.
+         * @return The un-delimited string
+         */
+        private static String unwrapDelims(TerminalNode string) {
+            var text = string.getText();
+            return text.substring(1, text.length() - 1);
+        }
+
+        private static String unquote(String sansQuotes) {
+            return sansQuotes.replaceAll("\\\\(.)", "$1");
+        }
+
+        private String unquoteString(TerminalNode string) {
+            return unquote(unwrapDelims(string));
+        }
+
+        private String unquoteRegex(TerminalNode string) {
+            return unquote(unwrapDelims(string));
+        }
+
+        public void maybeThrow() {
+            maybeThrow("!!!Found %d errors");
+        }
+
+        private BuildingListener.Prefix unquotePrefix(AclRulesParser.NameLikeContext nameLike) {
+            var pattern = unwrapDelims(nameLike.STRING());
+            boolean wildcardIsPresent = false;
+            var prefix = new StringBuilder(pattern.length());
+            for (int i = 0; i < pattern.length(); i++) {
+                char ch = pattern.charAt(i);
+                if (ch == '\\' && i + 1 < pattern.length()) {
+                    char ch2 = pattern.charAt(++i);
+                    prefix.append(ch2);
+                }
+                else if (ch == '*') {
+                    wildcardIsPresent = true;
+                    if (i != pattern.length() - 1) {
+                        reportError(nameLike.STRING().getSymbol(), "Wildcard '*' only supported as last character in 'like'.");
+                    }
+                }
+                else {
+                    prefix.append(ch);
+                }
+            }
+            return new BuildingListener.Prefix(prefix.toString(), !wildcardIsPresent);
+        }
+
+        @Override
+        public void enterVersionStmt(AclRulesParser.VersionStmtContext ctx) {
+            var version = Integer.parseInt(ctx.INT().getText());
+            if (version != 1) {
+                reportError(ctx.start, "Unsupported version: Only version 1 is supported.");
+            }
+        }
+
+        @Override
+        public void enterImportStmt(AclRulesParser.ImportStmtContext ctx) {
+            var packageName = ctx.packageName().qualIdent().ident().stream()
+                    .map(RuleContext::getText)
+                    .collect(Collectors.joining("."));
+            for (var importElement : ctx.importList().importElement()) {
+                String simpleClassName = importElement.name.getText();
+                String localName;
+                Token errorToken;
+                if (importElement.local != null) {
+                    localName = importElement.local.getText();
+                    errorToken = importElement.local.start;
+                }
+                else {
+                    localName = simpleClassName;
+                    errorToken = importElement.name.start;
+                }
+                var was = this.localToQualified.put(localName, packageName + "." + simpleClassName);
+                if (was != null) {
+                    reportError(errorToken,
+                            "Local name '%s' is already being used for class %s.".formatted(localName, was));
+                }
+            }
+        }
+
+        @Override
+        public void enterPrincipalType(AclRulesParser.PrincipalTypeContext ctx) {
+            var principalClass = lookupClass(ctx.ident().getText(), ctx.ident().start, Principal.class, "Principal");
+
+        }
+
+        private <T> @Nullable Class<? extends T> lookupClass(String ident, Token identToken, Class<T> cls, String desc) {
+            // look it up in the imports
+            String localClassName = ident;
+            var qualifiedClassName = this.localToQualified.get(localClassName);
+            if (qualifiedClassName == null) {
+                reportError(identToken,
+                        "%s class with name '%s' has not been imported.".formatted(desc, localClassName));
+                return null;
+            }
+            try {
+                Class<?> c = Class.forName(qualifiedClassName);
+                if (!cls.isAssignableFrom(c)) {
+                    reportError(identToken,
+                            "%s class '%s' is not a subclass of %s.".formatted(desc, localClassName, cls));
+                    return null;
+                }
+                return c.asSubclass(cls);
+            }
+            catch (ClassNotFoundException e) {
+                reportError(identToken,
+                        "%s class '%s' was not found.".formatted(desc, qualifiedClassName));
+                return null;
+            }
+        }
+
+
+        @Override
+        public void enterNameLike(AclRulesParser.NameLikeContext nameLike) {
+            BuildingListener.Prefix prefix1 = unquotePrefix(nameLike);
+        }
+
+        @Override
+        public void exitResource(AclRulesParser.ResourceContext ctx) {
+            this.inResource = false;
+        }
+
+        @Override
+        public void enterNameMatch(AclRulesParser.NameMatchContext nameMatch) {
+            if (this.inResource) {
+                reportError(nameMatch.MATCHING().getSymbol(),
+                        "'%s' operation not supported on principals".formatted(nameMatch.MATCHING().getText()));
+            }
+            String p = unquoteRegex(nameMatch.REGEX());
+            try {
+                Pattern.compile(p); // check it's valid
+            }
+            catch (PatternSyntaxException e) {
+                reportError(nameMatch.REGEX().getSymbol(),
+                        "Regex provided for '%s' operation is not valid: %s.".formatted(
+                                nameMatch.MATCHING().getText(),
+                                e.getMessage()));
+            }
+        }
+
+        @SuppressWarnings({ "rawtypes", "unchecked" })
+        @Override
+        public void enterResource(AclRulesParser.ResourceContext ctx) {
+            var cls = lookupClass(ctx.ident().getText(), ctx.ident().start, ResourceType.class, "ResourceType");
+
+            this.inResource = true;
         }
     }
 
@@ -338,6 +529,9 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
                 this.operationsBuilder = this.principalBuilder.withNameEqualTo(unquoteString(ctx.STRING()));
                 this.principalBuilder = null;
             }
+            else {
+                throw new IllegalStateException();
+            }
         }
 
         @Override
@@ -352,6 +546,9 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
             else if (this.principalBuilder != null) {
                 this.operationsBuilder = this.principalBuilder.withNameIn(names);
                 this.principalBuilder = null;
+            }
+            else {
+                throw new IllegalStateException();
             }
         }
 
@@ -381,6 +578,9 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
                     this.operationsBuilder = this.principalBuilder.withNameStartingWith(prefix1.prefix());
                 }
                 this.principalBuilder = null;
+            }
+            else {
+                throw new IllegalStateException();
             }
         }
 
@@ -415,6 +615,9 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
             else if (this.principalBuilder != null) {
                 this.operationsBuilder = this.principalBuilder.withAnyName();
                 this.principalBuilder = null;
+            }
+            else {
+                throw new IllegalStateException();
             }
         }
 
