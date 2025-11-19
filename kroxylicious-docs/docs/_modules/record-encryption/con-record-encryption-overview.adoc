@@ -19,6 +19,8 @@ The KEK is stored securely in a Key Management System (KMS).
 Symmetric encryption keys::
 AES(GCM) 256 bit encryption symmetric encryption keys are used to encrypt and decrypt record data.
 
+NOTE: In Azure Key Vault, RSAES-OAEP 256 bit asymmetric keys may be used instead of AES(GCM) 256 bit symmetric keys if Managed HSM is not available, but this method is not quantum-resistant.
+
 The process is as follows:
 
 . The filter intercepts produce requests from producing applications and transforms them by encrypting the records.
