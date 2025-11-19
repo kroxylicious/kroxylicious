@@ -14,25 +14,25 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 /**
  * Configuration for validating a component ByteBuffer of a {@link org.apache.kafka.common.record.Record} is valid using the schema in Apicurio Registry.
  */
-public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioGlobalId) {
+public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioContentId) {
     /**
      * Construct SchemaValidationConfig
-     * @param apicurioGlobalId apicurio registry version global identifier to be used for schema validation
+     * @param apicurioContentId apicurio registry version global identifier to be used for schema validation
      * @param apicurioRegistryUrl Apicurio Registry instance url
      */
     @JsonCreator
     public SchemaValidationConfig(@JsonProperty(value = "apicurioRegistryUrl", required = true) URL apicurioRegistryUrl,
-                                  @JsonProperty(value = "apicurioGlobalId", required = true) long apicurioGlobalId) {
-        this.apicurioGlobalId = apicurioGlobalId;
+                                  @JsonProperty(value = "apicurioContentId", required = true) long apicurioContentId) {
+        this.apicurioContentId = apicurioContentId;
         this.apicurioRegistryUrl = apicurioRegistryUrl;
     }
 
     /**
-     * @return the configured globalId to be used
+     * @return the configured contentId to be used
      */
     @Override
-    public long apicurioGlobalId() {
-        return apicurioGlobalId;
+    public long apicurioContentId() {
+        return apicurioContentId;
     }
 
     /**
@@ -46,7 +46,7 @@ public record SchemaValidationConfig(URL apicurioRegistryUrl, long apicurioGloba
     @Override
     public String toString() {
         return "SchemaValidationConfig{" +
-                "apicurioGlobalId=" + apicurioGlobalId +
+                "apicurioContentId=" + apicurioContentId +
                 ", apicurioRegistryUrl='" + apicurioRegistryUrl + '\'' +
                 '}';
     }

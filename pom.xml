@@ -256,7 +256,7 @@
             </dependency>
             <dependency>
                 <groupId>io.apicurio</groupId>
-                <artifactId>apicurio-registry-java-sdk-v2</artifactId>
+                <artifactId>apicurio-registry-java-sdk</artifactId>
                 <version>${apicurio-registry.version}</version>
             </dependency>
             <dependency>

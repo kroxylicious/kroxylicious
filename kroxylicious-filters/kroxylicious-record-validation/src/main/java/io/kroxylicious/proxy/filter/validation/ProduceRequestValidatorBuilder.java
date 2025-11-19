@@ -61,7 +61,7 @@ class ProduceRequestValidatorBuilder {
         valueRule.getSyntacticallyCorrectJsonConfig().ifPresent(config -> validators.add(BytebufValidators.jsonSyntaxValidator(config.isValidateObjectKeysUnique())));
         valueRule.getSchemaValidationConfig().ifPresent(
                 config -> validators.add(BytebufValidators.jsonSchemaValidator(Map.of(SchemaResolverConfig.REGISTRY_URL, config.apicurioRegistryUrl().toString()),
-                        config.apicurioGlobalId())));
+                        config.apicurioContentId())));
 
         return BytebufValidators.chainOf(validators);
     }
