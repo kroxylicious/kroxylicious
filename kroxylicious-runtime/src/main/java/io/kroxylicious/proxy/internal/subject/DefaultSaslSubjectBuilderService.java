@@ -53,7 +53,8 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
     public record Config(List<PrincipalAdderConf> addPrincipals) {
 
     }
-    
+
+    @Nullable
     List<PrincipalAdder> adders;
 
     @Override
@@ -65,7 +66,7 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
                 .toList();
     }
 
-    private static PrincipalFactory<?> buildPrincipalFactory(String principalFactory) {
+    static PrincipalFactory<?> buildPrincipalFactory(String principalFactory) {
         return ServiceLoader.load(PrincipalFactory.class).stream()
                 .filter(provider -> provider.type().getName().equals(principalFactory))
                 .findFirst()
@@ -74,7 +75,7 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
     }
 
     @NonNull
-    private static List<MappingRule> buildMappingRules(@Nullable List<Map> maps) {
+    static List<MappingRule> buildMappingRules(@Nullable List<Map> maps) {
         if (maps == null || maps.isEmpty()) {
             return List.of(new IdentityMappingRule());
         }
@@ -117,7 +118,7 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
     }
 
     @NonNull
-    private static Function<Object, Stream<String>> buildExtractor(String from) {
+    static Function<Object, Stream<String>> buildExtractor(String from) {
         return switch (from) {
             case SASL_AUTHORIZED_ID -> context -> Stream.of(((SaslSubjectBuilder.Context) context).clientSaslContext().authorizationId());
             default -> throw new IllegalArgumentException("Unknown `from` '%s', supported values are: %s."

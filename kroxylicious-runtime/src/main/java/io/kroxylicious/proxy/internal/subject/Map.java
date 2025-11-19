@@ -22,8 +22,8 @@ record Map(@Nullable String replaceMatch,
         else if (else_ == null) {
             throw new IllegalArgumentException("Exactly one of `replaceMatch` and `else` are required.");
         }
-        else if (!else_.equals(DefaultTransportSubjectBuilderService.ELSE_IDENTITY)
-                && !else_.equals(DefaultTransportSubjectBuilderService.ELSE_ANONYMOUS)) {
+        else if (!else_.equals(DefaultSaslSubjectBuilderService.ELSE_IDENTITY)
+                && !else_.equals(DefaultSaslSubjectBuilderService.ELSE_ANONYMOUS)) {
             throw new IllegalArgumentException("`else` can only take the value 'identity' or 'anonymous'.");
         }
     }
