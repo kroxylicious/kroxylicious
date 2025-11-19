@@ -25,6 +25,14 @@
     <dependencies>
         <dependency>
             <groupId>io.kroxylicious</groupId>
+            <artifactId>kroxylicious-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.antlr</groupId>
+            <artifactId>antlr4-runtime</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.kroxylicious</groupId>
             <artifactId>kroxylicious-annotations</artifactId>
         </dependency>
         <dependency>
@@ -48,15 +56,6 @@
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>io.kroxylicious</groupId>
-            <artifactId>kroxylicious-api</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.antlr</groupId>
-            <artifactId>antlr4-runtime</artifactId>
-            <version>4.13.1</version>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
