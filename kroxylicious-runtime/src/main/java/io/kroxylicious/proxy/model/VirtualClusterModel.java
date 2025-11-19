@@ -33,8 +33,8 @@ import io.kroxylicious.proxy.authentication.TransportSubjectBuilderService;
 import io.kroxylicious.proxy.config.IllegalConfigurationException;
 import io.kroxylicious.proxy.config.NamedFilterDefinition;
 import io.kroxylicious.proxy.config.PluginFactoryRegistry;
-import io.kroxylicious.proxy.config.SubjectBuilderConfig;
 import io.kroxylicious.proxy.config.TargetCluster;
+import io.kroxylicious.proxy.config.TransportSubjectBuilderConfig;
 import io.kroxylicious.proxy.config.tls.AllowDeny;
 import io.kroxylicious.proxy.config.tls.NettyKeyProvider;
 import io.kroxylicious.proxy.config.tls.NettyTrustProvider;
@@ -72,7 +72,7 @@ public class VirtualClusterModel {
     private final List<NamedFilterDefinition> filters;
 
     private final Optional<SslContext> upstreamSslContext;
-    private final @Nullable SubjectBuilderConfig subjectBuilderConfig;
+    private final @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig;
 
     public VirtualClusterModel(String clusterName,
                                TargetCluster targetCluster,
@@ -87,13 +87,13 @@ public class VirtualClusterModel {
                                boolean logNetwork,
                                boolean logFrames,
                                List<NamedFilterDefinition> filters,
-                               @Nullable SubjectBuilderConfig subjectBuilderConfig) {
+                               @Nullable TransportSubjectBuilderConfig transportSubjectBuilderConfig) {
         this.clusterName = Objects.requireNonNull(clusterName);
         this.targetCluster = Objects.requireNonNull(targetCluster);
         this.logNetwork = logNetwork;
         this.logFrames = logFrames;
         this.filters = filters;
-        this.subjectBuilderConfig = subjectBuilderConfig;
+        this.transportSubjectBuilderConfig = transportSubjectBuilderConfig;
 
         // TODO: https://github.com/kroxylicious/kroxylicious/issues/104 be prepared to reload the SslContext at runtime.
         this.upstreamSslContext = buildUpstreamSslContext();
@@ -279,13 +279,13 @@ public class VirtualClusterModel {
         var pf = pfr.pluginFactory(TransportSubjectBuilderService.class);
         String type;
         Object config;
-        if (this.subjectBuilderConfig == null) {
+        if (this.transportSubjectBuilderConfig == null) {
             type = DefaultTransportSubjectBuilderService.class.getName();
             config = new DefaultTransportSubjectBuilderService.Config(List.of());
         }
         else {
-            type = this.subjectBuilderConfig.type();
-            config = this.subjectBuilderConfig.config();
+            type = this.transportSubjectBuilderConfig.type();
+            config = this.transportSubjectBuilderConfig.config();
         }
         Class<?> configType = pf.configType(type);
         if (config != null && !configType.isInstance(config)) {

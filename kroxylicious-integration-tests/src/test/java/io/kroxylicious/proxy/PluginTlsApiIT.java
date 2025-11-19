@@ -27,7 +27,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import io.kroxylicious.proxy.authentication.Subject;
-import io.kroxylicious.proxy.config.SubjectBuilderConfig;
+import io.kroxylicious.proxy.config.TransportSubjectBuilderConfig;
 import io.kroxylicious.proxy.config.VirtualClusterBuilder;
 import io.kroxylicious.proxy.config.secret.InlinePassword;
 import io.kroxylicious.proxy.config.tls.Tls;
@@ -177,7 +177,7 @@ public class PluginTlsApiIT extends AbstractTlsIT {
                                 .withTls(gatewayTls)
                                 .build())
                         .withSubjectBuilder(subjectBuilderServiceConfig != null ?
-                                new SubjectBuilderConfig(MyTransportSubjectBuilderService.class.getName(), subjectBuilderServiceConfig) : null)
+                                new TransportSubjectBuilderConfig(MyTransportSubjectBuilderService.class.getName(), subjectBuilderServiceConfig) : null)
                         .build());
         // @formatter:on
 

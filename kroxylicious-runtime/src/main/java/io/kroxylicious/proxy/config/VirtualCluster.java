@@ -32,7 +32,7 @@ public record VirtualCluster(@JsonProperty(required = true) String name,
                              boolean logNetwork,
                              boolean logFrames,
                              @Nullable List<String> filters,
-                             @Nullable SubjectBuilderConfig subjectBuilder) {
+                             @Nullable TransportSubjectBuilderConfig subjectBuilder) {
 
     private static final Pattern DNS_LABEL_PATTERN = Pattern.compile("^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", Pattern.CASE_INSENSITIVE);
 
