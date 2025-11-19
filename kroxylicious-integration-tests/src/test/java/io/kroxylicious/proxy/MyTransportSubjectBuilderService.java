@@ -19,6 +19,8 @@ import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.tls.ClientTlsContext;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
+
 @Plugin(configType = MyTransportSubjectBuilderService.Config.class)
 public class MyTransportSubjectBuilderService implements TransportSubjectBuilderService<MyTransportSubjectBuilderService.Config> {
 
@@ -35,7 +37,7 @@ public class MyTransportSubjectBuilderService implements TransportSubjectBuilder
         }
 
         @Override
-        public CompletionStage<Subject> buildTransportSubject(Context context) {
+        public CompletionStage<Subject> buildTransportSubject(@NonNull Context context) {
             return context.clientTlsContext()
                     .flatMap(ClientTlsContext::clientCertificate)
                     .map(tls -> delayed(new Subject(new User(tls.getSubjectX500Principal()

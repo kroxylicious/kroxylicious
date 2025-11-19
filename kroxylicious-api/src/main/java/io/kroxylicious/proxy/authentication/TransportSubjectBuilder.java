@@ -22,9 +22,19 @@ import io.kroxylicious.proxy.tls.ClientTlsContext;
  */
 public interface TransportSubjectBuilder {
 
+    /**
+     * Returns an asynchronous result which completes with the {@code Subject} built
+     * from the given {@code context}.
+     * @param context The context of the connection.
+     * @return The Subject. The returned stage should fail with an {@link SubjectBuildingException} if the builder was not able to
+     * build a subject.
+     */
     CompletionStage<Subject> buildTransportSubject(Context context);
 
     interface Context {
+        /**
+         * @return The TLS context for the client connection, or empty if the client connection is not TLS.
+         */
         Optional<ClientTlsContext> clientTlsContext();
     }
 }
