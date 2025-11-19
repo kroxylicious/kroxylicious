@@ -6,6 +6,7 @@
 
 package io.kroxylicious.authorizer.provider.acl;
 
+import java.time.Duration;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
@@ -368,7 +369,7 @@ class AclAuthorizerTest {
     private static Decision getDecision(Authorizer authorizer, Subject subject, ResourceType<?> resourceType, String resourceName) {
         CompletionStage<AuthorizeResult> authorize = authorizer.authorize(subject, List.of(new Action(resourceType, resourceName)));
         assertThat(authorize).isCompleted();
-        return authorize.toCompletableFuture().join().decision(resourceType, resourceName);
+        return assertThat(authorize).succeedsWithin(Duration.ZERO).actual().decision(resourceType, resourceName);
     }
 
 }
