@@ -69,11 +69,6 @@ class TypeNameMap<T, V> {
                 '}';
     }
 
-    public V computeIfAbsent(Class<? extends T> type, String name, Predicate predicate, Supplier<V> value) {
-        return map.computeIfAbsent(new ClassNameKey<>(type, predicate, predicate == TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY ? null : name),
-                p1 -> value.get());
-    }
-
     public V compute(Class<? extends T> type, @Nullable String name, Predicate predicate, UnaryOperator<V> value) {
         return map.compute(new ClassNameKey<>(type, predicate, predicate == TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY ? null : name),
                 (k, v) -> value.apply(v));
