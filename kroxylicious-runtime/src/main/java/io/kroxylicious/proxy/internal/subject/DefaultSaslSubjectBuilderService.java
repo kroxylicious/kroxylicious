@@ -7,13 +7,12 @@
 package io.kroxylicious.proxy.internal.subject;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.ServiceLoader;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
-import com.fasterxml.jackson.annotation.JsonProperty;
 
 import io.kroxylicious.proxy.authentication.PrincipalFactory;
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
@@ -54,43 +53,7 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
     public record Config(List<PrincipalAdderConf> addPrincipals) {
 
     }
-
-    /**
-     * Configuration for a principal adder, which is responsible for contributing zero or more principals to the subject.
-     * @param from Names a function for extracting a string value from a {@link SaslSubjectBuilder.Context}.
-     * @param map An optional list of mappings to apply to the `from`-extracted string.
-     * @param principalFactory The name of a {@link PrincipalFactory} implementation class.
-     */
-    public record PrincipalAdderConf(@JsonProperty(required = true) String from,
-                                     @Nullable List<Map> map,
-                                     @JsonProperty(required = true) String principalFactory) {
-        public PrincipalAdderConf {
-            // call methods for validation side-effect
-            buildExtractor(from);
-            buildMappingRules(map);
-            buildPrincipalFactory(principalFactory);
-        }
-    }
-
-    record Map(@Nullable String replaceMatch,
-               @JsonProperty("else") @Nullable String else_) {
-        Map {
-            if (replaceMatch != null) {
-                if (else_ != null) {
-                    throw new IllegalArgumentException("`replaceMatch` and `else` are mutually exclusive.");
-                }
-                new ReplaceMatchMappingRule(replaceMatch);
-            }
-            else if (else_ == null) {
-                throw new IllegalArgumentException("Exactly one of `replaceMatch` and `else` are required.");
-            }
-            else if (!else_.equals(ELSE_IDENTITY)
-                    && !else_.equals(ELSE_ANONYMOUS)) {
-                throw new IllegalArgumentException("`else` can only take the value 'identity' or 'anonymous'.");
-            }
-        }
-    }
-
+    
     List<PrincipalAdder> adders;
 
     @Override
@@ -111,7 +74,7 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
     }
 
     @NonNull
-    private static List<MappingRule> buildMappingRules(List<Map> maps) {
+    private static List<MappingRule> buildMappingRules(@Nullable List<Map> maps) {
         if (maps == null || maps.isEmpty()) {
             return List.of(new IdentityMappingRule());
         }
@@ -166,7 +129,7 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
 
     @Override
     public SaslSubjectBuilder build() {
-        return new DefaultSubjectBuilder(adders);
+        return new DefaultSubjectBuilder(Objects.requireNonNull(adders, "build() called before initialize()"));
     }
 
     @Override
