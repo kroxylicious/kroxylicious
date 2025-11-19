@@ -54,7 +54,23 @@ userNamePred: nameAny
     | nameLike
     ;
 
-namePred: nameAny
+operationPattern: operations resource WITH NAME resourceNamePred
+    ;
+
+operations: STAR
+    | operation
+    | operationSet
+    ;
+operation: ident
+    ;
+operationSet: LBRA operation (COMMA operation)* RBRA
+    ;
+
+resource: ident
+    //| STAR
+    ;
+
+resourceNamePred: nameAny
     | nameEq
     | nameIn
     | nameMatch
@@ -69,22 +85,6 @@ nameIn: IN LBRA STRING (COMMA STRING)* RBRA
 nameMatch: MATCHING REGEX
     ;
 nameLike: LIKE STRING
-    ;
-
-operationPattern: operations resource WITH NAME namePred
-    ;
-
-operations: STAR
-    | operation
-    | operationSet
-    ;
-operation: ident
-    ;
-operationSet: LBRA operation (COMMA operation)* RBRA
-    ;
-
-resource: ident
-    //| STAR
     ;
 
 endRule: OTHERWISE DENY SEMI
