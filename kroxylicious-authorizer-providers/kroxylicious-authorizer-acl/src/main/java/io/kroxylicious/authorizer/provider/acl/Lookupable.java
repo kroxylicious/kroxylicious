@@ -12,8 +12,6 @@ interface Lookupable<T> {
     Class<? extends T> type();
 
     @Nullable
-    TypeNameMap.Predicate predicate();
-
-    @Nullable
     String operand();
+
 }

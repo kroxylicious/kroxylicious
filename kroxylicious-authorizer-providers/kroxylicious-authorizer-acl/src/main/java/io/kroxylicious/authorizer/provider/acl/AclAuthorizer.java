@@ -83,23 +83,23 @@ public class AclAuthorizer implements Authorizer {
         public OperationsBuilder withNameEqualTo(String principalName) {
             return new OperationsBuilder(builder,
                     allow,
-                    Set.of((ResourceMatcher<Principal>) new ResourceMatcherNameEquals<>(principalClass, principalName)));
+                    Set.of(new ResourceMatcherNameEquals<>(principalClass, principalName)));
         }
 
         public OperationsBuilder withNameIn(Set<String> principalNames) {
             return new OperationsBuilder(builder,
                     allow,
                     principalNames.stream()
-                            .map(principalName -> (ResourceMatcher<Principal>) new ResourceMatcherNameEquals<>(principalClass, principalName))
+                            .map(principalName -> (Lookupable2<Principal>) new ResourceMatcherNameEquals<>(principalClass, principalName))
                             .collect(Collectors.toSet()));
         }
 
         public OperationsBuilder withNameStartingWith(String principalNamePrefix) {
-            return new OperationsBuilder(builder, allow, Set.of((ResourceMatcher<Principal>) new ResourceMatcherNameStarts<>(principalClass, principalNamePrefix)));
+            return new OperationsBuilder(builder, allow, Set.of(new ResourceMatcherNameStarts<>(principalClass, principalNamePrefix)));
         }
 
         public OperationsBuilder withAnyName() {
-            return new OperationsBuilder(builder, allow, Set.of((ResourceMatcher<Principal>) new ResourceMatcherAnyOfType<>(principalClass)));
+            return new OperationsBuilder(builder, allow, Set.of(new ResourceMatcherAnyOfType<>(principalClass)));
         }
     }
 
@@ -122,14 +122,14 @@ public class AclAuthorizer implements Authorizer {
 
     public static class ResourceBuilder<O extends Enum<O> & ResourceType<O>> {
         private final Builder builder;
-        private final Set<? extends ResourceMatcher<Principal>> principalMatchers;
+        private final Set<? extends Lookupable2<Principal>> principalMatchers;
         private final Class<O> operationsClass;
         private final Set<O> operations;
         private final boolean allow;
 
         public ResourceBuilder(Builder builder,
                                boolean allow,
-                               Set<? extends ResourceMatcher<Principal>> principalMatchers,
+                               Set<? extends Lookupable2<Principal>> principalMatchers,
                                Class<O> operationsClass,
                                Set<O> operations) {
             this.builder = Objects.requireNonNull(builder);
@@ -196,11 +196,11 @@ public class AclAuthorizer implements Authorizer {
 
         private final Builder builder;
         private final boolean allow;
-        private final Set<? extends ResourceMatcher<Principal>> principalMatchers;
+        private final Set<? extends Lookupable2<Principal>> principalMatchers;
 
         private OperationsBuilder(Builder builder,
                                   boolean allow,
-                                  Set<ResourceMatcher<Principal>> principalMatchers) {
+                                  Set<Lookupable2<Principal>> principalMatchers) {
             this.builder = builder;
             this.allow = allow;
             this.principalMatchers = Objects.requireNonNull(principalMatchers);
@@ -242,26 +242,19 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
-    public sealed interface ResourceMatcher<T>
-            extends Lookupable<T>
-            permits ResourceMatcherAnyOfType, ResourceMatcherNameEquals, ResourceMatcherNameStarts,
-            ResourceMatcherNameMatches {
-    }
+    record ResourceMatcherNameEquals<T>(Class<? extends T> type, String operand) implements Lookupable2<T> {
 
-    record ResourceMatcherNameEquals<T>(Class<T> type, String operand) implements ResourceMatcher<T> {
-
-        @Override
-        public TypeNameMap.Predicate predicate() {
-            return TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL;
+        ResourceMatcherNameEquals {
+            Objects.requireNonNull(type);
+            Objects.requireNonNull(operand);
         }
 
     }
 
-    record ResourceMatcherAnyOfType<T>(Class<T> type) implements ResourceMatcher<T> {
+    record ResourceMatcherAnyOfType<T>(Class<? extends T> type) implements Lookupable2<T> {
 
-        @Override
-        public TypeNameMap.Predicate predicate() {
-            return TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY;
+        ResourceMatcherAnyOfType {
+            Objects.requireNonNull(type);
         }
 
         @Nullable
@@ -271,11 +264,11 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
-    record ResourceMatcherNameStarts<T>(Class<T> type, String prefix) implements ResourceMatcher<T> {
+    record ResourceMatcherNameStarts<T>(Class<? extends T> type, String prefix) implements Lookupable2<T> {
 
-        @Override
-        public TypeNameMap.Predicate predicate() {
-            return TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH;
+        ResourceMatcherNameStarts {
+            Objects.requireNonNull(type);
+            Objects.requireNonNull(prefix);
         }
 
         @Nullable
@@ -285,11 +278,11 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
-    record ResourceMatcherNameMatches<T>(Class<T> type, String regex) implements ResourceMatcher<T> {
+    record ResourceMatcherNameMatches<T>(Class<T> type, String regex) implements Lookupable<T> {
 
-        @Override
-        public @Nullable TypeNameMap.Predicate predicate() {
-            return null;
+        ResourceMatcherNameMatches {
+            Objects.requireNonNull(type);
+            Objects.requireNonNull(regex);
         }
 
         @Nullable
@@ -300,8 +293,8 @@ public class AclAuthorizer implements Authorizer {
     }
 
     private <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(boolean allow,
-                                                                           ResourceMatcher<Principal> principalMatcher,
-                                                                           ResourceMatcher<O> resourceMatcher,
+                                                                           Lookupable2<Principal> principalMatcher,
+                                                                           Lookupable<O> resourceMatcher,
                                                                            Set<O> operations) {
         usedResourceTypes.add(resourceMatcher.type());
         internalAllowOrDeny(allow ? allowPerPrincipal : denyPerPrincipal,
@@ -314,8 +307,8 @@ public class AclAuthorizer implements Authorizer {
     @VisibleForTesting
     <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(
                                                                    TypeNameMap<Principal, ResourceGrants> allowPerPrincipal,
-                                                                   ResourceMatcher<Principal> principalMatcher,
-                                                                   ResourceMatcher<O> resourceMatcher,
+                                                                   Lookupable2<Principal> principalMatcher,
+                                                                   Lookupable<O> resourceMatcher,
                                                                    Set<O> operations) {
         var es = EnumSet.copyOf(operations);
         for (var op : es) {
@@ -342,7 +335,7 @@ public class AclAuthorizer implements Authorizer {
                     es);
         }
         else {
-            Objects.requireNonNull(compute.nameMatches()).compute((Lookupable) resourceMatcher,
+            Objects.requireNonNull(compute.nameMatches()).compute((Lookupable2) resourceMatcher,
                     v -> {
                         if (v == null) {
                             return es;
