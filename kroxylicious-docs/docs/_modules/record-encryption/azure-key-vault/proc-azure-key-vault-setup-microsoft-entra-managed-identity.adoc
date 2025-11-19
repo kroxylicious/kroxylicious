@@ -16,7 +16,7 @@ NOTE: A Managed Identity is a kind of Service Principal that is automatically ma
 
 * Access to the Azure CLI
 * A user with sufficient permissions to manage the hosting resource and assign RBAC roles.
-* The Azure resource (VM, Azure Kubernetes Service, etc.) intended to host Kroxylicious must already exist.
+* The Azure resource (VM, etc.) intended to host Kroxylicious must already exist.
 
 .Procedure
 
@@ -32,7 +32,7 @@ az <RESOURCE_TYPE> identity assign \ #<2>
   --query "principalId" --output tsv #<3>
 ----
 <1> The name of the Azure resource hosting Kroxylicious.
-<2> The command used here depends on the hosting resource type. Replace `<RESOURCE_TYPE>` with the appropriate subcommand for your resource type (e.g., `vm`, `containerapp`, `aks`, etc.)
+<2> The command used here depends on the hosting resource type. Replace `<RESOURCE_TYPE>` with the appropriate subcommand for your resource type (e.g., `vm`, etc.)
 <3> Outputs the object identifier (Principal ID) of the managed identity being created. You will need this identifier for the next step.
 
 . Assign the built-in Azure Key Vault RBAC role to the managed identity:
