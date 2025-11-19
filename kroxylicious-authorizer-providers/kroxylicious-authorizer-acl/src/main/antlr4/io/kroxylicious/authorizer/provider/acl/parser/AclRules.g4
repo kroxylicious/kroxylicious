@@ -19,16 +19,21 @@ versionStmt: VERSION INT SEMI
 // We include all the lexer keywords, in addition to the lexer IDENT token, into this grammar rule
 // so that those keywords can be used in identifiers in the grammar
 ident : VERSION
-    | ALLOW | DENY | OTHERWISE | IN | TO
-    | AS | LIKE |MATCHING | FROM | NAME | WITH | IMPORT
+    | FROM | IMPORT | AS
+    | ALLOW | DENY  | TO
+    | WITH | NAME | IN | LIKE | MATCHING
+    | OTHERWISE
     | IDENT;
 
-importStmt: IMPORT name=ident (AS local=ident)? FROM packageName SEMI
+importStmt: FROM packageName IMPORT importList SEMI
     ;
-
 packageName: qualIdent
     ;
 qualIdent: ident (DOT ident)*
+    ;
+importList: importElement (COMMA importElement)*
+    ;
+importElement: name=ident (AS local=ident)?
     ;
 
 denyRule: DENY allowOrDenyRule SEMI

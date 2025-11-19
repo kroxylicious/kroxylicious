@@ -264,21 +264,23 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
             var packageName = ctx.packageName().qualIdent().ident().stream()
                     .map(RuleContext::getText)
                     .collect(Collectors.joining("."));
-            String simpleClassName = ctx.name.getText();
-            String localName;
-            Token errorToken;
-            if (ctx.local != null) {
-                localName = ctx.local.getText();
-                errorToken = ctx.local.start;
-            }
-            else {
-                localName = simpleClassName;
-                errorToken = ctx.name.start;
-            }
-            var was = this.localToQualified.put(localName, packageName + "." + simpleClassName);
-            if (was != null) {
-                reportError(errorToken,
-                        "Local name '%s' is already being used for class %s.".formatted(localName, was));
+            for (var importElement : ctx.importList().importElement()) {
+                String simpleClassName = importElement.name.getText();
+                String localName;
+                Token errorToken;
+                if (importElement.local != null) {
+                    localName = importElement.local.getText();
+                    errorToken = importElement.local.start;
+                }
+                else {
+                    localName = simpleClassName;
+                    errorToken = importElement.name.start;
+                }
+                var was = this.localToQualified.put(localName, packageName + "." + simpleClassName);
+                if (was != null) {
+                    reportError(errorToken,
+                            "Local name '%s' is already being used for class %s.".formatted(localName, was));
+                }
             }
         }
 

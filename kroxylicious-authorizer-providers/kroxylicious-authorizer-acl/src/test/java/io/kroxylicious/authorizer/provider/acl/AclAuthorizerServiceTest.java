@@ -51,18 +51,18 @@ class AclAuthorizerServiceTest {
                 Arguments.argumentSet("Missing version",
                         """
                                 //version 1;
-                                import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                                from io.kroxylicious.proxy.authentication import User as User;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
 
                                 otherwise deny;""",
-                        "2:0: mismatched input 'import' expecting 'version'."),
+                        "2:0: mismatched input 'from' expecting 'version'."),
                 Arguments.argumentSet("Missing final 'otherwise deny'",
                         """
                                 version 1;
-                                import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                                from io.kroxylicious.proxy.authentication import User as User;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
 
@@ -72,18 +72,18 @@ class AclAuthorizerServiceTest {
                 Arguments.argumentSet("Bad keyword",
                         """
                                 version 1;
-                                import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                                from io.kroxylicious.proxy.authentication import User as User;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 frobnicate User with name = "Alice" to READ Topic with name = "foo";
 
                                 otherwise deny;""",
-                        "5:0: extraneous input 'frobnicate' expecting {'deny', 'allow', 'otherwise', 'import'}."),
+                        "5:0: extraneous input 'frobnicate' expecting {'deny', 'allow', 'otherwise', 'from'}."),
                 Arguments.argumentSet("Allow before deny",
                         """
                                 version 1;
-                                import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                                from io.kroxylicious.proxy.authentication import User as User;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
                                 deny User with name = "Eve" to READ Topic with name = "foo";
@@ -93,8 +93,8 @@ class AclAuthorizerServiceTest {
                 Arguments.argumentSet("Using matching with principal",
                         """
                                 version 1;
-                                import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                                from io.kroxylicious.proxy.authentication import User as User;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name matching /Ali(ce)?/ to READ Topic with name = "foo";
 
@@ -116,8 +116,8 @@ class AclAuthorizerServiceTest {
                 Arguments.argumentSet("Unsupported version",
                         """
                                 version 12;
-                                import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                                from io.kroxylicious.proxy.authentication import User as User;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
 
@@ -126,27 +126,34 @@ class AclAuthorizerServiceTest {
                 Arguments.argumentSet("Missing import",
                         """
                                 version 1;
-                                //import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                                //from io.kroxylicious.proxy.authentication import User as User;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
 
                                 otherwise deny;""",
                         "5:6: Principal class with name 'User' has not been imported."),
-                Arguments.argumentSet("Colliding import",
+                Arguments.argumentSet("Colliding import (same from)",
                         """
                                 version 1;
-                                import User as Collide from io.kroxylicious.authorizer.provider.acl;
-                                import FakeTopicResource as Collide from io.kroxylicious.authorizer.provider.acl.allow;
+                                from io.kroxylicious.authorizer.provider.acl import User as Collide, FakeTopicResource as Collide;
 
                                 otherwise deny;""",
-                        "3:28: Local name 'Collide' is already being used for class io.kroxylicious.authorizer.provider.acl.User."),
+                        "2:90: Local name 'Collide' is already being used for class io.kroxylicious.authorizer.provider.acl.User."),
+                Arguments.argumentSet("Colliding import (different from)",
+                        """
+                                version 1;
+                                from io.kroxylicious.authorizer.provider.acl import User as Collide;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Collide;
+
+                                otherwise deny;""",
+                        "3:79: Local name 'Collide' is already being used for class io.kroxylicious.authorizer.provider.acl.User."),
                 Arguments.argumentSet(
                         "Missing principal class",
                         """
                                 version 1;
-                                import DoesNotExist as User from io.kroxylicious.authorizer.provider.acl;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                                from io.kroxylicious.authorizer.provider.acl import DoesNotExist as User;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
 
@@ -156,8 +163,8 @@ class AclAuthorizerServiceTest {
                         "Principal class not a subclass",
                         """
                                 version 1;
-                                import FakeTopicResource as User from io.kroxylicious.authorizer.provider.acl.allow;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as User;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
 
@@ -167,8 +174,8 @@ class AclAuthorizerServiceTest {
                         "Invalid like",
                         """
                                 version 1;
-                                import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                                from io.kroxylicious.proxy.authentication import User as User;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name = "Alice" to READ Topic with name like "Foo*Bar";
 
@@ -179,8 +186,8 @@ class AclAuthorizerServiceTest {
                         "Invalid regex",
                         """
                                 version 1;
-                                import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                                from io.kroxylicious.proxy.authentication import User as User;
+                                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                                 allow User with name = "Alice" to READ Topic with name matching /**/;
 
@@ -203,8 +210,8 @@ class AclAuthorizerServiceTest {
     void testPrincipalEqResourceEq() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name = "Alice" to READ Topic with name = "foo";
 
@@ -238,8 +245,8 @@ class AclAuthorizerServiceTest {
     void testPrincipalInResourceEq() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name in {"Alice", "Bob"} to READ Topic with name = "foo";
 
@@ -268,8 +275,8 @@ class AclAuthorizerServiceTest {
     void testPrincipalStartsWithResourceEq() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name like "Alice*" to READ Topic with name = "foo";
 
@@ -298,8 +305,8 @@ class AclAuthorizerServiceTest {
     void testPrincipalStartsWithAnyResourceEq() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name like "*" to READ Topic with name = "foo";
 
@@ -323,8 +330,8 @@ class AclAuthorizerServiceTest {
     void testPrincipalStartsWithAndEqResourceEq() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name like "Alice" to READ Topic with name = "foo";
 
@@ -353,8 +360,8 @@ class AclAuthorizerServiceTest {
     void testPrincipalAnyResourceEq() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name * to READ Topic with name = "foo";
 
@@ -378,8 +385,8 @@ class AclAuthorizerServiceTest {
     void testPrincipalEqResourceIn() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name = "Alice" to READ Topic with name in {"foo", "bar"};
 
@@ -408,8 +415,8 @@ class AclAuthorizerServiceTest {
     void testPrincipalEqResourceStartsWith() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name = "Alice" to READ Topic with name like "foo*";
 
@@ -438,8 +445,8 @@ class AclAuthorizerServiceTest {
     void testPrincipalEqResourceAny() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name = "Alice" to READ Topic with name *;
 
@@ -468,8 +475,8 @@ class AclAuthorizerServiceTest {
     void testPrincipalEqResourceMatching() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name = "Alice" to READ Topic with name matching /(foo+|bar)/;
 
@@ -507,8 +514,8 @@ class AclAuthorizerServiceTest {
     void testPrincipalEqResourceEqOpsIn() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name = "Alice" to {READ, WRITE} Topic with name = "foo";
 
@@ -542,8 +549,8 @@ class AclAuthorizerServiceTest {
     void testPrincipalEqResourceEqOpsAny() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name = "Alice" to * Topic with name = "foo";
 
@@ -573,8 +580,8 @@ class AclAuthorizerServiceTest {
     void testGrantsAreAdditive() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name = "Alice" to READ Topic with name = "foo";
                 allow User with name = "Alice" to WRITE Topic with name = "foo";
@@ -627,8 +634,8 @@ class AclAuthorizerServiceTest {
     void testDenyOverrulesAllow() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 deny User with name = "Eve" to READ Topic with name = "foo";
                 allow User with name * to READ Topic with name = "foo";
@@ -647,8 +654,8 @@ class AclAuthorizerServiceTest {
     void testStringQuoting() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name = "NameWithA\\"" to READ Topic with name = "foo\\\\";
                 allow User with name = "Carol" to READ Topic with name in {"bar\\\\", "baz"};
@@ -666,8 +673,8 @@ class AclAuthorizerServiceTest {
     void testRegexQuoting() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name = "Alice" to READ Topic with name matching /\\//;
                 allow User with name = "Bob" to READ Topic with name matching /\\\\\\\\/;
@@ -688,8 +695,8 @@ class AclAuthorizerServiceTest {
     void testLikeQuoting() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name = "Alice" to READ Topic with name like "foo\\*bar*";
                 allow User with name = "Bob" to READ Topic with name like "foo\\\\\\*bar*";
@@ -705,8 +712,8 @@ class AclAuthorizerServiceTest {
     void testOverlappingMatches() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
 
                 allow User with name = "Eve" to READ Topic with name matching /foo/;
                 allow User with name = "Eve" to WRITE Topic with name matching /foo/;
@@ -721,8 +728,8 @@ class AclAuthorizerServiceTest {
     void testMatchImplications() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
                 allow User with name * to READ Topic with name matching /foo/;
                 otherwise deny;"""));
 
@@ -734,8 +741,8 @@ class AclAuthorizerServiceTest {
     void testResourceNameLikeWildcard() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
                 allow User with name = "Alice" to READ Topic with name like "*";
                 otherwise deny;"""));
 
@@ -749,8 +756,8 @@ class AclAuthorizerServiceTest {
     void testResourceNameLikeExact() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User as User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource as Topic;
                 allow User with name = "Alice" to READ Topic with name like "foo";
                 otherwise deny;"""));
 
@@ -764,8 +771,8 @@ class AclAuthorizerServiceTest {
     void testImportsWithNoAliases() {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
-                import User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource from io.kroxylicious.authorizer.provider.acl.allow;
+                from io.kroxylicious.proxy.authentication import User;
+                from io.kroxylicious.authorizer.provider.acl.allow import FakeTopicResource;
                 allow User with name = "Alice" to READ FakeTopicResource with name like "*";
                 otherwise deny;"""));
 
