@@ -91,7 +91,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                         """
                                 addPrincipals:
                                   - from: thisIsNotKnown
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Unknown `from` 'thisIsNotKnown', supported values are: "
                                 + "'clientTlsSubject', 'clientTlsSanRfc822Name', "
@@ -104,7 +104,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSubject
                                     map:
                                       - thisIsNotKnown: ""
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Exactly one of `replaceMatch` and `else` are required."),
                 Arguments.argumentSet(
@@ -115,7 +115,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                     map:
                                       - replaceMatch: /.*/foo/
                                       - else: thisIsNotKnown
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "`else` can only take the value 'identity' or 'anonymous'."),
                 Arguments.argumentSet(
@@ -127,7 +127,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                       - replaceMatch: /.*/foo/
                                       - else: identity
                                       - else: identity
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "An `else` mapping may only occur as the last element of `map`."),
                 Arguments.argumentSet(
@@ -138,7 +138,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                     map:
                                       - else: identity
                                       - replaceMatch: /.*/foo/
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "An `else` mapping may only occur as the last element of `map`."),
                 Arguments.argumentSet(
@@ -149,7 +149,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                     map:
                                       - else: identity
                                         replaceMatch: /.*/foo/
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "`replaceMatch` and `else` are mutually exclusive."),
                 Arguments.argumentSet(
@@ -167,7 +167,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSubject
                                     map:
                                       - replaceMatch: ""
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule: rule is empty, but it should have the format `cPATTERNcREPLACEMENTcFLAGS`, "
                                 + "where `c` is a separator character of your choosing."),
@@ -178,7 +178,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSubject
                                     map:
                                       - replaceMatch: /
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule at index 0: '/' should have the format `cPATTERNcREPLACEMENTcFLAGS`, "
                                 + "where `c` is a separator character of your choosing. "
@@ -191,7 +191,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSubject
                                     map:
                                       - replaceMatch: /foo
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule at index 3: '/foo' should have the format `cPATTERNcREPLACEMENTcFLAGS`, "
                                 + "where `c` is a separator character of your choosing. "
@@ -204,7 +204,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSubject
                                     map:
                                       - replaceMatch: /foo/
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule at index 4: '/foo/' should have the format `cPATTERNcREPLACEMENTcFLAGS`, "
                                 + "where `c` is a separator character of your choosing. "
@@ -217,7 +217,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSubject
                                     map:
                                       - replaceMatch: /foo/bar
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule at index 7: '/foo/bar' should have the format `cPATTERNcREPLACEMENTcFLAGS`, "
                                 + "where `c` is a separator character of your choosing. "
@@ -230,7 +230,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSubject
                                     map:
                                       - replaceMatch: /foo/bar/badflags
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule at index 9: The given flags, 'badflags', are not valid. The flags may be empty or 'L' or 'U'."),
                 Arguments.argumentSet(
@@ -240,7 +240,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSubject
                                     map:
                                       - replaceMatch: /foo/bar/LU
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule at index 9: The given flags, 'LU', are not valid. The flags may be empty or 'L' or 'U'."),
                 Arguments.argumentSet(
@@ -250,7 +250,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSubject
                                     map:
                                       - replaceMatch: /.***/bar/L
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         "Invalid mapping rule at index 1: The pattern part of the rule, '.***', is not a valid regular expression in RE2 format: "
                                 + "invalid nested repetition operator."));
@@ -277,7 +277,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                 Arguments.argumentSet("empty mappings", "CN=test,OU=testing", """
                         addPrincipals:
                           - from: clientTlsSubject
-                            principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                            principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                         """,
                         new Subject(new User("CN=test,OU=testing")), null),
                 Arguments.argumentSet("no match,no else => anonymous", "CN=test,OU=nottesting", """
@@ -285,7 +285,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                           - from: clientTlsSubject
                             map:
                               - replaceMatch: /CN=(.*),OU=testing/X$1Y/
-                            principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                            principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                         """,
                         new Subject(), null),
                 Arguments.argumentSet("no match+else identity", "CN=test,OU=nottesting", """
@@ -294,7 +294,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                             map:
                               - replaceMatch: /CN=(.*),OU=testing/X$1Y/
                               - else: identity
-                            principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                            principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                         """,
                         new Subject(new User("CN=test,OU=nottesting")), null),
                 Arguments.argumentSet("no match+else anonymous", "CN=test,OU=nottesting", """
@@ -303,7 +303,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                             map:
                               - replaceMatch: /CN=(.*),OU=testing/X$1Y/
                               - else: anonymous
-                            principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                            principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                         """,
                         new Subject(), null),
                 Arguments.argumentSet("multiple", "CN=test,OU=testing", """
@@ -311,7 +311,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                           - from: clientTlsSubject
                             map:
                               - replaceMatch: /CN=(.*),OU=(.*)/X$1Y/U
-                            principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                            principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                           - from: clientTlsSubject
                             map:
                               - replaceMatch: /CN=(.*),OU=(.*)/X$2Y/L
@@ -323,7 +323,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                           - from: clientTlsSubject
                             map:
                               - replaceMatch: /CN=(.*),OU=testing/X$1Y/
-                            principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                            principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                         """,
                         new Subject(new User("XtestY")), null),
                 Arguments.argumentSet("replace+lowercase",
@@ -333,7 +333,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSubject
                                     map:
                                       - replaceMatch: /CN=(.*),OU=testing/X$1Y/L
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("xtesty")), null),
                 Arguments.argumentSet("replace+uppercase",
@@ -343,7 +343,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSubject
                                     map:
                                       - replaceMatch: /CN=(.*),OU=testing/X$1Y/U
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("XTESTY")), null)
         // TODO The other ways of formatting the X500 name (i.e. not CANONICAL etc)
@@ -375,7 +375,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                         "test@testing.example.com", """
                                 addPrincipals:
                                   - from: clientTlsSanRfc822Name
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("test@testing.example.com")), null),
                 Arguments.argumentSet("no match,no else => anonymous",
@@ -385,7 +385,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanRfc822Name
                                     map:
                                       - replaceMatch: /(.*)@(.*)[.]example[.]com/X$1Y/
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(), null),
                 Arguments.argumentSet("no match+else identity",
@@ -396,7 +396,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                     map:
                                       - replaceMatch: /(.*)@(.*)[.]example[.]com/X$1Y/
                                       - else: identity
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("test@nottesting.example.org")), null),
                 Arguments.argumentSet("no match+else anonymous",
@@ -407,7 +407,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                     map:
                                       - replaceMatch: /(.*)@(.*)[.]example[.]com/X$1Y/
                                       - else: anonymous
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(), null),
                 Arguments.argumentSet("multiple",
@@ -417,7 +417,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanRfc822Name
                                     map:
                                       - replaceMatch: /(.*)@(.*)[.]example[.]com/X$1Y/U
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                   - from: clientTlsSanRfc822Name
                                     map:
                                       - replaceMatch: /(.*)@(.*)[.]example[.]com/X$2Y/L
@@ -431,7 +431,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanRfc822Name
                                     map:
                                       - replaceMatch: /(.*)@(.*)[.]example[.]com/X$1Y/
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("XtestY")), null),
                 Arguments.argumentSet("replace+lowercase",
@@ -441,7 +441,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanRfc822Name
                                     map:
                                       - replaceMatch: /(.*)@(.*)[.]example[.]com/X$1Y/L
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("xtesty")), null),
                 Arguments.argumentSet("replace+uppercase",
@@ -451,7 +451,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanRfc822Name
                                     map:
                                       - replaceMatch: /(.*)@(.*)[.]example[.]com/X$1Y/U
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("XTESTY")), null));
     }
@@ -483,7 +483,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                         """
                                 addPrincipals:
                                   - from: clientTlsSanDnsName
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("test.testing.example.com")), null),
                 Arguments.argumentSet("no match,no else => anonymous",
@@ -493,7 +493,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanDnsName
                                     map:
                                       - replaceMatch: /(.*)[.](.*)[.]example[.]com/X$1Y/
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(), null),
                 Arguments.argumentSet("no match+else identity",
@@ -504,7 +504,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                     map:
                                       - replaceMatch: /(.*)[.](.*)[.]example[.]com/X$1Y/
                                       - else: identity
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("test.testing.example.org")), null),
                 Arguments.argumentSet("no match+else anonymous",
@@ -515,7 +515,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                     map:
                                       - replaceMatch: /(.*)[.](.*)[.]example[.]com/X$1Y/
                                       - else: anonymous
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(), null),
                 Arguments.argumentSet("multiple",
@@ -525,7 +525,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanDnsName
                                     map:
                                       - replaceMatch: /(.*)[.](.*)[.]example[.]com/x$1y/U
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                   - from: clientTlsSanDnsName
                                     map:
                                       - replaceMatch: /(.*)[.](.*)[.]example[.]com/X$2Y/L
@@ -539,7 +539,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanDnsName
                                     map:
                                       - replaceMatch: /(.*)[.](.*)[.]example[.]com/X$1Y/
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("XtestY")), null),
                 Arguments.argumentSet("replace+lowercase",
@@ -549,7 +549,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanDnsName
                                     map:
                                       - replaceMatch: /(.*)[.](.*)[.]example[.]com/X$1Y/L
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("xtesty")), null),
                 Arguments.argumentSet("replace+uppercase",
@@ -559,7 +559,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanDnsName
                                     map:
                                       - replaceMatch: /(.*)[.](.*)[.]example[.]com/X$1Y/U
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("XTESTY")), null));
     }
@@ -591,7 +591,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                         """
                                 addPrincipals:
                                   - from: clientTlsSanDirName
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("CN=Test,OU=Testing,O=Example Corp,C=GB")), null),
                 Arguments.argumentSet("no match,no else => anonymous",
@@ -601,7 +601,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanDirName
                                     map:
                                       - replaceMatch: /CN=([^,]*),OU=([^,]*),.*,C=GB/X$1Y/
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(), null),
                 Arguments.argumentSet("no match+else identity",
@@ -612,7 +612,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                     map:
                                       - replaceMatch: /CN=([^,]*),OU=([^,]*),.*,C=GB/X$1Y/
                                       - else: identity
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("CN=Test,OU=Testing,O=Example Corp,C=US")), null),
                 Arguments.argumentSet("no match+else anonymous",
@@ -623,7 +623,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                     map:
                                       - replaceMatch: /CN=([^,]*),OU=([^,]*),.*,C=GB/X$1Y/
                                       - else: anonymous
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(), null),
                 Arguments.argumentSet("multiple",
@@ -633,7 +633,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanDirName
                                     map:
                                       - replaceMatch: /CN=([^,]*),OU=([^,]*),.*,C=GB/x$1y/U
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                   - from: clientTlsSanDirName
                                     map:
                                       - replaceMatch: /CN=([^,]*),OU=([^,]*),.*,C=GB/X$2Y/L
@@ -647,7 +647,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanDirName
                                     map:
                                       - replaceMatch: /CN=([^,]*),OU=([^,]*),.*,C=GB/X$1Y/
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("XTestY")), null),
                 Arguments.argumentSet("replace+lowercase",
@@ -657,7 +657,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanDirName
                                     map:
                                       - replaceMatch: /CN=([^,]*),OU=([^,]*),.*,C=GB/X$1Y/L
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("xtesty")), null),
                 Arguments.argumentSet("replace+uppercase",
@@ -667,7 +667,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanDirName
                                     map:
                                       - replaceMatch: /CN=([^,]*),OU=([^,]*),.*,C=GB/X$1Y/U
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("XTESTY")), null));
     }
@@ -699,7 +699,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                         """
                                 addPrincipals:
                                   - from: clientTlsSanUri
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("scheme://test.example.com/testing")), null),
                 Arguments.argumentSet("no match,no else => anonymous",
@@ -709,7 +709,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanUri
                                     map:
                                       - replaceMatch: =scheme://(.*)[.]example[.]com/(.*)=X$1Y=
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(), null),
                 Arguments.argumentSet("no match+else identity",
@@ -720,7 +720,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                     map:
                                       - replaceMatch: =scheme://(.*)[.]example[.]com/(.*)=X$1Y=
                                       - else: identity
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("scheme://test.example.org/testing")), null),
                 Arguments.argumentSet("no match+else anonymous",
@@ -731,7 +731,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                     map:
                                       - replaceMatch: =scheme://(.*)[.]example[.]com/(.*)=X$1Y=
                                       - else: anonymous
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(), null),
                 Arguments.argumentSet("multiple",
@@ -741,7 +741,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanUri
                                     map:
                                       - replaceMatch: =scheme://(.*)[.]example[.]com/(.*)=X$1Y=U
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                   - from: clientTlsSanUri
                                     map:
                                       - replaceMatch: =scheme://(.*)[.]example[.]com/(.*)=X$2Y=L
@@ -755,7 +755,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanUri
                                     map:
                                       - replaceMatch: =scheme://(.*)[.]example[.]com/(.*)=X$1Y=
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("XtestY")), null),
                 Arguments.argumentSet("replace+lowercase",
@@ -765,7 +765,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanUri
                                     map:
                                       - replaceMatch: =scheme://(.*)[.]example[.]com/(.*)=X$1Y=L
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("xtesty")), null),
                 Arguments.argumentSet("replace+uppercase",
@@ -775,7 +775,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanUri
                                     map:
                                       - replaceMatch: =scheme://(.*)[.]example[.]com/(.*)=X$1Y=U
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("XTESTY")), null));
     }
@@ -803,7 +803,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanIpAddress
                                     map:
                                       - replaceMatch: /123.123.123.([0-9]+)/foo-$1/
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("foo-80")), null),
                 Arguments.argumentSet("ipv6",
@@ -813,7 +813,7 @@ public class DefaultTransportSubjectBuilderServiceTest {
                                   - from: clientTlsSanIpAddress
                                     map:
                                       - replaceMatch: /[0-9a-f]{2}:(.*):[0-9a-f]{2}:[0-9a-f]{2}/X$1Y/
-                                    principalFactory: io.kroxylicious.proxy.internal.subject.UserFactory
+                                    principalFactory: io.kroxylicious.proxy.authentication.UserFactory
                                 """,
                         new Subject(new User("Xa2:a3:a4:a5:a6Y")), null)
 
