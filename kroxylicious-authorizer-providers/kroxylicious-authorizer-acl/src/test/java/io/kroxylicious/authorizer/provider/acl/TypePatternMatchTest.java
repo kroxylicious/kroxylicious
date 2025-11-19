@@ -12,6 +12,9 @@ import org.junit.jupiter.api.Test;
 
 import com.google.re2j.Pattern;
 
+import io.kroxylicious.authorizer.provider.acl.allow.FakeClusterResource;
+import io.kroxylicious.authorizer.provider.acl.allow.FakeTopicResource;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class TypePatternMatchTest {

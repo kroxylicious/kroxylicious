@@ -23,7 +23,9 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
+import org.antlr.v4.runtime.RuleContext;
 import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
@@ -40,7 +42,6 @@ import io.kroxylicious.proxy.authentication.Principal;
 import io.kroxylicious.proxy.plugin.Plugin;
 import io.kroxylicious.proxy.plugin.Plugins;
 
-import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 
 @Plugin(configType = AclAuthorizerConfig.class)
@@ -61,7 +62,6 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         }
     }
 
-    @NonNull
     @Override
     public Authorizer build() throws IllegalStateException {
         return Objects.requireNonNull(aclAuthorizer);
@@ -89,7 +89,6 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         }
     }
 
-    @NonNull
     static <O extends Enum<O> & ResourceType<O>> AclAuthorizer parse(CharStream stream) {
         int maxErrorsToReports = 100;
         ParseErrorListener parseErrorListener = new ParseErrorListener(maxErrorsToReports);
@@ -262,19 +261,19 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
 
         @Override
         public void enterImportStmt(AclRulesParser.ImportStmtContext ctx) {
-            var packageName = ctx.packageName().qualIdent().IDENT().stream()
-                    .map(TerminalNode::getText)
+            var packageName = ctx.packageName().qualIdent().ident().stream()
+                    .map(RuleContext::getText)
                     .collect(Collectors.joining("."));
             String simpleClassName = ctx.name.getText();
             String localName;
             Token errorToken;
             if (ctx.local != null) {
                 localName = ctx.local.getText();
-                errorToken = ctx.local;
+                errorToken = ctx.local.start;
             }
             else {
                 localName = simpleClassName;
-                errorToken = ctx.name;
+                errorToken = ctx.name.start;
             }
             var was = this.localToQualified.put(localName, packageName + "." + simpleClassName);
             if (was != null) {
@@ -295,33 +294,33 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
 
         @Override
         public void enterPrincipalType(AclRulesParser.PrincipalTypeContext ctx) {
-            var principalClass = lookupClass(ctx.IDENT(), Principal.class, "Principal");
+            var principalClass = lookupClass(ctx.ident().getText(), ctx.ident().start, Principal.class, "Principal");
             if (principalClass != null) {
                 this.principalBuilder = this.subjectBuilder.subjectsHavingPrincipal(principalClass);
             }
             this.subjectBuilder = null;
         }
 
-        private <T> @Nullable Class<? extends T> lookupClass(TerminalNode node, Class<T> cls, String desc) {
+        private <T> @Nullable Class<? extends T> lookupClass(String ident, Token identToken, Class<T> cls, String desc) {
             // look it up in the imports
-            String localClassName = node.getText();
+            String localClassName = ident;
             var qualifiedClassName = this.localToQualified.get(localClassName);
             if (qualifiedClassName == null) {
-                reportError(node.getSymbol(),
+                reportError(identToken,
                         "%s class with name '%s' has not been imported.".formatted(desc, localClassName));
                 return null;
             }
             try {
                 Class<?> c = Class.forName(qualifiedClassName);
                 if (!cls.isAssignableFrom(c)) {
-                    reportError(node.getSymbol(),
+                    reportError(identToken,
                             "%s class '%s' is not a subclass of %s.".formatted(desc, localClassName, cls));
                     return null;
                 }
                 return c.asSubclass(cls);
             }
             catch (ClassNotFoundException e) {
-                reportError(node.getSymbol(),
+                reportError(identToken,
                         "%s class '%s' was not found.".formatted(desc, qualifiedClassName));
                 return null;
             }
@@ -425,12 +424,13 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
             }
             else if (ctx.operation() != null) {
                 this.allOps = false;
-                this.opNames = Set.of(ctx.operation().IDENT().getText());
+                this.opNames = Set.of(ctx.operation().ident().getText());
             }
             else if (ctx.operationSet() != null) {
                 this.allOps = false;
-                this.opNames = ctx.operationSet().operation().stream().map(AclRulesParser.OperationContext::IDENT)
-                        .map(TerminalNode::getText)
+                this.opNames = ctx.operationSet().operation().stream()
+                        .map(AclRulesParser.OperationContext::ident)
+                        .map(ParseTree::getText)
                         .collect(Collectors.toSet());
             }
             else {
@@ -441,7 +441,7 @@ public class AclAuthorizerService implements AuthorizerService<AclAuthorizerConf
         @SuppressWarnings({ "rawtypes", "unchecked" })
         @Override
         public void enterResource(AclRulesParser.ResourceContext ctx) {
-            var cls = lookupClass(ctx.IDENT(), ResourceType.class, "ResourceType");
+            var cls = lookupClass(ctx.ident().getText(), ctx.ident().start, ResourceType.class, "ResourceType");
             if (cls != null && this.operationsBuilder != null) {
                 var enumCls = cls.asSubclass(Enum.class);
                 if (allOps) {

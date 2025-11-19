@@ -13,6 +13,8 @@ import java.util.concurrent.CompletionStage;
 
 import org.junit.jupiter.api.Test;
 
+import io.kroxylicious.authorizer.provider.acl.allow.FakeClusterResource;
+import io.kroxylicious.authorizer.provider.acl.allow.FakeTopicResource;
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Authorizer;

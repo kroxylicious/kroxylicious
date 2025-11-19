@@ -19,6 +19,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import io.kroxylicious.authorizer.provider.acl.allow.FakeClusterResource;
+import io.kroxylicious.authorizer.provider.acl.allow.FakeTopicResource;
 import io.kroxylicious.authorizer.service.Action;
 import io.kroxylicious.authorizer.service.AuthorizeResult;
 import io.kroxylicious.authorizer.service.Decision;
@@ -50,7 +52,7 @@ class AclAuthorizerServiceTest {
                         """
                                 //version 1;
                                 import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
 
@@ -60,7 +62,7 @@ class AclAuthorizerServiceTest {
                         """
                                 version 1;
                                 import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
 
@@ -71,7 +73,7 @@ class AclAuthorizerServiceTest {
                         """
                                 version 1;
                                 import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                                 frobnicate User with name = "Alice" to READ Topic with name = "foo";
 
@@ -81,7 +83,7 @@ class AclAuthorizerServiceTest {
                         """
                                 version 1;
                                 import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
                                 deny User with name = "Eve" to READ Topic with name = "foo";
@@ -92,7 +94,7 @@ class AclAuthorizerServiceTest {
                         """
                                 version 1;
                                 import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                                 allow User with name matching /Ali(ce)?/ to READ Topic with name = "foo";
 
@@ -115,7 +117,7 @@ class AclAuthorizerServiceTest {
                         """
                                 version 12;
                                 import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
 
@@ -125,7 +127,7 @@ class AclAuthorizerServiceTest {
                         """
                                 version 1;
                                 //import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
 
@@ -135,7 +137,7 @@ class AclAuthorizerServiceTest {
                         """
                                 version 1;
                                 import User as Collide from io.kroxylicious.authorizer.provider.acl;
-                                import FakeTopicResource as Collide from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Collide from io.kroxylicious.authorizer.provider.acl.allow;
 
                                 otherwise deny;""",
                         "3:28: Local name 'Collide' is already being used for class io.kroxylicious.authorizer.provider.acl.User."),
@@ -144,7 +146,7 @@ class AclAuthorizerServiceTest {
                         """
                                 version 1;
                                 import DoesNotExist as User from io.kroxylicious.authorizer.provider.acl;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
 
@@ -154,8 +156,8 @@ class AclAuthorizerServiceTest {
                         "Principal class not a subclass",
                         """
                                 version 1;
-                                import FakeTopicResource as User from io.kroxylicious.authorizer.provider.acl;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as User from io.kroxylicious.authorizer.provider.acl.allow;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                                 allow User with name = "Alice" to READ Topic with name = "foo";
 
@@ -166,7 +168,7 @@ class AclAuthorizerServiceTest {
                         """
                                 version 1;
                                 import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                                 allow User with name = "Alice" to READ Topic with name like "Foo*Bar";
 
@@ -178,7 +180,7 @@ class AclAuthorizerServiceTest {
                         """
                                 version 1;
                                 import User as User from io.kroxylicious.proxy.authentication;
-                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                                 allow User with name = "Alice" to READ Topic with name matching /**/;
 
@@ -202,7 +204,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name = "Alice" to READ Topic with name = "foo";
 
@@ -237,7 +239,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name in {"Alice", "Bob"} to READ Topic with name = "foo";
 
@@ -267,7 +269,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name like "Alice*" to READ Topic with name = "foo";
 
@@ -297,7 +299,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name like "*" to READ Topic with name = "foo";
 
@@ -322,7 +324,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name like "Alice" to READ Topic with name = "foo";
 
@@ -352,7 +354,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name * to READ Topic with name = "foo";
 
@@ -377,7 +379,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name = "Alice" to READ Topic with name in {"foo", "bar"};
 
@@ -407,7 +409,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name = "Alice" to READ Topic with name like "foo*";
 
@@ -437,7 +439,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name = "Alice" to READ Topic with name *;
 
@@ -467,7 +469,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name = "Alice" to READ Topic with name matching /(foo+|bar)/;
 
@@ -506,7 +508,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name = "Alice" to {READ, WRITE} Topic with name = "foo";
 
@@ -541,7 +543,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name = "Alice" to * Topic with name = "foo";
 
@@ -572,7 +574,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name = "Alice" to READ Topic with name = "foo";
                 allow User with name = "Alice" to WRITE Topic with name = "foo";
@@ -626,7 +628,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 deny User with name = "Eve" to READ Topic with name = "foo";
                 allow User with name * to READ Topic with name = "foo";
@@ -646,7 +648,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name = "NameWithA\\"" to READ Topic with name = "foo\\\\";
                 allow User with name = "Carol" to READ Topic with name in {"bar\\\\", "baz"};
@@ -665,7 +667,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name = "Alice" to READ Topic with name matching /\\//;
                 allow User with name = "Bob" to READ Topic with name matching /\\\\\\\\/;
@@ -687,7 +689,7 @@ class AclAuthorizerServiceTest {
         var authz = AclAuthorizerService.parse(CharStreams.fromString("""
                 version 1;
                 import User as User from io.kroxylicious.proxy.authentication;
-                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
 
                 allow User with name = "Alice" to READ Topic with name like "foo\\*bar*";
                 allow User with name = "Bob" to READ Topic with name like "foo\\\\\\*bar*";

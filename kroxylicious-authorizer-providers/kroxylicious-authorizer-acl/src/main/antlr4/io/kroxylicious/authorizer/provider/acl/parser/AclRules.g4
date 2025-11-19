@@ -11,15 +11,22 @@ rule: versionStmt
     <EOF>
     ;
 
-versionStmt: 'version' INT SEMI
+versionStmt: VERSION INT SEMI
     ;
 
-importStmt: IMPORT name=IDENT (AS local=IDENT)? FROM packageName SEMI
+// We include all the lexer keywords, in addition to the lexer IDENT token, into this grammar rule
+// so that those keywords can be used in identifiers in the grammar
+ident : VERSION
+    | ALLOW | DENY | OTHERWISE | IN | TO
+    | AS | LIKE |MATCHING | FROM | NAME | WITH | IMPORT
+    | IDENT;
+
+importStmt: IMPORT name=ident (AS local=ident)? FROM packageName SEMI
     ;
 
 packageName: qualIdent
     ;
-qualIdent: IDENT (DOT IDENT)*
+qualIdent: ident (DOT ident)*
     ;
 
 denyRule: DENY allowOrDenyRule SEMI
@@ -32,7 +39,7 @@ allowOrDenyRule: userPattern TO operationPattern
 
 userPattern: principalType WITH NAME userNamePred
     ;
-principalType: IDENT
+principalType: ident
     ;
 userNamePred: nameAny
     | nameEq
@@ -64,12 +71,12 @@ operations: STAR
     | operation
     | operationSet
     ;
-operation: IDENT
+operation: ident
     ;
 operationSet: LBRA operation (COMMA operation)* RBRA
     ;
 
-resource: IDENT
+resource: ident
     //| STAR
     ;
 
@@ -84,6 +91,7 @@ STAR: '*';
 EQ: '=';
 LBRA: '{';
 RBRA: '}';
+VERSION: 'version';
 DENY: 'deny';
 ALLOW: 'allow';
 OTHERWISE: 'otherwise';
