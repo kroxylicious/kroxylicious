@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.stream.Collectors;
 
 import com.google.re2j.Pattern;
 
@@ -70,14 +71,14 @@ public class AclAuthorizer implements Authorizer {
 
     record ResourceGrants(
                            @Nullable TypeNameMap<ResourceType<?>, EnumSet<? extends ResourceType<?>>> nameMatches,
-                           @Nullable TypePatternMatch patternMatch) {
+                           @Nullable TypePatternMatch patternMatches) {
     }
 
-    TypeNameMap<Principal, ResourceGrants> denyPerPrincipal = new TypeNameMap<>();
+    private final TypeNameMap<Principal, ResourceGrants> denyPerPrincipal = new TypeNameMap<>();
 
-    TypeNameMap<Principal, ResourceGrants> allowPerPrincipal = new TypeNameMap<>();
+    private final TypeNameMap<Principal, ResourceGrants> allowPerPrincipal = new TypeNameMap<>();
 
-    Set<Class<? extends ResourceType<?>>> usedResourceTypes = new HashSet<>();
+    private final Set<Class<? extends ResourceType<?>>> usedResourceTypes = new HashSet<>();
 
     static Builder builder() {
         return new Builder();
@@ -97,21 +98,25 @@ public class AclAuthorizer implements Authorizer {
         }
 
         public OperationsBuilder withNameEqualTo(String principalName) {
-            return new OperationsBuilder(builder, allow, principalClass, TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, Set.of(principalName));
+            return new OperationsBuilder(builder,
+                    allow,
+                    Set.of(new PrincipalNameEqual(principalClass, principalName)));
         }
 
         public OperationsBuilder withNameIn(Set<String> principalNames) {
-            return new OperationsBuilder(builder, allow, principalClass, TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, principalNames);
+            return new OperationsBuilder(builder,
+                    allow,
+                    principalNames.stream()
+                            .map(principalName -> new PrincipalNameEqual(principalClass, principalName))
+                            .collect(Collectors.toSet()));
         }
 
         public OperationsBuilder withNameStartingWith(String principalNamePrefix) {
-            return new OperationsBuilder(builder, allow, principalClass, TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, Set.of(principalNamePrefix));
+            return new OperationsBuilder(builder, allow, Set.of(new PrincipalNameStartsWith(principalClass, principalNamePrefix)));
         }
 
         public OperationsBuilder withAnyName() {
-            HashSet<String> set = new HashSet<>();
-            set.add(null);
-            return new OperationsBuilder(builder, allow, principalClass, TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY, set);
+            return new OperationsBuilder(builder, allow, Set.of(new PrincipalNameAny(principalClass)));
         }
     }
 
@@ -134,53 +139,39 @@ public class AclAuthorizer implements Authorizer {
 
     public static class ResourceBuilder<O extends Enum<O> & ResourceType<O>> {
         private final Builder builder;
-        private final Class<? extends Principal> principalClass;
-        private final TypeNameMap.Predicate principalPred;
-        private final Set<String> principalNames;
+        private final Set<PrincipalMatcher> principalMatchers;
         private final Class<O> operationsClass;
         private final Set<O> operations;
         private final boolean allow;
 
         public ResourceBuilder(Builder builder,
                                boolean allow,
-                               Class<? extends Principal> principalClass,
-                               TypeNameMap.Predicate principalPred,
-                               Set<String> principalNames,
+                               Set<PrincipalMatcher> principalMatchers,
                                Class<O> operationsClass,
                                Set<O> operations) {
             this.builder = Objects.requireNonNull(builder);
             this.allow = allow;
-            this.principalClass = Objects.requireNonNull(principalClass);
-            this.principalPred = Objects.requireNonNull(principalPred);
-            this.principalNames = Objects.requireNonNull(principalNames);
+            this.principalMatchers = Objects.requireNonNull(principalMatchers);
             this.operationsClass = Objects.requireNonNull(operationsClass);
             this.operations = Objects.requireNonNull(operations);
         }
 
         public Builder onResourceWithNameEqualTo(String resourceName) {
-            for (var principalName : principalNames) {
+            for (var principalMatcher : principalMatchers) {
                 builder.aclAuthorizer.internalAllowOrDeny(allow,
-                        principalClass,
-                        principalPred,
-                        principalName,
-                        operationsClass,
-                        Pred.EQ,
-                        resourceName,
+                        principalMatcher,
+                        new Eq<>(operationsClass, resourceName),
                         operations);
             }
             return builder;
         }
 
         public Builder onResourcesWithNameIn(Set<String> resourceNames) {
-            for (var principalName : principalNames) {
+            for (var principalMatcher : principalMatchers) {
                 for (String resourceName : resourceNames) {
                     builder.aclAuthorizer.internalAllowOrDeny(allow,
-                            principalClass,
-                            principalPred,
-                            principalName,
-                            operationsClass,
-                            Pred.EQ,
-                            resourceName,
+                            principalMatcher,
+                            new Eq<>(operationsClass, resourceName),
                             operations);
                 }
             }
@@ -188,42 +179,30 @@ public class AclAuthorizer implements Authorizer {
         }
 
         public Builder onResourcesWithNameStartingWith(String resourceNamePrefix) {
-            for (var principalName : principalNames) {
+            for (var principalMatcher : principalMatchers) {
                 builder.aclAuthorizer.internalAllowOrDeny(allow,
-                        principalClass,
-                        principalPred,
-                        principalName,
-                        operationsClass,
-                        Pred.STARTS,
-                        resourceNamePrefix,
+                        principalMatcher,
+                        new Starts<>(operationsClass, resourceNamePrefix),
                         operations);
             }
             return builder;
         }
 
         public Builder onResourcesWithNameMatching(String resourceNameRegex) {
-            for (var principalName : principalNames) {
+            for (var principalMatcher : principalMatchers) {
                 builder.aclAuthorizer.internalAllowOrDeny(allow,
-                        principalClass,
-                        principalPred,
-                        principalName,
-                        operationsClass,
-                        Pred.MATCH,
-                        resourceNameRegex,
+                        principalMatcher,
+                        new Match<>(operationsClass, resourceNameRegex),
                         operations);
             }
             return builder;
         }
 
         public Builder onAllResources() {
-            for (var principalName : principalNames) {
+            for (var principalMatcher : principalMatchers) {
                 builder.aclAuthorizer.internalAllowOrDeny(allow,
-                        principalClass,
-                        principalPred,
-                        principalName,
-                        operationsClass,
-                        Pred.ANY,
-                        null,
+                        principalMatcher,
+                        new Any<>(operationsClass),
                         operations);
             }
             return builder;
@@ -234,28 +213,20 @@ public class AclAuthorizer implements Authorizer {
 
         private final Builder builder;
         private final boolean allow;
-        private final Class<? extends Principal> principalClass;
-        private final TypeNameMap.Predicate principalPred;
-        private final Set<String> principalNames;
+        private final Set<PrincipalMatcher> principalMatchers;
 
         private OperationsBuilder(Builder builder,
                                   boolean allow,
-                                  Class<? extends Principal> principalClass,
-                                  TypeNameMap.Predicate principalPred,
-                                  Set<String> principalNames) {
+                                  Set<PrincipalMatcher> principalMatchers) {
             this.builder = builder;
             this.allow = allow;
-            this.principalPred = Objects.requireNonNull(principalPred);
-            this.principalClass = Objects.requireNonNull(principalClass);
-            this.principalNames = principalNames;
+            this.principalMatchers = Objects.requireNonNull(principalMatchers);
         }
 
         <O extends Enum<O> & ResourceType<O>> ResourceBuilder<O> allOperations(Class<O> cls) {
             return new ResourceBuilder<>(builder,
                     allow,
-                    principalClass,
-                    principalPred,
-                    principalNames,
+                    this.principalMatchers,
                     cls,
                     EnumSet.allOf(cls));
         }
@@ -265,9 +236,7 @@ public class AclAuthorizer implements Authorizer {
             EnumSet<O> os = EnumSet.copyOf(operations);
             return new ResourceBuilder<>(builder,
                     allow,
-                    principalClass,
-                    principalPred,
-                    principalNames,
+                    this.principalMatchers,
                     (Class) operations.iterator().next().getClass(),
                     os);
         }
@@ -290,22 +259,105 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
+    sealed interface PrincipalMatcher permits PrincipalNameEqual, PrincipalNameAny, PrincipalNameStartsWith {
+        Class<? extends Principal> principalType();
+        TypeNameMap.Predicate principalPredicate();
+        @Nullable String principalName();
+    }
+    record PrincipalNameEqual(Class<? extends Principal> principalType, String principalName) implements PrincipalMatcher {
+        @Override
+        public TypeNameMap.Predicate principalPredicate() {
+            return TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL;
+        }
+    }
+    record PrincipalNameAny(Class<? extends Principal> principalType) implements PrincipalMatcher {
+
+        @Override
+        public TypeNameMap.Predicate principalPredicate() {
+            return TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY;
+        }
+
+        @Nullable
+        @Override
+        public String principalName() {
+            return null;
+        }
+    }
+    record PrincipalNameStartsWith(Class<? extends Principal> principalType, String prefix) implements PrincipalMatcher {
+        @Override
+        public TypeNameMap.Predicate principalPredicate() {
+            return TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH;
+        }
+
+        @Nullable
+        @Override
+        public String principalName() {
+            return prefix;
+        }
+    }
+
+    sealed interface ResourceMatcher<O extends Enum<O> & ResourceType<O>> permits Any, Eq, Starts, Match {
+        Class<O> opType();
+        Pred resourceNamePredicate();
+        @Nullable String resourceName();
+    }
+    record Any<O extends Enum<O> & ResourceType<O>>(Class<O> opType) implements ResourceMatcher<O> {
+        @Override
+        public Pred resourceNamePredicate() {
+            return Pred.ANY;
+        }
+
+        @Nullable
+        @Override
+        public String resourceName() {
+            return "";
+        }
+    }
+    record Eq<O extends Enum<O> & ResourceType<O>>(Class<O> opType, String name) implements ResourceMatcher<O> {
+        @Override
+        public Pred resourceNamePredicate() {
+            return Pred.EQ;
+        }
+
+        @Nullable
+        @Override
+        public String resourceName() {
+            return name;
+        }
+    }
+    record Starts<O extends Enum<O> & ResourceType<O>>(Class<O> opType, String prefix) implements ResourceMatcher<O> {
+        @Override
+        public Pred resourceNamePredicate() {
+            return Pred.STARTS;
+        }
+
+        @Nullable
+        @Override
+        public String resourceName() {
+            return prefix;
+        }
+    }
+    record Match<O extends Enum<O> & ResourceType<O>>(Class<O> opType, String regex) implements ResourceMatcher<O> {
+        @Override
+        public Pred resourceNamePredicate() {
+            return Pred.MATCH;
+        }
+
+        @Nullable
+        @Override
+        public String resourceName() {
+            return regex;
+        }
+    }
+
     private <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(boolean allow,
-                                                                           Class<? extends Principal> principalType,
-                                                                           TypeNameMap.Predicate principalPredicate,
-                                                                           @Nullable String principalName,
-                                                                           Class<O> opType,
-                                                                           Pred resourceNamePredicate,
-                                                                           @Nullable String resourceName,
+                                                                           PrincipalMatcher principalMatcher,
+                                                                           ResourceMatcher<O> resourceMatcher,
                                                                            Set<O> operations) {
-        usedResourceTypes.add(opType);
+        usedResourceTypes.add(resourceMatcher.opType());
         internalAllowOrDeny(allow ? allowPerPrincipal : denyPerPrincipal,
-                principalType,
-                principalPredicate,
-                principalName,
-                opType,
-                resourceNamePredicate,
-                resourceName,
+                principalMatcher,
+                resourceMatcher,
                 operations);
     }
 
@@ -313,37 +365,33 @@ public class AclAuthorizer implements Authorizer {
     @VisibleForTesting
     <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(
                                                                    TypeNameMap<Principal, ResourceGrants> allowPerPrincipal,
-                                                                   Class<? extends Principal> principalType,
-                                                                   TypeNameMap.Predicate principalPredicate,
-                                                                   @Nullable String principalName,
-                                                                   Class<O> opType,
-                                                                   Pred resourceNamePredicate,
-                                                                   @Nullable String resourceName,
+                                                                   PrincipalMatcher principalMatcher,
+                                                                   ResourceMatcher<O> resourceMatcher,
                                                                    Set<O> operations) {
         var es = EnumSet.copyOf(operations);
         for (var op : es) {
             es.addAll(op.implies());
         }
-        ResourceGrants compute = allowPerPrincipal.compute(principalType, principalName, principalPredicate,
+        ResourceGrants compute = allowPerPrincipal.compute(principalMatcher.principalType(), principalMatcher.principalName(), principalMatcher.principalPredicate(),
                 g -> {
                     if (g == null) {
-                        return new ResourceGrants(resourceNamePredicate == Pred.MATCH ? null : new TypeNameMap<>(),
-                                resourceNamePredicate == Pred.MATCH ? new TypePatternMatch() : null);
+                        return new ResourceGrants(resourceMatcher.resourceNamePredicate() == Pred.MATCH ? null : new TypeNameMap<>(),
+                                resourceMatcher.resourceNamePredicate() == Pred.MATCH ? new TypePatternMatch() : null);
                     }
-                    else if (g.patternMatch() == null && resourceNamePredicate == Pred.MATCH) {
+                    else if (g.patternMatches() == null && resourceMatcher.resourceNamePredicate() == Pred.MATCH) {
                         return new ResourceGrants(g.nameMatches(), new TypePatternMatch());
                     }
-                    else if (g.nameMatches() == null && resourceNamePredicate != Pred.MATCH) {
-                        return new ResourceGrants(new TypeNameMap<>(), g.patternMatch());
+                    else if (g.nameMatches() == null && resourceMatcher.resourceNamePredicate() != Pred.MATCH) {
+                        return new ResourceGrants(new TypeNameMap<>(), g.patternMatches());
                     }
                     return g;
                 });
 
-        if (resourceNamePredicate == Pred.MATCH) {
-            Objects.requireNonNull(compute.patternMatch()).compute(opType, Pattern.compile(Objects.requireNonNull(resourceName)), es);
+        if (resourceMatcher.resourceNamePredicate() == Pred.MATCH) {
+            Objects.requireNonNull(compute.patternMatches()).compute(resourceMatcher.opType(), Pattern.compile(Objects.requireNonNull(resourceMatcher.resourceName())), es);
         }
         else {
-            Objects.requireNonNull(compute.nameMatches()).compute(opType, resourceName, Objects.requireNonNull(resourceNamePredicate.toNameMatchPredicate()),
+            Objects.requireNonNull(compute.nameMatches()).compute(resourceMatcher.opType(), resourceMatcher.resourceName(), Objects.requireNonNull(resourceMatcher.resourceNamePredicate().toNameMatchPredicate()),
                     v -> {
                         if (v == null) {
                             return es;
@@ -416,7 +464,7 @@ public class AclAuthorizer implements Authorizer {
                 return whenFound;
             }
         }
-        var patternMatch = grants.patternMatch();
+        var patternMatch = grants.patternMatches();
         if (patternMatch != null) {
             operations = patternMatch.lookup((Class) action.resourceTypeClass(), action.resourceName());
             if (isFound(operations, resourceType)) {
