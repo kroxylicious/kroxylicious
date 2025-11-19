@@ -68,15 +68,14 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
-    record PrincipalGrants(
+    record ResourceGrants(
                            @Nullable TypeNameMap<ResourceType<?>, EnumSet<? extends ResourceType<?>>> nameMatches,
                            @Nullable TypePatternMatch patternMatch) {
-
     }
 
-    TypeNameMap<Principal, PrincipalGrants> denyPerPrincipal = new TypeNameMap<>();
+    TypeNameMap<Principal, ResourceGrants> denyPerPrincipal = new TypeNameMap<>();
 
-    TypeNameMap<Principal, PrincipalGrants> allowPerPrincipal = new TypeNameMap<>();
+    TypeNameMap<Principal, ResourceGrants> allowPerPrincipal = new TypeNameMap<>();
 
     Set<Class<? extends ResourceType<?>>> usedResourceTypes = new HashSet<>();
 
@@ -300,14 +299,20 @@ public class AclAuthorizer implements Authorizer {
                                                                            @Nullable String resourceName,
                                                                            Set<O> operations) {
         usedResourceTypes.add(opType);
-        internalAllowOrDeny(allow ? allowPerPrincipal : denyPerPrincipal, principalType, principalPredicate, principalName, opType, resourceNamePredicate, resourceName,
+        internalAllowOrDeny(allow ? allowPerPrincipal : denyPerPrincipal,
+                principalType,
+                principalPredicate,
+                principalName,
+                opType,
+                resourceNamePredicate,
+                resourceName,
                 operations);
     }
 
     @SuppressWarnings("rawtypes")
     @VisibleForTesting
     <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(
-                                                                   TypeNameMap<Principal, PrincipalGrants> allowPerPrincipal,
+                                                                   TypeNameMap<Principal, ResourceGrants> allowPerPrincipal,
                                                                    Class<? extends Principal> principalType,
                                                                    TypeNameMap.Predicate principalPredicate,
                                                                    @Nullable String principalName,
@@ -319,17 +324,17 @@ public class AclAuthorizer implements Authorizer {
         for (var op : es) {
             es.addAll(op.implies());
         }
-        PrincipalGrants compute = allowPerPrincipal.compute(principalType, principalName, principalPredicate,
+        ResourceGrants compute = allowPerPrincipal.compute(principalType, principalName, principalPredicate,
                 g -> {
                     if (g == null) {
-                        return new PrincipalGrants(resourceNamePredicate == Pred.MATCH ? null : new TypeNameMap<>(),
+                        return new ResourceGrants(resourceNamePredicate == Pred.MATCH ? null : new TypeNameMap<>(),
                                 resourceNamePredicate == Pred.MATCH ? new TypePatternMatch() : null);
                     }
                     else if (g.patternMatch() == null && resourceNamePredicate == Pred.MATCH) {
-                        return new PrincipalGrants(g.nameMatches(), new TypePatternMatch());
+                        return new ResourceGrants(g.nameMatches(), new TypePatternMatch());
                     }
                     else if (g.nameMatches() == null && resourceNamePredicate != Pred.MATCH) {
-                        return new PrincipalGrants(new TypeNameMap<>(), g.patternMatch());
+                        return new ResourceGrants(new TypeNameMap<>(), g.patternMatch());
                     }
                     return g;
                 });
@@ -350,7 +355,7 @@ public class AclAuthorizer implements Authorizer {
     }
 
     private static @Nullable Decision authorizeInternal(
-                                                        TypeNameMap<Principal, PrincipalGrants> allowPerPrincipal,
+                                                        TypeNameMap<Principal, ResourceGrants> allowPerPrincipal,
                                                         Subject subject,
                                                         Action action,
                                                         Decision whenFound,
@@ -386,7 +391,7 @@ public class AclAuthorizer implements Authorizer {
 
     @Nullable
     private static Decision getDecision(Action action,
-                                        PrincipalGrants grants,
+                                        ResourceGrants grants,
                                         Decision whenFound) {
         Set<? extends ResourceType<?>> operations;
         var typeNameMap = grants.nameMatches();
