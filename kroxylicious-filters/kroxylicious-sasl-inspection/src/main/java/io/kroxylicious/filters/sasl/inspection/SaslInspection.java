@@ -17,6 +17,9 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilderService;
 import io.kroxylicious.proxy.authentication.Subject;
@@ -36,6 +39,8 @@ import edu.umd.cs.findbugs.annotations.Nullable;
  */
 @Plugin(configType = Config.class)
 public class SaslInspection implements FilterFactory<Config, Void> {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SaslInspection.class);
 
     public static final SaslSubjectBuilder DEFAULT_SUBJECT_BUILDER = new SaslSubjectBuilder() {
         @Override
@@ -59,6 +64,7 @@ public class SaslInspection implements FilterFactory<Config, Void> {
     private static SaslSubjectBuilder buildSubjectBuilder(FilterFactoryContext context,
                                                           @Nullable Config config) {
         if (config == null || config.subjectBuilder() == null) {
+            LOGGER.debug("No `subjectBuilder` configured. The default SaslSubjectBuilder will be used.");
             return DEFAULT_SUBJECT_BUILDER;
         }
         else {
