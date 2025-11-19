@@ -38,6 +38,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
 import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.SubjectBuildingException;
 import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
@@ -617,16 +618,11 @@ class SaslInspectionFilterTest {
         // When
         doSaslHandshakeRequest(observerFactory.mechanismName(), filter);
         doSaslHandshakeResponse(observerFactory.mechanismName(), filter);
-
         doSaslAuthenticateRequest(initialResponse.response(), filter);
 
-        // challengeResponses.forEach(cr -> {
         var upstreamAuthenticateResponseHeader = new ResponseHeaderData();
         var upstreamAuthenticateResponse = new SaslAuthenticateResponseData().setSessionLifetimeMs(1);
         var expectedDownstreamAuthenticateResponse = new SaslAuthenticateResponseData().setErrorCode(Errors.ILLEGAL_SASL_STATE.code()).setSessionLifetimeMs(1);
-        // doSaslAuthenticateResponse(filter, authenticateResponse, expectedResponse);
-        // Optional.ofNullable(cr.response()).ifPresent(r -> doSaslAuthenticateRequest(r, filter));
-        // });
 
         var actualDownstreamAuthenticateResponse = filter.onSaslAuthenticateResponse(upstreamAuthenticateResponse.highestSupportedVersion(),
                 upstreamAuthenticateResponseHeader,
@@ -642,7 +638,7 @@ class SaslInspectionFilterTest {
                 });
 
         // Then
-        verify(context).clientSaslAuthenticationFailure(eq(observerFactory.mechanismName()), eq(expectedAuthorizedId), isA(RuntimeException.class));
+        verify(context).clientSaslAuthenticationFailure(eq(observerFactory.mechanismName()), eq(expectedAuthorizedId), isA(SubjectBuildingException.class));
         verify(context, never()).clientSaslAuthenticationSuccess(anyString(), anyString());
         verify(context, never()).clientSaslAuthenticationSuccess(anyString(), any(Subject.class));
         // verify(context).r

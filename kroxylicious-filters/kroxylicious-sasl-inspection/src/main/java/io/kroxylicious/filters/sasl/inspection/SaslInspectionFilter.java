@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 import io.kroxylicious.proxy.authentication.ClientSaslContext;
 import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
 import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.SubjectBuildingException;
 import io.kroxylicious.proxy.filter.FilterContext;
 import io.kroxylicious.proxy.filter.RequestFilterResult;
 import io.kroxylicious.proxy.filter.ResponseFilterResult;
@@ -322,11 +323,11 @@ class SaslInspectionFilter
             return context.forwardResponse(header, response);
         }).exceptionallyCompose(throwable -> {
             Exception e;
-            if (throwable instanceof Exception exception) {
+            if (throwable instanceof SubjectBuildingException exception) {
                 e = exception;
             }
             else {
-                e = new RuntimeException(throwable);
+                e = new SubjectBuildingException("SaslSubjectBuilder " + subjectBuilder.getClass() + " threw an unexpected exception", throwable);
             }
             context.clientSaslAuthenticationFailure(saslObserver.mechanismName(),
                     authorizationIdFromClient, e);
