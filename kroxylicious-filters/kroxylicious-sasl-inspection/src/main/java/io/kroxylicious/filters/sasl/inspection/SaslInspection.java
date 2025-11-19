@@ -10,10 +10,20 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import io.kroxylicious.proxy.authentication.SaslSubjectBuilder;
+import io.kroxylicious.proxy.authentication.SaslSubjectBuilderService;
+import io.kroxylicious.proxy.authentication.Subject;
+import io.kroxylicious.proxy.authentication.User;
 import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactory;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
@@ -30,23 +40,49 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 @Plugin(configType = Config.class)
 public class SaslInspection implements FilterFactory<Config, Void> {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(SaslInspection.class);
+
+    public static final SaslSubjectBuilder DEFAULT_SUBJECT_BUILDER = new SaslSubjectBuilder() {
+        @Override
+        public CompletionStage<Subject> buildSaslSubject(Context context) {
+            return CompletableFuture.completedStage(new Subject(Set.of(new User(context.clientSaslContext().authorizationId()))));
+        }
+    };
     private @Nullable Map<String, SaslObserverFactory> observerFactoryMap;
+    private @Nullable SaslSubjectBuilder subjectBuilder;
 
     @Override
     public Void initialize(FilterFactoryContext context,
                            @Nullable Config config)
             throws PluginConfigurationException {
         observerFactoryMap = buildEnabledObserverFactoryMap(context, config);
+        subjectBuilder = buildSubjectBuilder(context, config);
         return null;
     }
 
-    @Override
-    public Filter createFilter(FilterFactoryContext context, Void unused) {
-        Objects.requireNonNull(observerFactoryMap);
-        return new SaslInspectionFilter(observerFactoryMap);
+    @NonNull
+    private static SaslSubjectBuilder buildSubjectBuilder(FilterFactoryContext context,
+                                                          @Nullable Config config) {
+        if (config == null || config.subjectBuilder() == null) {
+            LOGGER.debug("No `subjectBuilder` configured. The default SaslSubjectBuilder will be used.");
+            return DEFAULT_SUBJECT_BUILDER;
+        }
+        else {
+            SaslSubjectBuilderService subjectBuilderFactory = context.pluginInstance(SaslSubjectBuilderService.class, config.subjectBuilder());
+            subjectBuilderFactory.initialize(config.subjectBuilderConfig());
+            return subjectBuilderFactory.build();
+        }
     }
 
-    private Map<String, SaslObserverFactory> buildEnabledObserverFactoryMap(FilterFactoryContext context, @Nullable Config config) {
+    @Override
+    public Filter createFilter(FilterFactoryContext context, @Nullable Void unused) {
+        Objects.requireNonNull(observerFactoryMap);
+        Objects.requireNonNull(subjectBuilder);
+        return new SaslInspectionFilter(observerFactoryMap, subjectBuilder);
+    }
+
+    private Map<String, SaslObserverFactory> buildEnabledObserverFactoryMap(FilterFactoryContext context,
+                                                                            @Nullable Config config) {
         var allNames = context.pluginImplementationNames(SaslObserverFactory.class);
         var allMap = allNames
                 .stream()

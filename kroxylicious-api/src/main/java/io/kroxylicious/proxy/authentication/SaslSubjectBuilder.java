@@ -28,9 +28,10 @@ public interface SaslSubjectBuilder {
 
     /**
      * Returns an asynchronous result which completes with the {@code Subject} built
-     * from the
-     * @param context
-     * @return
+     * from the given {@code context}.
+     * @param context The context of a successful SASL authentication.
+     * @return The Subject. The returned stage should fail with an {@link SubjectBuildingException} if the builder was not able to
+     * build a subject.
      */
     CompletionStage<Subject> buildSaslSubject(SaslSubjectBuilder.Context context);
 
