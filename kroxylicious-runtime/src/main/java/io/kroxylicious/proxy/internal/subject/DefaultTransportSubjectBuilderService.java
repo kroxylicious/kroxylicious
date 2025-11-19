@@ -13,8 +13,6 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import io.kroxylicious.proxy.authentication.PrincipalFactory;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilder;
 import io.kroxylicious.proxy.authentication.TransportSubjectBuilderService;
@@ -60,42 +58,7 @@ public class DefaultTransportSubjectBuilderService implements TransportSubjectBu
 
     }
 
-    /**
-     * Configuration for a principal adder, which is responsible for contributing zero or more principals to the subject.
-     * @param from Names a function for extracting a string value from a {@link TransportSubjectBuilder.Context}.
-     * @param map An optional list of mappings to apply to the `from`-extracted string.
-     * @param principalFactory The name of a {@link PrincipalFactory} implementation class.
-     */
-    public record PrincipalAdderConf(@JsonProperty(required = true) String from,
-                                     @Nullable List<Map> map,
-                                     @JsonProperty(required = true) String principalFactory) {
-        public PrincipalAdderConf {
-            // call methods for validation side-effect
-            buildExtractor(from);
-            buildMappingRules(map);
-            buildPrincipalFactory(principalFactory);
-        }
-    }
-
-    record Map(@Nullable String replaceMatch,
-               @JsonProperty("else") @Nullable String else_) {
-        Map {
-            if (replaceMatch != null) {
-                if (else_ != null) {
-                    throw new IllegalArgumentException("`replaceMatch` and `else` are mutually exclusive.");
-                }
-                new ReplaceMatchMappingRule(replaceMatch);
-            }
-            else if (else_ == null) {
-                throw new IllegalArgumentException("Exactly one of `replaceMatch` and `else` are required.");
-            }
-            else if (!else_.equals(ELSE_IDENTITY)
-                    && !else_.equals(ELSE_ANONYMOUS)) {
-                throw new IllegalArgumentException("`else` can only take the value 'identity' or 'anonymous'.");
-            }
-        }
-    }
-
+    @Nullable
     List<PrincipalAdder> adders;
 
     @Override
@@ -107,7 +70,7 @@ public class DefaultTransportSubjectBuilderService implements TransportSubjectBu
                 .toList();
     }
 
-    private static PrincipalFactory buildPrincipalFactory(String principalFactory) {
+    static PrincipalFactory buildPrincipalFactory(String principalFactory) {
         return ServiceLoader.load(PrincipalFactory.class).stream()
                 .filter(provider -> provider.type().getName().equals(principalFactory))
                 .findFirst()
@@ -115,8 +78,7 @@ public class DefaultTransportSubjectBuilderService implements TransportSubjectBu
                 .get();
     }
 
-    @NonNull
-    private static List<MappingRule> buildMappingRules(List<Map> maps) {
+    static List<MappingRule> buildMappingRules(@Nullable List<Map> maps) {
         if (maps == null || maps.isEmpty()) {
             return List.of(new IdentityMappingRule());
         }
@@ -153,7 +115,7 @@ public class DefaultTransportSubjectBuilderService implements TransportSubjectBu
     }
 
     @NonNull
-    private static Function<Object, Stream<String>> buildExtractor(String from) {
+    static Function<Object, Stream<String>> buildExtractor(String from) {
         return switch (from) {
             case CLIENT_TLS_SUBJECT -> getContextStreamFunction(TlsCertificateExtractor.subject());
             case CLIENT_TLS_SAN_RFC822_NAME -> getContextStreamFunction(TlsCertificateExtractor.san(TlsCertificateExtractor.Asn1SanNameType.RFC822));
