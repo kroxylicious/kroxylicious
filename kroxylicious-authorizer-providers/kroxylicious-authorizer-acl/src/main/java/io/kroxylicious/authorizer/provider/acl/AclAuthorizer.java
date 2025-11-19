@@ -447,6 +447,9 @@ public class AclAuthorizer implements Authorizer {
                 else if (decision == Decision.ALLOW) {
                     allowedActions.add(action);
                 }
+                else {
+                    throw new IllegalStateException();
+                }
             }
         }
         return CompletableFuture.completedStage(new AuthorizeResult(subject, allowedActions, deniedActions));
