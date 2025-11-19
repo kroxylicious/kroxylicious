@@ -83,23 +83,23 @@ public class AclAuthorizer implements Authorizer {
         public OperationsBuilder withNameEqualTo(String principalName) {
             return new OperationsBuilder(builder,
                     allow,
-                    Set.of(new PrincipalNameEqual(principalClass, principalName)));
+                    Set.of((ResourceMatcher<Principal>) new ResourceMatcherNameEquals<>(principalClass, principalName)));
         }
 
         public OperationsBuilder withNameIn(Set<String> principalNames) {
             return new OperationsBuilder(builder,
                     allow,
                     principalNames.stream()
-                            .map(principalName -> new PrincipalNameEqual(principalClass, principalName))
+                            .map(principalName -> (ResourceMatcher<Principal>) new ResourceMatcherNameEquals<>(principalClass, principalName))
                             .collect(Collectors.toSet()));
         }
 
         public OperationsBuilder withNameStartingWith(String principalNamePrefix) {
-            return new OperationsBuilder(builder, allow, Set.of(new PrincipalNameStartsWith(principalClass, principalNamePrefix)));
+            return new OperationsBuilder(builder, allow, Set.of((ResourceMatcher<Principal>) new ResourceMatcherNameStarts<>(principalClass, principalNamePrefix)));
         }
 
         public OperationsBuilder withAnyName() {
-            return new OperationsBuilder(builder, allow, Set.of(new PrincipalNameAny(principalClass)));
+            return new OperationsBuilder(builder, allow, Set.of((ResourceMatcher<Principal>) new ResourceMatcherAnyOfType<>(principalClass)));
         }
     }
 
@@ -122,14 +122,14 @@ public class AclAuthorizer implements Authorizer {
 
     public static class ResourceBuilder<O extends Enum<O> & ResourceType<O>> {
         private final Builder builder;
-        private final Set<PrincipalMatcher> principalMatchers;
+        private final Set<? extends ResourceMatcher<Principal>> principalMatchers;
         private final Class<O> operationsClass;
         private final Set<O> operations;
         private final boolean allow;
 
         public ResourceBuilder(Builder builder,
                                boolean allow,
-                               Set<PrincipalMatcher> principalMatchers,
+                               Set<? extends ResourceMatcher<Principal>> principalMatchers,
                                Class<O> operationsClass,
                                Set<O> operations) {
             this.builder = Objects.requireNonNull(builder);
@@ -196,11 +196,11 @@ public class AclAuthorizer implements Authorizer {
 
         private final Builder builder;
         private final boolean allow;
-        private final Set<PrincipalMatcher> principalMatchers;
+        private final Set<? extends ResourceMatcher<Principal>> principalMatchers;
 
         private OperationsBuilder(Builder builder,
                                   boolean allow,
-                                  Set<PrincipalMatcher> principalMatchers) {
+                                  Set<ResourceMatcher<Principal>> principalMatchers) {
             this.builder = builder;
             this.allow = allow;
             this.principalMatchers = Objects.requireNonNull(principalMatchers);
@@ -242,17 +242,22 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
-    sealed interface PrincipalMatcher
-            extends Lookupable<Principal>
-            permits PrincipalNameEqual, PrincipalNameAny, PrincipalNameStartsWith {
+    public sealed interface ResourceMatcher<T>
+            extends Lookupable<T>
+            permits ResourceMatcherAnyOfType, ResourceMatcherNameEquals, ResourceMatcherNameStarts,
+            ResourceMatcherNameMatches {
     }
-    record PrincipalNameEqual(Class<? extends Principal> type, String name) implements PrincipalMatcher {
+
+    record ResourceMatcherNameEquals<T>(Class<T> type, String operand) implements ResourceMatcher<T> {
+
         @Override
         public TypeNameMap.Predicate predicate() {
             return TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL;
         }
+
     }
-    record PrincipalNameAny(Class<? extends Principal> type) implements PrincipalMatcher {
+
+    record ResourceMatcherAnyOfType<T>(Class<T> type) implements ResourceMatcher<T> {
 
         @Override
         public TypeNameMap.Predicate predicate() {
@@ -261,50 +266,12 @@ public class AclAuthorizer implements Authorizer {
 
         @Nullable
         @Override
-        public String name() {
+        public String operand() {
             return null;
         }
     }
-    record PrincipalNameStartsWith(Class<? extends Principal> type, String prefix) implements PrincipalMatcher {
-        @Override
-        public TypeNameMap.Predicate predicate() {
-            return TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH;
-        }
 
-        @Nullable
-        @Override
-        public String name() {
-            return prefix;
-        }
-    }
-
-    sealed interface ResourceMatcher<O extends Enum<O> & ResourceType<O>>
-            extends Lookupable<O>
-    permits ResourceMatcherAnyOfType, ResourceMatcherNameEquals, ResourceMatcherNameStarts,
-            ResourceMatcherNameMatches {
-    }
-    record ResourceMatcherAnyOfType<O extends Enum<O> & ResourceType<O>>(Class<O> type) implements ResourceMatcher<O> {
-
-        @Override
-        public TypeNameMap.Predicate predicate() {
-            return TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY;
-        }
-
-        @Nullable
-        @Override
-        public String name() {
-            return "";
-        }
-    }
-    record ResourceMatcherNameEquals<O extends Enum<O> & ResourceType<O>>(Class<O> type, String name) implements ResourceMatcher<O> {
-
-        @Override
-        public TypeNameMap.Predicate predicate() {
-            return TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL;
-        }
-
-    }
-    record ResourceMatcherNameStarts<O extends Enum<O> & ResourceType<O>>(Class<O> type, String prefix) implements ResourceMatcher<O> {
+    record ResourceMatcherNameStarts<T>(Class<T> type, String prefix) implements ResourceMatcher<T> {
 
         @Override
         public TypeNameMap.Predicate predicate() {
@@ -313,11 +280,12 @@ public class AclAuthorizer implements Authorizer {
 
         @Nullable
         @Override
-        public String name() {
+        public String operand() {
             return prefix;
         }
     }
-    record ResourceMatcherNameMatches<O extends Enum<O> & ResourceType<O>>(Class<O> type, String regex) implements ResourceMatcher<O> {
+
+    record ResourceMatcherNameMatches<T>(Class<T> type, String regex) implements ResourceMatcher<T> {
 
         @Override
         public @Nullable TypeNameMap.Predicate predicate() {
@@ -326,13 +294,13 @@ public class AclAuthorizer implements Authorizer {
 
         @Nullable
         @Override
-        public String name() {
+        public String operand() {
             return regex;
         }
     }
 
     private <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(boolean allow,
-                                                                           PrincipalMatcher principalMatcher,
+                                                                           ResourceMatcher<Principal> principalMatcher,
                                                                            ResourceMatcher<O> resourceMatcher,
                                                                            Set<O> operations) {
         usedResourceTypes.add(resourceMatcher.type());
@@ -346,16 +314,14 @@ public class AclAuthorizer implements Authorizer {
     @VisibleForTesting
     <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(
                                                                    TypeNameMap<Principal, ResourceGrants> allowPerPrincipal,
-                                                                   PrincipalMatcher principalMatcher,
+                                                                   ResourceMatcher<Principal> principalMatcher,
                                                                    ResourceMatcher<O> resourceMatcher,
                                                                    Set<O> operations) {
         var es = EnumSet.copyOf(operations);
         for (var op : es) {
             es.addAll(op.implies());
         }
-        ResourceGrants compute = allowPerPrincipal.compute(principalMatcher.type(),
-                principalMatcher.name(),
-                principalMatcher.predicate(),
+        ResourceGrants compute = allowPerPrincipal.compute(principalMatcher,
                 g -> {
                     if (g == null) {
                         return new ResourceGrants(resourceMatcher instanceof ResourceMatcherNameMatches ? null : new TypeNameMap<>(),
@@ -372,13 +338,11 @@ public class AclAuthorizer implements Authorizer {
 
         if (resourceMatcher instanceof ResourceMatcherNameMatches resourceNameMatch) {
             Objects.requireNonNull(compute.patternMatches()).compute(resourceNameMatch.type(),
-                    Pattern.compile(Objects.requireNonNull(resourceMatcher.name())),
+                    Pattern.compile(Objects.requireNonNull(resourceMatcher.operand())),
                     es);
         }
         else {
-            Objects.requireNonNull(compute.nameMatches()).compute(resourceMatcher.type(),
-                    resourceMatcher.name(),
-                    Objects.requireNonNull(resourceMatcher.predicate()),
+            Objects.requireNonNull(compute.nameMatches()).compute((Lookupable) resourceMatcher,
                     v -> {
                         if (v == null) {
                             return es;
@@ -399,21 +363,21 @@ public class AclAuthorizer implements Authorizer {
         for (var p : subject.principals()) {
 
             Decision foundDecision;
-            var grant = allowPerPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, p.name());
+            var grant = allowPerPrincipal.lookup(new ResourceMatcherNameEquals<>(p.getClass(), p.name()));
             if (grant != null) {
                 foundDecision = getDecision(action, grant, whenFound);
                 if (foundDecision != null) {
                     return foundDecision;
                 }
             }
-            grant = allowPerPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY, null);
+            grant = allowPerPrincipal.lookup(new ResourceMatcherAnyOfType<>(p.getClass()));
             if (grant != null) {
                 foundDecision = getDecision(action, grant, whenFound);
                 if (foundDecision != null) {
                     return foundDecision;
                 }
             }
-            grant = allowPerPrincipal.lookup(p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, p.name());
+            grant = allowPerPrincipal.lookup(new ResourceMatcherNameStarts<>(p.getClass(), p.name()));
             if (grant != null) {
                 foundDecision = getDecision(action, grant, whenFound);
                 if (foundDecision != null) {
@@ -432,21 +396,17 @@ public class AclAuthorizer implements Authorizer {
         var typeNameMap = grants.nameMatches();
         ResourceType<?> resourceType = action.operation();
         if (typeNameMap != null) {
-            operations = typeNameMap.lookup(action.resourceTypeClass(),
-                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL,
-                    action.resourceName());
+            operations = typeNameMap.lookup(new ResourceMatcherNameEquals<>(action.resourceTypeClass(),
+                    action.resourceName()));
             if (isFound(operations, resourceType)) {
                 return whenFound;
             }
-            operations = typeNameMap.lookup(action.resourceTypeClass(),
-                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY,
-                    null);
+            operations = typeNameMap.lookup(new ResourceMatcherAnyOfType<>(action.resourceTypeClass()));
             if (isFound(operations, resourceType)) {
                 return whenFound;
             }
-            operations = typeNameMap.lookup(action.resourceTypeClass(),
-                    TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH,
-                    action.resourceName());
+            operations = typeNameMap.lookup(new ResourceMatcherNameStarts<>(action.resourceTypeClass(),
+                    action.resourceName()));
             if (isFound(operations, resourceType)) {
                 return whenFound;
             }

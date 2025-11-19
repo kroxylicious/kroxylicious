@@ -15,56 +15,56 @@ class TypeNameMapTest {
     @Test
     void testPutWithEq_SearchWithStarts() {
         var map = new TypeNameMap<String, Integer>();
-        map.compute(String.class, "foo", TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, val -> {
+        map.compute(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "foo"), val -> {
             return 2;
         });
-        assertThat(map.lookup(String.class, TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, "foo"))
+        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "foo")))
                 .isNull();
-        assertThat(map.lookup(String.class, TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, "fooo"))
+        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "fooo")))
                 .isNull();
-        assertThat(map.lookup(String.class, TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, "fo"))
+        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "fo")))
                 .isNull();
     }
 
     @Test
     void testPutWithEq_SearchWithEq() {
         var map = new TypeNameMap<String, Integer>();
-        map.compute(String.class, "foo", TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, val -> {
+        map.compute(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "foo"), val -> {
             return 2;
         });
-        assertThat(map.lookup(String.class, TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, "foo"))
+        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "foo")))
                 .isEqualTo(2);
-        assertThat(map.lookup(String.class, TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, "fooo"))
+        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "fooo")))
                 .isNull();
-        assertThat(map.lookup(String.class, TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, "fo"))
+        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "fo")))
                 .isNull();
     }
 
     @Test
     void testPutWithStarts_SearchWithStarts() {
         var map = new TypeNameMap<String, Integer>();
-        map.compute(String.class, "foo", TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, val -> {
+        map.compute(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "foo"), val -> {
             return 2;
         });
-        assertThat(map.lookup(String.class, TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, "foo"))
+        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "foo")))
                 .isEqualTo(2);
-        assertThat(map.lookup(String.class, TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, "fooo"))
+        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "fooo")))
                 .isEqualTo(2);
-        assertThat(map.lookup(String.class, TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, "fo"))
+        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "fo")))
                 .isNull();
     }
 
     @Test
     void testPutWithStarts_SearchWithEq() {
         var map = new TypeNameMap<String, Integer>();
-        map.compute(String.class, "foo", TypeNameMap.Predicate.TYPE_EQUAL_NAME_STARTS_WITH, val -> {
+        map.compute(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "foo"), val -> {
             return 2;
         });
-        assertThat(map.lookup(String.class, TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, "foo"))
+        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "foo")))
                 .isNull();
-        assertThat(map.lookup(String.class, TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, "fooo"))
+        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "fooo")))
                 .isNull();
-        assertThat(map.lookup(String.class, TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, "fo"))
+        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "fo")))
                 .isNull();
     }
 

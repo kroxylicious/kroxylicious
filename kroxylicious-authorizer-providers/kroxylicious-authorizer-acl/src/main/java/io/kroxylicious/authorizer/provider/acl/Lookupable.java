@@ -15,5 +15,5 @@ interface Lookupable<T> {
     TypeNameMap.Predicate predicate();
 
     @Nullable
-    String name();
+    String operand();
 }

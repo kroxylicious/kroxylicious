@@ -8,7 +8,6 @@ package io.kroxylicious.authorizer.provider.acl;
 
 import java.util.Objects;
 import java.util.TreeMap;
-import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
@@ -69,23 +68,24 @@ class TypeNameMap<T, V> {
                 '}';
     }
 
-    public V compute(Class<? extends T> type, @Nullable String name, Predicate predicate, UnaryOperator<V> value) {
-        return map.compute(new ClassNameKey<>(type, predicate, predicate == TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY ? null : name),
+    public V compute(Lookupable<T> key, UnaryOperator<V> value) {
+        return map.compute(new ClassNameKey<>(key.type(), key.predicate(), key.operand()),
                 (k, v) -> value.apply(v));
     }
 
-    public @Nullable V lookup(Class<? extends T> type, Predicate predicate, @Nullable String name) {
-        return switch (predicate) {
+    public @Nullable V lookup(Lookupable<? extends T> lookupable) {
+
+        return switch (lookupable.predicate()) {
             case TYPE_EQUAL_NAME_EQUAL, TYPE_EQUAL_NAME_ANY -> {
-                V v = map.get(new ClassNameKey<>(type, predicate, name));
+                V v = map.get(new ClassNameKey<>(lookupable.type(), lookupable.predicate(), lookupable.operand()));
                 yield v;
             }
             case TYPE_EQUAL_NAME_STARTS_WITH -> {
-                var entry = map.floorEntry(new ClassNameKey<>(type, Predicate.TYPE_EQUAL_NAME_STARTS_WITH, name));
+                var entry = map.floorEntry(new ClassNameKey<>(lookupable.type(), Predicate.TYPE_EQUAL_NAME_STARTS_WITH, lookupable.operand()));
                 if (entry != null
-                        && entry.getKey().predicate() == predicate
+                        && entry.getKey().predicate() == lookupable.predicate()
                         && entry.getKey().name != null
-                        && name.startsWith(entry.getKey().name)) { // check the entry we found is a prefix for this thing
+                        && lookupable.operand().startsWith(entry.getKey().name)) { // check the entry we found is a prefix for this thing
                     yield entry.getValue();
                 }
                 yield null;
