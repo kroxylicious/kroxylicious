@@ -700,4 +700,78 @@ class AclAuthorizerServiceTest {
         assertThat(decision(authz, new User("Bob"), FakeTopicResource.READ, "foo\\*bary"))
                 .isEqualTo(Decision.ALLOW);
     }
+
+    @Test
+    void testOverlappingMatches() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import User as User from io.kroxylicious.proxy.authentication;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+
+                allow User with name = "Eve" to READ Topic with name matching /foo/;
+                allow User with name = "Eve" to WRITE Topic with name matching /foo/;
+                allow User with name = "Eve" to READ Topic with name matching /fo.*/;
+                otherwise deny;"""));
+        assertThat(decision(authz, new User("Eve"), FakeTopicResource.WRITE, "foo"))
+                .isEqualTo(Decision.ALLOW);
+
+    }
+
+    @Test
+    void testMatchImplications() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import User as User from io.kroxylicious.proxy.authentication;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                allow User with name * to READ Topic with name matching /foo/;
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.DESCRIBE, "foo"))
+                .isEqualTo(Decision.ALLOW);
+    }
+
+    @Test
+    void testResourceNameLikeWildcard() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import User as User from io.kroxylicious.proxy.authentication;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                allow User with name = "Alice" to READ Topic with name like "*";
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.DESCRIBE, "foo"))
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.DESCRIBE, "bar"))
+                .isEqualTo(Decision.ALLOW);
+    }
+
+    @Test
+    void testResourceNameLikeExact() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import User as User from io.kroxylicious.proxy.authentication;
+                import FakeTopicResource as Topic from io.kroxylicious.authorizer.provider.acl.allow;
+                allow User with name = "Alice" to READ Topic with name like "foo";
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "foo"))
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "fooo"))
+                .isEqualTo(Decision.DENY);
+    }
+
+    @Test
+    void testImportsWithNoAliases() {
+        var authz = AclAuthorizerService.parse(CharStreams.fromString("""
+                version 1;
+                import User from io.kroxylicious.proxy.authentication;
+                import FakeTopicResource from io.kroxylicious.authorizer.provider.acl.allow;
+                allow User with name = "Alice" to READ FakeTopicResource with name like "*";
+                otherwise deny;"""));
+
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "foo"))
+                .isEqualTo(Decision.ALLOW);
+        assertThat(decision(authz, new User("Alice"), FakeTopicResource.READ, "bar"))
+                .isEqualTo(Decision.ALLOW);
+    }
 }
