@@ -14,5 +14,5 @@ import io.kroxylicious.proxy.plugin.PluginImplName;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-public record SubjectBuilderConfig(@PluginImplName(TransportSubjectBuilderService.class) @JsonProperty(required = true) String type,
-                                   @Nullable @PluginImplConfig(implNameProperty = "type") Object config) {}
+public record TransportSubjectBuilderConfig(@PluginImplName(TransportSubjectBuilderService.class) @JsonProperty(required = true) String type,
+                                            @Nullable @PluginImplConfig(implNameProperty = "type") Object config) {}
