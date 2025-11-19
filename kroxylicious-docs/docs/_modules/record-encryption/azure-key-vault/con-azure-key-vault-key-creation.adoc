@@ -8,7 +8,7 @@
 = Creating Azure Key Vault keys
 
 [role="_abstract"]
-As a user with the *Key Vault Crypto Officer* role (or otherwise sufficient {microsoft-learn}/azure/key-vault/general/rbac-guide?tabs=azure-cli#azure-built-in-roles-for-key-vault-data-plane-operations[RBAC] or {microsoft-learn}/azure/key-vault/general/rbac-access-policy[legacy] permissions to manage keys in Azure Key Vault), use either the {microsoft-learn}/cli/azure/keyvault/key?view=azure-cli-latest#az-keyvault-key-create[Azure CLI] or {microsoft-learn}/powershell/module/az.keyvault/add-azkeyvaultkey[Azure PowerShell] to create a *Symmetric key* with *wrapKey* and *unwrapKey* operations enabled.
+As a user with the *Key Vault Crypto Officer* role (or otherwise sufficient {microsoft-learn}/azure/key-vault/general/rbac-guide?tabs=azure-cli#azure-built-in-roles-for-key-vault-data-plane-operations[RBAC] or {microsoft-learn}/azure/key-vault/general/rbac-access-policy[legacy] permissions to manage keys in Azure Key Vault), use either the {microsoft-learn}/cli/azure/keyvault/key?view=azure-cli-latest#az-keyvault-key-create[Azure CLI] or {microsoft-learn}/powershell/module/az.keyvault/add-azkeyvaultkey[Azure PowerShell] to create a *key* with *wrapKey* and *unwrapKey* operations enabled.
 
 == Establish the naming convention for keys within key vault hierarchy
 
@@ -39,7 +39,7 @@ az keyvault key create --vault-name ${VAULT_NAME} --name ${KEY_NAME} --kty ${KEY
 
 Once the key is created, it is recommended to use a key rotation policy.
 
-NOTE: Key autorotation (such as automatic rotation of keys according to a policy) has an additional cost per scheduled key rotation in Azure Key Vault. Details can be found on the /pricing/details/key-vault/[Azure Key Vault pricing page].
+NOTE: Key autorotation (such as automatic rotation of keys according to a policy) has an additional cost per scheduled key rotation in Azure Key Vault. Details can be found on the {azure}/pricing/details/key-vault/[Azure Key Vault pricing page].
 
 To configure a key rotation policy with the Azure CLI, you will first need to save your policy to a JSON file. An example JSON file can be found in the {microsoft-learn}/cli/azure/keyvault/key/rotation-policy?view=azure-cli-latest#az-keyvault-key-rotation-policy-update[Azure CLI docs].
 

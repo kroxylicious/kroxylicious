@@ -9,6 +9,7 @@
 * Strimzi is a trademark of The Linux Foundation.
 * Hashicorp Vault is a registered trademark of HashiCorp, Inc.
 * AWS Key Management Service is a trademark of Amazon.com, Inc. or its affiliates.
+* Microsoft, Azure, and Microsoft Entra are trademarks of the Microsoft group of companies.
 ifdef::include-fortanix-dsm-kms[]
 * Fortanix and Data Security Manager are trademarks of Fortanix, Inc.
 endif::[]
