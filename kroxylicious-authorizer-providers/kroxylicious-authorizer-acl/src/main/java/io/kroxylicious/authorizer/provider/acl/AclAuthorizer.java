@@ -413,7 +413,7 @@ public class AclAuthorizer implements Authorizer {
         }
         var patternMatch = grants.patternMatch();
         if (patternMatch != null) {
-            operations = patternMatch.lookup(action.resourceTypeClass(), action.resourceName());
+            operations = patternMatch.lookup((Class) action.resourceTypeClass(), action.resourceName());
             if (isFound(operations, resourceType)) {
                 return whenFound;
             }

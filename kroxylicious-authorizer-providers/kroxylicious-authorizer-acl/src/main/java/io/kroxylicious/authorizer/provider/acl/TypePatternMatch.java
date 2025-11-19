@@ -45,16 +45,20 @@ class TypePatternMatch {
         });
     }
 
-    public <O extends ResourceType<?>> @Nullable Set<? extends ResourceType<?>> lookup(Class<? extends O> c, String name) {
+    public <O extends Enum<O> & ResourceType<O>> @Nullable Set<O> lookup(Class<O> c, String name) {
+        EnumSet<O> result = null;
         var submap = map.tailMap(new Key(c, Pattern.compile("")));
         for (var entry : submap.entrySet()) {
             if (!entry.getKey().c().equals(c)) {
                 break;
             }
             if (entry.getKey().p().matcher(name).matches()) {
-                return (Set) entry.getValue();
+                if (result == null) {
+                    result = EnumSet.noneOf(c);
+                }
+                result.addAll((Set) entry.getValue());
             }
         }
-        return null;
+        return result;
     }
 }
