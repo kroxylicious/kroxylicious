@@ -587,6 +587,7 @@
                         </licenseSets>
                         <mapping>
                             <bicep>DOUBLESLASH_STYLE</bicep>
+                            <g4>JAVADOC_STYLE</g4>
                         </mapping>
                     </configuration>
                 </plugin>
