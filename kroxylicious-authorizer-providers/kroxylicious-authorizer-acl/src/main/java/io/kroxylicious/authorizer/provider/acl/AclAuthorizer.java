@@ -335,7 +335,7 @@ public class AclAuthorizer implements Authorizer {
                 });
 
         if (resourceNamePredicate == Pred.MATCH) {
-            Objects.requireNonNull(compute.patternMatch()).compute(opType, Pattern.compile(Objects.requireNonNull(resourceName)), operations);
+            Objects.requireNonNull(compute.patternMatch()).compute(opType, Pattern.compile(Objects.requireNonNull(resourceName)), es);
         }
         else {
             Objects.requireNonNull(compute.nameMatches()).compute(opType, resourceName, Objects.requireNonNull(resourceNamePredicate.toNameMatchPredicate()),
