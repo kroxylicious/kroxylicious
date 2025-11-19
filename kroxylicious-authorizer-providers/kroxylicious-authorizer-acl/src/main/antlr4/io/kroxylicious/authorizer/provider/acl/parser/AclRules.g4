@@ -20,7 +20,7 @@ versionStmt: VERSION INT SEMI
 // so that those keywords can be used in identifiers in the grammar
 ident : VERSION
     | FROM | IMPORT | AS
-    | ALLOW | DENY  | ANONYMOUS | TO
+    | ALLOW | DENY  | TO
     | WITH | NAME | IN | LIKE | MATCHING
     | OTHERWISE
     | IDENT;
@@ -41,13 +41,10 @@ denyRule: DENY allowOrDenyRule SEMI
 allowRule: ALLOW allowOrDenyRule SEMI
     ;
 
-allowOrDenyRule: subjectMatcher TO operationPattern
+allowOrDenyRule: userPattern TO operationPattern
     ;
 
-subjectMatcher: ANONYMOUS
-    | principalMatcher
-    ;
-principalMatcher: principalType WITH NAME userNamePred
+userPattern: principalType WITH NAME userNamePred
     ;
 principalType: ident
     ;
@@ -104,7 +101,6 @@ RBRA: '}';
 VERSION: 'version';
 DENY: 'deny';
 ALLOW: 'allow';
-ANONYMOUS: 'anonymous';
 OTHERWISE: 'otherwise';
 IN: 'in';
 TO: 'to';
