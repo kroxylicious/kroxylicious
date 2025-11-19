@@ -10,9 +10,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 import edu.umd.cs.findbugs.annotations.Nullable;
 
-record Map(@Nullable String replaceMatch,
-           @JsonProperty("else") @Nullable String else_) {
-    Map {
+public record Map(@Nullable String replaceMatch,
+                  @JsonProperty("else") @Nullable String else_) {
+    public Map {
         if (replaceMatch != null) {
             if (else_ != null) {
                 throw new IllegalArgumentException("`replaceMatch` and `else` are mutually exclusive.");

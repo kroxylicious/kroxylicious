@@ -23,10 +23,5 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 public record PrincipalAdderConf(@JsonProperty(required = true) String from,
                                  @Nullable List<Map> map,
                                  @JsonProperty(required = true) String principalFactory) {
-    public PrincipalAdderConf {
-        // call methods for validation side-effect
-        DefaultSaslSubjectBuilderService.buildExtractor(from);
-        DefaultSaslSubjectBuilderService.buildMappingRules(map);
-        DefaultSaslSubjectBuilderService.buildPrincipalFactory(principalFactory);
-    }
+
 }

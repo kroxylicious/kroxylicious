@@ -51,6 +51,14 @@ public class DefaultSaslSubjectBuilderService implements SaslSubjectBuilderServi
      * - else: anonymous
      */
     public record Config(List<PrincipalAdderConf> addPrincipals) {
+        public Config {
+            for (PrincipalAdderConf adder : addPrincipals) {
+                // call methods for validation side-effect
+                buildExtractor(adder.from());
+                buildMappingRules(adder.map());
+                buildPrincipalFactory(adder.principalFactory());
+            }
+        }
 
     }
 

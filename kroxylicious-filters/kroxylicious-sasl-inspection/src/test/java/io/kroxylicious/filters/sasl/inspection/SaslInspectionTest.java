@@ -6,6 +6,7 @@
 
 package io.kroxylicious.filters.sasl.inspection;
 
+import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -13,7 +14,13 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import io.kroxylicious.proxy.authentication.SaslSubjectBuilderService;
+import io.kroxylicious.proxy.authentication.UserFactory;
+import io.kroxylicious.proxy.filter.Filter;
 import io.kroxylicious.proxy.filter.FilterFactoryContext;
+import io.kroxylicious.proxy.internal.subject.DefaultSaslSubjectBuilderService;
+import io.kroxylicious.proxy.internal.subject.Map;
+import io.kroxylicious.proxy.internal.subject.PrincipalAdderConf;
 import io.kroxylicious.proxy.plugin.PluginConfigurationException;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -136,5 +143,29 @@ class SaslInspectionTest {
         public SaslObserver createObserver() {
             throw new UnsupportedOperationException();
         }
+    }
+
+    @Test
+    void shouldBeAbleToCreateInspectorWithACustomSubjectBuilder() {
+        // Given
+        var factory = new SaslInspection();
+        when(filterFactoryContext.pluginImplementationNames(SaslObserverFactory.class)).thenReturn(Set.of("Secure"));
+        when(filterFactoryContext.pluginInstance(SaslObserverFactory.class, "Secure")).thenReturn(secure);
+
+        when(secure.mechanismName()).thenReturn("SECURE_MECH");
+        when(filterFactoryContext.pluginInstance(SaslSubjectBuilderService.class, DefaultSaslSubjectBuilderService.class.getName()))
+                .thenReturn(new DefaultSaslSubjectBuilderService());
+
+        // When
+        factory.initialize(filterFactoryContext,
+                new Config(Set.of("SECURE_MECH"),
+                        DefaultSaslSubjectBuilderService.class.getName(),
+                        new DefaultSaslSubjectBuilderService.Config(List.of(new PrincipalAdderConf("saslAuthorizedId",
+                                List.of(new Map("/(.*)/$1/U", null)),
+                                UserFactory.class.getName())))));
+        Filter filter = factory.createFilter(filterFactoryContext, null);
+
+        // Then
+        assertThat(filter).isNotNull();
     }
 }

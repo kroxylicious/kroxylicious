@@ -69,7 +69,7 @@ public class SaslInspection implements FilterFactory<Config, Void> {
     }
 
     @Override
-    public Filter createFilter(FilterFactoryContext context, Void unused) {
+    public Filter createFilter(FilterFactoryContext context, @Nullable Void unused) {
         Objects.requireNonNull(observerFactoryMap);
         Objects.requireNonNull(subjectBuilder);
         return new SaslInspectionFilter(observerFactoryMap, subjectBuilder);
