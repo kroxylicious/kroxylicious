@@ -290,8 +290,6 @@ class AclAuthorizerTest {
 
     @Test
     void t() {
-
-        AclAuthorizer simple = new AclAuthorizer();
         User alice = new User("alice");
         User bob = new User("bob");
         User carol = new User("carol");
@@ -308,34 +306,53 @@ class AclAuthorizerTest {
 
         // Everyone who is allowed to authorize is allowed to connect
 
-        simple.internalAllowOrDeny(simple.allowPerPrincipal, (Class<? extends Principal>) User.class, TypeNameMap.Predicate.TYPE_EQUAL_NAME_ANY, null,
-                FakeClusterResource.class, AclAuthorizer.Pred.EQ, "", EnumSet.of(FakeClusterResource.CONNECT));
+        var builder = AclAuthorizer.builder().allow()
+                .subjectsHavingPrincipal(User.class)
+                .withAnyName()
+                .operations(Set.of(FakeClusterResource.CONNECT))
+                .onResourceWithNameEqualTo("");
 
         String bobOnly = "my-topic";
         for (var p3 : Set.of(bob)) {
             String principalName = p3.name();
-            simple.internalAllowOrDeny(simple.allowPerPrincipal, p3.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, principalName,
-                    FakeTopicResource.class, AclAuthorizer.Pred.EQ, bobOnly, Set.of(FakeTopicResource.READ, FakeTopicResource.WRITE));
+            builder.allow()
+                    .subjectsHavingPrincipal(p3.getClass())
+                    .withNameEqualTo(principalName)
+                    .operations(Set.of(FakeTopicResource.READ, FakeTopicResource.WRITE))
+                    .onResourceWithNameEqualTo(bobOnly);
         }
+
+
         String aliceAndBobWriteOnlyCarolReadOnly = "your";
         for (var p2 : Set.of(bob, alice)) {
             String principalName = p2.name();
-            simple.internalAllowOrDeny(simple.allowPerPrincipal, p2.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, principalName,
-                    FakeTopicResource.class, AclAuthorizer.Pred.EQ, aliceAndBobWriteOnlyCarolReadOnly, Set.of(FakeTopicResource.WRITE));
+            builder.allow()
+                    .subjectsHavingPrincipal(p2.getClass())
+                    .withNameEqualTo(principalName)
+                    .operations(Set.of(FakeTopicResource.WRITE))
+                    .onResourceWithNameEqualTo(aliceAndBobWriteOnlyCarolReadOnly);
         }
+
         for (var p1 : Set.of(carol)) {
             String principalName = p1.name();
-            simple.internalAllowOrDeny(simple.allowPerPrincipal, p1.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, principalName,
-                    FakeTopicResource.class, AclAuthorizer.Pred.EQ, aliceAndBobWriteOnlyCarolReadOnly, Set.of(FakeTopicResource.READ));
+            builder.allow()
+                    .subjectsHavingPrincipal(p1.getClass())
+                    .withNameEqualTo(principalName)
+                    .operations(Set.of(FakeTopicResource.READ))
+                    .onResourceWithNameEqualTo(aliceAndBobWriteOnlyCarolReadOnly);
         }
+
         String adminsOnly = "admins-only";
         for (var p : Set.<Principal> of(admins)) {
             String principalName = p.name();
-            simple.internalAllowOrDeny(simple.allowPerPrincipal, p.getClass(), TypeNameMap.Predicate.TYPE_EQUAL_NAME_EQUAL, principalName,
-                    FakeTopicResource.class, AclAuthorizer.Pred.EQ, adminsOnly, EnumSet.allOf(FakeTopicResource.class));
+            builder.allow()
+                    .subjectsHavingPrincipal(p.getClass())
+                    .withNameEqualTo(principalName)
+                    .allOperations(FakeTopicResource.class)
+                    .onResourceWithNameEqualTo(adminsOnly);
         }
 
-        Authorizer a = simple;
+        Authorizer a = builder.build();
 
         assertThat(getDecision(a, anon, FakeClusterResource.CONNECT, "")).isEqualTo(Decision.DENY);
         for (var s : List.of(alices, bobs, carols, dans, eves)) {
