@@ -6,12 +6,7 @@
 
 package io.kroxylicious.authorizer.provider.acl;
 
-import edu.umd.cs.findbugs.annotations.Nullable;
-
-interface Lookupable<T> {
+interface Key<T> {
     Class<? extends T> type();
-
-    @Nullable
-    String operand();
 
 }

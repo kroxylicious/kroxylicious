@@ -15,56 +15,56 @@ class TypeNameMapTest {
     @Test
     void testPutWithEq_SearchWithStarts() {
         var map = new TypeNameMap<String, Integer>();
-        map.compute(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "foo"), val -> {
+        map.compute(new ResourceMatcherNameEquals<>(String.class, "foo"), val -> {
             return 2;
         });
-        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "foo")))
+        assertThat(map.lookup(new ResourceMatcherNameStarts<>(String.class, "foo")))
                 .isNull();
-        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "fooo")))
+        assertThat(map.lookup(new ResourceMatcherNameStarts<>(String.class, "fooo")))
                 .isNull();
-        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "fo")))
+        assertThat(map.lookup(new ResourceMatcherNameStarts<>(String.class, "fo")))
                 .isNull();
     }
 
     @Test
     void testPutWithEq_SearchWithEq() {
         var map = new TypeNameMap<String, Integer>();
-        map.compute(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "foo"), val -> {
+        map.compute(new ResourceMatcherNameEquals<>(String.class, "foo"), val -> {
             return 2;
         });
-        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "foo")))
+        assertThat(map.lookup(new ResourceMatcherNameEquals<>(String.class, "foo")))
                 .isEqualTo(2);
-        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "fooo")))
+        assertThat(map.lookup(new ResourceMatcherNameEquals<>(String.class, "fooo")))
                 .isNull();
-        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "fo")))
+        assertThat(map.lookup(new ResourceMatcherNameEquals<>(String.class, "fo")))
                 .isNull();
     }
 
     @Test
     void testPutWithStarts_SearchWithStarts() {
         var map = new TypeNameMap<String, Integer>();
-        map.compute(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "foo"), val -> {
+        map.compute(new ResourceMatcherNameStarts<>(String.class, "foo"), val -> {
             return 2;
         });
-        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "foo")))
+        assertThat(map.lookup(new ResourceMatcherNameStarts<>(String.class, "foo")))
                 .isEqualTo(2);
-        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "fooo")))
+        assertThat(map.lookup(new ResourceMatcherNameStarts<>(String.class, "fooo")))
                 .isEqualTo(2);
-        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "fo")))
+        assertThat(map.lookup(new ResourceMatcherNameStarts<>(String.class, "fo")))
                 .isNull();
     }
 
     @Test
     void testPutWithStarts_SearchWithEq() {
         var map = new TypeNameMap<String, Integer>();
-        map.compute(new AclAuthorizer.ResourceMatcherNameStarts<>(String.class, "foo"), val -> {
+        map.compute(new ResourceMatcherNameStarts<>(String.class, "foo"), val -> {
             return 2;
         });
-        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "foo")))
+        assertThat(map.lookup(new ResourceMatcherNameEquals<>(String.class, "foo")))
                 .isNull();
-        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "fooo")))
+        assertThat(map.lookup(new ResourceMatcherNameEquals<>(String.class, "fooo")))
                 .isNull();
-        assertThat(map.lookup(new AclAuthorizer.ResourceMatcherNameEquals<>(String.class, "fo")))
+        assertThat(map.lookup(new ResourceMatcherNameEquals<>(String.class, "fo")))
                 .isNull();
     }
 

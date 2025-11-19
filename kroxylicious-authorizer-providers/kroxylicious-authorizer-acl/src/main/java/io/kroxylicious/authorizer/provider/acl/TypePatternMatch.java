@@ -18,25 +18,11 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 class TypePatternMatch {
 
-    record Key(
-               Class<?> c,
-               Pattern p)
-            implements Comparable<TypePatternMatch.Key> {
+    public static final Pattern LOWER_BOUND = Pattern.compile("");
+    TreeMap<ResourceMatcherNameMatches<?>, EnumSet<?>> map = new TreeMap<>();
 
-        @Override
-        public int compareTo(Key o) {
-            var cmp = c.getName().compareTo(o.c.getName());
-            if (cmp == 0) {
-                cmp = p.pattern().compareTo(o.p.pattern());
-            }
-            return cmp;
-        }
-    }
-
-    TreeMap<Key, EnumSet<?>> map = new TreeMap<>();
-
-    public <O extends Enum<O> & ResourceType<O>> void compute(Class<O> c, Pattern p, Set<O> operation) {
-        map.compute(new Key(c, p), (key, value) -> {
+    public <O extends Enum<O> & ResourceType<O>> void compute(ResourceMatcherNameMatches<?> key, Set<O> operation) {
+        map.compute(key, (key1, value) -> {
             if (value == null) {
                 return EnumSet.copyOf(operation);
             }
@@ -45,14 +31,14 @@ class TypePatternMatch {
         });
     }
 
-    public <O extends Enum<O> & ResourceType<O>> @Nullable Set<O> lookup(Class<O> c, String name) {
-        EnumSet<O> result = null;
-        var submap = map.tailMap(new Key(c, Pattern.compile("")));
+    public @Nullable <T extends Enum<T> & ResourceType<T>> Set<T> lookup(Class<T> c, String name) {
+        EnumSet<T> result = null;
+        var submap = map.tailMap(new ResourceMatcherNameMatches<>(c, LOWER_BOUND));
         for (var entry : submap.entrySet()) {
-            if (!entry.getKey().c().equals(c)) {
+            if (!entry.getKey().type().equals(c)) {
                 break;
             }
-            if (entry.getKey().p().matcher(name).matches()) {
+            if (entry.getKey().pattern().matcher(name).matches()) {
                 if (result == null) {
                     result = EnumSet.noneOf(c);
                 }

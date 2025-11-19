@@ -6,24 +6,26 @@
 
 package io.kroxylicious.authorizer.provider.acl;
 
-interface Lookupable2<T> extends Lookupable<T>, Comparable<Lookupable2<T>> {
+interface OrderedKey<T> extends Key<T>, Comparable<OrderedKey<T>> {
+
+    String operand();
 
     @Override
-    default int compareTo(Lookupable2<T> o) {
+    default int compareTo(OrderedKey<T> o) {
         var cmp = this.type().getName().compareTo(o.type().getName());
         if (cmp == 0) {
             // any < equal < startswith
             if (!this.getClass().equals(o.getClass())) {
-                if (this instanceof AclAuthorizer.ResourceMatcherAnyOfType<T>) {
+                if (this instanceof ResourceMatcherAnyOfType<T>) {
                     return -1;
                 }
-                else if (this instanceof AclAuthorizer.ResourceMatcherNameStarts<T>) {
+                else if (this instanceof ResourceMatcherNameStarts<T>) {
                     return 1;
                 }
-                else if (o instanceof AclAuthorizer.ResourceMatcherAnyOfType<T>) {
+                else if (o instanceof ResourceMatcherAnyOfType<T>) {
                     return 1;
                 }
-                else if (o instanceof AclAuthorizer.ResourceMatcherNameStarts<T>) {
+                else if (o instanceof ResourceMatcherNameStarts<T>) {
                     return -1;
                 }
             }

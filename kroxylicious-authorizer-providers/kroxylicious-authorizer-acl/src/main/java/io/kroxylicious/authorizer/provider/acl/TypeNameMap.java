@@ -13,7 +13,7 @@ import edu.umd.cs.findbugs.annotations.Nullable;
 
 class TypeNameMap<T, V> {
 
-    private final TreeMap<Lookupable2<T>, V> map = new TreeMap<>();
+    private final TreeMap<OrderedKey<T>, V> map = new TreeMap<>();
 
     @Override
     public String toString() {
@@ -22,21 +22,20 @@ class TypeNameMap<T, V> {
                 '}';
     }
 
-    public V compute(Lookupable2<T> key, UnaryOperator<V> value) {
+    public V compute(OrderedKey<T> key, UnaryOperator<V> value) {
         return map.compute(key,
                 (k, v) -> value.apply(v));
     }
 
-    public @Nullable V lookup(Lookupable2<T> lookupable) {
+    public @Nullable V lookup(OrderedKey<T> lookupable) {
 
-        if (lookupable instanceof AclAuthorizer.ResourceMatcherNameEquals || lookupable instanceof AclAuthorizer.ResourceMatcherAnyOfType<T>) {
-            V v = map.get(lookupable);
-            return v;
+        if (lookupable instanceof ResourceMatcherNameEquals || lookupable instanceof ResourceMatcherAnyOfType<T>) {
+            return map.get(lookupable);
         }
-        else if (lookupable instanceof AclAuthorizer.ResourceMatcherNameStarts<T>) {
+        else if (lookupable instanceof ResourceMatcherNameStarts<T>) {
             var entry = map.floorEntry(lookupable);
             if (entry != null
-                    && entry.getKey() instanceof AclAuthorizer.ResourceMatcherNameStarts
+                    && entry.getKey() instanceof ResourceMatcherNameStarts
                     && entry.getKey().operand() != null
                     && lookupable.operand().startsWith(entry.getKey().operand())) { // check the entry we found is a prefix for this thing
                 return entry.getValue();
@@ -44,23 +43,6 @@ class TypeNameMap<T, V> {
             return null;
         }
         throw new IllegalArgumentException("Unknown lookupable: " + lookupable);
-
-//        return switch (lookupable.predicate()) {
-//            case TYPE_EQUAL_NAME_EQUAL, TYPE_EQUAL_NAME_ANY -> {
-//                V v = map.get(lookupable);
-//                yield v;
-//            }
-//            case TYPE_EQUAL_NAME_STARTS_WITH -> {
-//                var entry = map.floorEntry(lookupable);
-//                if (entry != null
-//                        && entry.getKey().predicate() == lookupable.predicate()
-//                        && entry.getKey().operand() != null
-//                        && lookupable.operand().startsWith(entry.getKey().operand())) { // check the entry we found is a prefix for this thing
-//                    yield entry.getValue();
-//                }
-//                yield null;
-//            }
-//        };
     }
 
 }

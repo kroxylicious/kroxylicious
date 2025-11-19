@@ -21,9 +21,9 @@ class TypePatternMatchTest {
     @Test
     void match() {
         var m = new TypePatternMatch();
-        m.compute(FakeTopicResource.class, Pattern.compile("baz*"), Set.of(FakeTopicResource.CREATE));
-        m.compute(FakeTopicResource.class, Pattern.compile("baz*"), Set.of(FakeTopicResource.ALTER));
-        m.compute(FakeClusterResource.class, Pattern.compile("foo*"), Set.of(FakeClusterResource.CONNECT));
+        m.compute(new ResourceMatcherNameMatches<>(FakeTopicResource.class, Pattern.compile("baz*")), Set.of(FakeTopicResource.CREATE));
+        m.compute(new ResourceMatcherNameMatches<>(FakeTopicResource.class, Pattern.compile("baz*")), Set.of(FakeTopicResource.ALTER));
+        m.compute(new ResourceMatcherNameMatches<>(FakeClusterResource.class, Pattern.compile("foo*")), Set.of(FakeClusterResource.CONNECT));
 
         assertThat(m.lookup(FakeTopicResource.class, "absent")).isNull();
         assertThat(m.lookup(FakeTopicResource.class, "ba")).isEqualTo(Set.of(FakeTopicResource.CREATE, FakeTopicResource.ALTER));

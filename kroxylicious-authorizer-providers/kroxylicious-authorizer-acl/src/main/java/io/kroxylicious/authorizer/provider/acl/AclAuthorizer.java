@@ -90,7 +90,7 @@ public class AclAuthorizer implements Authorizer {
             return new OperationsBuilder(builder,
                     allow,
                     principalNames.stream()
-                            .map(principalName -> (Lookupable2<Principal>) new ResourceMatcherNameEquals<>(principalClass, principalName))
+                            .map(principalName -> (OrderedKey<Principal>) new ResourceMatcherNameEquals<>(principalClass, principalName))
                             .collect(Collectors.toSet()));
         }
 
@@ -122,14 +122,14 @@ public class AclAuthorizer implements Authorizer {
 
     public static class ResourceBuilder<O extends Enum<O> & ResourceType<O>> {
         private final Builder builder;
-        private final Set<? extends Lookupable2<Principal>> principalMatchers;
+        private final Set<? extends OrderedKey<Principal>> principalMatchers;
         private final Class<O> operationsClass;
         private final Set<O> operations;
         private final boolean allow;
 
         public ResourceBuilder(Builder builder,
                                boolean allow,
-                               Set<? extends Lookupable2<Principal>> principalMatchers,
+                               Set<? extends OrderedKey<Principal>> principalMatchers,
                                Class<O> operationsClass,
                                Set<O> operations) {
             this.builder = Objects.requireNonNull(builder);
@@ -175,7 +175,7 @@ public class AclAuthorizer implements Authorizer {
             for (var principalMatcher : principalMatchers) {
                 builder.aclAuthorizer.internalAllowOrDeny(allow,
                         principalMatcher,
-                        new ResourceMatcherNameMatches<>(operationsClass, resourceNameRegex),
+                        new ResourceMatcherNameMatches<>(operationsClass, Pattern.compile(resourceNameRegex)),
                         operations);
             }
             return builder;
@@ -196,11 +196,11 @@ public class AclAuthorizer implements Authorizer {
 
         private final Builder builder;
         private final boolean allow;
-        private final Set<? extends Lookupable2<Principal>> principalMatchers;
+        private final Set<? extends OrderedKey<Principal>> principalMatchers;
 
         private OperationsBuilder(Builder builder,
                                   boolean allow,
-                                  Set<Lookupable2<Principal>> principalMatchers) {
+                                  Set<OrderedKey<Principal>> principalMatchers) {
             this.builder = builder;
             this.allow = allow;
             this.principalMatchers = Objects.requireNonNull(principalMatchers);
@@ -242,59 +242,9 @@ public class AclAuthorizer implements Authorizer {
         }
     }
 
-    record ResourceMatcherNameEquals<T>(Class<? extends T> type, String operand) implements Lookupable2<T> {
-
-        ResourceMatcherNameEquals {
-            Objects.requireNonNull(type);
-            Objects.requireNonNull(operand);
-        }
-
-    }
-
-    record ResourceMatcherAnyOfType<T>(Class<? extends T> type) implements Lookupable2<T> {
-
-        ResourceMatcherAnyOfType {
-            Objects.requireNonNull(type);
-        }
-
-        @Nullable
-        @Override
-        public String operand() {
-            return null;
-        }
-    }
-
-    record ResourceMatcherNameStarts<T>(Class<? extends T> type, String prefix) implements Lookupable2<T> {
-
-        ResourceMatcherNameStarts {
-            Objects.requireNonNull(type);
-            Objects.requireNonNull(prefix);
-        }
-
-        @Nullable
-        @Override
-        public String operand() {
-            return prefix;
-        }
-    }
-
-    record ResourceMatcherNameMatches<T>(Class<T> type, String regex) implements Lookupable<T> {
-
-        ResourceMatcherNameMatches {
-            Objects.requireNonNull(type);
-            Objects.requireNonNull(regex);
-        }
-
-        @Nullable
-        @Override
-        public String operand() {
-            return regex;
-        }
-    }
-
     private <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(boolean allow,
-                                                                           Lookupable2<Principal> principalMatcher,
-                                                                           Lookupable<O> resourceMatcher,
+                                                                           OrderedKey<Principal> principalMatcher,
+                                                                           Key<O> resourceMatcher,
                                                                            Set<O> operations) {
         usedResourceTypes.add(resourceMatcher.type());
         internalAllowOrDeny(allow ? allowPerPrincipal : denyPerPrincipal,
@@ -307,8 +257,8 @@ public class AclAuthorizer implements Authorizer {
     @VisibleForTesting
     <O extends Enum<O> & ResourceType<O>> void internalAllowOrDeny(
                                                                    TypeNameMap<Principal, ResourceGrants> allowPerPrincipal,
-                                                                   Lookupable2<Principal> principalMatcher,
-                                                                   Lookupable<O> resourceMatcher,
+                                                                   OrderedKey<Principal> principalMatcher,
+                                                                   Key<O> resourceMatcher,
                                                                    Set<O> operations) {
         var es = EnumSet.copyOf(operations);
         for (var op : es) {
@@ -330,12 +280,11 @@ public class AclAuthorizer implements Authorizer {
                 });
 
         if (resourceMatcher instanceof ResourceMatcherNameMatches resourceNameMatch) {
-            Objects.requireNonNull(compute.patternMatches()).compute(resourceNameMatch.type(),
-                    Pattern.compile(Objects.requireNonNull(resourceMatcher.operand())),
+            Objects.requireNonNull(compute.patternMatches()).compute(resourceNameMatch,
                     es);
         }
-        else {
-            Objects.requireNonNull(compute.nameMatches()).compute((Lookupable2) resourceMatcher,
+        else if (resourceMatcher instanceof OrderedKey orderedKey) {
+            Objects.requireNonNull(compute.nameMatches()).compute(orderedKey,
                     v -> {
                         if (v == null) {
                             return es;
